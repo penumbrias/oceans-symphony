@@ -70,6 +70,10 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     onSettingsChange();
     queryClient.invalidateQueries({ queryKey: ["alters"] });
     toast.success("Sync complete!");
+    } catch (e) {
+      toast.error(e.message || "Sync failed");
+      setSyncing(false);
+    }
   };
 
   const syncMembers = async (spToken, systemId) => {
