@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Folder } from "lucide-react";
+import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ } from "lucide-react";
 import AlterCard from "./AlterCard";
 import GroupFolderView from "./GroupFolderView";
 
