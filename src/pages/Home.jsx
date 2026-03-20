@@ -2,12 +2,12 @@ import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Users, Sparkles } from "lucide-react";
+import { Users, Sparkles, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
-import FrontersSection from "@/components/alters/FrontersSection";
-import { useFronters } from "@/hooks/useSimplyPlural";
+import FrontingBar from "@/components/fronting/FrontingBar";
+import AlterEditModal from "@/components/alters/AlterEditModal";
 
 export default function Home() {
   const { data: alters = [], isLoading: altersLoading } = useQuery({
