@@ -124,60 +124,72 @@ export default function Analytics() {
         <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
       </div>
 
-      {/* Heatmap */}
-      <div className="mb-5">
-        <ActivityHeatmap sessions={filtered} from={from} to={to} />
+      {/* Top tabs */}
+      <div className="flex gap-1 bg-muted/50 rounded-xl p-1 mb-5">
+        {TOP_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTopTab(t.id)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              topTab === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Mode tabs (SP-style bottom bar) */}
-      <div className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 mb-4">
-        {MODES.map((m) => {
-          const Icon = m.icon;
-          return (
-            <button
-              key={m.id}
-              onClick={() => setMode(m.id)}
-              className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg transition-all text-xs font-medium ${
-                mode === m.id
-                  ? "bg-primary text-primary-foreground shadow"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {m.label}
-            </button>
-          );
-        })}
-      </div>
+      {topTab === "stats" && (
+        <>
+          {/* Heatmap */}
+          <div className="mb-5">
+            <ActivityHeatmap sessions={filtered} from={from} to={to} />
+          </div>
 
-      {/* Section label */}
-      <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-3">
-        {MODES.find((m) => m.id === mode)?.description}
-      </p>
+          {/* Mode tabs */}
+          <div className="bg-card border border-border/50 rounded-xl p-1 flex gap-1 mb-4">
+            {MODES.map((m) => {
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setMode(m.id)}
+                  className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg transition-all text-xs font-medium ${
+                    mode === m.id
+                      ? "bg-primary text-primary-foreground shadow"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
 
-      {/* Stats list */}
-      {rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <BarChart2 className="w-10 h-10 text-muted-foreground/30 mb-3" />
-          <p className="text-muted-foreground text-sm">No fronting data in this date range.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {rows.map(({ alter, stat }) => (
-            <motion.div
-              key={alter.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <AlterStatRow
-                alter={alter}
-                stat={stat}
-                mode={mode}
-                maxStat={maxStat}
-              />
-            </motion.div>
-          ))}
-        </div>
+          <p className="text-xs text-primary font-semibold uppercase tracking-wider mb-3">
+            {MODES.find((m) => m.id === mode)?.description}
+          </p>
+
+          {rows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <BarChart2 className="w-10 h-10 text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground text-sm">No fronting data in this date range.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {rows.map(({ alter, stat }) => (
+                <motion.div key={alter.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                  <AlterStatRow alter={alter} stat={stat} mode={mode} maxStat={maxStat} />
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {topTab === "timeofday" && (
+        <TimeOfDayFronters sessions={filtered} alters={alters} />
       )}
     </div>
   );
