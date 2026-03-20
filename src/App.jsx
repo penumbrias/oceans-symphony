@@ -10,6 +10,7 @@ import Home from '@/pages/Home';
 import AlterProfile from '@/pages/AlterProfile';
 import Settings from '@/pages/Settings';
 import FrontHistory from '@/pages/FrontHistory';
+import Analytics from '@/pages/Analytics';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
