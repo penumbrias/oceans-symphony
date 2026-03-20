@@ -54,7 +54,13 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const handleSync = async () => {
     if (!settings?.sp_token || !settings?.sp_system_id) return;
     setSyncing(true);
-    await syncMembers(settings.sp_token, settings.sp_system_id);
+    try {
+      await syncMembers(settings.sp_token, settings.sp_system_id);
+    } catch (e) {
+      toast.error(e.message || "Sync failed");
+      setSyncing(false);
+      return;
+    }
     
     await base44.entities.SystemSettings.update(settings.id, {
       last_sync: new Date().toISOString(),
