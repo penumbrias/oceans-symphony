@@ -44,6 +44,7 @@ const AuthenticatedApp = () => {
         <Route path="/alter/:id" element={<AlterProfile />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/front-history" element={<FrontHistory />} />
+        <Route path="/analytics" element={<Analytics />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
