@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Hash } from "lucide-react";
+import { ArrowLeft, User, Hash, Tag, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function getContrastColor(hex) {
@@ -153,6 +153,51 @@ export default function AlterProfile() {
                 <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap max-w-2xl">
                   {alter.description}
                 </p>
+              </div>
+            )}
+
+            {/* Tags */}
+            {alter.tags && alter.tags.length > 0 && (
+              <div className="pt-4 border-t border-border/50">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                  <Tag className="w-3.5 h-3.5" />
+                  Tags
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {alter.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-muted/50 text-muted-foreground border border-border/40"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Groups */}
+            {alter.groups && alter.groups.length > 0 && (
+              <div className="pt-4 border-t border-border/50">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5" />
+                  Groups
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {alter.groups.map((group) => (
+                    <span
+                      key={group.id}
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold border"
+                      style={{
+                        backgroundColor: group.color ? `${group.color}18` : "hsl(var(--muted))",
+                        borderColor: group.color ? `${group.color}40` : "hsl(var(--border))",
+                        color: group.color || "hsl(var(--foreground))",
+                      }}
+                    >
+                      {group.name}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
