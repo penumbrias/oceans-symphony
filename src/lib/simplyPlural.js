@@ -19,8 +19,14 @@ export async function getSystemId(token) {
     const body = await res.text().catch(() => "");
     throw new Error(`Invalid Simply Plural token (${res.status}): ${body}`);
   }
+  // /me returns either a plain string UID or a JSON object with uid field
   const text = await res.text();
-  return text.replace(/"/g, "").trim();
+  try {
+    const obj = JSON.parse(text);
+    return (obj.uid || obj.id || obj._id || text).toString().replace(/"/g, "").trim();
+  } catch {
+    return text.replace(/"/g, "").trim();
+  }
 }
 
 export async function getSystemUser(token, systemId) {
