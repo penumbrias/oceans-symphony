@@ -62,6 +62,7 @@ export default function Analytics() {
   const [from, setFrom] = useState(subDays(new Date(), 30));
   const [to, setTo] = useState(new Date());
   const [mode, setMode] = useState("total");
+  const [topTab, setTopTab] = useState("stats");
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["frontHistory"],
