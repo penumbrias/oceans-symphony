@@ -90,7 +90,7 @@ export default function GroupFolderView({ alters }) {
   // Children groups of current level
   const childGroups = allGroups.filter((g) => {
     const parent = g.parent || "";
-    if (currentGroupId === null) return !parent; // root level
+    if (currentGroupId === null) return !parent || parent === "root"; // root level
     return parent === currentGroupId;
   });
 
