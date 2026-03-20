@@ -75,13 +75,13 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     if (!settings?.sp_token || !settings?.sp_system_id) return;
     setSyncing(true);
     try {
-      await syncMembers(settings.sp_token, settings.sp_system_id);
+      const count = await syncMembers(settings.sp_token, settings.sp_system_id);
       await base44.entities.SystemSettings.update(settings.id, {
         last_sync: new Date().toISOString(),
       });
       onSettingsChange();
       queryClient.invalidateQueries({ queryKey: ["alters"] });
-      toast.success("Sync complete!");
+      toast.success(`Synced ${count} member${count !== 1 ? "s" : ""} successfully!`);
     } catch (e) {
       toast.error(e.message || "Sync failed");
     } finally {
