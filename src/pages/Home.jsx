@@ -6,16 +6,32 @@ import { Users, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
+import FrontersSection from "@/components/alters/FrontersSection";
+import { useFronters } from "@/hooks/useSimplyPlural";
 
 export default function Home() {
-  const { data: alters = [], isLoading } = useQuery({
+  const { data: alters = [], isLoading: altersLoading } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const activeAlters = alters.filter((a) => !a.is_archived);
+  const { data: settings = [] } = useQuery({
+    queryKey: ["system-settings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
 
-  if (isLoading) {
+  const systemSettings = settings[0] || null;
+  const isConnected = !!systemSettings?.sp_token;
+
+  const { data: fronters, isLoading: frontersLoading } = useFronters(
+    systemSettings?.sp_token,
+    systemSettings?.sp_system_id
+  );
+
+  const activeAlters = alters.filter((a) => !a.is_archived);
+  const archivedAlters = alters.filter((a) => a.is_archived);
+
+  if (altersLoading) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -23,7 +39,7 @@ export default function Home() {
     );
   }
 
-  if (activeAlters.length === 0) {
+  if (!isConnected && activeAlters.length === 0) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -37,8 +53,7 @@ export default function Home() {
           Welcome to Innerworld
         </h1>
         <p className="text-muted-foreground max-w-md leading-relaxed mb-8">
-          Connect your Simply Plural account to import your system members, or
-          add them manually to get started.
+          Connect your Simply Plural account to import your system members and get started.
         </p>
         <Link to="/settings">
           <Button className="bg-primary hover:bg-primary/90 rounded-xl px-6">
@@ -54,16 +69,27 @@ export default function Home() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        className="mb-6"
       >
         <h1 className="font-display text-3xl font-semibold text-foreground">
-          System Members
+          {systemSettings?.system_name ? `${systemSettings.system_name}` : "Your System"}
         </h1>
         <p className="text-muted-foreground mt-1 flex items-center gap-2">
           <Users className="w-4 h-4" />
-          {activeAlters.length} member{activeAlters.length !== 1 && "s"}
+          {activeAlters.length} active member{activeAlters.length !== 1 && "s"}
+          {archivedAlters.length > 0 && (
+            <span className="text-muted-foreground/60">· {archivedAlters.length} archived</span>
+          )}
         </p>
       </motion.div>
+
+      {isConnected && (
+        <FrontersSection
+          fronters={fronters}
+          alters={activeAlters}
+          isLoading={frontersLoading}
+        />
+      )}
 
       <AlterGrid alters={activeAlters} />
     </div>
