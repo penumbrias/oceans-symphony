@@ -65,8 +65,9 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
       await base44.entities.Group.update(group.id, { member_sp_ids: newMemberIds });
 
       // Update each alter's groups array
+      const groupKey = group.sp_id || group.id;
       for (const alter of allAlters) {
-        const wasIn = (group.member_sp_ids || []).includes(alter.sp_id || alter.id);
+        const wasIn = (alter.groups || []).some((g) => g.id === groupKey);
         const isIn = selectedIds.has(alter.id);
         if (wasIn === isIn) continue;
 
