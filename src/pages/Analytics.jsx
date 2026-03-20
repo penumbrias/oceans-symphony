@@ -7,6 +7,7 @@ import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer } from "lucide-
 import DateRangePicker from "@/components/analytics/DateRangePicker";
 import AlterStatRow from "@/components/analytics/AlterStatRow";
 import ActivityHeatmap from "@/components/analytics/ActivityHeatmap";
+import TimeOfDayFronters from "@/components/analytics/TimeOfDayFronters";
 
 const MODES = [
   { id: "total", label: "Total", icon: Clock, description: "Total fronting times" },
