@@ -84,7 +84,7 @@ export async function getCustomFields(token, systemId) {
   }
 }
 
-export function mapMemberToAlter(member) {
+export function mapMemberToAlter(member, groupsById = {}) {
   const id = member.id || member._id || "";
   const c = member.content || member;
 
@@ -92,6 +92,15 @@ export function mapMemberToAlter(member) {
   const color = rawColor
     ? rawColor.startsWith("#") ? rawColor : `#${rawColor}`
     : "";
+
+  // Find which groups this member belongs to
+  const memberGroups = Object.values(groupsById)
+    .filter((g) => Array.isArray(g.members) && g.members.includes(id))
+    .map((g) => ({
+      id: g.id,
+      name: g.name,
+      color: g.color ? (g.color.startsWith("#") ? g.color : `#${g.color}`) : "",
+    }));
 
   return {
     sp_id: id,
@@ -104,10 +113,8 @@ export function mapMemberToAlter(member) {
     avatar_url: c.avatarUrl || c.avatar_url || "",
     role: c.role || "",
     custom_fields: c.info || {},
+    tags: Array.isArray(c.tags) ? c.tags : [],
+    groups: memberGroups,
     is_archived: !!c.archived,
-    // Extra SP fields
-    pkId: c.pkId || "",
-    supportDescriptionPrivacy: c.supportDescriptionPrivacy || false,
-    subSystems: c.subSystems || [],
   };
 }
