@@ -36,6 +36,16 @@ export default function AlterGrid({ alters }) {
             className="pl-10 bg-card/50 border-border/50"
           />
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
+          className="rounded-xl h-9 px-3 text-xs gap-1.5 border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground"
+          title={sortDir === "asc" ? "A → Z" : "Z → A"}
+        >
+          {sortDir === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
+          {sortDir === "asc" ? "A–Z" : "Z–A"}
+        </Button>
         <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
           <Button
             variant="ghost"
