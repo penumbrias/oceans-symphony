@@ -1,5 +1,16 @@
 const SP_API_BASE = "https://api.apparyllis.com/v1";
 
+async function spFetch(path, token) {
+  const res = await fetch(`${SP_API_BASE}${path}`, {
+    headers: { Authorization: token },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Simply Plural API error (${res.status}): ${body}`);
+  }
+  return res.json();
+}
+
 export async function getSystemId(token) {
   const res = await fetch(`${SP_API_BASE}/me`, {
     headers: { Authorization: token },
@@ -9,35 +20,88 @@ export async function getSystemId(token) {
     throw new Error(`Invalid Simply Plural token (${res.status}): ${body}`);
   }
   const text = await res.text();
-  return text.replace(/"/g, "");
+  return text.replace(/"/g, "").trim();
+}
+
+export async function getSystemUser(token, systemId) {
+  try {
+    const data = await spFetch(`/user/${systemId}`, token);
+    return data.content || data;
+  } catch {
+    return null;
+  }
 }
 
 export async function getMembers(token, systemId) {
-  const res = await fetch(`${SP_API_BASE}/members/${systemId}`, {
-    headers: { Authorization: token },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Failed to fetch members (${res.status}): ${body}`);
-  }
-  const data = await res.json();
-  // API may return array directly or wrapped in a data field
+  const data = await spFetch(`/members/${systemId}`, token);
   return Array.isArray(data) ? data : (data.data ?? data.members ?? []);
 }
 
+export async function getFronters(token, systemId) {
+  try {
+    const data = await spFetch(`/fronters/${systemId}`, token);
+    // Returns { custom: [...], members: [...] }
+    const members = Array.isArray(data.members) ? data.members : [];
+    const custom = Array.isArray(data.custom) ? data.custom : [];
+    return { members, custom };
+  } catch {
+    return { members: [], custom: [] };
+  }
+}
+
+export async function getFrontHistory(token, systemId, startTime, endTime) {
+  try {
+    const start = startTime || (Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+    const end = endTime || Date.now();
+    const data = await spFetch(`/frontHistory/${systemId}?startTime=${start}&endTime=${end}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
+export async function getGroups(token, systemId) {
+  try {
+    const data = await spFetch(`/groups/${systemId}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
+export async function getCustomFields(token, systemId) {
+  try {
+    const data = await spFetch(`/customFields/${systemId}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
 export function mapMemberToAlter(member) {
-  // Simply Plural returns { id, content: { ... } } or flat objects
   const id = member.id || member._id || "";
-  const content = member.content || member;
+  const c = member.content || member;
+
+  const rawColor = c.color || "";
+  const color = rawColor
+    ? rawColor.startsWith("#") ? rawColor : `#${rawColor}`
+    : "";
+
   return {
     sp_id: id,
-    name: content.name || "Unknown",
-    pronouns: content.pronouns || "",
-    description: content.desc || content.description || "",
-    color: content.color ? (content.color.startsWith("#") ? content.color : `#${content.color}`) : "",
-    avatar_url: content.avatarUrl || content.avatar_url || "",
-    role: content.role || "",
-    custom_fields: content.info || {},
-    is_archived: content.archived || false,
+    name: c.name || "Unknown",
+    pronouns: Array.isArray(c.pronouns)
+      ? c.pronouns.join(", ")
+      : (c.pronouns || ""),
+    description: c.desc || c.description || "",
+    color,
+    avatar_url: c.avatarUrl || c.avatar_url || "",
+    role: c.role || "",
+    custom_fields: c.info || {},
+    is_archived: !!c.archived,
+    // Extra SP fields
+    pkId: c.pkId || "",
+    supportDescriptionPrivacy: c.supportDescriptionPrivacy || false,
+    subSystems: c.subSystems || [],
   };
 }
