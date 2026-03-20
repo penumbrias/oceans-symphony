@@ -29,6 +29,7 @@ export default function AlterProfile() {
       return all.find((a) => String(a.id) === String(alterId)) || null;
     },
     enabled: !!alterId,
+    staleTime: 0,
   });
 
   if (isLoading) {
