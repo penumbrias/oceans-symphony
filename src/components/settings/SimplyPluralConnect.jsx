@@ -60,10 +60,10 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           system_name: systemName,
         });
       }
-      await syncMembers(token.trim(), systemId);
+      const count = await syncMembers(token.trim(), systemId);
       setToken("");
       onSettingsChange();
-      toast.success("Connected to Simply Plural!");
+      toast.success(`Connected! Imported ${count} member${count !== 1 ? "s" : ""}.`);
     } catch (e) {
       toast.error(e.message || "Connection failed");
     } finally {
