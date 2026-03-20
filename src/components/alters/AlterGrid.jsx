@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, Users, Folder } from "lucide-react";
 import AlterCard from "./AlterCard";
+import GroupFolderView from "./GroupFolderView";
 
 export default function AlterGrid({ alters }) {
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("grid"); // "grid" | "groups"
 
   const filtered = alters.filter(
     (a) =>
@@ -16,19 +19,43 @@ export default function AlterGrid({ alters }) {
 
   return (
     <div>
-      {/* Search */}
-      <div className="relative max-w-sm mb-8">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search system members..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 bg-card/50 border-border/50"
-        />
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 mb-8">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search system members..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 bg-card/50 border-border/50"
+          />
+        </div>
+        <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode("grid")}
+            className={`rounded-lg px-3 h-8 text-xs gap-1.5 ${viewMode === "grid" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            All
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode("groups")}
+            className={`rounded-lg px-3 h-8 text-xs gap-1.5 ${viewMode === "groups" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Folder className="w-3.5 h-3.5" />
+            Groups
+          </Button>
+        </div>
       </div>
 
-      {/* Grid */}
-      {filtered.length > 0 ? (
+      {/* Views */}
+      {viewMode === "groups" ? (
+        <GroupFolderView alters={alters.filter((a) => !a.is_archived)} />
+      ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((alter, i) => (
             <AlterCard key={alter.id} alter={alter} index={i} />
