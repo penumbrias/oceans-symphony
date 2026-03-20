@@ -26,14 +26,16 @@ export async function getMembers(token, systemId) {
 }
 
 export function mapMemberToAlter(member) {
+  // Simply Plural returns { id, content: { ... } } or flat objects
+  const id = member.id || member._id || "";
   const content = member.content || member;
   return {
-    sp_id: member.id || member._id,
+    sp_id: id,
     name: content.name || "Unknown",
     pronouns: content.pronouns || "",
-    description: content.desc || "",
-    color: content.color || "",
-    avatar_url: content.avatarUrl || "",
+    description: content.desc || content.description || "",
+    color: content.color ? (content.color.startsWith("#") ? content.color : `#${content.color}`) : "",
+    avatar_url: content.avatarUrl || content.avatar_url || "",
     role: content.role || "",
     custom_fields: content.info || {},
     is_archived: content.archived || false,
