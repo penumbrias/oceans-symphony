@@ -16,7 +16,7 @@ export default function Home() {
   });
 
   const { data: settings = [] } = useQuery({
-    queryKey: ["system-settings"],
+    queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
 
