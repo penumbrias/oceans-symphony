@@ -56,7 +56,7 @@ export default function AlterGrid({ alters }) {
       {viewMode === "groups" ? (
         <GroupFolderView alters={alters.filter((a) => !a.is_archived)} />
       ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="flex flex-col gap-2">
           {filtered.map((alter, i) => (
             <AlterCard key={alter.id} alter={alter} index={i} />
           ))}
