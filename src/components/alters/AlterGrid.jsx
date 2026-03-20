@@ -9,13 +9,15 @@ export default function AlterGrid({ alters }) {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "groups"
 
-  const filtered = alters.filter(
-    (a) =>
-      !a.is_archived &&
-      (a.name?.toLowerCase().includes(search.toLowerCase()) ||
-        a.role?.toLowerCase().includes(search.toLowerCase()) ||
-        a.pronouns?.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = alters
+    .filter(
+      (a) =>
+        !a.is_archived &&
+        (a.name?.toLowerCase().includes(search.toLowerCase()) ||
+          a.role?.toLowerCase().includes(search.toLowerCase()) ||
+          a.pronouns?.toLowerCase().includes(search.toLowerCase()))
+    )
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   return (
     <div>
