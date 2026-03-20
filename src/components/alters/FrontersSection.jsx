@@ -49,12 +49,17 @@ function FronterAvatar({ alter }) {
 
 export default function FrontersSection({ fronters, alters, isLoading }) {
   const fronterAlters = (fronters?.members || []).map((f) => {
-    const spId = f.memberId || f.id || (f.content && f.content.member);
-    return alters.find((a) => a.sp_id === spId) || {
-      name: f.content?.name || "Unknown",
-      color: f.content?.color || "",
-      avatar_url: f.content?.avatarUrl || "",
-      pronouns: f.content?.pronouns || "",
+    // SP fronters: { id, content: { member, ... } } or { memberId, ... }
+    const spId = f.content?.member || f.memberId || f.id || "";
+    const matched = alters.find((a) => a.sp_id === spId);
+    if (matched) return matched;
+    // Fallback to raw fronter data
+    const c = f.content || f;
+    return {
+      name: c.name || "Unknown",
+      color: c.color ? (c.color.startsWith("#") ? c.color : `#${c.color}`) : "",
+      avatar_url: c.avatarUrl || c.avatar_url || "",
+      pronouns: Array.isArray(c.pronouns) ? c.pronouns.join(", ") : (c.pronouns || ""),
     };
   });
 
