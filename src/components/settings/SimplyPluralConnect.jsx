@@ -40,15 +40,19 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     setConnecting(true);
     try {
       const systemId = await getSystemId(token.trim());
+      const systemUser = await getSystemUser(token.trim(), systemId);
+      const systemName = systemUser?.username || systemUser?.name || "";
       if (settings?.id) {
         await base44.entities.SystemSettings.update(settings.id, {
           sp_token: token.trim(),
           sp_system_id: systemId,
+          system_name: systemName,
         });
       } else {
         await base44.entities.SystemSettings.create({
           sp_token: token.trim(),
           sp_system_id: systemId,
+          system_name: systemName,
         });
       }
       await syncMembers(token.trim(), systemId);
