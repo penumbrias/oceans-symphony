@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -19,10 +19,10 @@ export default function Settings() {
 
   const settings = settingsList[0] || null;
 
-  const [systemName, setSystemName] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
+  const [systemName, setSystemName] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (settings?.system_name) {
       setSystemName(settings.system_name);
     }
