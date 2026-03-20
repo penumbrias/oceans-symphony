@@ -27,15 +27,15 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
   useEffect(() => {
     if (!open || !group) return;
     setSearch("");
-    const memberIds = new Set(group.member_sp_ids || []);
-    // Match either sp_id or id
+    const groupKey = group.sp_id || group.id;
+    // An alter is in this group if its groups array contains this group's key
     const initial = new Set(
       allAlters
-        .filter((a) => memberIds.has(a.sp_id) || memberIds.has(a.id))
+        .filter((a) => (a.groups || []).some((g) => g.id === groupKey))
         .map((a) => a.id)
     );
     setSelectedIds(initial);
-  }, [open, group, allAlters]);
+  }, [open, group?.id]);
 
   const filtered = useMemo(
     () =>
