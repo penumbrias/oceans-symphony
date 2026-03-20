@@ -19,6 +19,9 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
   const syncMembers = async (spToken, systemId) => {
     const members = await getMembers(spToken, systemId);
+    if (!members || members.length === 0) {
+      throw new Error("No members returned from Simply Plural. Check your token and system ID.");
+    }
     const existingAlters = await base44.entities.Alter.list();
     const existingBySpId = {};
     existingAlters.forEach((a) => {
@@ -26,6 +29,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     });
     for (const member of members) {
       const alterData = mapMemberToAlter(member);
+      if (!alterData.sp_id) continue;
       const existing = existingBySpId[alterData.sp_id];
       if (existing) {
         await base44.entities.Alter.update(existing.id, alterData);
@@ -33,6 +37,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         await base44.entities.Alter.create(alterData);
       }
     }
+    return members.length;
   };
 
   const handleConnect = async () => {
