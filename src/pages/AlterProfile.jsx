@@ -1,7 +1,7 @@
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, User, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,15 +18,13 @@ function getContrastColor(hex) {
 }
 
 export default function AlterProfile() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const pathParts = window.location.pathname.split("/");
-  const alterId = pathParts[pathParts.length - 1];
+  const { id: alterId } = useParams();
 
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
     queryFn: async () => {
-      const alters = await base44.entities.Alter.filter({ id: alterId });
-      return alters[0] || null;
+      const all = await base44.entities.Alter.list();
+      return all.find((a) => String(a.id) === String(alterId)) || null;
     },
     enabled: !!alterId,
   });
