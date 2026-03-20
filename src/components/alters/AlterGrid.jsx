@@ -8,6 +8,7 @@ import GroupFolderView from "./GroupFolderView";
 export default function AlterGrid({ alters }) {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "groups"
+  const [sortDir, setSortDir] = useState("asc"); // "asc" | "desc"
 
   const filtered = alters
     .filter(
@@ -17,7 +18,10 @@ export default function AlterGrid({ alters }) {
           a.role?.toLowerCase().includes(search.toLowerCase()) ||
           a.pronouns?.toLowerCase().includes(search.toLowerCase()))
     )
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    .sort((a, b) => {
+      const cmp = (a.name || "").localeCompare(b.name || "");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
 
   return (
     <div>
