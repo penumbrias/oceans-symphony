@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, Trash2, Archive, ArchiveRestore } from "lucide-react";
+import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import GroupPickerModal from "@/components/groups/GroupPickerModal";
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) {
   const queryClient = useQueryClient();
@@ -23,6 +24,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
 
   useEffect(() => {
     if (alter && !isNew) {
@@ -154,6 +156,42 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
             />
           </div>
 
+          {!isNew && alter && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" /> Groups
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setShowGroupPicker(true)}
+                  className="text-xs text-primary hover:text-primary/80 font-medium"
+                >
+                  Edit groups →
+                </button>
+              </div>
+              {alter.groups && alter.groups.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {alter.groups.map((g) => (
+                    <span
+                      key={g.id}
+                      className="px-2 py-0.5 rounded-full text-xs font-medium border"
+                      style={{
+                        backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
+                        borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
+                        color: g.color || "hsl(var(--foreground))",
+                      }}
+                    >
+                      {g.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Not in any groups</p>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col gap-2 pt-2">
             <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
@@ -188,6 +226,13 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
           </div>
         </div>
       </DialogContent>
+      {!isNew && alter && (
+        <GroupPickerModal
+          alter={alter}
+          open={showGroupPicker}
+          onClose={() => setShowGroupPicker(false)}
+        />
+      )}
     </Dialog>
   );
 }
