@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Clock, Star, User, Calendar } from "lucide-react";
-import { format, formatDuration, intervalToDuration } from "date-fns";
+import { format, intervalToDuration } from "date-fns";
+import { Star, User, Clock } from "lucide-react";
+import DateRangePicker from "@/components/analytics/DateRangePicker";
+import { subDays, startOfDay, endOfDay } from "date-fns";
 
 function getContrastColor(hex) {
-  if (!hex) return "hsl(var(--muted-foreground))";
+  if (!hex) return "#ffffff";
   const clean = hex.replace("#", "");
   const r = parseInt(clean.substring(0, 2), 16);
   const g = parseInt(clean.substring(2, 4), 16);
@@ -15,19 +17,22 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function AlterAvatar({ alter, size = "sm" }) {
+function AlterAvatar({ alter, size = 10 }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
-  const sz = size === "sm" ? "w-8 h-8" : "w-10 h-10";
   return (
     <div
-      className={`${sz} rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30`}
-      style={{ backgroundColor: bg || "hsl(var(--muted))" }}
+      className="rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-background shadow"
+      style={{
+        width: size, height: size,
+        backgroundColor: bg || "hsl(var(--muted))",
+        borderColor: bg || "hsl(var(--border))",
+      }}
     >
       {alter?.avatar_url ? (
         <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
       ) : (
-        <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />
+        <User style={{ width: size * 0.45, height: size * 0.45, color: text || "hsl(var(--muted-foreground))" }} />
       )}
     </div>
   );
@@ -43,87 +48,105 @@ function durationLabel(start, end) {
   return "< 1m";
 }
 
-function SessionCard({ session, altersById }) {
+// SP-style session block with vertical colored bar and avatar pin at top
+function SessionBlock({ session, altersById, columnIndex, totalColumns }) {
   const primary = altersById[session.primary_alter_id];
-  const coFronters = (session.co_fronter_ids || [])
-    .map((id) => altersById[id])
-    .filter(Boolean);
+  const coFronters = (session.co_fronter_ids || []).map((id) => altersById[id]).filter(Boolean);
   const isActive = session.is_active;
-  const startDate = new Date(session.start_time);
+  const color = primary?.color || "hsl(var(--primary))";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`rounded-xl border bg-card p-4 ${isActive ? "border-primary/40 bg-primary/5" : "border-border/50"}`}
+    <div
+      className="flex flex-col items-center"
+      style={{ minWidth: 52, flex: "0 0 auto" }}
     >
-      <div className="flex items-start gap-3">
-        {/* Timeline dot */}
-        <div className="flex flex-col items-center pt-1">
-          <div className={`w-3 h-3 rounded-full border-2 ${isActive ? "bg-green-500 border-green-400 animate-pulse" : "bg-muted border-border"}`} />
+      {/* Avatar pinned at top */}
+      <div className="relative mb-1">
+        <AlterAvatar alter={primary} size={40} />
+        {isActive && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-background" />
+        )}
+      </div>
+
+      {/* Vertical bar */}
+      <div
+        className="w-2.5 rounded-full"
+        style={{
+          backgroundColor: color,
+          minHeight: 60,
+          opacity: 0.85,
+        }}
+      />
+
+      {/* Co-fronter avatars along bar */}
+      {coFronters.length > 0 && (
+        <div className="flex flex-col gap-1 mt-1">
+          {coFronters.map((a) => (
+            <AlterAvatar key={a.id} alter={a} size={28} />
+          ))}
         </div>
+      )}
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="w-3 h-3" />
-              {format(startDate, "MMM d, yyyy · h:mm a")}
-              {isActive && (
-                <span className="px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-600 font-medium text-xs">
-                  Active
-                </span>
-              )}
+      {/* Duration label */}
+      <p className="text-[10px] text-muted-foreground mt-1 text-center">
+        {durationLabel(session.start_time, session.end_time)}
+      </p>
+    </div>
+  );
+}
+
+function DaySection({ dateKey, sessions, altersById }) {
+  return (
+    <div className="mb-8">
+      {/* Date header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40 flex-shrink-0" />
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          {format(new Date(dateKey + "T12:00:00"), "d MMMM yyyy")}
+        </h2>
+        <div className="flex-1 h-px bg-border/40" />
+      </div>
+
+      {/* Time + blocks */}
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        {/* Time column */}
+        <div className="flex flex-col gap-2 flex-shrink-0">
+          {sessions.map((s) => (
+            <div key={s.id} className="text-[10px] text-muted-foreground/70 w-14 text-right">
+              {format(new Date(s.start_time), "h:mm a")}
             </div>
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {durationLabel(session.start_time, session.end_time)}
-            </span>
-          </div>
-
-          {/* Primary fronter */}
-          {primary && (
-            <div className="flex items-center gap-2 mb-2">
-              <AlterAvatar alter={primary} />
-              <div>
-                <div className="flex items-center gap-1">
-                  <p className="text-sm font-semibold text-foreground">{primary.name}</p>
-                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                </div>
-                {primary.pronouns && (
-                  <p className="text-xs text-muted-foreground">{primary.pronouns}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Co-fronters */}
-          {coFronters.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap mt-1">
-              <span className="text-xs text-muted-foreground">also:</span>
-              {coFronters.map((a) => (
-                <div key={a.id} className="flex items-center gap-1">
-                  <AlterAvatar alter={a} size="xs" />
-                  <span className="text-xs text-foreground">{a.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {session.note && (
-            <p className="text-xs text-muted-foreground mt-2 italic border-l-2 border-border pl-2">
-              {session.note}
-            </p>
-          )}
+          ))}
+        </div>
+        {/* Session blocks */}
+        <div className="flex gap-3 items-end">
+          {sessions.map((session, i) => (
+            <motion.div
+              key={session.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+            >
+              <SessionBlock
+                session={session}
+                altersById={altersById}
+                columnIndex={i}
+                totalColumns={sessions.length}
+              />
+            </motion.div>
+          ))}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 export default function FrontHistory() {
-  const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
+  const [from, setFrom] = useState(subDays(new Date(), 7));
+  const [to, setTo] = useState(new Date());
+
+  const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 100),
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 200),
   });
 
   const { data: alters = [] } = useQuery({
@@ -133,8 +156,15 @@ export default function FrontHistory() {
 
   const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
 
-  // Group sessions by date
-  const grouped = sessions.reduce((acc, s) => {
+  const fromMs = startOfDay(from).getTime();
+  const toMs = endOfDay(to).getTime();
+
+  const filtered = sessions.filter((s) => {
+    const st = new Date(s.start_time).getTime();
+    return st >= fromMs && st <= toMs;
+  });
+
+  const grouped = filtered.reduce((acc, s) => {
     const dateKey = format(new Date(s.start_time), "yyyy-MM-dd");
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(s);
@@ -143,7 +173,7 @@ export default function FrontHistory() {
 
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  if (sessionsLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -153,34 +183,34 @@ export default function FrontHistory() {
 
   return (
     <div>
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h1 className="font-display text-3xl font-semibold text-foreground">Front History</h1>
-        <p className="text-muted-foreground mt-1 flex items-center gap-2">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
+        <h1 className="font-display text-3xl font-semibold text-foreground mb-1">Front History</h1>
+        <p className="text-muted-foreground text-sm flex items-center gap-2">
           <Clock className="w-4 h-4" />
-          {sessions.length} session{sessions.length !== 1 ? "s" : ""} recorded
+          {filtered.length} session{filtered.length !== 1 ? "s" : ""} in range
         </p>
       </motion.div>
 
-      {sessions.length === 0 ? (
+      <div className="mb-6">
+        <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
             <Clock className="w-7 h-7 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground text-sm">No front history yet. Set a front to get started.</p>
+          <p className="text-muted-foreground text-sm">No sessions in this date range.</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div>
           {sortedDates.map((dateKey) => (
-            <div key={dateKey}>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                {format(new Date(dateKey + "T12:00:00"), "EEEE, MMMM d, yyyy")}
-              </h2>
-              <div className="space-y-2">
-                {grouped[dateKey].map((s) => (
-                  <SessionCard key={s.id} session={s} altersById={altersById} />
-                ))}
-              </div>
-            </div>
+            <DaySection
+              key={dateKey}
+              dateKey={dateKey}
+              sessions={grouped[dateKey]}
+              altersById={altersById}
+            />
           ))}
         </div>
       )}
