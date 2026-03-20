@@ -117,11 +117,14 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       <CardContent>
         {isConnected ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm flex-wrap">
               <CheckCircle2 className="w-4 h-4 text-green-500" />
               <span className="text-foreground font-medium">Connected</span>
-              <span className="text-muted-foreground">
-                · System ID: {settings.sp_system_id?.slice(0, 8)}...
+              {settings.system_name && (
+                <span className="text-muted-foreground">· {settings.system_name}</span>
+              )}
+              <span className="text-muted-foreground/60 text-xs font-mono">
+                {settings.sp_system_id?.slice(0, 8)}...
               </span>
             </div>
             {settings.last_sync && (
