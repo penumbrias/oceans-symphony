@@ -20,8 +20,14 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const handleConnect = async () => {
     if (!token.trim()) return;
     setConnecting(true);
-
-    const systemId = await getSystemId(token.trim());
+    let systemId;
+    try {
+      systemId = await getSystemId(token.trim());
+    } catch (e) {
+      toast.error(e.message || "Connection failed");
+      setConnecting(false);
+      return;
+    }
 
     // Save settings
     if (settings?.id) {
