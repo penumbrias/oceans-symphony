@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Folder, ChevronRight, ArrowLeft, User } from "lucide-react";
+import { Folder, ChevronRight, ArrowLeft, User, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import ManageMembersModal from "@/components/groups/ManageMembersModal";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -77,8 +78,8 @@ function FolderRow({ group, onClick }) {
 }
 
 export default function GroupFolderView({ alters }) {
-  // Stack of group objects representing navigation path
   const [navStack, setNavStack] = useState([]);
+  const [managingGroup, setManagingGroup] = useState(null);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
@@ -121,7 +122,16 @@ export default function GroupFolderView({ alters }) {
             <ArrowLeft className="w-4 h-4 text-muted-foreground" />
           </button>
         )}
-        <p className="text-sm font-medium text-muted-foreground">{breadcrumbDisplay}</p>
+        <p className="text-sm font-medium text-muted-foreground flex-1">{breadcrumbDisplay}</p>
+        {currentGroup && (
+          <button
+            onClick={() => setManagingGroup(currentGroup)}
+            title="Manage members"
+            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -157,6 +167,12 @@ export default function GroupFolderView({ alters }) {
           )}
         </motion.div>
       </AnimatePresence>
+      <ManageMembersModal
+        group={managingGroup}
+        allAlters={alters}
+        open={!!managingGroup}
+        onClose={() => setManagingGroup(null)}
+      />
     </div>
   );
 }
