@@ -17,38 +17,49 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
   const isConnected = !!settings?.sp_token;
 
+  const syncMembers = async (spToken, systemId) => {
+    const members = await getMembers(spToken, systemId);
+    const existingAlters = await base44.entities.Alter.list();
+    const existingBySpId = {};
+    existingAlters.forEach((a) => {
+      if (a.sp_id) existingBySpId[a.sp_id] = a;
+    });
+    for (const member of members) {
+      const alterData = mapMemberToAlter(member);
+      const existing = existingBySpId[alterData.sp_id];
+      if (existing) {
+        await base44.entities.Alter.update(existing.id, alterData);
+      } else {
+        await base44.entities.Alter.create(alterData);
+      }
+    }
+  };
+
   const handleConnect = async () => {
     if (!token.trim()) return;
     setConnecting(true);
-    let systemId;
     try {
-      systemId = await getSystemId(token.trim());
+      const systemId = await getSystemId(token.trim());
+      if (settings?.id) {
+        await base44.entities.SystemSettings.update(settings.id, {
+          sp_token: token.trim(),
+          sp_system_id: systemId,
+        });
+      } else {
+        await base44.entities.SystemSettings.create({
+          sp_token: token.trim(),
+          sp_system_id: systemId,
+        });
+      }
+      await syncMembers(token.trim(), systemId);
+      setToken("");
+      onSettingsChange();
+      toast.success("Connected to Simply Plural!");
     } catch (e) {
       toast.error(e.message || "Connection failed");
+    } finally {
       setConnecting(false);
-      return;
     }
-
-    // Save settings
-    if (settings?.id) {
-      await base44.entities.SystemSettings.update(settings.id, {
-        sp_token: token.trim(),
-        sp_system_id: systemId,
-      });
-    } else {
-      await base44.entities.SystemSettings.create({
-        sp_token: token.trim(),
-        sp_system_id: systemId,
-      });
-    }
-
-    // Sync members
-    await syncMembers(token.trim(), systemId);
-
-    setConnecting(false);
-    setToken("");
-    onSettingsChange();
-    toast.success("Connected to Simply Plural!");
   };
 
   const handleSync = async () => {
@@ -66,29 +77,6 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       toast.error(e.message || "Sync failed");
     } finally {
       setSyncing(false);
-    }
-  };
-
-  const syncMembers = async (spToken, systemId) => {
-    const members = await getMembers(spToken, systemId);
-
-    // Get existing alters
-    const existingAlters = await base44.entities.Alter.list();
-    const existingBySpId = {};
-    existingAlters.forEach((a) => {
-      if (a.sp_id) existingBySpId[a.sp_id] = a;
-    });
-
-    // Upsert members
-    for (const member of members) {
-      const alterData = mapMemberToAlter(member);
-      const existing = existingBySpId[alterData.sp_id];
-
-      if (existing) {
-        await base44.entities.Alter.update(existing.id, alterData);
-      } else {
-        await base44.entities.Alter.create(alterData);
-      }
     }
   };
 
@@ -127,13 +115,11 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                 · System ID: {settings.sp_system_id?.slice(0, 8)}...
               </span>
             </div>
-
             {settings.last_sync && (
               <p className="text-xs text-muted-foreground">
                 Last synced: {new Date(settings.last_sync).toLocaleString()}
               </p>
             )}
-
             <div className="flex gap-2">
               <Button
                 onClick={handleSync}
