@@ -17,6 +17,11 @@ const MODES = [
   { id: "count", label: "Count", icon: Hash, description: "Fronting count" },
 ];
 
+const TOP_TABS = [
+  { id: "stats", label: "Stats" },
+  { id: "timeofday", label: "Time of Day" },
+];
+
 function computeStats(sessions, alters, from, to) {
   const fromMs = startOfDay(from).getTime();
   const toMs = endOfDay(to).getTime();
