@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Folder, ChevronRight, ArrowLeft, User, Users } from "lucide-react";
+import { Folder, ChevronRight, ArrowLeft, User, Users, FolderPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ManageMembersModal from "@/components/groups/ManageMembersModal";
+import CreateGroupModal from "@/components/groups/CreateGroupModal";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -67,7 +68,7 @@ function FolderRow({ group, onClick }) {
         className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
         style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}
       >
-        <Folder className="w-4.5 h-4.5" style={{ color: color || "hsl(var(--muted-foreground))" }} />
+        <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
@@ -80,30 +81,33 @@ function FolderRow({ group, onClick }) {
 export default function GroupFolderView({ alters }) {
   const [navStack, setNavStack] = useState([]);
   const [managingGroup, setManagingGroup] = useState(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
 
-  const currentGroupId = navStack.length > 0 ? navStack[navStack.length - 1].sp_id : null;
+  const currentGroup = navStack.length > 0 ? navStack[navStack.length - 1] : null;
+  const currentGroupKey = currentGroup ? (currentGroup.sp_id || currentGroup.id) : null;
 
-  // Children groups of current level
+  // Children groups at this level
   const childGroups = allGroups.filter((g) => {
     const parent = g.parent || "";
-    if (currentGroupId === null) return !parent || parent === "root"; // root level
-    return parent === currentGroupId;
+    if (currentGroupKey === null) return !parent || parent === "" || parent === "root";
+    return parent === currentGroupKey;
   });
 
-  // Members directly in the current group
-  const currentGroup = navStack.length > 0 ? navStack[navStack.length - 1] : null;
-  const memberSpIds = currentGroup?.member_sp_ids || [];
-  const memberAlters = alters.filter((a) => memberSpIds.includes(a.sp_id));
+  // Members in current group — match by groups array (works for both SP and manual alters)
+  const memberAlters = currentGroup
+    ? alters.filter((a) =>
+        (a.groups || []).some((g) => g.id === currentGroupKey)
+      )
+    : [];
 
   const navigateTo = (group) => setNavStack([...navStack, group]);
   const navigateBack = () => setNavStack(navStack.slice(0, -1));
 
-  // Breadcrumb
   const breadcrumb = ["Root", ...navStack.map((g) => g.name)];
   const breadcrumbDisplay =
     breadcrumb.length > 3
@@ -112,8 +116,8 @@ export default function GroupFolderView({ alters }) {
 
   return (
     <div>
-      {/* Header with breadcrumb and back */}
-      <div className="flex items-center gap-3 mb-4">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
         {navStack.length > 0 && (
           <button
             onClick={navigateBack}
@@ -123,6 +127,8 @@ export default function GroupFolderView({ alters }) {
           </button>
         )}
         <p className="text-sm font-medium text-muted-foreground flex-1">{breadcrumbDisplay}</p>
+
+        {/* Manage members (inside a group) */}
         {currentGroup && (
           <button
             onClick={() => setManagingGroup(currentGroup)}
@@ -132,46 +138,58 @@ export default function GroupFolderView({ alters }) {
             <Users className="w-4 h-4" />
           </button>
         )}
+
+        {/* New subgroup */}
+        <button
+          onClick={() => setShowCreateGroup(true)}
+          title={currentGroup ? "New subgroup" : "New group"}
+          className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+        >
+          <FolderPlus className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Content */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={currentGroupId || "root"}
+          key={currentGroupKey || "root"}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.15 }}
           className="space-y-2"
         >
-          {/* Sub-group folders */}
           {childGroups.map((g) => (
             <FolderRow key={g.id} group={g} onClick={navigateTo} />
           ))}
 
-          {/* Member rows (only shown at the current group level) */}
           {memberAlters.map((alter) => (
             <MemberRow key={alter.id} alter={alter} />
           ))}
 
-          {/* Empty state */}
           {childGroups.length === 0 && memberAlters.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Folder className="w-10 h-10 text-muted-foreground/30 mb-3" />
               <p className="text-muted-foreground text-sm">
                 {allGroups.length === 0
-                  ? "No groups found. Sync from Settings to import groups."
+                  ? "No groups yet. Tap the folder+ icon to create one."
                   : "This group is empty."}
               </p>
             </div>
           )}
         </motion.div>
       </AnimatePresence>
+
       <ManageMembersModal
         group={managingGroup}
         allAlters={alters}
         open={!!managingGroup}
         onClose={() => setManagingGroup(null)}
+      />
+      <CreateGroupModal
+        open={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        parentGroup={currentGroup}
       />
     </div>
   );
