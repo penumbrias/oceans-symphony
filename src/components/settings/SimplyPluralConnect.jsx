@@ -18,17 +18,28 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const isConnected = !!settings?.sp_token;
 
   const syncMembers = async (spToken, systemId) => {
-    const members = await getMembers(spToken, systemId);
+    const [members, groupsRaw] = await Promise.all([
+      getMembers(spToken, systemId),
+      getGroups(spToken, systemId),
+    ]);
     if (!members || members.length === 0) {
       throw new Error("No members returned from Simply Plural. Check your token and system ID.");
     }
+    // Build a lookup of groups by their SP id
+    const groupsById = {};
+    groupsRaw.forEach((g) => {
+      const gid = g.id || g._id;
+      const gc = g.content || g;
+      groupsById[gid] = { id: gid, name: gc.name || "", color: gc.color || "", members: gc.members || [] };
+    });
+
     const existingAlters = await base44.entities.Alter.list();
     const existingBySpId = {};
     existingAlters.forEach((a) => {
       if (a.sp_id) existingBySpId[a.sp_id] = a;
     });
     for (const member of members) {
-      const alterData = mapMemberToAlter(member);
+      const alterData = mapMemberToAlter(member, groupsById);
       if (!alterData.sp_id) continue;
       const existing = existingBySpId[alterData.sp_id];
       if (existing) {
