@@ -25,14 +25,42 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     if (!members || members.length === 0) {
       throw new Error("No members returned from Simply Plural. Check your token and system ID.");
     }
+
     // Build a lookup of groups by their SP id
     const groupsById = {};
     groupsRaw.forEach((g) => {
       const gid = g.id || g._id;
       const gc = g.content || g;
-      groupsById[gid] = { id: gid, name: gc.name || "", color: gc.color || "", members: gc.members || [] };
+      groupsById[gid] = {
+        id: gid,
+        name: gc.name || "",
+        color: gc.color ? (gc.color.startsWith("#") ? gc.color : `#${gc.color}`) : "",
+        parent: gc.parent || null,
+        members: gc.members || [],
+      };
     });
 
+    // Sync groups to Group entity
+    const existingGroups = await base44.entities.Group.list();
+    const existingGroupsBySpId = {};
+    existingGroups.forEach((g) => { if (g.sp_id) existingGroupsBySpId[g.sp_id] = g; });
+    for (const g of Object.values(groupsById)) {
+      const groupData = {
+        sp_id: g.id,
+        name: g.name,
+        color: g.color,
+        parent: g.parent || "",
+        member_sp_ids: g.members,
+      };
+      const existing = existingGroupsBySpId[g.id];
+      if (existing) {
+        await base44.entities.Group.update(existing.id, groupData);
+      } else {
+        await base44.entities.Group.create(groupData);
+      }
+    }
+
+    // Sync members/alters
     const existingAlters = await base44.entities.Alter.list();
     const existingBySpId = {};
     existingAlters.forEach((a) => {
