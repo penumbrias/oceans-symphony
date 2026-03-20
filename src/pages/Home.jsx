@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -10,6 +10,8 @@ import FrontingBar from "@/components/fronting/FrontingBar";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 
 export default function Home() {
+  const [showAddAlter, setShowAddAlter] = useState(false);
+
   const { data: alters = [], isLoading: altersLoading } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
@@ -22,11 +24,6 @@ export default function Home() {
 
   const systemSettings = settings[0] || null;
   const isConnected = !!systemSettings?.sp_token;
-
-  const { data: fronters, isLoading: frontersLoading } = useFronters(
-    systemSettings?.sp_token,
-    systemSettings?.sp_system_id
-  );
 
   const activeAlters = alters.filter((a) => !a.is_archived);
   const archivedAlters = alters.filter((a) => a.is_archived);
@@ -53,13 +50,20 @@ export default function Home() {
           Welcome to Innerworld
         </h1>
         <p className="text-muted-foreground max-w-md leading-relaxed mb-8">
-          Connect your Simply Plural account to import your system members and get started.
+          Connect your Simply Plural account to import members, or add them manually.
         </p>
-        <Link to="/settings">
-          <Button className="bg-primary hover:bg-primary/90 rounded-xl px-6">
-            Connect Simply Plural
+        <div className="flex gap-3">
+          <Link to="/settings">
+            <Button variant="outline" className="rounded-xl px-6">
+              Connect Simply Plural
+            </Button>
+          </Link>
+          <Button onClick={() => setShowAddAlter(true)} className="bg-primary hover:bg-primary/90 rounded-xl px-6">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Alter
           </Button>
-        </Link>
+        </div>
+        <AlterEditModal open={showAddAlter} onClose={() => setShowAddAlter(false)} mode="create" />
       </motion.div>
     );
   }
@@ -69,29 +73,38 @@ export default function Home() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
+        className="mb-6 flex items-start justify-between"
       >
-        <h1 className="font-display text-3xl font-semibold text-foreground">
-          {systemSettings?.system_name ? `${systemSettings.system_name}` : "Your System"}
-        </h1>
-        <p className="text-muted-foreground mt-1 flex items-center gap-2">
-          <Users className="w-4 h-4" />
-          {activeAlters.length} active member{activeAlters.length !== 1 && "s"}
-          {archivedAlters.length > 0 && (
-            <span className="text-muted-foreground/60">· {archivedAlters.length} archived</span>
-          )}
-        </p>
+        <div>
+          <h1 className="font-display text-3xl font-semibold text-foreground">
+            {systemSettings?.system_name || "Your System"}
+          </h1>
+          <p className="text-muted-foreground mt-1 flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            {activeAlters.length} active member{activeAlters.length !== 1 && "s"}
+            {archivedAlters.length > 0 && (
+              <span className="text-muted-foreground/60">· {archivedAlters.length} archived</span>
+            )}
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setShowAddAlter(true)}
+          className="bg-primary hover:bg-primary/90 gap-1.5"
+        >
+          <Plus className="w-4 h-4" />
+          Add Alter
+        </Button>
       </motion.div>
 
-      {isConnected && (
-        <FrontersSection
-          fronters={fronters}
-          alters={activeAlters}
-          isLoading={frontersLoading}
-        />
-      )}
-
+      <FrontingBar alters={activeAlters} />
       <AlterGrid alters={activeAlters} />
+
+      <AlterEditModal
+        open={showAddAlter}
+        onClose={() => setShowAddAlter(false)}
+        mode="create"
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
 import AlterProfile from '@/pages/AlterProfile';
 import Settings from '@/pages/Settings';
+import FrontHistory from '@/pages/FrontHistory';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -41,6 +42,7 @@ const AuthenticatedApp = () => {
         <Route path="/Home" element={<Home />} />
         <Route path="/alter/:id" element={<AlterProfile />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/front-history" element={<FrontHistory />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

@@ -1,10 +1,11 @@
 import React from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Users, Settings, Sparkles } from "lucide-react";
+import { Users, Settings, Sparkles, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { path: "/", label: "System", icon: Users },
+  { path: "/front-history", label: "History", icon: Clock },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -28,7 +29,10 @@ export default function AppLayout() {
           <nav className="flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive =
+                item.path === "/"
+                  ? location.pathname === "/"
+                  : location.pathname.startsWith(item.path);
               return (
                 <Link
                   key={item.path}
