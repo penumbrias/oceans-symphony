@@ -61,19 +61,17 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     queryFn: () => base44.entities.Group.list(),
   });
 
-  // Initialize selected groups from alter's current group membership
+  // Initialize selected groups from alter's current groups array (source of truth for display)
   useEffect(() => {
-    if (!open || !alter) return;
+    if (!open || !alter || allGroups.length === 0) return;
+    const alterGroupIds = new Set((alter.groups || []).map((g) => g.id));
     const initialSelected = new Set(
       allGroups
-        .filter((g) => {
-          const members = g.member_sp_ids || [];
-          return members.includes(alter.sp_id) || members.includes(alter.id);
-        })
+        .filter((g) => alterGroupIds.has(g.sp_id || g.id))
         .map((g) => g.id)
     );
     setSelectedGroupIds(initialSelected);
-  }, [open, alter, allGroups]);
+  }, [open, alter?.id, allGroups.length]);
 
   const toggleGroup = (groupId) => {
     setSelectedGroupIds((prev) => {
