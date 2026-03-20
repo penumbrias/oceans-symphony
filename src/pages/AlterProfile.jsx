@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Hash, Tag, Users } from "lucide-react";
+import { ArrowLeft, User, Hash, Tag, Users, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AlterEditModal from "@/components/alters/AlterEditModal";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -19,6 +20,7 @@ function getContrastColor(hex) {
 
 export default function AlterProfile() {
   const { id: alterId } = useParams();
+  const [showEdit, setShowEdit] = useState(false);
 
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
@@ -66,17 +68,19 @@ export default function AlterProfile() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Back button */}
-      <Link to="/">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mb-6 text-muted-foreground hover:text-foreground -ml-2"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to System
+      {/* Back + Edit */}
+      <div className="flex items-center justify-between mb-6">
+        <Link to="/">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to System
+          </Button>
+        </Link>
+        <Button size="sm" variant="outline" onClick={() => setShowEdit(true)} className="gap-1.5">
+          <Pencil className="w-3.5 h-3.5" />
+          Edit
         </Button>
-      </Link>
+      </div>
 
       {/* Hero banner */}
       <div className="rounded-2xl overflow-hidden border border-border/50 bg-card">
@@ -244,6 +248,12 @@ export default function AlterProfile() {
           </div>
         </div>
       </div>
+      <AlterEditModal
+        alter={alter}
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        mode="edit"
+      />
     </motion.div>
   );
 }
