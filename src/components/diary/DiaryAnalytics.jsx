@@ -128,53 +128,24 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
       {/* Main toggleable sections */}
       <div className="space-y-5">
         {/* Toggle controls */}
-        <div className="flex items-center gap-2 flex-wrap p-3 bg-muted/30 rounded-xl">
-          <span className="text-sm text-muted-foreground">Show:</span>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={visibleSections.emotions}
-              onChange={(e) => setVisibleSections(prev => ({ ...prev, emotions: e.target.checked }))}
-              className="w-4 h-4 rounded"
-            />
-            <span>📊 Emotions</span>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={visibleSections.urges}
-              onChange={(e) => setVisibleSections(prev => ({ ...prev, urges: e.target.checked }))}
-              className="w-4 h-4 rounded"
-            />
-            <span>🆘 Urges</span>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={visibleSections.medication}
-              onChange={(e) => setVisibleSections(prev => ({ ...prev, medication: e.target.checked }))}
-              className="w-4 h-4 rounded"
-            />
-            <span>💊 Medication</span>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={visibleSections.symptoms}
-              onChange={(e) => setVisibleSections(prev => ({ ...prev, symptoms: e.target.checked }))}
-              className="w-4 h-4 rounded"
-            />
-            <span>🩺 Symptoms</span>
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={visibleSections.patterns}
-              onChange={(e) => setVisibleSections(prev => ({ ...prev, patterns: e.target.checked }))}
-              className="w-4 h-4 rounded"
-            />
-            <span>🔥 Patterns</span>
-          </label>
+        <div className="flex gap-1 bg-muted/40 p-1 rounded-xl w-fit flex-wrap">
+          {[
+            { id: "emotions", label: "📊 Emotions" },
+            { id: "urges", label: "🆘 Urges" },
+            { id: "medication", label: "💊 Medication" },
+            { id: "symptoms", label: "🩺 Symptoms" },
+            { id: "patterns", label: "🔥 Patterns" },
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setVisibleSections(prev => ({ ...prev, [id]: !prev[id] }))}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                visibleSections[id] ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Overview charts */}
