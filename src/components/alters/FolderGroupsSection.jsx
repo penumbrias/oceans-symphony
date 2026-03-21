@@ -101,7 +101,10 @@ function GroupRow({ group, allGroups, alters, level = 0, expanded = false, onTog
       >
         {hasChildren && (
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={(e) => {
+              e.preventDefault();
+              setIsExpanded(!isExpanded);
+            }}
             className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
           >
             {isExpanded ? (
@@ -112,7 +115,7 @@ function GroupRow({ group, allGroups, alters, level = 0, expanded = false, onTog
           </button>
         )}
         {!hasChildren && <div className="w-5" />}
-        <FolderRow group={group} onClick={() => {}} />
+        <FolderRow group={group} />
       </motion.div>
 
       {isExpanded && (
