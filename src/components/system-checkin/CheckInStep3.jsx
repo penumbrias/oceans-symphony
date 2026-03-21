@@ -1,11 +1,37 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
-export default function CheckInStep3({ data, onChange }) {
+export default function CheckInStep3({ data, onChange, alters = [] }) {
   const step = data?.step3_greet || {};
+  const [alterInput, setAlterInput] = useState("");
+
+  const addAlter = () => {
+    if (alterInput.trim()) {
+      const noticed = step.noticed_alters || [];
+      onChange({
+        step3_greet: {
+          ...step,
+          noticed_alters: [...noticed, alterInput.trim()]
+        }
+      });
+      setAlterInput("");
+    }
+  };
+
+  const removeAlter = (index) => {
+    const noticed = step.noticed_alters || [];
+    onChange({
+      step3_greet: {
+        ...step,
+        noticed_alters: noticed.filter((_, i) => i !== index)
+      }
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -16,59 +42,44 @@ export default function CheckInStep3({ data, onChange }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            <div>
-              <Label className="text-sm mb-3 block">How did you greet?</Label>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    id="silent"
-                    name="greeting-type"
-                    value="silent"
-                    checked={step.greeting_type === "silent"}
-                    onChange={(e) =>
-                      onChange({
-                        step3_greet: { ...step, greeting_type: e.target.value }
-                      })
-                    }
-                  />
-                  <Label htmlFor="silent" className="cursor-pointer">
-                    Silently
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    id="loud"
-                    name="greeting-type"
-                    value="out_loud"
-                    checked={step.greeting_type === "out_loud"}
-                    onChange={(e) =>
-                      onChange({
-                        step3_greet: { ...step, greeting_type: e.target.value }
-                      })
-                    }
-                  />
-                  <Label htmlFor="loud" className="cursor-pointer">
-                    Out loud
-                  </Label>
-                </div>
-              </div>
+            <div className="p-3 bg-accent/30 rounded-lg">
+              <p className="text-xs text-muted-foreground italic">
+                "Thank you for being here. I see you."
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="thanked"
-                checked={step.thanked || false}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    step3_greet: { ...step, thanked: checked }
-                  })
-                }
-              />
-              <Label htmlFor="thanked" className="cursor-pointer flex-1">
-                Thanked them for being here
-              </Label>
+            <div>
+              <Label className="text-sm mb-2 block">Alters noticed or present</Label>
+              <div className="flex gap-2 mb-3">
+                <Input
+                  placeholder="Add alter name..."
+                  value={alterInput}
+                  onChange={(e) => setAlterInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addAlter()}
+                  className="flex-1"
+                />
+                <Button onClick={addAlter} size="sm">
+                  Add
+                </Button>
+              </div>
+              {step.noticed_alters && step.noticed_alters.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {step.noticed_alters.map((alter, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full flex items-center gap-2"
+                    >
+                      {alter}
+                      <button
+                        onClick={() => removeAlter(idx)}
+                        className="hover:text-destructive transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
@@ -77,7 +88,7 @@ export default function CheckInStep3({ data, onChange }) {
               </Label>
               <Textarea
                 id="step3-notes"
-                placeholder="What did you say or notice?"
+                placeholder="Any reflections from the greeting?"
                 value={step.notes || ""}
                 onChange={(e) =>
                   onChange({
