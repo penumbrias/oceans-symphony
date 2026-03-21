@@ -78,7 +78,7 @@ function FolderRow({ group, onClick }) {
   );
 }
 
-export default function FolderGroupsSection({ alters }) {
+export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
   const [navStack, setNavStack] = useState([]);
   const [managingGroup, setManagingGroup] = useState(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
