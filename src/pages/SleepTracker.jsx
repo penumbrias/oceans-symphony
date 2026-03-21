@@ -1,0 +1,203 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
+import SleepLogModal from "@/components/sleep/SleepLogModal";
+
+export default function SleepTracker() {
+  const queryClient = useQueryClient();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  const { data: sleepRecords = [] } = useQuery({
+    queryKey: ["sleep", format(currentDate, "yyyy-MM")],
+    queryFn: () => base44.entities.Sleep.list(),
+  });
+
+  const getSleepForDate = (date) => {
+    return sleepRecords.find(
+      (s) => format(parseISO(s.date), "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
+    );
+  };
+
+  const calculateDuration = (sleep) => {
+    if (!sleep.bedtime || !sleep.wake_time) return 0;
+    const bedTime = parseISO(sleep.bedtime);
+    const wakeTime = parseISO(sleep.wake_time);
+    return (wakeTime - bedTime) / (1000 * 60 * 60); // hours
+  };
+
+  const handleDelete = async (sleepId) => {
+    try {
+      await base44.entities.Sleep.delete(sleepId);
+      queryClient.invalidateQueries({ queryKey: ["sleep"] });
+      toast.success("Sleep record deleted");
+    } catch (err) {
+      toast.error(err.message || "Failed to delete sleep record");
+    }
+  };
+
+  const handleAddSleep = (date) => {
+    setSelectedDate(date);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    queryClient.invalidateQueries({ queryKey: ["sleep"] });
+    setIsModalOpen(false);
+    toast.success("Sleep logged!");
+  };
+
+  const averageQuality =
+    sleepRecords.length > 0
+      ? (sleepRecords.reduce((sum, s) => sum + (s.quality || 0), 0) /
+          sleepRecords.length).toFixed(1)
+      : 0;
+
+  const averageDuration =
+    sleepRecords.length > 0
+      ? (sleepRecords.reduce((sum, s) => sum + calculateDuration(s), 0) /
+          sleepRecords.length).toFixed(1)
+      : 0;
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Sleep Tracker</h1>
+          <p className="text-muted-foreground">Track your sleep patterns and quality</p>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {sleepRecords.length}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Records this month
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {averageDuration}h
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Average duration
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {averageQuality}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Average quality (1-10)
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <Button
+                onClick={() => handleAddSleep(new Date())}
+                className="w-full bg-primary hover:bg-primary/90"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Record
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sleep records list */}
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">Recent records</h2>
+          {sleepRecords.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                No sleep records yet. Start tracking!
+              </CardContent>
+            </Card>
+          ) : (
+            sleepRecords
+              .sort(
+                (a, b) =>
+                  parseISO(b.bedtime || "") - parseISO(a.bedtime || "")
+              )
+              .map((sleep) => {
+                const duration = calculateDuration(sleep);
+                return (
+                  <Card key={sleep.id} className="hover:bg-muted/30 transition-colors">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="font-semibold text-foreground">
+                            {format(parseISO(sleep.date), "EEEE, MMMM d")}
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {format(parseISO(sleep.bedtime), "h:mm a")} -{" "}
+                            {format(parseISO(sleep.wake_time), "h:mm a")}
+                          </div>
+                          <div className="text-sm mt-2 flex gap-4">
+                            <span className="text-primary font-medium">
+                              {duration.toFixed(1)} hours
+                            </span>
+                            {sleep.quality && (
+                              <span className="text-accent-foreground">
+                                Quality: {sleep.quality}/10
+                              </span>
+                            )}
+                          </div>
+                          {sleep.notes && (
+                            <p className="text-sm text-muted-foreground mt-2">
+                              {sleep.notes}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(sleep.id)}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+          )}
+        </div>
+      </div>
+
+      <SleepLogModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSave}
+        selectedDate={selectedDate}
+      />
+    </div>
+  );
+}
