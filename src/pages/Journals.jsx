@@ -85,8 +85,8 @@ export default function Journals() {
 
   const handleCreateFolder = () => {
     if (!newFolderName.trim()) return;
+    setExtraFolders((prev) => prev.includes(newFolderName.trim()) ? prev : [...prev, newFolderName.trim()]);
     setShowNewFolder(false);
-    openNew(newFolderName.trim());
     setNewFolderName("");
   };
 
