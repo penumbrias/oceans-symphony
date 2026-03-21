@@ -157,6 +157,8 @@ export default function GroupsManager() {
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
                 onDropGroup={handleDropGroup}
+                draggedGroupId={draggedGroupId}
+                setDraggedGroupId={setDraggedGroupId}
                 level={0}
               />
             ))
