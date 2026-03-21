@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Settings, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
-import { EMOTIONS } from "@/components/diary/EmotionPicker";
 import { SYMPTOMS } from "@/components/diary/SymptomsChecklistPanel";
 
 const URGE_TYPES = [
