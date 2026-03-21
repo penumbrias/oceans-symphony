@@ -1,5 +1,12 @@
-import React from "react";
-import { User, Tag, Users } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import GroupPickerModal from "@/components/groups/GroupPickerModal";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -13,20 +20,95 @@ function getContrastColor(hex) {
 }
 
 export default function ProfileTab({ alter }) {
-  const hasColor = alter.color && alter.color.length > 3;
-  const bgColor = hasColor ? alter.color : null;
-  const textOnColor = hasColor ? getContrastColor(alter.color) : null;
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    name: "",
+    alias: "",
+    pronouns: "",
+    role: "",
+    description: "",
+    color: "",
+    avatar_url: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
+
+  useEffect(() => {
+    setForm({
+      name: alter.name || "",
+      alias: alter.alias || "",
+      pronouns: alter.pronouns || "",
+      role: alter.role || "",
+      description: alter.description || "",
+      color: alter.color || "",
+      avatar_url: alter.avatar_url || "",
+    });
+  }, [alter]);
+
+  const handleSave = async () => {
+    if (!form.name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await base44.entities.Alter.update(alter.id, form);
+      toast.success("Saved!");
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    } catch (e) {
+      toast.error(e.message || "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    setSaving(true);
+    try {
+      await base44.entities.Alter.update(alter.id, { is_archived: !alter.is_archived });
+      toast.success(alter.is_archived ? "Unarchived!" : "Archived!");
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Permanently delete ${alter?.name}? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await base44.entities.Alter.delete(alter.id);
+      toast.success("Alter deleted.");
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+    } catch (e) {
+      toast.error(e.message || "Failed to delete");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const hasColor = form.color && form.color.length > 3;
+  const bgColor = hasColor ? form.color : null;
+  const textOnColor = hasColor ? getContrastColor(form.color) : null;
 
   return (
     <div className="space-y-6">
+      {/* Color preview strip */}
+      {form.color && (
+        <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />
+      )}
+
       {/* Avatar */}
       <div className="flex justify-center">
         <div
           className="w-32 h-32 rounded-2xl border-4 border-border overflow-hidden shadow-xl"
           style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
         >
-          {alter.avatar_url ? (
-            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+          {form.avatar_url ? (
+            <img src={form.avatar_url} alt={form.name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}>
               <User className="w-14 h-14" />
@@ -35,45 +117,100 @@ export default function ProfileTab({ alter }) {
         </div>
       </div>
 
-      {/* Fields */}
+      {/* Editable Fields */}
       <div className="space-y-4">
-        <FieldRow label="Name" value={alter.name} />
-        <FieldRow label="Pronouns" value={alter.pronouns} />
-        <FieldRow label="Description" value={alter.description} multiline />
-        {hasColor && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1.5">Color</p>
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/50 bg-muted/20">
-              <div className="w-6 h-6 rounded-md shadow-sm" style={{ backgroundColor: bgColor }} />
-              <span className="text-sm font-mono text-muted-foreground">{alter.color}</span>
-            </div>
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground font-medium">Name *</label>
+          <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alter name" />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground font-medium">Alias</label>
+          <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="Short nickname (for mentions)" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground font-medium">Pronouns</label>
+            <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
           </div>
-        )}
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground font-medium">Role</label>
+            <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host..." />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground font-medium">Color</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              value={form.color || "#8b5cf6"}
+              onChange={(e) => set("color", e.target.value)}
+              className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+            />
+            <Input
+              value={form.color}
+              onChange={(e) => set("color", e.target.value)}
+              placeholder="#8b5cf6"
+              className="font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground font-medium">Avatar URL</label>
+          <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
+          {form.avatar_url && (
+            <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
+          <Textarea
+            value={form.description}
+            onChange={(e) => set("description", e.target.value)}
+            placeholder="Write a description..."
+            className="min-h-[100px] resize-none"
+          />
+        </div>
       </div>
 
       {/* Groups */}
-      {alter.groups && alter.groups.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-3">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-primary flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" /> Groups
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {alter.groups.map((group) => (
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowGroupPicker(true)}
+            className="text-xs text-primary hover:text-primary/80 font-medium"
+          >
+            Edit groups →
+          </button>
+        </div>
+        {alter.groups && alter.groups.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {alter.groups.map((g) => (
               <span
-                key={group.id}
-                className="px-3 py-1 rounded-full text-xs font-medium border"
+                key={g.id}
+                className="px-2 py-0.5 rounded-full text-xs font-medium border"
                 style={{
-                  backgroundColor: group.color ? `${group.color}18` : "hsl(var(--muted))",
-                  borderColor: group.color ? `${group.color}40` : "hsl(var(--border))",
-                  color: group.color || "hsl(var(--foreground))",
+                  backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
+                  borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
+                  color: g.color || "hsl(var(--foreground))",
                 }}
               >
-                {group.name}
+                {g.name}
               </span>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-xs text-muted-foreground">Not in any groups</p>
+        )}
+      </div>
 
       {/* Tags */}
       {alter.tags && alter.tags.length > 0 && (
@@ -90,17 +227,44 @@ export default function ProfileTab({ alter }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function FieldRow({ label, value, multiline }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground mb-1.5">{label}</p>
-      <div className={`px-3 py-2.5 rounded-xl border border-border/50 bg-muted/20 min-h-[2.5rem] ${multiline ? "min-h-[5rem]" : ""}`}>
-        <p className="text-sm text-foreground whitespace-pre-wrap">{value || ""}</p>
+      {/* Action Buttons */}
+      <div className="flex flex-col gap-2 pt-2">
+        <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
+          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+          Save Changes
+        </Button>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleArchive}
+            disabled={saving}
+            className="flex-1"
+          >
+            {alter?.is_archived ? (
+              <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
+            ) : (
+              <><Archive className="w-4 h-4 mr-2" /> Archive</>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex-1 text-destructive hover:text-destructive border-destructive/30"
+          >
+            {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+            Delete
+          </Button>
+        </div>
       </div>
+
+      <GroupPickerModal
+        alter={alter}
+        open={showGroupPicker}
+        onClose={() => setShowGroupPicker(false)}
+      />
     </div>
   );
 }
