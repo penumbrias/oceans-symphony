@@ -9,6 +9,7 @@ import AlterCard from "./AlterCard";
 import FolderGroupsSection from "./FolderGroupsSection.jsx";
 
 export default function AlterGrid({ alters }) {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState("asc"); // "asc" | "desc"
   const [showFolders, setShowFolders] = useState(true);
