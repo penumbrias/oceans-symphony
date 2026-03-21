@@ -9,17 +9,9 @@ import { Settings, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { SYMPTOMS } from "@/components/diary/SymptomsChecklistPanel";
 
-const URGE_TYPES = [
-  { id: "suicidal", label: "Suicidal urges" },
-  { id: "self_harm", label: "Self-harm urges" },
-  { id: "alcohol_drugs", label: "Alcohol/Drugs" },
-];
-
-const BODY_MIND_TYPES = [
-  { id: "emotional_misery", label: "Emotional misery" },
-  { id: "physical_misery", label: "Physical misery" },
-  { id: "joy", label: "Joy" },
-];
+const DEFAULT_EMOTIONS = ["Happy", "Sad", "Angry", "Anxious", "Calm"];
+const DEFAULT_URGES = ["Suicidal urges", "Self-harm urges", "Alcohol/Drugs"];
+const DEFAULT_BODY_MIND = ["Emotional misery", "Physical misery", "Joy"];
 
 export default function DiaryCardPresetsManager() {
   const queryClient = useQueryClient();
