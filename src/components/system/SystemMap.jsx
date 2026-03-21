@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, X, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -339,84 +339,98 @@ const SystemMap = () => {
         </g>
       </svg>
 
-      {/* Search and Filter Panel */}
-      <div className="absolute top-4 left-4 bg-card/95 backdrop-blur border border-border rounded-lg p-4 w-96 max-w-[calc(100%-32px)] space-y-3">
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
-            Search Alters
-          </label>
-          <Input
-            placeholder="Search by name or alias..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="text-sm"
-          />
-        </div>
+      {/* Search and Filter Panel - Collapsible */}
+      <div className="absolute top-4 left-4 bg-card/95 backdrop-blur border border-border rounded-lg overflow-hidden w-96 max-w-[calc(100%-32px)] md:max-w-none">
+        {/* Header */}
+        <button
+          onClick={() => setPanelOpen(!panelOpen)}
+          className="w-full flex items-center justify-between p-4 hover:bg-muted/20 transition-colors"
+        >
+          <span className="text-sm font-semibold text-foreground">Filters & Search</span>
+          {panelOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
 
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
-            Filter by Group
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <Badge
-              variant={selectedGroup ? "outline" : "secondary"}
-              className="cursor-pointer"
-              onClick={() => setSelectedGroup(null)}
-            >
-              All Groups
-            </Badge>
-            {groups.map((group) => (
-              <Badge
-                key={group.id}
-                variant={selectedGroup === group.id ? "default" : "outline"}
-                className="cursor-pointer"
-                onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}
-              >
-                {group.name}
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        {selectedAlter && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Co-fronters for {selectedAlter.name}
+        {/* Content */}
+        {panelOpen && (
+          <div className="p-4 space-y-3 border-t border-border max-h-[70vh] overflow-y-auto">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                Search Alters
               </label>
-              <button
-                onClick={() => setSelectedAlter(null)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <Input
+                placeholder="Search by name or alias..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="text-sm"
+              />
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-foreground">Show up to</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="30"
-                  value={cofronterCount}
-                  onChange={(e) => setCofronterCount(Math.max(1, parseInt(e.target.value) || 10))}
-                  className="w-16 h-8 px-2 border border-border rounded text-sm"
-                />
-                <span className="text-sm text-muted-foreground">alters</span>
+
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                Filter by Group
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={selectedGroup ? "outline" : "secondary"}
+                  className="cursor-pointer"
+                  onClick={() => setSelectedGroup(null)}
+                >
+                  All Groups
+                </Badge>
+                {groups.map((group) => (
+                  <Badge
+                    key={group.id}
+                    variant={selectedGroup === group.id ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}
+                  >
+                    {group.name}
+                  </Badge>
+                ))}
               </div>
-              {cofronters.length > 0 && (
-                <div className="bg-muted/30 rounded p-2 max-h-40 overflow-y-auto space-y-1">
-                  {cofronters.map((alter) => (
-                    <div key={alter.id} className="text-xs text-foreground flex items-center justify-between">
-                      <span>{alter.name}</span>
-                      <span className="text-muted-foreground">
-                        {cofrontingMap[selectedAlter.id][alter.id]} sessions
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
+
+            {selectedAlter && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Co-fronters for {selectedAlter.name}
+                  </label>
+                  <button
+                    onClick={() => setSelectedAlter(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-foreground">Show up to</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={cofronterCount}
+                      onChange={(e) => setCofronterCount(Math.max(1, parseInt(e.target.value) || 10))}
+                      className="w-16 h-8 px-2 border border-border rounded text-sm"
+                    />
+                    <span className="text-sm text-muted-foreground">alters</span>
+                  </div>
+                  {cofronters.length > 0 && (
+                    <div className="bg-muted/30 rounded p-2 max-h-40 overflow-y-auto space-y-1">
+                      {cofronters.map((alter) => (
+                        <div key={alter.id} className="text-xs text-foreground flex items-center justify-between">
+                          <span>{alter.name}</span>
+                          <span className="text-muted-foreground">
+                            {cofrontingMap[selectedAlter.id][alter.id]} sessions
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
