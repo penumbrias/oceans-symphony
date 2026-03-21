@@ -111,6 +111,9 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Diary Card Presets */}
+        <DiaryCardPresetsManager />
+
         {/* Custom Fields */}
         <CustomFieldsManager />
 
