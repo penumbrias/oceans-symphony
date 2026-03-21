@@ -117,38 +117,13 @@ export default function ActivityTimeRangeModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Activity name */}
-          <div>
-            <label className="text-sm font-medium text-foreground">
-              What were you doing?
-            </label>
-            <Input
-              value={activityName}
-              onChange={(e) => setActivityName(e.target.value)}
-              placeholder="e.g., Drawing, Playing games, Working"
-              className="mt-1"
-              autoFocus
-            />
-          </div>
-
-          {/* Category */}
-          <div>
-            <label className="text-sm font-medium text-foreground">
-              Category
-            </label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="play">Play</SelectItem>
-                <SelectItem value="work">Work</SelectItem>
-                <SelectItem value="art">Art</SelectItem>
-                <SelectItem value="drawing">Drawing</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Activities */}
+          <ActivityPillSelector 
+            selectedActivities={selectedActivityCategories}
+            onActivityChange={setSelectedActivityCategories}
+            duration={activityDuration}
+            onDurationChange={setActivityDuration}
+          />
 
           {/* Color */}
           <div>
