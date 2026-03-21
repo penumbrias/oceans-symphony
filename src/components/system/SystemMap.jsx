@@ -18,6 +18,7 @@ const SystemMap = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [cofronterCount, setCofronterCount] = useState(10);
   const [cofronters, setCofronters] = useState([]);
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -176,6 +177,21 @@ const SystemMap = () => {
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   };
 
+  const handleTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    setIsDragging(true);
+    setDragStart({ x: e.touches[0].clientX - transform.x, y: e.touches[0].clientY - transform.y });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    setTransform({
+      ...transform,
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y,
+    });
+  };
+
   const handleMouseMove = (e) => {
     if (!isDragging) return;
     setTransform({
@@ -211,10 +227,16 @@ const SystemMap = () => {
     if (!svg) return;
     svg.addEventListener("mousemove", handleMouseMove);
     svg.addEventListener("mouseup", handleMouseUp);
+    svg.addEventListener("touchstart", handleTouchStart);
+    svg.addEventListener("touchmove", handleTouchMove);
+    svg.addEventListener("touchend", handleMouseUp);
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
       svg.removeEventListener("mousemove", handleMouseMove);
       svg.removeEventListener("mouseup", handleMouseUp);
+      svg.removeEventListener("touchstart", handleTouchStart);
+      svg.removeEventListener("touchmove", handleTouchMove);
+      svg.removeEventListener("touchend", handleMouseUp);
       svg.removeEventListener("wheel", handleWheel);
     };
   }, [isDragging, transform]);
