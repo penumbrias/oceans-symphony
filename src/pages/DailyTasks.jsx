@@ -8,27 +8,29 @@ import LevelBar from "@/components/tasks/LevelBar";
 import TaskCard from "@/components/tasks/TaskCard";
 import { toast } from "sonner";
 
-const TODAY = getTodayString();
-
 export default function DailyTasks() {
   const queryClient = useQueryClient();
+  const TODAY = getTodayString();
 
   // Today's progress record
   const { data: allProgress = [] } = useQuery({
     queryKey: ["dailyProgress"],
     queryFn: () => base44.entities.DailyProgress.list("-date", 365),
+    staleTime: 0,
   });
 
   // Journal entries today
   const { data: journals = [] } = useQuery({
     queryKey: ["journalEntries"],
     queryFn: () => base44.entities.JournalEntry.list("-created_date", 10),
+    staleTime: 0,
   });
 
   // Diary cards today
   const { data: diaryCards = [] } = useQuery({
     queryKey: ["diaryCards"],
     queryFn: () => base44.entities.DiaryCard.list("-created_date", 10),
+    staleTime: 0,
   });
 
   const todayRecord = allProgress.find((p) => p.date === TODAY);
