@@ -10,10 +10,10 @@ import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 
 export default function DailySectionPanel({ section, data, onChange, onClose }) {
-  if (section === "weekly_checklist") {
+  if (section === "checklist") {
     return (
       <SymptomsChecklistPanel
-        data={data.weekly_checklist || {}}
+        data={data.checklist || {}}
         onChange={onChange}
         onClose={onClose}
       />
