@@ -1,8 +1,7 @@
 import React from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare, Moon, Sun, Activity, Zap } from "lucide-react";
+import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/lib/ThemeContext";
 import { Button } from "@/components/ui/button";
 
 const navItems = [
