@@ -26,6 +26,8 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
   const [alterInput, setAlterInput] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [activity, setActivity] = useState("");
+  const [activityDuration, setActivityDuration] = useState("");
 
   const activeAlters = useMemo(() => alters.filter(a => !a.is_archived), [alters]);
   
