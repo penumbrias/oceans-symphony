@@ -139,10 +139,13 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7, alter
             {data.displayDates.map((display) => (
               <th
                 key={display.date}
-                className="px-1 py-2 font-medium text-muted-foreground border-b border-border/50 text-center"
+                className="px-2 py-2 font-medium text-muted-foreground border-b border-border/50 text-center"
                 title={display.date}
               >
-                {display.label}
+                <div>{display.label}</div>
+                {data.alters[display.date] && data.alters[display.date].length > 0 && (
+                  <div className="text-xs font-normal text-muted-foreground/70">{data.alters[display.date].join(", ")}</div>
+                )}
               </th>
             ))}
           </tr>
