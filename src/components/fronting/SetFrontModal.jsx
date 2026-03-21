@@ -157,6 +157,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
