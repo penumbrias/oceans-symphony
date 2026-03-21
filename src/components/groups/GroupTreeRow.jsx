@@ -154,12 +154,16 @@ export default function GroupTreeRow({
               onToggleExpanded={onToggleExpanded}
               onDelete={onDelete}
               onCreateChild={onCreateChild}
+              onEdit={onEdit}
+              onMoveUp={onMoveUp}
+              onMoveDown={onMoveDown}
               creatingParentId={creatingParentId}
               newGroupName={newGroupName}
               onNewGroupNameChange={onNewGroupNameChange}
               onCreateGroup={onCreateGroup}
               deletingId={deletingId}
               level={level + 1}
+              parentId={group.id}
             />
           ))}
         </div>
