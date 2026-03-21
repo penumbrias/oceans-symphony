@@ -93,15 +93,28 @@ export default function Journals() {
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
   const openEntry = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
 
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
-    // Open new entry editor with folder pre-filled — folder is persisted via the entry
     const name = newFolderName.trim();
+    // Check if folder already exists
+    if (allFolders.some((f) => f.name === name)) {
+      setShowNewFolder(false);
+      setNewFolderName("");
+      setViewingFolder(name);
+      return;
+    }
+    // Create a placeholder entry to persist the folder
+    await base44.entities.JournalEntry.create({
+      title: `${name} — Welcome`,
+      content: `First entry in the **${name}** folder.`,
+      folder: name,
+      entry_type: "personal",
+    });
+    const { queryClient } = await import("@/lib/query-client");
+    queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
     setShowNewFolder(false);
     setNewFolderName("");
-    setNewEntryFolder(name);
-    setEditEntry(null);
-    setShowEditor(true);
+    setViewingFolder(name);
   };
 
   // Entries with no folder (for the main view)
