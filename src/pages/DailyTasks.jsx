@@ -41,7 +41,7 @@ export default function DailyTasks() {
     const d = j.created_date ? j.created_date.split("T")[0] : null;
     return d === TODAY;
   });
-  const hasDiaryToday = diaryCards.some((c) => c.date && c.date.split("T")[0] === TODAY);
+  const hasDiaryToday = diaryCards.length > 0;
   // check_in is always true if user is viewing this page
   const autoCompleted = useMemo(() => {
     const s = new Set(["check_in"]);
