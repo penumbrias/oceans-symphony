@@ -102,6 +102,28 @@ export default function GroupsManager() {
     }
   };
 
+  const handleDragEnd = async (result) => {
+    const { source, destination, draggableId } = result;
+
+    if (!destination) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+    const draggedGroup = allGroups.find((g) => g.id === draggableId);
+    if (!draggedGroup) return;
+
+    const newParent = destination.droppableId === "root" ? "root" : destination.droppableId;
+
+    try {
+      await base44.entities.Group.update(draggedGroup.id, {
+        parent: newParent,
+      });
+      toast.success("Group moved!");
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+    } catch (err) {
+      toast.error(err.message || "Failed to move group");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto">
