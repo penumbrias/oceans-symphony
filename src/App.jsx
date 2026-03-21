@@ -13,6 +13,7 @@ import Settings from '@/pages/Settings';
 import FrontHistory from '@/pages/FrontHistory';
 import Analytics from '@/pages/Analytics';
 import Journals from '@/pages/Journals';
+import DiaryCards from '@/pages/DiaryCards';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
