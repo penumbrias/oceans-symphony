@@ -61,10 +61,14 @@ export default function Journals() {
   }, [entries]);
 
   const allFolders = useMemo(() => {
-    const folders = new Set(extraFolders);
-    entries.forEach((e) => { if (e.folder) folders.add(e.folder); });
-    return [...folders];
-  }, [entries, extraFolders]);
+    const folderMap = {};
+    entries.forEach((e) => {
+      if (e.folder) {
+        folderMap[e.folder] = (folderMap[e.folder] || 0) + 1;
+      }
+    });
+    return Object.entries(folderMap).map(([name, count]) => ({ name, count }));
+  }, [entries]);
 
   const filtered = useMemo(() => {
     return entries.filter((e) => {
