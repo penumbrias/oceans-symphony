@@ -29,7 +29,23 @@ export default function EmotionsChart({ filteredCards }) {
   }
 
   const allEmotions = [...new Set(filteredCards.flatMap((c) => c.emotions || []))].sort();
-  const colors = ["#ec4899", "#f43f5e", "#f97316", "#eab308", "#84cc16", "#22c55e", "#06b6d4"];
+  
+  const emotionColors = {
+    angry: "#ef4444",
+    anxious: "#f97316",
+    calm: "#eab308",
+    confused: "#22c55e",
+    happy: "#14b8a6",
+    hopeful: "#06b6d4",
+    loved: "#ec4899",
+    numb: "#a1a1a1",
+    overwhelmed: "#92400e",
+    sad: "#1e3a8a",
+    stressed: "#ffff00",
+    tired: "#64748b",
+  };
+  
+  const colors = allEmotions.map((emotion) => emotionColors[emotion.toLowerCase()] || "#8b5cf6");
 
   return (
     <div className="bg-card border border-border/50 rounded-xl p-4">
