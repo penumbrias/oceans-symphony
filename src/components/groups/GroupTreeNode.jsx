@@ -2,6 +2,7 @@ import React from "react";
 import { ChevronDown, ChevronRight, Plus, Trash2, Edit2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Droppable, Draggable } from "@hello-pangea/dnd";
 
 export default function GroupTreeNode({
   group,
