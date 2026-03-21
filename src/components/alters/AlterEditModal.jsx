@@ -16,6 +16,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
 
   const [form, setForm] = useState({
     name: "",
+    alias: "",
     pronouns: "",
     role: "",
     description: "",
@@ -30,6 +31,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
     if (alter && !isNew) {
       setForm({
         name: alter.name || "",
+        alias: alter.alias || "",
         pronouns: alter.pronouns || "",
         role: alter.role || "",
         description: alter.description || "",
@@ -37,7 +39,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
         avatar_url: alter.avatar_url || "",
       });
     } else {
-      setForm({ name: "", pronouns: "", role: "", description: "", color: "", avatar_url: "" });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "" });
     }
   }, [alter, open, isNew]);
 
@@ -107,6 +109,11 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
           <div className="space-y-2">
             <Label>Name *</Label>
             <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alter name" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Alias</Label>
+            <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="Short nickname (for mentions)" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
