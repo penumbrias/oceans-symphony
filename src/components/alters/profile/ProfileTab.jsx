@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2 } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +33,8 @@ export default function ProfileTab({ alter }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     setForm({
@@ -93,6 +95,21 @@ export default function ProfileTab({ alter }) {
   const hasColor = form.color && form.color.length > 3;
   const bgColor = hasColor ? form.color : null;
   const textOnColor = hasColor ? getContrastColor(form.color) : null;
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      set("avatar_url", file_url);
+      toast.success("Avatar uploaded!");
+    } catch (err) {
+      toast.error("Failed to upload avatar");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -159,8 +176,25 @@ export default function ProfileTab({ alter }) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs text-muted-foreground font-medium">Avatar URL</label>
-          <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
+          <label className="text-xs text-muted-foreground font-medium">Avatar</label>
+          <div className="flex gap-2">
+            <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+            >
+              {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleAvatarUpload}
+            />
+          </div>
           {form.avatar_url && (
             <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />
           )}
