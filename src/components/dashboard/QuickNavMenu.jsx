@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Members", icon: Users, path: "/Home", color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
@@ -16,6 +16,8 @@ const SECONDARY_NAV = [
   { label: "Diary Cards", icon: ClipboardList, path: "/diary", color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
   { label: "Activities", icon: Zap, path: "/activities", color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
   { label: "Sleep", icon: Activity, path: "/sleep", color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
+  { label: "Co-Fronting", icon: GitBranch, path: "/cofronting-analytics", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+  { label: "Timeline", icon: Clock, path: "/timeline", color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
 ];
 
 export default function QuickNavMenu() {
