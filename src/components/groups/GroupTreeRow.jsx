@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, ArrowLeft, ArrowUp } from "lucide-react";
+import { ChevronDown, ChevronRight, ArrowLeft, ArrowUp, Users } from "lucide-react";
+import GroupMembersModal from "./GroupMembersModal";
 
 export default function GroupTreeRow({
   group,
