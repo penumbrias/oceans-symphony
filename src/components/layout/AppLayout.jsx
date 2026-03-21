@@ -1,17 +1,13 @@
 import React from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Home, Users, Settings, Sparkles, Clock, BarChart2, BookOpen, ClipboardList, CheckSquare } from "lucide-react";
+import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { path: "/", label: "Home", icon: Home },
   { path: "/Home", label: "Members", icon: Users },
-  { path: "/front-history", label: "History", icon: Clock },
-  { path: "/analytics", label: "Analytics", icon: BarChart2 },
+  { path: "/diary", label: "Diary", icon: ClipboardList },
   { path: "/journals", label: "Journals", icon: BookOpen },
-  { path: "/diary", label: "Diary Cards", icon: ClipboardList },
-  { path: "/tasks", label: "Daily Tasks", icon: CheckSquare },
-  { path: "/settings", label: "Settings", icon: Settings },
+  { path: "/tasks", label: "Tasks", icon: CheckSquare },
 ];
 
 export default function AppLayout() {
@@ -22,6 +18,7 @@ export default function AppLayout() {
       {/* Top header */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          {/* Logo — clicking returns to home */}
           <Link to="/" className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -35,9 +32,7 @@ export default function AppLayout() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive =
-                item.path === "/"
-                  ? location.pathname === "/"
-                  : item.path === "/Home"
+                item.path === "/Home"
                   ? location.pathname === "/Home" || location.pathname.startsWith("/alter")
                   : location.pathname.startsWith(item.path);
               return (
