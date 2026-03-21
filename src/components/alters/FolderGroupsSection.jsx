@@ -122,37 +122,39 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
   return (
     <div>
       {/* Header */}
-      {navStack.length > 0 && (
-        <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4">
+        {navStack.length > 0 && (
           <button
             onClick={navigateBack}
             className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 text-muted-foreground" />
           </button>
+        )}
+        {navStack.length > 0 && (
           <p className="text-sm font-medium text-muted-foreground flex-1">{breadcrumbDisplay}</p>
+        )}
 
-          {/* Manage members (inside a group) */}
-          {currentGroup && (
-            <button
-              onClick={() => setManagingGroup(currentGroup)}
-              title="Manage members"
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <Users className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* New subgroup */}
+        {/* Manage members (inside a group) */}
+        {currentGroup && (
           <button
-            onClick={() => setShowCreateGroup(true)}
-            title={currentGroup ? "New subgroup" : "New group"}
+            onClick={() => setManagingGroup(currentGroup)}
+            title="Manage members"
             className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
           >
-            <FolderPlus className="w-4 h-4" />
+            <Users className="w-4 h-4" />
           </button>
-        </div>
-      )}
+        )}
+
+        {/* New group/subgroup */}
+        <button
+          onClick={() => setShowCreateGroup(true)}
+          title={currentGroup ? "New subgroup" : "New group"}
+          className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+        >
+          <FolderPlus className="w-4 h-4" />
+        </button>
+      </div>
 
       {/* Content */}
       <AnimatePresence mode="wait">
