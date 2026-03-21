@@ -193,15 +193,26 @@ export default function DiaryCardPresetsManager() {
         {/* Urges */}
         <div className="space-y-3">
           <h3 className="font-medium text-sm">Urges to Track</h3>
-          <div className="space-y-2">
-            {URGE_TYPES.map(urge => (
-              <label key={urge.id} className="flex items-center gap-3 cursor-pointer">
-                <Checkbox
-                  checked={presets.urges.includes(urge.id)}
-                  onCheckedChange={() => handleToggleUrge(urge.id)}
-                />
-                <span className="text-sm">{urge.label}</span>
-              </label>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add urge..."
+              value={newUrge}
+              onChange={(e) => setNewUrge(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddUrge()}
+              className="bg-card/50"
+            />
+            <Button onClick={handleAddUrge} size="sm" variant="outline">
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {presets.urges.map((urge, idx) => (
+              <div key={idx} className="bg-destructive/10 px-3 py-1 rounded-full flex items-center gap-2 text-sm">
+                {urge}
+                <button onClick={() => handleRemoveUrge(idx)} className="hover:opacity-70">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -209,15 +220,26 @@ export default function DiaryCardPresetsManager() {
         {/* Body + Mind */}
         <div className="space-y-3">
           <h3 className="font-medium text-sm">Body + Mind</h3>
-          <div className="space-y-2">
-            {BODY_MIND_TYPES.map(type => (
-              <label key={type.id} className="flex items-center gap-3 cursor-pointer">
-                <Checkbox
-                  checked={presets.bodyMind.includes(type.id)}
-                  onCheckedChange={() => handleToggleBodyMind(type.id)}
-                />
-                <span className="text-sm">{type.label}</span>
-              </label>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add metric..."
+              value={newBodyMind}
+              onChange={(e) => setNewBodyMind(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddBodyMind()}
+              className="bg-card/50"
+            />
+            <Button onClick={handleAddBodyMind} size="sm" variant="outline">
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {presets.bodyMind.map((metric, idx) => (
+              <div key={idx} className="bg-chart-2/20 px-3 py-1 rounded-full flex items-center gap-2 text-sm">
+                {metric}
+                <button onClick={() => handleRemoveBodyMind(idx)} className="hover:opacity-70">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             ))}
           </div>
         </div>
