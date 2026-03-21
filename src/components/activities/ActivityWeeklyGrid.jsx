@@ -227,8 +227,9 @@ export default function ActivityWeeklyGrid({
               );
             })}
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+          ))}
+          </div>
+          </div>
+          </div>
+          );
+          }
