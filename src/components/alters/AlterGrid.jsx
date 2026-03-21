@@ -72,7 +72,7 @@ export default function AlterGrid({ alters }) {
       <div className="space-y-8">
         {/* Folders section */}
         {showFolders && rootGroups.length > 0 && (
-          <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} />
+          <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortDir} />
         )}
 
         {/* Alters list */}
