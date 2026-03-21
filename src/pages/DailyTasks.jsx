@@ -57,13 +57,15 @@ export default function DailyTasks() {
     return entryDate === TODAY;
   });
   const hasDiaryToday = diaryCards.length > 0;
+  const hasPartsCheckInToday = systemCheckIns.length > 0;
   // check_in is always true if user is viewing this page
   const autoCompleted = useMemo(() => {
     const s = new Set(["check_in"]);
     if (hasJournalToday) s.add("journal_entry");
     if (hasDiaryToday) s.add("card_entry");
+    if (hasPartsCheckInToday) s.add("parts_checkin");
     return s;
-  }, [hasJournalToday, hasDiaryToday]);
+  }, [hasJournalToday, hasDiaryToday, hasPartsCheckInToday]);
 
   const isCompleted = (id) => manualCompleted.has(id) || autoCompleted.has(id);
 
