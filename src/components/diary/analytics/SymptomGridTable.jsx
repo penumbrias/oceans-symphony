@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
 import { format, parseISO, startOfWeek, endOfWeek, isSameWeek } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 
 export default function SymptomGridTable({ dailyAggregates, dateRange = 7, altersById = {} }) {
   const data = useMemo(() => {
