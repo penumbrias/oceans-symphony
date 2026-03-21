@@ -19,6 +19,8 @@ import DiaryCards from '@/pages/DiaryCards';
 import DailyTasks from '@/pages/DailyTasks';
 import GroupsManager from '@/pages/GroupsManager';
 import SystemCheckIn from '@/pages/SystemCheckIn';
+import ActivityTracker from '@/pages/ActivityTracker';
+import SleepTracker from '@/pages/SleepTracker';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
