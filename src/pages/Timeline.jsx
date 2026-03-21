@@ -128,18 +128,13 @@ export default function Timeline() {
             </p>
           </div>
         ) : (
-          <div className="relative pl-4">
-            {/* Vertical line */}
-            <div className="absolute left-[15px] top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/40 to-transparent" />
-
+          <div className="space-y-0.5">
             {/* Timeline items */}
-            <div className="space-y-1">
-              {timelineItems.map((item, idx) => (
-                <div key={`${item.type}-${item.timestamp}-${idx}`}>
-                  <TimelineItem item={item} alters={alters} />
-                </div>
-              ))}
-            </div>
+            {timelineItems.map((item, idx) => (
+              <div key={`${item.type}-${item.timestamp}-${idx}`}>
+                <TimelineItem item={item} alters={alters} allItems={timelineItems} />
+              </div>
+            ))}
           </div>
         )}
       </div>
