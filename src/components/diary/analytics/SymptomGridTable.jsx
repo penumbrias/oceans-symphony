@@ -88,8 +88,8 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7, alter
       });
     });
 
-    return { dates, symptoms, displayDates };
-  }, [dailyAggregates, dateRange]);
+    return { dates, symptoms, displayDates, alters: dateAlters };
+  }, [dailyAggregates, dateRange, altersById]);
 
   if (!data.dates.length) {
     return <p className="text-sm text-muted-foreground text-center py-6">No symptom data for this period.</p>;
