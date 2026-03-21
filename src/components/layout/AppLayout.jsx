@@ -7,11 +7,9 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { path: "/Home", label: "Members", icon: Users },
-  { path: "/diary", label: "Diary", icon: ClipboardList },
+  { path: "/system-checkin", label: "Check-In", icon: ClipboardList },
   { path: "/journals", label: "Journals", icon: BookOpen },
   { path: "/tasks", label: "Tasks", icon: CheckSquare },
-  { path: "/activities", label: "Activities", icon: Zap },
-  { path: "/sleep", label: "Sleep", icon: Activity },
 ];
 
 export default function AppLayout() {
