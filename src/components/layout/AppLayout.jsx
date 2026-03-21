@@ -10,6 +10,7 @@ const navItems = [
   { path: "/analytics", label: "Analytics", icon: BarChart2 },
   { path: "/journals", label: "Journals", icon: BookOpen },
   { path: "/diary", label: "Diary Cards", icon: ClipboardList },
+  { path: "/tasks", label: "Daily Tasks", icon: CheckSquare },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
 
