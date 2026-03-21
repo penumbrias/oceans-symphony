@@ -9,6 +9,7 @@ import AlterStatRow from "@/components/analytics/AlterStatRow";
 import ActivityHeatmap from "@/components/analytics/ActivityHeatmap";
 import TimeOfDayFronters from "@/components/analytics/TimeOfDayFronters";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
+import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
 
 const MAIN_TABS = [
   { id: "alters", label: "System Members" },
