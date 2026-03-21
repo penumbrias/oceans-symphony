@@ -154,7 +154,7 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7, alter
     return value.toString();
   };
 
-  const symptoms = Object.keys(data.symptoms).sort();
+  const symptomKeys = Object.keys(data.symptoms).sort();
 
   return (
     <div className="bg-card border border-border/50 rounded-xl p-4 overflow-x-auto">
@@ -179,7 +179,7 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7, alter
           </tr>
         </thead>
         <tbody>
-          {symptoms.map((symptomKey, idx) => (
+          {symptomKeys.map((symptomKey, idx) => (
             <tr key={symptomKey} className={`hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? "bg-card/50" : "bg-muted/20"}`}>
               <td className="sticky left-0 bg-card px-2 py-2 font-medium text-foreground border-b border-border/50 z-10 text-left">
                 {formatLabel(symptomKey)}
