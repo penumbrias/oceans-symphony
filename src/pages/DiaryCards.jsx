@@ -133,14 +133,24 @@ export default function DiaryCards() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.DiaryCard.create({
-      card_type: "daily",
-      date: format(new Date(), "yyyy-MM-dd"),
-      name: entryName.trim() || `Daily — ${format(new Date(), "MMM d, yyyy")}`,
-      fronting_alter_ids: frontingAlterIds,
-      ...draftData,
-    });
-    toast.success("Diary card saved!");
+    if (editingEntry) {
+      await base44.entities.DiaryCard.update(editingEntry.id, {
+        name: entryName.trim() || editingEntry.name,
+        fronting_alter_ids: frontingAlterIds,
+        ...draftData,
+      });
+      toast.success("Diary card updated!");
+      setEditingEntry(null);
+    } else {
+      await base44.entities.DiaryCard.create({
+        card_type: "daily",
+        date: format(new Date(), "yyyy-MM-dd"),
+        name: entryName.trim() || `Daily — ${format(new Date(), "MMM d, yyyy")}`,
+        fronting_alter_ids: frontingAlterIds,
+        ...draftData,
+      });
+      toast.success("Diary card saved!");
+    }
     queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
     queryClient.invalidateQueries({ queryKey: ["diaryCardsToday"] });
     setSaving(false);
