@@ -46,20 +46,9 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     queryFn: () => base44.entities.Activity.list(),
   });
 
-  if (!activity) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Activity Details</DialogTitle>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   // Get all activities within 1 hour of this activity
   const activitiesForTime = useMemo(() => {
+    if (!activity) return [];
     return activities.filter(a => {
       const timeDiff = Math.abs(new Date(a.timestamp).getTime() - new Date(activity.timestamp).getTime());
       return timeDiff < 3600000; // Within 1 hour
@@ -68,6 +57,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
 
   // Get emotions for this time
   const emotionsForTime = useMemo(() => {
+    if (!activity) return [];
     const checkIn = emotionCheckIns.find(e => {
       const checkInTime = new Date(e.timestamp);
       const actTime = new Date(activity.timestamp);
@@ -84,6 +74,18 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     });
     return Array.from(allAlterIds).map(id => alters.find(a => a.id === id)).filter(Boolean);
   }, [activitiesForTime, alters]);
+
+  if (!activity) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Activity Details</DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const duration = Math.round((activity.duration_minutes || 0) / 60 * 10) / 10;
   const startTime = new Date(activity.timestamp);
