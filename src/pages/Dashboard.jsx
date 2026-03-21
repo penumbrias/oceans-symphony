@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
-import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
+import FeatureTiles from "@/components/dashboard/FeatureTiles";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import TaskWidget from "@/components/dashboard/TaskWidget";
 import EmotionCheckInModal from "@/components/emotions/EmotionCheckInModal";
@@ -48,7 +48,7 @@ export default function Dashboard() {
         Quick Emotion Check-In
       </button>
 
-      <QuickNavMenu />
+      <FeatureTiles />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <div className="lg:col-span-2">
