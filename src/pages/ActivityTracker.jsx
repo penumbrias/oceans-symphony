@@ -111,7 +111,16 @@ export default function ActivityTracker() {
         frontingHistory={frontingHistory}
         onSave={() => {
           handleCloseModal();
+          handleActivitySave();
         }}
+      />
+
+      <ActivityDetailsModal
+        isOpen={isDetailsOpen}
+        onClose={handleDetailsClose}
+        activity={selectedActivity}
+        alters={alters}
+        onSave={handleActivitySave}
       />
     </div>
   );
