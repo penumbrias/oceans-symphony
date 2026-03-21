@@ -53,6 +53,8 @@ export default function DiaryHeatmap({ dailyAggregates, metric = "avg_emotional_
     avg_emotional_misery: "Emotional Misery",
     avg_joy: "Joy",
     avg_physical_misery: "Physical Misery",
+    avg_urge_self_harm: "Self-Harm Urge",
+    total_skills: "Skills Practiced",
   }[metric] || metric;
 
   return (
