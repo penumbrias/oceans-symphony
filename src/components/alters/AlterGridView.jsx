@@ -1,10 +1,8 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 
 export default function AlterGridView({ alters, currentSession = null, allAlters = [] }) {
-  const navigate = useNavigate();
   const [setFrontOpen, setSetFrontOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedAlter, setSelectedAlter] = useState(null);
