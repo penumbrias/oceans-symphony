@@ -74,6 +74,12 @@ export default function GroupTreeRow({
     if (autoExpandTimeoutRef.current) clearTimeout(autoExpandTimeoutRef.current);
   };
 
+  const handleMoveToParent = (e) => {
+    e.stopPropagation();
+    // Move to root by setting parent to null or empty
+    onDropGroup(group.id, null);
+  };
+
   return (
     <>
       <div
