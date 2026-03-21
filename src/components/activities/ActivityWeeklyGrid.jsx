@@ -1,17 +1,20 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
-import { Plus } from "lucide-react";
+import { Plus, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export default function ActivityWeeklyGrid({
   weekDays,
   activities,
+  alters = [],
   frontingHistory = [],
-  onDayClick,
   onTimeRangeSelect,
+  onActivityClick,
 }) {
   const [startSelection, setStartSelection] = useState(null);
+  const [showAlters, setShowAlters] = useState(false);
   const getActivitiesForDay = (date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     return activities.filter(
