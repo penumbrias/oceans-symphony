@@ -31,56 +31,17 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
   const [notes, setNotes] = useState(activity?.notes || "");
   const [isLoading, setIsLoading] = useState(false);
 
-  const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list(),
-  });
-
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
-  const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
-  });
-
-  // Get all activities that overlap with this hour
-  const activitiesForTime = useMemo(() => {
-    if (!activity) return [];
-    const actTime = new Date(activity.timestamp);
-    const actHour = actTime.getHours();
-    const actDate = format(actTime, "yyyy-MM-dd");
-    
-    return activities.filter(a => {
-      const aTime = new Date(a.timestamp);
-      const aDate = format(aTime, "yyyy-MM-dd");
-      const aHour = aTime.getHours();
-      const durationHours = Math.ceil((a.duration_minutes || 60) / 60);
-      return aDate === actDate && aHour <= actHour && aHour + durationHours > actHour;
-    });
-  }, [activities, activity]);
-
-  // Get emotions for this time
-  const emotionsForTime = useMemo(() => {
-    if (!activity) return [];
-    const checkIn = emotionCheckIns.find(e => {
-      const checkInTime = new Date(e.timestamp);
-      const actTime = new Date(activity.timestamp);
-      return Math.abs(checkInTime - actTime) < 3600000; // Within 1 hour
-    });
-    return checkIn?.emotions || [];
-  }, [emotionCheckIns, activity]);
-
-  // Get alters fronting at this time
-  const altersFrontingAtTime = useMemo(() => {
-    const allAlterIds = new Set();
-    activitiesForTime.forEach(a => {
-      (a.fronting_alter_ids || []).forEach(id => allAlterIds.add(id));
-    });
-    return Array.from(allAlterIds).map(id => alters.find(a => a.id === id)).filter(Boolean);
-  }, [activitiesForTime, alters]);
+  // Get this activity's alters
+  const activityAlters = useMemo(() => {
+    return (activity?.fronting_alter_ids || [])
+      .map(id => alters.find(a => a.id === id))
+      .filter(Boolean);
+  }, [activity, alters]);
 
   if (!activity) {
     return (
