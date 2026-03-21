@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, Palette } from "lucide-react";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -22,6 +22,7 @@ function getContrastColor(hex) {
 
 export default function ActivityDetailsModal({ isOpen, onClose, activity, alters, onSave }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [activityName, setActivityName] = useState(activity?.activity_name || "");
   const [category, setCategory] = useState(activity?.category || "other");
   const [color, setColor] = useState(activity?.color || "#8B5CF6");
@@ -122,10 +123,19 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
               </div>
             </div>
 
-            {activity.notes && (
+            {activity.emotions && activity.emotions.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                <p className="text-sm bg-muted/30 rounded p-2">{activity.notes}</p>
+                <p className="text-xs text-muted-foreground mb-2">Emotions</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {activity.emotions.map((emotion, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 bg-accent/20 text-accent-foreground rounded-full text-xs font-medium"
+                    >
+                      {emotion}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -152,22 +162,82 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
               </div>
             )}
 
+            {activity.notes && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                <p className="text-sm bg-muted/30 rounded p-2">{activity.notes}</p>
+              </div>
+            )}
+
+            {showColorPicker && (
+              <div className="border-t pt-4">
+                <p className="text-xs text-muted-foreground mb-2">Change Color</p>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-12 h-9 rounded-md cursor-pointer border border-border"
+                  />
+                  <Input
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    placeholder="#8B5CF6"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-2">
               <Button
                 variant="outline"
-                onClick={() => setIsEditing(true)}
-                className="flex-1"
-              >
-                Edit
-              </Button>
-              <Button
-                variant="destructive"
                 size="icon"
-                onClick={handleDelete}
-                disabled={isLoading}
+                onClick={() => setShowColorPicker(!showColorPicker)}
+                title="Change color"
               >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <Palette className="w-4 h-4" />
               </Button>
+              {showColorPicker && (
+                <Button
+                  onClick={async () => {
+                    setIsLoading(true);
+                    try {
+                      await base44.entities.Activity.update(activity.id, { color });
+                      toast.success("Color updated!");
+                      setShowColorPicker(false);
+                      onSave?.();
+                    } catch (err) {
+                      toast.error(err.message || "Failed to update color");
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="flex-1"
+                >
+                  Save Color
+                </Button>
+              )}
+              {!showColorPicker && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsEditing(true)}
+                    className="flex-1"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={handleDelete}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         ) : (
