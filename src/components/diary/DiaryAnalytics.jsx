@@ -119,17 +119,39 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
 
       {activeTab === "symptoms" && (
         <div className="space-y-5">
-          <SymptomSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold">Grid View</h3>
-            <p className="text-xs text-muted-foreground">Like your paper checklist—see all symptoms at a glance</p>
+          <div className="flex gap-1 bg-muted/40 p-1 rounded-xl w-fit">
+            {SYMPTOM_TABS.map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setSymptomTab(id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  symptomTab === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          <SymptomGridTable dailyAggregates={dailyAggregates} dateRange={dateRange} />
-          <div className="space-y-1 pt-4">
-            <h3 className="text-sm font-semibold">Trend View</h3>
-            <p className="text-xs text-muted-foreground">Track how symptoms change over time</p>
-          </div>
-          <SymptomTrendCharts dailyAggregates={dailyAggregates} />
+
+          {symptomTab === "grid" && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">Grid View</h3>
+                <p className="text-xs text-muted-foreground">Like your paper checklist—see all symptoms at a glance</p>
+              </div>
+              <SymptomGridTable dailyAggregates={dailyAggregates} dateRange={rangeDays} />
+            </div>
+          )}
+
+          {symptomTab === "trends" && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">Trend View</h3>
+                <p className="text-xs text-muted-foreground">Track how symptoms change over time</p>
+              </div>
+              <SymptomTrendCharts dailyAggregates={dailyAggregates} />
+            </div>
+          )}
         </div>
       )}
       {activeTab === "patterns" && (
