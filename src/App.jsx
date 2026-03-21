@@ -64,11 +64,11 @@ const AuthenticatedApp = () => {
         <Route path="/journals" element={<Journals />} />
         <Route path="/diary" element={<DiaryCards />} />
         <Route path="/tasks" element={<DailyTasks />} />
+        <Route path="/todo" element={<ToDoList />} />
         <Route path="/groups" element={<GroupsManager />} />
         <Route path="/system-checkin" element={<SystemCheckIn />} />
         <Route path="/activities" element={<ActivityTracker />} />
         <Route path="/sleep" element={<SleepTracker />} />
-        <Route path="/tasks" element={<ToDoList />} />
         <Route path="/timeline" element={<Timeline />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

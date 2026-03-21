@@ -6,7 +6,7 @@ import { Calendar, CheckSquare } from "lucide-react";
 export default function NewFeaturesBar() {
   return (
     <div className="flex gap-2 flex-wrap mb-4">
-      <Link to="/tasks">
+      <Link to="/todo">
         <Button variant="outline" size="sm" className="gap-2">
           <CheckSquare className="w-4 h-4" />
           To-Do List
