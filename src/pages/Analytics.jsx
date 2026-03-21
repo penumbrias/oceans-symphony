@@ -13,6 +13,7 @@ import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 const MAIN_TABS = [
   { id: "alters", label: "System Members" },
   { id: "diary", label: "Diary Cards" },
+  { id: "emotions", label: "Emotion Check-Ins" },
 ];
 
 const MODES = [
@@ -230,8 +231,17 @@ export default function Analytics() {
       )}
 
       {mainTab === "diary" && (
-        <DiaryAnalytics cards={cards} altersById={altersById} />
-      )}
-    </div>
-  );
-}
+         <DiaryAnalytics cards={cards} altersById={altersById} />
+       )}
+
+       {mainTab === "emotions" && (
+         <>
+           <div className="mb-5">
+             <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+           </div>
+           <EmotionAnalytics from={from} to={to} />
+         </>
+       )}
+      </div>
+      );
+      }
