@@ -220,7 +220,10 @@ export default function ActivityWeeklyGrid({
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    if (activity) onActivityClick?.(activity);
+                    const cellActivities = getActivitiesForHour(date, hour);
+                    if (cellActivities.length > 0) {
+                      onActivityClick?.(cellActivities);
+                    }
                   }}
                   onMouseDown={(e) => {
                     if (e.button === 2 || e.timeStamp) {
