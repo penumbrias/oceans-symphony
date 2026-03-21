@@ -106,6 +106,30 @@ export default function GroupsManager() {
     }
   };
 
+  const handleCreateSubgroup = async (parentGroupId) => {
+    setCreatingSubgroupFor(parentGroupId);
+  };
+
+  const handleSaveSubgroup = async () => {
+    if (!newGroupName.trim()) {
+      toast.error("Group name is required");
+      return;
+    }
+    try {
+      await base44.entities.Group.create({
+        name: newGroupName,
+        parent: creatingSubgroupFor,
+      });
+      toast.success("Subgroup created!");
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      setNewGroupName("");
+      setCreatingSubgroupFor(null);
+      setExpandedGroups(new Set([...expandedGroups, creatingSubgroupFor]));
+    } catch (err) {
+      toast.error(err.message || "Failed to create subgroup");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto">
