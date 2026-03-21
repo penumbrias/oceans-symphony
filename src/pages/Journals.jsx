@@ -86,8 +86,15 @@ export default function Journals() {
     });
   }, [entries, tab, search, selectedTag, selectedFolder, fronterOnly, currentAlterIds]);
 
-  const openNew = () => { setEditEntry(null); setShowEditor(true); };
-  const openEntry = (entry) => { setEditEntry(entry); setShowEditor(true); };
+  const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
+  const openEntry = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
+
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim()) return;
+    setShowNewFolder(false);
+    openNew(newFolderName.trim());
+    setNewFolderName("");
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
