@@ -41,13 +41,20 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
     [group.id, includeSubgroups, allGroups]
   );
 
+  // Also include sp_id of current group when matching
+  const groupKeysToMatch = useMemo(() => {
+    const keys = new Set(groupIds);
+    if (group.sp_id) keys.add(group.sp_id);
+    return keys;
+  }, [groupIds, group.sp_id]);
+
   const altersInGroup = useMemo(() => {
     return new Set(
       alters
-        .filter((alter) => alter.groups?.some((g) => groupIds.includes(g.id) || groupIds.includes(g.sp_id)))
+        .filter((alter) => alter.groups?.some((g) => groupKeysToMatch.has(g.id) || groupKeysToMatch.has(g.sp_id)))
         .map((a) => a.id)
     );
-  }, [alters, groupIds]);
+  }, [alters, groupKeysToMatch]);
 
   const filteredAlters = useMemo(() => {
     return alters
