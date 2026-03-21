@@ -104,20 +104,37 @@ export default function Journals() {
     setShowEditor(true);
   };
 
+  // Entries with no folder (for the main view)
+  const unfolderedEntries = useMemo(() =>
+    filtered.filter((e) => !e.folder), [filtered]);
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-foreground">Journals</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{entries.length} entries</p>
+        <div className="flex items-center gap-3">
+          {viewingFolder && (
+            <Button variant="ghost" size="icon" onClick={() => setViewingFolder(null)} className="h-8 w-8">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+          )}
+          <div>
+            <h1 className="font-display text-3xl font-semibold text-foreground">
+              {viewingFolder || "Journals"}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {viewingFolder ? `${filtered.length} entries` : `${entries.length} entries`}
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowNewFolder(true)} className="gap-1.5">
-            <FolderPlus className="w-4 h-4" />
-            New Folder
-          </Button>
-          <Button onClick={() => openNew()} className="bg-primary hover:bg-primary/90 gap-1.5">
+          {!viewingFolder && (
+            <Button variant="outline" onClick={() => setShowNewFolder(true)} className="gap-1.5">
+              <FolderPlus className="w-4 h-4" />
+              New Folder
+            </Button>
+          )}
+          <Button onClick={() => openNew(viewingFolder)} className="bg-primary hover:bg-primary/90 gap-1.5">
             <Plus className="w-4 h-4" />
             New Entry
           </Button>
@@ -170,7 +187,7 @@ export default function Journals() {
 
       {/* Tag filters */}
       {allTags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
+        <div className="flex flex-wrap gap-1.5 mb-4">
           {allTags.map((tag) => (
             <button
               key={tag}
@@ -187,46 +204,53 @@ export default function Journals() {
         </div>
       )}
 
-      {/* Folder filters */}
-      {allFolders.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {allFolders.map((f) => (
-            <button
-              key={f}
-              onClick={() => setSelectedFolder(selectedFolder === f ? null : f)}
-              className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border transition-all ${
-                selectedFolder === f
-                  ? "border-primary/60 bg-primary/10 text-primary"
-                  : "border-border/50 text-muted-foreground hover:border-border"
-              }`}
-            >
-              <Folder className="w-3 h-3" />
-              {f}
-            </button>
-          ))}
-        </div>
+      {/* Folder grid (only when not inside a folder) */}
+      {!viewingFolder && allFolders.length > 0 && (
+        <FolderGrid folders={allFolders} onSelect={setViewingFolder} />
       )}
 
-      {/* Entries grid */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
-          <p className="text-muted-foreground text-sm">No journal entries yet.</p>
-          <Button variant="link" onClick={openNew} className="mt-1 text-primary text-sm">
-            Write your first entry
-          </Button>
-        </div>
+      {/* Entries */}
+      {viewingFolder ? (
+        // Inside a folder — show all filtered entries
+        filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground text-sm">No entries in this folder yet.</p>
+            <Button variant="link" onClick={() => openNew(viewingFolder)} className="mt-1 text-primary text-sm">
+              Add the first entry
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {filtered.map((entry) => (
+              <JournalEntryCard key={entry.id} entry={entry} altersById={altersById} onClick={() => openEntry(entry)} />
+            ))}
+          </div>
+        )
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {filtered.map((entry) => (
-            <JournalEntryCard
-              key={entry.id}
-              entry={entry}
-              altersById={altersById}
-              onClick={() => openEntry(entry)}
-            />
-          ))}
-        </div>
+        // Root view — show unfoldered entries below the folder grid
+        <>
+          {unfolderedEntries.length === 0 && allFolders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground text-sm">No journal entries yet.</p>
+              <Button variant="link" onClick={() => openNew()} className="mt-1 text-primary text-sm">
+                Write your first entry
+              </Button>
+            </div>
+          ) : unfolderedEntries.length > 0 ? (
+            <>
+              {allFolders.length > 0 && (
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">All entries</p>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {unfolderedEntries.map((entry) => (
+                  <JournalEntryCard key={entry.id} entry={entry} altersById={altersById} onClick={() => openEntry(entry)} />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </>
       )}
 
       <JournalEditorModal
