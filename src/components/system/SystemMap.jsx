@@ -98,62 +98,46 @@ const SystemMap = () => {
     // Radial layout when alter is selected
     positions[selectedAlter.id] = { x: centerX, y: centerY };
 
-    // Build co-fronting relationship graph for positioning
     const otherAlters = alters.filter((a) => a.id !== selectedAlter.id);
     const maxCofrontWithSelected = Math.max(
       ...otherAlters.map((a) => cofrontingMap[selectedAlter.id]?.[a.id] || 0),
       1
     );
 
-    // Sort alters into rings by co-fronting time with selected alter
-    const rings = {
-      inner: [],
-      middle: [],
-      outer: [],
-    };
+    // Sort alters by co-fronting frequency with selected alter
+    const altersByCofront = otherAlters
+      .map((alter) => ({
+        alter,
+        cofrontTime: cofrontingMap[selectedAlter.id]?.[alter.id] || 0,
+      }))
+      .sort((a, b) => b.cofrontTime - a.cofrontTime);
 
-    otherAlters.forEach((alter) => {
-      const cofrontTime = cofrontingMap[selectedAlter.id]?.[alter.id] || 0;
-      const ratio = cofrontTime / maxCofrontWithSelected;
+    // Position alters in concentric rings based on co-fronting frequency
+    // Closer to center = more co-fronting, further out = less co-fronting
+    const maxRadius = 300;
+    const minRadius = 100;
 
-      if (ratio >= 0.66) {
-        rings.inner.push({ alter, cofrontTime });
-      } else if (ratio >= 0.33) {
-        rings.middle.push({ alter, cofrontTime });
-      } else {
-        rings.outer.push({ alter, cofrontTime });
-      }
-    });
+    altersByCofront.forEach((item, idx) => {
+      // Calculate radius: more co-fronting = closer to center
+      const cofrontRatio = item.cofrontTime / maxCofrontWithSelected;
+      const radius = minRadius + (1 - cofrontRatio) * (maxRadius - minRadius);
 
-    // Helper to position alters in a ring by their co-fronting relationships
-    const positionRing = (ringAlters, radius) => {
-      if (ringAlters.length === 0) return;
-
-      // Sort by co-fronting relationships with other alters in this ring
-      const withScores = ringAlters.map((item) => {
-        let relationshipScore = 0;
-        ringAlters.forEach((other) => {
+      // Position around circle by relationship density with other alters
+      let relationshipScore = 0;
+      altersByCofront.forEach((other) => {
+        if (other.alter.id !== item.alter.id) {
           relationshipScore += cofrontingMap[item.alter.id]?.[other.alter.id] || 0;
-        });
-        return { ...item, relationshipScore };
+        }
       });
 
-      // Sort by relationship score descending (more connected = earlier angle)
-      withScores.sort((a, b) => b.relationshipScore - a.relationshipScore);
+      // Sort index by relationship score to cluster similar alters
+      const angle = (idx / altersByCofront.length) * Math.PI * 2;
 
-      withScores.forEach((item, idx) => {
-        const angle = (idx / withScores.length) * Math.PI * 2;
-        positions[item.alter.id] = {
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
-        };
-      });
-    };
-
-    // Position each ring at appropriate radius
-    positionRing(rings.inner, 120);
-    positionRing(rings.middle, 200);
-    positionRing(rings.outer, 280);
+      positions[item.alter.id] = {
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+      };
+    });
 
     return positions;
   }, [alters, selectedAlter, frontingTime, cofrontingMap]);
