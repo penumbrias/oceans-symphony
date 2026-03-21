@@ -111,6 +111,9 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Custom Fields */}
+        <CustomFieldsManager />
+
         {/* Simply Plural */}
         <SimplyPluralConnect
           settings={settings}
