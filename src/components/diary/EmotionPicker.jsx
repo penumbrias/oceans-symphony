@@ -1,6 +1,6 @@
 import React from "react";
 
-const EMOTIONS = [
+export const EMOTIONS = [
   { label: "Happy", emoji: "😊" },
   { label: "Sad", emoji: "😢" },
   { label: "Angry", emoji: "😡" },
