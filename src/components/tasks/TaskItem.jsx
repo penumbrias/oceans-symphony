@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
-import { ChevronRight, Trash2, Edit2, CheckCircle2, Circle, Flag } from "lucide-react";
+import { ChevronRight, Trash2, Edit2, CheckCircle2, Circle, Flag, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ export default function TaskItem({
   onToggle,
   onDelete,
   onEdit,
+  onCreateSubtask,
   isExpanded,
   onToggleExpand,
   level = 0,
@@ -121,6 +122,17 @@ export default function TaskItem({
 
         {/* Actions */}
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {level === 0 && onCreateSubtask && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => onCreateSubtask(task.id)}
+              title="Create subtask"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </Button>
+          )}
           <Button
             size="icon"
             variant="ghost"
@@ -153,6 +165,7 @@ export default function TaskItem({
               onToggle={onToggle}
               onDelete={onDelete}
               onEdit={onEdit}
+              onCreateSubtask={onCreateSubtask}
               level={level + 1}
             />
           ))}

@@ -10,6 +10,7 @@ export default function ToDoList() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [parentTaskId, setParentTaskId] = useState(null);
   const [expandedTasks, setExpandedTasks] = useState(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
@@ -84,6 +85,7 @@ export default function ToDoList() {
 
   const handleEdit = (task) => {
     setEditingTask(task);
+    setParentTaskId(task.parent_task_id || null);
     setShowForm(true);
   };
 
@@ -98,9 +100,16 @@ export default function ToDoList() {
     toggleMutation.mutate({ taskId, completed: !task.completed });
   };
 
+  const handleCreateSubtask = (parentId) => {
+    setEditingTask(null);
+    setParentTaskId(parentId);
+    setShowForm(true);
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingTask(null);
+    setParentTaskId(null);
   };
 
   return (
@@ -153,6 +162,7 @@ export default function ToDoList() {
                 onToggle={handleToggle}
                 onDelete={handleDelete}
                 onEdit={handleEdit}
+                onCreateSubtask={handleCreateSubtask}
                 isExpanded={expandedTasks.has(task.id)}
                 onToggleExpand={() => handleToggleExpand(task.id)}
               />
@@ -188,7 +198,7 @@ export default function ToDoList() {
           open={showForm}
           onClose={handleCloseForm}
           editingTask={editingTask}
-          parentTaskId={null}
+          parentTaskId={parentTaskId}
           allTasks={tasks}
         />
       )}
