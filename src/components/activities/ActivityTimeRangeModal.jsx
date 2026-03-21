@@ -77,6 +77,7 @@ export default function ActivityTimeRangeModal({
         timestamp: timestamp.toISOString(),
         activity_name: activityName,
         category,
+        color,
         duration_minutes: duration * 60,
         fronting_alter_ids: selectedAlters,
         notes: notes || null,
