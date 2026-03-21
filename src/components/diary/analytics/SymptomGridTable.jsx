@@ -115,21 +115,37 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7, alter
       .join(" ");
   };
 
-  // Color scale for severity
-  const getColor = (value) => {
+  // Color scale for severity - respects positive/negative symptoms
+  const getColor = (value, symptomKey) => {
     if (value === null || value === undefined) return "bg-muted/30";
+    
+    const symptom = symptomMap[symptomKey];
+    const isPositive = symptom?.is_positive ?? false;
+    
     if (typeof value === "boolean") {
-      return value ? "bg-red-500/60" : "bg-green-500/60";
+      return value ? "bg-green-500/60" : "bg-muted/40";
     }
+    
     // For numeric 0-5 scale
     const num = Number(value);
     if (isNaN(num)) return "bg-muted/30";
     const intensity = num / 5;
-    if (intensity < 0.2) return "bg-green-400/50";
-    if (intensity < 0.4) return "bg-yellow-400/50";
-    if (intensity < 0.6) return "bg-orange-400/60";
-    if (intensity < 0.8) return "bg-orange-500/70";
-    return "bg-red-500/80";
+    
+    if (isPositive) {
+      // For positive symptoms: higher is better (green)
+      if (intensity < 0.2) return "bg-red-400/50";
+      if (intensity < 0.4) return "bg-orange-400/50";
+      if (intensity < 0.6) return "bg-yellow-400/50";
+      if (intensity < 0.8) return "bg-lime-400/60";
+      return "bg-green-500/80";
+    } else {
+      // For negative symptoms: higher is worse (red)
+      if (intensity < 0.2) return "bg-green-400/50";
+      if (intensity < 0.4) return "bg-yellow-400/50";
+      if (intensity < 0.6) return "bg-orange-400/60";
+      if (intensity < 0.8) return "bg-orange-500/70";
+      return "bg-red-500/80";
+    }
   };
 
   const getValue = (value) => {
