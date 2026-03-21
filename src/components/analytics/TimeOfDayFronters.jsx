@@ -109,7 +109,7 @@ export default function TimeOfDayFronters({ sessions, alters }) {
       {/* Results */}
       {periodData.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-muted-foreground text-sm">No one started fronting during this time</p>
+          <p className="text-muted-foreground text-sm">No fronting data during this time</p>
         </div>
       ) : (
         <div className="space-y-2">
