@@ -78,7 +78,7 @@ function FolderRow({ group, onClick }) {
   );
 }
 
-function GroupRow({ group, allGroups, alters, level = 0, expanded = true, onToggleExpanded }) {
+function GroupRow({ group, allGroups, alters, level = 0, expanded = false, onToggleExpanded }) {
   const [isExpanded, setIsExpanded] = useState(expanded);
   const childGroups = allGroups
     .filter((g) => g.parent && (g.parent === group.id || g.parent === group.sp_id))
