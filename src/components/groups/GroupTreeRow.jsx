@@ -34,8 +34,13 @@ export default function GroupTreeRow({
   const canMoveUp = siblingIndex > 0;
   const canMoveDown = siblingIndex < siblings.length - 1;
 
+  useEffect(() => {
+    return () => {
+      if (autoExpandTimeoutRef.current) clearTimeout(autoExpandTimeoutRef.current);
+    };
+  }, []);
+
   const handleDragStart = (e) => {
-    setIsDragging(true);
     setDraggedGroupId(group.id);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -43,6 +48,23 @@ export default function GroupTreeRow({
   const handleDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    setIsDropTarget(true);
+
+    // Auto-expand on hover for 1.5 seconds
+    if (!expandedGroups.has(group.id) && hasChildren) {
+      if (autoExpandTimeoutRef.current) clearTimeout(autoExpandTimeoutRef.current);
+      autoExpandTimeoutRef.current = setTimeout(() => {
+        onToggleExpanded(group.id);
+      }, 1500);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setIsDropTarget(false);
+    if (autoExpandTimeoutRef.current) {
+      clearTimeout(autoExpandTimeoutRef.current);
+      autoExpandTimeoutRef.current = null;
+    }
   };
 
   const handleDrop = (e) => {
@@ -51,13 +73,9 @@ export default function GroupTreeRow({
     if (draggedGroupId && draggedGroupId !== group.id) {
       onDropGroup(draggedGroupId, group.id);
     }
-    setIsDragging(false);
+    setIsDropTarget(false);
     setDraggedGroupId(null);
-  };
-
-  const handleDragEnd = () => {
-    setIsDragging(false);
-    setDraggedGroupId(null);
+    if (autoExpandTimeoutRef.current) clearTimeout(autoExpandTimeoutRef.current);
   };
 
   return (
