@@ -23,6 +23,7 @@ export default function ActivityTimeRangeModal({
 }) {
   const [activityName, setActivityName] = useState("");
   const [category, setCategory] = useState("other");
+  const [color, setColor] = useState("#8B5CF6");
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
