@@ -29,7 +29,10 @@ export default function GroupTreeRow({
 
   // Get siblings at this level
   const siblings = allGroups
-    .filter((g) => g.parent === parentId)
+    .filter((g) => {
+      if (!parentId && (!g.parent || g.parent === "" || g.parent === "root")) return true;
+      return g.parent === parentId;
+    })
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   // Show arrow-in for sibling folders when a folder is selected (pointing to selected)
