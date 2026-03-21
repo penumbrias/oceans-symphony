@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Palette, Save, Loader2 } from "lucide-react";
+import DiaryCardPresetsManager from "@/components/settings/DiaryCardPresetsManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 
