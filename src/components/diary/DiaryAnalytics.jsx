@@ -28,6 +28,11 @@ const TABS = [
   { id: "alters", label: "🧑‍🤝‍🧑 Alters" },
 ];
 
+const SYMPTOM_TABS = [
+  { id: "grid", label: "📊 Grid" },
+  { id: "trends", label: "📈 Trends" },
+];
+
 const RATING_SYMPTOMS = SYMPTOMS.filter((s) => s.type === "rating");
 
 export default function DiaryAnalytics({ cards, altersById = {} }) {
