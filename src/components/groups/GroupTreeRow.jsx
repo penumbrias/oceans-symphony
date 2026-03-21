@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronDown, ChevronRight, ArrowLeft } from "lucide-react";
 
 export default function GroupTreeRow({
   group,
