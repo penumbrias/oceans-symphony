@@ -20,9 +20,16 @@ export default function CoFrontingAnalytics() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+
   const analytics = useMemo(() => {
     const pairMap = new Map();
     const durationMap = new Map();
+    const groupPairMap = new Map();
+    const groupDurationMap = new Map();
     const alterStats = new Map();
 
     alters.forEach((a) => {
@@ -40,6 +47,28 @@ export default function CoFrontingAnalytics() {
         const stats = alterStats.get(fronterId);
         stats.sessions += 1;
         stats.totalDuration += duration;
+      }
+
+      // Get groups for all fronting alters
+      const allFronters = [fronterId, ...coFronters];
+      const alterGroups = new Set();
+      allFronters.forEach((alterId) => {
+        const alter = alters.find((a) => a.id === alterId);
+        if (alter && alter.groups) {
+          alter.groups.forEach((g) => alterGroups.add(g.id));
+        }
+      });
+
+      // Track group pairs
+      if (alterGroups.size > 1) {
+        const groupArray = Array.from(alterGroups).sort();
+        for (let i = 0; i < groupArray.length; i++) {
+          for (let j = i + 1; j < groupArray.length; j++) {
+            const key = `${groupArray[i]}|${groupArray[j]}`;
+            groupPairMap.set(key, (groupPairMap.get(key) || 0) + 1);
+            groupDurationMap.set(key, (groupDurationMap.get(key) || 0) + duration);
+          }
+        }
       }
 
       if (coFronters.length > 0) {
@@ -104,8 +133,22 @@ export default function CoFrontingAnalytics() {
       }))
       .slice(-30);
 
-    return { pairData, alterDurationData, trendData };
-  }, [sessions, alters]);
+    const groupPairData = Array.from(groupPairMap.entries())
+      .map(([key, count]) => {
+        const [id1, id2] = key.split("|");
+        const group1 = groups.find((g) => g.id === id1);
+        const group2 = groups.find((g) => g.id === id2);
+        const totalDuration = groupDurationMap.get(key);
+        return {
+          pair: `${group1?.name || id1} + ${group2?.name || id2}`,
+          frequency: count,
+          avgDuration: Math.round(totalDuration / count),
+        };
+      })
+      .sort((a, b) => b.frequency - a.frequency);
+
+    return { pairData, alterDurationData, trendData, groupPairData };
+  }, [sessions, alters, groups]);
 
   const filteredPairs = useMemo(() => {
     if (!searchQuery.trim()) return analytics.pairData;
@@ -118,6 +161,12 @@ export default function CoFrontingAnalytics() {
     const query = searchQuery.toLowerCase();
     return analytics.alterDurationData.filter((alter) => alter.name.toLowerCase().includes(query));
   }, [analytics.alterDurationData, searchQuery]);
+
+  const filteredGroupPairs = useMemo(() => {
+    if (!searchQuery.trim()) return analytics.groupPairData;
+    const query = searchQuery.toLowerCase();
+    return analytics.groupPairData.filter((pair) => pair.pair.toLowerCase().includes(query));
+  }, [analytics.groupPairData, searchQuery]);
 
   return (
     <div className="space-y-6 p-6">
@@ -145,9 +194,35 @@ export default function CoFrontingAnalytics() {
         )}
       </div>
 
-      {/* Most Common Pairs */}
+      {/* Most Common Group Pairs */}
+      {filteredGroupPairs.length > 0 && (
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Most Common Co-Fronting Groups ({filteredGroupPairs.length})</h2>
+          <div className="space-y-3">
+            {filteredGroupPairs.map((pair, idx) => (
+              <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
+                <div>
+                  <p className="font-medium text-sm">{pair.pair}</p>
+                </div>
+                <div className="flex gap-6 text-sm">
+                  <div className="text-right">
+                    <p className="text-muted-foreground text-xs">Times Together</p>
+                    <p className="font-semibold">{pair.frequency}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-muted-foreground text-xs">Avg Duration</p>
+                    <p className="font-semibold">{pair.avgDuration} min</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Most Common Alter Pairs */}
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Most Common Co-Fronting Pairs ({filteredPairs.length})</h2>
+        <h2 className="text-lg font-semibold mb-4">Most Common Co-Fronting Alter Pairs ({filteredPairs.length})</h2>
         {filteredPairs.length > 0 ? (
           <div className="space-y-3">
             {filteredPairs.map((pair, idx) => (
