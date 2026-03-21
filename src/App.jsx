@@ -18,6 +18,7 @@ import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
 import DailyTasks from '@/pages/DailyTasks';
 import GroupsManager from '@/pages/GroupsManager';
+import GroupDetail from '@/pages/GroupDetail';
 import SystemCheckIn from '@/pages/SystemCheckIn';
 
 const AuthenticatedApp = () => {
