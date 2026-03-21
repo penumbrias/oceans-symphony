@@ -27,7 +27,7 @@ export const DAILY_TASKS = [
     id: "parts_checkin",
     label: "Parts check-in",
     description: "Gently notice any parts that want attention and what your body is feeling. No fixing, just noticing.",
-    type: "MANUAL",
+    type: "AUTO",
     xp: 4,
   },
   {
