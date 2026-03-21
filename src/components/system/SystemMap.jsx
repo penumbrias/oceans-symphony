@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 const SystemMap = () => {
   const svgRef = useRef(null);
@@ -11,6 +13,11 @@ const SystemMap = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [nodes, setNodes] = useState([]);
   const [links, setLinks] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAlter, setSelectedAlter] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [cofronterCount, setCofronterCount] = useState(10);
+  const [cofronters, setCofronters] = useState([]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -22,49 +29,146 @@ const SystemMap = () => {
     queryFn: () => base44.entities.Group.list(),
   });
 
-  // Process data into nodes and links
+  const { data: frontingSessions = [] } = useQuery({
+    queryKey: ["frontingSessions"],
+    queryFn: () => base44.entities.FrontingSession.list(),
+  });
+
+  // Calculate co-fronting relationships
+  const cofrontingMap = useMemo(() => {
+    const map = {};
+    frontingSessions.forEach((session) => {
+      const allFronters = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      allFronters.forEach((alter1) => {
+        if (!map[alter1]) map[alter1] = {};
+        allFronters.forEach((alter2) => {
+          if (alter1 !== alter2) {
+            map[alter1][alter2] = (map[alter1][alter2] || 0) + 1;
+          }
+        });
+      });
+    });
+    return map;
+  }, [frontingSessions]);
+
+  // Filter alters based on search and selection
+  const filteredAlters = useMemo(() => {
+    let result = alters;
+
+    if (selectedGroup) {
+      const group = groups.find((g) => g.id === selectedGroup);
+      if (group && group.member_sp_ids) {
+        result = result.filter((a) => group.member_sp_ids.includes(a.sp_id));
+      }
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (a) =>
+          a.name.toLowerCase().includes(query) ||
+          (a.alias && a.alias.toLowerCase().includes(query))
+      );
+    }
+
+    return result;
+  }, [alters, groups, selectedGroup, searchQuery]);
+
+  // Get co-fronters for selected alter
   useEffect(() => {
-    if (!alters.length) return;
+    if (selectedAlter && cofrontingMap[selectedAlter.id]) {
+      const cofronterPairs = Object.entries(cofrontingMap[selectedAlter.id])
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, cofronterCount);
+      const cofronterIds = cofronterPairs.map(([id]) => id);
+      const cofronterData = alters.filter((a) => cofronterIds.includes(a.id));
+      setCofronters(cofronterData);
+    } else {
+      setCofronters([]);
+    }
+  }, [selectedAlter, cofrontingMap, cofronterCount, alters]);
 
-    // Create nodes for alters
-    const alterNodes = alters.map((alter, idx) => ({
-      id: alter.id,
-      label: alter.name,
-      type: "alter",
-      color: alter.color || "#8b5cf6",
-      role: alter.role || "member",
-      x: Math.cos((idx / alters.length) * Math.PI * 2) * 150 + 250,
-      y: Math.sin((idx / alters.length) * Math.PI * 2) * 150 + 250,
-    }));
+  // Process data into nodes and links with clustering
+  useEffect(() => {
+    if (!filteredAlters.length) return;
 
-    // Create nodes for groups
-    const groupNodes = groups.map((group, idx) => ({
-      id: group.id,
-      label: group.name,
-      type: "group",
-      color: group.color || "#6366f1",
-      x: Math.cos((idx / groups.length) * Math.PI * 2) * 300 + 250,
-      y: Math.sin((idx / groups.length) * Math.PI * 2) * 300 + 250,
-    }));
+    // Create clusters based on groups or co-fronting
+    const clusters = {};
+    filteredAlters.forEach((alter) => {
+      const groupId = alter.groups?.[0]?.id || "ungrouped";
+      if (!clusters[groupId]) clusters[groupId] = [];
+      clusters[groupId].push(alter);
+    });
+
+    // Create nodes with cluster positioning
+    const alterNodes = [];
+    let clusterIdx = 0;
+    Object.entries(clusters).forEach(([groupId, clusterAlters]) => {
+      const clusterCenterX = Math.cos((clusterIdx / Object.keys(clusters).length) * Math.PI * 2) * 200 + 250;
+      const clusterCenterY = Math.sin((clusterIdx / Object.keys(clusters).length) * Math.PI * 2) * 200 + 250;
+
+      clusterAlters.forEach((alter, idx) => {
+        const angle = (idx / clusterAlters.length) * Math.PI * 2;
+        const radius = 80;
+        alterNodes.push({
+          id: alter.id,
+          label: alter.name,
+          alias: alter.alias,
+          type: "alter",
+          color: alter.color || "#8b5cf6",
+          role: alter.role || "member",
+          x: clusterCenterX + Math.cos(angle) * radius,
+          y: clusterCenterY + Math.sin(angle) * radius,
+          isSelected: selectedAlter?.id === alter.id,
+          isCofronter: cofronters.some((c) => c.id === alter.id),
+        });
+      });
+      clusterIdx++;
+    });
+
+    // Create group nodes
+    const groupNodes = groups
+      .filter((g) => filteredAlters.some((a) => a.groups?.some((ag) => ag.id === g.id)))
+      .map((group, idx) => ({
+        id: group.id,
+        label: group.name,
+        type: "group",
+        color: group.color || "#6366f1",
+        x: Math.cos((idx / groups.length) * Math.PI * 2) * 350 + 250,
+        y: Math.sin((idx / groups.length) * Math.PI * 2) * 350 + 250,
+      }));
 
     setNodes([...alterNodes, ...groupNodes]);
 
-    // Create links: alters to groups
-    const groupLinks = [];
-    alters.forEach((alter) => {
+    // Create links: alters to groups + co-fronting
+    const newLinks = [];
+    filteredAlters.forEach((alter) => {
       if (alter.groups && Array.isArray(alter.groups)) {
         alter.groups.forEach((group) => {
-          groupLinks.push({
+          newLinks.push({
             source: alter.id,
-            target: group.id || group.id,
+            target: group.id,
             type: "membership",
           });
         });
       }
     });
 
-    setLinks(groupLinks);
-  }, [alters, groups]);
+    // Add co-fronting links for selected alter
+    if (selectedAlter && cofronters.length > 0) {
+      cofronters.forEach((cofronter) => {
+        const frequency = cofrontingMap[selectedAlter.id][cofronter.id];
+        newLinks.push({
+          source: selectedAlter.id,
+          target: cofronter.id,
+          type: "cofronting",
+          strength: frequency,
+        });
+      });
+    }
+
+    setLinks(newLinks);
+  }, [filteredAlters, groups, selectedAlter, cofronters, cofrontingMap]);
 
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
