@@ -3,9 +3,25 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, Hash, Tag, Users, Pencil } from "lucide-react";
+import { ArrowLeft, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import AlterEditModal from "@/components/alters/AlterEditModal";
+import ProfileTab from "@/components/alters/profile/ProfileTab";
+import InfoTab from "@/components/alters/profile/InfoTab";
+import HistoryTab from "@/components/alters/profile/HistoryTab";
+import NotesTab from "@/components/alters/profile/NotesTab";
+import MessagesTab from "@/components/alters/profile/MessagesTab";
+import OptionsTab from "@/components/alters/profile/OptionsTab";
+
+const TABS = [
+  { id: "profile", label: "Profile", icon: User },
+  { id: "info", label: "Info", icon: IdCard },
+  { id: "messages", label: "Board", icon: MessageSquare },
+  { id: "history", label: "History", icon: TrendingUp },
+  { id: "notes", label: "Notes", icon: FileText },
+  { id: "options", label: "Options", icon: SlidersHorizontal },
+];
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -20,6 +36,7 @@ function getContrastColor(hex) {
 
 export default function AlterProfile() {
   const { id: alterId } = useParams();
+  const [tab, setTab] = useState("profile");
   const [showEdit, setShowEdit] = useState(false);
 
   const { data: alter, isLoading } = useQuery({
@@ -30,6 +47,16 @@ export default function AlterProfile() {
     },
     enabled: !!alterId,
     staleTime: 0,
+  });
+
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+
+  const { data: systemFields = [] } = useQuery({
+    queryKey: ["customFields"],
+    queryFn: () => base44.entities.CustomField.list("order"),
   });
 
   if (isLoading) {
@@ -44,11 +71,7 @@ export default function AlterProfile() {
     return (
       <div className="text-center py-24">
         <p className="text-muted-foreground">Alter not found</p>
-        <Link to="/">
-          <Button variant="outline" className="mt-4">
-            Go back
-          </Button>
-        </Link>
+        <Link to="/Home"><Button variant="outline" className="mt-4">Go back</Button></Link>
       </div>
     );
   }
@@ -57,198 +80,82 @@ export default function AlterProfile() {
   const bgColor = hasColor ? alter.color : null;
   const textOnColor = hasColor ? getContrastColor(alter.color) : null;
 
-  const customFieldEntries = alter.custom_fields
-    ? Object.entries(alter.custom_fields).filter(
-        ([_, val]) => val && String(val).trim()
-      )
-    : [];
-
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Back + Edit */}
-      <div className="flex items-center justify-between mb-6">
-        <Link to="/">
+      <div className="flex items-center justify-between mb-4">
+        <Link to="/Home">
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to System
+            Back
           </Button>
         </Link>
         <Button size="sm" variant="outline" onClick={() => setShowEdit(true)} className="gap-1.5">
-          <Pencil className="w-3.5 h-3.5" />
           Edit
         </Button>
       </div>
 
-      {/* Hero banner */}
-      <div className="rounded-2xl overflow-hidden border border-border/50 bg-card">
+      {/* Header strip */}
+      <div
+        className="rounded-2xl p-4 mb-5 flex items-center gap-4"
+        style={{
+          background: bgColor
+            ? `linear-gradient(135deg, ${bgColor}22, ${bgColor}08)`
+            : "hsl(var(--muted)/0.3)",
+          borderLeft: bgColor ? `4px solid ${bgColor}` : "4px solid hsl(var(--primary))",
+        }}
+      >
         <div
-          className="h-40 sm:h-52 relative"
-          style={{
-            background: bgColor
-              ? `linear-gradient(135deg, ${bgColor}, ${bgColor}88, ${bgColor}44)`
-              : "linear-gradient(135deg, hsl(265 60% 55%), hsl(320 50% 60%), hsl(265 60% 75%))",
-          }}
+          className="w-14 h-14 rounded-xl border-2 border-border/60 overflow-hidden flex-shrink-0"
+          style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-card/50 to-transparent" />
+          {alter.avatar_url ? (
+            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}>
+              <User className="w-7 h-7" />
+            </div>
+          )}
         </div>
-
-        <div className="relative px-6 sm:px-8 pb-8">
-          {/* Avatar */}
-          <div className="-mt-16 mb-4">
-            <div
-              className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl border-4 border-card overflow-hidden shadow-xl"
-              style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
-            >
-              {alter.avatar_url ? (
-                <img
-                  src={alter.avatar_url}
-                  alt={alter.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                    e.target.nextSibling.style.display = "flex";
-                  }}
-                />
-              ) : null}
-              <div
-                className="w-full h-full items-center justify-center"
-                style={{
-                  display: alter.avatar_url ? "none" : "flex",
-                  color: textOnColor || "hsl(var(--muted-foreground))",
-                }}
-              >
-                <User className="w-12 h-12" />
-              </div>
-            </div>
-          </div>
-
-          {/* Name and info */}
-          <div className="space-y-4">
-            <div>
-              <h1 className="font-display text-3xl sm:text-4xl font-bold text-foreground">
-                {alter.name}
-              </h1>
-              {alter.pronouns && (
-                <p className="text-muted-foreground mt-1 text-sm">
-                  {alter.pronouns}
-                </p>
-              )}
-            </div>
-
-            {alter.role && (
-              <span
-                className="inline-block px-3 py-1 rounded-full text-sm font-medium"
-                style={{
-                  backgroundColor: bgColor
-                    ? `${bgColor}18`
-                    : "hsl(var(--accent))",
-                  color: bgColor || "hsl(var(--accent-foreground))",
-                }}
-              >
-                {alter.role}
-              </span>
-            )}
-
-            {alter.description && (
-              <div className="pt-2">
-                <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap max-w-2xl">
-                  {alter.description}
-                </p>
-              </div>
-            )}
-
-            {/* Tags */}
-            {alter.tags && alter.tags.length > 0 && (
-              <div className="pt-4 border-t border-border/50">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <Tag className="w-3.5 h-3.5" />
-                  Tags
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {alter.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 rounded-full text-xs font-medium bg-muted/50 text-muted-foreground border border-border/40"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Groups */}
-            {alter.groups && alter.groups.length > 0 && (
-              <div className="pt-4 border-t border-border/50">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <Users className="w-3.5 h-3.5" />
-                  Groups
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {alter.groups.map((group) => (
-                    <span
-                      key={group.id}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold border"
-                      style={{
-                        backgroundColor: group.color ? `${group.color}18` : "hsl(var(--muted))",
-                        borderColor: group.color ? `${group.color}40` : "hsl(var(--border))",
-                        color: group.color || "hsl(var(--foreground))",
-                      }}
-                    >
-                      {group.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Custom fields */}
-            {customFieldEntries.length > 0 && (
-              <div className="pt-4 border-t border-border/50">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <Hash className="w-3.5 h-3.5" />
-                  Custom Fields
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {customFieldEntries.map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="bg-muted/30 rounded-xl px-4 py-3"
-                    >
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {key.replace(/_/g, " ")}
-                      </p>
-                      <p className="text-sm font-medium text-foreground mt-0.5">
-                        {String(value)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Color swatch */}
-            {hasColor && (
-              <div className="pt-4 border-t border-border/50">
-                <p className="text-xs text-muted-foreground mb-2">Color</p>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-8 h-8 rounded-lg shadow-sm border border-border/30"
-                    style={{ backgroundColor: bgColor }}
-                  />
-                  <span className="text-sm text-muted-foreground font-mono">
-                    {alter.color}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
+        <div>
+          <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
+          {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
+          {alter.role && <p className="text-xs text-muted-foreground/70 mt-0.5">{alter.role}</p>}
         </div>
       </div>
+
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0",
+                tab === t.id
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab content */}
+      <div>
+        {tab === "profile" && <ProfileTab alter={alter} onEdit={() => setShowEdit(true)} />}
+        {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
+        {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
+        {tab === "history" && <HistoryTab alterId={alter.id} />}
+        {tab === "notes" && <NotesTab alterId={alter.id} />}
+        {tab === "options" && <OptionsTab alter={alter} />}
+      </div>
+
       <AlterEditModal
         alter={alter}
         open={showEdit}
