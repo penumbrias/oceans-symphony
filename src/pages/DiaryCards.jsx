@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { Plus, BookOpen, ChevronLeft, Calendar, BarChart2 } from "lucide-react";
+import { Plus, BookOpen, ChevronLeft, Calendar, BarChart2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -97,6 +97,23 @@ export default function DiaryCards() {
   const altersById = useMemo(() =>
     Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
 
+  const cardsByDate = useMemo(() => {
+    const grouped = {};
+    cards.forEach((card) => {
+      if (!grouped[card.date]) grouped[card.date] = [];
+      grouped[card.date].push(card);
+    });
+    return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
+  }, [cards]);
+
+  const handleDelete = async (cardId) => {
+    if (!confirm("Delete this diary card entry?")) return;
+    await base44.entities.DiaryCard.delete(cardId);
+    toast.success("Diary card deleted");
+    queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
+    queryClient.invalidateQueries({ queryKey: ["diaryCardsToday"] });
+  };
+
   const startNew = () => {
     const activeSession = sessions.find((s) => s.is_active);
     const currentIds = activeSession
@@ -161,39 +178,59 @@ export default function DiaryCards() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {cards.map((card) => {
-              const comp = getCompletion(card);
-              const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
-              return (
-                <button
-                  key={card.id}
-                  onClick={() => { setViewingEntry(card); setView("entry"); }}
-                  className="text-left bg-card border border-border/50 rounded-xl p-4 hover:shadow-md transition-all space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Calendar className="w-3 h-3" />
-                        {card.date}
-                      </p>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      comp === 100 ? "bg-green-500/10 text-green-600" : "bg-primary/10 text-primary"
-                    }`}>
-                      {comp}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-1.5">
-                    <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${comp}%` }} />
-                  </div>
-                  {fronters.length > 0 && (
-                    <p className="text-xs text-muted-foreground">Fronting: {fronters.join(", ")}</p>
-                  )}
-                </button>
-              );
-            })}
+          <div className="space-y-6">
+            {cardsByDate.map(([date, dateCards]) => (
+              <div key={date} className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="font-medium text-sm text-foreground">{format(new Date(date), "EEEE, MMMM d, yyyy")}</h3>
+                  <span className="text-xs text-muted-foreground ml-auto">{dateCards.length} entry{dateCards.length !== 1 ? "ies" : ""}</span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {dateCards.map((card) => {
+                    const comp = getCompletion(card);
+                    const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
+                    return (
+                      <div
+                        key={card.id}
+                        className="text-left bg-card border border-border/50 rounded-xl p-4 hover:shadow-md transition-all space-y-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <button
+                            onClick={() => { setViewingEntry(card); setView("entry"); }}
+                            className="flex-1 text-left"
+                          >
+                            <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>
+                            {fronters.length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">Fronting: {fronters.join(", ")}</p>
+                            )}
+                          </button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(card.id);
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${comp}%` }} />
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-block ${
+                          comp === 100 ? "bg-green-500/10 text-green-600" : "bg-primary/10 text-primary"
+                        }`}>
+                          {comp}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </motion.div>
@@ -224,14 +261,27 @@ export default function DiaryCards() {
     const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="font-display text-2xl font-semibold">{card.name}</h1>
-            <p className="text-muted-foreground text-xs">{card.date}</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <h1 className="font-display text-2xl font-semibold">{card.name}</h1>
+              <p className="text-muted-foreground text-xs">{card.date}</p>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              handleDelete(card.id);
+              setView("list");
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
         {fronters.length > 0 && (
           <p className="text-sm text-muted-foreground">Fronting: <span className="text-foreground">{fronters.join(", ")}</span></p>
