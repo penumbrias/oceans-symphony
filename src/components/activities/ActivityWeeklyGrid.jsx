@@ -226,8 +226,11 @@ export default function ActivityWeeklyGrid({
                     if (e.button === 2 || e.timeStamp) {
                       const touchStart = Date.now();
                       const handleMouseUp = () => {
-                        if (Date.now() - touchStart > 500 && activity) {
-                          onActivityClick?.(activity);
+                        if (Date.now() - touchStart > 500) {
+                          const cellActivities = getActivitiesForHour(date, hour);
+                          if (cellActivities.length > 0) {
+                            onActivityClick?.(cellActivities);
+                          }
                         }
                         document.removeEventListener("mouseup", handleMouseUp);
                       };
