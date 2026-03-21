@@ -140,7 +140,7 @@ export default function CurrentFronters({ alters }) {
   const coFronters = (active.co_fronter_ids || []).map((id) => altersById[id]).filter(Boolean);
   const all = [primary, ...coFronters].filter(Boolean);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (active && active.note) {
       setStatusText(active.note);
       setTempStatus(active.note);
