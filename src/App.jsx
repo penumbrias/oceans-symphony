@@ -23,6 +23,7 @@ import ActivityTracker from '@/pages/ActivityTracker';
 import SleepTracker from '@/pages/SleepTracker';
 import ToDoList from '@/pages/ToDoList';
 import Timeline from '@/pages/Timeline';
+import CoFrontingAnalytics from '@/pages/CoFrontingAnalytics';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -70,6 +71,7 @@ const AuthenticatedApp = () => {
         <Route path="/activities" element={<ActivityTracker />} />
         <Route path="/sleep" element={<SleepTracker />} />
         <Route path="/timeline" element={<Timeline />} />
+        <Route path="/cofronting-analytics" element={<CoFrontingAnalytics />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
