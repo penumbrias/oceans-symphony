@@ -14,6 +14,7 @@ export default function GroupsManager() {
   const [newGroupName, setNewGroupName] = useState("");
   const [isCreatingRoot, setIsCreatingRoot] = useState(false);
   const [draggedGroupId, setDraggedGroupId] = useState(null);
+  const [creatingSubgroupFor, setCreatingSubgroupFor] = useState(null);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
@@ -84,6 +85,26 @@ export default function GroupsManager() {
     }
   };
 
+  const handleCreateSubgroup = async (parentGroupId) => {
+    if (!newGroupName.trim()) {
+      toast.error("Group name is required");
+      return;
+    }
+    try {
+      await base44.entities.Group.create({
+        name: newGroupName,
+        parent: parentGroupId,
+      });
+      toast.success("Subgroup created!");
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      setNewGroupName("");
+      setCreatingSubgroupFor(null);
+      setExpandedGroups(new Set([...expandedGroups, parentGroupId]));
+    } catch (err) {
+      toast.error(err.message || "Failed to create subgroup");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto">
@@ -113,6 +134,10 @@ export default function GroupsManager() {
                 draggedGroupId={draggedGroupId}
                 setDraggedGroupId={setDraggedGroupId}
                 level={0}
+                creatingSubgroupFor={creatingSubgroupFor}
+                onCreateSubgroup={handleCreateSubgroup}
+                newSubgroupName={newGroupName}
+                onSubgroupNameChange={setNewGroupName}
               />
             ))
           )}
