@@ -102,6 +102,10 @@ export default function ActivityTracker() {
         />
 
         <div className="mt-8">
+          <ActivityGoalsPanel weekStart={weekStart} />
+        </div>
+
+        <div className="mt-8">
           <ActivityTallyTracker activities={activities} />
         </div>
       </div>
