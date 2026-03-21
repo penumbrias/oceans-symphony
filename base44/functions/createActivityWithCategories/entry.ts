@@ -9,10 +9,18 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { activity_name, activity_category_ids, duration_minutes, fronting_alter_ids, notes, emotions } = await req.json();
+    const { activity_category_ids, duration_minutes, fronting_alter_ids, notes, emotions, timestamp } = await req.json();
+
+    // Fetch categories to build activity name
+    const categories = await base44.entities.ActivityCategory.list();
+    const categoryNames = (activity_category_ids || [])
+      .map(id => categories.find(c => c.id === id)?.name)
+      .filter(Boolean);
+    
+    const activity_name = categoryNames.length > 0 ? categoryNames.join(" + ") : "Activity";
 
     const activity = await base44.entities.Activity.create({
-      timestamp: new Date().toISOString(),
+      timestamp: timestamp || new Date().toISOString(),
       activity_name,
       activity_category_ids: activity_category_ids || [],
       duration_minutes,
