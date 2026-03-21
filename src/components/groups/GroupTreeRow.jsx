@@ -129,31 +129,19 @@ export default function GroupTreeRow({
           <span className="text-sm text-foreground truncate">{group.name}</span>
         </div>
 
-        {/* Up/Down arrows */}
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Left arrow if selected group exists and this isn't the selected group */}
+        {selectedGroupId && selectedGroupId !== group.id && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onMoveUp(group.id);
+              onDropGroup(selectedGroupId, group.id);
             }}
-            disabled={!canMoveUp}
-            className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed hover:bg-muted rounded transition-colors"
-            title="Move up"
+            className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            title="Move here"
           >
-            <ArrowUp className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveDown(group.id);
-            }}
-            disabled={!canMoveDown}
-            className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed hover:bg-muted rounded transition-colors"
-            title="Move down"
-          >
-            <ArrowDown className="w-4 h-4" />
-          </button>
-        </div>
+        )}
       </div>
 
       {/* Children */}
