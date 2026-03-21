@@ -234,6 +234,7 @@ const SystemMap = () => {
             const targetNode = nodes.find((n) => n.id === link.target);
             if (!sourceNode || !targetNode) return null;
 
+            const isCofronting = link.type === "cofronting";
             return (
               <line
                 key={`link-${idx}`}
@@ -241,9 +242,9 @@ const SystemMap = () => {
                 y1={sourceNode.y}
                 x2={targetNode.x}
                 y2={targetNode.y}
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth="2"
-                opacity="0.4"
+                stroke={isCofronting ? "hsl(var(--accent))" : "hsl(var(--muted-foreground))"}
+                strokeWidth={isCofronting ? Math.min(3, (link.strength || 1) * 0.5) : 2}
+                opacity={isCofronting ? 0.7 : 0.4}
                 strokeDasharray={link.type === "membership" ? "5,5" : "0"}
               />
             );
@@ -263,8 +264,12 @@ const SystemMap = () => {
                 cy={node.y}
                 r={node.type === "group" ? 45 : 35}
                 fill={node.color}
-                opacity={0.8}
+                opacity={node.type === "alter" && !filteredAlters.some((a) => a.id === node.id) ? 0.3 : 0.8}
                 filter={`url(#shadow-${node.id})`}
+                stroke={node.isSelected ? "white" : node.isCofronter ? "hsl(var(--accent))" : "none"}
+                strokeWidth={node.isSelected ? 3 : node.isCofronter ? 2 : 0}
+                style={{ cursor: node.type === "alter" ? "pointer" : "default" }}
+                onClick={() => node.type === "alter" && setSelectedAlter(alters.find((a) => a.id === node.id))}
               />
 
               {/* Node label */}
