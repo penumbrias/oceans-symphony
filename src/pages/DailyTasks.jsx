@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -124,7 +124,7 @@ export default function DailyTasks() {
   };
 
   // Save auto-completed XP to today's record if not yet saved
-  React.useEffect(() => {
+  useEffect(() => {
     if (!todayRecord && todayXP > 0) {
       base44.entities.DailyProgress.create({
         date: TODAY,
