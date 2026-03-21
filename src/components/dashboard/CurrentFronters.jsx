@@ -87,6 +87,13 @@ export default function CurrentFronters({ alters }) {
   const active = sessions.find((s) => s.is_active);
   const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
 
+  useEffect(() => {
+    if (active && active.note) {
+      setStatusText(active.note);
+      setTempStatus(active.note);
+    }
+  }, [active?.id]);
+
   const handleSetPrimaryFromHold = async (alter) => {
     if (!active) return;
     try {
@@ -139,13 +146,6 @@ export default function CurrentFronters({ alters }) {
   const primary = altersById[active.primary_alter_id];
   const coFronters = (active.co_fronter_ids || []).map((id) => altersById[id]).filter(Boolean);
   const all = [primary, ...coFronters].filter(Boolean);
-
-  useEffect(() => {
-    if (active && active.note) {
-      setStatusText(active.note);
-      setTempStatus(active.note);
-    }
-  }, [active?.id]);
 
   return (
     <>
