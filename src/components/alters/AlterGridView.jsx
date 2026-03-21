@@ -89,18 +89,6 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
           </div>
         ))}
       </div>
-
-      {selectedAlter && (
-        <SetFrontModal
-          open={setFrontOpen}
-          onClose={() => {
-            setSetFrontOpen(false);
-            setSelectedAlter(null);
-          }}
-          alters={allAlters}
-          currentSession={currentSession}
-        />
-      )}
-    </>
-  );
-}
+      </>
+      );
+      }
