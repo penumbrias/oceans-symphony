@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Trash2, Loader2 } from "lucide-react";
+import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 
 function getContrastColor(hex) {
   if (!hex) return "#000000";
