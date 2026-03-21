@@ -122,7 +122,7 @@ export default function ActivityWeeklyGrid({
           </div>
 
           {/* Time blocks grid */}
-        {HOURS.map((hour) => (
+          {HOURS.map((hour) => (
           <div
             key={hour}
             className="grid grid-cols-[80px_repeat(7,120px)] gap-0 border-b border-border/50"
