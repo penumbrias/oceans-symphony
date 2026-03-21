@@ -28,19 +28,12 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
   );
 
   const insertMention = (alter) => {
+    if (!alter || !alter.name) return;
     const lastAt = content.lastIndexOf("@");
-    if (lastAt !== -1 && !content.slice(lastAt + 1).includes(" ")) {
-      // Replace the @ mention with proper mention
-      const beforeAt = content.slice(0, lastAt);
-      const mentionText = alter.alias || alter.name;
-      const newContent = beforeAt + `@${mentionText} `;
-      setContent(newContent);
-    } else {
-      // No incomplete mention, just append
-      const mentionText = alter.alias || alter.name;
-      const newContent = content + `@${mentionText} `;
-      setContent(newContent);
-    }
+    const beforeAt = lastAt !== -1 ? content.slice(0, lastAt) : content;
+    const mentionText = alter.alias || alter.name;
+    const newContent = beforeAt + `@${mentionText} `;
+    setContent(newContent);
     setShowMentions(false);
     setMentionQuery("");
     textareaRef.current?.focus();

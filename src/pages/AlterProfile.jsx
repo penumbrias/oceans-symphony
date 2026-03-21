@@ -36,8 +36,8 @@ function getContrastColor(hex) {
 
 export default function AlterProfile() {
   const { id: alterId } = useParams();
-  const [tab, setTab] = useState("profile");
-  const [showEdit, setShowEdit] = useState(false);
+  const [tab, setTab] = useState("edit");
+  const [showEdit, setShowEdit] = useState(true);
 
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
@@ -82,7 +82,7 @@ export default function AlterProfile() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      {/* Back + Edit */}
+      {/* Back */}
       <div className="flex items-center justify-between mb-4">
         <Link to="/Home">
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
@@ -90,9 +90,6 @@ export default function AlterProfile() {
             Back
           </Button>
         </Link>
-        <Button size="sm" variant="outline" onClick={() => setShowEdit(true)} className="gap-1.5">
-          Edit
-        </Button>
       </div>
 
       {/* Header strip */}
@@ -147,19 +144,24 @@ export default function AlterProfile() {
       </div>
 
       {/* Tab content */}
-      <div>
-        {tab === "profile" && <ProfileTab alter={alter} onEdit={() => setShowEdit(true)} />}
-        {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
-        {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
-        {tab === "history" && <HistoryTab alterId={alter.id} />}
-        {tab === "notes" && <NotesTab alterId={alter.id} />}
-        {tab === "options" && <OptionsTab alter={alter} />}
-      </div>
+      {!showEdit ? (
+        <div>
+          {tab === "profile" && <ProfileTab alter={alter} onEdit={() => setShowEdit(true)} />}
+          {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
+          {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
+          {tab === "history" && <HistoryTab alterId={alter.id} />}
+          {tab === "notes" && <NotesTab alterId={alter.id} />}
+          {tab === "options" && <OptionsTab alter={alter} />}
+        </div>
+      ) : null}
 
       <AlterEditModal
         alter={alter}
         open={showEdit}
-        onClose={() => setShowEdit(false)}
+        onClose={() => {
+          setShowEdit(false);
+          setTab("profile");
+        }}
         mode="edit"
       />
     </motion.div>
