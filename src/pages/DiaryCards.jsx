@@ -318,6 +318,83 @@ export default function DiaryCards() {
             </div>
           ))}
         </div>
+        <Button onClick={() => startEdit(card)} className="w-full bg-primary hover:bg-primary/90 gap-1.5">
+          Edit Card
+        </Button>
+      </motion.div>
+    );
+  }
+
+  // ── EDIT ENTRY ──
+  if (view === "edit" && editingEntry) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setView("entry")} className="h-8 w-8">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="font-display text-2xl font-semibold">Edit Diary Card</h1>
+            <p className="text-muted-foreground text-xs">{editingEntry.date}</p>
+          </div>
+        </div>
+
+        <div className="bg-card border border-border/50 rounded-xl p-4 space-y-2">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Completion</span>
+            <span>{completion}%</span>
+          </div>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${completion}%` }} />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Entry name</label>
+          <Input value={entryName} onChange={(e) => setEntryName(e.target.value)} />
+        </div>
+
+        <div className="bg-card border border-border/50 rounded-xl p-4">
+          <AlterSelector alters={alters} selected={frontingAlterIds} onChange={setFrontingAlterIds} />
+        </div>
+
+        <AnimatePresence mode="wait">
+          {activeSection ? (
+            <motion.div
+              key={activeSection}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="bg-card border border-border/60 rounded-xl p-4"
+            >
+              <DailySectionPanel
+                section={activeSection}
+                data={draftData}
+                onChange={handleChange}
+                onClose={() => setActiveSection(null)}
+              />
+            </motion.div>
+          ) : (
+            <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+              {SECTIONS.map((s) => (
+                <SectionRow
+                  key={s.id}
+                  emoji={s.emoji}
+                  title={s.title}
+                  subtitle={s.subtitle}
+                  value={getSectionSummary(s.id, draftData)}
+                  onClick={() => setActiveSection(s.id)}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!activeSection && (
+          <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        )}
       </motion.div>
     );
   }
