@@ -73,8 +73,8 @@ export default function Timeline() {
       }
     });
 
-    // Sort by timestamp descending (newest first)
-    return items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // Sort by timestamp ascending (oldest first) for vertical timeline display
+    return items.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   }, [activities, switches, emotions, selectedDate]);
 
   const handlePrevDay = () => {
