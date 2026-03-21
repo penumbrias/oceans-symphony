@@ -165,8 +165,8 @@ export default function GroupsManager() {
           )}
         </div>
 
-        {/* Create Root Group */}
-        {!isCreatingRoot ? (
+        {/* Create Root or Subgroup */}
+        {!isCreatingRoot && !creatingSubgroupFor ? (
           <Button
             onClick={() => setIsCreatingRoot(true)}
             variant="outline"
@@ -182,16 +182,32 @@ export default function GroupsManager() {
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreateRootGroup();
-                if (e.key === "Escape") setIsCreatingRoot(false);
+                if (e.key === "Enter") {
+                  isCreatingRoot ? handleCreateRootGroup() : handleSaveSubgroup();
+                }
+                if (e.key === "Escape") {
+                  setIsCreatingRoot(false);
+                  setCreatingSubgroupFor(null);
+                  setNewGroupName("");
+                }
               }}
               placeholder="New group name"
               className="flex-1"
             />
-            <Button onClick={handleCreateRootGroup} className="bg-primary hover:bg-primary/90">
+            <Button
+              onClick={isCreatingRoot ? handleCreateRootGroup : handleSaveSubgroup}
+              className="bg-primary hover:bg-primary/90"
+            >
               Create
             </Button>
-            <Button onClick={() => setIsCreatingRoot(false)} variant="outline">
+            <Button
+              onClick={() => {
+                setIsCreatingRoot(false);
+                setCreatingSubgroupFor(null);
+                setNewGroupName("");
+              }}
+              variant="outline"
+            >
               Cancel
             </Button>
           </div>
