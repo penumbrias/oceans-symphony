@@ -1,18 +1,22 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityTimeRangeModal from "@/components/activities/ActivityTimeRangeModal";
+import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 
 export default function ActivityTracker() {
+  const qc = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedStartHour, setSelectedStartHour] = useState(undefined);
   const [selectedEndHour, setSelectedEndHour] = useState(undefined);
+  const [selectedActivity, setSelectedActivity] = useState(null);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
