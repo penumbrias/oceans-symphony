@@ -24,6 +24,10 @@ export default function EmotionAnalytics({ from, to }) {
     });
   }, [checkIns, from, to]);
 
+  const altersById = useMemo(() => {
+    return Object.fromEntries(alters.map((a) => [a.id, a]));
+  }, [alters]);
+
   // Emotion frequency
   const emotionCounts = useMemo(() => {
     const counts = {};
@@ -114,10 +118,6 @@ export default function EmotionAnalytics({ from, to }) {
       ...emotions
     }));
   }, [filtered]);
-
-  const altersById = useMemo(() => {
-    return Object.fromEntries(alters.map((a) => [a.id, a]));
-  }, [alters]);
 
   return (
     <div className="space-y-5">
