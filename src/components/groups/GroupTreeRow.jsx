@@ -18,6 +18,7 @@ export default function GroupTreeRow({
   level = 0,
 }) {
   const [isDropTarget, setIsDropTarget] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const autoExpandTimeoutRef = useRef(null);
 
   // Find children by matching parent to this group's ID or sp_id
