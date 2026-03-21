@@ -11,6 +11,7 @@ import SectionRow from "@/components/diary/SectionRow";
 import DailySectionPanel from "@/components/diary/DailySectionPanel";
 import AlterSelector from "@/components/diary/AlterSelector";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
+import ExistingCardDialog from "@/components/diary/ExistingCardDialog";
 
 const DEFAULT_SECTIONS = [
   { id: "emotions", emoji: "😊", title: "Emotions", subtitle: "Tap to log feelings", enabled: true },
