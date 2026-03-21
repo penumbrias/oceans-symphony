@@ -18,8 +18,9 @@ export default function GroupTreeRow({
   const [isHoldingArrow, setIsHoldingArrow] = useState(false);
   const [selectedForMove, setSelectedForMove] = useState(new Set());
 
+  // Find children by matching parent to this group's ID
   const childGroups = allGroups
-    .filter((g) => g.parent === group.id)
+    .filter((g) => g.parent && (g.parent === group.id || g.parent === group.sp_id))
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const hasChildren = childGroups.length > 0;
