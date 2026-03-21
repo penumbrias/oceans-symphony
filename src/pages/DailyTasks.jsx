@@ -3,140 +3,157 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { DAILY_TASKS, TOTAL_POSSIBLE_XP, getTodayString, getLevelFromTotalXP } from "@/lib/dailyTasks";
+import { DAILY_TASKS, TOTAL_POSSIBLE_XP, getTodayString } from "@/lib/dailyTasks";
 import LevelBar from "@/components/tasks/LevelBar";
 import TaskCard from "@/components/tasks/TaskCard";
+import { toast } from "sonner";
 
 const TODAY = getTodayString();
 
 export default function DailyTasks() {
   const queryClient = useQueryClient();
 
+  // Today's progress record
   const { data: allProgress = [] } = useQuery({
     queryKey: ["dailyProgress"],
-    queryFn: () => base44.entities.DailyProgress.list("-date"),
+    queryFn: () => base44.entities.DailyProgress.list("-date", 365),
   });
 
-  // Check AUTO tasks — what exists in the app today
+  // Journal entries today
   const { data: journals = [] } = useQuery({
     queryKey: ["journalEntries"],
-    queryFn: () => base44.entities.JournalEntry.list("-created_date", 5),
+    queryFn: () => base44.entities.JournalEntry.list("-created_date", 10),
   });
+
+  // Diary cards today
   const { data: diaryCards = [] } = useQuery({
     queryKey: ["diaryCards"],
-    queryFn: () => base44.entities.DiaryCard.list("-created_date", 5),
+    queryFn: () => base44.entities.DiaryCard.list("-created_date", 10),
   });
 
-  const todayProgress = allProgress.find((p) => p.date === TODAY);
+  const todayRecord = allProgress.find((p) => p.date === TODAY);
+  const manualCompleted = new Set(todayRecord?.completed_task_ids || []);
 
-  // Determine completed AUTO tasks
+  // AUTO task detection
+  const hasJournalToday = journals.some((j) => {
+    const d = j.created_date ? j.created_date.split("T")[0] : null;
+    return d === TODAY;
+  });
+  const hasDiaryToday = diaryCards.some((c) => c.date === TODAY);
+  // check_in is always true if user is viewing this page
   const autoCompleted = useMemo(() => {
-    const set = new Set();
-    // check_in: always true if they're here
-    set.add("check_in");
-    // journal_entry: any journal created today
-    if (journals.some((j) => j.created_date?.startsWith(TODAY))) set.add("journal_entry");
-    // card_entry: any diary card today
-    if (diaryCards.some((c) => c.date === TODAY || c.created_date?.startsWith(TODAY))) set.add("card_entry");
-    return set;
-  }, [journals, diaryCards]);
+    const s = new Set(["check_in"]);
+    if (hasJournalToday) s.add("journal_entry");
+    if (hasDiaryToday) s.add("card_entry");
+    return s;
+  }, [hasJournalToday, hasDiaryToday]);
 
-  const manualCompleted = useMemo(() =>
-    new Set(todayProgress?.completed_task_ids?.filter((id) => {
-      const t = DAILY_TASKS.find((t) => t.id === id);
-      return t?.type === "MANUAL";
-    }) || []),
-    [todayProgress]
-  );
+  const isCompleted = (id) => manualCompleted.has(id) || autoCompleted.has(id);
 
-  const completedIds = useMemo(() => {
-    const all = new Set([...autoCompleted, ...manualCompleted]);
-    return all;
-  }, [autoCompleted, manualCompleted]);
-
-  // XP today
-  const todayXP = useMemo(() =>
-    DAILY_TASKS.filter((t) => completedIds.has(t.id)).reduce((sum, t) => sum + t.xp, 0),
-    [completedIds]
-  );
+  // XP for today
+  const todayXP = DAILY_TASKS.filter((t) => isCompleted(t.id)).reduce((sum, t) => sum + t.xp, 0);
 
   // Total XP across all days
   const totalXP = useMemo(() => {
-    const historicalXP = allProgress
-      .filter((p) => p.date !== TODAY)
-      .reduce((sum, p) => sum + (p.xp_earned || 0), 0);
-    return historicalXP + todayXP;
-  }, [allProgress, todayXP]);
+    return allProgress.reduce((sum, p) => sum + (p.xp_earned || 0), 0);
+  }, [allProgress]);
 
   // Streak calculation
   const { streak, bestStreak } = useMemo(() => {
-    const dates = allProgress.map((p) => p.date).sort((a, b) => b.localeCompare(a));
+    const dates = new Set(allProgress.filter((p) => (p.xp_earned || 0) > 0).map((p) => p.date));
     let streak = 0;
-    let bestStreak = 0;
-    let current = 0;
-    const today = new Date(TODAY);
-
-    // Check if today has any activity
-    const hasToday = completedIds.size > 0;
-    if (hasToday) streak = 1;
-
-    for (let i = 0; i < dates.length; i++) {
-      const d = new Date(dates[i]);
-      const diff = Math.round((today - d) / (1000 * 60 * 60 * 24));
-      if (diff === streak) streak++;
+    let d = new Date();
+    // allow today to count even if not saved yet
+    const todayStr = TODAY;
+    if (dates.has(todayStr) || todayXP > 0) {
+      streak = 1;
+      d.setDate(d.getDate() - 1);
     }
-
-    // Best streak from historical data
+    while (true) {
+      const s = d.toISOString().split("T")[0];
+      if (dates.has(s)) { streak++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    // best streak
+    let best = 0, cur = 0;
+    const sorted = [...allProgress].sort((a, b) => a.date.localeCompare(b.date));
     let prev = null;
-    current = 0;
-    [...dates].reverse().forEach((dateStr) => {
-      const d = new Date(dateStr);
-      if (prev && Math.round((d - prev) / (1000 * 60 * 60 * 24)) === 1) {
-        current++;
-      } else {
-        current = 1;
+    for (const p of sorted) {
+      if ((p.xp_earned || 0) > 0) {
+        if (prev) {
+          const prevD = new Date(prev);
+          const curD = new Date(p.date);
+          const diff = (curD - prevD) / 86400000;
+          if (diff === 1) cur++;
+          else cur = 1;
+        } else cur = 1;
+        if (cur > best) best = cur;
+        prev = p.date;
       }
-      if (current > bestStreak) bestStreak = current;
-      prev = d;
-    });
-    if (streak > bestStreak) bestStreak = streak;
+    }
+    best = Math.max(best, streak);
+    return { streak, bestStreak: best };
+  }, [allProgress, todayXP]);
 
-    return { streak, bestStreak };
-  }, [allProgress, completedIds]);
+  const toggleManual = async (taskId) => {
+    const task = DAILY_TASKS.find((t) => t.id === taskId);
+    if (!task || task.type !== "MANUAL") return;
 
-  const handleToggleManual = async (taskId) => {
-    const isOn = manualCompleted.has(taskId);
-    const newManual = new Set(manualCompleted);
-    isOn ? newManual.delete(taskId) : newManual.add(taskId);
+    const nowCompleted = !manualCompleted.has(taskId);
+    const newCompleted = new Set(manualCompleted);
+    nowCompleted ? newCompleted.add(taskId) : newCompleted.delete(taskId);
 
-    const allCompletedNow = new Set([...autoCompleted, ...newManual]);
-    const newXP = DAILY_TASKS.filter((t) => allCompletedNow.has(t.id)).reduce((sum, t) => sum + t.xp, 0);
-    const newCompleted = [...autoCompleted, ...newManual];
+    // Recalc XP including auto
+    const newXP = DAILY_TASKS.filter((t) => newCompleted.has(t.id) || autoCompleted.has(t.id)).reduce((sum, t) => sum + t.xp, 0);
 
-    if (todayProgress) {
-      await base44.entities.DailyProgress.update(todayProgress.id, {
-        completed_task_ids: newCompleted,
+    if (todayRecord) {
+      await base44.entities.DailyProgress.update(todayRecord.id, {
+        completed_task_ids: [...newCompleted],
         xp_earned: newXP,
       });
     } else {
       await base44.entities.DailyProgress.create({
         date: TODAY,
-        completed_task_ids: newCompleted,
+        completed_task_ids: [...newCompleted],
         xp_earned: newXP,
       });
     }
+
+    if (nowCompleted) toast.success(`+${task.xp} XP — ${task.label} done! 🎉`);
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
 
+  // Save auto-completed XP to today's record if not yet saved
+  React.useEffect(() => {
+    if (!todayRecord && todayXP > 0) {
+      base44.entities.DailyProgress.create({
+        date: TODAY,
+        completed_task_ids: [],
+        xp_earned: todayXP,
+      }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
+    } else if (todayRecord) {
+      // update auto XP in background
+      const savedXP = todayRecord.xp_earned || 0;
+      if (todayXP !== savedXP) {
+        base44.entities.DailyProgress.update(todayRecord.id, {
+          completed_task_ids: [...manualCompleted],
+          xp_earned: todayXP,
+        }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
+      }
+    }
+  }, [hasJournalToday, hasDiaryToday]);
+
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-xl mx-auto">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-foreground">Daily tasks</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Track small daily check-ins and reminders.</p>
-        </div>
-        <span className="text-xs bg-primary/10 text-primary font-semibold px-3 py-1.5 rounded-full mt-1">
-          {todayXP}/{TOTAL_POSSIBLE_XP} pts today
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-lg mx-auto">
+      <div>
+        <h1 className="font-display text-3xl font-semibold">Daily Tasks</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Track small daily check-ins and reminders.</p>
+      </div>
+
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">Daily tasks</span>
+        <span className="px-3 py-1 rounded-full bg-muted text-foreground text-xs font-medium">
+          {todayXP}/{TOTAL_POSSIBLE_XP} points today
         </span>
       </div>
 
@@ -153,8 +170,8 @@ export default function DailyTasks() {
           <TaskCard
             key={task.id}
             task={task}
-            completed={completedIds.has(task.id)}
-            onToggle={handleToggleManual}
+            completed={isCompleted(task.id)}
+            onToggle={toggleManual}
           />
         ))}
       </div>
