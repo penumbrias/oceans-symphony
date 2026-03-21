@@ -139,7 +139,7 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
                 <h3 className="text-sm font-semibold">Grid View</h3>
                 <p className="text-xs text-muted-foreground">Like your paper checklist—see all symptoms at a glance</p>
               </div>
-              <SymptomGridTable dailyAggregates={dailyAggregates} dateRange={rangeDays} />
+              <SymptomGridTable dailyAggregates={dailyAggregates} dateRange={rangeDays} altersById={altersById} />
             </div>
           )}
 
