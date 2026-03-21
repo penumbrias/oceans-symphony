@@ -22,6 +22,7 @@ import SystemCheckIn from '@/pages/SystemCheckIn';
 import ActivityTracker from '@/pages/ActivityTracker';
 import SleepTracker from '@/pages/SleepTracker';
 import ToDoList from '@/pages/ToDoList';
+import Timeline from '@/pages/Timeline';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -68,6 +69,7 @@ const AuthenticatedApp = () => {
         <Route path="/activities" element={<ActivityTracker />} />
         <Route path="/sleep" element={<SleepTracker />} />
         <Route path="/tasks" element={<ToDoList />} />
+        <Route path="/timeline" element={<Timeline />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
