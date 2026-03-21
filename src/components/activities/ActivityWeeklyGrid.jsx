@@ -210,7 +210,14 @@ export default function ActivityWeeklyGrid({
               return (
                 <button
                   key={`${format(date, "yyyy-MM-dd")}-${hour}`}
-                  onClick={() => handleTimeBlockClick(date, hour)}
+                  onClick={() => {
+                    const cellActivities = getActivitiesForHour(date, hour);
+                    if (cellActivities.length > 0) {
+                      onActivityClick?.(cellActivities);
+                    } else {
+                      handleTimeBlockClick(date, hour);
+                    }
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     if (activity) onActivityClick?.(activity);
