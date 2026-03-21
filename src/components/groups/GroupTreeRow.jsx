@@ -81,15 +81,17 @@ export default function GroupTreeRow({
   return (
     <>
       <div
-        className={`flex items-center gap-2 py-2 px-2 rounded-lg transition-colors cursor-pointer group ${
-          isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"
-        } ${isDragging ? "opacity-50" : ""}`}
+        className={`flex items-center gap-2 py-2 px-2 rounded-lg transition-colors cursor-grab active:cursor-grabbing group ${
+          isDropTarget ? "bg-primary/20 border-2 border-primary" : ""
+        } ${isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"} ${
+          draggedGroupId === group.id ? "opacity-50" : ""
+        }`}
         style={{ paddingLeft: `${level * 24 + 8}px` }}
         onClick={() => onSelectGroup(group.id)}
         draggable
         onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
         onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {/* Chevron */}
