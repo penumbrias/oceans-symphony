@@ -34,6 +34,8 @@ export default function AppLayout() {
               const isActive =
                 item.path === "/"
                   ? location.pathname === "/"
+                  : item.path === "/Home"
+                  ? location.pathname === "/Home" || location.pathname.startsWith("/alter")
                   : location.pathname.startsWith(item.path);
               return (
                 <Link
