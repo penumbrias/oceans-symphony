@@ -38,7 +38,7 @@ export default function CheckInStep2({ data, onChange }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Step 2: Notice Who's Near (1 min)</CardTitle>
-          <CardDescription>Gently scan inward - notice what arises naturally</CardDescription>
+          <CardDescription>Notice what, if anything, arises. No need to force anything. Showing up is what matters.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
