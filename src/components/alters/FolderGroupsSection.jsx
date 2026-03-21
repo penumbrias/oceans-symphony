@@ -106,7 +106,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
   // Members in current group
   const memberAlters = currentGroup
     ? alters.filter((a) =>
-        (a.groups || []).some((g) => g.id === currentGroupKey)
+        (a.groups || []).some((g) => (g.id === currentGroupKey || g.sp_id === currentGroupKey))
       )
     : [];
 
