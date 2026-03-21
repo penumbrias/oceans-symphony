@@ -18,12 +18,15 @@ function getContrastColor(hex) {
 }
 
 function renderContent(content, alters) {
-  const altersById = Object.fromEntries(alters.map((a) => [a.name, a]));
-  const parts = content.split(/(@\w[\w\s]*)/g);
+  // Build lookup maps for both name and alias
+  const altersByName = Object.fromEntries(alters.map((a) => [a.name, a]));
+  const altersByAlias = Object.fromEntries(alters.filter(a => a.alias).map((a) => [a.alias, a]));
+  
+  const parts = content.split(/(@\w+)/g);
   return parts.map((part, i) => {
     if (part.startsWith("@")) {
-      const name = part.slice(1).trim();
-      const alter = altersById[name];
+      const mention = part.slice(1).trim();
+      const alter = altersByName[mention] || altersByAlias[mention];
       if (alter) {
         return (
           <Link key={i} to={`/alter/${alter.id}`}>
