@@ -1,11 +1,22 @@
 import React from "react";
 import { Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function TaskCard({ task, completed, onToggle }) {
+  const navigate = useNavigate();
+
+  const handlePartsCheckInClick = () => {
+    if (task.id === "parts_checkin") {
+      navigate("/system-checkin");
+    }
+  };
+
   return (
-    <div className={`bg-card border rounded-xl p-4 transition-all ${
-      completed ? "border-primary/30 bg-primary/5" : "border-border/50"
-    }`}>
+    <div 
+      onClick={handlePartsCheckInClick}
+      className={`bg-card border rounded-xl p-4 transition-all cursor-pointer hover:border-primary/40 ${
+        completed ? "border-primary/30 bg-primary/5" : "border-border/50"
+      }`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
