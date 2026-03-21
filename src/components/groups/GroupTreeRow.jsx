@@ -77,6 +77,26 @@ export default function GroupTreeRow({
             variant="ghost"
             size="sm"
             className="h-7 w-7 p-0"
+            onClick={() => onMoveUp(group.id)}
+            disabled={!canMoveUp}
+            title="Move up"
+          >
+            <ArrowUp className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
+            onClick={() => onMoveDown(group.id)}
+            disabled={!canMoveDown}
+            title="Move down"
+          >
+            <ArrowDown className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0"
             onClick={() => onCreateChild(group.id)}
             title="Add subgroup"
           >
