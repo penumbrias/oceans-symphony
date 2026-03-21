@@ -98,11 +98,15 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
     })
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  // Get members in current group
+  // Get members in current group (check both alter's groups array and Group entity's member_sp_ids)
   const memberAlters = currentGroup
-    ? alters.filter((a) =>
-        (a.groups || []).some((g) => g.id === currentGroupKey || g.sp_id === currentGroupKey)
-      )
+    ? alters.filter((a) => {
+        // Check if alter's groups array contains this group
+        const inAlterGroups = (a.groups || []).some((g) => g.id === currentGroupKey || g.sp_id === currentGroupKey);
+        // Check if this group's member_sp_ids contains the alter's sp_id
+        const inGroupMembers = currentGroup.member_sp_ids?.includes(a.sp_id);
+        return inAlterGroups || inGroupMembers;
+      })
     : [];
 
   const navigateTo = (group) => setNavStack([...navStack, group]);
