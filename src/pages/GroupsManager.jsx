@@ -157,6 +157,7 @@ export default function GroupsManager() {
                 onChangeColor={handleChangeColor}
                 onMoveGroupsIn={handleMoveGroupsIn}
                 onMoveGroupsOut={handleMoveGroupsOut}
+                onCreateSubgroup={handleCreateSubgroup}
                 level={0}
                 parentId="root"
               />
