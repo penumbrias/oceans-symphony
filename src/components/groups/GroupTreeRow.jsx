@@ -151,6 +151,20 @@ export default function GroupTreeRow({
           </button>
         )}
 
+        {/* Members button if selected */}
+        {isSelected && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsModalOpen(true);
+            }}
+            className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            title="Manage members"
+          >
+            <Users className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Up arrow if this group is selected and not in root */}
         {isSelected && group.parent && group.parent !== "root" && (
           <button
