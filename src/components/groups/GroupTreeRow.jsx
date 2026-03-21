@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, ArrowLeft, ArrowUp, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, ArrowLeft, ArrowUp, Users, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import GroupMembersModal from "./GroupMembersModal";
 
 export default function GroupTreeRow({
@@ -16,10 +18,15 @@ export default function GroupTreeRow({
   draggedGroupId,
   setDraggedGroupId,
   level = 0,
+  creatingSubgroupFor = null,
+  onCreateSubgroup = null,
+  newSubgroupName = "",
+  onSubgroupNameChange = null,
 }) {
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const autoExpandTimeoutRef = useRef(null);
+  const isCreatingSubgroup = creatingSubgroupFor === group.id;
 
   // Find children by matching parent to this group's ID or sp_id
   const childGroups = allGroups
@@ -175,7 +182,45 @@ export default function GroupTreeRow({
             <ArrowUp className="w-4 h-4" />
           </button>
         )}
+
+        {/* Plus button to create subgroup if selected */}
+        {isSelected && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSubgroupNameChange("");
+              // Trigger subgroup creation state
+              if (creatingSubgroupFor === group.id) {
+                onSubgroupNameChange("");
+              }
+            }}
+            className="flex-shrink-0 p-1 text-white bg-primary hover:bg-primary/90 rounded transition-colors"
+            title="Create subgroup"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
+
+      {/* Subgroup creation input - shown if this group is selected */}
+      {isSelected && !isCreatingSubgroup && (
+        <div className="flex gap-2 px-2 py-2" style={{ paddingLeft: `${level * 24 + 8 + 24}px` }}>
+          <Input
+            autoFocus
+            placeholder="Subgroup name"
+            value={newSubgroupName}
+            onChange={(e) => onSubgroupNameChange(e.target.value)}
+            className="flex-1 h-8 text-sm"
+          />
+          <Button
+            size="sm"
+            onClick={() => onCreateSubgroup(group.id)}
+            className="bg-primary hover:bg-primary/90 h-8"
+          >
+            Create
+          </Button>
+        </div>
+      )}
 
       {/* Children */}
       {isExpanded && childGroups.length > 0 && (
@@ -194,6 +239,10 @@ export default function GroupTreeRow({
               draggedGroupId={draggedGroupId}
               setDraggedGroupId={setDraggedGroupId}
               level={level + 1}
+              creatingSubgroupFor={creatingSubgroupFor}
+              onCreateSubgroup={onCreateSubgroup}
+              newSubgroupName={newSubgroupName}
+              onSubgroupNameChange={onSubgroupNameChange}
             />
           ))}
         </div>
