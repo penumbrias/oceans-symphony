@@ -117,7 +117,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
         });
       }
       // Create new session
-      await base44.entities.FrontingSession.create({
+      const newSession = await base44.entities.FrontingSession.create({
         primary_alter_id: primaryId,
         co_fronter_ids: coFronterIds.filter((id) => id !== primaryId),
         start_time: new Date().toISOString(),
@@ -126,7 +126,12 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
       toast.success("Front updated!");
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      onClose();
+      if (journalSwitch) {
+        setNewSessionId(newSession?.id || null);
+        setShowJournalModal(true);
+      } else {
+        onClose();
+      }
     } catch (e) {
       toast.error(e.message || "Failed to set front");
     } finally {
