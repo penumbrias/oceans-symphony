@@ -29,7 +29,9 @@ export default function GroupTreeRow({
   const isDeleting = deletingId === group.id;
   
   // Get sibling groups to determine if we can move up/down
-  const siblings = allGroups.filter((g) => g.parent === parentId);
+  const siblings = allGroups
+    .filter((g) => g.parent === parentId)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
   const siblingIndex = siblings.findIndex((g) => g.id === group.id);
   const canMoveUp = siblingIndex > 0;
   const canMoveDown = siblingIndex < siblings.length - 1;
