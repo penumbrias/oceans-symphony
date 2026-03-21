@@ -230,34 +230,42 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
       )}
 
       <div className="flex items-center justify-between mt-3">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPinned((p) => !p)}
-            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${
-              pinned ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Pin className="w-3 h-3" /> Pin
-          </button>
-          <button
-            onClick={() => setShowPoll((p) => !p)}
-            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${
-              showPoll ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <BarChart2 className="w-3 h-3" /> Poll
-          </button>
-          <button
-            onClick={() => { setShowMentions(true); setContent((c) => c + "@"); textareaRef.current?.focus(); }}
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground transition-all"
-          >
-            <AtSign className="w-3 h-3" /> Mention
-          </button>
-        </div>
-        <Button onClick={handlePost} disabled={saving || !content.trim()} size="sm" className="bg-primary">
-          <Send className="w-3 h-3 mr-1" /> Post
-        </Button>
-      </div>
+         <div className="flex gap-2 flex-wrap">
+           <button
+             onClick={() => setPinned((p) => !p)}
+             className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${
+               pinned ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
+             }`}
+           >
+             <Pin className="w-3 h-3" /> Pin
+           </button>
+           <button
+             onClick={() => setShowPoll((p) => !p)}
+             className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${
+               showPoll ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
+             }`}
+           >
+             <BarChart2 className="w-3 h-3" /> Poll
+           </button>
+           <button
+             onClick={() => setShowTodoList((t) => !t)}
+             className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${
+               showTodoList ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
+             }`}
+           >
+             <ListTodo className="w-3 h-3" /> To-do
+           </button>
+           <button
+             onClick={() => { setShowMentions(true); setContent((c) => c + "@"); textareaRef.current?.focus(); }}
+             className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground transition-all"
+           >
+             <AtSign className="w-3 h-3" /> Mention
+           </button>
+         </div>
+         <Button onClick={handlePost} disabled={saving || !content.trim()} size="sm" className="bg-primary">
+           <Send className="w-3 h-3 mr-1" /> Post
+         </Button>
+       </div>
     </div>
   );
 }
