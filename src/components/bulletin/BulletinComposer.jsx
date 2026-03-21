@@ -131,7 +131,10 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
                   className="w-6 h-6 rounded-full flex-shrink-0"
                   style={{ backgroundColor: a.color || "hsl(var(--muted))" }}
                 />
-                <span>{a.name}</span>
+                <div className="flex-1">
+                  <span>{a.name}</span>
+                  {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
+                </div>
                 {a.pronouns && <span className="text-muted-foreground text-xs">· {a.pronouns}</span>}
               </button>
             ))}
