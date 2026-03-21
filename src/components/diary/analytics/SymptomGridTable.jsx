@@ -38,6 +38,23 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7, alter
       }));
     }
 
+    // Collect alters for each date/week
+    const dateAlters = {};
+    displayDates.forEach((display) => {
+      const daysToCheck = display.range || [recentDays.find((d) => d.date === display.date)];
+      const alterSet = new Set();
+      daysToCheck.forEach((day) => {
+        (day.entries || []).forEach((entry) => {
+          (entry.fronting_alter_ids || []).forEach((id) => {
+            if (altersById[id]) {
+              alterSet.add(altersById[id].name);
+            }
+          });
+        });
+      });
+      dateAlters[display.date] = Array.from(alterSet).sort();
+    });
+
     // Collect all symptom keys
     const allSymptoms = {};
     recentDays.forEach((day) => {
