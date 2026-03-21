@@ -105,6 +105,7 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
   const handleSubmit = async () => {
     if (selectedEmotions.length === 0) return;
     setSaving(true);
+    await handleSaveActivity();
     await createCheckInMutation.mutateAsync({});
     setSaving(false);
   };
