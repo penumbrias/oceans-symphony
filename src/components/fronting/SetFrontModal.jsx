@@ -64,6 +64,9 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   const [primaryId, setPrimaryId] = useState(currentSession?.primary_alter_id || "");
   const [coFronterIds, setCoFronterIds] = useState(currentSession?.co_fronter_ids || []);
   const [saving, setSaving] = useState(false);
+  const [journalSwitch, setJournalSwitch] = useState(false);
+  const [showJournalModal, setShowJournalModal] = useState(false);
+  const [newSessionId, setNewSessionId] = useState(null);
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const filtered = activeAlters.filter((a) =>
