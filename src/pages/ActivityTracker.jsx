@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
-import ActivityEntryModal from "@/components/activities/ActivityEntryModal";
+import ActivityTimeRangeModal from "@/components/activities/ActivityTimeRangeModal";
 
 export default function ActivityTracker() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedHour, setSelectedHour] = useState(undefined);
+  const [selectedStartHour, setSelectedStartHour] = useState(undefined);
+  const [selectedEndHour, setSelectedEndHour] = useState(undefined);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
