@@ -95,32 +95,31 @@ export default function ActivityWeeklyGrid({
           {/* Header row */}
           <div className="grid grid-cols-[80px_repeat(7,120px)] gap-0 bg-card border-b border-border">
             <div className="bg-muted/50 p-2"></div>
-          {weekDays.map((date) => {
-            const stats = getDayStats(date);
-            return (
-              <button
-                key={format(date, "yyyy-MM-dd")}
-                onClick={() => onDayClick(date)}
-                className="p-3 text-center border-r border-border hover:bg-muted/50 transition-colors cursor-pointer group"
-              >
-                <div className="text-xs font-semibold text-muted-foreground">
-                  {format(date, "EEE")}
-                </div>
-                <div className="text-lg font-bold text-foreground">
-                  {format(date, "d")}
-                </div>
-                {stats.count > 0 && (
-                  <div className="text-xs text-primary mt-1">
-                    {stats.count} {stats.duration > 0 && `• ${Math.round(stats.duration / 60)}h`}
+            {weekDays.map((date) => {
+              const stats = getDayStats(date);
+              return (
+                <button
+                  key={format(date, "yyyy-MM-dd")}
+                  className="p-3 text-center border-r border-border hover:bg-muted/50 transition-colors cursor-pointer group"
+                >
+                  <div className="text-xs font-semibold text-muted-foreground">
+                    {format(date, "EEE")}
                   </div>
-                )}
-                <div className="text-xs text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  + Quick add
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                  <div className="text-lg font-bold text-foreground">
+                    {format(date, "d")}
+                  </div>
+                  {stats.count > 0 && (
+                    <div className="text-xs text-primary mt-1">
+                      {stats.count} {stats.duration > 0 && `• ${Math.round(stats.duration / 60)}h`}
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    + Quick add
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
         {/* Time blocks grid */}
         {HOURS.map((hour) => (
