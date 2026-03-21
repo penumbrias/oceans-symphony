@@ -1,10 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
-import AlterEditModal from "@/components/alters/AlterEditModal";
 
 export default function AlterGridView({ alters, currentSession = null, allAlters = [] }) {
+  const navigate = useNavigate();
   const [setFrontOpen, setSetFrontOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedAlter, setSelectedAlter] = useState(null);
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
 
@@ -15,8 +15,7 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
 
   const handleMouseDown = (alter) => {
     const timeoutId = setTimeout(() => {
-      setSelectedAlter(alter);
-      setEditModalOpen(true);
+      navigate(`/alter/${alter.id}`);
     }, 500);
     setLongPressTimeoutId(timeoutId);
   };
@@ -69,25 +68,15 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
       </div>
 
       {selectedAlter && (
-        <>
-          <SetFrontModal
-            open={setFrontOpen}
-            onClose={() => {
-              setSetFrontOpen(false);
-              setSelectedAlter(null);
-            }}
-            alters={allAlters}
-            currentSession={currentSession}
-          />
-          <AlterEditModal
-            alter={selectedAlter}
-            open={editModalOpen}
-            onClose={() => {
-              setEditModalOpen(false);
-              setSelectedAlter(null);
-            }}
-          />
-        </>
+        <SetFrontModal
+          open={setFrontOpen}
+          onClose={() => {
+            setSetFrontOpen(false);
+            setSelectedAlter(null);
+          }}
+          alters={allAlters}
+          currentSession={currentSession}
+        />
       )}
     </>
   );
