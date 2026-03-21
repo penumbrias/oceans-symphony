@@ -126,6 +126,47 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
         ))}
       </div>
 
+      {activeTab === "overview" && (
+        <div className="space-y-5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">Show:</span>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={visibleSections.emotions}
+                onChange={(e) => setVisibleSections(prev => ({ ...prev, emotions: e.target.checked }))}
+                className="w-4 h-4 rounded"
+              />
+              <span>Emotions</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={visibleSections.urges}
+                onChange={(e) => setVisibleSections(prev => ({ ...prev, urges: e.target.checked }))}
+                className="w-4 h-4 rounded"
+              />
+              <span>Urges</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={visibleSections.medication}
+                onChange={(e) => setVisibleSections(prev => ({ ...prev, medication: e.target.checked }))}
+                className="w-4 h-4 rounded"
+              />
+              <span>Medication</span>
+            </label>
+          </div>
+          
+          <div className="space-y-5">
+            {visibleSections.emotions && <EmotionsChart filteredCards={filteredCards} />}
+            {visibleSections.urges && <UrgesToChart filteredCards={filteredCards} />}
+            {visibleSections.medication && <MedicationChart filteredCards={filteredCards} />}
+          </div>
+        </div>
+      )}
+
       {activeTab === "symptoms" && (
         <div className="space-y-5">
           <div className="flex gap-1 bg-muted/40 p-1 rounded-xl w-fit">
