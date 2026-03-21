@@ -5,8 +5,8 @@ import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
+import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
-import TaskWidget from "@/components/dashboard/TaskWidget";
 import EmotionCheckInModal from "@/components/emotions/EmotionCheckInModal";
 
 export default function Dashboard() {
@@ -48,6 +48,7 @@ export default function Dashboard() {
         Quick Emotion Check-In
       </button>
 
+      <NewFeaturesBar />
       <QuickNavMenu />
       <BulletinBoard alters={alters} currentAlterId={currentAlterId} />
 
