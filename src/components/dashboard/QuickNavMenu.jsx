@@ -20,24 +20,47 @@ const SECONDARY_NAV = [
 
 export default function QuickNavMenu() {
   return (
-    <div className="mb-6">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Access</p>
-      <div className="grid grid-cols-3 gap-2">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link key={item.path} to={item.path}>
-              <div className="flex flex-col items-center gap-2 p-3 rounded-2xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
-                  <Icon className="w-5 h-5" />
+    <div className="mb-6 space-y-6">
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Access</p>
+        <div className="grid grid-cols-3 gap-2">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.path} to={item.path}>
+                <div className="flex flex-col items-center gap-2 p-3 rounded-2xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                    {item.label}
+                  </span>
                 </div>
-                <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
-                  {item.label}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tracking</p>
+        <div className="grid grid-cols-3 gap-2">
+          {SECONDARY_NAV.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.path} to={item.path}>
+                <div className="flex flex-col items-center gap-2 p-3 rounded-2xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                    {item.label}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
