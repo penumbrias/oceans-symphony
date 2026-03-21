@@ -113,7 +113,7 @@ export default function GroupTreeRow({
           <span className="text-sm text-foreground truncate">{group.name}</span>
         </div>
 
-        {/* Arrows */}
+        {/* Arrows and Add */}
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {showArrowIn && (
             <button
@@ -139,6 +139,18 @@ export default function GroupTreeRow({
               title="Move out of parent group"
             >
               <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+          {isSelected && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCreateSubgroup(group.id);
+              }}
+              className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+              title="Add subgroup"
+            >
+              <Plus className="w-4 h-4" />
             </button>
           )}
         </div>
