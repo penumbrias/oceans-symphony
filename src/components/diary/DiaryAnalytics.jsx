@@ -125,6 +125,23 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
         ))}
       </div>
 
+      {/* Day of Week, Calendar, Alters sections */}
+      {activeTab === "dayofweek" && (
+        <div className="space-y-5">
+          <DayOfWeekHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
+          <DayOfWeekHeatmap dailyAggregates={dailyAggregates} metric="avg_joy" />
+        </div>
+      )}
+      {activeTab === "heatmap" && (
+        <div className="space-y-5">
+          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
+          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_joy" />
+        </div>
+      )}
+      {activeTab === "alters" && (
+        <AlterLoggingChart filteredCards={filteredCards} altersById={altersById} alterTendencies={alterTendencies} />
+      )}
+
       {/* Main toggleable sections */}
       <div className="space-y-5">
         {/* Toggle controls */}
@@ -207,22 +224,6 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
           </div>
         )}
       </div>
-
-      {activeTab === "dayofweek" && (
-        <div className="space-y-5">
-          <DayOfWeekHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
-          <DayOfWeekHeatmap dailyAggregates={dailyAggregates} metric="avg_joy" />
-        </div>
-      )}
-      {activeTab === "heatmap" && (
-        <div className="space-y-5">
-          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
-          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_joy" />
-        </div>
-      )}
-      {activeTab === "alters" && (
-        <AlterLoggingChart filteredCards={filteredCards} altersById={altersById} alterTendencies={alterTendencies} />
-      )}
     </div>
   );
 }
