@@ -43,7 +43,9 @@ export default function DailyTasks() {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}` === TODAY;
+    const entryDate = `${yyyy}-${mm}-${dd}`;
+    console.log("Journal entry date:", entryDate, "TODAY:", TODAY, "Match:", entryDate === TODAY);
+    return entryDate === TODAY;
   });
   const hasDiaryToday = diaryCards.length > 0;
   // check_in is always true if user is viewing this page
