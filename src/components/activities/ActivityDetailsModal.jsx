@@ -269,23 +269,6 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
 
                       <div>
                         <label className="block text-sm font-semibold mb-2">
-                          Duration (minutes)
-                        </label>
-                        <Input
-                          type="number"
-                          value={editData.duration_minutes}
-                          onChange={(e) =>
-                            setEditData({
-                              ...editData,
-                              duration_minutes: parseInt(e.target.value) || 60,
-                            })
-                          }
-                          min="1"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold mb-2">
                           Fronting Alters
                         </label>
                         <div className="space-y-2 border border-border rounded-lg p-3 bg-muted/20 max-h-48 overflow-y-auto">
