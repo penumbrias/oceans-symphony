@@ -5,7 +5,7 @@ import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff } from "luci
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import AlterCard from "./AlterCard";
-import FolderGroupsSection from "./FolderGroupsSection";
+import FolderGroupsSection from "./FolderGroupsSection.jsx";
 
 export default function AlterGrid({ alters }) {
   const [search, setSearch] = useState("");
