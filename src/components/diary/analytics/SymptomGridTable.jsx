@@ -38,7 +38,7 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7 }) {
       }));
     }
 
-    // Collect all symptom keys from checklist
+    // Collect all symptom keys
     const allSymptoms = {};
     recentDays.forEach((day) => {
       const checklist = day.checklist || {};
@@ -53,13 +53,25 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7 }) {
     // Build symptom rows
     const symptoms = {};
     Object.keys(allSymptoms).forEach((symptomKey) => {
-      symptoms[symptomKey] = recentDays.map((day) => {
-        const checklist = day.checklist || {};
-        return checklist.symptoms?.[symptomKey] ?? checklist.habits?.[symptomKey] ?? null;
+      symptoms[symptomKey] = displayDates.map((display) => {
+        const daysToCheck = display.range || [recentDays.find((d) => d.date === display.date)];
+        const values = daysToCheck
+          .map((day) => {
+            const checklist = day.checklist || {};
+            return checklist.symptoms?.[symptomKey] ?? checklist.habits?.[symptomKey] ?? null;
+          })
+          .filter((v) => v !== null);
+        
+        // For weeks, average numeric values or show Y if any day has it
+        if (!values.length) return null;
+        if (typeof values[0] === "boolean") {
+          return values.some((v) => v === true) ? true : false;
+        }
+        return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
       });
     });
 
-    return { dates, symptoms };
+    return { dates, symptoms, displayDates };
   }, [dailyAggregates, dateRange]);
 
   if (!data.dates.length) {
