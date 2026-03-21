@@ -16,6 +16,8 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
   const [showPoll, setShowPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [showTodoList, setShowTodoList] = useState(false);
+  const [todoItems, setTodoItems] = useState(["", ""]);
   const [saving, setSaving] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
