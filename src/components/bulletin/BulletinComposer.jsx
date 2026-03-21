@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Send, Pin, BarChart2, X, Plus, AtSign } from "lucide-react";
+import { Send, Pin, BarChart2, X, Plus, AtSign, ListTodo } from "lucide-react";
 import { toast } from "sonner";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
