@@ -30,6 +30,9 @@ export default function Journals() {
   const [fronterOnly, setFronterOnly] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newEntryFolder, setNewEntryFolder] = useState(null);
 
   const { data: entries = [] } = useQuery({
     queryKey: ["journalEntries"],
