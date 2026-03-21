@@ -93,8 +93,10 @@ export default function ActivityTracker() {
         <ActivityWeeklyGrid
           weekDays={weekDays}
           activities={activities}
+          alters={alters}
           frontingHistory={frontingHistory}
           onTimeRangeSelect={handleTimeRangeSelect}
+          onActivityClick={handleActivityClick}
         />
       </div>
 
