@@ -50,8 +50,8 @@ export default function ActivityTracker() {
     setSelectedEndHour(undefined);
   };
 
-  const handleActivityClick = (activity) => {
-    setSelectedActivity(activity);
+  const handleActivityClick = (activityOrActivities) => {
+    setSelectedActivity(activityOrActivities);
     setIsDetailsOpen(true);
   };
 
