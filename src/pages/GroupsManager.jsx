@@ -13,19 +13,11 @@ export default function GroupsManager() {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [newGroupName, setNewGroupName] = useState("");
   const [isCreatingRoot, setIsCreatingRoot] = useState(false);
-  const [creatingSubgroupFor, setCreatingSubgroupFor] = useState(null);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
-
-  // Get root groups: those with no parent, empty parent, or "root" parent
-  const rootGroupIds = new Set(
-    allGroups
-      .filter((g) => !g.parent || g.parent === "" || g.parent === "root")
-      .map((g) => g.id)
-  );
 
   const rootGroups = allGroups
     .filter((g) => !g.parent || g.parent === "" || g.parent === "root")
@@ -55,35 +47,65 @@ export default function GroupsManager() {
     }
   };
 
-  const handleMoveGroupsIn = async (groupIds, targetParentId) => {
-    try {
-      for (const groupId of groupIds) {
-        await base44.entities.Group.update(groupId, { parent: targetParentId });
+  const handleMoveUp = async (groupId) => {
+    const group = allGroups.find((g) => g.id === groupId);
+    if (!group) return;
+
+    const siblings = allGroups
+      .filter((g) => g.parent === group.parent)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+    const index = siblings.findIndex((g) => g.id === groupId);
+
+    if (index > 0) {
+      const prevGroup = siblings[index - 1];
+      const temp = group.order || 0;
+      try {
+        await Promise.all([
+          base44.entities.Group.update(groupId, { order: prevGroup.order || 0 }),
+          base44.entities.Group.update(prevGroup.id, { order: temp }),
+        ]);
+        queryClient.invalidateQueries({ queryKey: ["groups"] });
+        toast.success("Moved up!");
+      } catch (err) {
+        toast.error(err.message || "Failed to move group");
       }
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-      toast.success(`Moved ${groupIds.length} group(s) in!`);
-    } catch (err) {
-      toast.error(err.message || "Failed to move groups");
     }
   };
 
-  const handleMoveGroupsOut = async (groupIds) => {
-    try {
-      // Get the current parent of the first group (they should all be siblings)
-      const group = allGroups.find((g) => g.id === groupIds[0]);
-      if (!group || !group.parent) {
-        toast.error("Cannot move out of root");
-        return;
-      }
+  const handleMoveDown = async (groupId) => {
+    const group = allGroups.find((g) => g.id === groupId);
+    if (!group) return;
 
-      // Move all selected groups to root
-      for (const groupId of groupIds) {
-        await base44.entities.Group.update(groupId, { parent: "root" });
+    const siblings = allGroups
+      .filter((g) => g.parent === group.parent)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+    const index = siblings.findIndex((g) => g.id === groupId);
+
+    if (index < siblings.length - 1) {
+      const nextGroup = siblings[index + 1];
+      const temp = group.order || 0;
+      try {
+        await Promise.all([
+          base44.entities.Group.update(groupId, { order: nextGroup.order || 0 }),
+          base44.entities.Group.update(nextGroup.id, { order: temp }),
+        ]);
+        queryClient.invalidateQueries({ queryKey: ["groups"] });
+        toast.success("Moved down!");
+      } catch (err) {
+        toast.error(err.message || "Failed to move group");
       }
+    }
+  };
+
+  const handleDropGroup = async (draggedGroupId, targetGroupId) => {
+    if (draggedGroupId === targetGroupId) return;
+
+    try {
+      await base44.entities.Group.update(draggedGroupId, { parent: targetGroupId });
       queryClient.invalidateQueries({ queryKey: ["groups"] });
-      toast.success(`Moved ${groupIds.length} group(s) out!`);
+      toast.success("Group moved!");
     } catch (err) {
-      toast.error(err.message || "Failed to move groups");
+      toast.error(err.message || "Failed to move group");
     }
   };
 
@@ -106,36 +128,12 @@ export default function GroupsManager() {
     }
   };
 
-  const handleCreateSubgroup = async (parentGroupId) => {
-    setCreatingSubgroupFor(parentGroupId);
-  };
-
-  const handleSaveSubgroup = async () => {
-    if (!newGroupName.trim()) {
-      toast.error("Group name is required");
-      return;
-    }
-    try {
-      await base44.entities.Group.create({
-        name: newGroupName,
-        parent: creatingSubgroupFor,
-      });
-      toast.success("Subgroup created!");
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-      setNewGroupName("");
-      setCreatingSubgroupFor(null);
-      setExpandedGroups(new Set([...expandedGroups, creatingSubgroupFor]));
-    } catch (err) {
-      toast.error(err.message || "Failed to create subgroup");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Manage Groups</h1>
-          <p className="text-muted-foreground text-sm">Click a group to select it and change its color. Use arrows to move groups in and out.</p>
+          <p className="text-muted-foreground text-sm">Drag groups to move them into folders, or use arrows to reorder.</p>
         </div>
 
         {/* Groups Tree */}
@@ -155,18 +153,17 @@ export default function GroupsManager() {
                 selectedGroupId={selectedGroupId}
                 onSelectGroup={handleSelectGroup}
                 onChangeColor={handleChangeColor}
-                onMoveGroupsIn={handleMoveGroupsIn}
-                onMoveGroupsOut={handleMoveGroupsOut}
-                onCreateSubgroup={handleCreateSubgroup}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
+                onDropGroup={handleDropGroup}
                 level={0}
-                parentId="root"
               />
             ))
           )}
         </div>
 
-        {/* Create Root or Subgroup */}
-        {!isCreatingRoot && !creatingSubgroupFor ? (
+        {/* Create Root Group */}
+        {!isCreatingRoot ? (
           <Button
             onClick={() => setIsCreatingRoot(true)}
             variant="outline"
@@ -182,32 +179,16 @@ export default function GroupsManager() {
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  isCreatingRoot ? handleCreateRootGroup() : handleSaveSubgroup();
-                }
-                if (e.key === "Escape") {
-                  setIsCreatingRoot(false);
-                  setCreatingSubgroupFor(null);
-                  setNewGroupName("");
-                }
+                if (e.key === "Enter") handleCreateRootGroup();
+                if (e.key === "Escape") setIsCreatingRoot(false);
               }}
               placeholder="New group name"
               className="flex-1"
             />
-            <Button
-              onClick={isCreatingRoot ? handleCreateRootGroup : handleSaveSubgroup}
-              className="bg-primary hover:bg-primary/90"
-            >
+            <Button onClick={handleCreateRootGroup} className="bg-primary hover:bg-primary/90">
               Create
             </Button>
-            <Button
-              onClick={() => {
-                setIsCreatingRoot(false);
-                setCreatingSubgroupFor(null);
-                setNewGroupName("");
-              }}
-              variant="outline"
-            >
+            <Button onClick={() => setIsCreatingRoot(false)} variant="outline">
               Cancel
             </Button>
           </div>
