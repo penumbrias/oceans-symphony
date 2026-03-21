@@ -18,7 +18,6 @@ import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
 import DailyTasks from '@/pages/DailyTasks';
 import GroupsManager from '@/pages/GroupsManager';
-import GroupDetail from '@/pages/GroupDetail';
 import SystemCheckIn from '@/pages/SystemCheckIn';
 
 const AuthenticatedApp = () => {
@@ -62,7 +61,6 @@ const AuthenticatedApp = () => {
         <Route path="/diary" element={<DiaryCards />} />
         <Route path="/tasks" element={<DailyTasks />} />
         <Route path="/groups" element={<GroupsManager />} />
-        <Route path="/group/:id" element={<GroupDetail />} />
         <Route path="/system-checkin" element={<SystemCheckIn />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
