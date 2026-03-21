@@ -35,11 +35,11 @@ export default function JournalEditorModal({ open, onClose, entry, alters, curre
       setTitle(`Journal — ${format(now, "MMM d, yyyy")}`);
       setContent("");
       setTagsInput("");
-      setFolder("");
+      setFolder(defaultFolder || "");
       setRestricted(false);
       setAllowedAlterIds([]);
     }
-  }, [entry, open]);
+  }, [entry, open, defaultFolder]);
 
   const parsedTags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
 
