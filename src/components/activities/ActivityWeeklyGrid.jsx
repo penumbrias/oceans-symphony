@@ -254,8 +254,8 @@ export default function ActivityWeeklyGrid({
                   {activity ? (
                     <div className="text-center space-y-1">
                       <div className="text-xs font-bold line-clamp-2 leading-tight">
-                        {getCategoryNames(activity.activity_category_ids) || activity.activity_name}
-                      </div>
+                         {activity.activity_name}
+                       </div>
                       {showEmotions && (
                         <div className="text-xs leading-tight">
                           {getEmotionsForActivity(activity).slice(0, 2).map(e => e.charAt(0).toUpperCase()).join("")}
