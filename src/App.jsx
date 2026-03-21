@@ -18,6 +18,7 @@ import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
 import DailyTasks from '@/pages/DailyTasks';
 import GroupsManager from '@/pages/GroupsManager';
+import SystemCheckIn from '@/pages/SystemCheckIn';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
