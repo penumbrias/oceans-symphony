@@ -276,6 +276,7 @@ export default function Journals() {
         onClose={() => { setShowEditor(false); setNewEntryFolder(null); }}
         entry={editEntry}
         alters={alters}
+        groups={groups}
         currentAlterId={currentAlterId}
         defaultFolder={newEntryFolder}
       />
