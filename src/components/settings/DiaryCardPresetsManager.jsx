@@ -40,6 +40,15 @@ export default function DiaryCardPresetsManager() {
   useEffect(() => {
     if (settings?.diary_presets) {
       setPresets(settings.diary_presets);
+    } else {
+      // Initialize with defaults if no presets exist
+      setPresets({
+        emotions: DEFAULT_EMOTIONS,
+        urges: DEFAULT_URGES,
+        bodyMind: DEFAULT_BODY_MIND,
+        skills: [],
+        symptoms: [],
+      });
     }
   }, [settings]);
 
