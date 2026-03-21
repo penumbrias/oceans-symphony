@@ -6,15 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import GroupTreeRow from "@/components/groups/GroupTreeRow.jsx";
-import GroupEditModal from "@/components/groups/GroupEditModal.jsx";
 
 export default function GroupsManager() {
   const queryClient = useQueryClient();
   const [expandedGroups, setExpandedGroups] = useState(new Set());
-  const [creatingParentId, setCreatingParentId] = useState(null);
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [newGroupName, setNewGroupName] = useState("");
-  const [deletingId, setDeletingId] = useState(null);
-  const [editingGroup, setEditingGroup] = useState(null);
+  const [isCreatingRoot, setIsCreatingRoot] = useState(false);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
@@ -35,7 +33,53 @@ export default function GroupsManager() {
     setExpandedGroups(newExpanded);
   };
 
-  const handleCreateGroup = async (parentId) => {
+  const handleSelectGroup = (groupId) => {
+    setSelectedGroupId(groupId === selectedGroupId ? null : groupId);
+  };
+
+  const handleChangeColor = async (groupId, color) => {
+    try {
+      await base44.entities.Group.update(groupId, { color });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      toast.success("Color updated!");
+    } catch (err) {
+      toast.error(err.message || "Failed to update color");
+    }
+  };
+
+  const handleMoveGroupsIn = async (groupIds, targetParentId) => {
+    try {
+      for (const groupId of groupIds) {
+        await base44.entities.Group.update(groupId, { parent: targetParentId });
+      }
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(`Moved ${groupIds.length} group(s) in!`);
+    } catch (err) {
+      toast.error(err.message || "Failed to move groups");
+    }
+  };
+
+  const handleMoveGroupsOut = async (groupIds) => {
+    try {
+      // Get the current parent of the first group (they should all be siblings)
+      const group = allGroups.find((g) => g.id === groupIds[0]);
+      if (!group || !group.parent) {
+        toast.error("Cannot move out of root");
+        return;
+      }
+
+      // Move all selected groups to root
+      for (const groupId of groupIds) {
+        await base44.entities.Group.update(groupId, { parent: "root" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(`Moved ${groupIds.length} group(s) out!`);
+    } catch (err) {
+      toast.error(err.message || "Failed to move groups");
+    }
+  };
+
+  const handleCreateRootGroup = async () => {
     if (!newGroupName.trim()) {
       toast.error("Group name is required");
       return;
@@ -43,58 +87,15 @@ export default function GroupsManager() {
     try {
       await base44.entities.Group.create({
         name: newGroupName,
-        parent: parentId || "root",
+        parent: "root",
       });
       toast.success("Group created!");
       queryClient.invalidateQueries({ queryKey: ["groups"] });
-      setCreatingParentId(null);
       setNewGroupName("");
-      if (parentId) {
-        setExpandedGroups(new Set([...expandedGroups, parentId]));
-      }
+      setIsCreatingRoot(false);
     } catch (err) {
       toast.error(err.message || "Failed to create group");
     }
-  };
-
-  const handleDeleteGroup = async (groupId) => {
-    if (!confirm("Delete this group? Alters will be preserved.")) return;
-    setDeletingId(groupId);
-    try {
-      await base44.entities.Group.delete(groupId);
-      toast.success("Group deleted!");
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-    } catch (err) {
-      toast.error(err.message || "Failed to delete group");
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleMoveGroup = async (groupId, direction) => {
-    const group = allGroups.find((g) => g.id === groupId);
-    if (!group) return;
-
-    const siblings = allGroups
-      .filter((g) => g.parent === group.parent)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
-    
-    const currentIndex = siblings.findIndex((g) => g.id === groupId);
-    
-    if (direction === "up" && currentIndex > 0) {
-      const prevGroup = siblings[currentIndex - 1];
-      const tempOrder = prevGroup.order;
-      await base44.entities.Group.update(prevGroup.id, { order: group.order });
-      await base44.entities.Group.update(groupId, { order: tempOrder });
-      toast.success("Moved up!");
-    } else if (direction === "down" && currentIndex < siblings.length - 1) {
-      const nextGroup = siblings[currentIndex + 1];
-      const tempOrder = nextGroup.order;
-      await base44.entities.Group.update(nextGroup.id, { order: group.order });
-      await base44.entities.Group.update(groupId, { order: tempOrder });
-      toast.success("Moved down!");
-    }
-    queryClient.invalidateQueries({ queryKey: ["groups"] });
   };
 
   return (
@@ -102,14 +103,11 @@ export default function GroupsManager() {
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Manage Groups</h1>
-          <p className="text-muted-foreground text-sm">Organize and manage your system groups.</p>
+          <p className="text-muted-foreground text-sm">Click a group to select it and change its color. Use arrows to move groups in and out.</p>
         </div>
 
-        {/* Root */}
-        <div className="mb-6 font-medium text-foreground text-sm px-2">root</div>
-
         {/* Groups Tree */}
-        <div className="space-y-0 mb-6">
+        <div className="space-y-0 mb-6 bg-card rounded-lg p-4 border border-border">
           {rootGroups.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
               No groups yet. Create one to get started.
@@ -122,69 +120,48 @@ export default function GroupsManager() {
                 allGroups={allGroups}
                 expandedGroups={expandedGroups}
                 onToggleExpanded={toggleExpanded}
-                onDelete={handleDeleteGroup}
-                onCreateChild={setCreatingParentId}
-                onEdit={setEditingGroup}
-                onMoveUp={(id) => handleMoveGroup(id, "up")}
-                onMoveDown={(id) => handleMoveGroup(id, "down")}
-                creatingParentId={creatingParentId}
-                newGroupName={newGroupName}
-                onNewGroupNameChange={setNewGroupName}
-                onCreateGroup={handleCreateGroup}
-                deletingId={deletingId}
+                selectedGroupId={selectedGroupId}
+                onSelectGroup={handleSelectGroup}
+                onChangeColor={handleChangeColor}
+                onMoveGroupsIn={handleMoveGroupsIn}
+                onMoveGroupsOut={handleMoveGroupsOut}
                 level={0}
-                parentId={null}
+                parentId="root"
               />
             ))
           )}
         </div>
 
-        {/* Edit Modal */}
-        <GroupEditModal
-          group={editingGroup}
-          allGroups={allGroups}
-          isOpen={!!editingGroup}
-          onClose={() => setEditingGroup(null)}
-          onSave={() => {
-            setEditingGroup(null);
-            queryClient.invalidateQueries({ queryKey: ["groups"] });
-            toast.success("Group updated!");
-          }}
-        />
-
         {/* Create Root Group */}
-        {creatingParentId === null && (
-          <div className="flex gap-2">
-            <Input
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreateGroup(null);
-              }}
-              placeholder="New root group name"
-              className="flex-1"
-            />
-            <Button
-              onClick={() => handleCreateGroup(null)}
-              className="bg-primary hover:bg-primary/90"
-            >
-              Create
-            </Button>
-            <Button onClick={() => setCreatingParentId(undefined)} variant="outline">
-              Cancel
-            </Button>
-          </div>
-        )}
-
-        {creatingParentId === undefined && (
+        {!isCreatingRoot ? (
           <Button
-            onClick={() => setCreatingParentId(null)}
+            onClick={() => setIsCreatingRoot(true)}
             variant="outline"
             className="gap-2"
           >
             <Plus className="w-4 h-4" />
             New Root Group
           </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              autoFocus
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateRootGroup();
+                if (e.key === "Escape") setIsCreatingRoot(false);
+              }}
+              placeholder="New group name"
+              className="flex-1"
+            />
+            <Button onClick={handleCreateRootGroup} className="bg-primary hover:bg-primary/90">
+              Create
+            </Button>
+            <Button onClick={() => setIsCreatingRoot(false)} variant="outline">
+              Cancel
+            </Button>
+          </div>
         )}
       </div>
     </div>
