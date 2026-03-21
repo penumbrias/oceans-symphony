@@ -44,7 +44,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
   const altersInGroup = useMemo(() => {
     return new Set(
       alters
-        .filter((alter) => alter.groups?.some((g) => groupIds.includes(g.id)))
+        .filter((alter) => alter.groups?.some((g) => groupIds.includes(g.id) || groupIds.includes(g.sp_id)))
         .map((a) => a.id)
     );
   }, [alters, groupIds]);
@@ -74,11 +74,11 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
 
       let updatedGroups = alter.groups || [];
       if (isAdding) {
-        if (!updatedGroups.find((g) => g.id === group.id)) {
+        if (!updatedGroups.find((g) => g.id === group.id || g.sp_id === group.id)) {
           updatedGroups = [...updatedGroups, { id: group.id, name: group.name, color: group.color }];
         }
       } else {
-        updatedGroups = updatedGroups.filter((g) => g.id !== group.id);
+        updatedGroups = updatedGroups.filter((g) => g.id !== group.id && g.sp_id !== group.id);
       }
 
       await base44.entities.Alter.update(alterId, { groups: updatedGroups });
