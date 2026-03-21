@@ -125,24 +125,7 @@ export default function ActivityTimeRangeModal({
             onDurationChange={setActivityDuration}
           />
 
-          {/* Color */}
-          <div>
-            <label className="text-sm font-medium text-foreground">Color</label>
-            <div className="flex gap-2 mt-1">
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="w-12 h-9 rounded-md cursor-pointer border border-border"
-              />
-              <Input
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                placeholder="#8B5CF6"
-                className="flex-1"
-              />
-            </div>
-          </div>
+
 
           {/* Alters */}
           <div>
