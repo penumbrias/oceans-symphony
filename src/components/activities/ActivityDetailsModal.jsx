@@ -110,8 +110,6 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     }
   };
 
-  const activityAlters = alters.filter((a) => selectedAlters.includes(a.id));
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -137,11 +135,11 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
              </div>
 
              {/* Emotions */}
-             {emotionsForTime.length > 0 && (
+             {activity.emotions && activity.emotions.length > 0 && (
                <div>
                  <p className="text-xs text-muted-foreground font-semibold mb-2">Emotions</p>
                  <div className="flex flex-wrap gap-1.5">
-                   {emotionsForTime.map((emotion, idx) => (
+                   {activity.emotions.map((emotion, idx) => (
                      <span
                        key={idx}
                        className="px-2.5 py-1 bg-accent/20 text-accent-foreground rounded-full text-xs font-medium"
@@ -153,12 +151,12 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                </div>
              )}
 
-             {/* Alters Fronting */}
-             {altersFrontingAtTime.length > 0 && (
+             {/* Fronting Alters */}
+             {activityAlters.length > 0 && (
                <div>
                  <p className="text-xs text-muted-foreground font-semibold mb-2">Fronting Alters</p>
                  <div className="flex flex-wrap gap-1.5">
-                   {altersFrontingAtTime.map((alter) => (
+                   {activityAlters.map((alter) => (
                      <div
                        key={alter.id}
                        className="px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2"
@@ -178,24 +176,17 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                </div>
              )}
 
-             {/* Activities as Pills */}
+             {/* Activity Name */}
              <div>
-               <p className="text-xs text-muted-foreground font-semibold mb-2">
-                 Activities ({activitiesForTime.length})
-               </p>
-               <div className="space-y-2">
-                 {activitiesForTime.map((act) => (
-                   <div
-                     key={act.id}
-                     className="rounded-lg p-3 text-sm font-medium text-center"
-                     style={{
-                       backgroundColor: act.color,
-                       color: getContrastColor(act.color),
-                     }}
-                   >
-                     {act.activity_name}
-                   </div>
-                 ))}
+               <p className="text-xs text-muted-foreground font-semibold mb-2">Activity</p>
+               <div
+                 className="rounded-lg p-3 text-sm font-medium text-center"
+                 style={{
+                   backgroundColor: activity.color,
+                   color: getContrastColor(activity.color),
+                 }}
+               >
+                 {activity.activity_name}
                </div>
              </div>
 
