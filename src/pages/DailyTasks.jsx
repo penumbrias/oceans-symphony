@@ -39,11 +39,13 @@ export default function DailyTasks() {
   // AUTO task detection — convert UTC created_date to local date for comparison
   const hasJournalToday = journals.some((j) => {
     if (!j.created_date) return false;
-    // Parse UTC timestamp and convert to local date
     const utcDate = new Date(j.created_date);
-    const localYear = utcDate.getFullYear();
-    const localMonth = String(utcDate.getMonth() + 1).padStart(2, "0");
-    const localDay = String(utcDate.getDate()).padStart(2, "0");
+    // Get local date components from UTC timestamp
+    const offset = utcDate.getTimezoneOffset() * 60000;
+    const localDate = new Date(utcDate.getTime() - offset);
+    const localYear = localDate.getFullYear();
+    const localMonth = String(localDate.getMonth() + 1).padStart(2, "0");
+    const localDay = String(localDate.getDate()).padStart(2, "0");
     const entryDate = `${localYear}-${localMonth}-${localDay}`;
     return entryDate === TODAY;
   });
