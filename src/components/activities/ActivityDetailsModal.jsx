@@ -46,7 +46,17 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     queryFn: () => base44.entities.Activity.list(),
   });
 
-  if (!activity) return null;
+  if (!activity) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Activity Details</DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   // Get all activities within 1 hour of this activity
   const activitiesForTime = useMemo(() => {
