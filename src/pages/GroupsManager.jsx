@@ -215,31 +215,55 @@ export default function GroupsManager() {
         )}
 
         {/* Groups Tree */}
-        <div className="space-y-2">
-          {rootGroups.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="text-sm">No groups yet. Create one to get started.</p>
-            </div>
-          ) : (
-            rootGroups.map((group) => (
-              <GroupTreeNode
-                key={group.id}
-                group={group}
-                allGroups={allGroups}
-                expandedGroups={expandedGroups}
-                onToggleExpanded={toggleExpanded}
-                onEdit={handleEditGroup}
-                onDelete={handleDeleteGroup}
-                onCreateChild={setCreatingParentId}
-                creatingParentId={creatingParentId}
-                newGroupName={newGroupName}
-                onNewGroupNameChange={setNewGroupName}
-                onCreateGroup={handleCreateGroup}
-                deletingId={deletingId}
-              />
-            ))
-          )}
-        </div>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="root" type="group">
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className={`space-y-2 p-2 rounded-lg transition-colors ${
+                  snapshot.isDraggingOver ? "bg-primary/5 border border-primary/20" : ""
+                }`}
+              >
+                {rootGroups.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-sm">No groups yet. Create one to get started.</p>
+                  </div>
+                ) : (
+                  rootGroups.map((group, index) => (
+                    <Draggable key={group.id} draggableId={group.id} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className={snapshot.isDragging ? "opacity-50" : ""}
+                        >
+                          <GroupTreeNode
+                            group={group}
+                            allGroups={allGroups}
+                            expandedGroups={expandedGroups}
+                            onToggleExpanded={toggleExpanded}
+                            onEdit={handleEditGroup}
+                            onDelete={handleDeleteGroup}
+                            onCreateChild={setCreatingParentId}
+                            creatingParentId={creatingParentId}
+                            newGroupName={newGroupName}
+                            onNewGroupNameChange={setNewGroupName}
+                            onCreateGroup={handleCreateGroup}
+                            deletingId={deletingId}
+                            onDragEnd={handleDragEnd}
+                          />
+                        </div>
+                      )}
+                    </Draggable>
+                  ))
+                )}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
 
         {/* Create Root Button */}
         {creatingParentId === undefined && (
