@@ -176,6 +176,8 @@ export default function GroupTreeRow({
               onMoveUp={onMoveUp}
               onMoveDown={onMoveDown}
               onDropGroup={onDropGroup}
+              draggedGroupId={draggedGroupId}
+              setDraggedGroupId={setDraggedGroupId}
               level={level + 1}
             />
           ))}
