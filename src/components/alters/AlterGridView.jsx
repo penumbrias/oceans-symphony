@@ -118,9 +118,9 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
                   style={{
                     boxShadow: fronting 
                       ? isPrimary
-                        ? `0 0 20px rgba(251, 191, 36, 0.5), 0 0 12px ${alterColor}80, inset 0 0 0 2px ${alterColor}, inset 0 0 0 3px #fbbf24`
-                        : `0 0 16px ${alterColor}80, inset 0 0 0 2px ${alterColor}`
-                      : `inset 0 0 0 2px ${alterColor}40`
+                        ? `inset 0 0 0 3px #fbbf24, inset 0 0 0 5px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 24px ${alterColor}ff`
+                        : `inset 0 0 0 3px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 20px ${alterColor}ff`
+                      : `inset 0 0 0 2px ${alterColor}80`
                   }}
                   className="w-16 h-16 rounded-full object-cover transition-all cursor-pointer select-none"
                   draggable={false}
@@ -128,12 +128,12 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
               ) : (
                 <div 
                   style={{
-                    backgroundColor: fronting ? `${alterColor}20` : "hsl(var(--muted))",
+                    backgroundColor: fronting ? `${alterColor}30` : "hsl(var(--muted))",
                     boxShadow: fronting 
                       ? isPrimary
-                        ? `0 0 20px rgba(251, 191, 36, 0.5), 0 0 12px ${alterColor}80, inset 0 0 0 2px ${alterColor}, inset 0 0 0 3px #fbbf24`
-                        : `0 0 16px ${alterColor}80, inset 0 0 0 2px ${alterColor}`
-                      : `inset 0 0 0 2px ${alterColor}40`
+                        ? `inset 0 0 0 3px #fbbf24, inset 0 0 0 5px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 24px ${alterColor}ff`
+                        : `inset 0 0 0 3px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 20px ${alterColor}ff`
+                      : `inset 0 0 0 2px ${alterColor}80`
                   }}
                   className="w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer select-none"
                 >
