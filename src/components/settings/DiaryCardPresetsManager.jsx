@@ -5,33 +5,23 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Settings, Loader2, Plus, X } from "lucide-react";
+import { Settings, Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { SYMPTOMS } from "@/components/diary/SymptomsChecklistPanel";
 
-const DEFAULT_EMOTIONS = ["Happy", "Sad", "Angry", "Anxious", "Calm"];
-const DEFAULT_URGES = ["Suicidal urges", "Self-harm urges", "Alcohol/Drugs"];
-const DEFAULT_BODY_MIND = ["Emotional misery", "Physical misery", "Joy"];
+const DEFAULT_SECTIONS = [
+  { id: "emotions", emoji: "😊", title: "Emotions", subtitle: "Tap to log feelings", enabled: true },
+  { id: "urges", emoji: "🆘", title: "Urges to", subtitle: "Rate the intensity", enabled: true },
+  { id: "body_mind", emoji: "🌿", title: "Body + mind", subtitle: "Rate wellbeing", enabled: true },
+  { id: "skills", emoji: "🧠", title: "Skills used", subtitle: "How many skills", enabled: true },
+  { id: "medication", emoji: "💊", title: "Medication + safety", subtitle: "Rx meds + safety", enabled: true },
+  { id: "notes", emoji: "📝", title: "Notes", subtitle: "Details + context", enabled: true },
+  { id: "checklist", emoji: "🔲", title: "Symptoms Checklist", subtitle: "Symptoms, habits & more", enabled: true },
+];
 
 export default function DiaryCardPresetsManager() {
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
-  
-  const [presets, setPresets] = useState({
-    emotions: [],
-    urges: [],
-    bodyMind: [],
-    skills: [],
-    symptoms: [],
-  });
-  
-  const [newEmotion, setNewEmotion] = useState("");
-  const [newUrge, setNewUrge] = useState("");
-  const [newBodyMind, setNewBodyMind] = useState("");
-  const [newSkill, setNewSkill] = useState("");
-  const [newSymptomLabel, setNewSymptomLabel] = useState("");
-  const [newSymptomType, setNewSymptomType] = useState("rating");
-  const [newSymptomPositive, setNewSymptomPositive] = useState(false);
+  const [sections, setSections] = useState(DEFAULT_SECTIONS);
 
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -41,112 +31,21 @@ export default function DiaryCardPresetsManager() {
   const settings = settingsList[0] || null;
 
   useEffect(() => {
-    if (settings?.diary_presets) {
-      setPresets(settings.diary_presets);
-    } else {
-      // Initialize with defaults if no presets exist
-      setPresets({
-        emotions: DEFAULT_EMOTIONS,
-        urges: DEFAULT_URGES,
-        bodyMind: DEFAULT_BODY_MIND,
-        skills: [],
-        symptoms: [],
-      });
+    if (settings?.diary_sections) {
+      setSections(settings.diary_sections);
     }
   }, [settings]);
 
-  const handleAddEmotion = () => {
-    if (newEmotion.trim()) {
-      setPresets(prev => ({
-        ...prev,
-        emotions: [...prev.emotions, newEmotion.trim()]
-      }));
-      setNewEmotion("");
-    }
+  const handleToggle = (id) => {
+    setSections(prev =>
+      prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s)
+    );
   };
 
-  const handleRemoveEmotion = (idx) => {
-    setPresets(prev => ({
-      ...prev,
-      emotions: prev.emotions.filter((_, i) => i !== idx)
-    }));
-  };
-
-  const handleAddUrge = () => {
-    if (newUrge.trim()) {
-      setPresets(prev => ({
-        ...prev,
-        urges: [...prev.urges, newUrge.trim()]
-      }));
-      setNewUrge("");
-    }
-  };
-
-  const handleRemoveUrge = (idx) => {
-    setPresets(prev => ({
-      ...prev,
-      urges: prev.urges.filter((_, i) => i !== idx)
-    }));
-  };
-
-  const handleAddBodyMind = () => {
-    if (newBodyMind.trim()) {
-      setPresets(prev => ({
-        ...prev,
-        bodyMind: [...prev.bodyMind, newBodyMind.trim()]
-      }));
-      setNewBodyMind("");
-    }
-  };
-
-  const handleRemoveBodyMind = (idx) => {
-    setPresets(prev => ({
-      ...prev,
-      bodyMind: prev.bodyMind.filter((_, i) => i !== idx)
-    }));
-  };
-
-  const handleAddSkill = () => {
-    if (newSkill.trim()) {
-      setPresets(prev => ({
-        ...prev,
-        skills: [...prev.skills, newSkill.trim()]
-      }));
-      setNewSkill("");
-    }
-  };
-
-  const handleRemoveSkill = (idx) => {
-    setPresets(prev => ({
-      ...prev,
-      skills: prev.skills.filter((_, i) => i !== idx)
-    }));
-  };
-
-  const handleAddSymptom = () => {
-    if (newSymptomLabel.trim()) {
-      const newId = `custom_${Date.now()}`;
-      setPresets(prev => ({
-        ...prev,
-        symptoms: [...prev.symptoms, {
-          id: newId,
-          label: newSymptomLabel.trim(),
-          type: newSymptomType,
-          is_positive: newSymptomPositive,
-          category: "symptom"
-        }]
-      }));
-      setNewSymptomLabel("");
-      setNewSymptomType("rating");
-      setNewSymptomPositive(false);
-    }
-  };
-
-  const handleRemoveSymptom = (idx) => {
-    setPresets(prev => ({
-      ...prev,
-      symptoms: prev.symptoms.filter((_, i) => i !== idx)
-    }));
+  const handleEdit = (id, field, value) => {
+    setSections(prev =>
+      prev.map(s => s.id === id ? { ...s, [field]: value } : s)
+    );
   };
 
   const handleSave = async () => {
@@ -154,17 +53,17 @@ export default function DiaryCardPresetsManager() {
     try {
       if (settings?.id) {
         await base44.entities.SystemSettings.update(settings.id, {
-          diary_presets: presets,
+          diary_sections: sections,
         });
       } else {
         await base44.entities.SystemSettings.create({
-          diary_presets: presets,
+          diary_sections: sections,
         });
       }
-      toast.success("Diary presets saved!");
+      toast.success("Diary card sections saved!");
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch (error) {
-      toast.error("Failed to save presets");
+      toast.error("Failed to save settings");
     }
     setSaving(false);
   };
@@ -177,188 +76,56 @@ export default function DiaryCardPresetsManager() {
             <Settings className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <CardTitle className="text-lg">Edit Diary Cards</CardTitle>
-            <CardDescription>Customize emotions, urges, symptoms, and skills</CardDescription>
+            <CardTitle className="text-lg">Customize Diary Cards</CardTitle>
+            <CardDescription>Choose which sections appear and customize their labels</CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Emotions */}
+      <CardContent className="space-y-4">
         <div className="space-y-3">
-          <h3 className="font-medium text-sm">Emotions</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add emotion..."
-              value={newEmotion}
-              onChange={(e) => setNewEmotion(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddEmotion()}
-              className="bg-card/50"
-            />
-            <Button onClick={handleAddEmotion} size="sm" variant="outline">
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {presets.emotions.map((emotion, idx) => (
-              <div key={idx} className="bg-accent/20 px-3 py-1 rounded-full flex items-center gap-2 text-sm">
-                {emotion}
-                <button onClick={() => handleRemoveEmotion(idx)} className="hover:opacity-70">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Urges */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-sm">Urges to Track</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add urge..."
-              value={newUrge}
-              onChange={(e) => setNewUrge(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddUrge()}
-              className="bg-card/50"
-            />
-            <Button onClick={handleAddUrge} size="sm" variant="outline">
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {presets.urges.map((urge, idx) => (
-              <div key={idx} className="bg-destructive/10 px-3 py-1 rounded-full flex items-center gap-2 text-sm">
-                {urge}
-                <button onClick={() => handleRemoveUrge(idx)} className="hover:opacity-70">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Body + Mind */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-sm">Body + Mind</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add metric..."
-              value={newBodyMind}
-              onChange={(e) => setNewBodyMind(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddBodyMind()}
-              className="bg-card/50"
-            />
-            <Button onClick={handleAddBodyMind} size="sm" variant="outline">
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {presets.bodyMind.map((metric, idx) => (
-              <div key={idx} className="bg-chart-2/20 px-3 py-1 rounded-full flex items-center gap-2 text-sm">
-                {metric}
-                <button onClick={() => handleRemoveBodyMind(idx)} className="hover:opacity-70">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Skills */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-sm">Skills (Examples)</h3>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add skill..."
-              value={newSkill}
-              onChange={(e) => setNewSkill(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddSkill()}
-              className="bg-card/50"
-            />
-            <Button onClick={handleAddSkill} size="sm" variant="outline">
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {presets.skills.map((skill, idx) => (
-              <div key={idx} className="bg-primary/10 px-3 py-1 rounded-full flex items-center gap-2 text-sm">
-                {skill}
-                <button onClick={() => handleRemoveSkill(idx)} className="hover:opacity-70">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Symptoms */}
-        <div className="space-y-3">
-          <h3 className="font-medium text-sm">Symptoms & Habits to Track</h3>
-
-          {/* Add new symptom form */}
-          <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Label"
-                value={newSymptomLabel}
-                onChange={(e) => setNewSymptomLabel(e.target.value)}
-                className="bg-card/50 text-sm"
-              />
-              <select
-                value={newSymptomType}
-                onChange={(e) => setNewSymptomType(e.target.value)}
-                className="px-2 py-1 rounded-md border border-input bg-card/50 text-sm"
-              >
-                <option value="rating">Scale</option>
-                <option value="boolean">Yes/No</option>
-              </select>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer text-sm">
-              <Checkbox
-                checked={newSymptomPositive}
-                onCheckedChange={(checked) => setNewSymptomPositive(checked)}
-              />
-              <span>Positive symptom (higher = better)</span>
-            </label>
-            <Button onClick={handleAddSymptom} size="sm" variant="outline" className="w-full">
-              <Plus className="w-4 h-4 mr-2" /> Add Symptom
-            </Button>
-          </div>
-
-          {/* Listed symptoms */}
-          <div className="space-y-2">
-            {/* Preset symptoms from SYMPTOMS */}
-            {SYMPTOMS.map((symptom) => (
-              <div key={symptom.id} className="flex items-center justify-between p-2 bg-blue-500/10 rounded-lg text-sm border border-blue-500/20">
-                <div className="flex-1">
-                  <div className="font-medium">{symptom.label}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {symptom.type === 'rating' ? 'Scale' : 'Yes/No'} • {symptom.is_positive ? 'Positive' : 'Negative'} • <span className="text-blue-600 dark:text-blue-400">Preset</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Custom symptoms */}
-            {Array.isArray(presets.symptoms) && presets.symptoms.map((symptom, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2 bg-muted/40 rounded-lg text-sm">
-                <div className="flex-1">
-                  <div className="font-medium">{typeof symptom === 'string' ? symptom : symptom.label}</div>
-                  {typeof symptom === 'object' && (
-                    <div className="text-xs text-muted-foreground">
-                      {symptom.type === 'rating' ? 'Scale' : 'Yes/No'} • {symptom.is_positive ? 'Positive' : 'Negative'}
-                    </div>
-                  )}
-                </div>
+          {sections.map((section) => (
+            <div
+              key={section.id}
+              className={`p-4 border rounded-xl transition-all ${
+                section.enabled
+                  ? "bg-card border-border/50"
+                  : "bg-muted/30 border-border/30 opacity-60"
+              }`}
+            >
+              <div className="flex items-start gap-3">
                 <button
-                  onClick={() => handleRemoveSymptom(idx)}
-                  className="p-1 hover:bg-muted rounded transition-colors"
+                  onClick={() => handleToggle(section.id)}
+                  className="mt-1 flex-shrink-0"
                 >
-                  <X className="w-4 h-4 text-muted-foreground" />
+                  {section.enabled ? (
+                    <Eye className="w-4 h-4 text-primary" />
+                  ) : (
+                    <EyeOff className="w-4 h-4 text-muted-foreground" />
+                  )}
                 </button>
+
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{section.emoji}</span>
+                    <Input
+                      value={section.title}
+                      onChange={(e) => handleEdit(section.id, "title", e.target.value)}
+                      disabled={!section.enabled}
+                      className="text-sm font-medium h-8"
+                      placeholder="Section title"
+                    />
+                  </div>
+                  <Input
+                    value={section.subtitle}
+                    onChange={(e) => handleEdit(section.id, "subtitle", e.target.value)}
+                    disabled={!section.enabled}
+                    className="text-xs h-8"
+                    placeholder="Subtitle/description"
+                  />
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
 
         <Button
@@ -369,7 +136,7 @@ export default function DiaryCardPresetsManager() {
           {saving ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           ) : null}
-          Save Presets
+          Save Changes
         </Button>
       </CardContent>
     </Card>
