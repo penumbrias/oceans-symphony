@@ -24,6 +24,7 @@ const RANGE_OPTIONS = [
 ];
 
 const TABS = [
+  { id: "overview", label: "📋 Overview" },
   { id: "symptoms", label: "🩺 Symptoms" },
   { id: "patterns", label: "🔥 Patterns" },
   { id: "dayofweek", label: "📅 Day of Week" },
