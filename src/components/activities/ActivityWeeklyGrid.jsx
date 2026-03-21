@@ -136,6 +136,7 @@ export default function ActivityWeeklyGrid({
             {/* Day cells */}
             {weekDays.map((date) => {
               const fronting = getFrontingForHour(date, hour);
+              const activity = getActivityForHour(date, hour);
               const isStartSelected =
                 startSelection?.date.toDateString() === date.toDateString() &&
                 startSelection?.hour === hour;
@@ -144,35 +145,85 @@ export default function ActivityWeeklyGrid({
                 <button
                   key={`${format(date, "yyyy-MM-dd")}-${hour}`}
                   onClick={() => handleTimeBlockClick(date, hour)}
-                  className={`min-h-16 border-r border-border/50 p-1 transition-colors flex flex-col items-center justify-center text-muted-foreground relative ${
-                    isStartSelected
-                      ? "bg-primary/20 border-primary"
-                      : "hover:bg-primary/10 hover:text-primary"
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (activity) onActivityClick?.(activity);
+                  }}
+                  onMouseDown={(e) => {
+                    if (e.button === 2 || e.timeStamp) {
+                      const touchStart = Date.now();
+                      const handleMouseUp = () => {
+                        if (Date.now() - touchStart > 500 && activity) {
+                          onActivityClick?.(activity);
+                        }
+                        document.removeEventListener("mouseup", handleMouseUp);
+                      };
+                      document.addEventListener("mouseup", handleMouseUp);
+                    }
+                  }}
+                  className={`min-h-16 border-r border-border/50 p-1 transition-colors flex flex-col items-center justify-center relative group cursor-pointer ${
+                    activity
+                      ? "text-white font-medium text-xs"
+                      : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  } ${
+                    isStartSelected ? "border-primary ring-2 ring-primary" : ""
                   }`}
+                  style={{
+                    backgroundColor: activity ? activity.color : undefined,
+                  }}
                 >
-                  {/* Fronting indicators */}
-                  {fronting.length > 0 && (
-                    <div className="absolute top-1 left-1 right-1 flex gap-0.5 flex-wrap justify-center">
-                      {fronting.slice(0, 3).map((session, idx) => (
-                        <div
-                          key={idx}
-                          className="w-1.5 h-1.5 rounded-full border border-foreground/30"
-                          style={{
-                            backgroundColor: session.primary_alter_id
-                              ? getAlterColor(session.primary_alter_id)
-                              : "hsl(var(--muted-foreground))",
-                          }}
-                          title={
-                            session.primary_alter_id
-                              ? `Primary: ${session.primary_alter_id}`
-                              : "Co-fronting"
-                          }
-                        />
-                      ))}
+                  {activity ? (
+                    <div className="text-center space-y-1">
+                      <div className="text-xs font-bold line-clamp-2 leading-tight">
+                        {activity.activity_name}
+                      </div>
+                      {showAlters && activity.fronting_alter_ids?.length > 0 && (
+                        <div className="flex gap-0.5 justify-center flex-wrap">
+                          {activity.fronting_alter_ids.slice(0, 4).map((alterId) => {
+                            const alter = alters.find((a) => a.id === alterId);
+                            return (
+                              <div
+                                key={alterId}
+                                className="w-4 h-4 rounded-full border border-white/50 flex items-center justify-center text-xs"
+                                style={{
+                                  backgroundColor: alter?.color || "rgba(255,255,255,0.2)",
+                                }}
+                                title={alter?.name}
+                              >
+                                {alter?.avatar_url && (
+                                  <img
+                                    src={alter.avatar_url}
+                                    alt={alter.name}
+                                    className="w-full h-full rounded-full object-cover"
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    <>
+                      {/* Fronting indicators when no activity */}
+                      {fronting.length > 0 && !showAlters && (
+                        <div className="absolute top-1 left-1 right-1 flex gap-0.5 flex-wrap justify-center">
+                          {fronting.slice(0, 3).map((session, idx) => (
+                            <div
+                              key={idx}
+                              className="w-1.5 h-1.5 rounded-full border border-foreground/30"
+                              style={{
+                                backgroundColor: session.primary_alter_id
+                                  ? getAlterColor(session.primary_alter_id)
+                                  : "hsl(var(--muted-foreground))",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </>
                   )}
-
-                  <Plus className="w-4 h-4 opacity-0 hover:opacity-100 transition-opacity" />
                 </button>
               );
             })}
