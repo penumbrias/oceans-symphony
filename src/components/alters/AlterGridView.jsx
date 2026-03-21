@@ -122,7 +122,7 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
                         : `inset 0 0 0 3px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 20px ${alterColor}ff`
                       : `inset 0 0 0 2px ${alterColor}80`
                   }}
-                  className="w-16 h-16 rounded-full object-cover transition-all cursor-pointer select-none"
+                  className={`rounded-full object-cover transition-all cursor-pointer select-none ${fronting ? "w-20 h-20" : "w-16 h-16"}`}
                   draggable={false}
                 />
               ) : (
@@ -135,7 +135,7 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
                         : `inset 0 0 0 3px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 20px ${alterColor}ff`
                       : `inset 0 0 0 2px ${alterColor}80`
                   }}
-                  className="w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer select-none"
+                  className={`rounded-full flex items-center justify-center transition-all cursor-pointer select-none ${fronting ? "w-20 h-20" : "w-16 h-16"}`}
                 >
                   <span className="text-xs font-semibold text-muted-foreground">
                     {alter.name.slice(0, 2)}
