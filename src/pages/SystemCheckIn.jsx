@@ -213,19 +213,13 @@ export default function SystemCheckInPage() {
             <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
             <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
 
-            {/* Overall Notes */}
+            {/* Next Steps */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Overall Notes</CardTitle>
+                <CardTitle className="text-base">Next Step</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea
-                  placeholder="How did the check-in feel overall?"
-                  value={formData.overall_notes || ""}
-                  onChange={(e) => setFormData({ ...formData, overall_notes: e.target.value })}
-                  className="resize-none h-20"
-                />
-                <div className="flex items-center gap-3 pt-2 border-t border-border">
+              <CardContent>
+                <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
                     id="diary-card"
@@ -234,7 +228,7 @@ export default function SystemCheckInPage() {
                     className="w-4 h-4"
                   />
                   <label htmlFor="diary-card" className="cursor-pointer text-sm">
-                    Complete a daily diary card after this check-in
+                    Complete a daily diary card next
                   </label>
                 </div>
               </CardContent>

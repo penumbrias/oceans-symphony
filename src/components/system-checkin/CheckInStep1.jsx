@@ -33,7 +33,7 @@ export default function CheckInStep1({ data, onChange }) {
 
             <div className="p-3 bg-accent/30 rounded-lg">
               <p className="text-xs text-muted-foreground italic">
-                "I'm here, I'm listening."
+                Remind your system, "I'm here, I'm listening."
               </p>
             </div>
 
