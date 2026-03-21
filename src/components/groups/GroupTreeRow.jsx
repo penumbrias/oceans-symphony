@@ -278,6 +278,7 @@ export default function GroupTreeRow({
               onCancelCreateSubgroup={onCancelCreateSubgroup}
               newSubgroupName={newSubgroupName}
               onSubgroupNameChange={onSubgroupNameChange}
+              onDeleteGroup={onDeleteGroup}
             />
           ))}
         </div>
