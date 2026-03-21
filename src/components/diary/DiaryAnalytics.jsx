@@ -5,6 +5,7 @@ import RatingsChart from "./analytics/RatingsChart";
 import HabitImpactChart from "./analytics/HabitImpactChart";
 import AlterLoggingChart from "./analytics/AlterLoggingChart";
 import WellnessOverview from "./analytics/WellnessOverview";
+import { aggregateDailyMetrics, getAlterTendencies } from "@/lib/diaryAnalytics";
 
 const RANGE_OPTIONS = [
   { label: "7d", days: 7 },
@@ -33,6 +34,16 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
       .filter((c) => c.date && parseISO(c.date) >= cutoff)
       .sort((a, b) => a.date.localeCompare(b.date)),
     [cards, rangeDays]
+  );
+
+  const dailyAggregates = useMemo(() =>
+    aggregateDailyMetrics(filteredCards),
+    [filteredCards]
+  );
+
+  const alterTendencies = useMemo(() =>
+    getAlterTendencies(filteredCards),
+    [filteredCards]
   );
 
   const ratingData = useMemo(() => {
@@ -94,7 +105,7 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
       </div>
 
       {activeTab === "overview" && (
-        <WellnessOverview filteredCards={filteredCards} allCards={cards} />
+        <WellnessOverview filteredCards={filteredCards} allCards={cards} dailyAggregates={dailyAggregates} />
       )}
       {activeTab === "ratings" && (
         <RatingsChart ratingData={ratingData} />
@@ -103,7 +114,7 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
         <HabitImpactChart filteredCards={filteredCards} />
       )}
       {activeTab === "alters" && (
-        <AlterLoggingChart filteredCards={filteredCards} altersById={altersById} />
+        <AlterLoggingChart filteredCards={filteredCards} altersById={altersById} alterTendencies={alterTendencies} />
       )}
     </div>
   );
