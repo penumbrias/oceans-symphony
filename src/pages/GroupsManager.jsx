@@ -21,7 +21,9 @@ export default function GroupsManager() {
     queryFn: () => base44.entities.Group.list(),
   });
 
-  const rootGroups = allGroups.filter((g) => !g.parent || g.parent === "" || g.parent === "root");
+  const rootGroups = allGroups
+    .filter((g) => !g.parent || g.parent === "" || g.parent === "root")
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const toggleExpanded = (groupId) => {
     const newExpanded = new Set(expandedGroups);
