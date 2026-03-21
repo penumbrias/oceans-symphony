@@ -11,6 +11,9 @@ import DiaryHeatmap from "./analytics/DiaryHeatmap";
 import SymptomGridTable from "./analytics/SymptomGridTable";
 import SymptomTrendCharts from "./analytics/SymptomTrendCharts";
 import SymptomSelector from "./analytics/SymptomSelector";
+import EmotionsChart from "./analytics/EmotionsChart";
+import UrgesToChart from "./analytics/UrgesToChart";
+import MedicationChart from "./analytics/MedicationChart";
 import { aggregateDailyMetrics, getAlterTendencies } from "@/lib/diaryAnalytics";
 
 const RANGE_OPTIONS = [
