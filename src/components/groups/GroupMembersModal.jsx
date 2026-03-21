@@ -29,7 +29,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
   const getGroupIds = (groupId, includeSubgroups) => {
     if (!includeSubgroups) return [groupId];
     const ids = [groupId];
-    const subgroups = allGroups.filter((g) => g.parent === groupId);
+    const subgroups = allGroups.filter((g) => g.parent === groupId || g.parent === (groupId.sp_id || groupId));
     subgroups.forEach((sg) => {
       ids.push(...getGroupIds(sg.id, true));
     });
