@@ -31,7 +31,7 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
     // An alter is in this group if its groups array contains this group's key
     const initial = new Set(
       allAlters
-        .filter((a) => (a.groups || []).some((g) => g.id === groupKey))
+        .filter((a) => (a.groups || []).some((g) => g.id === groupKey || g.sp_id === groupKey))
         .map((a) => a.id)
     );
     setSelectedIds(initial);
@@ -58,17 +58,17 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
     setSaving(true);
     try {
       // Build new member_sp_ids: use sp_id when available, else id
-      const newMemberIds = allAlters
-        .filter((a) => selectedIds.has(a.id))
-        .map((a) => a.sp_id || a.id);
+       const newMemberIds = allAlters
+         .filter((a) => selectedIds.has(a.id))
+         .map((a) => a.sp_id || a.id);
 
-      await base44.entities.Group.update(group.id, { member_sp_ids: newMemberIds });
+       await base44.entities.Group.update(group.id, { member_sp_ids: newMemberIds });
 
-      // Update each alter's groups array
-      const groupKey = group.sp_id || group.id;
-      for (const alter of allAlters) {
-        const wasIn = (alter.groups || []).some((g) => g.id === groupKey);
-        const isIn = selectedIds.has(alter.id);
+       // Update each alter's groups array
+       const groupKey = group.sp_id || group.id;
+       for (const alter of allAlters) {
+         const wasIn = (alter.groups || []).some((g) => g.id === groupKey || g.sp_id === groupKey);
+         const isIn = selectedIds.has(alter.id);
         if (wasIn === isIn) continue;
 
         const currentGroups = alter.groups || [];
