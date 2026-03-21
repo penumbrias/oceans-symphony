@@ -1,16 +1,39 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import SetFrontModal from "@/components/fronting/SetFrontModal";
+import { useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
 
 export default function AlterGridView({ alters, currentSession = null, allAlters = [] }) {
   const navigate = useNavigate();
-  const [setFrontOpen, setSetFrontOpen] = useState(false);
-  const [selectedAlter, setSelectedAlter] = useState(null);
+  const queryClient = useQueryClient();
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
 
-  const handleDoubleClick = (alter) => {
-    setSelectedAlter(alter);
-    setSetFrontOpen(true);
+  const handleDoubleClick = async (alter) => {
+    try {
+      // End any active sessions
+      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+      for (const s of activeSessions) {
+        await base44.entities.FrontingSession.update(s.id, {
+          is_active: false,
+          end_time: new Date().toISOString(),
+        });
+      }
+
+      // Create new session with this alter as primary
+      await base44.entities.FrontingSession.create({
+        primary_alter_id: alter.id,
+        co_fronter_ids: [],
+        start_time: new Date().toISOString(),
+        is_active: true,
+      });
+
+      toast.success(`${alter.name} is now fronting!`);
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    } catch (err) {
+      toast.error(err.message || "Failed to set front");
+    }
   };
 
   const handleMouseDown = (alter) => {
