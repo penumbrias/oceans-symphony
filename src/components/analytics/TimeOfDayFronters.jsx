@@ -28,10 +28,18 @@ function inPeriod(hour, range) {
   return hour >= start || hour <= end;
 }
 
-function AlterRow({ alter, count, periodLabel }) {
+function formatDuration(ms) {
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+}
+
+function AlterRow({ alter, duration, periodLabel }) {
   const bg = alter.color || null;
   const text = bg ? getContrastColor(bg) : null;
-  const times = count === 1 ? "1 time" : `${count} times`;
 
   return (
     <Link to={`/alter/${alter.id}`}>
@@ -56,7 +64,7 @@ function AlterRow({ alter, count, periodLabel }) {
             )}
           </p>
           <p className="text-xs text-muted-foreground">
-            Started fronting {times} during the {periodLabel}
+            {formatDuration(duration)} during the {periodLabel}
           </p>
         </div>
       </div>
@@ -70,23 +78,27 @@ export default function TimeOfDayFronters({ sessions, alters }) {
   const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
 
   const periodData = useMemo(() => {
-    const counts = {}; // { alterId: count }
+    const durations = {}; // { alterId: ms }
 
     for (const s of sessions) {
       const hour = getHours(new Date(s.start_time));
       const period = PERIODS.find((p) => inPeriod(hour, p.range));
       if (!period || period.id !== activePeriod) continue;
 
+      const start = new Date(s.start_time).getTime();
+      const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
+      const duration = Math.max(end - start, 0);
+
       const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
       for (const id of ids) {
-        counts[id] = (counts[id] || 0) + 1;
+        durations[id] = (durations[id] || 0) + duration;
       }
     }
 
-    return Object.entries(counts)
-      .map(([id, count]) => ({ alter: altersById[id], count }))
+    return Object.entries(durations)
+      .map(([id, duration]) => ({ alter: altersById[id], duration }))
       .filter((d) => d.alter)
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => b.duration - a.duration);
   }, [sessions, altersById, activePeriod]);
 
   const current = PERIODS.find((p) => p.id === activePeriod);
@@ -101,8 +113,8 @@ export default function TimeOfDayFronters({ sessions, alters }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {periodData.map(({ alter, count }) => (
-            <AlterRow key={alter.id} alter={alter} count={count} periodLabel={periodLabel} />
+          {periodData.map(({ alter, duration }) => (
+            <AlterRow key={alter.id} alter={alter} duration={duration} periodLabel={periodLabel} />
           ))}
         </div>
       )}
