@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Folder, ChevronRight, User, ArrowLeft, Plus, Users } from "lucide-react";
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import SetFrontModal from "@/components/fronting/SetFrontModal";
+import AlterEditModal from "@/components/alters/AlterEditModal";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -18,40 +19,57 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function MemberRow({ alter }) {
+function MemberRow({ alter, onDoubleClick, onLongPress }) {
   const hasColor = alter.color && alter.color.length > 3;
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
+  const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
+
+  const handleMouseDown = () => {
+    const timeoutId = setTimeout(() => {
+      onLongPress();
+    }, 500);
+    setLongPressTimeoutId(timeoutId);
+  };
+
+  const handleMouseUp = () => {
+    if (longPressTimeoutId) {
+      clearTimeout(longPressTimeoutId);
+      setLongPressTimeoutId(null);
+    }
+  };
 
   return (
-    <Link to={`/alter/${alter.id}`}>
-      <motion.div
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
-        style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      onDoubleClick={onDoubleClick}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
+      style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}
+    >
+      <div
+        className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
+        style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
       >
-        <div
-          className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
-          style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
-        >
-          {alter.avatar_url ? (
-            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-          ) : (
-            <User className="w-5 h-5" style={{ color: textColor || "hsl(var(--muted-foreground))" }} />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
-            {alter.name}
-          </p>
-          {alter.pronouns && (
-            <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>
-          )}
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-      </motion.div>
-    </Link>
+        {alter.avatar_url ? (
+          <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+        ) : (
+          <User className="w-5 h-5" style={{ color: textColor || "hsl(var(--muted-foreground))" }} />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
+          {alter.name}
+        </p>
+        {alter.pronouns && (
+          <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>
+        )}
+      </div>
+      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+    </motion.div>
   );
 }
 
@@ -79,10 +97,13 @@ function FolderRow({ group, onClick }) {
   );
 }
 
-export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
+export default function FolderGroupsSection({ alters, sortDir = "asc", currentSession = null }) {
   const [navStack, setNavStack] = useState([]);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
+  const [setFrontOpen, setSetFrontOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedAlter, setSelectedAlter] = useState(null);
 
   const { data: allGroups = [], refetch: refetchGroups } = useQuery({
     queryKey: ["groups"],
@@ -176,7 +197,18 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
         ))}
 
         {memberAlters.map((alter) => (
-          <MemberRow key={alter.id} alter={alter} />
+          <MemberRow
+            key={alter.id}
+            alter={alter}
+            onDoubleClick={() => {
+              setSelectedAlter(alter);
+              setSetFrontOpen(true);
+            }}
+            onLongPress={() => {
+              setSelectedAlter(alter);
+              setEditModalOpen(true);
+            }}
+          />
         ))}
 
         {childGroups.length === 0 && memberAlters.length === 0 && navStack.length > 0 && (
@@ -207,6 +239,28 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
             refetchGroups();
           }}
         />
+      )}
+
+      {selectedAlter && (
+        <>
+          <SetFrontModal
+            open={setFrontOpen}
+            onClose={() => {
+              setSetFrontOpen(false);
+              setSelectedAlter(null);
+            }}
+            alters={alters}
+            currentSession={currentSession}
+          />
+          <AlterEditModal
+            alter={selectedAlter}
+            open={editModalOpen}
+            onClose={() => {
+              setEditModalOpen(false);
+              setSelectedAlter(null);
+            }}
+          />
+        </>
       )}
     </div>
   );
