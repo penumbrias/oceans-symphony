@@ -66,26 +66,24 @@ export default function ActivityTimeRangeModal({
   };
 
   const handleSave = async () => {
-    if (!activityName.trim()) {
-      toast.error("Activity name is required");
+    if (selectedActivityCategories.length === 0) {
+      toast.error("Select an activity");
       return;
     }
 
     setIsLoading(true);
     try {
       const timestamp = addHours(startDate, Math.min(startHour, endHour));
-      await base44.entities.Activity.create({
-        timestamp: timestamp.toISOString(),
-        activity_name: activityName,
-        category,
-        color,
-        duration_minutes: duration * 60,
+      await base44.functions.invoke('createActivityWithCategories', {
+        activity_category_ids: selectedActivityCategories,
+        duration_minutes: activityDuration ? parseInt(activityDuration) : duration * 60,
         fronting_alter_ids: selectedAlters,
         notes: notes || null,
+        timestamp: timestamp.toISOString(),
       });
 
-      setActivityName("");
-      setCategory("other");
+      setSelectedActivityCategories([]);
+      setActivityDuration("");
       setSelectedAlters([]);
       setNotes("");
       onSave?.();
