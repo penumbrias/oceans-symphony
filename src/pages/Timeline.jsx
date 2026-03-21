@@ -30,6 +30,17 @@ export default function Timeline() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
+  // Group switches by start time to detect concurrent fronting
+  const switchesByTime = useMemo(() => {
+    const grouped = {};
+    switches.forEach((s) => {
+      const key = new Date(s.start_time).toISOString();
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(s);
+    });
+    return grouped;
+  }, [switches]);
+
   // Merge and sort by date
   const timelineItems = useMemo(() => {
     const dayStart = startOfDay(selectedDate);
@@ -49,15 +60,21 @@ export default function Timeline() {
       }
     });
 
-    // Add switches
+    // Add switches (deduplicated by time)
+    const processedTimes = new Set();
     switches.forEach((switchRecord) => {
       const switchDate = new Date(switchRecord.start_time);
       if (switchDate >= dayStart && switchDate <= dayEnd) {
-        items.push({
-          type: "switch",
-          timestamp: switchRecord.start_time,
-          data: switchRecord,
-        });
+        const timeKey = switchDate.toISOString();
+        if (!processedTimes.has(timeKey)) {
+          items.push({
+            type: "switch",
+            timestamp: switchRecord.start_time,
+            data: switchesByTime[timeKey], // Array of switches at this time
+            isConcurrent: switchesByTime[timeKey].length > 1,
+          });
+          processedTimes.add(timeKey);
+        }
       }
     });
 
@@ -75,7 +92,7 @@ export default function Timeline() {
 
     // Sort by timestamp ascending (oldest first) for vertical timeline display
     return items.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  }, [activities, switches, emotions, selectedDate]);
+  }, [activities, switches, emotions, selectedDate, switchesByTime]);
 
   const handlePrevDay = () => {
     setSelectedDate(subDays(selectedDate, 1));
