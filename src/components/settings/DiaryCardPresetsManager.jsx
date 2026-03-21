@@ -123,12 +123,29 @@ export default function DiaryCardPresetsManager() {
     }));
   };
 
-  const handleToggleSymptom = (symptomId) => {
+  const handleAddSymptom = () => {
+    if (newSymptomLabel.trim()) {
+      const newId = `custom_${Date.now()}`;
+      setPresets(prev => ({
+        ...prev,
+        symptoms: [...prev.symptoms, {
+          id: newId,
+          label: newSymptomLabel.trim(),
+          type: newSymptomType,
+          is_positive: newSymptomPositive,
+          category: "symptom"
+        }]
+      }));
+      setNewSymptomLabel("");
+      setNewSymptomType("rating");
+      setNewSymptomPositive(false);
+    }
+  };
+
+  const handleRemoveSymptom = (idx) => {
     setPresets(prev => ({
       ...prev,
-      symptoms: prev.symptoms.includes(symptomId)
-        ? prev.symptoms.filter(s => s !== symptomId)
-        : [...prev.symptoms, symptomId]
+      symptoms: prev.symptoms.filter((_, i) => i !== idx)
     }));
   };
 
