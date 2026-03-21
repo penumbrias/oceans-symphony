@@ -3,9 +3,11 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, User, Star, X, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Search, User, Star, X, Loader2, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
