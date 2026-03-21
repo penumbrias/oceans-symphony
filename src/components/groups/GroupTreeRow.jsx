@@ -171,6 +171,7 @@ export default function GroupTreeRow({
               onChangeColor={onChangeColor}
               onMoveGroupsIn={onMoveGroupsIn}
               onMoveGroupsOut={onMoveGroupsOut}
+              onCreateSubgroup={onCreateSubgroup}
               level={level + 1}
               parentId={group.id}
             />
