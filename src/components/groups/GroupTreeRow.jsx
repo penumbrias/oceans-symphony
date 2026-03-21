@@ -21,7 +21,9 @@ export default function GroupTreeRow({
   level = 0,
   parentId = null,
 }) {
-  const childGroups = allGroups.filter((g) => g.parent === group.id);
+  const childGroups = allGroups
+    .filter((g) => g.parent === group.id)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
   const hasChildren = childGroups.length > 0;
   const isExpanded = expandedGroups.has(group.id);
   const isDeleting = deletingId === group.id;
