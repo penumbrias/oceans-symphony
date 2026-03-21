@@ -3,13 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { Plus, BookOpen, ChevronLeft, Calendar } from "lucide-react";
+import { Plus, BookOpen, ChevronLeft, Calendar, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import SectionRow from "@/components/diary/SectionRow";
 import DailySectionPanel from "@/components/diary/DailySectionPanel";
 import AlterSelector from "@/components/diary/AlterSelector";
+import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 
 const SECTIONS = [
   { id: "emotions", emoji: "😊", title: "Emotions", subtitle: "Tap to log feelings" },
@@ -18,7 +19,7 @@ const SECTIONS = [
   { id: "skills", emoji: "🧠", title: "Skills used", subtitle: "How many skills" },
   { id: "medication", emoji: "💊", title: "Medication + safety", subtitle: "Rx meds + safety" },
   { id: "notes", emoji: "📝", title: "Notes", subtitle: "Details + context" },
-  { id: "weekly_checklist", emoji: "🔲", title: "Symptoms Checklist", subtitle: "Daily symptoms, habits & more" },
+  { id: "checklist", emoji: "🔲", title: "Symptoms Checklist", subtitle: "Symptoms, habits & more" },
 ];
 
 function getSectionSummary(section, data) {
@@ -27,13 +28,11 @@ function getSectionSummary(section, data) {
     return e.length ? e.slice(0, 2).join(", ") + (e.length > 2 ? ` +${e.length - 2}` : "") : "None selected";
   }
   if (section === "urges") {
-    const u = data.urges || {};
-    const rated = Object.values(u).filter((v) => v !== undefined).length;
+    const rated = Object.values(data.urges || {}).filter((v) => v !== undefined).length;
     return rated ? `${rated} rated` : "None rated";
   }
   if (section === "body_mind") {
-    const bm = data.body_mind || {};
-    const rated = Object.values(bm).filter((v) => v !== undefined).length;
+    const rated = Object.values(data.body_mind || {}).filter((v) => v !== undefined).length;
     return rated ? `${rated} rated` : "None rated";
   }
   if (section === "skills") {
@@ -41,21 +40,17 @@ function getSectionSummary(section, data) {
   }
   if (section === "medication") {
     const m = data.medication_safety || {};
-    if (!m.rx_meds_taken && !m.self_harm_occurred && m.substances_count === undefined) return "Not set";
+    if (m.rx_meds_taken === undefined && m.self_harm_occurred === undefined && m.substances_count === undefined) return "Not set";
     return "Set";
   }
   if (section === "notes") {
     return data.notes?.what ? "Added" : "No notes yet";
   }
-  if (section === "weekly_checklist") {
-    const wc = data.weekly_checklist || {};
-    const days = Object.keys(wc).filter((d) => {
-      const dd = wc[d] || {};
-      const s = Object.values(dd.symptoms || {}).filter((v) => v !== undefined).length;
-      const h = Object.values(dd.habits || {}).filter((v) => v !== undefined).length;
-      return s + h > 0;
-    });
-    return days.length ? `${days.length} day${days.length > 1 ? "s" : ""} logged` : "No days logged";
+  if (section === "checklist") {
+    const cl = data.checklist || {};
+    const s = Object.values(cl.symptoms || {}).filter((v) => v !== undefined).length;
+    const h = Object.values(cl.habits || {}).filter((v) => v !== undefined).length;
+    return s + h > 0 ? `${s + h} logged` : "Not logged";
   }
   return "";
 }
@@ -63,20 +58,20 @@ function getSectionSummary(section, data) {
 function getCompletion(data) {
   let filled = 0;
   if ((data.emotions || []).length > 0) filled++;
-  const u = data.urges || {};
-  if (Object.values(u).some((v) => v !== undefined)) filled++;
-  const bm = data.body_mind || {};
-  if (Object.values(bm).some((v) => v !== undefined)) filled++;
+  if (Object.values(data.urges || {}).some((v) => v !== undefined)) filled++;
+  if (Object.values(data.body_mind || {}).some((v) => v !== undefined)) filled++;
   if (data.skills_practiced !== undefined) filled++;
   const m = data.medication_safety || {};
   if (m.rx_meds_taken !== undefined || m.self_harm_occurred !== undefined || m.substances_count !== undefined) filled++;
   if (data.notes?.what || data.notes?.optional) filled++;
-  return Math.round((filled / 6) * 100);
+  const cl = data.checklist || {};
+  if (Object.values(cl.symptoms || {}).some((v) => v !== undefined) || Object.values(cl.habits || {}).some((v) => v !== undefined)) filled++;
+  return Math.round((filled / 7) * 100);
 }
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
-  const [view, setView] = useState("list"); // "list" | "new" | "entry"
+  const [view, setView] = useState("list"); // "list" | "new" | "entry" | "analytics"
   const [activeSection, setActiveSection] = useState(null);
   const [entryName, setEntryName] = useState("");
   const [draftData, setDraftData] = useState({});
@@ -135,7 +130,7 @@ export default function DiaryCards() {
 
   const completion = getCompletion(draftData);
 
-  // List view
+  // ── LIST ──
   if (view === "list") {
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
@@ -144,10 +139,16 @@ export default function DiaryCards() {
             <h1 className="font-display text-3xl font-semibold">Diary Cards</h1>
             <p className="text-muted-foreground text-sm mt-0.5">{cards.length} entries</p>
           </div>
-          <Button onClick={startNew} className="bg-primary hover:bg-primary/90 gap-1.5">
-            <Plus className="w-4 h-4" />
-            New Entry
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
+              <BarChart2 className="w-4 h-4" />
+              Analytics
+            </Button>
+            <Button onClick={startNew} className="bg-primary hover:bg-primary/90 gap-1.5">
+              <Plus className="w-4 h-4" />
+              New Entry
+            </Button>
+          </div>
         </div>
 
         {cards.length === 0 ? (
@@ -187,9 +188,7 @@ export default function DiaryCards() {
                     <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${comp}%` }} />
                   </div>
                   {fronters.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Fronting: {fronters.join(", ")}
-                    </p>
+                    <p className="text-xs text-muted-foreground">Fronting: {fronters.join(", ")}</p>
                   )}
                 </button>
               );
@@ -200,7 +199,25 @@ export default function DiaryCards() {
     );
   }
 
-  // Entry view (read-only summary)
+  // ── ANALYTICS ──
+  if (view === "analytics") {
+    return (
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="font-display text-2xl font-semibold">Diary Analytics</h1>
+            <p className="text-muted-foreground text-xs">Track patterns over time</p>
+          </div>
+        </div>
+        <DiaryAnalytics cards={cards} />
+      </motion.div>
+    );
+  }
+
+  // ── ENTRY VIEW ──
   if (view === "entry" && viewingEntry) {
     const card = viewingEntry;
     const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
@@ -215,11 +232,9 @@ export default function DiaryCards() {
             <p className="text-muted-foreground text-xs">{card.date}</p>
           </div>
         </div>
-
         {fronters.length > 0 && (
           <p className="text-sm text-muted-foreground">Fronting: <span className="text-foreground">{fronters.join(", ")}</span></p>
         )}
-
         <div className="space-y-2">
           {SECTIONS.map((s) => (
             <div key={s.id} className="flex items-center gap-3 px-4 py-3 bg-card border border-border/50 rounded-xl">
@@ -235,10 +250,9 @@ export default function DiaryCards() {
     );
   }
 
-  // New entry form
+  // ── NEW ENTRY ──
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
           <ChevronLeft className="w-4 h-4" />
@@ -249,7 +263,6 @@ export default function DiaryCards() {
         </div>
       </div>
 
-      {/* Completion bar */}
       <div className="bg-card border border-border/50 rounded-xl p-4 space-y-2">
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>Completion</span>
@@ -260,18 +273,15 @@ export default function DiaryCards() {
         </div>
       </div>
 
-      {/* Entry name */}
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Entry name <span className="text-muted-foreground font-normal">(optional)</span></label>
         <Input value={entryName} onChange={(e) => setEntryName(e.target.value)} placeholder={`Daily — ${format(new Date(), "MMM d, yyyy")}`} />
       </div>
 
-      {/* Fronting alters */}
       <div className="bg-card border border-border/50 rounded-xl p-4">
         <AlterSelector alters={alters} selected={frontingAlterIds} onChange={setFrontingAlterIds} />
       </div>
 
-      {/* Section panel (inline expansion) */}
       <AnimatePresence mode="wait">
         {activeSection ? (
           <motion.div
@@ -304,7 +314,6 @@ export default function DiaryCards() {
         )}
       </AnimatePresence>
 
-      {/* Save */}
       {!activeSection && (
         <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
           {saving ? "Saving..." : "Save Diary Card"}
