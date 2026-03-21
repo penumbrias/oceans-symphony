@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronRight, Plus, Trash2, Edit2, Loader2, FolderPlus } from "lucide-react";
 import { toast } from "sonner";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import GroupTreeNode from "@/components/groups/GroupTreeNode";
 
 export default function GroupsManager() {
