@@ -107,15 +107,48 @@ export default function ActivityWeeklyGrid({
             </div>
 
             {/* Day cells */}
-            {weekDays.map((date) => (
-              <button
-                key={`${format(date, "yyyy-MM-dd")}-${hour}`}
-                onClick={() => onTimeBlockClick(date, hour)}
-                className="min-h-16 border-r border-border/50 p-1 hover:bg-primary/10 transition-colors flex items-center justify-center text-muted-foreground hover:text-primary"
-              >
-                <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            ))}
+            {weekDays.map((date) => {
+              const fronting = getFrontingForHour(date, hour);
+              const isStartSelected =
+                startSelection?.date.toDateString() === date.toDateString() &&
+                startSelection?.hour === hour;
+
+              return (
+                <button
+                  key={`${format(date, "yyyy-MM-dd")}-${hour}`}
+                  onClick={() => handleTimeBlockClick(date, hour)}
+                  className={`min-h-16 border-r border-border/50 p-1 transition-colors flex flex-col items-center justify-center text-muted-foreground relative ${
+                    isStartSelected
+                      ? "bg-primary/20 border-primary"
+                      : "hover:bg-primary/10 hover:text-primary"
+                  }`}
+                >
+                  {/* Fronting indicators */}
+                  {fronting.length > 0 && (
+                    <div className="absolute top-1 left-1 right-1 flex gap-0.5 flex-wrap justify-center">
+                      {fronting.slice(0, 3).map((session, idx) => (
+                        <div
+                          key={idx}
+                          className="w-1.5 h-1.5 rounded-full border border-foreground/30"
+                          style={{
+                            backgroundColor: session.primary_alter_id
+                              ? getAlterColor(session.primary_alter_id)
+                              : "hsl(var(--muted-foreground))",
+                          }}
+                          title={
+                            session.primary_alter_id
+                              ? `Primary: ${session.primary_alter_id}`
+                              : "Co-fronting"
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <Plus className="w-4 h-4 opacity-0 hover:opacity-100 transition-opacity" />
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
