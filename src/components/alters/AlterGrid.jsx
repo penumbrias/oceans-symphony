@@ -9,7 +9,7 @@ import AlterCard from "./AlterCard";
 import AlterGridView from "./AlterGridView";
 import FolderGroupsSection from "./FolderGroupsSection.jsx";
 
-export default function AlterGrid({ alters }) {
+export default function AlterGrid({ alters, currentSession = null }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState("asc"); // "asc" | "desc"
@@ -20,6 +20,13 @@ export default function AlterGrid({ alters }) {
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["frontHistory"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
+  });
+
+  const activeFront = sessions.find((s) => s.is_active);
 
   const filtered = alters
     .filter(
@@ -104,7 +111,7 @@ export default function AlterGrid({ alters }) {
       <div className="space-y-8">
         {/* Folders section */}
         {showFolders && rootGroups.length > 0 && (
-          <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortDir} />
+          <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortDir} currentSession={activeFront} />
         )}
 
         {/* Alters list/grid */}
@@ -120,7 +127,7 @@ export default function AlterGrid({ alters }) {
                 ))}
               </div>
             ) : (
-              <AlterGridView alters={filtered} />
+              <AlterGridView alters={filtered} currentSession={activeFront} allAlters={alters} />
             )
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-center">
