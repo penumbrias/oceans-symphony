@@ -294,15 +294,56 @@ export default function DiaryCardPresetsManager() {
         {/* Symptoms */}
         <div className="space-y-3">
           <h3 className="font-medium text-sm">Symptoms & Habits to Track</h3>
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-            {SYMPTOMS.map(symptom => (
-              <label key={symptom.id} className="flex items-center gap-2 cursor-pointer text-sm">
-                <Checkbox
-                  checked={presets.symptoms.includes(symptom.id)}
-                  onCheckedChange={() => handleToggleSymptom(symptom.id)}
-                />
-                <span>{symptom.label}</span>
-              </label>
+
+          {/* Add new symptom form */}
+          <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Label"
+                value={newSymptomLabel}
+                onChange={(e) => setNewSymptomLabel(e.target.value)}
+                className="bg-card/50 text-sm"
+              />
+              <select
+                value={newSymptomType}
+                onChange={(e) => setNewSymptomType(e.target.value)}
+                className="px-2 py-1 rounded-md border border-input bg-card/50 text-sm"
+              >
+                <option value="rating">Scale</option>
+                <option value="boolean">Yes/No</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox
+                checked={newSymptomPositive}
+                onCheckedChange={(checked) => setNewSymptomPositive(checked)}
+              />
+              <span>Positive symptom (higher = better)</span>
+            </label>
+            <Button onClick={handleAddSymptom} size="sm" variant="outline" className="w-full">
+              <Plus className="w-4 h-4 mr-2" /> Add Symptom
+            </Button>
+          </div>
+
+          {/* Listed symptoms */}
+          <div className="space-y-2">
+            {Array.isArray(presets.symptoms) && presets.symptoms.map((symptom, idx) => (
+              <div key={idx} className="flex items-center justify-between p-2 bg-muted/40 rounded-lg text-sm">
+                <div className="flex-1">
+                  <div className="font-medium">{typeof symptom === 'string' ? symptom : symptom.label}</div>
+                  {typeof symptom === 'object' && (
+                    <div className="text-xs text-muted-foreground">
+                      {symptom.type === 'rating' ? 'Scale' : 'Yes/No'} • {symptom.is_positive ? 'Positive' : 'Negative'}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleRemoveSymptom(idx)}
+                  className="p-1 hover:bg-muted rounded transition-colors"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
             ))}
           </div>
         </div>
