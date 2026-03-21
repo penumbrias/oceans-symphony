@@ -14,6 +14,7 @@ export default function AlterGrid({ alters }) {
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState("asc"); // "asc" | "desc"
   const [showFolders, setShowFolders] = useState(true);
+  const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
