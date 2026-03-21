@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, Loader2, BookOpen } from "lucide-react";
+import { Search, User, Star, X, Loader2, BookOpen, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
@@ -67,6 +67,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   const [journalSwitch, setJournalSwitch] = useState(false);
   const [showJournalModal, setShowJournalModal] = useState(false);
   const [newSessionId, setNewSessionId] = useState(null);
+  const [isUnsure, setIsUnsure] = useState(false);
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const filtered = activeAlters.filter((a) =>
@@ -102,8 +103,8 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   };
 
   const handleSave = async () => {
-    if (!primaryId && coFronterIds.length === 0) {
-      toast.error("Select at least one fronter");
+    if (!isUnsure && !primaryId && coFronterIds.length === 0) {
+      toast.error("Select at least one fronter or mark as unsure");
       return;
     }
     setSaving(true);
@@ -116,21 +117,30 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           end_time: new Date().toISOString(),
         });
       }
-      // Create new session
-      const newSession = await base44.entities.FrontingSession.create({
-        primary_alter_id: primaryId,
-        co_fronter_ids: coFronterIds.filter((id) => id !== primaryId),
-        start_time: new Date().toISOString(),
-        is_active: true,
-      });
-      toast.success("Front updated!");
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      if (journalSwitch) {
-        setNewSessionId(newSession?.id || null);
-        setShowJournalModal(true);
-      } else {
+      
+      // If unsure, don't create a session
+      if (isUnsure) {
+        toast.success("Front cleared");
+        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         onClose();
+      } else {
+        // Create new session
+        const newSession = await base44.entities.FrontingSession.create({
+          primary_alter_id: primaryId,
+          co_fronter_ids: coFronterIds.filter((id) => id !== primaryId),
+          start_time: new Date().toISOString(),
+          is_active: true,
+        });
+        toast.success("Front updated!");
+        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+        if (journalSwitch) {
+          setNewSessionId(newSession?.id || null);
+          setShowJournalModal(true);
+        } else {
+          onClose();
+        }
       }
     } catch (e) {
       toast.error(e.message || "Failed to set front");
@@ -164,36 +174,63 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           <DialogTitle>Set Front</DialogTitle>
         </DialogHeader>
 
-        {/* Selected chips */}
-        {selectedIds.size > 0 && (
-          <div className="flex flex-wrap gap-2 pb-2 border-b border-border/50">
-            {[...selectedIds].map((id) => {
-              const a = activeAlters.find((x) => x.id === id);
-              if (!a) return null;
-              return (
-                <span
-                  key={id}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
-                  style={{
-                    backgroundColor: a.color ? `${a.color}18` : "hsl(var(--muted))",
-                    borderColor: a.color ? `${a.color}40` : "hsl(var(--border))",
-                    color: a.color || "hsl(var(--foreground))",
-                  }}
-                >
-                  {primaryId === id && <Star className="w-3 h-3 fill-amber-500 text-amber-500" />}
-                  {a.name}
-                  <button onClick={() => toggleAlter(id)}>
-                    <X className="w-3 h-3 opacity-60 hover:opacity-100" />
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        )}
+        {/* Selected chips - larger display */}
+         {(selectedIds.size > 0 || isUnsure) && (
+           <div className="bg-muted/30 rounded-lg p-3 mb-2 border border-border/50">
+             <div className="flex flex-wrap gap-2">
+               {isUnsure ? (
+                 <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-border bg-card text-center flex-1">
+                   <HelpCircle className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                   <span className="text-sm font-medium">Unsure who's fronting</span>
+                 </div>
+               ) : (
+                 [...selectedIds].map((id) => {
+                   const a = activeAlters.find((x) => x.id === id);
+                   if (!a) return null;
+                   return (
+                     <button
+                       key={id}
+                       onClick={() => setPrimary(id)}
+                       className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all cursor-pointer hover:shadow-md"
+                       style={{
+                         backgroundColor: a.color ? `${a.color}12` : "hsl(var(--card))",
+                         borderColor: primaryId === id ? a.color || "hsl(var(--primary))" : `${a.color || "hsl(var(--border))"}40`,
+                       }}
+                       title={primaryId === id ? "Primary fronter (click to change)" : "Click to set as primary"}
+                     >
+                       <div
+                         className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
+                         style={{ backgroundColor: a.color || "hsl(var(--muted))" }}
+                       >
+                         {a.avatar_url ? (
+                           <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                         ) : (
+                           <User className="w-6 h-6 text-white" />
+                         )}
+                       </div>
+                       <div className="text-left min-w-0">
+                         <p className="font-semibold text-sm">{a.name}</p>
+                         {primaryId === id && <p className="text-xs text-muted-foreground">Primary</p>}
+                       </div>
+                       {primaryId === id && <Star className="w-5 h-5 fill-amber-500 text-amber-500 flex-shrink-0" />}
+                       <button
+                         onClick={(e) => { e.stopPropagation(); toggleAlter(id); }}
+                         className="ml-1 p-1 hover:bg-destructive/20 rounded transition-colors flex-shrink-0"
+                       >
+                         <X className="w-4 h-4 opacity-60 hover:opacity-100" />
+                       </button>
+                     </button>
+                   );
+                 })
+               )}
+             </div>
+           </div>
+         )}
 
-        <p className="text-xs text-muted-foreground">
-          Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary fronter
-        </p>
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary fronter</p>
+          {selectedIds.size > 0 && <p className="text-primary">Click selected alters above to change who's primary</p>}
+        </div>
 
         {/* Search */}
         <div className="relative">
@@ -220,28 +257,46 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           ))}
         </div>
 
-        <div className="flex items-center gap-2 pt-1">
-          <Checkbox
-            id="journal-switch"
-            checked={journalSwitch}
-            onCheckedChange={setJournalSwitch}
-          />
-          <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
-            <BookOpen className="w-3.5 h-3.5" />
-            Journal this switch?
-          </label>
-        </div>
+        <div className="space-y-2 pt-2 border-t border-border/50">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="journal-switch"
+              checked={journalSwitch}
+              onCheckedChange={setJournalSwitch}
+              disabled={isUnsure}
+            />
+            <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+              <BookOpen className="w-3.5 h-3.5" />
+              Journal this switch?
+            </label>
+          </div>
 
-        <div className="flex gap-2 pt-2 border-t border-border/50">
-          {currentSession && (
-            <Button variant="outline" onClick={handleEndFront} disabled={saving} className="flex-1">
-              End Front
+          <div className="flex gap-2">
+            <Button
+              variant={isUnsure ? "default" : "outline"}
+              onClick={() => {
+                setIsUnsure(!isUnsure);
+                if (!isUnsure) {
+                  setPrimaryId("");
+                  setCoFronterIds([]);
+                }
+              }}
+              disabled={saving}
+              className="flex-1"
+            >
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Unsure
             </Button>
-          )}
-          <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
-            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            Set Front
-          </Button>
+            {currentSession && (
+              <Button variant="outline" onClick={handleEndFront} disabled={saving} className="flex-1">
+                Clear Front
+              </Button>
+            )}
+            <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Set Front
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
