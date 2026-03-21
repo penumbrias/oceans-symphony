@@ -226,6 +226,27 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
             )}
           </div>
 
+          {/* Activity */}
+          <div>
+            <p className="text-sm font-medium mb-2">What activity? (optional)</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g., Drawing, Playing games..."
+                value={activity}
+                onChange={(e) => setActivity(e.target.value)}
+                className="flex-1 text-sm"
+              />
+              <Input
+                type="number"
+                placeholder="mins"
+                value={activityDuration}
+                onChange={(e) => setActivityDuration(e.target.value)}
+                className="w-20 text-sm"
+                min="0"
+              />
+            </div>
+          </div>
+
           {/* Note */}
           <div>
             <p className="text-sm font-medium mb-2">Quick note (max 500 words)</p>
