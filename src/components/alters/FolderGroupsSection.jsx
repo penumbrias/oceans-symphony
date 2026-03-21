@@ -54,27 +54,28 @@ function MemberRow({ alter }) {
   );
 }
 
-function FolderRow({ group, onClick }) {
+function FolderRow({ group }) {
   const color = group.color || "";
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      onClick={() => onClick(group)}
-      className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
-      style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}
-    >
-      <div
-        className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}
+    <Link to={`/group/${group.id}`}>
+      <motion.div
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group flex-1"
+        style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}
       >
-        <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
-      </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-    </motion.div>
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}
+        >
+          <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      </motion.div>
+    </Link>
   );
 }
 
