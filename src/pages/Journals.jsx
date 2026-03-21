@@ -293,7 +293,7 @@ export default function Journals() {
           <DialogFooter className="mt-2">
             <Button variant="outline" onClick={() => setShowNewFolder(false)}>Cancel</Button>
             <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="bg-primary hover:bg-primary/90">
-              Create Folder
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>
