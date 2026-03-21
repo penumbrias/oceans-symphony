@@ -23,7 +23,7 @@ function MemberRow({ alter, onDoubleClick, onLongPress }) {
   const hasColor = alter.color && alter.color.length > 3;
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
-  const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
+  const [longPressTimeoutId, setLongPressTimeoutId] = React.useState(null);
 
   const handleMouseDown = () => {
     const timeoutId = setTimeout(() => {
