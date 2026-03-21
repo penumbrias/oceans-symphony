@@ -471,7 +471,7 @@ export default function DiaryCards() {
 
       {!activeSection && (
         <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-          {saving ? "Saving..." : "Save Diary Card"}
+          {saving ? "Saving..." : editingEntry ? "Save Changes" : "Save Diary Card"}
         </Button>
       )}
     </motion.div>
