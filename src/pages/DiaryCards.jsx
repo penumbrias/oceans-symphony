@@ -126,6 +126,15 @@ export default function DiaryCards() {
   };
 
   const startNew = () => {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const cardForToday = cards.find((c) => c.date === today);
+
+    if (cardForToday) {
+      setExistingCardToday(cardForToday);
+      setShowExistingCardDialog(true);
+      return;
+    }
+
     const activeSession = sessions.find((s) => s.is_active);
     const currentIds = activeSession
       ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
@@ -136,6 +145,29 @@ export default function DiaryCards() {
     setActiveSection(null);
     setEditingEntry(null);
     setView("new");
+  };
+
+  const proceedWithNewCard = () => {
+    const activeSession = sessions.find((s) => s.is_active);
+    const currentIds = activeSession
+      ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+      : [];
+    setFrontingAlterIds(currentIds);
+    setDraftData({});
+    setEntryName("");
+    setActiveSection(null);
+    setEditingEntry(null);
+    setShowExistingCardDialog(false);
+    setExistingCardToday(null);
+    setView("new");
+  };
+
+  const proceedWithUpdate = () => {
+    if (existingCardToday) {
+      startEdit(existingCardToday);
+      setShowExistingCardDialog(false);
+      setExistingCardToday(null);
+    }
   };
 
   const startEdit = (card) => {
