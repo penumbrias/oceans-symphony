@@ -148,7 +148,7 @@ export default function DailyTasks() {
         }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
       }
     }
-  }, [progressLoading, hasJournalToday, hasDiaryToday]);
+  }, [progressLoading, todayXP, todayRecord, manualCompleted, TODAY, queryClient]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-lg mx-auto">
