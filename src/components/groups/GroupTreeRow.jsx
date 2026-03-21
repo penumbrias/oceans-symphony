@@ -33,7 +33,7 @@ export default function GroupTreeRow({
   onCancelCreateSubgroup = null,
   newSubgroupName = "",
   onSubgroupNameChange = null,
-  onDeleteGroup = null,
+  onDeleteGroup = () => {},
 }) {
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
