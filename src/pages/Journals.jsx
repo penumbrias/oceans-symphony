@@ -76,14 +76,19 @@ export default function Journals() {
       if (search && !e.title?.toLowerCase().includes(search.toLowerCase()) &&
           !e.content?.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedTag && !(e.tags || []).includes(selectedTag)) return false;
-      if (selectedFolder && e.folder !== selectedFolder) return false;
+      // When viewing a folder, only show entries in that folder
+      if (viewingFolder !== null) {
+        if (e.folder !== viewingFolder) return false;
+      } else if (selectedFolder) {
+        if (e.folder !== selectedFolder) return false;
+      }
       if (fronterOnly && currentAlterIds.length > 0) {
         const allowed = e.allowed_alter_ids || [];
         if (allowed.length > 0 && !allowed.some((id) => currentAlterIds.includes(id))) return false;
       }
       return true;
     });
-  }, [entries, tab, search, selectedTag, selectedFolder, fronterOnly, currentAlterIds]);
+  }, [entries, tab, search, selectedTag, selectedFolder, viewingFolder, fronterOnly, currentAlterIds]);
 
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
   const openEntry = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
