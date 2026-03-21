@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import GroupTreeRow from "@/components/groups/GroupTreeRow";
+import GroupTreeRow from "@/components/groups/GroupTreeRow.jsx";
 
 export default function GroupsManager() {
   const queryClient = useQueryClient();
