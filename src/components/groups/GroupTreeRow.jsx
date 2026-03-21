@@ -28,11 +28,7 @@ export default function GroupTreeRow({
   const isExpanded = expandedGroups.has(group.id);
   const isSelected = selectedGroupId === group.id;
 
-  // Get siblings for up/down movement
-  const siblings = allGroups.filter((g) => g.parent === group.parent).sort((a, b) => (a.order || 0) - (b.order || 0));
-  const siblingIndex = siblings.findIndex((g) => g.id === group.id);
-  const canMoveUp = siblingIndex > 0;
-  const canMoveDown = siblingIndex < siblings.length - 1;
+
 
   useEffect(() => {
     return () => {
