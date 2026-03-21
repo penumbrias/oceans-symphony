@@ -40,6 +40,7 @@ export default function MetricFluctuationsChart({ dailyAggregates, metrics = ["a
     avg_joy: "Joy",
     avg_physical_misery: "Physical Misery",
     avg_urge_self_harm: "Self-Harm Urge",
+    total_skills: "Skills Practiced",
   };
 
   return (
