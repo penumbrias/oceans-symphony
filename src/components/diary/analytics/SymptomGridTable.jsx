@@ -1,13 +1,42 @@
 import React, { useMemo } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek, isSameWeek } from "date-fns";
 
-export default function SymptomGridTable({ dailyAggregates, dateRange = 30 }) {
+export default function SymptomGridTable({ dailyAggregates, dateRange = 7 }) {
   const data = useMemo(() => {
-    if (!dailyAggregates.length) return { dates: [], symptoms: {} };
+    if (!dailyAggregates.length) return { dates: [], symptoms: {}, displayDates: [] };
 
     // Get recent entries based on range
     const recentDays = dailyAggregates.slice(-dateRange);
-    const dates = recentDays.map((d) => d.date);
+    
+    // For ranges <= 14 days, show individual days; otherwise collapse to weeks
+    const showWeeks = dateRange > 14;
+    
+    let dates, displayDates;
+    
+    if (!showWeeks) {
+      // Individual days
+      dates = recentDays.map((d) => d.date);
+      displayDates = dates.map((d) => ({ date: d, label: format(parseISO(d), "MMM d"), range: null }));
+    } else {
+      // Group by weeks
+      const weekMap = {};
+      recentDays.forEach((day) => {
+        const dayDate = parseISO(day.date);
+        const weekStart = startOfWeek(dayDate, { weekStartsOn: 0 });
+        const weekKey = format(weekStart, "yyyy-MM-dd");
+        if (!weekMap[weekKey]) {
+          weekMap[weekKey] = [];
+        }
+        weekMap[weekKey].push(day);
+      });
+      
+      dates = Object.keys(weekMap).sort();
+      displayDates = dates.map((weekKey) => ({
+        date: weekKey,
+        label: `${format(parseISO(weekKey), "MMM d")}–${format(endOfWeek(parseISO(weekKey), { weekStartsOn: 0 }), "d")}`,
+        range: weekMap[weekKey]
+      }));
+    }
 
     // Collect all symptom keys from checklist
     const allSymptoms = {};
