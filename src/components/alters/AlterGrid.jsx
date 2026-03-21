@@ -107,17 +107,21 @@ export default function AlterGrid({ alters }) {
           <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortDir} />
         )}
 
-        {/* Alters list */}
+        {/* Alters list/grid */}
         <div>
           {showFolders && rootGroups.length > 0 && (
             <h3 className="text-xs font-medium text-muted-foreground mb-3 px-1">System Members</h3>
           )}
           {filtered.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {filtered.map((alter, i) => (
-                <AlterCard key={alter.id} alter={alter} index={i} />
-              ))}
-            </div>
+            viewMode === "list" ? (
+              <div className="flex flex-col gap-2">
+                {filtered.map((alter, i) => (
+                  <AlterCard key={alter.id} alter={alter} index={i} />
+                ))}
+              </div>
+            ) : (
+              <AlterGridView alters={filtered} />
+            )
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
