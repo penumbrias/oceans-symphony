@@ -75,19 +75,23 @@ export default function ActivityTracker() {
         <ActivityWeeklyGrid
           weekDays={weekDays}
           activities={activities}
-          alters={alters}
-          onDayClick={handleDayClick}
-          onTimeBlockClick={handleTimeBlockClick}
+          frontingHistory={frontingHistory}
+          onTimeRangeSelect={handleTimeRangeSelect}
         />
       </div>
 
-      <ActivityEntryModal
+      <ActivityTimeRangeModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        selectedDate={selectedDate}
-        selectedHour={selectedHour}
+        startDate={selectedDate}
+        startHour={selectedStartHour}
+        endHour={selectedEndHour}
         allActivities={activities}
         alters={alters}
+        frontingHistory={frontingHistory}
+        onSave={() => {
+          handleCloseModal();
+        }}
       />
     </div>
   );
