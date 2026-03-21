@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,9 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Heart, X } from "lucide-react";
+import { Loader2, Heart, X, Plus } from "lucide-react";
 
-const EMOTIONS = [
+const PRESET_EMOTIONS = [
   "Happy", "Sad", "Angry", "Anxious", "Calm", "Excited", 
   "Confused", "Grateful", "Frustrated", "Hopeful", "Neutral", "Overwhelmed"
 ];
@@ -28,6 +28,17 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
   const [saving, setSaving] = useState(false);
   const [activity, setActivity] = useState("");
   const [activityDuration, setActivityDuration] = useState("");
+  const [newEmotionInput, setNewEmotionInput] = useState("");
+
+  const { data: customEmotions = [] } = useQuery({
+    queryKey: ["customEmotions"],
+    queryFn: () => base44.entities.CustomEmotion.list(),
+  });
+
+  const allEmotions = useMemo(() => {
+    const customLabels = customEmotions.map(ce => ce.label);
+    return [...PRESET_EMOTIONS, ...customLabels];
+  }, [customEmotions]);
 
   const activeAlters = useMemo(() => alters.filter(a => !a.is_archived), [alters]);
   
@@ -40,6 +51,21 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
          a.alias?.toLowerCase().includes(alterInput.toLowerCase()))
     );
   }, [alterInput, activeAlters, selectedAlters]);
+
+  const addCustomEmotionMutation = useMutation({
+    mutationFn: async (label) => {
+      const existing = customEmotions.find(e => e.label.toLowerCase() === label.toLowerCase());
+      if (existing) {
+        return existing;
+      }
+      return base44.entities.CustomEmotion.create({ label });
+    },
+    onSuccess: (emotion) => {
+      setSelectedEmotions([...selectedEmotions, emotion.label]);
+      setNewEmotionInput("");
+      queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
+    }
+  });
 
   React.useEffect(() => {
     if (isOpen && currentFronterIds.length > 0) {
@@ -126,7 +152,7 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
           <div>
             <p className="text-sm font-medium mb-2">Select emotions</p>
             <div className="grid grid-cols-3 gap-2">
-              {EMOTIONS.map((emotion) => (
+              {allEmotions.map((emotion) => (
                 <button
                   key={emotion}
                   onClick={() =>
@@ -145,6 +171,33 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
                   {emotion}
                 </button>
               ))}
+            </div>
+
+            {/* Add custom emotion */}
+            <div className="flex gap-2 mt-3">
+              <Input
+                placeholder="Add custom emotion..."
+                value={newEmotionInput}
+                onChange={(e) => setNewEmotionInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newEmotionInput.trim()) {
+                    addCustomEmotionMutation.mutate(newEmotionInput.trim());
+                  }
+                }}
+                className="text-sm flex-1"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => {
+                  if (newEmotionInput.trim()) {
+                    addCustomEmotionMutation.mutate(newEmotionInput.trim());
+                  }
+                }}
+                disabled={!newEmotionInput.trim()}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
             </div>
           </div>
 
