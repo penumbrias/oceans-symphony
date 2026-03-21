@@ -110,6 +110,17 @@ export default function ActivityWeeklyGrid({
     });
   };
 
+  const getActivitiesForHour = (date, hour) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return activities.filter((a) => {
+      const actTimestamp = new Date(a.timestamp);
+      const actDate = format(actTimestamp, "yyyy-MM-dd");
+      const actHour = actTimestamp.getHours();
+      const durationHours = Math.ceil((a.duration_minutes || 60) / 60);
+      return actDate === dateStr && actHour <= hour && actHour + durationHours > hour;
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2">
