@@ -15,6 +15,7 @@ import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 
 export default function Settings() {
   const queryClient = useQueryClient();
+  const { theme, toggleTheme } = useTheme();
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
