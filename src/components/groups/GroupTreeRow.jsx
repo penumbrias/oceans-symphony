@@ -148,6 +148,17 @@ export default function GroupTreeRow({
             <ArrowLeft className="w-4 h-4" />
           </button>
         )}
+
+        {/* Up arrow if this group is selected and not in root */}
+        {isSelected && group.parent && group.parent !== "root" && (
+          <button
+            onClick={handleMoveToParent}
+            className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            title="Move to parent"
+          >
+            <ArrowUp className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Children */}
