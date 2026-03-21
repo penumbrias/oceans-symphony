@@ -26,6 +26,7 @@ export default function Journals() {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newEntryFolder, setNewEntryFolder] = useState(null);
+  const [extraFolders, setExtraFolders] = useState([]);
 
   const { data: entries = [] } = useQuery({
     queryKey: ["journalEntries"],
