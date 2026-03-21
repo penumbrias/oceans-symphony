@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -79,17 +79,29 @@ export default function AlterProfile() {
   const bgColor = hasColor ? alter.color : null;
   const textOnColor = hasColor ? getContrastColor(alter.color) : null;
 
+  const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  const currentIndex = sortedAlters.findIndex(a => a.id === alter.id);
+  const nextAlter = currentIndex >= 0 && currentIndex < sortedAlters.length - 1 ? sortedAlters[currentIndex + 1] : null;
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      {/* Back */}
-      <div className="flex items-center mb-4">
-        <Link to="/Home">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </Link>
-      </div>
+      {/* Navigation */}
+       <div className="flex items-center justify-between mb-4">
+         <Link to="/Home">
+           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
+             <ArrowLeft className="w-4 h-4 mr-2" />
+             Back
+           </Button>
+         </Link>
+         {nextAlter && (
+           <Link to={`/alter/${nextAlter.id}`}>
+             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -mr-2">
+               <ArrowRight className="w-4 h-4 ml-2" />
+               Next
+             </Button>
+           </Link>
+         )}
+       </div>
 
       {/* Header strip */}
       <div
