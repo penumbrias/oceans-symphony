@@ -46,12 +46,18 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     queryFn: () => base44.entities.Activity.list(),
   });
 
-  // Get all activities within 1 hour of this activity
+  // Get all activities in the same hour
   const activitiesForTime = useMemo(() => {
     if (!activity) return [];
+    const actTime = new Date(activity.timestamp);
+    const actHour = actTime.getHours();
+    const actDate = format(actTime, "yyyy-MM-dd");
+    
     return activities.filter(a => {
-      const timeDiff = Math.abs(new Date(a.timestamp).getTime() - new Date(activity.timestamp).getTime());
-      return timeDiff < 3600000; // Within 1 hour
+      const aTime = new Date(a.timestamp);
+      const aHour = aTime.getHours();
+      const aDate = format(aTime, "yyyy-MM-dd");
+      return aDate === actDate && aHour === actHour;
     });
   }, [activities, activity]);
 
