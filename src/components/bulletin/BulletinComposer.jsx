@@ -22,12 +22,25 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
   const textareaRef = useRef(null);
 
   const filteredAlters = alters.filter(
-    (a) => !a.is_archived && a.name.toLowerCase().includes(mentionQuery.toLowerCase())
+    (a) => !a.is_archived && 
+      (a.name.toLowerCase().includes(mentionQuery.toLowerCase()) ||
+       (a.alias && a.alias.toLowerCase().includes(mentionQuery.toLowerCase())))
   );
 
   const insertMention = (alter) => {
-    const newContent = content + `@${alter.name} `;
-    setContent(newContent);
+    const lastAt = content.lastIndexOf("@");
+    if (lastAt !== -1 && !content.slice(lastAt + 1).includes(" ")) {
+      // Replace the @ mention with proper mention
+      const beforeAt = content.slice(0, lastAt);
+      const mentionText = alter.alias || alter.name;
+      const newContent = beforeAt + `@${mentionText} `;
+      setContent(newContent);
+    } else {
+      // No incomplete mention, just append
+      const mentionText = alter.alias || alter.name;
+      const newContent = content + `@${mentionText} `;
+      setContent(newContent);
+    }
     setShowMentions(false);
     setMentionQuery("");
     textareaRef.current?.focus();
@@ -49,9 +62,15 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
   };
 
   const extractMentionedIds = () => {
-    return alters
-      .filter((a) => content.includes(`@${a.name}`))
-      .map((a) => a.id);
+    const mentioned = new Set();
+    alters.forEach((a) => {
+      const namePattern = `@${a.name}`;
+      const aliasPattern = a.alias ? `@${a.alias}` : null;
+      if (content.includes(namePattern) || (aliasPattern && content.includes(aliasPattern))) {
+        mentioned.add(a.id);
+      }
+    });
+    return Array.from(mentioned);
   };
 
   const handlePost = async () => {
