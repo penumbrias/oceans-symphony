@@ -49,6 +49,7 @@ const AuthenticatedApp = () => {
         <Route path="/front-history" element={<FrontHistory />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/journals" element={<Journals />} />
+        <Route path="/diary" element={<DiaryCards />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Home, Users, Settings, Sparkles, Clock, BarChart2, BookOpen } from "lucide-react";
+import { Home, Users, Settings, Sparkles, Clock, BarChart2, BookOpen, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { path: "/front-history", label: "History", icon: Clock },
   { path: "/analytics", label: "Analytics", icon: BarChart2 },
   { path: "/journals", label: "Journals", icon: BookOpen },
+  { path: "/diary", label: "Diary Cards", icon: ClipboardList },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
 
