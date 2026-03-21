@@ -1,0 +1,304 @@
+import React, { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
+import { Plus, BookOpen, ChevronLeft, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import SectionRow from "@/components/diary/SectionRow";
+import DailySectionPanel from "@/components/diary/DailySectionPanel";
+import AlterSelector from "@/components/diary/AlterSelector";
+
+const SECTIONS = [
+  { id: "emotions", emoji: "😊", title: "Emotions", subtitle: "Tap to log feelings" },
+  { id: "urges", emoji: "🆘", title: "Urges to", subtitle: "Rate the intensity" },
+  { id: "body_mind", emoji: "🌿", title: "Body + mind", subtitle: "Rate wellbeing" },
+  { id: "skills", emoji: "🧠", title: "Skills used", subtitle: "How many skills" },
+  { id: "medication", emoji: "💊", title: "Medication + safety", subtitle: "Rx meds + safety" },
+  { id: "notes", emoji: "📝", title: "Notes", subtitle: "Details + context" },
+];
+
+function getSectionSummary(section, data) {
+  if (section === "emotions") {
+    const e = data.emotions || [];
+    return e.length ? e.slice(0, 2).join(", ") + (e.length > 2 ? ` +${e.length - 2}` : "") : "None selected";
+  }
+  if (section === "urges") {
+    const u = data.urges || {};
+    const rated = Object.values(u).filter((v) => v !== undefined).length;
+    return rated ? `${rated} rated` : "None rated";
+  }
+  if (section === "body_mind") {
+    const bm = data.body_mind || {};
+    const rated = Object.values(bm).filter((v) => v !== undefined).length;
+    return rated ? `${rated} rated` : "None rated";
+  }
+  if (section === "skills") {
+    return data.skills_practiced !== undefined ? `${data.skills_practiced} skills` : "Not rated";
+  }
+  if (section === "medication") {
+    const m = data.medication_safety || {};
+    if (!m.rx_meds_taken && !m.self_harm_occurred && m.substances_count === undefined) return "Not set";
+    return "Set";
+  }
+  if (section === "notes") {
+    return data.notes?.what ? "Added" : "No notes yet";
+  }
+  return "";
+}
+
+function getCompletion(data) {
+  let filled = 0;
+  if ((data.emotions || []).length > 0) filled++;
+  const u = data.urges || {};
+  if (Object.values(u).some((v) => v !== undefined)) filled++;
+  const bm = data.body_mind || {};
+  if (Object.values(bm).some((v) => v !== undefined)) filled++;
+  if (data.skills_practiced !== undefined) filled++;
+  const m = data.medication_safety || {};
+  if (m.rx_meds_taken !== undefined || m.self_harm_occurred !== undefined || m.substances_count !== undefined) filled++;
+  if (data.notes?.what || data.notes?.optional) filled++;
+  return Math.round((filled / 6) * 100);
+}
+
+export default function DiaryCards() {
+  const queryClient = useQueryClient();
+  const [view, setView] = useState("list"); // "list" | "new" | "entry"
+  const [activeSection, setActiveSection] = useState(null);
+  const [entryName, setEntryName] = useState("");
+  const [draftData, setDraftData] = useState({});
+  const [frontingAlterIds, setFrontingAlterIds] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [viewingEntry, setViewingEntry] = useState(null);
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ["diaryCards"],
+    queryFn: () => base44.entities.DiaryCard.list("-created_date"),
+  });
+
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["frontHistory"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 5),
+  });
+
+  const altersById = useMemo(() =>
+    Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
+
+  const startNew = () => {
+    const activeSession = sessions.find((s) => s.is_active);
+    const currentIds = activeSession
+      ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+      : [];
+    setFrontingAlterIds(currentIds);
+    setDraftData({});
+    setEntryName("");
+    setActiveSection(null);
+    setView("new");
+  };
+
+  const handleChange = (key, value) => {
+    setDraftData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await base44.entities.DiaryCard.create({
+      card_type: "daily",
+      date: format(new Date(), "yyyy-MM-dd"),
+      name: entryName.trim() || `Daily — ${format(new Date(), "MMM d, yyyy")}`,
+      fronting_alter_ids: frontingAlterIds,
+      ...draftData,
+    });
+    toast.success("Diary card saved!");
+    queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
+    setSaving(false);
+    setView("list");
+  };
+
+  const completion = getCompletion(draftData);
+
+  // List view
+  if (view === "list") {
+    return (
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="font-display text-3xl font-semibold">Diary Cards</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">{cards.length} entries</p>
+          </div>
+          <Button onClick={startNew} className="bg-primary hover:bg-primary/90 gap-1.5">
+            <Plus className="w-4 h-4" />
+            New Entry
+          </Button>
+        </div>
+
+        {cards.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground text-sm">No diary cards yet.</p>
+            <Button variant="link" onClick={startNew} className="mt-1 text-primary text-sm">
+              Fill out your first daily card
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {cards.map((card) => {
+              const comp = getCompletion(card);
+              const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
+              return (
+                <button
+                  key={card.id}
+                  onClick={() => { setViewingEntry(card); setView("entry"); }}
+                  className="text-left bg-card border border-border/50 rounded-xl p-4 hover:shadow-md transition-all space-y-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Calendar className="w-3 h-3" />
+                        {card.date}
+                      </p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      comp === 100 ? "bg-green-500/10 text-green-600" : "bg-primary/10 text-primary"
+                    }`}>
+                      {comp}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-1.5">
+                    <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${comp}%` }} />
+                  </div>
+                  {fronters.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Fronting: {fronters.join(", ")}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+    );
+  }
+
+  // Entry view (read-only summary)
+  if (view === "entry" && viewingEntry) {
+    const card = viewingEntry;
+    const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
+    return (
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="font-display text-2xl font-semibold">{card.name}</h1>
+            <p className="text-muted-foreground text-xs">{card.date}</p>
+          </div>
+        </div>
+
+        {fronters.length > 0 && (
+          <p className="text-sm text-muted-foreground">Fronting: <span className="text-foreground">{fronters.join(", ")}</span></p>
+        )}
+
+        <div className="space-y-2">
+          {SECTIONS.map((s) => (
+            <div key={s.id} className="flex items-center gap-3 px-4 py-3 bg-card border border-border/50 rounded-xl">
+              <span className="text-xl">{s.emoji}</span>
+              <div className="flex-1">
+                <p className="font-medium text-sm">{s.title}</p>
+              </div>
+              <span className="text-xs text-muted-foreground">{getSectionSummary(s.id, card)}</span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    );
+  }
+
+  // New entry form
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <div>
+          <h1 className="font-display text-2xl font-semibold">Daily Diary Card</h1>
+          <p className="text-muted-foreground text-xs">{format(new Date(), "MMMM d, yyyy")}</p>
+        </div>
+      </div>
+
+      {/* Completion bar */}
+      <div className="bg-card border border-border/50 rounded-xl p-4 space-y-2">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Completion</span>
+          <span>{completion}%</span>
+        </div>
+        <div className="w-full bg-muted rounded-full h-2">
+          <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${completion}%` }} />
+        </div>
+      </div>
+
+      {/* Entry name */}
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Entry name <span className="text-muted-foreground font-normal">(optional)</span></label>
+        <Input value={entryName} onChange={(e) => setEntryName(e.target.value)} placeholder={`Daily — ${format(new Date(), "MMM d, yyyy")}`} />
+      </div>
+
+      {/* Fronting alters */}
+      <div className="bg-card border border-border/50 rounded-xl p-4">
+        <AlterSelector alters={alters} selected={frontingAlterIds} onChange={setFrontingAlterIds} />
+      </div>
+
+      {/* Section panel (inline expansion) */}
+      <AnimatePresence mode="wait">
+        {activeSection ? (
+          <motion.div
+            key={activeSection}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="bg-card border border-border/60 rounded-xl p-4"
+          >
+            <DailySectionPanel
+              section={activeSection}
+              data={draftData}
+              onChange={handleChange}
+              onClose={() => setActiveSection(null)}
+            />
+          </motion.div>
+        ) : (
+          <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+            {SECTIONS.map((s) => (
+              <SectionRow
+                key={s.id}
+                emoji={s.emoji}
+                title={s.title}
+                subtitle={s.subtitle}
+                value={getSectionSummary(s.id, draftData)}
+                onClick={() => setActiveSection(s.id)}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Save */}
+      {!activeSection && (
+        <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
+          {saving ? "Saving..." : "Save Diary Card"}
+        </Button>
+      )}
+    </motion.div>
+  );
+}
