@@ -11,28 +11,36 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
 
   const handleDoubleClick = async (alter) => {
     try {
-      // End any active sessions
       const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      for (const s of activeSessions) {
-        await base44.entities.FrontingSession.update(s.id, {
-          is_active: false,
-          end_time: new Date().toISOString(),
+      
+      if (activeSessions.length === 0) {
+        // No active session, create one with this alter as primary
+        await base44.entities.FrontingSession.create({
+          primary_alter_id: alter.id,
+          co_fronter_ids: [],
+          start_time: new Date().toISOString(),
+          is_active: true,
         });
+      } else {
+        // Add to current session if not already there
+        const session = activeSessions[0];
+        const allFronters = new Set([session.primary_alter_id, ...session.co_fronter_ids]);
+        
+        if (!allFronters.has(alter.id)) {
+          allFronters.add(alter.id);
+          const newCoFronters = Array.from(allFronters).filter(id => id !== session.primary_alter_id);
+          
+          await base44.entities.FrontingSession.update(session.id, {
+            co_fronter_ids: newCoFronters,
+          });
+        }
       }
 
-      // Create new session with this alter as primary
-      await base44.entities.FrontingSession.create({
-        primary_alter_id: alter.id,
-        co_fronter_ids: [],
-        start_time: new Date().toISOString(),
-        is_active: true,
-      });
-
-      toast.success(`${alter.name} is now fronting!`);
+      toast.success(`${alter.name} added to front!`);
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     } catch (err) {
-      toast.error(err.message || "Failed to set front");
+      toast.error(err.message || "Failed to add to front");
     }
   };
 
