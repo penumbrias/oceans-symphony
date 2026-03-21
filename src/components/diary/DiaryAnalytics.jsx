@@ -5,6 +5,9 @@ import RatingsChart from "./analytics/RatingsChart";
 import HabitImpactChart from "./analytics/HabitImpactChart";
 import AlterLoggingChart from "./analytics/AlterLoggingChart";
 import WellnessOverview from "./analytics/WellnessOverview";
+import DayOfWeekHeatmap from "./analytics/DayOfWeekHeatmap";
+import MetricFluctuationsChart from "./analytics/MetricFluctuationsChart";
+import DiaryHeatmap from "./analytics/DiaryHeatmap";
 import { aggregateDailyMetrics, getAlterTendencies } from "@/lib/diaryAnalytics";
 
 const RANGE_OPTIONS = [
@@ -15,9 +18,10 @@ const RANGE_OPTIONS = [
 ];
 
 const TABS = [
-  { id: "overview", label: "📊 Overview" },
-  { id: "ratings", label: "📈 Ratings" },
-  { id: "impact", label: "🔗 Habit Impact" },
+  { id: "patterns", label: "🔥 Patterns" },
+  { id: "fluctuations", label: "📊 Fluctuations" },
+  { id: "dayofweek", label: "📅 Day of Week" },
+  { id: "heatmap", label: "🗓️ Calendar" },
   { id: "alters", label: "🧑‍🤝‍🧑 Alters" },
 ];
 
@@ -104,14 +108,34 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
         ))}
       </div>
 
-      {activeTab === "overview" && (
-        <WellnessOverview filteredCards={filteredCards} allCards={cards} dailyAggregates={dailyAggregates} />
+      {activeTab === "patterns" && (
+        <div className="space-y-5">
+          <MetricFluctuationsChart
+            dailyAggregates={dailyAggregates}
+            metrics={["avg_emotional_misery", "avg_joy"]}
+          />
+          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
+        </div>
       )}
-      {activeTab === "ratings" && (
-        <RatingsChart ratingData={ratingData} />
+      {activeTab === "fluctuations" && (
+        <div className="space-y-5">
+          <MetricFluctuationsChart
+            dailyAggregates={dailyAggregates}
+            metrics={["avg_emotional_misery", "avg_physical_misery", "avg_urge_self_harm"]}
+          />
+        </div>
       )}
-      {activeTab === "impact" && (
-        <HabitImpactChart filteredCards={filteredCards} />
+      {activeTab === "dayofweek" && (
+        <div className="space-y-5">
+          <DayOfWeekHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
+          <DayOfWeekHeatmap dailyAggregates={dailyAggregates} metric="avg_joy" />
+        </div>
+      )}
+      {activeTab === "heatmap" && (
+        <div className="space-y-5">
+          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
+          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_joy" />
+        </div>
       )}
       {activeTab === "alters" && (
         <AlterLoggingChart filteredCards={filteredCards} altersById={altersById} alterTendencies={alterTendencies} />
