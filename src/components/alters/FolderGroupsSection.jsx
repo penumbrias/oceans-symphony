@@ -91,12 +91,14 @@ export default function FolderGroupsSection({ alters }) {
   const currentGroup = navStack.length > 0 ? navStack[navStack.length - 1] : null;
   const currentGroupKey = currentGroup ? (currentGroup.sp_id || currentGroup.id) : null;
 
-  // Children groups at this level
-  const childGroups = allGroups.filter((g) => {
-    const parent = g.parent || "";
-    if (currentGroupKey === null) return !parent || parent === "" || parent === "root";
-    return parent === currentGroupKey;
-  });
+  // Children groups at this level (sorted alphabetically)
+  const childGroups = allGroups
+    .filter((g) => {
+      const parent = g.parent || "";
+      if (currentGroupKey === null) return !parent || parent === "" || parent === "root";
+      return parent === currentGroupKey;
+    })
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   // Members in current group
   const memberAlters = currentGroup
