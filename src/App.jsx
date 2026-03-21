@@ -20,11 +20,14 @@ import DailyTasks from '@/pages/DailyTasks';
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
-  // Show loading spinner while checking app public settings or auth
+  // Show loading screen while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
+          <p className="text-muted-foreground text-sm font-medium">Loading Innerworld...</p>
+        </div>
       </div>
     );
   }
