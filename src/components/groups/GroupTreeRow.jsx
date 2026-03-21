@@ -20,6 +20,8 @@ export default function GroupTreeRow({
   level = 0,
   creatingSubgroupFor = null,
   onCreateSubgroup = null,
+  onStartCreateSubgroup = null,
+  onCancelCreateSubgroup = null,
   newSubgroupName = "",
   onSubgroupNameChange = null,
 }) {
@@ -184,15 +186,11 @@ export default function GroupTreeRow({
         )}
 
         {/* Plus button to create subgroup if selected */}
-        {isSelected && (
+        {isSelected && !isCreatingSubgroup && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onSubgroupNameChange("");
-              // Trigger subgroup creation state
-              if (creatingSubgroupFor === group.id) {
-                onSubgroupNameChange("");
-              }
+              onStartCreateSubgroup(group.id);
             }}
             className="flex-shrink-0 p-1 text-white bg-primary hover:bg-primary/90 rounded transition-colors"
             title="Create subgroup"
@@ -202,14 +200,18 @@ export default function GroupTreeRow({
         )}
       </div>
 
-      {/* Subgroup creation input - shown if this group is selected */}
-      {isSelected && !isCreatingSubgroup && (
+      {/* Subgroup creation input - shown if this group is creating a subgroup */}
+      {isCreatingSubgroup && (
         <div className="flex gap-2 px-2 py-2" style={{ paddingLeft: `${level * 24 + 8 + 24}px` }}>
           <Input
             autoFocus
             placeholder="Subgroup name"
             value={newSubgroupName}
             onChange={(e) => onSubgroupNameChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onCreateSubgroup(group.id);
+              if (e.key === "Escape") onCancelCreateSubgroup();
+            }}
             className="flex-1 h-8 text-sm"
           />
           <Button
@@ -218,6 +220,14 @@ export default function GroupTreeRow({
             className="bg-primary hover:bg-primary/90 h-8"
           >
             Create
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onCancelCreateSubgroup}
+            className="h-8"
+          >
+            Cancel
           </Button>
         </div>
       )}
@@ -241,6 +251,8 @@ export default function GroupTreeRow({
               level={level + 1}
               creatingSubgroupFor={creatingSubgroupFor}
               onCreateSubgroup={onCreateSubgroup}
+              onStartCreateSubgroup={onStartCreateSubgroup}
+              onCancelCreateSubgroup={onCancelCreateSubgroup}
               newSubgroupName={newSubgroupName}
               onSubgroupNameChange={onSubgroupNameChange}
             />
