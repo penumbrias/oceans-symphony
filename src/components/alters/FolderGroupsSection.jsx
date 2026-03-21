@@ -95,10 +95,14 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
   const childGroups = allGroups
     .filter((g) => {
       const parent = g.parent || "";
-      if (currentGroupKey === null) return !parent || parent === "" || parent === "root";
+      if (currentGroupKey === null) {
+        // Root level: include groups with no parent, or parent is one of the root group's id/sp_id
+        if (parent === "" || parent === "root") return true;
+        // Also check if parent matches any root group's sp_id or id
+        return allGroups.some((rootG) => (!rootG.parent || rootG.parent === "" || rootG.parent === "root") && (rootG.id === parent || rootG.sp_id === parent));
+      }
       // Check if parent matches currentGroup's id or sp_id
-      const currentGroupSPId = currentGroup?.sp_id;
-      return parent === currentGroupKey || parent === currentGroupSPId;
+      return parent === currentGroupKey || parent === currentGroup?.sp_id;
     })
     .sort((a, b) => {
       const cmp = (a.name || "").localeCompare(b.name || "");
