@@ -4,6 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
 export default function SymptomGridTable({ dailyAggregates, dateRange = 7, altersById = {} }) {
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+  });
+
+  const symptomMap = useMemo(() =>
+    Object.fromEntries(symptoms.map((s) => [s.id, s])),
+    [symptoms]
+  );
+
   const data = useMemo(() => {
     if (!dailyAggregates.length) return { dates: [], symptoms: {}, displayDates: [], alters: {} };
 
