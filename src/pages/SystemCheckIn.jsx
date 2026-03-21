@@ -33,6 +33,11 @@ export default function SystemCheckInPage() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.SystemCheckIn.create(data),
     onSuccess: () => {
@@ -215,7 +220,7 @@ export default function SystemCheckInPage() {
 
             {/* Steps */}
              <CheckInStep1 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-             <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+             <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} groups={groups} />
              <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
              <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
              <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
