@@ -13,6 +13,7 @@ export default function GroupsManager() {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [newGroupName, setNewGroupName] = useState("");
   const [isCreatingRoot, setIsCreatingRoot] = useState(false);
+  const [creatingSubgroupFor, setCreatingSubgroupFor] = useState(null);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
