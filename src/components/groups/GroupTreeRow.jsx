@@ -1,7 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, ArrowLeft, ArrowUp, Users, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, ArrowLeft, ArrowUp, Users, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import GroupMembersModal from "./GroupMembersModal";
 
 export default function GroupTreeRow({
@@ -24,9 +33,11 @@ export default function GroupTreeRow({
   onCancelCreateSubgroup = null,
   newSubgroupName = "",
   onSubgroupNameChange = null,
+  onDeleteGroup = null,
 }) {
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const autoExpandTimeoutRef = useRef(null);
   const isCreatingSubgroup = creatingSubgroupFor === group.id;
 
@@ -187,16 +198,28 @@ export default function GroupTreeRow({
 
         {/* Plus button to create subgroup if selected */}
         {isSelected && !isCreatingSubgroup && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onStartCreateSubgroup(group.id);
-            }}
-            className="flex-shrink-0 p-1 text-white bg-primary hover:bg-primary/90 rounded transition-colors"
-            title="Create subgroup"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartCreateSubgroup(group.id);
+              }}
+              className="flex-shrink-0 p-1 text-white bg-primary hover:bg-primary/90 rounded transition-colors"
+              title="Create subgroup"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteDialog(true);
+              }}
+              className="flex-shrink-0 p-1 text-white bg-destructive hover:bg-destructive/90 rounded transition-colors"
+              title="Delete group"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
         )}
       </div>
 
@@ -267,6 +290,30 @@ export default function GroupTreeRow({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {/* Delete Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete "{group.name}" and all its subgroups. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-2 justify-end">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onDeleteGroup(group.id);
+                setShowDeleteDialog(false);
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
