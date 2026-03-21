@@ -234,7 +234,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
 
         <div className="text-xs text-muted-foreground space-y-1">
           <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary fronter</p>
-          {selectedIds.size > 0 && <p className="text-primary">Click selected alters above to change who's primary</p>}
+          {selectedIds.size > 0 && <p className="text-primary">Click primary to make them co-front only</p>}
         </div>
 
         {/* Search */}
