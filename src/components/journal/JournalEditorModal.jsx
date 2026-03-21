@@ -30,8 +30,10 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
       setContent(entry.content || "");
       setTagsInput((entry.tags || []).join(", "));
       setFolder(entry.folder || "");
-      setRestricted((entry.allowed_alter_ids || []).length > 0);
+      const hasRestriction = (entry.allowed_alter_ids || []).length > 0 || (entry.allowed_group_ids || []).length > 0;
+      setRestricted(hasRestriction);
       setAllowedAlterIds(entry.allowed_alter_ids || []);
+      setAllowedGroupIds(entry.allowed_group_ids || []);
     } else {
       const now = new Date();
       setTitle(`Journal — ${format(now, "MMM d, yyyy")}`);
