@@ -59,6 +59,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
       entry_type: "personal",
       author_alter_id: currentAlterId || "",
       allowed_alter_ids: restricted ? allowedAlterIds : [],
+      allowed_group_ids: restricted ? allowedGroupIds : [],
     };
     if (isNew) {
       await base44.entities.JournalEntry.create(data);
