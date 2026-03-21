@@ -110,6 +110,17 @@ export default function GroupsManager() {
     setNewGroupName("");
   };
 
+  const handleDeleteGroup = async (groupId) => {
+    try {
+      await base44.entities.Group.delete(groupId);
+      toast.success("Group deleted!");
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      setSelectedGroupId(null);
+    } catch (err) {
+      toast.error(err.message || "Failed to delete group");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto">
@@ -145,6 +156,7 @@ export default function GroupsManager() {
                 onCancelCreateSubgroup={() => setCreatingSubgroupFor(null)}
                 newSubgroupName={newGroupName}
                 onSubgroupNameChange={setNewGroupName}
+                onDeleteGroup={handleDeleteGroup}
               />
             ))
           )}
