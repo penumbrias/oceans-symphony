@@ -53,6 +53,8 @@ function FronterChip({ alter, isPrimary, startTime }) {
 }
 
 export default function CurrentFronters({ alters }) {
+  const [showModal, setShowModal] = useState(false);
+
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontHistory"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
@@ -63,10 +65,19 @@ export default function CurrentFronters({ alters }) {
 
   if (!active) {
     return (
-      <div className="bg-muted/40 border border-border/40 rounded-2xl px-4 py-4 mb-5 flex items-center gap-3">
-        <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />
-        <p className="text-sm text-muted-foreground">No one is currently fronting</p>
-      </div>
+      <>
+        <div className="bg-muted/40 border border-border/40 rounded-2xl px-4 py-4 mb-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">No one is currently fronting</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs">
+            <RefreshCw className="w-3 h-3" />
+            Set Front
+          </Button>
+        </div>
+        <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={null} />
+      </>
     );
   }
 
@@ -75,21 +86,30 @@ export default function CurrentFronters({ alters }) {
   const all = [primary, ...coFronters].filter(Boolean);
 
   return (
-    <div className="mb-5">
-      <div className="flex items-center gap-2 mb-2.5">
-        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Currently Fronting</p>
+    <>
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Currently Fronting</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs h-7 px-2.5">
+            <RefreshCw className="w-3 h-3" />
+            Switch
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {all.map((alter, i) => (
+            <FronterChip
+              key={alter.id}
+              alter={alter}
+              isPrimary={i === 0}
+              startTime={active.start_time}
+            />
+          ))}
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        {all.map((alter, i) => (
-          <FronterChip
-            key={alter.id}
-            alter={alter}
-            isPrimary={i === 0}
-            startTime={active.start_time}
-          />
-        ))}
-      </div>
-    </div>
+      <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={active} />
+    </>
   );
 }
