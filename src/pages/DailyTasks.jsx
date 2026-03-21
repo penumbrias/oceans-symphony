@@ -33,6 +33,13 @@ export default function DailyTasks() {
     staleTime: 0,
   });
 
+  // System check-ins today — for parts_checkin auto-detection
+  const { data: systemCheckIns = [] } = useQuery({
+    queryKey: ["systemCheckInsToday", TODAY],
+    queryFn: () => base44.entities.SystemCheckIn.filter({ date: TODAY }),
+    staleTime: 0,
+  });
+
   const todayRecord = allProgress.find((p) => p.date === TODAY);
   const manualCompleted = new Set(todayRecord?.completed_task_ids || []);
 
