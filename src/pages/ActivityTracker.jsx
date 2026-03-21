@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { toast } from "sonner";
-import { format, startOfWeek, addDays, parseISO } from "date-fns";
-import ActivityLogModal from "@/components/activities/ActivityLogModal";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { format, startOfWeek, addDays } from "date-fns";
+import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
+import ActivityEntryModal from "@/components/activities/ActivityEntryModal";
 
 export default function ActivityTracker() {
   const queryClient = useQueryClient();
