@@ -27,22 +27,23 @@ export default function ActivityTracker() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const handleDayClick = (date) => {
-    setSelectedDate(date);
-    setSelectedHour(undefined);
-    setIsModalOpen(true);
-  };
+  const { data: frontingHistory = [] } = useQuery({
+    queryKey: ["frontingHistory", format(weekStart, "yyyy-MM-dd")],
+    queryFn: () => base44.entities.FrontingSession.list(),
+  });
 
-  const handleTimeBlockClick = (date, hour) => {
+  const handleTimeRangeSelect = (date, startHour, endHour) => {
     setSelectedDate(date);
-    setSelectedHour(hour);
+    setSelectedStartHour(startHour);
+    setSelectedEndHour(endHour);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedDate(null);
-    setSelectedHour(undefined);
+    setSelectedStartHour(undefined);
+    setSelectedEndHour(undefined);
   };
 
   return (
