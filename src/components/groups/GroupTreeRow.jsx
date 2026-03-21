@@ -10,17 +10,27 @@ export default function GroupTreeRow({
   onToggleExpanded,
   onDelete,
   onCreateChild,
+  onEdit,
+  onMoveUp,
+  onMoveDown,
   creatingParentId,
   newGroupName,
   onNewGroupNameChange,
   onCreateGroup,
   deletingId,
   level = 0,
+  parentId = null,
 }) {
   const childGroups = allGroups.filter((g) => g.parent === group.id);
   const hasChildren = childGroups.length > 0;
   const isExpanded = expandedGroups.has(group.id);
   const isDeleting = deletingId === group.id;
+  
+  // Get sibling groups to determine if we can move up/down
+  const siblings = allGroups.filter((g) => g.parent === parentId);
+  const siblingIndex = siblings.findIndex((g) => g.id === group.id);
+  const canMoveUp = siblingIndex > 0;
+  const canMoveDown = siblingIndex < siblings.length - 1;
 
   return (
     <>
