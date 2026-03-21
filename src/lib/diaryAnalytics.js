@@ -81,6 +81,47 @@ export function aggregateDailyMetrics(cards) {
       agg.total_skills = skillsValues.reduce((a, b) => a + b, 0);
     }
 
+    // Aggregate checklist (symptoms & habits)
+    const checklist = { symptoms: {}, habits: {} };
+    dayData.entries.forEach((entry) => {
+      const entryChecklist = entry.checklist || {};
+      // Merge symptoms
+      Object.entries(entryChecklist.symptoms || {}).forEach(([key, value]) => {
+        if (checklist.symptoms[key] === undefined) {
+          checklist.symptoms[key] = [];
+        }
+        if (value !== undefined && value !== null) {
+          checklist.symptoms[key].push(value);
+        }
+      });
+      // Merge habits
+      Object.entries(entryChecklist.habits || {}).forEach(([key, value]) => {
+        if (checklist.habits[key] === undefined) {
+          checklist.habits[key] = [];
+        }
+        if (value !== undefined && value !== null) {
+          checklist.habits[key].push(value);
+        }
+      });
+    });
+    
+    // Average the collected values
+    Object.keys(checklist.symptoms).forEach((key) => {
+      if (checklist.symptoms[key].length > 0) {
+        const values = checklist.symptoms[key];
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        checklist.symptoms[key] = Math.round(avg * 10) / 10;
+      }
+    });
+    Object.keys(checklist.habits).forEach((key) => {
+      if (checklist.habits[key].length > 0) {
+        const values = checklist.habits[key];
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        checklist.habits[key] = Math.round(avg * 10) / 10;
+      }
+    });
+    agg.checklist = checklist;
+
     // Per-alter breakdown
     agg.alterBreakdown = Object.entries(dayData.alterData).map(([alterId, alterDay]) => ({
       alterId,
