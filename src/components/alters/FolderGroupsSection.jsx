@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Folder, ChevronRight, User } from "lucide-react";
+import { Folder, ChevronRight, User, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import ManageMembersModal from "@/components/groups/ManageMembersModal";
-import CreateGroupModal from "@/components/groups/CreateGroupModal";
+import { Button } from "@/components/ui/button";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -54,116 +53,109 @@ function MemberRow({ alter }) {
   );
 }
 
-function FolderRow({ group }) {
+function FolderRow({ group, onClick }) {
   const color = group.color || "";
   return (
-    <Link to={`/group/${group.id}`}>
-      <motion.div
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group flex-1"
-        style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}
+    <motion.button
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      onClick={() => onClick(group)}
+      className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group text-left"
+      style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}
+    >
+      <div
+        className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}
       >
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}
-        >
-          <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-      </motion.div>
-    </Link>
-  );
-}
-
-function GroupRow({ group, allGroups, alters, level = 0, expanded = false, onToggleExpanded }) {
-  const [isExpanded, setIsExpanded] = useState(expanded);
-  const childGroups = allGroups
-    .filter((g) => g.parent && (g.parent === group.id || g.parent === group.sp_id))
-    .sort((a, b) => (a.order || 0) - (b.order || 0));
-  
-  const memberAlters = alters.filter((a) =>
-    (a.groups || []).some((g) => g.id === group.id || g.sp_id === group.id)
-  );
-
-  const hasChildren = childGroups.length > 0 || memberAlters.length > 0;
-
-  return (
-    <>
-      <motion.div
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="flex items-center gap-2"
-        style={{ paddingLeft: `${level * 20}px` }}
-      >
-        {hasChildren && (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              setIsExpanded(!isExpanded);
-            }}
-            className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {isExpanded ? (
-              <ChevronRight className="w-4 h-4 rotate-90" />
-            ) : (
-              <ChevronRight className="w-4 h-4" />
-            )}
-          </button>
-        )}
-        {!hasChildren && <div className="w-5" />}
-        <FolderRow group={group} />
-      </motion.div>
-
-      {isExpanded && (
-        <div>
-          {childGroups.map((g) => (
-            <GroupRow key={g.id} group={g} allGroups={allGroups} alters={alters} level={level + 1} onToggleExpanded={onToggleExpanded} />
-          ))}
-          {memberAlters.map((alter) => (
-            <motion.div key={alter.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} style={{ paddingLeft: `${(level + 1) * 20 + 20}px` }}>
-              <MemberRow alter={alter} />
-            </motion.div>
-          ))}
-        </div>
-      )}
-    </>
+        <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
+      </div>
+      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+    </motion.button>
   );
 }
 
 export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
-  const [managingGroup, setManagingGroup] = useState(null);
+  const [navStack, setNavStack] = useState([]);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
 
-  const rootGroups = allGroups
-    .filter((g) => !g.parent || g.parent === "" || g.parent === "root")
+  const currentGroup = navStack.length > 0 ? navStack[navStack.length - 1] : null;
+  const currentGroupKey = currentGroup ? currentGroup.id : null;
+
+  // Get child groups at current level
+  const childGroups = allGroups
+    .filter((g) => {
+      if (currentGroupKey === null) {
+        return !g.parent || g.parent === "" || g.parent === "root";
+      }
+      return g.parent && (g.parent === currentGroupKey || g.parent === currentGroup?.sp_id);
+    })
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
+  // Get members in current group
+  const memberAlters = currentGroup
+    ? alters.filter((a) =>
+        (a.groups || []).some((g) => g.id === currentGroupKey || g.sp_id === currentGroupKey)
+      )
+    : [];
+
+  const navigateTo = (group) => setNavStack([...navStack, group]);
+  const navigateBack = () => setNavStack(navStack.slice(0, -1));
+
+  const breadcrumb = ["Root", ...navStack.map((g) => g.name)];
+  const breadcrumbDisplay =
+    breadcrumb.length > 3
+      ? ["Root/...", ...breadcrumb.slice(-2)].join(" / ")
+      : breadcrumb.join(" / ");
+
   return (
-    <div className="space-y-1">
-      {rootGroups.map((group) => (
-        <GroupRow
-          key={group.id}
-          group={group}
-          allGroups={allGroups}
-          alters={alters}
-          level={0}
-        />
-      ))}
-      
-      <ManageMembersModal
-        group={managingGroup}
-        allAlters={alters}
-        open={!!managingGroup}
-        onClose={() => setManagingGroup(null)}
-      />
+    <div>
+      {/* Breadcrumb Navigation */}
+      {navStack.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 pb-4 border-b border-border">
+          <Button
+            onClick={navigateBack}
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+          <p className="text-sm font-medium text-muted-foreground flex-1">{breadcrumbDisplay}</p>
+        </div>
+      )}
+
+      {/* Content: Folders and Members */}
+      <motion.div
+        key={currentGroupKey || "root"}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+        transition={{ duration: 0.15 }}
+        className="space-y-2"
+      >
+        {childGroups.map((g) => (
+          <FolderRow key={g.id} group={g} onClick={navigateTo} />
+        ))}
+
+        {memberAlters.map((alter) => (
+          <MemberRow key={alter.id} alter={alter} />
+        ))}
+
+        {childGroups.length === 0 && memberAlters.length === 0 && navStack.length > 0 && (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <Folder className="w-10 h-10 text-muted-foreground/30 mb-2" />
+            <p className="text-muted-foreground text-sm">This group is empty.</p>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }
