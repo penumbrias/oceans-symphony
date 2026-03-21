@@ -63,7 +63,12 @@ export default function GroupTreeRow({
               style={{ backgroundColor: group.color }}
             />
           )}
-          <span className="text-sm text-foreground truncate">{group.name}</span>
+          <button
+            onClick={() => onEdit(group)}
+            className="text-sm text-foreground truncate hover:underline cursor-pointer flex-1 text-left"
+          >
+            {group.name}
+          </button>
         </div>
 
         {/* Actions */}
