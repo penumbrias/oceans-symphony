@@ -35,14 +35,14 @@ export default function EmotionsChart({ filteredCards }) {
     anxious: "#f97316",
     calm: "#eab308",
     confused: "#22c55e",
-    happy: "#14b8a6",
-    hopeful: "#06b6d4",
+    happy: "#10b981",
+    hopeful: "#3b82f6",
     loved: "#ec4899",
     numb: "#a1a1a1",
     overwhelmed: "#92400e",
     sad: "#1e3a8a",
     stressed: "#ffff00",
-    tired: "#64748b",
+    tired: "#2d3748",
   };
   
   const colors = allEmotions.map((emotion) => emotionColors[emotion.toLowerCase()] || "#8b5cf6");
