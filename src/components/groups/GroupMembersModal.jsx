@@ -44,12 +44,16 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
     [group.id, includeSubgroups, allGroups]
   );
 
-  // Also include sp_id of current group when matching
+  // Also include sp_id of all groups (current + subgroups) when matching
   const groupKeysToMatch = useMemo(() => {
     const keys = new Set(groupIds);
-    if (group.sp_id) keys.add(group.sp_id);
+    // Add sp_id for all groups in the list
+    groupIds.forEach((gid) => {
+      const g = allGroups.find((grp) => grp.id === gid);
+      if (g?.sp_id) keys.add(g.sp_id);
+    });
     return keys;
-  }, [groupIds, group.sp_id]);
+  }, [groupIds, allGroups]);
 
   const altersInGroup = useMemo(() => {
     return new Set(
