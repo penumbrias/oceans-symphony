@@ -10,6 +10,7 @@ import { Palette, Save, Loader2 } from "lucide-react";
 import DiaryCardPresetsManager from "@/components/settings/DiaryCardPresetsManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
+import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -116,16 +117,19 @@ export default function Settings() {
         <DiaryCardPresetsManager />
 
         {/* Custom Fields */}
-        <CustomFieldsManager />
+         <CustomFieldsManager />
 
-        {/* Simply Plural */}
-        <SimplyPluralConnect
-          settings={settings}
-          onSettingsChange={() => {
-            refetch();
-            queryClient.invalidateQueries({ queryKey: ["alters"] });
-          }}
-        />
+         {/* Archived Alters */}
+         <ArchivedAltersManager />
+
+         {/* Simply Plural */}
+         <SimplyPluralConnect
+           settings={settings}
+           onSettingsChange={() => {
+             refetch();
+             queryClient.invalidateQueries({ queryKey: ["alters"] });
+           }}
+         />
       </div>
     </motion.div>
   );
