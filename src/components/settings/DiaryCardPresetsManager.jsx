@@ -69,21 +69,37 @@ export default function DiaryCardPresetsManager() {
     }));
   };
 
-  const handleToggleUrge = (urgeId) => {
+  const handleAddUrge = () => {
+    if (newUrge.trim()) {
+      setPresets(prev => ({
+        ...prev,
+        urges: [...prev.urges, newUrge.trim()]
+      }));
+      setNewUrge("");
+    }
+  };
+
+  const handleRemoveUrge = (idx) => {
     setPresets(prev => ({
       ...prev,
-      urges: prev.urges.includes(urgeId)
-        ? prev.urges.filter(u => u !== urgeId)
-        : [...prev.urges, urgeId]
+      urges: prev.urges.filter((_, i) => i !== idx)
     }));
   };
 
-  const handleToggleBodyMind = (typeId) => {
+  const handleAddBodyMind = () => {
+    if (newBodyMind.trim()) {
+      setPresets(prev => ({
+        ...prev,
+        bodyMind: [...prev.bodyMind, newBodyMind.trim()]
+      }));
+      setNewBodyMind("");
+    }
+  };
+
+  const handleRemoveBodyMind = (idx) => {
     setPresets(prev => ({
       ...prev,
-      bodyMind: prev.bodyMind.includes(typeId)
-        ? prev.bodyMind.filter(t => t !== typeId)
-        : [...prev.bodyMind, typeId]
+      bodyMind: prev.bodyMind.filter((_, i) => i !== idx)
     }));
   };
 
