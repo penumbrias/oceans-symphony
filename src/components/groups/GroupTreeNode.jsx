@@ -116,27 +116,50 @@ export default function GroupTreeNode({
       )}
 
       {/* Children */}
-      {isExpanded && hasChildren && (
-        <div className="space-y-2 mt-2">
-          {childGroups.map((child) => (
-            <GroupTreeNode
-              key={child.id}
-              group={child}
-              allGroups={allGroups}
-              expandedGroups={expandedGroups}
-              onToggleExpanded={onToggleExpanded}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onCreateChild={onCreateChild}
-              creatingParentId={creatingParentId}
-              newGroupName={newGroupName}
-              onNewGroupNameChange={onNewGroupNameChange}
-              onCreateGroup={onCreateGroup}
-              deletingId={deletingId}
-              level={level + 1}
-            />
-          ))}
-        </div>
+      {isExpanded && (
+        <Droppable droppableId={group.id} type="group">
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={`space-y-2 mt-2 p-2 rounded-lg transition-colors ${
+                snapshot.isDraggingOver ? "bg-primary/5 border border-primary/20" : ""
+              } ${hasChildren ? "" : "min-h-[40px]"}`}
+            >
+              {childGroups.length > 0 ? (
+                childGroups.map((child, index) => (
+                  <Draggable key={child.id} draggableId={child.id} index={index}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className={snapshot.isDragging ? "opacity-50" : ""}
+                      >
+                        <GroupTreeNode
+                          group={child}
+                          allGroups={allGroups}
+                          expandedGroups={expandedGroups}
+                          onToggleExpanded={onToggleExpanded}
+                          onEdit={onEdit}
+                          onDelete={onDelete}
+                          onCreateChild={onCreateChild}
+                          creatingParentId={creatingParentId}
+                          newGroupName={newGroupName}
+                          onNewGroupNameChange={onNewGroupNameChange}
+                          onCreateGroup={onCreateGroup}
+                          deletingId={deletingId}
+                          level={level + 1}
+                        />
+                      </div>
+                    )}
+                  </Draggable>
+                ))
+              ) : null}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
       )}
     </div>
   );
