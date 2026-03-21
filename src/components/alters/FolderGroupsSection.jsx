@@ -91,14 +91,17 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
   const currentGroup = navStack.length > 0 ? navStack[navStack.length - 1] : null;
   const currentGroupKey = currentGroup ? (currentGroup.sp_id || currentGroup.id) : null;
 
-  // Children groups at this level (sorted alphabetically)
+  // Children groups at this level (sorted based on sortDir)
   const childGroups = allGroups
     .filter((g) => {
       const parent = g.parent || "";
       if (currentGroupKey === null) return !parent || parent === "" || parent === "root";
       return parent === currentGroupKey;
     })
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    .sort((a, b) => {
+      const cmp = (a.name || "").localeCompare(b.name || "");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
 
   // Members in current group
   const memberAlters = currentGroup
