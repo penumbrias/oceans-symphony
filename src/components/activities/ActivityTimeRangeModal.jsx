@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format, addHours } from "date-fns";
 import { toast } from "sonner";
 import { X } from "lucide-react";
+import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 
 export default function ActivityTimeRangeModal({
   isOpen,
