@@ -71,13 +71,14 @@ function getCompletion(data) {
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
-  const [view, setView] = useState("list"); // "list" | "new" | "entry" | "analytics"
+  const [view, setView] = useState("list"); // "list" | "new" | "entry" | "edit" | "analytics"
   const [activeSection, setActiveSection] = useState(null);
   const [entryName, setEntryName] = useState("");
   const [draftData, setDraftData] = useState({});
   const [frontingAlterIds, setFrontingAlterIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const [viewingEntry, setViewingEntry] = useState(null);
+  const [editingEntry, setEditingEntry] = useState(null);
 
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
