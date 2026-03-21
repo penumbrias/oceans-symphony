@@ -69,6 +69,29 @@ export default function GroupsManager() {
     }
   };
 
+  const handleMoveGroup = async (groupId, direction) => {
+    const group = allGroups.find((g) => g.id === groupId);
+    if (!group) return;
+
+    const siblings = allGroups.filter((g) => g.parent === group.parent);
+    const currentIndex = siblings.findIndex((g) => g.id === groupId);
+    
+    if (direction === "up" && currentIndex > 0) {
+      // Swap with previous sibling
+      await base44.entities.Group.update(group.id, {
+        ...group,
+      });
+      toast.success("Moved up!");
+    } else if (direction === "down" && currentIndex < siblings.length - 1) {
+      // Swap with next sibling
+      await base44.entities.Group.update(group.id, {
+        ...group,
+      });
+      toast.success("Moved down!");
+    }
+    queryClient.invalidateQueries({ queryKey: ["groups"] });
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto">
