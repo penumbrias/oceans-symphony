@@ -18,6 +18,7 @@ const SECTIONS = [
   { id: "skills", emoji: "🧠", title: "Skills used", subtitle: "How many skills" },
   { id: "medication", emoji: "💊", title: "Medication + safety", subtitle: "Rx meds + safety" },
   { id: "notes", emoji: "📝", title: "Notes", subtitle: "Details + context" },
+  { id: "weekly_checklist", emoji: "🔲", title: "Symptoms Checklist", subtitle: "Daily symptoms, habits & more" },
 ];
 
 function getSectionSummary(section, data) {
@@ -45,6 +46,16 @@ function getSectionSummary(section, data) {
   }
   if (section === "notes") {
     return data.notes?.what ? "Added" : "No notes yet";
+  }
+  if (section === "weekly_checklist") {
+    const wc = data.weekly_checklist || {};
+    const days = Object.keys(wc).filter((d) => {
+      const dd = wc[d] || {};
+      const s = Object.values(dd.symptoms || {}).filter((v) => v !== undefined).length;
+      const h = Object.values(dd.habits || {}).filter((v) => v !== undefined).length;
+      return s + h > 0;
+    });
+    return days.length ? `${days.length} day${days.length > 1 ? "s" : ""} logged` : "No days logged";
   }
   return "";
 }
