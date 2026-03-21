@@ -94,6 +94,11 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   };
 
   const setPrimary = (id) => {
+    if (primaryId === id) {
+      // Tapping primary fronter removes them from primary (co-front only)
+      setPrimaryId("");
+      return;
+    }
     if (!coFronterIds.includes(id) && primaryId !== id) {
       setCoFronterIds([...coFronterIds, primaryId].filter(Boolean).filter((x) => x !== id));
     } else {
