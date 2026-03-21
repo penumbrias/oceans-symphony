@@ -157,8 +157,6 @@ export default function GroupTreeRow({
               selectedGroupId={selectedGroupId}
               onSelectGroup={onSelectGroup}
               onChangeColor={onChangeColor}
-              onMoveUp={onMoveUp}
-              onMoveDown={onMoveDown}
               onDropGroup={onDropGroup}
               draggedGroupId={draggedGroupId}
               setDraggedGroupId={setDraggedGroupId}
