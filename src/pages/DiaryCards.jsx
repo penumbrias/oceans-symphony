@@ -124,7 +124,17 @@ export default function DiaryCards() {
     setDraftData({});
     setEntryName("");
     setActiveSection(null);
+    setEditingEntry(null);
     setView("new");
+  };
+
+  const startEdit = (card) => {
+    setEditingEntry(card);
+    setDraftData(card);
+    setEntryName(card.name || "");
+    setFrontingAlterIds(card.fronting_alter_ids || []);
+    setActiveSection(null);
+    setView("edit");
   };
 
   const handleChange = (key, value) => {
