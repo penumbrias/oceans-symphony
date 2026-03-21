@@ -126,7 +126,9 @@ export default function DailyTasks() {
   };
 
   // Save auto-completed XP to today's record if not yet saved
+  // IMPORTANT: only run after progress has loaded to avoid overwriting existing data
   useEffect(() => {
+    if (progressLoading) return;
     if (!todayRecord && todayXP > 0) {
       base44.entities.DailyProgress.create({
         date: TODAY,
@@ -134,7 +136,6 @@ export default function DailyTasks() {
         xp_earned: todayXP,
       }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
     } else if (todayRecord) {
-      // update auto XP in background
       const savedXP = todayRecord.xp_earned || 0;
       if (todayXP !== savedXP) {
         base44.entities.DailyProgress.update(todayRecord.id, {
@@ -143,7 +144,7 @@ export default function DailyTasks() {
         }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
       }
     }
-  }, [hasJournalToday, hasDiaryToday]);
+  }, [progressLoading, hasJournalToday, hasDiaryToday]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-lg mx-auto">
