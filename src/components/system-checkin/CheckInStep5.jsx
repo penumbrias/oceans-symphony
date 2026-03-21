@@ -48,9 +48,9 @@ export default function CheckInStep5({ data, onChange }) {
 
             <div className="p-3 bg-accent/30 rounded-lg space-y-2">
               <p className="text-xs text-muted-foreground italic">
-                "Thank you for spending time together."
+                "Thank your system for spending time together. Remind your parts,"
               </p>
-              <p className="text-xs text-muted-foreground italic">
+              <p className="text-xs text-muted-foreground italic font-semibold">
                 "I'll keep coming back."
               </p>
             </div>
