@@ -8,10 +8,10 @@ import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityEntryModal from "@/components/activities/ActivityEntryModal";
 
 export default function ActivityTracker() {
-  const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedHour, setSelectedHour] = useState(undefined);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -26,24 +26,22 @@ export default function ActivityTracker() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const groupedActivities = weekDays.map((day) => ({
-    date: day,
-    activities: activities.filter(
-      (a) =>
-        format(parseISO(a.timestamp), "yyyy-MM-dd") ===
-        format(day, "yyyy-MM-dd")
-    ),
-  }));
-
-  const handleAddActivity = (date) => {
+  const handleDayClick = (date) => {
     setSelectedDate(date);
+    setSelectedHour(undefined);
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
-    queryClient.invalidateQueries({ queryKey: ["activities"] });
+  const handleTimeBlockClick = (date, hour) => {
+    setSelectedDate(date);
+    setSelectedHour(hour);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
     setIsModalOpen(false);
-    toast.success("Activity logged!");
+    setSelectedDate(null);
+    setSelectedHour(undefined);
   };
 
   return (
