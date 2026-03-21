@@ -1,9 +1,9 @@
-import React from "react";
-import { format } from "date-fns";
-import { Activity, Users, Heart } from "lucide-react";
+import React, { useMemo } from "react";
+import { format, differenceInMinutes } from "date-fns";
+import { Activity, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function TimelineItem({ item, alters }) {
+export default function TimelineItem({ item, alters, allItems }) {
   const getAlterName = (alterId) => {
     return alters.find((a) => a.id === alterId)?.name || "Unknown";
   };
@@ -11,6 +11,25 @@ export default function TimelineItem({ item, alters }) {
   const getAlterColor = (alterId) => {
     return alters.find((a) => a.id === alterId)?.color || "#9333ea";
   };
+
+  const getAlterAvatar = (alterId) => {
+    return alters.find((a) => a.id === alterId)?.avatar_url || null;
+  };
+
+  // Calculate duration for a switch (time until next switch or end of day)
+  const getSwitchDuration = useMemo(() => {
+    if (item.type !== "switch" || !allItems) return null;
+    const currentIdx = allItems.findIndex((i) => i.type === item.type && i.data?.start_time === item.data?.start_time);
+    if (currentIdx === -1) return null;
+    
+    // Find next switch
+    for (let i = currentIdx + 1; i < allItems.length; i++) {
+      if (allItems[i].type === "switch") {
+        return differenceInMinutes(new Date(allItems[i].data.start_time), new Date(item.data.start_time));
+      }
+    }
+    return null; // Still fronting or no next switch recorded
+  }, [item, allItems]);
 
   if (item.type === "activity") {
     return (
