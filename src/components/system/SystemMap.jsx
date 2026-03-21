@@ -317,6 +317,88 @@ const SystemMap = () => {
         </g>
       </svg>
 
+      {/* Search and Filter Panel */}
+      <div className="absolute top-4 left-4 bg-card/95 backdrop-blur border border-border rounded-lg p-4 w-96 max-w-[calc(100%-32px)] space-y-3">
+        <div>
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+            Search Alters
+          </label>
+          <Input
+            placeholder="Search by name or alias..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+            Filter by Group
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              variant={selectedGroup ? "outline" : "secondary"}
+              className="cursor-pointer"
+              onClick={() => setSelectedGroup(null)}
+            >
+              All Groups
+            </Badge>
+            {groups.map((group) => (
+              <Badge
+                key={group.id}
+                variant={selectedGroup === group.id ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}
+              >
+                {group.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        {selectedAlter && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Co-fronters for {selectedAlter.name}
+              </label>
+              <button
+                onClick={() => setSelectedAlter(null)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-foreground">Show up to</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={cofronterCount}
+                  onChange={(e) => setCofronterCount(Math.max(1, parseInt(e.target.value) || 10))}
+                  className="w-16 h-8 px-2 border border-border rounded text-sm"
+                />
+                <span className="text-sm text-muted-foreground">alters</span>
+              </div>
+              {cofronters.length > 0 && (
+                <div className="bg-muted/30 rounded p-2 max-h-40 overflow-y-auto space-y-1">
+                  {cofronters.map((alter) => (
+                    <div key={alter.id} className="text-xs text-foreground flex items-center justify-between">
+                      <span>{alter.name}</span>
+                      <span className="text-muted-foreground">
+                        {cofrontingMap[selectedAlter.id][alter.id]} sessions
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-2">
         <Button size="icon" variant="outline" onClick={() => handleZoom("in")} title="Zoom in">
@@ -331,7 +413,7 @@ const SystemMap = () => {
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur border border-border rounded-lg p-3 text-xs space-y-2">
+      <div className="absolute bottom-4 left-4 bg-card/95 backdrop-blur border border-border rounded-lg p-3 text-xs space-y-2">
         <div className="font-semibold text-foreground mb-2">Legend</div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-purple-500"></div>
@@ -344,6 +426,10 @@ const SystemMap = () => {
         <div className="flex items-center gap-2">
           <div className="h-0.5 w-4 bg-muted-foreground/40" style={{ borderTop: "2px dashed" }}></div>
           <span className="text-muted-foreground">Membership</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-0.5 w-4" style={{ borderTop: "2px solid hsl(var(--accent))" }}></div>
+          <span className="text-muted-foreground">Co-fronting</span>
         </div>
       </div>
 
