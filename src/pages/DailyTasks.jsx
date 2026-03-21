@@ -36,14 +36,12 @@ export default function DailyTasks() {
   const todayRecord = allProgress.find((p) => p.date === TODAY);
   const manualCompleted = new Set(todayRecord?.completed_task_ids || []);
 
-  // AUTO task detection — use local date (same logic as getTodayString)
+  // AUTO task detection — extract date from ISO string (handles timezones)
   const hasJournalToday = journals.some((j) => {
     if (!j.created_date) return false;
-    const d = new Date(j.created_date);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}` === TODAY;
+    // Extract YYYY-MM-DD from ISO string directly (timezone-safe)
+    const dateStr = j.created_date.split("T")[0];
+    return dateStr === TODAY;
   });
   const hasDiaryToday = diaryCards.length > 0;
   // check_in is always true if user is viewing this page
