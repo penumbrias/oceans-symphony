@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
 
@@ -7,9 +7,11 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 export default function ActivityWeeklyGrid({
   weekDays,
   activities,
+  frontingHistory = [],
   onDayClick,
-  onTimeBlockClick,
+  onTimeRangeSelect,
 }) {
+  const [startSelection, setStartSelection] = useState(null);
   const getActivitiesForDay = (date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     return activities.filter(
