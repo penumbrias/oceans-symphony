@@ -41,8 +41,13 @@ const RATING_SYMPTOMS = SYMPTOMS.filter((s) => s.type === "rating");
 
 export default function DiaryAnalytics({ cards, altersById = {} }) {
   const [rangeDays, setRangeDays] = useState(7);
-  const [activeTab, setActiveTab] = useState("symptoms");
+  const [activeTab, setActiveTab] = useState("overview");
   const [symptomTab, setSymptomTab] = useState("grid");
+  const [visibleSections, setVisibleSections] = useState({
+    emotions: true,
+    urges: true,
+    medication: true,
+  });
 
   const cutoff = subDays(new Date(), rangeDays);
 
