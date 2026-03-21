@@ -264,23 +264,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           </div>
 
           {/* Activities */}
-          <div>
-            <p className="text-sm font-medium mb-2">Activities (optional)</p>
-            <ActivityPicker 
-              selectedActivities={selectedActivityCategories} 
-              onActivityChange={setSelectedActivityCategories}
-            />
-            {selectedActivityCategories.length > 0 && (
-              <Input
-                type="number"
-                placeholder="Duration (mins)"
-                value={activityDuration}
-                onChange={(e) => setActivityDuration(e.target.value)}
-                className="mt-2 text-sm"
-                min="0"
-              />
-            )}
-          </div>
+          <ActivityPillSelector 
+            selectedActivities={selectedActivityCategories}
+            onActivityChange={setSelectedActivityCategories}
+            duration={activityDuration}
+            onDurationChange={setActivityDuration}
+          />
 
           {/* Note */}
           <div>
