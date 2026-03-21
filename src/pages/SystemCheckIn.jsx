@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +18,7 @@ import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
 export default function SystemCheckInPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [view, setView] = useState("list"); // "list" | "create" | "edit"
   const [currentCheckIn, setCurrentCheckIn] = useState(null);
   const [formData, setFormData] = useState({});
@@ -24,6 +26,11 @@ export default function SystemCheckInPage() {
   const { data: checkIns = [] } = useQuery({
     queryKey: ["systemCheckIns"],
     queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 100),
+  });
+
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
   });
 
   const createMutation = useMutation({
@@ -207,11 +214,11 @@ export default function SystemCheckInPage() {
             </Card>
 
             {/* Steps */}
-            <CheckInStep1 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-            <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-            <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-            <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-            <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
+             <CheckInStep1 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
+             <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+             <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
+             <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
+             <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
 
             {/* Next Steps */}
             <Card>
