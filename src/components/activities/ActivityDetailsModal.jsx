@@ -260,38 +260,12 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                   <>
                     {/* Edit Mode */}
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold mb-2">Activity Name</label>
-                        <Input
-                          value={editData.activity_name}
-                          onChange={(e) =>
-                            setEditData({ ...editData, activity_name: e.target.value })
-                          }
-                          placeholder="Enter activity name"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold mb-2">Color</label>
-                        <div className="flex gap-2 items-center">
-                          <input
-                            type="color"
-                            value={editData.color}
-                            onChange={(e) =>
-                              setEditData({ ...editData, color: e.target.value })
-                            }
-                            className="w-12 h-10 rounded-lg cursor-pointer border border-border"
-                          />
-                          <Input
-                            value={editData.color}
-                            onChange={(e) =>
-                              setEditData({ ...editData, color: e.target.value })
-                            }
-                            placeholder="#8b5cf6"
-                            className="flex-1"
-                          />
-                        </div>
-                      </div>
+                      <ActivityPillSelector 
+                        selectedActivities={editData.activity_category_ids}
+                        onActivityChange={(ids) => setEditData({ ...editData, activity_category_ids: ids })}
+                        duration={String(editData.duration_minutes || "")}
+                        onDurationChange={(duration) => setEditData({ ...editData, duration_minutes: duration ? parseInt(duration) : 60 })}
+                      />
 
                       <div>
                         <label className="block text-sm font-semibold mb-2">
