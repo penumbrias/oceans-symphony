@@ -71,6 +71,24 @@ export default function AlterGrid({ alters }) {
           {showFolders ? "Folders" : "No folders"}
         </Button>
         <Button
+          variant={viewMode === "list" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setViewMode("list")}
+          className="rounded-xl h-9 px-3 text-xs gap-1.5"
+          title="List view"
+        >
+          <List className="w-4 h-4" />
+        </Button>
+        <Button
+          variant={viewMode === "grid" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setViewMode("grid")}
+          className="rounded-xl h-9 px-3 text-xs gap-1.5"
+          title="Grid view"
+        >
+          <Grid3X3 className="w-4 h-4" />
+        </Button>
+        <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate("/groups")}
