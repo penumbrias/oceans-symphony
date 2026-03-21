@@ -14,6 +14,7 @@ import FrontHistory from '@/pages/FrontHistory';
 import Analytics from '@/pages/Analytics';
 import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
+import DailyTasks from '@/pages/DailyTasks';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
