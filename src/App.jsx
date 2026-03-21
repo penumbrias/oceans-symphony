@@ -64,6 +64,8 @@ const AuthenticatedApp = () => {
         <Route path="/tasks" element={<DailyTasks />} />
         <Route path="/groups" element={<GroupsManager />} />
         <Route path="/system-checkin" element={<SystemCheckIn />} />
+        <Route path="/activities" element={<ActivityTracker />} />
+        <Route path="/sleep" element={<SleepTracker />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
