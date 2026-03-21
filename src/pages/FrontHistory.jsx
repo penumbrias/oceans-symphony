@@ -57,7 +57,7 @@ function SessionBlock({ session, altersById, columnIndex, totalColumns }) {
 
   return (
     <div
-      className="flex flex-col items-center"
+      className="flex flex-col items-center group"
       style={{ minWidth: 52, flex: "0 0 auto" }}
     >
       {/* Avatar pinned at top */}
@@ -91,6 +91,13 @@ function SessionBlock({ session, altersById, columnIndex, totalColumns }) {
       <p className="text-[10px] text-muted-foreground mt-1 text-center">
         {durationLabel(session.start_time, session.end_time)}
       </p>
+
+      {/* Custom status note on hover */}
+      {session.note && (
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full mb-2 bg-card border border-border rounded-lg p-2 text-[10px] text-foreground whitespace-nowrap shadow-lg z-10">
+          {session.note}
+        </div>
+      )}
     </div>
   );
 }
