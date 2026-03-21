@@ -72,6 +72,7 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
       resetForm();
       onClose();
     }
@@ -81,6 +82,24 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
     setSelectedEmotions([]);
     setSelectedAlters([]);
     setNote("");
+    setActivity("");
+    setActivityDuration("");
+  };
+
+  const handleSaveActivity = async () => {
+    if (activity.trim()) {
+      try {
+        await base44.entities.Activity.create({
+          timestamp: new Date().toISOString(),
+          activity_name: activity,
+          category: "other",
+          duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+          fronting_alter_ids: selectedAlters,
+        });
+      } catch (err) {
+        console.error("Failed to log activity", err);
+      }
+    }
   };
 
   const handleSubmit = async () => {
