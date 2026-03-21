@@ -19,10 +19,10 @@ export default function DailyTasks() {
     staleTime: 0,
   });
 
-  // Journal entries today
-  const { data: journals = [] } = useQuery({
-    queryKey: ["journalEntries"],
-    queryFn: () => base44.entities.JournalEntry.list("-created_date", 10),
+  // Journal entries today — filter directly by date like diary cards
+  const { data: journalsToday = [] } = useQuery({
+    queryKey: ["journalEntriesToday", TODAY],
+    queryFn: () => base44.entities.JournalEntry.filter({ date: TODAY }),
     staleTime: 0,
   });
 
