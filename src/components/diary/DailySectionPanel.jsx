@@ -4,11 +4,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import EmotionPicker from "./EmotionPicker";
 import RatingRow from "./RatingRow";
+import SymptomsChecklistPanel from "./SymptomsChecklistPanel";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 
 export default function DailySectionPanel({ section, data, onChange, onClose }) {
+  if (section === "weekly_checklist") {
+    return (
+      <SymptomsChecklistPanel
+        data={data.weekly_checklist || {}}
+        onChange={onChange}
+        onClose={onClose}
+      />
+    );
+  }
+
   if (section === "emotions") {
     return (
       <PanelShell title="Emotions" subtitle="Tap to add emotions you felt today." onClose={onClose}>
