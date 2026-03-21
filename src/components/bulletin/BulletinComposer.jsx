@@ -196,6 +196,39 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
         </div>
       )}
 
+      {/* To-do list builder */}
+      {showTodoList && (
+        <div className="mt-3 border border-border/50 rounded-xl p-3 bg-muted/20 space-y-2">
+          {todoItems.map((item, i) => (
+            <div key={i} className="flex gap-2">
+              <Input
+                placeholder={`To-do item ${i + 1}`}
+                value={item}
+                onChange={(e) => {
+                  const next = [...todoItems];
+                  next[i] = e.target.value;
+                  setTodoItems(next);
+                }}
+                className="text-sm"
+              />
+              {todoItems.length > 2 && (
+                <button onClick={() => setTodoItems(todoItems.filter((_, j) => j !== i))}>
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          ))}
+          {todoItems.length < 10 && (
+            <button
+              onClick={() => setTodoItems([...todoItems, ""])}
+              className="flex items-center gap-1 text-xs text-primary"
+            >
+              <Plus className="w-3 h-3" /> Add item
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mt-3">
         <div className="flex gap-2">
           <button
