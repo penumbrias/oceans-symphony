@@ -95,9 +95,13 @@ export default function Journals() {
 
   const handleCreateFolder = () => {
     if (!newFolderName.trim()) return;
-    setExtraFolders((prev) => prev.includes(newFolderName.trim()) ? prev : [...prev, newFolderName.trim()]);
+    // Open new entry editor with folder pre-filled — folder is persisted via the entry
+    const name = newFolderName.trim();
     setShowNewFolder(false);
     setNewFolderName("");
+    setNewEntryFolder(name);
+    setEditEntry(null);
+    setShowEditor(true);
   };
 
   return (
