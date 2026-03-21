@@ -2,7 +2,15 @@ import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
-import { Plus, Search, BookOpen, Shuffle, Filter, Eye, Folder } from "lucide-react";
+import { Plus, Search, BookOpen, Shuffle, Filter, Eye, Folder, FolderPlus } from "lucide-react";
+import { Input as DialogInput } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import JournalEntryCard from "@/components/journal/JournalEntryCard";
