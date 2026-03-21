@@ -10,9 +10,11 @@ import ActivityHeatmap from "@/components/analytics/ActivityHeatmap";
 import TimeOfDayFronters from "@/components/analytics/TimeOfDayFronters";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
+import ActivityFrequencyChart from "@/components/analytics/ActivityFrequencyChart";
 
 const MAIN_TABS = [
   { id: "alters", label: "System Members" },
+  { id: "activities", label: "Activities" },
   { id: "diary", label: "Diary Cards" },
   { id: "emotions", label: "Emotion Check-Ins" },
 ];
@@ -86,6 +88,16 @@ export default function Analytics() {
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
     queryFn: () => base44.entities.DiaryCard.list("-created_date", 500),
+  });
+
+  const { data: activities = [] } = useQuery({
+    queryKey: ["activities"],
+    queryFn: () => base44.entities.Activity.list(),
+  });
+
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
   const altersById = useMemo(() => {
@@ -228,6 +240,15 @@ export default function Analytics() {
       {topTab === "timeofday" && (
         <TimeOfDayFronters sessions={filtered} alters={alters} />
       )}
+        </>
+      )}
+
+      {mainTab === "activities" && (
+        <>
+          <div className="mb-5">
+            <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+          </div>
+          <ActivityFrequencyChart activities={activities} categories={activityCategories} from={from} to={to} />
         </>
       )}
 
