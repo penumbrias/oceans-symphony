@@ -1,6 +1,5 @@
-import React from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2, ArrowUp, ArrowDown, Edit2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React, { useState } from "react";
+import { ChevronDown, ChevronRight, ArrowRight, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export default function GroupTreeRow({
@@ -8,44 +7,74 @@ export default function GroupTreeRow({
   allGroups,
   expandedGroups,
   onToggleExpanded,
-  onDelete,
-  onCreateChild,
-  onEdit,
-  onMoveUp,
-  onMoveDown,
-  creatingParentId,
-  newGroupName,
-  onNewGroupNameChange,
-  onCreateGroup,
-  deletingId,
+  selectedGroupId,
+  onSelectGroup,
+  onChangeColor,
+  onMoveGroupsIn,
+  onMoveGroupsOut,
   level = 0,
   parentId = null,
 }) {
+  const [isHoldingArrow, setIsHoldingArrow] = useState(false);
+  const [selectedForMove, setSelectedForMove] = useState(new Set());
+
   const childGroups = allGroups
     .filter((g) => g.parent === group.id)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
+
   const hasChildren = childGroups.length > 0;
   const isExpanded = expandedGroups.has(group.id);
-  const isDeleting = deletingId === group.id;
-  
-  // Get sibling groups to determine if we can move up/down
+  const isSelected = selectedGroupId === group.id;
+
+  // Get siblings at this level
   const siblings = allGroups
     .filter((g) => g.parent === parentId)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
-  const siblingIndex = siblings.findIndex((g) => g.id === group.id);
-  const canMoveUp = siblingIndex > 0;
-  const canMoveDown = siblingIndex < siblings.length - 1;
+
+  // Show arrow-in for sibling folders when a folder is selected (pointing to selected)
+  const showArrowIn = selectedGroupId && selectedGroupId !== group.id && siblings.some((g) => g.id === selectedGroupId);
+
+  // Show arrow-out for child folders when parent is selected
+  const showArrowOut = isSelected && hasChildren;
+
+  const handleArrowDown = () => {
+    setIsHoldingArrow(true);
+    setSelectedForMove(new Set([group.id]));
+  };
+
+  const handleArrowUp = () => {
+    setIsHoldingArrow(false);
+    if (showArrowIn) {
+      onMoveGroupsIn(Array.from(selectedForMove), selectedGroupId);
+    } else if (showArrowOut) {
+      onMoveGroupsOut(Array.from(selectedForMove));
+    }
+    setSelectedForMove(new Set());
+  };
+
+  const handleArrowClick = () => {
+    if (showArrowIn) {
+      onMoveGroupsIn([group.id], selectedGroupId);
+    } else if (showArrowOut) {
+      onMoveGroupsOut([group.id]);
+    }
+  };
 
   return (
     <>
-      {/* Row */}
       <div
-        className="flex items-center gap-2 py-2 px-2 hover:bg-muted/50 rounded-lg transition-colors group"
+        className={`flex items-center gap-2 py-2 px-2 rounded-lg transition-colors cursor-pointer group ${
+          isSelected ? "bg-primary/10 border border-primary/30" : "hover:bg-muted/50"
+        }`}
         style={{ paddingLeft: `${level * 24 + 8}px` }}
+        onClick={() => onSelectGroup(group.id)}
       >
         {/* Chevron */}
         <button
-          onClick={() => onToggleExpanded(group.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpanded(group.id);
+          }}
           className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         >
           {hasChildren ? (
@@ -61,90 +90,54 @@ export default function GroupTreeRow({
 
         {/* Color dot + name */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {group.color && (
+          {isSelected && (
+            <input
+              type="color"
+              value={group.color || "#9333ea"}
+              onChange={(e) => onChangeColor(group.id, e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              className="w-6 h-6 rounded cursor-pointer flex-shrink-0 border-0"
+            />
+          )}
+          {!isSelected && group.color && (
             <div
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: group.color }}
             />
           )}
-          <button
-            onClick={() => onEdit(group)}
-            className="text-sm text-foreground truncate hover:underline cursor-pointer flex-1 text-left"
-          >
-            {group.name}
-          </button>
+          <span className="text-sm text-foreground truncate">{group.name}</span>
         </div>
 
-        {/* Actions */}
+        {/* Arrows */}
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => onMoveUp(group.id)}
-            disabled={!canMoveUp}
-            title="Move up"
-          >
-            <ArrowUp className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => onMoveDown(group.id)}
-            disabled={!canMoveDown}
-            title="Move down"
-          >
-            <ArrowDown className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => onCreateChild(group.id)}
-            title="Add subgroup"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onDelete(group.id)}
-            disabled={isDeleting}
-            title="Delete group"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+          {showArrowIn && (
+            <button
+              onMouseDown={handleArrowDown}
+              onMouseUp={handleArrowUp}
+              onTouchStart={handleArrowDown}
+              onTouchEnd={handleArrowUp}
+              onClick={handleArrowClick}
+              className="flex-shrink-0 p-1 text-primary hover:bg-primary/10 rounded transition-colors"
+              title="Move into selected group"
+            >
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+          {showArrowOut && (
+            <button
+              onMouseDown={handleArrowDown}
+              onMouseUp={handleArrowUp}
+              onTouchStart={handleArrowDown}
+              onTouchEnd={handleArrowUp}
+              onClick={handleArrowClick}
+              className="flex-shrink-0 p-1 text-accent hover:bg-accent/10 rounded transition-colors"
+              title="Move out of parent group"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
-
-      {/* Create child form */}
-      {creatingParentId === group.id && (
-        <div
-          className="flex items-center gap-2 py-2 px-2 bg-primary/5 rounded-lg"
-          style={{ paddingLeft: `${(level + 1) * 24 + 8}px` }}
-        >
-          <div className="w-5" />
-          <Input
-            autoFocus
-            value={newGroupName}
-            onChange={(e) => onNewGroupNameChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onCreateGroup(group.id);
-            }}
-            placeholder="Subgroup name"
-            className="flex-1 h-7 text-sm"
-          />
-          <Button
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => onCreateGroup(group.id)}
-          >
-            Add
-          </Button>
-        </div>
-      )}
 
       {/* Children */}
       {isExpanded && childGroups.length > 0 && (
@@ -156,16 +149,11 @@ export default function GroupTreeRow({
               allGroups={allGroups}
               expandedGroups={expandedGroups}
               onToggleExpanded={onToggleExpanded}
-              onDelete={onDelete}
-              onCreateChild={onCreateChild}
-              onEdit={onEdit}
-              onMoveUp={onMoveUp}
-              onMoveDown={onMoveDown}
-              creatingParentId={creatingParentId}
-              newGroupName={newGroupName}
-              onNewGroupNameChange={onNewGroupNameChange}
-              onCreateGroup={onCreateGroup}
-              deletingId={deletingId}
+              selectedGroupId={selectedGroupId}
+              onSelectGroup={onSelectGroup}
+              onChangeColor={onChangeColor}
+              onMoveGroupsIn={onMoveGroupsIn}
+              onMoveGroupsOut={onMoveGroupsOut}
               level={level + 1}
               parentId={group.id}
             />
