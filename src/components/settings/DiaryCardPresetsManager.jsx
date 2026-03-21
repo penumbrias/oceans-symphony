@@ -26,6 +26,8 @@ export default function DiaryCardPresetsManager() {
   });
   
   const [newEmotion, setNewEmotion] = useState("");
+  const [newUrge, setNewUrge] = useState("");
+  const [newBodyMind, setNewBodyMind] = useState("");
   const [newSkill, setNewSkill] = useState("");
 
   const { data: settingsList = [] } = useQuery({
