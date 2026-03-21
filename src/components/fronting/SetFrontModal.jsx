@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, Loader2, BookOpen, HelpCircle } from "lucide-react";
+import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
@@ -68,6 +68,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   const [showJournalModal, setShowJournalModal] = useState(false);
   const [newSessionId, setNewSessionId] = useState(null);
   const [isUnsure, setIsUnsure] = useState(false);
+  const [viewMode, setViewMode] = useState("list");
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const filtered = activeAlters.filter((a) =>
@@ -237,29 +238,87 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           {selectedIds.size > 0 && <p className="text-primary">Click primary to make them co-front only</p>}
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search alters..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        {/* Search and View Toggle */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search alters..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex gap-1 bg-muted/50 rounded-md p-1">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              title="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              title="Grid view"
+            >
+              <Grid3x3 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* List */}
-        <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
-          {filtered.map((a) => (
-            <AlterPill
-              key={a.id}
-              alter={a}
-              selected={selectedIds.has(a.id)}
-              isPrimary={primaryId === a.id}
-              onToggle={() => toggleAlter(a.id)}
-              onSetPrimary={() => setPrimary(a.id)}
-            />
-          ))}
+        {/* List or Grid View */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {viewMode === "list" ? (
+            <div className="space-y-1.5">
+              {filtered.map((a) => (
+                <AlterPill
+                  key={a.id}
+                  alter={a}
+                  selected={selectedIds.has(a.id)}
+                  isPrimary={primaryId === a.id}
+                  onToggle={() => toggleAlter(a.id)}
+                  onSetPrimary={() => setPrimary(a.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              {filtered.map((a) => {
+                const isFronting = selectedIds.has(a.id);
+                const isPrimary = primaryId === a.id;
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => toggleAlter(a.id)}
+                    className="flex flex-col items-center gap-2 p-2 rounded-lg border transition-all hover:bg-muted/50"
+                    style={{
+                      borderColor: isFronting ? (a.color || "hsl(var(--primary))") : "hsl(var(--border))",
+                      backgroundColor: isFronting ? `${a.color || "hsl(var(--primary))"}15` : "transparent"
+                    }}
+                  >
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 flex-shrink-0"
+                      style={{
+                        backgroundColor: a.color || "hsl(var(--muted))",
+                        borderColor: isPrimary ? "hsl(var(--accent))" : (isFronting ? a.color || "hsl(var(--primary))" : "hsl(var(--border))")
+                      }}
+                    >
+                      {a.avatar_url ? (
+                        <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-6 h-6 text-white/70" />
+                      )}
+                    </div>
+                    <div className="text-center min-w-0">
+                      <p className="text-xs font-medium truncate">{a.name}</p>
+                      {isPrimary && <p className="text-xs text-primary leading-none">Primary</p>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 pt-2 border-t border-border/50">
