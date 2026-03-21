@@ -80,6 +80,8 @@ export default function DiaryCards() {
   const [saving, setSaving] = useState(false);
   const [viewingEntry, setViewingEntry] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [showExistingCardDialog, setShowExistingCardDialog] = useState(false);
+  const [existingCardToday, setExistingCardToday] = useState(null);
 
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
