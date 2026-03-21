@@ -212,7 +212,7 @@ export default function DiaryCards() {
             <p className="text-muted-foreground text-xs">Track patterns over time</p>
           </div>
         </div>
-        <DiaryAnalytics cards={cards} />
+        <DiaryAnalytics cards={cards} altersById={altersById} />
       </motion.div>
     );
   }
