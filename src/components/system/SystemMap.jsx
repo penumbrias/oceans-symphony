@@ -70,50 +70,89 @@ const SystemMap = () => {
   // Calculate node positions based on selected alter or fronting time
   const nodePositions = useMemo(() => {
     const positions = {};
-    const width = 1200;
-    const height = 800;
-    const centerX = width / 2;
-    const centerY = height / 2;
+    const centerX = 600;
+    const centerY = 400;
 
-    // Sort alters by fronting time or co-fronting with selected alter
-    let altersSorted = [...alters];
-    if (selectedAlter) {
-      altersSorted.sort((a, b) => {
-        const aCofront = cofrontingMap[selectedAlter.id]?.[a.id] || 0;
-        const bCofront = cofrontingMap[selectedAlter.id]?.[b.id] || 0;
-        return bCofront - aCofront;
+    if (!selectedAlter) {
+      // Default layout: sorted by fronting time
+      const altersSorted = [...alters].sort((a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0));
+      
+      altersSorted.forEach((alter, idx) => {
+        if (idx === 0) {
+          positions[alter.id] = { x: centerX, y: centerY };
+        } else {
+          const maxTime = Math.max(...Object.values(frontingTime), 1);
+          const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
+          const radius = 150 + (1 - timeRatio) * 250;
+          const angle = (idx / altersSorted.length) * Math.PI * 2;
+          positions[alter.id] = {
+            x: centerX + Math.cos(angle) * radius,
+            y: centerY + Math.sin(angle) * radius,
+          };
+        }
       });
-    } else {
-      altersSorted.sort((a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0));
+      return positions;
     }
 
-    // Place alters in circular arrangement
-    altersSorted.forEach((alter, idx) => {
-      if (idx === 0) {
-        // First alter (most fronting time or selected alter) at center
-        positions[alter.id] = { x: centerX, y: centerY };
-      } else if (selectedAlter) {
-        // Position around selected alter by co-fronting time
-        const cofront = cofrontingMap[selectedAlter.id]?.[alter.id] || 0;
-        const maxCofront = Math.max(...Object.values(cofrontingMap[selectedAlter.id] || {}), 1);
-        const radius = 150 + ((maxCofront - cofront) / maxCofront) * 250;
-        const angle = (idx / altersSorted.length) * Math.PI * 2;
-        positions[alter.id] = {
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
-        };
+    // Radial layout when alter is selected
+    positions[selectedAlter.id] = { x: centerX, y: centerY };
+
+    // Build co-fronting relationship graph for positioning
+    const otherAlters = alters.filter((a) => a.id !== selectedAlter.id);
+    const maxCofrontWithSelected = Math.max(
+      ...otherAlters.map((a) => cofrontingMap[selectedAlter.id]?.[a.id] || 0),
+      1
+    );
+
+    // Sort alters into rings by co-fronting time with selected alter
+    const rings = {
+      inner: [],
+      middle: [],
+      outer: [],
+    };
+
+    otherAlters.forEach((alter) => {
+      const cofrontTime = cofrontingMap[selectedAlter.id]?.[alter.id] || 0;
+      const ratio = cofrontTime / maxCofrontWithSelected;
+
+      if (ratio >= 0.66) {
+        rings.inner.push({ alter, cofrontTime });
+      } else if (ratio >= 0.33) {
+        rings.middle.push({ alter, cofrontTime });
       } else {
-        // Position by fronting time (center to periphery)
-        const maxTime = Math.max(...Object.values(frontingTime), 1);
-        const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
-        const radius = 150 + (1 - timeRatio) * 250;
-        const angle = (idx / altersSorted.length) * Math.PI * 2;
-        positions[alter.id] = {
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
-        };
+        rings.outer.push({ alter, cofrontTime });
       }
     });
+
+    // Helper to position alters in a ring by their co-fronting relationships
+    const positionRing = (ringAlters, radius) => {
+      if (ringAlters.length === 0) return;
+
+      // Sort by co-fronting relationships with other alters in this ring
+      const withScores = ringAlters.map((item) => {
+        let relationshipScore = 0;
+        ringAlters.forEach((other) => {
+          relationshipScore += cofrontingMap[item.alter.id]?.[other.alter.id] || 0;
+        });
+        return { ...item, relationshipScore };
+      });
+
+      // Sort by relationship score descending (more connected = earlier angle)
+      withScores.sort((a, b) => b.relationshipScore - a.relationshipScore);
+
+      withScores.forEach((item, idx) => {
+        const angle = (idx / withScores.length) * Math.PI * 2;
+        positions[item.alter.id] = {
+          x: centerX + Math.cos(angle) * radius,
+          y: centerY + Math.sin(angle) * radius,
+        };
+      });
+    };
+
+    // Position each ring at appropriate radius
+    positionRing(rings.inner, 120);
+    positionRing(rings.middle, 200);
+    positionRing(rings.outer, 280);
 
     return positions;
   }, [alters, selectedAlter, frontingTime, cofrontingMap]);
