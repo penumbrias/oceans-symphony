@@ -9,7 +9,7 @@ import { Loader2, Trash2, Tag, Folder, Lock } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
-export default function JournalEditorModal({ open, onClose, entry, alters, currentAlterId }) {
+export default function JournalEditorModal({ open, onClose, entry, alters, currentAlterId, defaultFolder }) {
   const queryClient = useQueryClient();
   const isNew = !entry;
 
