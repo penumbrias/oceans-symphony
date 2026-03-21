@@ -124,6 +124,7 @@ export default function DiaryCards() {
     });
     toast.success("Diary card saved!");
     queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
+    queryClient.invalidateQueries({ queryKey: ["diaryCardsToday"] });
     setSaving(false);
     setView("list");
   };
