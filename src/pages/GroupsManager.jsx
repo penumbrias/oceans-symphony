@@ -3,9 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import GroupTreeRow from "@/components/groups/GroupTreeRow.jsx";
+import GroupEditModal from "@/components/groups/GroupEditModal.jsx";
 
 export default function GroupsManager() {
   const queryClient = useQueryClient();
