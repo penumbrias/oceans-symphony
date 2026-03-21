@@ -97,34 +97,51 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
   return (
     <>
       <div className="grid grid-cols-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-        {alters.map((alter) => (
-          <div
-            key={alter.id}
-            className="flex flex-col items-center gap-2"
-            onDoubleClick={() => handleDoubleClick(alter)}
-            onMouseDown={() => handleMouseDown(alter)}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
-          >
-            {alter.avatar_url ? (
-              <img
-                src={alter.avatar_url}
-                alt={alter.name}
-                className="w-16 h-16 rounded-full object-cover ring-2 ring-primary/20 hover:ring-primary/40 transition-all cursor-pointer select-none"
-                draggable={false}
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center ring-2 ring-primary/20 hover:ring-primary/40 transition-all cursor-pointer select-none">
-                <span className="text-xs font-semibold text-muted-foreground">
-                  {alter.name.slice(0, 2)}
-                </span>
-              </div>
-            )}
-            <span className="text-xs text-center font-medium truncate w-full px-1">
-              {alter.alias?.slice(0, 5) || alter.name.slice(0, 5)}
-            </span>
-          </div>
-        ))}
+        {alters.map((alter) => {
+          const fronting = isFronting(alter.id);
+          const isPrimary = currentSession?.primary_alter_id === alter.id;
+          
+          return (
+            <div
+              key={alter.id}
+              className="flex flex-col items-center gap-2"
+              onDoubleClick={() => handleDoubleClick(alter)}
+              onMouseDown={() => handleMouseDown(alter)}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+            >
+              {alter.avatar_url ? (
+                <img
+                  src={alter.avatar_url}
+                  alt={alter.name}
+                  className={`w-16 h-16 rounded-full object-cover ring-2 transition-all cursor-pointer select-none ${
+                    fronting
+                      ? isPrimary
+                        ? "ring-amber-400 shadow-lg shadow-amber-400/50"
+                        : "ring-primary shadow-lg shadow-primary/50"
+                      : "ring-primary/20 hover:ring-primary/40"
+                  }`}
+                  draggable={false}
+                />
+              ) : (
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center ring-2 transition-all cursor-pointer select-none ${
+                  fronting
+                    ? isPrimary
+                      ? "bg-amber-400/20 ring-amber-400 shadow-lg shadow-amber-400/50"
+                      : "bg-primary/20 ring-primary shadow-lg shadow-primary/50"
+                    : "bg-muted ring-primary/20 hover:ring-primary/40"
+                }`}>
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {alter.name.slice(0, 2)}
+                  </span>
+                </div>
+              )}
+              <span className="text-xs text-center font-medium truncate w-full px-1">
+                {alter.alias?.slice(0, 5) || alter.name.slice(0, 5)}
+              </span>
+            </div>
+          );
+        })}
       </div>
       </>
       );
