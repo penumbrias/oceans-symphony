@@ -95,7 +95,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
     );
   };
 
-  const activeAlters = alters.filter((a) => !a.is_archived);
+  const activeAlters = alters;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -149,7 +149,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
           >
             <span className="flex items-center gap-2">
               <Lock className="w-3.5 h-3.5" />
-              <span className="font-medium">Restrict Access</span>
+              <span className="font-medium">Restrict to specific alters/groups</span>
               {restricted && (allowedAlterIds.length + allowedGroupIds.length) > 0 && (
                 <span className="text-xs bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">
                   {allowedAlterIds.length + allowedGroupIds.length} selected
