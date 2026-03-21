@@ -1,12 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
+import { Heart } from "lucide-react";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
+import EmotionCheckInModal from "@/components/emotions/EmotionCheckInModal";
 
 export default function Dashboard() {
+  const [showEmotionModal, setShowEmotionModal] = useState(false);
+
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
@@ -34,8 +38,19 @@ export default function Dashboard() {
       </div>
 
       <CurrentFronters alters={alters} />
+      
+      <button
+        onClick={() => setShowEmotionModal(true)}
+        className="inline-flex items-center gap-2 px-4 py-2 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors font-medium text-sm mb-4"
+      >
+        <Heart className="w-4 h-4" />
+        Quick Emotion Check-In
+      </button>
+
       <QuickNavMenu />
       <BulletinBoard alters={alters} currentAlterId={currentAlterId} />
+
+      <EmotionCheckInModal isOpen={showEmotionModal} onClose={() => setShowEmotionModal(false)} alters={alters} />
     </motion.div>
   );
 }
