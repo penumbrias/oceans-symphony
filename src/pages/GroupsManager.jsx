@@ -105,6 +105,11 @@ export default function GroupsManager() {
     }
   };
 
+  const handleStartCreateSubgroup = (groupId) => {
+    setCreatingSubgroupFor(groupId);
+    setNewGroupName("");
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto">
@@ -136,6 +141,8 @@ export default function GroupsManager() {
                 level={0}
                 creatingSubgroupFor={creatingSubgroupFor}
                 onCreateSubgroup={handleCreateSubgroup}
+                onStartCreateSubgroup={handleStartCreateSubgroup}
+                onCancelCreateSubgroup={() => setCreatingSubgroupFor(null)}
                 newSubgroupName={newGroupName}
                 onSubgroupNameChange={setNewGroupName}
               />
