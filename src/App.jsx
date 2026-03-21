@@ -17,6 +17,7 @@ import Analytics from '@/pages/Analytics';
 import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
 import DailyTasks from '@/pages/DailyTasks';
+import GroupsManager from '@/pages/GroupsManager';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
