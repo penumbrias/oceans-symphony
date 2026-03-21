@@ -1,9 +1,9 @@
 import React, { useMemo } from "react";
 import { format, parseISO, startOfWeek, endOfWeek, isSameWeek } from "date-fns";
 
-export default function SymptomGridTable({ dailyAggregates, dateRange = 7 }) {
+export default function SymptomGridTable({ dailyAggregates, dateRange = 7, altersById = {} }) {
   const data = useMemo(() => {
-    if (!dailyAggregates.length) return { dates: [], symptoms: {}, displayDates: [] };
+    if (!dailyAggregates.length) return { dates: [], symptoms: {}, displayDates: [], alters: {} };
 
     // Get recent entries based on range
     const recentDays = dailyAggregates.slice(-dateRange);
