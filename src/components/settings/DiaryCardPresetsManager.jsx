@@ -327,6 +327,19 @@ export default function DiaryCardPresetsManager() {
 
           {/* Listed symptoms */}
           <div className="space-y-2">
+            {/* Preset symptoms from SYMPTOMS */}
+            {SYMPTOMS.map((symptom) => (
+              <div key={symptom.id} className="flex items-center justify-between p-2 bg-blue-500/10 rounded-lg text-sm border border-blue-500/20">
+                <div className="flex-1">
+                  <div className="font-medium">{symptom.label}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {symptom.type === 'rating' ? 'Scale' : 'Yes/No'} • {symptom.is_positive ? 'Positive' : 'Negative'} • <span className="text-blue-600 dark:text-blue-400">Preset</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Custom symptoms */}
             {Array.isArray(presets.symptoms) && presets.symptoms.map((symptom, idx) => (
               <div key={idx} className="flex items-center justify-between p-2 bg-muted/40 rounded-lg text-sm">
                 <div className="flex-1">
