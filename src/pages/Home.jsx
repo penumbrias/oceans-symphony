@@ -22,8 +22,14 @@ export default function Home() {
     queryFn: () => base44.entities.SystemSettings.list(),
   });
 
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["frontHistory"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
+  });
+
   const systemSettings = settings[0] || null;
   const isConnected = !!systemSettings?.sp_token;
+  const activeSession = sessions.find((s) => s.is_active);
 
   const activeAlters = alters.filter((a) => !a.is_archived);
   const archivedAlters = alters.filter((a) => a.is_archived);
@@ -98,7 +104,7 @@ export default function Home() {
       </motion.div>
 
       <FrontingBar alters={activeAlters} />
-      <AlterGrid alters={activeAlters} />
+      <AlterGrid alters={activeAlters} currentSession={activeSession} />
 
       <AlterEditModal
         open={showAddAlter}
