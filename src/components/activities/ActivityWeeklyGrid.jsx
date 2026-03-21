@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { format } from "date-fns";
-import { Plus, Eye, EyeOff } from "lucide-react";
+import { Plus, Eye, EyeOff, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import ActivityCustomizationMenu from "./ActivityCustomizationMenu";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -15,6 +18,37 @@ export default function ActivityWeeklyGrid({
 }) {
   const [startSelection, setStartSelection] = useState(null);
   const [showAlters, setShowAlters] = useState(false);
+  const [showEmotions, setShowEmotions] = useState(false);
+  const [showCustomMenu, setShowCustomMenu] = useState(false);
+
+  const { data: emotionCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns"],
+    queryFn: () => base44.entities.EmotionCheckIn.list(),
+  });
+
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
+  // Map activity category IDs to names
+  const getCategoryNames = (categoryIds) => {
+    if (!categoryIds || categoryIds.length === 0) return null;
+    return categoryIds
+      .map(id => activityCategories.find(c => c.id === id)?.name)
+      .filter(Boolean)
+      .join(" + ");
+  };
+
+  // Get emotions for activity by timestamp
+  const getEmotionsForActivity = (activity) => {
+    const emotionCheckIn = emotionCheckIns.find(e => {
+      const checkInTime = new Date(e.timestamp);
+      const actTime = new Date(activity.timestamp);
+      return Math.abs(checkInTime - actTime) < 300000; // Within 5 minutes
+    });
+    return emotionCheckIn?.emotions || [];
+  };
   const getActivitiesForDay = (date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     return activities.filter(
@@ -78,7 +112,16 @@ export default function ActivityWeeklyGrid({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowEmotions(!showEmotions)}
+          className="gap-2"
+        >
+          {showEmotions ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {showEmotions ? "Hide" : "Show"} Emotions
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -88,7 +131,20 @@ export default function ActivityWeeklyGrid({
           {showAlters ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           {showAlters ? "Hide" : "Show"} Alters
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowCustomMenu(true)}
+          className="gap-2"
+        >
+          <Settings className="w-4 h-4" />
+          Customize
+        </Button>
       </div>
+
+      {showCustomMenu && (
+        <ActivityCustomizationMenu onClose={() => setShowCustomMenu(false)} />
+      )}
 
       <div className="overflow-x-auto">
         <div className="inline-grid gap-0 border border-border rounded-lg overflow-hidden">
@@ -174,8 +230,13 @@ export default function ActivityWeeklyGrid({
                   {activity ? (
                     <div className="text-center space-y-1">
                       <div className="text-xs font-bold line-clamp-2 leading-tight">
-                        {activity.activity_name}
+                        {getCategoryNames(activity.activity_category_ids) || activity.activity_name}
                       </div>
+                      {showEmotions && (
+                        <div className="text-xs leading-tight">
+                          {getEmotionsForActivity(activity).slice(0, 2).map(e => e.charAt(0).toUpperCase()).join("")}
+                        </div>
+                      )}
                       {showAlters && activity.fronting_alter_ids?.length > 0 && (
                         <div className="flex gap-0.5 justify-center flex-wrap">
                           {activity.fronting_alter_ids.slice(0, 4).map((alterId) => {
