@@ -3,10 +3,11 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { format, parseISO } from "date-fns";
 
 const COLORS = {
-  emotional_misery: "#ef4444",
-  joy: "#10b981",
-  physical_misery: "#f59e0b",
-  urge_self_harm: "#db2777",
+  avg_emotional_misery: "#ef4444",
+  avg_joy: "#10b981",
+  avg_physical_misery: "#f59e0b",
+  avg_urge_self_harm: "#db2777",
+  total_skills: "#8b5cf6",
 };
 
 export default function MetricFluctuationsChart({ dailyAggregates, metrics = ["avg_emotional_misery", "avg_joy"] }) {
