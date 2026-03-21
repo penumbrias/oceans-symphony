@@ -22,8 +22,8 @@ export default function ActivityTimeRangeModal({
   frontingHistory,
   onSave,
 }) {
-  const [activityName, setActivityName] = useState("");
-  const [category, setCategory] = useState("other");
+  const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
+  const [activityDuration, setActivityDuration] = useState("");
   const [color, setColor] = useState("#8B5CF6");
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [notes, setNotes] = useState("");
