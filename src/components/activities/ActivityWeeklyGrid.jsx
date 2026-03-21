@@ -77,11 +77,24 @@ export default function ActivityWeeklyGrid({
   };
 
   return (
-    <div className="overflow-x-auto">
-      <div className="inline-grid gap-0 border border-border rounded-lg overflow-hidden">
-        {/* Header row */}
-        <div className="grid grid-cols-[80px_repeat(7,120px)] gap-0 bg-card border-b border-border">
-          <div className="bg-muted/50 p-2"></div>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowAlters(!showAlters)}
+          className="gap-2"
+        >
+          {showAlters ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {showAlters ? "Hide" : "Show"} Alters
+        </Button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <div className="inline-grid gap-0 border border-border rounded-lg overflow-hidden">
+          {/* Header row */}
+          <div className="grid grid-cols-[80px_repeat(7,120px)] gap-0 bg-card border-b border-border">
+            <div className="bg-muted/50 p-2"></div>
           {weekDays.map((date) => {
             const stats = getDayStats(date);
             return (
