@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Home, Users, Settings, Sparkles, Clock, BarChart2, BookOpen, ClipboardList } from "lucide-react";
+import { Home, Users, Settings, Sparkles, Clock, BarChart2, BookOpen, ClipboardList, CheckSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
