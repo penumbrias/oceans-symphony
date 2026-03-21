@@ -8,40 +8,88 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, BookOpen } from "lucide-react";
 
-function buildTemplate(date) {
-  return `## Switch Log (${format(date, "MMMM d, yyyy · h:mm a")})
+const SYMPTOMS = [
+  { key: "anxiety", label: "Anxiety / worry" },
+  { key: "reactivity", label: "Emotional reactivity" },
+  { key: "dissociation", label: "Dissociation (DP/DR)" },
+  { key: "memory", label: "Memory gaps" },
+  { key: "tension", label: "Physical tension" },
+];
 
-**What triggered the switch?**
-- 
+function SymptomSlider({ label, value, onChange }) {
+  const color =
+    value <= 3 ? "bg-green-400" : value <= 6 ? "bg-yellow-400" : "bg-red-400";
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-foreground">{label}</span>
+        <span className={`font-semibold text-sm px-2 py-0.5 rounded-full text-white ${color}`}>
+          {value}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={10}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-primary h-2 cursor-pointer"
+      />
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>0</span>
+        <span>5</span>
+        <span>10</span>
+      </div>
+    </div>
+  );
+}
+
+function buildContent({ trigger, before, after, symptoms, notes }) {
+  const symptomLines = SYMPTOMS.map(
+    (s) => `- ${s.label}: **${symptoms[s.key]}/10**`
+  ).join("\n");
+
+  return `**What triggered the switch?**
+${trigger || "—"}
 
 **How were you feeling before?**
-- 
+${before || "—"}
 
 **How were you feeling after?**
-- 
+${after || "—"}
 
-### Symptoms (0-10)
-- Anxiety / worry:
-- Emotional reactivity:
-- Dissociation (DP/DR):
-- Memory gaps:
-- Physical tension:
+### Symptoms (0–10)
+${symptomLines}
 
 ### Notes
-- `;
+${notes || "—"}`;
 }
 
 export default function SwitchJournalModal({ open, onClose, sessionId, authorAlterId }) {
   const now = new Date();
   const [title, setTitle] = useState(`Switch Log — ${format(now, "MMM d, yyyy")}`);
-  const [content, setContent] = useState(buildTemplate(now));
+  const [trigger, setTrigger] = useState("");
+  const [before, setBefore] = useState("");
+  const [after, setAfter] = useState("");
+  const [symptoms, setSymptoms] = useState({
+    anxiety: 0,
+    reactivity: 0,
+    dissociation: 0,
+    memory: 0,
+    tension: 0,
+  });
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const setSymptom = (key, val) => setSymptoms((s) => ({ ...s, [key]: val }));
 
   const handleSave = async () => {
     setSaving(true);
+    const content = buildContent({ trigger, before, after, symptoms, notes });
     await base44.entities.JournalEntry.create({
       title,
-      content,
+      content: `## ${title} (${format(now, "MMMM d, yyyy · h:mm a")})\n\n${content}`,
       entry_type: "switch_log",
       tags: ["switch"],
       author_alter_id: authorAlterId || "",
@@ -55,7 +103,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-xl max-h-[90vh] flex flex-col overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-primary" />
@@ -63,21 +111,68 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
           </DialogTitle>
         </DialogHeader>
 
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Entry title"
-          className="text-sm font-medium"
-        />
+        <div className="space-y-4 flex-1">
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Entry title"
+            className="font-medium"
+          />
 
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="flex-1 font-mono text-sm resize-none min-h-[380px]"
-          placeholder="Write your switch journal..."
-        />
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">What triggered the switch?</label>
+            <Textarea
+              value={trigger}
+              onChange={(e) => setTrigger(e.target.value)}
+              placeholder="e.g. loud noise, stressful conversation..."
+              className="resize-none min-h-[60px] text-sm"
+            />
+          </div>
 
-        <div className="flex gap-2 pt-2 border-t border-border/50">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">How were you feeling before?</label>
+            <Textarea
+              value={before}
+              onChange={(e) => setBefore(e.target.value)}
+              placeholder="Emotional state before the switch..."
+              className="resize-none min-h-[60px] text-sm"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">How were you feeling after?</label>
+            <Textarea
+              value={after}
+              onChange={(e) => setAfter(e.target.value)}
+              placeholder="Emotional state after the switch..."
+              className="resize-none min-h-[60px] text-sm"
+            />
+          </div>
+
+          <div className="space-y-3 rounded-lg bg-muted/40 p-4 border border-border/50">
+            <p className="text-sm font-semibold text-foreground">Symptoms (0–10)</p>
+            {SYMPTOMS.map((s) => (
+              <SymptomSlider
+                key={s.key}
+                label={s.label}
+                value={symptoms[s.key]}
+                onChange={(val) => setSymptom(s.key, val)}
+              />
+            ))}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-foreground">Notes</label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Anything else to note..."
+              className="resize-none min-h-[60px] text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-3 border-t border-border/50 mt-2">
           <Button variant="outline" onClick={onClose} className="flex-1">
             Skip
           </Button>
