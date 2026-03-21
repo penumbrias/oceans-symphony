@@ -219,6 +219,18 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           ))}
         </div>
 
+        <div className="flex items-center gap-2 pt-1">
+          <Checkbox
+            id="journal-switch"
+            checked={journalSwitch}
+            onCheckedChange={setJournalSwitch}
+          />
+          <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+            <BookOpen className="w-3.5 h-3.5" />
+            Journal this switch?
+          </label>
+        </div>
+
         <div className="flex gap-2 pt-2 border-t border-border/50">
           {currentSession && (
             <Button variant="outline" onClick={handleEndFront} disabled={saving} className="flex-1">
@@ -232,5 +244,14 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
         </div>
       </DialogContent>
     </Dialog>
+
+    {showJournalModal && (
+      <SwitchJournalModal
+        open={showJournalModal}
+        onClose={() => { setShowJournalModal(false); onClose(); }}
+        sessionId={newSessionId}
+        authorAlterId={primaryId}
+      />
+    )}
   );
 }
