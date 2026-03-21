@@ -21,27 +21,56 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
           start_time: new Date().toISOString(),
           is_active: true,
         });
+        toast.success(`${alter.name} is now fronting!`);
       } else {
-        // Add to current session if not already there
+        // Toggle fronting status
         const session = activeSessions[0];
         const allFronters = new Set([session.primary_alter_id, ...session.co_fronter_ids]);
         
-        if (!allFronters.has(alter.id)) {
+        if (allFronters.has(alter.id)) {
+          // Remove from front
+          allFronters.delete(alter.id);
+          
+          if (allFronters.size === 0) {
+            // Clear front if no one left
+            await base44.entities.FrontingSession.update(session.id, {
+              is_active: false,
+              end_time: new Date().toISOString(),
+            });
+            toast.success(`${alter.name} removed from front`);
+          } else {
+            // Update session with remaining fronters
+            const newPrimary = Array.from(allFronters)[0];
+            const newCoFronters = Array.from(allFronters).filter(id => id !== newPrimary);
+            
+            await base44.entities.FrontingSession.update(session.id, {
+              primary_alter_id: newPrimary,
+              co_fronter_ids: newCoFronters,
+            });
+            toast.success(`${alter.name} removed from front`);
+          }
+        } else {
+          // Add to front
           allFronters.add(alter.id);
           const newCoFronters = Array.from(allFronters).filter(id => id !== session.primary_alter_id);
           
           await base44.entities.FrontingSession.update(session.id, {
             co_fronter_ids: newCoFronters,
           });
+          toast.success(`${alter.name} added to front!`);
         }
       }
 
-      toast.success(`${alter.name} added to front!`);
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     } catch (err) {
-      toast.error(err.message || "Failed to add to front");
+      toast.error(err.message || "Failed to update front");
     }
+  };
+
+  const isFronting = (alterId) => {
+    if (!currentSession) return false;
+    return currentSession.primary_alter_id === alterId || currentSession.co_fronter_ids?.includes(alterId);
   };
 
   const handleMouseDown = (alter) => {
