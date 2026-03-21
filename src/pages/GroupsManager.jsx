@@ -14,6 +14,7 @@ export default function GroupsManager() {
   const [creatingParentId, setCreatingParentId] = useState(null);
   const [newGroupName, setNewGroupName] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [editingGroup, setEditingGroup] = useState(null);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
