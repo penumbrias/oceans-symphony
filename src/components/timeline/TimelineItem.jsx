@@ -87,98 +87,99 @@ export default function TimelineItem({ item, alters, allItems }) {
 
   if (item.type === "switch") {
     const switchArray = Array.isArray(item.data) ? item.data : [item.data];
-    const durationMins = getSwitchDuration;
-    const durationLabel = durationMins
-      ? durationMins < 60
-        ? `${durationMins}m`
-        : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
-      : "Active";
-
-    // Determine if we should expand by default (has co-fronters, notes, or emotions tied to this time)
-    const hasDetails = switchArray.some((s) => (s.co_fronter_ids?.length > 0 || s.note));
-    const shouldAutoExpand = hasDetails || item.isConcurrent;
 
     return (
       <div>
-        {/* Compact view - just avatars */}
-        <div className="flex items-end gap-2 pb-2 cursor-pointer" onClick={() => setExpandedSwitch(!expandedSwitch)}>
-          {/* Avatar stack */}
-          <div className="flex items-end gap-1">
-            {switchArray.map((switchRecord, idx) => {
-              const alter = alters.find((a) => a.id === switchRecord.primary_alter_id);
-              return (
-                <div key={idx} className="flex flex-col items-center group">
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
-                    style={{ backgroundColor: alter?.color || "#9333ea" }}
-                    title={getAlterName(switchRecord.primary_alter_id)}
-                  >
-                    {alter?.avatar_url ? (
-                      <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase()}</span>
-                    )}
-                  </div>
-                  {/* Vertical line (duration indicator) */}
+        {/* Horizontal row of concurrent alters with individual duration lines */}
+        <div className="flex gap-0 pb-2">
+          {switchArray.map((switchRecord, idx) => {
+            const alter = alters.find((a) => a.id === switchRecord.primary_alter_id);
+            
+            // Calculate duration for this specific alter
+            const startTime = new Date(switchRecord.start_time);
+            const endTime = switchRecord.endTime ? new Date(switchRecord.endTime) : null;
+            const durationMins = endTime ? differenceInMinutes(endTime, startTime) : null;
+            
+            return (
+              <div key={idx} className="flex flex-col items-center group">
+                {/* Avatar icon */}
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
+                  style={{ backgroundColor: alter?.color || "#9333ea" }}
+                  title={getAlterName(switchRecord.primary_alter_id)}
+                  onClick={() => setExpandedSwitch(!expandedSwitch)}
+                >
+                  {alter?.avatar_url ? (
+                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase()}</span>
+                  )}
+                </div>
+                
+                {/* Vertical duration line */}
+                {durationMins && (
                   <div
                     className="w-0.5 mt-0.5"
                     style={{
                       backgroundImage: `linear-gradient(to bottom, ${alter?.color || "#9333ea"}, ${alter?.color || "#9333ea"}80)`,
-                      height: durationMins ? `${Math.min(durationMins / 6, 100)}px` : "30px",
+                      height: `${Math.max(durationMins / 6, 20)}px`,
                     }}
                   />
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Time + duration + expand indicator */}
-          <div className="pb-1">
+                )}
+              </div>
+            );
+          })}
+          
+          {/* Time label */}
+          <div className="ml-2 pt-1">
             <p className="text-xs text-muted-foreground font-medium">
               {format(new Date(item.timestamp), "h:mm a")}
             </p>
-            {!shouldAutoExpand && !expandedSwitch && (
-              <p className="text-xs text-muted-foreground">{durationLabel}</p>
-            )}
-            {(hasDetails || item.isConcurrent) && (
-              <div className="text-muted-foreground">
-                {expandedSwitch ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </div>
-            )}
           </div>
         </div>
 
         {/* Expanded details */}
-        {(expandedSwitch || shouldAutoExpand) && (
-          <div className="ml-12 space-y-2 mb-3 text-xs">
-            {switchArray.map((switchRecord, idx) => (
-              <div key={idx} className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded-full border border-border flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: getAlterColor(switchRecord.primary_alter_id) }}
-                  >
-                    <span className="text-xs font-bold text-white">
-                      {getAlterName(switchRecord.primary_alter_id).charAt(0)}
-                    </span>
-                  </div>
-                  <span className="font-semibold">{getAlterName(switchRecord.primary_alter_id)}</span>
-                  <span className="text-muted-foreground">{durationLabel}</span>
-                </div>
-                {switchRecord.co_fronter_ids?.length > 0 && (
-                  <div className="flex gap-1.5 ml-8 flex-wrap">
-                    {switchRecord.co_fronter_ids.map((alterId) => (
-                      <span key={alterId} className="px-2 py-0.5 rounded-full text-white text-center" style={{ backgroundColor: getAlterColor(alterId) }}>
-                        {getAlterName(alterId)}
+        {expandedSwitch && (
+          <div className="ml-4 space-y-2 mb-3 text-xs bg-muted/30 rounded p-2">
+            {switchArray.map((switchRecord, idx) => {
+              const durationMins = switchRecord.endTime 
+                ? differenceInMinutes(new Date(switchRecord.endTime), new Date(switchRecord.start_time))
+                : null;
+              const durationLabel = durationMins
+                ? durationMins < 60
+                  ? `${durationMins}m`
+                  : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
+                : "Active";
+
+              return (
+                <div key={idx} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full border border-border flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: getAlterColor(switchRecord.primary_alter_id) }}
+                    >
+                      <span className="text-xs font-bold text-white">
+                        {getAlterName(switchRecord.primary_alter_id).charAt(0)}
                       </span>
-                    ))}
+                    </div>
+                    <span className="font-semibold">{getAlterName(switchRecord.primary_alter_id)}</span>
+                    <span className="text-muted-foreground">{durationLabel}</span>
                   </div>
-                )}
-                {switchRecord.note && (
-                  <p className="text-muted-foreground italic ml-8">{switchRecord.note}</p>
-                )}
-              </div>
-            ))}
+                  {switchRecord.co_fronter_ids?.length > 0 && (
+                    <div className="flex gap-1.5 ml-8 flex-wrap">
+                      {switchRecord.co_fronter_ids.map((alterId) => (
+                        <span key={alterId} className="px-2 py-0.5 rounded-full text-white text-center text-xs" style={{ backgroundColor: getAlterColor(alterId) }}>
+                          {getAlterName(alterId)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {switchRecord.note && (
+                    <p className="text-muted-foreground italic ml-8">{switchRecord.note}</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
