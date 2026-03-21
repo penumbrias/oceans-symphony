@@ -2,12 +2,18 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { subDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { subDays, isWithinInterval, startOfDay, endOfDay, parseISO } from "date-fns";
 import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer } from "lucide-react";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
 import AlterStatRow from "@/components/analytics/AlterStatRow";
 import ActivityHeatmap from "@/components/analytics/ActivityHeatmap";
 import TimeOfDayFronters from "@/components/analytics/TimeOfDayFronters";
+import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
+
+const MAIN_TABS = [
+  { id: "alters", label: "System Members" },
+  { id: "diary", label: "Diary Cards" },
+];
 
 const MODES = [
   { id: "total", label: "Total", icon: Clock, description: "Total fronting times" },
@@ -59,6 +65,7 @@ function computeStats(sessions, alters, from, to) {
 }
 
 export default function Analytics() {
+  const [mainTab, setMainTab] = useState("alters");
   const [from, setFrom] = useState(subDays(new Date(), 30));
   const [to, setTo] = useState(new Date());
   const [mode, setMode] = useState("total");
@@ -73,6 +80,17 @@ export default function Analytics() {
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
+
+  const { data: cards = [] } = useQuery({
+    queryKey: ["diaryCards"],
+    queryFn: () => base44.entities.DiaryCard.list("-created_date", 500),
+  });
+
+  const altersById = useMemo(() => {
+    const map = {};
+    alters.forEach(a => { map[a.id] = a; });
+    return map;
+  }, [alters]);
 
   const { alterMap, filtered } = useMemo(
     () => computeStats(sessions, alters, from, to),
@@ -115,14 +133,31 @@ export default function Analytics() {
           <h1 className="font-display text-3xl font-semibold text-foreground">Analytics</h1>
         </div>
         <p className="text-muted-foreground text-sm">
-          {totalSessions} session{totalSessions !== 1 ? "s" : ""} · {uniqueFronters} member{uniqueFronters !== 1 ? "s" : ""} fronted
+          Track system and wellness data over time
         </p>
       </motion.div>
 
-      {/* Date Range */}
-      <div className="mb-5">
-        <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+      {/* Main Tabs */}
+      <div className="flex gap-1 bg-muted/50 rounded-xl p-1 mb-5">
+        {MAIN_TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setMainTab(t.id)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+              mainTab === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      {mainTab === "alters" && (
+        <>
+          {/* Date Range */}
+          <div className="mb-5">
+            <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+          </div>
 
       {/* Top tabs */}
       <div className="flex gap-1 bg-muted/50 rounded-xl p-1 mb-5">
@@ -190,6 +225,12 @@ export default function Analytics() {
 
       {topTab === "timeofday" && (
         <TimeOfDayFronters sessions={filtered} alters={alters} />
+      )}
+        </>
+      )}
+
+      {mainTab === "diary" && (
+        <DiaryAnalytics cards={cards} altersById={altersById} />
       )}
     </div>
   );
