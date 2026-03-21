@@ -119,16 +119,33 @@ export default function GroupsManager() {
                 onToggleExpanded={toggleExpanded}
                 onDelete={handleDeleteGroup}
                 onCreateChild={setCreatingParentId}
+                onEdit={setEditingGroup}
+                onMoveUp={(id) => handleMoveGroup(id, "up")}
+                onMoveDown={(id) => handleMoveGroup(id, "down")}
                 creatingParentId={creatingParentId}
                 newGroupName={newGroupName}
                 onNewGroupNameChange={setNewGroupName}
                 onCreateGroup={handleCreateGroup}
                 deletingId={deletingId}
                 level={0}
+                parentId={null}
               />
             ))
           )}
         </div>
+
+        {/* Edit Modal */}
+        <GroupEditModal
+          group={editingGroup}
+          allGroups={allGroups}
+          isOpen={!!editingGroup}
+          onClose={() => setEditingGroup(null)}
+          onSave={() => {
+            setEditingGroup(null);
+            queryClient.invalidateQueries({ queryKey: ["groups"] });
+            toast.success("Group updated!");
+          }}
+        />
 
         {/* Create Root Group */}
         {creatingParentId === null && (
