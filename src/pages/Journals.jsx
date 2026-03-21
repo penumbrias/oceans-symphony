@@ -60,10 +60,10 @@ export default function Journals() {
   }, [entries]);
 
   const allFolders = useMemo(() => {
-    const folders = new Set();
+    const folders = new Set(extraFolders);
     entries.forEach((e) => { if (e.folder) folders.add(e.folder); });
     return [...folders];
-  }, [entries]);
+  }, [entries, extraFolders]);
 
   const filtered = useMemo(() => {
     return entries.filter((e) => {
