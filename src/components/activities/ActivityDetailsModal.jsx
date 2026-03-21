@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,28 +22,19 @@ function getContrastColor(hex) {
 }
 
 export default function ActivityDetailsModal({ isOpen, onClose, activity, alters, onSave }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [activityName, setActivityName] = useState(activity?.activity_name || "");
-  const [category, setCategory] = useState(activity?.category || "other");
-  const [color, setColor] = useState(activity?.color || "#8B5CF6");
-  const [selectedAlters, setSelectedAlters] = useState(activity?.fronting_alter_ids || []);
-  const [notes, setNotes] = useState(activity?.notes || "");
+  const [editingId, setEditingId] = useState(null);
+  const [editData, setEditData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const { data: activityCategories = [] } = useQuery({
-    queryKey: ["activityCategories"],
-    queryFn: () => base44.entities.ActivityCategory.list(),
+  // Handle both single activity and array of activities
+  const activities = Array.isArray(activity) ? activity : activity ? [activity] : [];
+
+  const { data: emotionCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns"],
+    queryFn: () => base44.entities.EmotionCheckIn.list(),
   });
 
-  // Get this activity's alters
-  const activityAlters = useMemo(() => {
-    return (activity?.fronting_alter_ids || [])
-      .map(id => alters.find(a => a.id === id))
-      .filter(Boolean);
-  }, [activity, alters]);
-
-  if (!activity) {
+  if (activities.length === 0) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-md">
@@ -55,38 +46,37 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     );
   }
 
-  const duration = Math.round((activity.duration_minutes || 0) / 60 * 10) / 10;
-  const startTime = new Date(activity.timestamp);
-  const endTime = new Date(startTime.getTime() + (activity.duration_minutes || 0) * 60000);
-
-  const handleToggleAlter = (alterId) => {
-    setSelectedAlters((prev) =>
-      prev.includes(alterId)
-        ? prev.filter((id) => id !== alterId)
-        : [...prev, alterId]
-    );
+  const getEmotionsForActivity = (act) => {
+    const emotionCheckIn = emotionCheckIns.find(e => {
+      const checkInTime = new Date(e.timestamp);
+      const actTime = new Date(act.timestamp);
+      return Math.abs(checkInTime - actTime) < 300000;
+    });
+    return emotionCheckIn?.emotions || [];
   };
 
-  const handleSave = async () => {
-    if (!activityName.trim()) {
+  const handleEdit = (act) => {
+    setEditingId(act.id);
+    setEditData({
+      activity_name: act.activity_name,
+      color: act.color,
+      fronting_alter_ids: act.fronting_alter_ids || [],
+      notes: act.notes || "",
+    });
+  };
+
+  const handleSave = async (actId) => {
+    if (!editData.activity_name.trim()) {
       toast.error("Activity name is required");
       return;
     }
 
     setIsLoading(true);
     try {
-      await base44.entities.Activity.update(activity.id, {
-        activity_name: activityName,
-        category,
-        color,
-        fronting_alter_ids: selectedAlters,
-        notes: notes || null,
-      });
-
+      await base44.entities.Activity.update(actId, editData);
       toast.success("Activity updated!");
-      setIsEditing(false);
+      setEditingId(null);
       onSave?.();
-      onClose();
     } catch (err) {
       toast.error(err.message || "Failed to update activity");
     } finally {
@@ -94,20 +84,29 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (actId) => {
     if (!confirm("Delete this activity?")) return;
 
     setIsLoading(true);
     try {
-      await base44.entities.Activity.delete(activity.id);
+      await base44.entities.Activity.delete(actId);
       toast.success("Activity deleted");
       onSave?.();
-      onClose();
+      if (activities.length === 1) onClose();
     } catch (err) {
       toast.error(err.message || "Failed to delete activity");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleToggleAlter = (alterId) => {
+    setEditData((prev) => ({
+      ...prev,
+      fronting_alter_ids: prev.fronting_alter_ids.includes(alterId)
+        ? prev.fronting_alter_ids.filter((id) => id !== alterId)
+        : [...prev.fronting_alter_ids, alterId],
+    }));
   };
 
   return (
@@ -117,258 +116,203 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
           <DialogTitle>Activity Details</DialogTitle>
         </DialogHeader>
 
-        {!isEditing ? (
-           // View mode
-           <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-             {/* Time and Duration */}
-             <div className="space-y-2 text-sm pb-3 border-b border-border/50">
-               <div className="flex justify-between">
-                 <span className="text-muted-foreground">Time</span>
-                 <span className="font-medium">
-                   {format(startTime, "MMM d, yyyy • HH:mm")} - {format(endTime, "HH:mm")}
-                 </span>
-               </div>
-               <div className="flex justify-between">
-                 <span className="text-muted-foreground">Duration</span>
-                 <span className="font-medium">{duration}h</span>
-               </div>
-             </div>
+        <div className="space-y-6">
+          {activities.map((act) => {
+            const isEditing = editingId === act.id;
+            const duration = Math.round((act.duration_minutes || 0) / 60 * 10) / 10;
+            const startTime = new Date(act.timestamp);
+            const endTime = new Date(startTime.getTime() + (act.duration_minutes || 0) * 60000);
+            const activityAlters = (act.fronting_alter_ids || [])
+              .map(id => alters.find(a => a.id === id))
+              .filter(Boolean);
 
-             {/* Emotions */}
-             {activity.emotions && activity.emotions.length > 0 && (
-               <div>
-                 <p className="text-xs text-muted-foreground font-semibold mb-2">Emotions</p>
-                 <div className="flex flex-wrap gap-1.5">
-                   {activity.emotions.map((emotion, idx) => (
-                     <span
-                       key={idx}
-                       className="px-2.5 py-1 bg-accent/20 text-accent-foreground rounded-full text-xs font-medium"
-                     >
-                       {emotion}
-                     </span>
-                   ))}
-                 </div>
-               </div>
-             )}
+            return (
+              <div key={act.id} className="space-y-3 pb-4 border-b border-border/50 last:border-b-0">
+                {!isEditing ? (
+                  <>
+                    {/* View Mode */}
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Time</span>
+                        <span className="font-medium">
+                          {format(startTime, "MMM d, yyyy • HH:mm")} - {format(endTime, "HH:mm")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Duration</span>
+                        <span className="font-medium">{duration}h</span>
+                      </div>
+                    </div>
 
-             {/* Fronting Alters */}
-             {activityAlters.length > 0 && (
-               <div>
-                 <p className="text-xs text-muted-foreground font-semibold mb-2">Fronting Alters</p>
-                 <div className="flex flex-wrap gap-1.5">
-                   {activityAlters.map((alter) => (
-                     <div
-                       key={alter.id}
-                       className="px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2"
-                       style={{ borderColor: alter.color }}
-                     >
-                       {alter.avatar_url && (
-                         <img
-                           src={alter.avatar_url}
-                           alt={alter.name}
-                           className="w-4 h-4 rounded-full object-cover"
-                         />
-                       )}
-                       <span>{alter.alias || alter.name}</span>
-                     </div>
-                   ))}
-                 </div>
-               </div>
-             )}
+                    {/* Emotions */}
+                    {getEmotionsForActivity(act).length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold mb-2">Emotions</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {getEmotionsForActivity(act).map((emotion, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2.5 py-1 bg-accent/20 text-accent-foreground rounded-full text-xs font-medium"
+                            >
+                              {emotion}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-             {/* Activity Name */}
-             <div>
-               <p className="text-xs text-muted-foreground font-semibold mb-2">Activity</p>
-               <div
-                 className="rounded-lg p-3 text-sm font-medium text-center"
-                 style={{
-                   backgroundColor: activity.color,
-                   color: getContrastColor(activity.color),
-                 }}
-               >
-                 {activity.activity_name}
-               </div>
-             </div>
+                    {/* Fronting Alters */}
+                    {activityAlters.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold mb-2">Fronting Alters</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {activityAlters.map((alter) => (
+                            <div
+                              key={alter.id}
+                              className="px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2"
+                              style={{ borderColor: alter.color }}
+                            >
+                              {alter.avatar_url && (
+                                <img
+                                  src={alter.avatar_url}
+                                  alt={alter.name}
+                                  className="w-4 h-4 rounded-full object-cover"
+                                />
+                              )}
+                              <span>{alter.alias || alter.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-             {/* Notes */}
-             {activity.notes && (
-               <div>
-                 <p className="text-xs text-muted-foreground font-semibold mb-2">Notes</p>
-                 <p className="text-sm bg-muted/30 rounded p-2">{activity.notes}</p>
-               </div>
-             )}
+                    {/* Activity Name */}
+                    <div>
+                      <p className="text-xs text-muted-foreground font-semibold mb-2">Activity</p>
+                      <div
+                        className="rounded-lg p-3 text-sm font-medium text-center"
+                        style={{
+                          backgroundColor: act.color,
+                          color: getContrastColor(act.color),
+                        }}
+                      >
+                        {act.activity_name}
+                      </div>
+                    </div>
 
-             {showColorPicker && (
-               <div className="border-t pt-4">
-                 <p className="text-xs text-muted-foreground mb-2">Change Color</p>
-                 <div className="flex gap-2">
-                   <input
-                     type="color"
-                     value={color}
-                     onChange={(e) => setColor(e.target.value)}
-                     className="w-12 h-9 rounded-md cursor-pointer border border-border"
-                   />
-                   <Input
-                     value={color}
-                     onChange={(e) => setColor(e.target.value)}
-                     placeholder="#8B5CF6"
-                     className="flex-1"
-                   />
-                 </div>
-               </div>
-             )}
+                    {/* Notes */}
+                    {act.notes && (
+                      <div>
+                        <p className="text-xs text-muted-foreground font-semibold mb-2">Notes</p>
+                        <p className="text-sm bg-muted/30 rounded p-2">{act.notes}</p>
+                      </div>
+                    )}
 
-             <div className="flex gap-2 pt-2">
-               <Button
-                 variant="outline"
-                 size="icon"
-                 onClick={() => setShowColorPicker(!showColorPicker)}
-                 title="Change color"
-               >
-                 <Palette className="w-4 h-4" />
-               </Button>
-               {showColorPicker && (
-                 <Button
-                   onClick={async () => {
-                     setIsLoading(true);
-                     try {
-                       await base44.entities.Activity.update(activity.id, { color });
-                       toast.success("Color updated!");
-                       setShowColorPicker(false);
-                       onSave?.();
-                     } catch (err) {
-                       toast.error(err.message || "Failed to update color");
-                     } finally {
-                       setIsLoading(false);
-                     }
-                   }}
-                   disabled={isLoading}
-                   className="flex-1"
-                 >
-                   Save Color
-                 </Button>
-               )}
-               {!showColorPicker && (
-                 <>
-                   <Button
-                     variant="outline"
-                     onClick={() => setIsEditing(true)}
-                     className="flex-1"
-                   >
-                     Edit
-                   </Button>
-                   <Button
-                     variant="destructive"
-                     size="icon"
-                     onClick={handleDelete}
-                     disabled={isLoading}
-                   >
-                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                   </Button>
-                 </>
-               )}
-             </div>
-           </div>
-        ) : (
-          // Edit mode
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Activity Name
-              </label>
-              <Input
-                value={activityName}
-                onChange={(e) => setActivityName(e.target.value)}
-                className="mt-1"
-              />
-            </div>
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleEdit(act)}
+                        className="flex-1"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleDelete(act.id)}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Edit Mode */}
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Activity Name</label>
+                        <Input
+                          value={editData.activity_name}
+                          onChange={(e) => setEditData({ ...editData, activity_name: e.target.value })}
+                          className="mt-1"
+                        />
+                      </div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground">
-                Category
-              </label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="play">Play</SelectItem>
-                  <SelectItem value="work">Work</SelectItem>
-                  <SelectItem value="art">Art</SelectItem>
-                  <SelectItem value="drawing">Drawing</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Color</label>
+                        <div className="flex gap-2 mt-1">
+                          <input
+                            type="color"
+                            value={editData.color}
+                            onChange={(e) => setEditData({ ...editData, color: e.target.value })}
+                            className="w-12 h-9 rounded-md cursor-pointer border border-border"
+                          />
+                          <Input
+                            value={editData.color}
+                            onChange={(e) => setEditData({ ...editData, color: e.target.value })}
+                            placeholder="#8B5CF6"
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
 
-            <div>
-              <label className="text-sm font-medium text-foreground">Color</label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-12 h-9 rounded-md cursor-pointer border border-border"
-                />
-                <Input
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  placeholder="#8B5CF6"
-                  className="flex-1"
-                />
+                      <div>
+                        <label className="text-sm font-medium text-foreground mb-2 block">
+                          Fronting Alters
+                        </label>
+                        <div className="space-y-2 max-h-40 overflow-y-auto border border-border rounded-lg p-3 bg-muted/20">
+                          {alters.map((alter) => (
+                            <div key={alter.id} className="flex items-center gap-2">
+                              <Checkbox
+                                checked={editData.fronting_alter_ids.includes(alter.id)}
+                                onCheckedChange={() => handleToggleAlter(alter.id)}
+                                id={`alter-${act.id}-${alter.id}`}
+                              />
+                              <label htmlFor={`alter-${act.id}-${alter.id}`} className="text-sm cursor-pointer flex-1">
+                                {alter.alias || alter.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Notes</label>
+                        <Textarea
+                          value={editData.notes}
+                          onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
+                          placeholder="Any notes..."
+                          className="mt-1 h-20"
+                        />
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditingId(null)}
+                          disabled={isLoading}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => handleSave(act.id)}
+                          disabled={isLoading}
+                          className="flex-1 bg-primary hover:bg-primary/90"
+                        >
+                          {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Fronting Alters
-              </label>
-              <div className="space-y-2 max-h-40 overflow-y-auto border border-border rounded-lg p-3 bg-muted/20">
-                {alters.map((alter) => (
-                  <div key={alter.id} className="flex items-center gap-2">
-                    <Checkbox
-                      checked={selectedAlters.includes(alter.id)}
-                      onCheckedChange={() => handleToggleAlter(alter.id)}
-                      id={`alter-${alter.id}`}
-                    />
-                    <label htmlFor={`alter-${alter.id}`} className="text-sm cursor-pointer flex-1">
-                      {alter.alias || alter.name}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-foreground">Notes</label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Any notes..."
-                className="mt-1 h-20"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsEditing(false)}
-                disabled={isLoading}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={isLoading}
-                className="flex-1 bg-primary hover:bg-primary/90"
-              >
-                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Save
-              </Button>
-            </div>
-          </div>
-        )}
+            );
+          })}
+        </div>
       </DialogContent>
     </Dialog>
   );
