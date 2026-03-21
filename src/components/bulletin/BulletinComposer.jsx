@@ -88,6 +88,13 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
           .map((label) => ({ label, votes: [] })),
       };
     }
+    if (showTodoList && todoItems.some((t) => t.trim())) {
+      const todoContent = "\n\n**To-do:**\n" + todoItems
+        .filter((t) => t.trim())
+        .map((t) => `- ${t}`)
+        .join("\n");
+      data.content = data.content + todoContent;
+    }
     await base44.entities.Bulletin.create(data);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
     toast.success("Bulletin posted!");
