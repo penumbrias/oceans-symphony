@@ -158,9 +158,11 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
         <div className="space-y-5">
           <MetricFluctuationsChart
             dailyAggregates={dailyAggregates}
-            metrics={["avg_emotional_misery", "avg_joy"]}
+            metrics={["avg_emotional_misery", "avg_joy", "avg_physical_misery", "avg_urge_self_harm", "total_skills"]}
           />
           <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
+          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_joy" />
+          <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_physical_misery" />
         </div>
       )}
       {activeTab === "dayofweek" && (
