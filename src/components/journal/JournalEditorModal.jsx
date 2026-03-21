@@ -140,32 +140,82 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
         </div>
 
         {/* Access control */}
-        <div className="border border-border/50 rounded-xl p-3 space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={restricted}
-              onChange={(e) => setRestricted(e.target.checked)}
-              className="rounded"
-            />
-            <Lock className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Restrict to specific alters</span>
-          </label>
+        <div className="border border-border/50 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setRestricted((v) => !v)}
+            className={`w-full flex items-center justify-between px-3 py-2.5 text-sm transition-colors ${
+              restricted ? "bg-primary/8 text-primary" : "text-muted-foreground hover:bg-muted/40"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Lock className="w-3.5 h-3.5" />
+              <span className="font-medium">Restrict Access</span>
+              {restricted && (allowedAlterIds.length + allowedGroupIds.length) > 0 && (
+                <span className="text-xs bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">
+                  {allowedAlterIds.length + allowedGroupIds.length} selected
+                </span>
+              )}
+            </span>
+            {restricted ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
           {restricted && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {activeAlters.map((a) => (
-                <button
-                  key={a.id}
-                  onClick={() => toggleAlter(a.id)}
-                  className={`text-xs px-2 py-1 rounded-full border transition-all ${
-                    allowedAlterIds.includes(a.id)
-                      ? "border-primary/60 bg-primary/10 text-primary"
-                      : "border-border/50 text-muted-foreground hover:border-border"
-                  }`}
-                >
-                  {a.name}
-                </button>
-              ))}
+            <div className="px-3 pb-3 pt-1 space-y-2 border-t border-border/40">
+              {/* Sub-tabs */}
+              <div className="flex gap-1 bg-muted/40 p-0.5 rounded-lg w-fit">
+                {[{ id: "alters", label: "Specific Alters", icon: Users }, { id: "groups", label: "Groups", icon: Folder }].map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setRestrictTab(id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                      restrictTab === id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="w-3 h-3" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Alters picker */}
+              {restrictTab === "alters" && (
+                <div className="flex flex-wrap gap-1.5">
+                  {activeAlters.length === 0 && <p className="text-xs text-muted-foreground">No alters found.</p>}
+                  {activeAlters.map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => toggleAlter(a.id)}
+                      className={`text-xs px-2 py-1 rounded-full border transition-all ${
+                        allowedAlterIds.includes(a.id)
+                          ? "border-primary/60 bg-primary/10 text-primary"
+                          : "border-border/50 text-muted-foreground hover:border-border"
+                      }`}
+                    >
+                      {a.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Groups picker */}
+              {restrictTab === "groups" && (
+                <div className="flex flex-wrap gap-1.5">
+                  {groups.length === 0 && <p className="text-xs text-muted-foreground">No groups found.</p>}
+                  {groups.map((g) => (
+                    <button
+                      key={g.id}
+                      onClick={() => toggleGroup(g.id)}
+                      className={`text-xs px-2 py-1 rounded-full border transition-all ${
+                        allowedGroupIds.includes(g.id)
+                          ? "border-primary/60 bg-primary/10 text-primary"
+                          : "border-border/50 text-muted-foreground hover:border-border"
+                      }`}
+                    >
+                      {g.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
