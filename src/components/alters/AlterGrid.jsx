@@ -7,7 +7,7 @@ import GroupFolderView from "./GroupFolderView";
 
 export default function AlterGrid({ alters }) {
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState("grid"); // "grid" | "groups"
+  const [viewMode, setViewMode] = useState("groups"); // "grid" | "groups"
   const [sortDir, setSortDir] = useState("asc"); // "asc" | "desc"
 
   const filtered = alters
