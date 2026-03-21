@@ -1,14 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { format, subDays } from "date-fns";
-import { Search, X } from "lucide-react";
+import { Search, X, ChevronRight } from "lucide-react";
 
 export default function CoFrontingAnalytics() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAlterId, setSelectedAlterId] = useState(null);
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontingSessions"],
@@ -20,166 +21,124 @@ export default function CoFrontingAnalytics() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const { data: groups = [] } = useQuery({
-    queryKey: ["groups"],
-    queryFn: () => base44.entities.Group.list(),
-  });
-
   const analytics = useMemo(() => {
-    const pairMap = new Map();
-    const durationMap = new Map();
-    const groupPairMap = new Map();
-    const groupDurationMap = new Map();
-    const alterStats = new Map();
+    const alterPairMap = new Map(); // "alterId1|alterId2" -> { count, duration }
+    const alterTotals = new Map(); // alterId -> { sessions, duration }
 
     alters.forEach((a) => {
-      alterStats.set(a.id, { name: a.name, sessions: 0, totalDuration: 0, avgDuration: 0 });
+      alterTotals.set(a.id, { sessions: 0, duration: 0 });
     });
 
     sessions.forEach((session) => {
-      const fronterId = session.primary_alter_id;
+      const primary = session.primary_alter_id;
       const coFronters = session.co_fronter_ids || [];
       const duration = session.end_time
         ? (new Date(session.end_time) - new Date(session.start_time)) / (1000 * 60)
         : 0;
 
-      if (fronterId && alterStats.has(fronterId)) {
-        const stats = alterStats.get(fronterId);
+      // Track primary fronter
+      if (primary && alterTotals.has(primary)) {
+        const stats = alterTotals.get(primary);
         stats.sessions += 1;
-        stats.totalDuration += duration;
+        stats.duration += duration;
       }
 
-      // Get groups for all fronting alters
-      const allFronters = [fronterId, ...coFronters];
-      const alterGroups = new Set();
-      allFronters.forEach((alterId) => {
-        const alter = alters.find((a) => a.id === alterId);
-        if (alter && alter.groups) {
-          alter.groups.forEach((g) => alterGroups.add(g.id));
-        }
-      });
-
-      // Track group pairs
-      if (alterGroups.size > 1) {
-        const groupArray = Array.from(alterGroups).sort();
-        for (let i = 0; i < groupArray.length; i++) {
-          for (let j = i + 1; j < groupArray.length; j++) {
-            const key = `${groupArray[i]}|${groupArray[j]}`;
-            groupPairMap.set(key, (groupPairMap.get(key) || 0) + 1);
-            groupDurationMap.set(key, (groupDurationMap.get(key) || 0) + duration);
+      // Track all fronting alters together
+      const allFronters = [primary, ...coFronters].filter(Boolean);
+      for (let i = 0; i < allFronters.length; i++) {
+        for (let j = i + 1; j < allFronters.length; j++) {
+          const key = [allFronters[i], allFronters[j]].sort().join("|");
+          if (!alterPairMap.has(key)) {
+            alterPairMap.set(key, { count: 0, duration: 0 });
           }
+          const pair = alterPairMap.get(key);
+          pair.count += 1;
+          pair.duration += duration;
         }
       }
-
-      if (coFronters.length > 0) {
-        coFronters.forEach((coId) => {
-          const key = [fronterId, coId].sort().join("|");
-          pairMap.set(key, (pairMap.get(key) || 0) + 1);
-          durationMap.set(key, (durationMap.get(key) || 0) + duration);
-        });
-      }
     });
 
-    alterStats.forEach((stats) => {
-      stats.avgDuration = stats.sessions > 0 ? Math.round(stats.totalDuration / stats.sessions) : 0;
-    });
-
-    const pairData = Array.from(pairMap.entries())
-      .map(([key, count]) => {
-        const [id1, id2] = key.split("|");
-        const alter1 = alters.find((a) => a.id === id1);
-        const alter2 = alters.find((a) => a.id === id2);
-        const totalDuration = durationMap.get(key);
+    // Get all alters sorted by sessions
+    const allAltersList = alters
+      .map((a) => {
+        const stats = alterTotals.get(a.id) || { sessions: 0, duration: 0 };
         return {
-          pair: `${alter1?.name || id1} + ${alter2?.name || id2}`,
-          id1,
-          id2,
-          frequency: count,
-          avgDuration: Math.round(totalDuration / count),
+          id: a.id,
+          name: a.name,
+          sessions: stats.sessions,
+          totalDuration: stats.duration,
+          avgDuration: stats.sessions > 0 ? Math.round(stats.duration / stats.sessions) : 0,
         };
       })
-      .sort((a, b) => b.frequency - a.frequency);
-
-    const alterDurationData = Array.from(alterStats.values())
       .filter((a) => a.sessions > 0)
-      .sort((a, b) => b.totalDuration - a.totalDuration)
-      .map((a) => ({
-        name: a.name,
-        avgDuration: a.avgDuration,
-        totalSessions: a.sessions,
-      }));
+      .sort((a, b) => b.sessions - a.sessions);
 
-    const last90Days = subDays(new Date(), 90);
-    const weeklyData = new Map();
+    // Get co-fronters for selected alter
+    let selectedAlterPairs = [];
+    if (selectedAlterId) {
+      selectedAlterPairs = Array.from(alterPairMap.entries())
+        .filter(([key]) => key.includes(selectedAlterId))
+        .map(([key, data]) => {
+          const [id1, id2] = key.split("|");
+          const otherId = id1 === selectedAlterId ? id2 : id1;
+          const otherAlter = alters.find((a) => a.id === otherId);
+          return {
+            alterId: otherId,
+            name: otherAlter?.name || "Unknown",
+            frequency: data.count,
+            totalDuration: data.duration,
+            avgDuration: Math.round(data.duration / data.count),
+          };
+        })
+        .sort((a, b) => b.totalDuration - a.totalDuration);
+    }
+
+    // Trend data
+    const last30Days = subDays(new Date(), 30);
+    const trendMap = new Map();
 
     sessions.forEach((session) => {
       const sessionDate = new Date(session.start_time);
-      if (sessionDate >= last90Days) {
-        const weekKey = format(sessionDate, "MMM d");
-        const hasCofronters = (session.co_fronter_ids || []).length > 0;
-        const existing = weeklyData.get(weekKey) || { total: 0, coFront: 0 };
-        weeklyData.set(weekKey, {
-          total: existing.total + 1,
-          coFront: existing.coFront + (hasCofronters ? 1 : 0),
-        });
+      if (sessionDate >= last30Days) {
+        const dateKey = format(sessionDate, "MMM d");
+        const coFronters = (session.co_fronter_ids || []).length > 0;
+        if (!trendMap.has(dateKey)) {
+          trendMap.set(dateKey, { total: 0, coFront: 0 });
+        }
+        const existing = trendMap.get(dateKey);
+        existing.total += 1;
+        if (coFronters) existing.coFront += 1;
       }
     });
 
-    const trendData = Array.from(weeklyData.entries())
+    const trendData = Array.from(trendMap.entries())
       .map(([date, data]) => ({
         date,
         coFrontingSessions: data.coFront,
         totalSessions: data.total,
-      }))
-      .slice(-30);
+      }));
 
-    const groupPairData = Array.from(groupPairMap.entries())
-      .map(([key, count]) => {
-        const [id1, id2] = key.split("|");
-        const group1 = groups.find((g) => g.id === id1);
-        const group2 = groups.find((g) => g.id === id2);
-        const totalDuration = groupDurationMap.get(key);
-        return {
-          pair: `${group1?.name || id1} + ${group2?.name || id2}`,
-          frequency: count,
-          avgDuration: Math.round(totalDuration / count),
-        };
-      })
-      .sort((a, b) => b.frequency - a.frequency);
-
-    return { pairData, alterDurationData, trendData, groupPairData };
-  }, [sessions, alters, groups]);
-
-  const filteredPairs = useMemo(() => {
-    if (!searchQuery.trim()) return analytics.pairData;
-    const query = searchQuery.toLowerCase();
-    return analytics.pairData.filter((pair) => pair.pair.toLowerCase().includes(query));
-  }, [analytics.pairData, searchQuery]);
+    return { allAltersList, selectedAlterPairs, trendData };
+  }, [sessions, alters, selectedAlterId]);
 
   const filteredAlters = useMemo(() => {
-    if (!searchQuery.trim()) return analytics.alterDurationData;
+    if (!searchQuery.trim()) return analytics.allAltersList;
     const query = searchQuery.toLowerCase();
-    return analytics.alterDurationData.filter((alter) => alter.name.toLowerCase().includes(query));
-  }, [analytics.alterDurationData, searchQuery]);
-
-  const filteredGroupPairs = useMemo(() => {
-    if (!searchQuery.trim()) return analytics.groupPairData;
-    const query = searchQuery.toLowerCase();
-    return analytics.groupPairData.filter((pair) => pair.pair.toLowerCase().includes(query));
-  }, [analytics.groupPairData, searchQuery]);
+    return analytics.allAltersList.filter((a) => a.name.toLowerCase().includes(query));
+  }, [analytics.allAltersList, searchQuery]);
 
   return (
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Co-Fronting Analytics</h1>
-        <p className="text-muted-foreground mt-1">Track co-fronting patterns and session insights</p>
+        <p className="text-muted-foreground mt-1">Track co-fronting patterns and connections</p>
       </div>
 
       {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search alters or pairs..."
+          placeholder="Search alters..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-9 pr-9"
@@ -194,93 +153,78 @@ export default function CoFrontingAnalytics() {
         )}
       </div>
 
-      {/* Most Common Group Pairs */}
-      {filteredGroupPairs.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Most Common Co-Fronting Groups ({filteredGroupPairs.length})</h2>
-          <div className="space-y-3">
-            {filteredGroupPairs.map((pair, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
-                <div>
-                  <p className="font-medium text-sm">{pair.pair}</p>
-                </div>
-                <div className="flex gap-6 text-sm">
-                  <div className="text-right">
-                    <p className="text-muted-foreground text-xs">Times Together</p>
-                    <p className="font-semibold">{pair.frequency}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Alter List */}
+        <Card className="p-4">
+          <h2 className="text-lg font-semibold mb-4">Alters ({filteredAlters.length})</h2>
+          <div className="space-y-2">
+            {filteredAlters.map((alter) => (
+              <button
+                key={alter.id}
+                onClick={() => setSelectedAlterId(alter.id)}
+                className={`w-full text-left p-3 rounded-lg border transition-all ${
+                  selectedAlterId === alter.id
+                    ? "bg-primary/10 border-primary"
+                    : "bg-muted/30 border-border/50 hover:bg-muted/50"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{alter.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{alter.sessions} sessions</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-muted-foreground text-xs">Avg Duration</p>
-                    <p className="font-semibold">{pair.avgDuration} min</p>
-                  </div>
+                  {selectedAlterId === alter.id && <ChevronRight className="w-4 h-4 text-primary mt-1" />}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </Card>
-      )}
 
-      {/* Most Common Alter Pairs */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Most Common Co-Fronting Alter Pairs ({filteredPairs.length})</h2>
-        {filteredPairs.length > 0 ? (
-          <div className="space-y-3">
-            {filteredPairs.map((pair, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
-                <div>
-                  <p className="font-medium text-sm">{pair.pair}</p>
+        {/* Co-Fronters for Selected Alter */}
+        <Card className="p-4 lg:col-span-2">
+          {selectedAlterId ? (
+            <>
+              <h2 className="text-lg font-semibold mb-4">
+                Co-Fronters ({analytics.selectedAlterPairs.length})
+              </h2>
+              {analytics.selectedAlterPairs.length > 0 ? (
+                <div className="space-y-3">
+                  {analytics.selectedAlterPairs.map((pair, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedAlterId(pair.alterId)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{pair.name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Fronted together {pair.frequency} times
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Avg Duration</p>
+                          <p className="font-semibold text-sm">{pair.avgDuration} min</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex gap-6 text-sm">
-                  <div className="text-right">
-                    <p className="text-muted-foreground text-xs">Times Together</p>
-                    <p className="font-semibold">{pair.frequency}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-muted-foreground text-xs">Avg Duration</p>
-                    <p className="font-semibold">{pair.avgDuration} min</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            {searchQuery ? `No pairs found for "${searchQuery}"` : "No co-fronting data yet"}
-          </p>
-        )}
-      </Card>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  No co-fronting data for this alter yet
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p className="text-sm">Select an alter to view co-fronters</p>
+            </div>
+          )}
+        </Card>
+      </div>
 
-      {/* Average Session Duration by Alter */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Average Session Duration by Alter ({filteredAlters.length})</h2>
-        {filteredAlters.length > 0 ? (
-          <div className="space-y-3">
-            {filteredAlters.map((alter, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
-                <div>
-                  <p className="font-medium text-sm">{alter.name}</p>
-                </div>
-                <div className="flex gap-6 text-sm">
-                  <div className="text-right">
-                    <p className="text-muted-foreground text-xs">Total Sessions</p>
-                    <p className="font-semibold">{alter.totalSessions}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-muted-foreground text-xs">Avg Duration</p>
-                    <p className="font-semibold">{alter.avgDuration} min</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            {searchQuery ? `No alters found for "${searchQuery}"` : "No session data yet"}
-          </p>
-        )}
-      </Card>
-
-      {/* Co-Fronting Trend */}
+      {/* Trend */}
       {analytics.trendData.length > 0 && (
         <Card className="p-6">
           <h2 className="text-lg font-semibold mb-4">Co-Fronting Trend (Last 30 Days)</h2>
@@ -291,8 +235,21 @@ export default function CoFrontingAnalytics() {
               <YAxis />
               <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }} />
               <Legend />
-              <Line type="monotone" dataKey="coFrontingSessions" stroke="#a855f7" name="Co-Fronting Sessions" strokeWidth={2} />
-              <Line type="monotone" dataKey="totalSessions" stroke="#94a3b8" name="Total Sessions" strokeWidth={2} strokeDasharray="5 5" />
+              <Line
+                type="monotone"
+                dataKey="coFrontingSessions"
+                stroke="#a855f7"
+                name="Co-Fronting Sessions"
+                strokeWidth={2}
+              />
+              <Line
+                type="monotone"
+                dataKey="totalSessions"
+                stroke="#94a3b8"
+                name="Total Sessions"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+              />
             </LineChart>
           </ResponsiveContainer>
         </Card>
