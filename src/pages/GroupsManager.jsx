@@ -19,6 +19,13 @@ export default function GroupsManager() {
     queryFn: () => base44.entities.Group.list(),
   });
 
+  // Get root groups: those with no parent, empty parent, or "root" parent
+  const rootGroupIds = new Set(
+    allGroups
+      .filter((g) => !g.parent || g.parent === "" || g.parent === "root")
+      .map((g) => g.id)
+  );
+
   const rootGroups = allGroups
     .filter((g) => !g.parent || g.parent === "" || g.parent === "root")
     .sort((a, b) => (a.order || 0) - (b.order || 0));
