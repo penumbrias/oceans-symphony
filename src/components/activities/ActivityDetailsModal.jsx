@@ -140,149 +140,164 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         </DialogHeader>
 
         {!isEditing ? (
-          // View mode
-          <div className="space-y-4">
-            <div
-              className="rounded-lg p-4 text-center"
-              style={{
-                backgroundColor: color,
-                color: getContrastColor(color),
-              }}
-            >
-              <h3 className="text-lg font-bold">{activity.activity_name}</h3>
-              <p className="text-sm opacity-90 mt-1">{category}</p>
-            </div>
+           // View mode
+           <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+             {/* Time and Duration */}
+             <div className="space-y-2 text-sm pb-3 border-b border-border/50">
+               <div className="flex justify-between">
+                 <span className="text-muted-foreground">Time</span>
+                 <span className="font-medium">
+                   {format(startTime, "MMM d, yyyy • HH:mm")} - {format(endTime, "HH:mm")}
+                 </span>
+               </div>
+               <div className="flex justify-between">
+                 <span className="text-muted-foreground">Duration</span>
+                 <span className="font-medium">{duration}h</span>
+               </div>
+             </div>
 
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Time</span>
-                <span className="font-medium">
-                  {format(startTime, "MMM d, yyyy • HH:mm")} - {format(endTime, "HH:mm")}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Duration</span>
-                <span className="font-medium">{duration}h</span>
-              </div>
-            </div>
+             {/* Emotions */}
+             {emotionsForTime.length > 0 && (
+               <div>
+                 <p className="text-xs text-muted-foreground font-semibold mb-2">Emotions</p>
+                 <div className="flex flex-wrap gap-1.5">
+                   {emotionsForTime.map((emotion, idx) => (
+                     <span
+                       key={idx}
+                       className="px-2.5 py-1 bg-accent/20 text-accent-foreground rounded-full text-xs font-medium"
+                     >
+                       {emotion}
+                     </span>
+                   ))}
+                 </div>
+               </div>
+             )}
 
-            {activity.emotions && activity.emotions.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Emotions</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {activity.emotions.map((emotion, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 bg-accent/20 text-accent-foreground rounded-full text-xs font-medium"
-                    >
-                      {emotion}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+             {/* Alters Fronting */}
+             {altersFrontingAtTime.length > 0 && (
+               <div>
+                 <p className="text-xs text-muted-foreground font-semibold mb-2">Fronting Alters</p>
+                 <div className="flex flex-wrap gap-1.5">
+                   {altersFrontingAtTime.map((alter) => (
+                     <div
+                       key={alter.id}
+                       className="px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2"
+                       style={{ borderColor: alter.color }}
+                     >
+                       {alter.avatar_url && (
+                         <img
+                           src={alter.avatar_url}
+                           alt={alter.name}
+                           className="w-4 h-4 rounded-full object-cover"
+                         />
+                       )}
+                       <span>{alter.alias || alter.name}</span>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             )}
 
-            {activityAlters.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Fronting Alters</p>
-                <div className="space-y-1.5">
-                  {activityAlters.map((alter) => (
-                    <div
-                      key={alter.id}
-                      className="flex items-center gap-2 p-2 rounded-lg border border-border/50"
-                    >
-                      {alter.avatar_url && (
-                        <img
-                          src={alter.avatar_url}
-                          alt={alter.name}
-                          className="w-6 h-6 rounded-full object-cover"
-                        />
-                      )}
-                      <span className="text-sm font-medium">{alter.alias || alter.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+             {/* Activities as Pills */}
+             <div>
+               <p className="text-xs text-muted-foreground font-semibold mb-2">
+                 Activities ({activitiesForTime.length})
+               </p>
+               <div className="space-y-2">
+                 {activitiesForTime.map((act) => (
+                   <div
+                     key={act.id}
+                     className="rounded-lg p-3 text-sm font-medium text-center"
+                     style={{
+                       backgroundColor: act.color,
+                       color: getContrastColor(act.color),
+                     }}
+                   >
+                     {act.activity_name}
+                   </div>
+                 ))}
+               </div>
+             </div>
 
-            {activity.notes && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                <p className="text-sm bg-muted/30 rounded p-2">{activity.notes}</p>
-              </div>
-            )}
+             {/* Notes */}
+             {activity.notes && (
+               <div>
+                 <p className="text-xs text-muted-foreground font-semibold mb-2">Notes</p>
+                 <p className="text-sm bg-muted/30 rounded p-2">{activity.notes}</p>
+               </div>
+             )}
 
-            {showColorPicker && (
-              <div className="border-t pt-4">
-                <p className="text-xs text-muted-foreground mb-2">Change Color</p>
-                <div className="flex gap-2">
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="w-12 h-9 rounded-md cursor-pointer border border-border"
-                  />
-                  <Input
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    placeholder="#8B5CF6"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-            )}
+             {showColorPicker && (
+               <div className="border-t pt-4">
+                 <p className="text-xs text-muted-foreground mb-2">Change Color</p>
+                 <div className="flex gap-2">
+                   <input
+                     type="color"
+                     value={color}
+                     onChange={(e) => setColor(e.target.value)}
+                     className="w-12 h-9 rounded-md cursor-pointer border border-border"
+                   />
+                   <Input
+                     value={color}
+                     onChange={(e) => setColor(e.target.value)}
+                     placeholder="#8B5CF6"
+                     className="flex-1"
+                   />
+                 </div>
+               </div>
+             )}
 
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                title="Change color"
-              >
-                <Palette className="w-4 h-4" />
-              </Button>
-              {showColorPicker && (
-                <Button
-                  onClick={async () => {
-                    setIsLoading(true);
-                    try {
-                      await base44.entities.Activity.update(activity.id, { color });
-                      toast.success("Color updated!");
-                      setShowColorPicker(false);
-                      onSave?.();
-                    } catch (err) {
-                      toast.error(err.message || "Failed to update color");
-                    } finally {
-                      setIsLoading(false);
-                    }
-                  }}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  Save Color
-                </Button>
-              )}
-              {!showColorPicker && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsEditing(true)}
-                    className="flex-1"
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    onClick={handleDelete}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+             <div className="flex gap-2 pt-2">
+               <Button
+                 variant="outline"
+                 size="icon"
+                 onClick={() => setShowColorPicker(!showColorPicker)}
+                 title="Change color"
+               >
+                 <Palette className="w-4 h-4" />
+               </Button>
+               {showColorPicker && (
+                 <Button
+                   onClick={async () => {
+                     setIsLoading(true);
+                     try {
+                       await base44.entities.Activity.update(activity.id, { color });
+                       toast.success("Color updated!");
+                       setShowColorPicker(false);
+                       onSave?.();
+                     } catch (err) {
+                       toast.error(err.message || "Failed to update color");
+                     } finally {
+                       setIsLoading(false);
+                     }
+                   }}
+                   disabled={isLoading}
+                   className="flex-1"
+                 >
+                   Save Color
+                 </Button>
+               )}
+               {!showColorPicker && (
+                 <>
+                   <Button
+                     variant="outline"
+                     onClick={() => setIsEditing(true)}
+                     className="flex-1"
+                   >
+                     Edit
+                   </Button>
+                   <Button
+                     variant="destructive"
+                     size="icon"
+                     onClick={handleDelete}
+                     disabled={isLoading}
+                   >
+                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                   </Button>
+                 </>
+               )}
+             </div>
+           </div>
         ) : (
           // Edit mode
           <div className="space-y-4">
