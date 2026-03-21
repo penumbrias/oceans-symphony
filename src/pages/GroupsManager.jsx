@@ -54,9 +54,12 @@ export default function GroupsManager() {
     if (draggedGroupId === targetGroupId) return;
 
     try {
-      await base44.entities.Group.update(draggedGroupId, { parent: targetGroupId });
+      // If targetGroupId is null, move to root
+      const parent = targetGroupId === null ? "root" : targetGroupId;
+      await base44.entities.Group.update(draggedGroupId, { parent });
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       toast.success("Group moved!");
+      setSelectedGroupId(null);
     } catch (err) {
       toast.error(err.message || "Failed to move group");
     }
