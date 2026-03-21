@@ -7,7 +7,7 @@ import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
-import EmotionCheckInModal from "@/components/emotions/EmotionCheckInModal";
+import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 
 export default function Dashboard() {
   const [showEmotionModal, setShowEmotionModal] = useState(false);
@@ -52,7 +52,7 @@ export default function Dashboard() {
       <QuickNavMenu />
       <BulletinBoard alters={alters} currentAlterId={currentAlterId} />
 
-      <EmotionCheckInModal 
+      <QuickCheckInModal 
         isOpen={showEmotionModal} 
         onClose={() => setShowEmotionModal(false)} 
         alters={alters}
