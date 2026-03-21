@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff } from "lucide-react";
+import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useNavigate } from "react-router-dom";
 import AlterCard from "./AlterCard";
 import FolderGroupsSection from "./FolderGroupsSection.jsx";
 
