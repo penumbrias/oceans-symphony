@@ -55,10 +55,21 @@ export default function SystemCheckInPage() {
       return;
     }
 
+    const dataToSave = { ...formData };
+    const shouldCreateDiary = formData.create_diary_card;
+    delete dataToSave.create_diary_card; // Remove this field before saving
+
     if (currentCheckIn) {
-      updateMutation.mutate(formData);
+      updateMutation.mutate(dataToSave);
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(dataToSave);
+    }
+
+    // If user checked the diary card option, navigate to diary creation
+    if (shouldCreateDiary) {
+      setTimeout(() => {
+        navigate("/diary?create=true");
+      }, 500);
     }
   };
 
