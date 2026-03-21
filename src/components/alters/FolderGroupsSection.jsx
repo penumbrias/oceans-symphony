@@ -96,8 +96,9 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
     .filter((g) => {
       const parent = g.parent || "";
       if (currentGroupKey === null) return !parent || parent === "" || parent === "root";
-      // Check both the ID and sp_id for matching parent
-      return parent === currentGroupKey || (currentGroup && parent === currentGroup.sp_id);
+      // Check if parent matches currentGroup's id or sp_id
+      const currentGroupSPId = currentGroup?.sp_id;
+      return parent === currentGroupKey || parent === currentGroupSPId;
     })
     .sort((a, b) => {
       const cmp = (a.name || "").localeCompare(b.name || "");
