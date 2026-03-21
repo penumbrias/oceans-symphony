@@ -30,7 +30,7 @@ function avgOf(cards, getter) {
   return vals.length ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
 }
 
-export default function WellnessOverview({ filteredCards, allCards }) {
+export default function WellnessOverview({ filteredCards, allCards, dailyAggregates = [] }) {
   // Split into first half vs second half to show trajectory
   const mid = Math.floor(filteredCards.length / 2);
   const firstHalf = filteredCards.slice(0, mid);
@@ -64,11 +64,19 @@ export default function WellnessOverview({ filteredCards, allCards }) {
   const moodPrev = previous("overall_mood");
   const anxietyPrev = previous("anxiety");
 
+  // Daily averages (when multiple entries same day, they're aggregated)
+  const avgEmotionalMisery = dailyAggregates.length
+    ? +(dailyAggregates.reduce((sum, d) => sum + (d.avg_emotional_misery || 0), 0) / dailyAggregates.filter(d => d.avg_emotional_misery !== undefined).length).toFixed(1)
+    : null;
+  const avgJoy = dailyAggregates.length
+    ? +(dailyAggregates.reduce((sum, d) => sum + (d.avg_joy || 0), 0) / dailyAggregates.filter(d => d.avg_joy !== undefined).length).toFixed(1)
+    : null;
+
   return (
     <div className="space-y-5">
       {/* Key metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Entries logged" value={totalEntries} sub="in selected range" />
+        <StatCard label="Entries logged" value={totalEntries} sub={dailyAggregates.length > 0 ? `${dailyAggregates.length} days` : "in selected range"} />
         <div className="bg-card border border-border/50 rounded-xl p-4">
           <p className="text-xs text-muted-foreground mb-1">Avg mood</p>
           <div className="flex items-baseline gap-1">
@@ -86,13 +94,20 @@ export default function WellnessOverview({ filteredCards, allCards }) {
           <p className="text-xs text-muted-foreground mt-0.5">out of 5</p>
         </div>
         <div className="bg-card border border-border/50 rounded-xl p-4">
-          <p className="text-xs text-muted-foreground mb-1">Avg skills practiced</p>
-          <p className="text-2xl font-bold text-purple-500">
-            {avgOf(filteredCards, (c) => c.skills_practiced) ?? "—"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">per day</p>
+          <p className="text-xs text-muted-foreground mb-1">Avg emotional misery</p>
+          <p className="text-2xl font-bold text-orange-500">{avgEmotionalMisery ?? "—"}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">daily aggregate</p>
         </div>
       </div>
+
+      {/* Multi-entry info */}
+      {filteredCards.some((c, i, arr) => arr.filter(x => x.date === c.date).length > 1) && (
+        <div className="bg-accent/10 border border-accent rounded-xl p-3">
+          <p className="text-xs text-accent-foreground">
+            💡 <strong>Multiple entries detected.</strong> Metrics above are aggregated from individual entries on the same day, showing daily averages across all alters.
+          </p>
+        </div>
+      )}
 
       {/* All rating averages */}
       <div className="bg-card border border-border/50 rounded-xl p-4">
