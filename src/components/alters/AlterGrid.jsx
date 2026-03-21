@@ -8,7 +8,6 @@ import { useNavigate } from "react-router-dom";
 import AlterCard from "./AlterCard";
 import AlterGridView from "./AlterGridView";
 import FolderGroupsSection from "./FolderGroupsSection.jsx";
-import { useQuery as useQueryData } from "@tanstack/react-query";
 
 export default function AlterGrid({ alters, currentSession = null }) {
   const navigate = useNavigate();
