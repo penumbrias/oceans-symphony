@@ -12,14 +12,14 @@ import DailySectionPanel from "@/components/diary/DailySectionPanel";
 import AlterSelector from "@/components/diary/AlterSelector";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 
-const SECTIONS = [
-  { id: "emotions", emoji: "😊", title: "Emotions", subtitle: "Tap to log feelings" },
-  { id: "urges", emoji: "🆘", title: "Urges to", subtitle: "Rate the intensity" },
-  { id: "body_mind", emoji: "🌿", title: "Body + mind", subtitle: "Rate wellbeing" },
-  { id: "skills", emoji: "🧠", title: "Skills used", subtitle: "How many skills" },
-  { id: "medication", emoji: "💊", title: "Medication + safety", subtitle: "Rx meds + safety" },
-  { id: "notes", emoji: "📝", title: "Notes", subtitle: "Details + context" },
-  { id: "checklist", emoji: "🔲", title: "Symptoms Checklist", subtitle: "Symptoms, habits & more" },
+const DEFAULT_SECTIONS = [
+  { id: "emotions", emoji: "😊", title: "Emotions", subtitle: "Tap to log feelings", enabled: true },
+  { id: "urges", emoji: "🆘", title: "Urges to", subtitle: "Rate the intensity", enabled: true },
+  { id: "body_mind", emoji: "🌿", title: "Body + mind", subtitle: "Rate wellbeing", enabled: true },
+  { id: "skills", emoji: "🧠", title: "Skills used", subtitle: "How many skills", enabled: true },
+  { id: "medication", emoji: "💊", title: "Medication + safety", subtitle: "Rx meds + safety", enabled: true },
+  { id: "notes", emoji: "📝", title: "Notes", subtitle: "Details + context", enabled: true },
+  { id: "checklist", emoji: "🔲", title: "Symptoms Checklist", subtitle: "Symptoms, habits & more", enabled: true },
 ];
 
 function getSectionSummary(section, data) {
@@ -94,6 +94,13 @@ export default function DiaryCards() {
     queryKey: ["frontHistory"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 5),
   });
+
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+
+  const sections = (settingsList[0]?.diary_sections || DEFAULT_SECTIONS).filter(s => s.enabled);
 
   const altersById = useMemo(() =>
     Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
@@ -308,16 +315,16 @@ export default function DiaryCards() {
           <p className="text-sm text-muted-foreground">Fronting: <span className="text-foreground">{fronters.join(", ")}</span></p>
         )}
         <div className="space-y-2">
-          {SECTIONS.map((s) => (
-            <div key={s.id} className="flex items-center gap-3 px-4 py-3 bg-card border border-border/50 rounded-xl">
-              <span className="text-xl">{s.emoji}</span>
-              <div className="flex-1">
-                <p className="font-medium text-sm">{s.title}</p>
-              </div>
-              <span className="text-xs text-muted-foreground">{getSectionSummary(s.id, card)}</span>
-            </div>
-          ))}
-        </div>
+           {sections.map((s) => (
+             <div key={s.id} className="flex items-center gap-3 px-4 py-3 bg-card border border-border/50 rounded-xl">
+               <span className="text-xl">{s.emoji}</span>
+               <div className="flex-1">
+                 <p className="font-medium text-sm">{s.title}</p>
+               </div>
+               <span className="text-xs text-muted-foreground">{getSectionSummary(s.id, card)}</span>
+             </div>
+           ))}
+         </div>
         <Button onClick={() => startEdit(card)} className="w-full bg-primary hover:bg-primary/90 gap-1.5">
           Edit Card
         </Button>
@@ -376,17 +383,17 @@ export default function DiaryCards() {
             </motion.div>
           ) : (
             <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-              {SECTIONS.map((s) => (
-                <SectionRow
-                  key={s.id}
-                  emoji={s.emoji}
-                  title={s.title}
-                  subtitle={s.subtitle}
-                  value={getSectionSummary(s.id, draftData)}
-                  onClick={() => setActiveSection(s.id)}
-                />
-              ))}
-            </motion.div>
+               {sections.map((s) => (
+                 <SectionRow
+                   key={s.id}
+                   emoji={s.emoji}
+                   title={s.title}
+                   subtitle={s.subtitle}
+                   value={getSectionSummary(s.id, draftData)}
+                   onClick={() => setActiveSection(s.id)}
+                 />
+               ))}
+             </motion.div>
           )}
         </AnimatePresence>
 
@@ -455,17 +462,17 @@ export default function DiaryCards() {
           </motion.div>
         ) : (
           <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-            {SECTIONS.map((s) => (
-              <SectionRow
-                key={s.id}
-                emoji={s.emoji}
-                title={s.title}
-                subtitle={s.subtitle}
-                value={getSectionSummary(s.id, draftData)}
-                onClick={() => setActiveSection(s.id)}
-              />
-            ))}
-          </motion.div>
+             {sections.map((s) => (
+               <SectionRow
+                 key={s.id}
+                 emoji={s.emoji}
+                 title={s.title}
+                 subtitle={s.subtitle}
+                 value={getSectionSummary(s.id, draftData)}
+                 onClick={() => setActiveSection(s.id)}
+               />
+             ))}
+           </motion.div>
         )}
       </AnimatePresence>
 
