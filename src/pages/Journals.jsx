@@ -17,6 +17,7 @@ const TABS = [
 ];
 
 export default function Journals() {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState(null);
