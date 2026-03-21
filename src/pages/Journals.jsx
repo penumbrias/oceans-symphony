@@ -111,7 +111,6 @@ export default function Journals() {
       folder: name,
       entry_type: "personal",
     });
-    const { queryClient } = await import("@/lib/query-client");
     queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
     setShowNewFolder(false);
     setNewFolderName("");
