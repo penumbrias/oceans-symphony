@@ -69,6 +69,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
       toast.success("Entry saved!");
     }
     queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
+    queryClient.invalidateQueries({ queryKey: ["journalEntriesToday"] });
     setSaving(false);
     onClose();
   };
@@ -79,6 +80,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
     await base44.entities.JournalEntry.delete(entry.id);
     toast.success("Entry deleted.");
     queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
+    queryClient.invalidateQueries({ queryKey: ["journalEntriesToday"] });
     setDeleting(false);
     onClose();
   };
