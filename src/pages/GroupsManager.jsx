@@ -106,8 +106,6 @@ export default function GroupsManager() {
                 selectedGroupId={selectedGroupId}
                 onSelectGroup={handleSelectGroup}
                 onChangeColor={handleChangeColor}
-                onMoveUp={handleMoveUp}
-                onMoveDown={handleMoveDown}
                 onDropGroup={handleDropGroup}
                 draggedGroupId={draggedGroupId}
                 setDraggedGroupId={setDraggedGroupId}
