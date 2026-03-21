@@ -89,6 +89,12 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
     );
   };
 
+  const toggleGroup = (id) => {
+    setAllowedGroupIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const activeAlters = alters.filter((a) => !a.is_archived);
 
   return (
