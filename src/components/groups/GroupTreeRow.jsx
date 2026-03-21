@@ -198,6 +198,14 @@ export default function GroupTreeRow({
           ))}
         </div>
       )}
+
+      {/* Members Modal */}
+      <GroupMembersModal
+        group={group}
+        allGroups={allGroups}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </>
   );
 }
