@@ -51,8 +51,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
   const handleEdit = (act) => {
     setEditingId(act.id);
     setEditData({
-      activity_name: act.activity_name || "",
-      color: act.color || "#8b5cf6",
+      activity_category_ids: act.activity_category_ids || [],
       duration_minutes: act.duration_minutes || 60,
       fronting_alter_ids: act.fronting_alter_ids || [],
       notes: act.notes || "",
