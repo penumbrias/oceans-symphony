@@ -187,37 +187,31 @@ export default function TimelineItem({ item, alters, allItems }) {
 
   if (item.type === "emotion") {
     return (
-      <div className="flex gap-4">
+      <div className="flex items-start gap-3 pb-2">
         <div className="flex flex-col items-center">
           <div className="w-10 h-10 rounded-full flex items-center justify-center bg-destructive/10 text-destructive flex-shrink-0">
             <Heart className="w-5 h-5" />
           </div>
-          <div className="w-0.5 bg-border flex-1 mt-2 mb-2" />
+          <div className="w-0.5 bg-destructive/20 flex-1 mt-2" style={{ minHeight: "30px" }} />
         </div>
-        <div className="pb-4 pt-2 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold text-sm">Emotion Check-In</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {format(new Date(item.data.timestamp), "h:mm a")}
-              </p>
-            </div>
-          </div>
+        <div className="pt-1 flex-1 text-xs space-y-1">
+          <p className="font-semibold text-sm">Emotion Check-In</p>
+          <p className="text-muted-foreground">{format(new Date(item.data.timestamp), "h:mm a")}</p>
           {item.data.emotions?.length > 0 && (
-            <div className="flex gap-1.5 mt-2 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {item.data.emotions.map((emotion) => (
-                <span key={emotion} className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                <span key={emotion} className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                   {emotion}
                 </span>
               ))}
             </div>
           )}
           {item.data.fronting_alter_ids?.length > 0 && (
-            <div className="flex gap-1.5 mt-2 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {item.data.fronting_alter_ids.map((alterId) => (
                 <span
                   key={alterId}
-                  className="text-xs px-2 py-1 rounded-full text-white"
+                  className="px-2 py-0.5 rounded-full text-white text-center"
                   style={{ backgroundColor: getAlterColor(alterId) }}
                 >
                   {getAlterName(alterId)}
@@ -226,7 +220,7 @@ export default function TimelineItem({ item, alters, allItems }) {
             </div>
           )}
           {item.data.note && (
-            <p className="text-xs text-muted-foreground mt-2 italic">{item.data.note}</p>
+            <p className="text-muted-foreground italic">{item.data.note}</p>
           )}
         </div>
       </div>
