@@ -26,10 +26,10 @@ export default function DailyTasks() {
     staleTime: 0,
   });
 
-  // Diary cards today
+  // Diary cards today — filter directly for today's date
   const { data: diaryCards = [] } = useQuery({
-    queryKey: ["diaryCards"],
-    queryFn: () => base44.entities.DiaryCard.list("-created_date", 10),
+    queryKey: ["diaryCardsToday", TODAY],
+    queryFn: () => base44.entities.DiaryCard.filter({ date: TODAY }),
     staleTime: 0,
   });
 
