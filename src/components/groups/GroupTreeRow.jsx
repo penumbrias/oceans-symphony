@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
 
 export default function GroupTreeRow({
@@ -12,10 +12,12 @@ export default function GroupTreeRow({
   onMoveUp,
   onMoveDown,
   onDropGroup,
+  draggedGroupId,
+  setDraggedGroupId,
   level = 0,
 }) {
-  const [isDragging, setIsDragging] = useState(false);
-  const [draggedGroupId, setDraggedGroupId] = useState(null);
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const autoExpandTimeoutRef = useRef(null);
 
   // Find children by matching parent to this group's ID or sp_id
   const childGroups = allGroups
