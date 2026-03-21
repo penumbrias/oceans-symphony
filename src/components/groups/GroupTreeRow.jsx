@@ -12,6 +12,7 @@ export default function GroupTreeRow({
   onChangeColor,
   onMoveGroupsIn,
   onMoveGroupsOut,
+  onCreateSubgroup,
   level = 0,
   parentId = null,
 }) {
