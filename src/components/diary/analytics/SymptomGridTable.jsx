@@ -197,9 +197,10 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7, alter
           ))}
         </tbody>
       </table>
-      <div className="mt-3 text-xs text-muted-foreground">
-        <p><strong>Color scale:</strong> Green (low) → Yellow (mild) → Orange (moderate) → Red (severe)</p>
-        <p><strong>Y/N symptoms:</strong> Y = present, N = absent, — = no entry</p>
+      <div className="mt-3 text-xs text-muted-foreground space-y-1">
+        <p><strong>Color scale (negative):</strong> Green (low) → Red (high severity)</p>
+        <p><strong>Color scale (positive):</strong> Red (low) → Green (high/better)</p>
+        <p><strong>Y/N symptoms:</strong> Y = present, — = absent/no entry</p>
       </div>
     </div>
   );
