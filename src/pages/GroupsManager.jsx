@@ -75,20 +75,23 @@ export default function GroupsManager() {
     const group = allGroups.find((g) => g.id === groupId);
     if (!group) return;
 
-    const siblings = allGroups.filter((g) => g.parent === group.parent);
+    const siblings = allGroups
+      .filter((g) => g.parent === group.parent)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+    
     const currentIndex = siblings.findIndex((g) => g.id === groupId);
     
     if (direction === "up" && currentIndex > 0) {
-      // Swap with previous sibling
-      await base44.entities.Group.update(group.id, {
-        ...group,
-      });
+      const prevGroup = siblings[currentIndex - 1];
+      const tempOrder = prevGroup.order;
+      await base44.entities.Group.update(prevGroup.id, { order: group.order });
+      await base44.entities.Group.update(groupId, { order: tempOrder });
       toast.success("Moved up!");
     } else if (direction === "down" && currentIndex < siblings.length - 1) {
-      // Swap with next sibling
-      await base44.entities.Group.update(group.id, {
-        ...group,
-      });
+      const nextGroup = siblings[currentIndex + 1];
+      const tempOrder = nextGroup.order;
+      await base44.entities.Group.update(nextGroup.id, { order: group.order });
+      await base44.entities.Group.update(groupId, { order: tempOrder });
       toast.success("Moved down!");
     }
     queryClient.invalidateQueries({ queryKey: ["groups"] });
