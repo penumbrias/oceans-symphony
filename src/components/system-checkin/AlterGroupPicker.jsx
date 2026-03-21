@@ -6,15 +6,17 @@ export default function AlterGroupPicker({ alters = [], groups = [], selected = 
   const [input, setInput] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
-  // Combine alters and groups for filtering
+  // Combine alters and groups for filtering (exclude archived alters)
   const items = useMemo(() => {
-    const alterItems = alters.map(a => ({
-      id: a.id,
-      type: "alter",
-      name: a.name,
-      alias: a.alias,
-      displayText: a.alias ? `${a.name} (${a.alias})` : a.name
-    }));
+    const alterItems = alters
+      .filter(a => !a.is_archived)
+      .map(a => ({
+        id: a.id,
+        type: "alter",
+        name: a.name,
+        alias: a.alias,
+        displayText: a.alias ? `${a.name} (${a.alias})` : a.name
+      }));
     const groupItems = groups.map(g => ({
       id: g.id,
       type: "group",
