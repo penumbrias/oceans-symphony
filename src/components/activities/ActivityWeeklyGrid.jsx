@@ -31,6 +31,37 @@ export default function ActivityWeeklyGrid({
     };
   };
 
+  const handleTimeBlockClick = (date, hour) => {
+    if (!startSelection) {
+      setStartSelection({ date, hour });
+    } else if (startSelection.date.toDateString() === date.toDateString()) {
+      const start = Math.min(startSelection.hour, hour);
+      const end = Math.max(startSelection.hour, hour);
+      onTimeRangeSelect(date, start, end);
+      setStartSelection(null);
+    } else {
+      setStartSelection({ date, hour });
+    }
+  };
+
+  const getFrontingForHour = (date, hour) => {
+    const hourStart = new Date(date);
+    hourStart.setHours(hour, 0, 0, 0);
+    const hourEnd = new Date(date);
+    hourEnd.setHours(hour + 1, 0, 0, 0);
+
+    return frontingHistory.filter((session) => {
+      const sessionStart = new Date(session.start_time);
+      const sessionEnd = session.end_time ? new Date(session.end_time) : new Date();
+      return sessionStart < hourEnd && sessionEnd > hourStart;
+    });
+  };
+
+  const getAlterColor = (alterId) => {
+    // Simple color mapping for fronting indicator
+    return `hsl(${Math.abs(alterId.charCodeAt(0)) % 360}, 70%, 55%)`;
+  };
+
   return (
     <div className="overflow-x-auto">
       <div className="inline-grid gap-0 border border-border rounded-lg overflow-hidden">
