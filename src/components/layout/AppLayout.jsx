@@ -54,6 +54,15 @@ export default function AppLayout() {
                 </Link>
               );
             })}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              className="ml-2 text-muted-foreground hover:text-foreground"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
           </nav>
         </div>
       </header>
