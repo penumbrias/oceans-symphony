@@ -37,6 +37,51 @@ export default function EmotionAnalytics({ from, to }) {
       .sort((a, b) => b.count - a.count);
   }, [filtered]);
 
+  // Emotions by alter
+  const emotionsByAlter = useMemo(() => {
+    const map = {};
+    filtered.forEach((c) => {
+      c.fronting_alter_ids?.forEach((alterId) => {
+        if (!map[alterId]) map[alterId] = {};
+        c.emotions.forEach((e) => {
+          map[alterId][e] = (map[alterId][e] || 0) + 1;
+        });
+      });
+    });
+    return Object.entries(map).map(([alterId, emotions]) => {
+      const alter = altersById[alterId];
+      return {
+        alterId,
+        name: alter?.name || alterId,
+        emotions: Object.entries(emotions)
+          .map(([emotion, count]) => ({ emotion, count }))
+          .sort((a, b) => b.count - a.count)
+      };
+    }).filter(a => a.emotions.length > 0);
+  }, [filtered, altersById]);
+
+  // Alters by emotion
+  const altersByEmotion = useMemo(() => {
+    const map = {};
+    filtered.forEach((c) => {
+      c.emotions.forEach((emotion) => {
+        if (!map[emotion]) map[emotion] = {};
+        c.fronting_alter_ids?.forEach((alterId) => {
+          const alter = altersById[alterId];
+          if (alter) {
+            map[emotion][alter.name] = (map[emotion][alter.name] || 0) + 1;
+          }
+        });
+      });
+    });
+    return Object.entries(map).map(([emotion, alters]) => ({
+      emotion,
+      alters: Object.entries(alters)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+    }));
+  }, [filtered, altersById]);
+
   // Time of day distribution
   const timeDistribution = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, i) => ({
@@ -115,6 +160,56 @@ export default function EmotionAnalytics({ from, to }) {
                 <Line type="monotone" dataKey="count" stroke="var(--primary)" strokeWidth={2} dot={{ fill: "var(--primary)" }} />
               </LineChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Emotions by Alter */}
+      {emotionsByAlter.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Top Emotions by Member</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {emotionsByAlter.map((item) => (
+                <div key={item.alterId}>
+                  <p className="text-sm font-medium mb-2">{item.name}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {item.emotions.slice(0, 5).map((e) => (
+                      <span key={e.emotion} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium">
+                        {e.emotion} ({e.count})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Alters by Emotion */}
+      {altersByEmotion.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Members Most Experiencing Each Emotion</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {altersByEmotion.slice(0, 8).map((item) => (
+                <div key={item.emotion}>
+                  <p className="text-sm font-medium mb-1">{item.emotion}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {item.alters.slice(0, 3).map((alter) => (
+                      <span key={alter.name} className="bg-accent/20 text-accent-foreground px-2 py-0.5 rounded text-xs">
+                        {alter.name} ({alter.count})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
