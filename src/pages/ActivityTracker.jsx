@@ -46,7 +46,7 @@ export default function ActivityTracker() {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-full mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-foreground">Activity Tracker</h1>
           <div className="flex items-center gap-4">
@@ -70,74 +70,21 @@ export default function ActivityTracker() {
           </div>
         </div>
 
-        {/* Hobonichi-style weekly grid */}
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-2 bg-card rounded-lg p-4 border border-border">
-          {groupedActivities.map(({ date, activities: dayActivities }) => (
-            <div key={format(date, "yyyy-MM-dd")} className="flex flex-col">
-              {/* Day header */}
-              <div className="text-center pb-3 border-b border-border mb-3">
-                <div className="text-xs font-semibold text-muted-foreground">
-                  {format(date, "EEE")}
-                </div>
-                <div className="text-lg font-bold text-foreground">
-                  {format(date, "d")}
-                </div>
-              </div>
-
-              {/* Activities list for the day */}
-              <div className="space-y-2 flex-1">
-                {dayActivities.map((activity) => {
-                  const altersInActivity = activity.fronting_alter_ids
-                    ?.map((id) => alters.find((a) => a.id === id)?.alias || "Unknown")
-                    .join(", ");
-                  
-                  return (
-                    <div
-                      key={activity.id}
-                      className="p-2 bg-muted/50 rounded text-xs space-y-1"
-                    >
-                      <div className="font-medium text-foreground">
-                        {activity.activity_name}
-                      </div>
-                      {activity.duration_minutes && (
-                        <div className="text-muted-foreground">
-                          {activity.duration_minutes}m
-                        </div>
-                      )}
-                      {altersInActivity && (
-                        <div className="text-muted-foreground">
-                          {altersInActivity}
-                        </div>
-                      )}
-                      {activity.category !== "other" && (
-                        <div className="inline-block px-1.5 py-0.5 bg-primary/20 text-primary rounded text-xs">
-                          {activity.category}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Add button */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-2"
-                onClick={() => handleAddActivity(date)}
-              >
-                <Plus className="w-3 h-3" />
-              </Button>
-            </div>
-          ))}
-        </div>
+        <ActivityWeeklyGrid
+          weekDays={weekDays}
+          activities={activities}
+          alters={alters}
+          onDayClick={handleDayClick}
+          onTimeBlockClick={handleTimeBlockClick}
+        />
       </div>
 
-      <ActivityLogModal
+      <ActivityEntryModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSave}
+        onClose={handleCloseModal}
         selectedDate={selectedDate}
+        selectedHour={selectedHour}
+        allActivities={activities}
         alters={alters}
       />
     </div>
