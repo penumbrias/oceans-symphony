@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Palette, Save, Loader2 } from "lucide-react";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
+import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 
 export default function Settings() {
   const queryClient = useQueryClient();
