@@ -38,36 +38,19 @@ export default function CheckInStep4({ data, onChange }) {
             </div>
 
             <div>
-              <Label htmlFor="step4-responses" className="text-sm mb-2 block">
-                What was shared?
-              </Label>
-              <Textarea
-                id="step4-responses"
-                placeholder="Did anyone respond? What did they share?"
-                value={step.responses || ""}
-                onChange={(e) =>
-                  onChange({
-                    step4_share: { ...step, responses: e.target.value }
-                  })
-                }
-                className="resize-none h-24"
-              />
-            </div>
-
-            <div>
               <Label htmlFor="step4-notes" className="text-sm mb-2 block">
-                Notes
+                Anything you would like to record?
               </Label>
               <Textarea
                 id="step4-notes"
-                placeholder="Any additional observations about this step?"
+                placeholder="Any reflections, responses, or observations..."
                 value={step.notes || ""}
                 onChange={(e) =>
                   onChange({
                     step4_share: { ...step, notes: e.target.value }
                   })
                 }
-                className="resize-none h-16"
+                className="resize-none h-24"
               />
             </div>
           </div>
