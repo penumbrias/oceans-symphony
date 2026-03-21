@@ -11,6 +11,7 @@ const SystemMap = () => {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragDistance, setDragDistance] = useState(0);
   const [nodes, setNodes] = useState([]);
   const [links, setLinks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -266,6 +267,7 @@ const SystemMap = () => {
     if (e.button !== 0) return;
     setIsDragging(true);
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+    setDragDistance(0);
   };
 
   const handleTouchStart = (e) => {
@@ -285,6 +287,8 @@ const SystemMap = () => {
 
   const handleMouseMove = (e) => {
     if (!isDragging) return;
+    const dist = Math.sqrt((e.clientX - (dragStart.x + transform.x)) ** 2 + (e.clientY - (dragStart.y + transform.y)) ** 2);
+    setDragDistance(dist);
     setTransform({
       ...transform,
       x: e.clientX - dragStart.x,
@@ -384,7 +388,11 @@ const SystemMap = () => {
                 stroke={node.isSelected ? "white" : node.isCofronter ? "hsl(var(--accent))" : "none"}
                 strokeWidth={node.isSelected ? 3 : node.isCofronter ? 2 : 0}
                 style={{ cursor: node.type === "alter" ? "pointer" : "default" }}
-                onClick={() => node.type === "alter" && setSelectedAlter(alters.find((a) => a.id === node.id))}
+                onClick={() => {
+                  if (node.type === "alter" && dragDistance < 5) {
+                    setSelectedAlter(alters.find((a) => a.id === node.id));
+                  }
+                }}
               />
 
               {/* Avatar image if available */}
@@ -398,7 +406,11 @@ const SystemMap = () => {
                   preserveAspectRatio="xMidYMid slice"
                   clipPath={`url(#clip-circle-${node.id})`}
                   style={{ cursor: "pointer" }}
-                  onClick={() => node.type === "alter" && setSelectedAlter(alters.find((a) => a.id === node.id))}
+                  onClick={() => {
+                    if (dragDistance < 5) {
+                      setSelectedAlter(alters.find((a) => a.id === node.id));
+                    }
+                  }}
                 />
               )}
 
