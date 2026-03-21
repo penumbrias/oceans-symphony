@@ -21,6 +21,7 @@ const NAV_GROUPS = {
     { label: "Front History", icon: Clock, path: "/front-history" },
     { label: "Analytics", icon: BarChart2, path: "/analytics" },
     { label: "Co-Fronting", icon: GitBranch, path: "/cofronting-analytics" },
+    { label: "System Map", icon: GitBranch, path: "/system-map" },
     { label: "Timeline", icon: Clock, path: "/timeline" },
   ],
   "Journal": [
@@ -40,6 +41,7 @@ const GRID_ITEMS = [
   { label: "Activities", icon: Zap, path: "/activities", color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
   { label: "Sleep", icon: Activity, path: "/sleep", color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
   { label: "Co-Fronting", icon: GitBranch, path: "/cofronting-analytics", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+  { label: "System Map", icon: GitBranch, path: "/system-map", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
   { label: "Timeline", icon: Clock, path: "/timeline", color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
 ];
 
