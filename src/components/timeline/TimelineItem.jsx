@@ -84,44 +84,44 @@ export default function TimelineItem({ item, alters, allItems }) {
   }
 
   if (item.type === "switch") {
-    const allFronters = [
-      item.data.primary_alter_id,
-      ...(item.data.co_fronter_ids || []),
-    ].filter(Boolean);
+    const primaryAlter = alters.find((a) => a.id === item.data.primary_alter_id);
+    const durationMins = getSwitchDuration;
+    const durationLabel = durationMins
+      ? durationMins < 60
+        ? `${durationMins}m`
+        : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
+      : "Active";
 
     return (
-      <div className="flex gap-4">
+      <div className="flex items-start gap-3 pb-2">
+        {/* Alter avatar */}
         <div className="flex flex-col items-center">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-accent text-accent-foreground flex-shrink-0">
-            <Users className="w-5 h-5" />
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-border overflow-hidden"
+            style={{ backgroundColor: primaryAlter?.color || "#9333ea" }}
+          >
+            {primaryAlter?.avatar_url ? (
+              <img src={primaryAlter.avatar_url} alt={primaryAlter.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-sm font-bold text-white">{primaryAlter?.name?.charAt(0)?.toUpperCase()}</span>
+            )}
           </div>
-          <div className="w-0.5 bg-border flex-1 mt-2 mb-2" />
+          {/* Vertical line (duration indicator) */}
+          <div className="w-0.5 bg-gradient-to-b mt-1 flex-1" style={{ backgroundImage: `linear-gradient(to bottom, ${primaryAlter?.color || "#9333ea"}, ${primaryAlter?.color || "#9333ea"}80)`, minHeight: durationMins ? `${Math.min(durationMins / 5, 120)}px` : "40px" }} />
         </div>
-        <div className="pb-4 pt-2 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold text-sm">
-                {item.data.is_active ? "Switched to" : "Switch ended"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {format(new Date(item.data.start_time), "h:mm a")}
-              </p>
-            </div>
-          </div>
-          {allFronters.length > 0 && (
-            <div className="flex gap-1.5 mt-2 flex-wrap">
-              {item.data.primary_alter_id && (
-                <span
-                  className="text-xs px-2 py-1 rounded-full text-white font-medium"
-                  style={{ backgroundColor: getAlterColor(item.data.primary_alter_id) }}
-                >
-                  {getAlterName(item.data.primary_alter_id)} (Primary)
-                </span>
-              )}
-              {item.data.co_fronter_ids?.map((alterId) => (
+
+        {/* Content */}
+        <div className="pt-1.5 flex-1">
+          <p className="font-semibold text-sm">{getAlterName(item.data.primary_alter_id)}</p>
+          <p className="text-xs text-muted-foreground">
+            {format(new Date(item.data.start_time), "h:mm a")} — {durationLabel}
+          </p>
+          {item.data.co_fronter_ids?.length > 0 && (
+            <div className="flex gap-1.5 mt-1.5 flex-wrap">
+              {item.data.co_fronter_ids.map((alterId) => (
                 <span
                   key={alterId}
-                  className="text-xs px-2 py-1 rounded-full text-white"
+                  className="text-xs px-2 py-0.5 rounded-full text-white text-center"
                   style={{ backgroundColor: getAlterColor(alterId) }}
                 >
                   {getAlterName(alterId)}
@@ -130,7 +130,7 @@ export default function TimelineItem({ item, alters, allItems }) {
             </div>
           )}
           {item.data.note && (
-            <p className="text-xs text-muted-foreground mt-2 italic">{item.data.note}</p>
+            <p className="text-xs text-muted-foreground mt-1.5 italic">{item.data.note}</p>
           )}
         </div>
       </div>
