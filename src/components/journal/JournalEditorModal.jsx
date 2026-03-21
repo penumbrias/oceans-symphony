@@ -19,6 +19,8 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
   const [folder, setFolder] = useState("");
   const [restricted, setRestricted] = useState(false);
   const [allowedAlterIds, setAllowedAlterIds] = useState([]);
+  const [allowedGroupIds, setAllowedGroupIds] = useState([]);
+  const [restrictTab, setRestrictTab] = useState("alters"); // "alters" | "groups"
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
