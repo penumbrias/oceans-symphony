@@ -29,6 +29,9 @@ export default function DiaryCardPresetsManager() {
   const [newUrge, setNewUrge] = useState("");
   const [newBodyMind, setNewBodyMind] = useState("");
   const [newSkill, setNewSkill] = useState("");
+  const [newSymptomLabel, setNewSymptomLabel] = useState("");
+  const [newSymptomType, setNewSymptomType] = useState("rating");
+  const [newSymptomPositive, setNewSymptomPositive] = useState(false);
 
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
