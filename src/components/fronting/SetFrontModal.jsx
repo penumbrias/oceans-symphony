@@ -254,5 +254,6 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
         authorAlterId={primaryId}
       />
     )}
+    </>
   );
 }
