@@ -1,34 +1,32 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { X } from "lucide-react";
 
-export default function CheckInStep2({ data, onChange }) {
+export default function CheckInStep2({ data, onChange, alters = [] }) {
   const step = data?.step2_notice || {};
-  const [partInput, setPartInput] = useState("");
 
-  const addPart = () => {
-    if (partInput.trim()) {
-      const parts = step.parts_present || [];
-      onChange({
-        step2_notice: {
-          ...step,
-          parts_present: [...parts, partInput.trim()]
-        }
-      });
-      setPartInput("");
-    }
-  };
-
-  const removePart = (index) => {
-    const parts = step.parts_present || [];
+  const toggleAlter = (alterId) => {
+    const present = step.alters_present || [];
+    const updated = present.includes(alterId)
+      ? present.filter(id => id !== alterId)
+      : [...present, alterId];
     onChange({
       step2_notice: {
         ...step,
-        parts_present: parts.filter((_, i) => i !== index)
+        alters_present: updated
+      }
+    });
+  };
+
+  const removeAlter = (alterId) => {
+    const present = step.alters_present || [];
+    onChange({
+      step2_notice: {
+        ...step,
+        alters_present: present.filter(id => id !== alterId)
       }
     });
   };
@@ -42,39 +40,48 @@ export default function CheckInStep2({ data, onChange }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            <div>
-              <Label className="text-sm mb-2 block">Parts or alters nearby</Label>
-              <div className="flex gap-2 mb-3">
-                <Input
-                  placeholder="e.g., Host, Little, Protector..."
-                  value={partInput}
-                  onChange={(e) => setPartInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addPart()}
-                  className="flex-1"
-                />
-                <Button onClick={addPart} size="sm">
-                  Add
-                </Button>
-              </div>
-              {step.parts_present && step.parts_present.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {step.parts_present.map((part, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full flex items-center gap-2"
-                    >
-                      {part}
-                      <button
-                        onClick={() => removePart(idx)}
-                        className="hover:text-destructive transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+             <div>
+               <Label className="text-sm mb-2 block">Alters present</Label>
+               <div className="space-y-2">
+                 {alters.length > 0 ? (
+                   alters.map((alter) => (
+                     <div key={alter.id} className="flex items-center gap-3">
+                       <Checkbox
+                         id={`alter-${alter.id}`}
+                         checked={(step.alters_present || []).includes(alter.id)}
+                         onCheckedChange={() => toggleAlter(alter.id)}
+                       />
+                       <Label htmlFor={`alter-${alter.id}`} className="cursor-pointer flex-1">
+                         {alter.name}
+                       </Label>
+                     </div>
+                   ))
+                 ) : (
+                   <p className="text-xs text-muted-foreground">No alters available</p>
+                 )}
+               </div>
+               {step.alters_present && step.alters_present.length > 0 && (
+                 <div className="flex flex-wrap gap-2 mt-3">
+                   {step.alters_present.map((alterId) => {
+                     const alter = alters.find(a => a.id === alterId);
+                     return alter ? (
+                       <div
+                         key={alterId}
+                         className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full flex items-center gap-2"
+                       >
+                         {alter.name}
+                         <button
+                           onClick={() => removeAlter(alterId)}
+                           className="hover:text-destructive transition-colors"
+                         >
+                           <X className="w-3 h-3" />
+                         </button>
+                       </div>
+                     ) : null;
+                   })}
+                 </div>
+               )}
+             </div>
 
             <div>
               <Label htmlFor="step2-feelings" className="text-sm mb-2 block">
