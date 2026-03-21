@@ -42,6 +42,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
       setFolder(defaultFolder || "");
       setRestricted(false);
       setAllowedAlterIds([]);
+      setAllowedGroupIds([]);
     }
   }, [entry, open, defaultFolder]);
 
