@@ -35,6 +35,21 @@ const SystemMap = () => {
     queryFn: () => base44.entities.FrontingSession.list(),
   });
 
+  // Calculate fronting time for each alter
+  const frontingTime = useMemo(() => {
+    const time = {};
+    frontingSessions.forEach((session) => {
+      const endTime = session.end_time ? new Date(session.end_time) : new Date();
+      const startTime = new Date(session.start_time);
+      const duration = endTime - startTime;
+      const allFronters = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      allFronters.forEach((id) => {
+        time[id] = (time[id] || 0) + duration;
+      });
+    });
+    return time;
+  }, [frontingSessions]);
+
   // Calculate co-fronting relationships
   const cofrontingMap = useMemo(() => {
     const map = {};
@@ -51,6 +66,57 @@ const SystemMap = () => {
     });
     return map;
   }, [frontingSessions]);
+
+  // Calculate node positions based on selected alter or fronting time
+  const nodePositions = useMemo(() => {
+    const positions = {};
+    const width = 1200;
+    const height = 800;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // Sort alters by fronting time or co-fronting with selected alter
+    let altersSorted = [...alters];
+    if (selectedAlter) {
+      altersSorted.sort((a, b) => {
+        const aCofront = cofrontingMap[selectedAlter.id]?.[a.id] || 0;
+        const bCofront = cofrontingMap[selectedAlter.id]?.[b.id] || 0;
+        return bCofront - aCofront;
+      });
+    } else {
+      altersSorted.sort((a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0));
+    }
+
+    // Place alters in circular arrangement
+    altersSorted.forEach((alter, idx) => {
+      if (idx === 0) {
+        // First alter (most fronting time or selected alter) at center
+        positions[alter.id] = { x: centerX, y: centerY };
+      } else if (selectedAlter) {
+        // Position around selected alter by co-fronting time
+        const cofront = cofrontingMap[selectedAlter.id]?.[alter.id] || 0;
+        const maxCofront = Math.max(...Object.values(cofrontingMap[selectedAlter.id] || {}), 1);
+        const radius = 150 + ((maxCofront - cofront) / maxCofront) * 250;
+        const angle = (idx / altersSorted.length) * Math.PI * 2;
+        positions[alter.id] = {
+          x: centerX + Math.cos(angle) * radius,
+          y: centerY + Math.sin(angle) * radius,
+        };
+      } else {
+        // Position by fronting time (center to periphery)
+        const maxTime = Math.max(...Object.values(frontingTime), 1);
+        const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
+        const radius = 150 + (1 - timeRatio) * 250;
+        const angle = (idx / altersSorted.length) * Math.PI * 2;
+        positions[alter.id] = {
+          x: centerX + Math.cos(angle) * radius,
+          y: centerY + Math.sin(angle) * radius,
+        };
+      }
+    });
+
+    return positions;
+  }, [alters, selectedAlter, frontingTime, cofrontingMap]);
 
   // Filter alters based on search and selection
   const filteredAlters = useMemo(() => {
@@ -89,42 +155,25 @@ const SystemMap = () => {
     }
   }, [selectedAlter, cofrontingMap, cofronterCount, alters]);
 
-  // Process data into nodes and links with clustering
+  // Process data into nodes and links
   useEffect(() => {
     if (!filteredAlters.length) return;
 
-    // Create clusters based on groups or co-fronting
-    const clusters = {};
-    filteredAlters.forEach((alter) => {
-      const groupId = alter.groups?.[0]?.id || "ungrouped";
-      if (!clusters[groupId]) clusters[groupId] = [];
-      clusters[groupId].push(alter);
-    });
-
-    // Create nodes with cluster positioning
-    const alterNodes = [];
-    let clusterIdx = 0;
-    Object.entries(clusters).forEach(([groupId, clusterAlters]) => {
-      const clusterCenterX = Math.cos((clusterIdx / Object.keys(clusters).length) * Math.PI * 2) * 200 + 250;
-      const clusterCenterY = Math.sin((clusterIdx / Object.keys(clusters).length) * Math.PI * 2) * 200 + 250;
-
-      clusterAlters.forEach((alter, idx) => {
-        const angle = (idx / clusterAlters.length) * Math.PI * 2;
-        const radius = 80;
-        alterNodes.push({
-          id: alter.id,
-          label: alter.name,
-          alias: alter.alias,
-          type: "alter",
-          color: alter.color || "#8b5cf6",
-          role: alter.role || "member",
-          x: clusterCenterX + Math.cos(angle) * radius,
-          y: clusterCenterY + Math.sin(angle) * radius,
-          isSelected: selectedAlter?.id === alter.id,
-          isCofronter: cofronters.some((c) => c.id === alter.id),
-        });
-      });
-      clusterIdx++;
+    // Create alter nodes
+    const alterNodes = filteredAlters.map((alter) => {
+      const pos = nodePositions[alter.id] || { x: 600, y: 400 };
+      return {
+        id: alter.id,
+        label: alter.alias || alter.name,
+        displayName: alter.name,
+        avatar: alter.avatar_url,
+        type: "alter",
+        color: alter.color || "#8b5cf6",
+        x: pos.x,
+        y: pos.y,
+        isSelected: selectedAlter?.id === alter.id,
+        isCofronter: selectedAlter ? cofrontingMap[selectedAlter.id]?.[alter.id] > 0 : false,
+      };
     });
 
     // Create group nodes
@@ -135,14 +184,16 @@ const SystemMap = () => {
         label: group.name,
         type: "group",
         color: group.color || "#6366f1",
-        x: Math.cos((idx / groups.length) * Math.PI * 2) * 350 + 250,
-        y: Math.sin((idx / groups.length) * Math.PI * 2) * 350 + 250,
+        x: Math.cos((idx / groups.length) * Math.PI * 2) * 350 + 600,
+        y: Math.sin((idx / groups.length) * Math.PI * 2) * 350 + 400,
       }));
 
     setNodes([...alterNodes, ...groupNodes]);
 
-    // Create links: alters to groups + co-fronting
+    // Create links
     const newLinks = [];
+
+    // Membership links
     filteredAlters.forEach((alter) => {
       if (alter.groups && Array.isArray(alter.groups)) {
         alter.groups.forEach((group) => {
@@ -155,21 +206,22 @@ const SystemMap = () => {
       }
     });
 
-    // Add co-fronting links for selected alter
-    if (selectedAlter && cofronters.length > 0) {
-      cofronters.forEach((cofronter) => {
-        const frequency = cofrontingMap[selectedAlter.id][cofronter.id];
-        newLinks.push({
-          source: selectedAlter.id,
-          target: cofronter.id,
-          type: "cofronting",
-          strength: frequency,
-        });
+    // Co-fronting links (all pairs, not just selected)
+    filteredAlters.forEach((alter) => {
+      Object.entries(cofrontingMap[alter.id] || {}).forEach(([otherId, count]) => {
+        if (alter.id < otherId && filteredAlters.some((a) => a.id === otherId)) {
+          newLinks.push({
+            source: alter.id,
+            target: otherId,
+            type: "cofronting",
+            strength: count,
+          });
+        }
       });
-    }
+    });
 
     setLinks(newLinks);
-  }, [filteredAlters, groups, selectedAlter, cofronters, cofrontingMap]);
+  }, [filteredAlters, groups, selectedAlter, cofrontingMap, nodePositions]);
 
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
@@ -281,6 +333,8 @@ const SystemMap = () => {
                   <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3" />
                 </filter>
               </defs>
+
+              {/* Avatar background circle */}
               <circle
                 cx={node.x}
                 cy={node.y}
@@ -294,7 +348,31 @@ const SystemMap = () => {
                 onClick={() => node.type === "alter" && setSelectedAlter(alters.find((a) => a.id === node.id))}
               />
 
-              {/* Node label */}
+              {/* Avatar image if available */}
+              {node.avatar && node.type === "alter" && (
+                <image
+                  x={node.x - 30}
+                  y={node.y - 30}
+                  width="60"
+                  height="60"
+                  href={node.avatar}
+                  preserveAspectRatio="xMidYMid slice"
+                  clipPath={`url(#clip-circle-${node.id})`}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => node.type === "alter" && setSelectedAlter(alters.find((a) => a.id === node.id))}
+                />
+              )}
+
+              {/* Clip path for circular avatar */}
+              {node.avatar && node.type === "alter" && (
+                <defs>
+                  <clipPath id={`clip-circle-${node.id}`}>
+                    <circle cx={node.x} cy={node.y} r="30" />
+                  </clipPath>
+                </defs>
+              )}
+
+              {/* Node label - alias or name */}
               <text
                 x={node.x}
                 y={node.y - (node.type === "group" ? 15 : 10)}
@@ -307,8 +385,8 @@ const SystemMap = () => {
                 {node.label.length > 12 ? node.label.slice(0, 10) + "..." : node.label}
               </text>
 
-              {/* Role/Type label */}
-              {node.role && node.type === "alter" && (
+              {/* Display name if different from label (only for alters without avatar) */}
+              {!node.avatar && node.type === "alter" && node.displayName !== node.label && (
                 <text
                   x={node.x}
                   y={node.y + 8}
@@ -318,7 +396,7 @@ const SystemMap = () => {
                   opacity="0.8"
                   pointerEvents="none"
                 >
-                  {node.role}
+                  {node.displayName.length > 12 ? node.displayName.slice(0, 10) + "..." : node.displayName}
                 </text>
               )}
 
