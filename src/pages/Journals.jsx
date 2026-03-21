@@ -104,10 +104,16 @@ export default function Journals() {
           <h1 className="font-display text-3xl font-semibold text-foreground">Journals</h1>
           <p className="text-muted-foreground text-sm mt-0.5">{entries.length} entries</p>
         </div>
-        <Button onClick={openNew} className="bg-primary hover:bg-primary/90 gap-1.5">
-          <Plus className="w-4 h-4" />
-          New Entry
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowNewFolder(true)} className="gap-1.5">
+            <FolderPlus className="w-4 h-4" />
+            New Folder
+          </Button>
+          <Button onClick={() => openNew()} className="bg-primary hover:bg-primary/90 gap-1.5">
+            <Plus className="w-4 h-4" />
+            New Entry
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
