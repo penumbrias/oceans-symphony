@@ -95,7 +95,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
     );
   };
 
-  const activeAlters = alters;
+  const activeAlters = alters.filter((a) => !a.is_archived);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -179,7 +179,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
 
               {/* Alters picker */}
               {restrictTab === "alters" && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
                   {activeAlters.length === 0 && <p className="text-xs text-muted-foreground">No alters found.</p>}
                   {activeAlters.map((a) => (
                     <button
@@ -199,7 +199,7 @@ export default function JournalEditorModal({ open, onClose, entry, alters, group
 
               {/* Groups picker */}
               {restrictTab === "groups" && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
                   {groups.length === 0 && <p className="text-xs text-muted-foreground">No groups found.</p>}
                   {groups.map((g) => (
                     <button
