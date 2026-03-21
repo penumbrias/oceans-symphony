@@ -12,6 +12,7 @@ import AlterProfile from '@/pages/AlterProfile';
 import Settings from '@/pages/Settings';
 import FrontHistory from '@/pages/FrontHistory';
 import Analytics from '@/pages/Analytics';
+import Journals from '@/pages/Journals';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -46,6 +47,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<Settings />} />
         <Route path="/front-history" element={<FrontHistory />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/journals" element={<Journals />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
