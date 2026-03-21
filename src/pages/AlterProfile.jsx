@@ -81,6 +81,7 @@ export default function AlterProfile() {
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   const currentIndex = sortedAlters.findIndex(a => a.id === alter.id);
+  const prevAlter = currentIndex > 0 ? sortedAlters[currentIndex - 1] : null;
   const nextAlter = currentIndex >= 0 && currentIndex < sortedAlters.length - 1 ? sortedAlters[currentIndex + 1] : null;
 
   return (
@@ -93,14 +94,24 @@ export default function AlterProfile() {
              Back
            </Button>
          </Link>
-         {nextAlter && (
-           <Link to={`/alter/${nextAlter.id}`}>
-             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -mr-2">
-               <ArrowRight className="w-4 h-4 ml-2" />
-               Next
-             </Button>
-           </Link>
-         )}
+         <div className="flex items-center gap-2">
+           {prevAlter && (
+             <Link to={`/alter/${prevAlter.id}`}>
+               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                 <ArrowLeft className="w-4 h-4 mr-2" />
+                 Prev
+               </Button>
+             </Link>
+           )}
+           {nextAlter && (
+             <Link to={`/alter/${nextAlter.id}`}>
+               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                 <ArrowRight className="w-4 h-4 ml-2" />
+                 Next
+               </Button>
+             </Link>
+           )}
+         </div>
        </div>
 
       {/* Header strip */}
