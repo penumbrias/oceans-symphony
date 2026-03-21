@@ -61,8 +61,19 @@ export default function ActivityWeeklyGrid({
   };
 
   const getAlterColor = (alterId) => {
-    // Simple color mapping for fronting indicator
-    return `hsl(${Math.abs(alterId.charCodeAt(0)) % 360}, 70%, 55%)`;
+    const alter = alters.find((a) => a.id === alterId);
+    return alter?.color || `hsl(${Math.abs(alterId.charCodeAt(0)) % 360}, 70%, 55%)`;
+  };
+
+  const getActivityForHour = (date, hour) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return activities.find((a) => {
+      const actTimestamp = new Date(a.timestamp);
+      const actDate = format(actTimestamp, "yyyy-MM-dd");
+      const actHour = actTimestamp.getHours();
+      const durationHours = Math.ceil((a.duration_minutes || 60) / 60);
+      return actDate === dateStr && actHour <= hour && actHour + durationHours > hour;
+    });
   };
 
   return (
