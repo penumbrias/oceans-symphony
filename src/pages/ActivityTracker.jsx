@@ -99,6 +99,10 @@ export default function ActivityTracker() {
           onTimeRangeSelect={handleTimeRangeSelect}
           onActivityClick={handleActivityClick}
         />
+
+        <div className="mt-8">
+          <ActivityTallyTracker activities={activities} />
+        </div>
       </div>
 
       <ActivityTimeRangeModal
