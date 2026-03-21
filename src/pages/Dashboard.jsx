@@ -50,7 +50,12 @@ export default function Dashboard() {
       <QuickNavMenu />
       <BulletinBoard alters={alters} currentAlterId={currentAlterId} />
 
-      <EmotionCheckInModal isOpen={showEmotionModal} onClose={() => setShowEmotionModal(false)} alters={alters} />
+      <EmotionCheckInModal 
+        isOpen={showEmotionModal} 
+        onClose={() => setShowEmotionModal(false)} 
+        alters={alters}
+        currentFronterIds={activeSession ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])] : []}
+      />
     </motion.div>
   );
 }

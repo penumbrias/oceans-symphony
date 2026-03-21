@@ -12,7 +12,7 @@ const EMOTIONS = [
   "Confused", "Grateful", "Frustrated", "Hopeful", "Neutral", "Overwhelmed"
 ];
 
-export default function EmotionCheckInModal({ isOpen, onClose, alters = [] }) {
+export default function EmotionCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [] }) {
   const queryClient = useQueryClient();
   const [selectedEmotions, setSelectedEmotions] = useState([]);
   const [selectedAlters, setSelectedAlters] = useState([]);
@@ -31,6 +31,12 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [] }) {
          a.alias?.toLowerCase().includes(alterInput.toLowerCase()))
     );
   }, [alterInput, activeAlters, selectedAlters]);
+
+  React.useEffect(() => {
+    if (isOpen && currentFronterIds.length > 0) {
+      setSelectedAlters(currentFronterIds.filter(id => id));
+    }
+  }, [isOpen, currentFronterIds]);
 
   const createCheckInMutation = useMutation({
     mutationFn: async (data) => {
