@@ -48,55 +48,7 @@ export default function GroupsManager() {
     }
   };
 
-  const handleMoveUp = async (groupId) => {
-    const group = allGroups.find((g) => g.id === groupId);
-    if (!group) return;
 
-    const siblings = allGroups
-      .filter((g) => g.parent === group.parent)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
-    const index = siblings.findIndex((g) => g.id === groupId);
-
-    if (index > 0) {
-      const prevGroup = siblings[index - 1];
-      const temp = group.order || 0;
-      try {
-        await Promise.all([
-          base44.entities.Group.update(groupId, { order: prevGroup.order || 0 }),
-          base44.entities.Group.update(prevGroup.id, { order: temp }),
-        ]);
-        queryClient.invalidateQueries({ queryKey: ["groups"] });
-        toast.success("Moved up!");
-      } catch (err) {
-        toast.error(err.message || "Failed to move group");
-      }
-    }
-  };
-
-  const handleMoveDown = async (groupId) => {
-    const group = allGroups.find((g) => g.id === groupId);
-    if (!group) return;
-
-    const siblings = allGroups
-      .filter((g) => g.parent === group.parent)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
-    const index = siblings.findIndex((g) => g.id === groupId);
-
-    if (index < siblings.length - 1) {
-      const nextGroup = siblings[index + 1];
-      const temp = group.order || 0;
-      try {
-        await Promise.all([
-          base44.entities.Group.update(groupId, { order: nextGroup.order || 0 }),
-          base44.entities.Group.update(nextGroup.id, { order: temp }),
-        ]);
-        queryClient.invalidateQueries({ queryKey: ["groups"] });
-        toast.success("Moved down!");
-      } catch (err) {
-        toast.error(err.message || "Failed to move group");
-      }
-    }
-  };
 
   const handleDropGroup = async (draggedGroupId, targetGroupId) => {
     if (draggedGroupId === targetGroupId) return;
