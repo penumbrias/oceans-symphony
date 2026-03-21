@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Folder, ChevronRight, User, ArrowLeft } from "lucide-react";
+import { Folder, ChevronRight, User, ArrowLeft, Plus, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
+import CreateGroupModal from "@/components/groups/CreateGroupModal";
+import GroupMembersModal from "@/components/groups/GroupMembersModal";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -79,8 +81,10 @@ function FolderRow({ group, onClick }) {
 
 export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
   const [navStack, setNavStack] = useState([]);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [manageMembersOpen, setManageMembersOpen] = useState(false);
 
-  const { data: allGroups = [] } = useQuery({
+  const { data: allGroups = [], refetch: refetchGroups } = useQuery({
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
@@ -120,9 +124,9 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
 
   return (
     <div>
-      {/* Breadcrumb Navigation */}
-      {navStack.length > 0 && (
-        <div className="flex items-center gap-2 mb-4 pb-4 border-b border-border">
+      {/* Breadcrumb Navigation with Action Buttons */}
+      <div className="flex items-center gap-2 mb-4 pb-4 border-b border-border">
+        {navStack.length > 0 && (
           <Button
             onClick={navigateBack}
             variant="ghost"
@@ -132,9 +136,31 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
             <ArrowLeft className="w-4 h-4" />
             Back
           </Button>
-          <p className="text-sm font-medium text-muted-foreground flex-1">{breadcrumbDisplay}</p>
-        </div>
-      )}
+        )}
+        <p className="text-sm font-medium text-muted-foreground flex-1">
+          {navStack.length > 0 ? breadcrumbDisplay : "Root"}
+        </p>
+        {currentGroup && (
+          <Button
+            onClick={() => setManageMembersOpen(true)}
+            variant="ghost"
+            size="sm"
+            className="gap-2"
+          >
+            <Users className="w-4 h-4" />
+            Members
+          </Button>
+        )}
+        <Button
+          onClick={() => setCreateGroupOpen(true)}
+          variant="ghost"
+          size="sm"
+          className="gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          New Group
+        </Button>
+      </div>
 
       {/* Content: Folders and Members */}
       <motion.div
@@ -160,6 +186,28 @@ export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
           </div>
         )}
       </motion.div>
+
+      {/* Modals */}
+      <CreateGroupModal
+        open={createGroupOpen}
+        onClose={() => {
+          setCreateGroupOpen(false);
+          refetchGroups();
+        }}
+        parentGroupId={currentGroup?.id || null}
+      />
+
+      {currentGroup && (
+        <GroupMembersModal
+          group={currentGroup}
+          allGroups={allGroups}
+          isOpen={manageMembersOpen}
+          onClose={() => {
+            setManageMembersOpen(false);
+            refetchGroups();
+          }}
+        />
+      )}
     </div>
   );
 }
