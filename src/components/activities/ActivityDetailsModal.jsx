@@ -46,7 +46,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     queryFn: () => base44.entities.Activity.list(),
   });
 
-  // Get all activities in the same hour
+  // Get all activities that overlap with this hour
   const activitiesForTime = useMemo(() => {
     if (!activity) return [];
     const actTime = new Date(activity.timestamp);
@@ -55,9 +55,10 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     
     return activities.filter(a => {
       const aTime = new Date(a.timestamp);
-      const aHour = aTime.getHours();
       const aDate = format(aTime, "yyyy-MM-dd");
-      return aDate === actDate && aHour === actHour;
+      const aHour = aTime.getHours();
+      const durationHours = Math.ceil((a.duration_minutes || 60) / 60);
+      return aDate === actDate && aHour <= actHour && aHour + durationHours > actHour;
     });
   }, [activities, activity]);
 
