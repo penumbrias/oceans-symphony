@@ -13,7 +13,7 @@ export default function DailyTasks() {
   const TODAY = getTodayString();
 
   // Today's progress record
-  const { data: allProgress = [] } = useQuery({
+  const { data: allProgress = [], isLoading: progressLoading } = useQuery({
     queryKey: ["dailyProgress"],
     queryFn: () => base44.entities.DailyProgress.list("-date", 365),
     staleTime: 0,
