@@ -14,6 +14,7 @@ const navItems = [
 
 export default function AppLayout() {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="min-h-screen bg-background">
