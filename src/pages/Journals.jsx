@@ -40,6 +40,11 @@ export default function Journals() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontHistory"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 10),
