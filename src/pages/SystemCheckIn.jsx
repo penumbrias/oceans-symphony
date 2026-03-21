@@ -218,13 +218,25 @@ export default function SystemCheckInPage() {
               <CardHeader>
                 <CardTitle className="text-base">Overall Notes</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <Textarea
                   placeholder="How did the check-in feel overall?"
                   value={formData.overall_notes || ""}
                   onChange={(e) => setFormData({ ...formData, overall_notes: e.target.value })}
                   className="resize-none h-20"
                 />
+                <div className="flex items-center gap-3 pt-2 border-t border-border">
+                  <input
+                    type="checkbox"
+                    id="diary-card"
+                    checked={formData.create_diary_card || false}
+                    onChange={(e) => setFormData({ ...formData, create_diary_card: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="diary-card" className="cursor-pointer text-sm">
+                    Complete a daily diary card after this check-in
+                  </label>
+                </div>
               </CardContent>
             </Card>
 
