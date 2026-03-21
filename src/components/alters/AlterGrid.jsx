@@ -68,6 +68,16 @@ export default function AlterGrid({ alters }) {
           {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           {showFolders ? "Folders" : "No folders"}
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/groups")}
+          className="rounded-xl h-9 px-3 text-xs gap-1.5 border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground"
+          title="Manage groups"
+        >
+          <Settings className="w-4 h-4" />
+          Manage Groups
+        </Button>
       </div>
 
       {/* Content */}
