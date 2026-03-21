@@ -50,6 +50,20 @@ export default function ActivityTracker() {
     setSelectedEndHour(undefined);
   };
 
+  const handleActivityClick = (activity) => {
+    setSelectedActivity(activity);
+    setIsDetailsOpen(true);
+  };
+
+  const handleDetailsClose = () => {
+    setIsDetailsOpen(false);
+    setSelectedActivity(null);
+  };
+
+  const handleActivitySave = () => {
+    qc.invalidateQueries({ queryKey: ["activities"] });
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-full mx-auto">
