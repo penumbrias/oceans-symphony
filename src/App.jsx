@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
-import Dashboard from '@/pages/Dashboard';
+import Dashboard from '@/pages/Dashboard.jsx';
 import AlterProfile from '@/pages/AlterProfile';
 import Settings from '@/pages/Settings';
 import FrontHistory from '@/pages/FrontHistory';
