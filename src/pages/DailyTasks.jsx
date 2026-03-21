@@ -19,10 +19,10 @@ export default function DailyTasks() {
     staleTime: 0,
   });
 
-  // Journal entries today — filter directly by date like diary cards
-  const { data: journalsToday = [] } = useQuery({
+  // Journal entries today — fetch recent and filter by local date
+  const { data: journals = [] } = useQuery({
     queryKey: ["journalEntriesToday", TODAY],
-    queryFn: () => base44.entities.JournalEntry.filter({ date: TODAY }),
+    queryFn: () => base44.entities.JournalEntry.list("-created_date", 50),
     staleTime: 0,
   });
 
