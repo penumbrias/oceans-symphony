@@ -69,8 +69,35 @@ export default function Settings() {
       </p>
 
       <div className="space-y-6 max-w-2xl">
-        {/* System Name */}
-        <Card className="border-border/50">
+         {/* Theme Toggle */}
+         <Card className="border-border/50">
+           <CardHeader>
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+                 {theme === 'dark' ? <Moon className="w-5 h-5 text-accent-foreground" /> : <Sun className="w-5 h-5 text-accent-foreground" />}
+               </div>
+               <div>
+                 <CardTitle className="text-lg">Appearance</CardTitle>
+                 <CardDescription>
+                   Customize your theme
+                 </CardDescription>
+               </div>
+             </div>
+           </CardHeader>
+           <CardContent>
+             <Button
+               onClick={toggleTheme}
+               variant="outline"
+               className="w-full"
+             >
+               {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+               Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
+             </Button>
+           </CardContent>
+         </Card>
+
+         {/* System Name */}
+         <Card className="border-border/50">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
