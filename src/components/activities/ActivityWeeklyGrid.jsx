@@ -255,7 +255,7 @@ export default function ActivityWeeklyGrid({
                   {activity ? (
                     <div className="text-center space-y-1">
                       <div className="text-xs font-bold line-clamp-2 leading-tight">
-                         {activity.activity_name}
+                         {cellActivities.map(a => a.activity_name).join(" + ")}
                        </div>
                       {showEmotions && (
                         <div className="text-xs leading-tight">
