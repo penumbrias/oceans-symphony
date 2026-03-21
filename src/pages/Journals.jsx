@@ -223,11 +223,36 @@ export default function Journals() {
 
       <JournalEditorModal
         open={showEditor}
-        onClose={() => setShowEditor(false)}
+        onClose={() => { setShowEditor(false); setNewEntryFolder(null); }}
         entry={editEntry}
         alters={alters}
         currentAlterId={currentAlterId}
+        defaultFolder={newEntryFolder}
       />
+
+      <Dialog open={showNewFolder} onOpenChange={setShowNewFolder}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="w-4 h-4 text-primary" />
+              New Folder
+            </DialogTitle>
+          </DialogHeader>
+          <Input
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
+            placeholder="Folder name..."
+            autoFocus
+          />
+          <DialogFooter className="mt-2">
+            <Button variant="outline" onClick={() => setShowNewFolder(false)}>Cancel</Button>
+            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()} className="bg-primary hover:bg-primary/90">
+              Create &amp; Add Entry
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
