@@ -59,14 +59,27 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
   };
 
   const handleSave = async (actId) => {
-    if (!editData.activity_name.trim()) {
-      toast.error("Activity name required");
+    if (editData.activity_category_ids.length === 0) {
+      toast.error("Select an activity");
       return;
     }
 
     setIsLoading(true);
     try {
-      await base44.entities.Activity.update(actId, editData);
+      // Fetch categories to build activity name
+      const categories = await base44.entities.ActivityCategory.list();
+      const categoryNames = (editData.activity_category_ids || [])
+        .map(id => categories.find(c => c.id === id)?.name)
+        .filter(Boolean);
+      const activity_name = categoryNames.length > 0 ? categoryNames.join(" + ") : "Activity";
+
+      await base44.entities.Activity.update(actId, {
+        activity_name,
+        activity_category_ids: editData.activity_category_ids,
+        duration_minutes: editData.duration_minutes,
+        fronting_alter_ids: editData.fronting_alter_ids,
+        notes: editData.notes,
+      });
       toast.success("Activity updated");
       setEditingId(null);
       onSave?.();
