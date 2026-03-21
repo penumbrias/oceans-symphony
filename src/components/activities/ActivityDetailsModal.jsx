@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,49 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
   const [notes, setNotes] = useState(activity?.notes || "");
   const [isLoading, setIsLoading] = useState(false);
 
+  const { data: emotionCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns"],
+    queryFn: () => base44.entities.EmotionCheckIn.list(),
+  });
+
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
+  const { data: activities = [] } = useQuery({
+    queryKey: ["activities"],
+    queryFn: () => base44.entities.Activity.list(),
+  });
+
   if (!activity) return null;
+
+  // Get all activities within 1 hour of this activity
+  const activitiesForTime = useMemo(() => {
+    return activities.filter(a => {
+      const timeDiff = Math.abs(new Date(a.timestamp).getTime() - new Date(activity.timestamp).getTime());
+      return timeDiff < 3600000; // Within 1 hour
+    });
+  }, [activities, activity]);
+
+  // Get emotions for this time
+  const emotionsForTime = useMemo(() => {
+    const checkIn = emotionCheckIns.find(e => {
+      const checkInTime = new Date(e.timestamp);
+      const actTime = new Date(activity.timestamp);
+      return Math.abs(checkInTime - actTime) < 3600000; // Within 1 hour
+    });
+    return checkIn?.emotions || [];
+  }, [emotionCheckIns, activity]);
+
+  // Get alters fronting at this time
+  const altersFrontingAtTime = useMemo(() => {
+    const allAlterIds = new Set();
+    activitiesForTime.forEach(a => {
+      (a.fronting_alter_ids || []).forEach(id => allAlterIds.add(id));
+    });
+    return Array.from(allAlterIds).map(id => alters.find(a => a.id === id)).filter(Boolean);
+  }, [activitiesForTime, alters]);
 
   const duration = Math.round((activity.duration_minutes || 0) / 60 * 10) / 10;
   const startTime = new Date(activity.timestamp);
