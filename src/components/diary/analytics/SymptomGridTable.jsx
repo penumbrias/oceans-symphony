@@ -139,7 +139,7 @@ export default function SymptomGridTable({ dailyAggregates, dateRange = 7 }) {
               {data.symptoms[symptomKey].map((value, i) => (
                 <td
                   key={i}
-                  className={`px-1 py-2 text-center border-b border-border/50 rounded transition-all ${getColor(value)}`}
+                  className={`px-2 py-2 text-center border-b border-border/50 rounded transition-all ${getColor(value)}`}
                   title={getValue(value)}
                 >
                   <span className="font-medium">{getValue(value)}</span>
