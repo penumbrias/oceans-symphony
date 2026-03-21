@@ -8,6 +8,9 @@ import WellnessOverview from "./analytics/WellnessOverview";
 import DayOfWeekHeatmap from "./analytics/DayOfWeekHeatmap";
 import MetricFluctuationsChart from "./analytics/MetricFluctuationsChart";
 import DiaryHeatmap from "./analytics/DiaryHeatmap";
+import SymptomGridTable from "./analytics/SymptomGridTable";
+import SymptomTrendCharts from "./analytics/SymptomTrendCharts";
+import SymptomSelector from "./analytics/SymptomSelector";
 import { aggregateDailyMetrics, getAlterTendencies } from "@/lib/diaryAnalytics";
 
 const RANGE_OPTIONS = [
@@ -18,8 +21,8 @@ const RANGE_OPTIONS = [
 ];
 
 const TABS = [
+  { id: "symptoms", label: "🩺 Symptoms" },
   { id: "patterns", label: "🔥 Patterns" },
-  { id: "fluctuations", label: "📊 Fluctuations" },
   { id: "dayofweek", label: "📅 Day of Week" },
   { id: "heatmap", label: "🗓️ Calendar" },
   { id: "alters", label: "🧑‍🤝‍🧑 Alters" },
@@ -108,6 +111,21 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
         ))}
       </div>
 
+      {activeTab === "symptoms" && (
+        <div className="space-y-5">
+          <SymptomSelector dateRange={dateRange} onDateRangeChange={setDateRange} />
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold">Grid View</h3>
+            <p className="text-xs text-muted-foreground">Like your paper checklist—see all symptoms at a glance</p>
+          </div>
+          <SymptomGridTable dailyAggregates={dailyAggregates} dateRange={dateRange} />
+          <div className="space-y-1 pt-4">
+            <h3 className="text-sm font-semibold">Trend View</h3>
+            <p className="text-xs text-muted-foreground">Track how symptoms change over time</p>
+          </div>
+          <SymptomTrendCharts dailyAggregates={dailyAggregates} />
+        </div>
+      )}
       {activeTab === "patterns" && (
         <div className="space-y-5">
           <MetricFluctuationsChart
@@ -115,14 +133,6 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
             metrics={["avg_emotional_misery", "avg_joy"]}
           />
           <DiaryHeatmap dailyAggregates={dailyAggregates} metric="avg_emotional_misery" />
-        </div>
-      )}
-      {activeTab === "fluctuations" && (
-        <div className="space-y-5">
-          <MetricFluctuationsChart
-            dailyAggregates={dailyAggregates}
-            metrics={["avg_emotional_misery", "avg_physical_misery", "avg_urge_self_harm"]}
-          />
         </div>
       )}
       {activeTab === "dayofweek" && (
