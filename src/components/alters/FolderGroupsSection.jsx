@@ -78,127 +78,87 @@ function FolderRow({ group, onClick }) {
   );
 }
 
+function GroupRow({ group, allGroups, alters, level = 0, expanded = true, onToggleExpanded }) {
+  const [isExpanded, setIsExpanded] = useState(expanded);
+  const childGroups = allGroups
+    .filter((g) => g.parent && (g.parent === group.id || g.parent === group.sp_id))
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  
+  const memberAlters = alters.filter((a) =>
+    (a.groups || []).some((g) => g.id === group.id || g.sp_id === group.id)
+  );
+
+  const hasChildren = childGroups.length > 0 || memberAlters.length > 0;
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex items-center gap-2"
+        style={{ paddingLeft: `${level * 20}px` }}
+      >
+        {hasChildren && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {isExpanded ? (
+              <ChevronRight className="w-4 h-4 rotate-90" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </button>
+        )}
+        {!hasChildren && <div className="w-5" />}
+        <FolderRow group={group} onClick={() => {}} />
+      </motion.div>
+
+      {isExpanded && (
+        <div>
+          {childGroups.map((g) => (
+            <GroupRow key={g.id} group={g} allGroups={allGroups} alters={alters} level={level + 1} onToggleExpanded={onToggleExpanded} />
+          ))}
+          {memberAlters.map((alter) => (
+            <motion.div key={alter.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} style={{ paddingLeft: `${(level + 1) * 20 + 20}px` }}>
+              <MemberRow alter={alter} />
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function FolderGroupsSection({ alters, sortDir = "asc" }) {
-  const [navStack, setNavStack] = useState([]);
   const [managingGroup, setManagingGroup] = useState(null);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
 
-  const currentGroup = navStack.length > 0 ? navStack[navStack.length - 1] : null;
-  const currentGroupKey = currentGroup ? (currentGroup.sp_id || currentGroup.id) : null;
-
-  // Children groups at this level (sorted based on sortDir)
-  const childGroups = allGroups
-    .filter((g) => {
-      const parent = g.parent || "";
-      if (currentGroupKey === null) {
-        // Root level: include groups with no parent, or parent is one of the root group's id/sp_id
-        if (parent === "" || parent === "root") return true;
-        // Also check if parent matches any root group's sp_id or id
-        return allGroups.some((rootG) => (!rootG.parent || rootG.parent === "" || rootG.parent === "root") && (rootG.id === parent || rootG.sp_id === parent));
-      }
-      // Check if parent matches currentGroup's id or sp_id
-      return parent === currentGroupKey || parent === currentGroup?.sp_id;
-    })
-    .sort((a, b) => {
-      const cmp = (a.name || "").localeCompare(b.name || "");
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-
-  // Members in current group
-  const memberAlters = currentGroup
-    ? alters.filter((a) =>
-        (a.groups || []).some((g) => (g.id === currentGroupKey || g.sp_id === currentGroupKey))
-      )
-    : [];
-
-  const navigateTo = (group) => setNavStack([...navStack, group]);
-  const navigateBack = () => setNavStack(navStack.slice(0, -1));
-
-  const breadcrumb = ["Root", ...navStack.map((g) => g.name)];
-  const breadcrumbDisplay =
-    breadcrumb.length > 3
-      ? ["Root/...", ...breadcrumb.slice(-2)].join(" / ")
-      : breadcrumb.join(" / ");
+  const rootGroups = allGroups
+    .filter((g) => !g.parent || g.parent === "" || g.parent === "root")
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        {navStack.length > 0 && (
-          <button
-            onClick={navigateBack}
-            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 text-muted-foreground" />
-          </button>
-        )}
-        {navStack.length > 0 && (
-          <p className="text-sm font-medium text-muted-foreground flex-1">{breadcrumbDisplay}</p>
-        )}
-
-        {/* Manage members (inside a group) */}
-        {currentGroup && (
-          <button
-            onClick={() => setManagingGroup(currentGroup)}
-            title="Manage members"
-            className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <Users className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* New group/subgroup */}
-        <button
-          onClick={() => setShowCreateGroup(true)}
-          title={currentGroup ? "New subgroup" : "New group"}
-          className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
-        >
-          <FolderPlus className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Content */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentGroupKey || "root"}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.15 }}
-          className="space-y-2"
-        >
-          {childGroups.map((g) => (
-            <FolderRow key={g.id} group={g} onClick={navigateTo} />
-          ))}
-
-          {memberAlters.map((alter) => (
-            <MemberRow key={alter.id} alter={alter} />
-          ))}
-
-          {childGroups.length === 0 && memberAlters.length === 0 && navStack.length > 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Folder className="w-10 h-10 text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground text-sm">This group is empty.</p>
-            </div>
-          )}
-        </motion.div>
-      </AnimatePresence>
-
+    <div className="space-y-1">
+      {rootGroups.map((group) => (
+        <GroupRow
+          key={group.id}
+          group={group}
+          allGroups={allGroups}
+          alters={alters}
+          level={0}
+        />
+      ))}
+      
       <ManageMembersModal
         group={managingGroup}
         allAlters={alters}
         open={!!managingGroup}
         onClose={() => setManagingGroup(null)}
-      />
-      <CreateGroupModal
-        open={showCreateGroup}
-        onClose={() => setShowCreateGroup(false)}
-        parentGroup={currentGroup}
       />
     </div>
   );
