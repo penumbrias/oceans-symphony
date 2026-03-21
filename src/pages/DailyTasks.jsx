@@ -36,15 +36,15 @@ export default function DailyTasks() {
   const todayRecord = allProgress.find((p) => p.date === TODAY);
   const manualCompleted = new Set(todayRecord?.completed_task_ids || []);
 
-  // AUTO task detection — convert UTC to local date for comparison
+  // AUTO task detection — convert UTC created_date to local date for comparison
   const hasJournalToday = journals.some((j) => {
     if (!j.created_date) return false;
-    const d = new Date(j.created_date);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const entryDate = `${yyyy}-${mm}-${dd}`;
-    console.log("Journal entry date:", entryDate, "TODAY:", TODAY, "Match:", entryDate === TODAY);
+    // Parse UTC timestamp and convert to local date
+    const utcDate = new Date(j.created_date);
+    const localYear = utcDate.getFullYear();
+    const localMonth = String(utcDate.getMonth() + 1).padStart(2, "0");
+    const localDay = String(utcDate.getDate()).padStart(2, "0");
+    const entryDate = `${localYear}-${localMonth}-${localDay}`;
     return entryDate === TODAY;
   });
   const hasDiaryToday = diaryCards.length > 0;
