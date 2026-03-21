@@ -516,6 +516,17 @@ export default function DiaryCards() {
           {saving ? "Saving..." : editingEntry ? "Save Changes" : "Save Diary Card"}
         </Button>
       )}
+
+      <ExistingCardDialog
+        isOpen={showExistingCardDialog}
+        onClose={() => {
+          setShowExistingCardDialog(false);
+          setExistingCardToday(null);
+        }}
+        onUpdate={proceedWithUpdate}
+        onCreateNew={proceedWithNewCard}
+        existingCard={existingCardToday}
+      />
     </motion.div>
   );
 }
