@@ -100,6 +100,7 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
         {alters.map((alter) => {
           const fronting = isFronting(alter.id);
           const isPrimary = currentSession?.primary_alter_id === alter.id;
+          const alterColor = alter.color || "#9333ea";
           
           return (
             <div
@@ -114,23 +115,28 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
                 <img
                   src={alter.avatar_url}
                   alt={alter.name}
-                  className={`w-16 h-16 rounded-full object-cover ring-2 transition-all cursor-pointer select-none ${
-                    fronting
+                  style={{
+                    boxShadow: fronting 
                       ? isPrimary
-                        ? "ring-amber-400 shadow-lg shadow-amber-400/50"
-                        : "ring-primary shadow-lg shadow-primary/50"
-                      : "ring-primary/20 hover:ring-primary/40"
-                  }`}
+                        ? `0 0 20px rgba(251, 191, 36, 0.5), 0 0 12px ${alterColor}80, inset 0 0 0 2px ${alterColor}, inset 0 0 0 3px #fbbf24`
+                        : `0 0 16px ${alterColor}80, inset 0 0 0 2px ${alterColor}`
+                      : `inset 0 0 0 2px ${alterColor}40`
+                  }}
+                  className="w-16 h-16 rounded-full object-cover transition-all cursor-pointer select-none"
                   draggable={false}
                 />
               ) : (
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center ring-2 transition-all cursor-pointer select-none ${
-                  fronting
-                    ? isPrimary
-                      ? "bg-amber-400/20 ring-amber-400 shadow-lg shadow-amber-400/50"
-                      : "bg-primary/20 ring-primary shadow-lg shadow-primary/50"
-                    : "bg-muted ring-primary/20 hover:ring-primary/40"
-                }`}>
+                <div 
+                  style={{
+                    backgroundColor: fronting ? `${alterColor}20` : "hsl(var(--muted))",
+                    boxShadow: fronting 
+                      ? isPrimary
+                        ? `0 0 20px rgba(251, 191, 36, 0.5), 0 0 12px ${alterColor}80, inset 0 0 0 2px ${alterColor}, inset 0 0 0 3px #fbbf24`
+                        : `0 0 16px ${alterColor}80, inset 0 0 0 2px ${alterColor}`
+                      : `inset 0 0 0 2px ${alterColor}40`
+                  }}
+                  className="w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer select-none"
+                >
                   <span className="text-xs font-semibold text-muted-foreground">
                     {alter.name.slice(0, 2)}
                   </span>
