@@ -46,12 +46,9 @@ export default function CheckInStep5({ data, onChange }) {
               </Label>
             </div>
 
-            <div className="p-3 bg-accent/30 rounded-lg space-y-2">
+            <div className="p-3 bg-accent/30 rounded-lg">
               <p className="text-xs text-muted-foreground italic">
-                "Thank your system for spending time together. Remind your parts,"
-              </p>
-              <p className="text-xs text-muted-foreground italic font-semibold">
-                "I'll keep coming back."
+                Thank your system for spending time together. Remind your parts, "I'll keep coming back".
               </p>
             </div>
 
