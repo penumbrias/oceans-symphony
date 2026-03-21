@@ -400,15 +400,21 @@ export default function DiaryCards() {
   }
 
   // ── NEW ENTRY ──
+  const pageTitle = editingEntry ? "Edit Diary Card" : "Daily Diary Card";
+  const pageDate = editingEntry ? editingEntry.date : format(new Date(), "MMMM d, yyyy");
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
+        <Button variant="ghost" size="icon" onClick={() => {
+          if (editingEntry) setView("entry");
+          else setView("list");
+        }} className="h-8 w-8">
           <ChevronLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="font-display text-2xl font-semibold">Daily Diary Card</h1>
-          <p className="text-muted-foreground text-xs">{format(new Date(), "MMMM d, yyyy")}</p>
+          <h1 className="font-display text-2xl font-semibold">{pageTitle}</h1>
+          <p className="text-muted-foreground text-xs">{pageDate}</p>
         </div>
       </div>
 
