@@ -201,11 +201,12 @@ export default function ActivityWeeklyGrid({
 
             {/* Day cells */}
             {weekDays.map((date) => {
-              const fronting = getFrontingForHour(date, hour);
-              const activity = getActivityForHour(date, hour);
-              const isStartSelected =
-                startSelection?.date.toDateString() === date.toDateString() &&
-                startSelection?.hour === hour;
+               const fronting = getFrontingForHour(date, hour);
+               const cellActivities = getActivitiesForHour(date, hour);
+               const activity = cellActivities.length > 0 ? cellActivities[0] : null;
+               const isStartSelected =
+                 startSelection?.date.toDateString() === date.toDateString() &&
+                 startSelection?.hour === hour;
 
               return (
                 <button
