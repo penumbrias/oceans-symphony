@@ -30,7 +30,7 @@ export default function Timeline() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  // Build timeline items with duration info for each switch
+  // Build timeline items, grouping concurrent fronting sessions into one row
   const timelineItems = useMemo(() => {
     const dayStart = startOfDay(selectedDate);
     const dayEnd = endOfDay(selectedDate);
@@ -49,29 +49,70 @@ export default function Timeline() {
       }
     });
 
-    // Add fronting sessions — each session shows primary + co-fronters as horizontal circles
-    switches.forEach((session) => {
-      const sessionDate = new Date(session.start_time);
-      if (sessionDate >= dayStart && sessionDate <= dayEnd) {
-        // Build list of all alter IDs fronting in this session
-        const allFronterIds = [
+    // Group fronting sessions that overlap in time into a single row.
+    // Each session contributes its alter(s) with their own start/end times.
+    const daySessions = switches.filter((s) => {
+      const d = new Date(s.start_time);
+      return d >= dayStart && d <= dayEnd;
+    });
+
+    // Sort sessions by start time
+    const sorted = [...daySessions].sort(
+      (a, b) => new Date(a.start_time) - new Date(b.start_time)
+    );
+
+    // Group sessions whose start times are within 60 seconds of each other
+    // (treat them as the same "switch event")
+    const groups = [];
+    sorted.forEach((session) => {
+      const sessionStart = new Date(session.start_time).getTime();
+      const lastGroup = groups[groups.length - 1];
+      const lastStart = lastGroup
+        ? new Date(lastGroup[0].start_time).getTime()
+        : null;
+
+      if (lastGroup && Math.abs(sessionStart - lastStart) <= 60000) {
+        lastGroup.push(session);
+      } else {
+        groups.push([session]);
+      }
+    });
+
+    // Each group becomes one timeline item with all alters side-by-side
+    groups.forEach((group) => {
+      const representativeStart = group[0].start_time;
+      // Collect per-alter entries so we can render individual lines per alter
+      const fronters = group.flatMap((session) => {
+        const ids = [
           session.primary_alter_id,
           ...(session.co_fronter_ids || []),
         ].filter(Boolean);
+        return ids.map((alterId) => ({
+          alterId,
+          startTime: session.start_time,
+          endTime: session.end_time || null,
+          isActive: session.is_active,
+        }));
+      });
 
-        items.push({
-          type: "switch",
-          timestamp: session.start_time,
-          data: {
-            sessionId: session.id,
-            allFronterIds,
-            startTime: session.start_time,
-            endTime: session.end_time || null,
-            isActive: session.is_active,
-            note: session.note,
-          },
-        });
-      }
+      // Deduplicate by alterId (keep first occurrence)
+      const seen = new Set();
+      const uniqueFronters = fronters.filter(({ alterId }) => {
+        if (seen.has(alterId)) return false;
+        seen.add(alterId);
+        return true;
+      });
+
+      const notes = group.map((s) => s.note).filter(Boolean).join(" | ");
+
+      items.push({
+        type: "switch",
+        timestamp: representativeStart,
+        data: {
+          fronters: uniqueFronters,
+          note: notes || null,
+        },
+      });
     });
 
     // Add emotion check-ins
