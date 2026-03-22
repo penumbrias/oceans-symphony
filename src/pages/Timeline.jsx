@@ -49,61 +49,28 @@ export default function Timeline() {
       }
     });
 
-    // Add switches with duration info
-    const processedTimes = new Set();
-    const sortedSwitches = [...switches].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-    
-    sortedSwitches.forEach((switchRecord) => {
-      const switchDate = new Date(switchRecord.start_time);
-      if (switchDate >= dayStart && switchDate <= dayEnd) {
-        const timeKey = switchRecord.start_time;
-        
-        // Calculate when this specific alter stops fronting
-        let endTime = null;
-        for (let i = 0; i < sortedSwitches.length; i++) {
-          if (sortedSwitches[i].primary_alter_id === switchRecord.primary_alter_id && sortedSwitches[i].start_time === switchRecord.start_time) {
-            // Find when this alter next switches out
-            for (let j = i + 1; j < sortedSwitches.length; j++) {
-              if (sortedSwitches[j].primary_alter_id !== switchRecord.primary_alter_id) {
-                endTime = new Date(sortedSwitches[j].start_time);
-                break;
-              }
-            }
-            break;
-          }
-        }
-        
-        if (!processedTimes.has(timeKey)) {
-          // Get all alters starting at this exact time
-          const groupedAlters = sortedSwitches
-            .filter((s) => s.start_time === timeKey && new Date(s.start_time) >= dayStart && new Date(s.start_time) <= dayEnd)
-            .map((s) => {
-              // Find end time for this specific alter
-              let alterEndTime = null;
-              for (let i = 0; i < sortedSwitches.length; i++) {
-                if (sortedSwitches[i].primary_alter_id === s.primary_alter_id && sortedSwitches[i].start_time === s.start_time) {
-                  for (let j = i + 1; j < sortedSwitches.length; j++) {
-                    if (sortedSwitches[j].primary_alter_id !== s.primary_alter_id) {
-                      alterEndTime = sortedSwitches[j].start_time;
-                      break;
-                    }
-                  }
-                  break;
-                }
-              }
-              return {
-                ...s,
-                endTime: alterEndTime,
-              };
-            });
+    // Add fronting sessions — each session shows primary + co-fronters as horizontal circles
+    switches.forEach((session) => {
+      const sessionDate = new Date(session.start_time);
+      if (sessionDate >= dayStart && sessionDate <= dayEnd) {
+        // Build list of all alter IDs fronting in this session
+        const allFronterIds = [
+          session.primary_alter_id,
+          ...(session.co_fronter_ids || []),
+        ].filter(Boolean);
 
-          items.push({
-            type: "switch",
-            timestamp: switchRecord.start_time,
-            data: groupedAlters,
-          });
-          processedTimes.add(timeKey);
-        }
+        items.push({
+          type: "switch",
+          timestamp: session.start_time,
+          data: {
+            sessionId: session.id,
+            allFronterIds,
+            startTime: session.start_time,
+            endTime: session.end_time || null,
+            isActive: session.is_active,
+            note: session.note,
+          },
+        });
       }
     });
 
