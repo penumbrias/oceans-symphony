@@ -4,9 +4,11 @@ import { Activity, Heart } from "lucide-react";
 
 const HOUR_HEIGHT = 60; // px per hour
 const LABEL_WIDTH = 52; // px for time label column
+const EVENTS_WIDTH = 130; // px for events column on the left
+const COL_WIDTH = 40; // px per alter column
 
-function minutesFromDayStart(date, dayStart) {
-  return Math.max(0, differenceInMinutes(date, dayStart));
+function minutesFromHourStart(date, firstHour, dayStart) {
+  return differenceInMinutes(date, dayStart) - firstHour * 60;
 }
 
 function AlterAvatar({ alter, color, heightPx, topOffsetPx }) {
@@ -15,7 +17,6 @@ function AlterAvatar({ alter, color, heightPx, topOffsetPx }) {
       className="absolute flex flex-col items-center"
       style={{ top: `${topOffsetPx}px`, left: 0, right: 0 }}
     >
-      {/* Circle */}
       <div
         className="w-9 h-9 rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center"
         style={{ backgroundColor: color }}
@@ -29,7 +30,6 @@ function AlterAvatar({ alter, color, heightPx, topOffsetPx }) {
           </span>
         )}
       </div>
-      {/* Duration line */}
       <div
         className="w-0.5 rounded-full mt-0.5"
         style={{
@@ -46,35 +46,62 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
 
   const totalMinutes = hours.length * 60;
   const containerHeight = hours.length * HOUR_HEIGHT;
+  const firstHour = hours[0]?.getHours() ?? 0;
 
-  // Build alter lanes: each session → each alter gets a lane slot
-  // We pack alters into columns so concurrent ones are side-by-side
+  // Build alter entries, merging sessions for the same alter that overlap or are within 2 mins
   const alterEntries = useMemo(() => {
-    const entries = [];
+    // Collect raw segments per alter
+    const byAlter = {};
     sessions.forEach((session) => {
       const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
       ids.forEach((alterId) => {
-        const startMins = minutesFromDayStart(new Date(session.start_time), dayStart) - (hours[0].getHours() * 60);
+        const startMins = minutesFromHourStart(new Date(session.start_time), firstHour, dayStart);
         const endTime = session.end_time ? new Date(session.end_time) : null;
         const endMins = endTime
-          ? minutesFromDayStart(endTime, dayStart) - (hours[0].getHours() * 60)
-          : startMins + 30; // active sessions get 30min placeholder
-        entries.push({
-          alterId,
+          ? minutesFromHourStart(endTime, firstHour, dayStart)
+          : startMins + 30;
+        if (!byAlter[alterId]) byAlter[alterId] = [];
+        byAlter[alterId].push({
           startMins: Math.max(0, startMins),
           endMins: Math.min(totalMinutes, Math.max(endMins, startMins + 8)),
           isActive: session.is_active && !session.end_time,
-          sessionId: session.id,
         });
       });
     });
-    return entries;
-  }, [sessions, dayStart, hours, totalMinutes]);
 
-  // Assign each alter entry to a column (pack greedily)
+    // Merge overlapping/adjacent segments per alter
+    const merged = [];
+    Object.entries(byAlter).forEach(([alterId, segments]) => {
+      const sorted = [...segments].sort((a, b) => a.startMins - b.startMins);
+      const mergedSegs = [];
+      sorted.forEach((seg) => {
+        if (mergedSegs.length === 0) {
+          mergedSegs.push({ ...seg });
+        } else {
+          const last = mergedSegs[mergedSegs.length - 1];
+          // Merge if overlapping or within 2 minutes
+          if (seg.startMins <= last.endMins + 2) {
+            last.endMins = Math.max(last.endMins, seg.endMins);
+            last.isActive = last.isActive || seg.isActive;
+          } else {
+            mergedSegs.push({ ...seg });
+          }
+        }
+      });
+      mergedSegs.forEach((seg, i) => {
+        merged.push({ alterId, ...seg, key: `${alterId}-${i}` });
+      });
+    });
+
+    return merged;
+  }, [sessions, dayStart, firstHour, totalMinutes]);
+
+  // Assign each alter entry to a column (greedy packing)
   const columnsWithEntries = useMemo(() => {
     const columns = [];
-    alterEntries.forEach((entry) => {
+    // Sort by startMins for consistent column assignment
+    const sorted = [...alterEntries].sort((a, b) => a.startMins - b.startMins);
+    sorted.forEach((entry) => {
       let placed = false;
       for (const col of columns) {
         const lastInCol = col[col.length - 1];
@@ -89,26 +116,25 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
     return columns;
   }, [alterEntries]);
 
-  // Events (activities + emotions) positioned by time
+  // Events (activities + emotions) with time positioning
   const events = useMemo(() => {
     const evts = [];
     activities.forEach((a) => {
-      const mins = minutesFromDayStart(new Date(a.timestamp), dayStart) - hours[0].getHours() * 60;
+      const mins = minutesFromHourStart(new Date(a.timestamp), firstHour, dayStart);
       evts.push({ type: "activity", mins: Math.max(0, mins), data: a });
     });
     emotions.forEach((e) => {
-      const mins = minutesFromDayStart(new Date(e.timestamp), dayStart) - hours[0].getHours() * 60;
+      const mins = minutesFromHourStart(new Date(e.timestamp), firstHour, dayStart);
       evts.push({ type: "emotion", mins: Math.max(0, mins), data: e });
     });
-    return evts;
-  }, [activities, emotions, dayStart, hours]);
+    return evts.sort((a, b) => a.mins - b.mins);
+  }, [activities, emotions, dayStart, firstHour]);
 
-  const colWidth = 40; // px per alter column
-  const eventsLeft = LABEL_WIDTH + columnsWithEntries.length * colWidth + 8;
+  // Layout: [events | time label | alter columns]
+  const alterColumnsLeft = EVENTS_WIDTH + LABEL_WIDTH;
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
-      {/* Scrollable container */}
       <div className="overflow-y-auto max-h-[70vh]">
         <div
           className="relative"
@@ -118,55 +144,28 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
           {hours.map((hour, i) => (
             <div
               key={i}
-              className="absolute left-0 right-0 flex items-start"
-              style={{ top: `${i * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+              className="absolute flex items-start"
+              style={{
+                top: `${i * HOUR_HEIGHT}px`,
+                height: `${HOUR_HEIGHT}px`,
+                left: `${EVENTS_WIDTH}px`,
+                right: 0,
+              }}
             >
-              {/* Time label */}
               <div
                 className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-2 text-right"
                 style={{ width: `${LABEL_WIDTH}px` }}
               >
                 {format(hour, "h a")}
               </div>
-              {/* Horizontal grid line */}
               <div className="flex-1 border-t border-border/40 mt-2" />
             </div>
           ))}
 
-          {/* Alter columns */}
-          {columnsWithEntries.map((col, colIdx) => (
-            <div
-              key={colIdx}
-              className="absolute"
-              style={{
-                left: `${LABEL_WIDTH + colIdx * colWidth}px`,
-                top: 0,
-                width: `${colWidth}px`,
-                height: `${containerHeight}px`,
-              }}
-            >
-              {col.map((entry) => {
-                const alter = alters.find((a) => a.id === entry.alterId);
-                const color = alter?.color || "#9333ea";
-                const topPx = (entry.startMins / 60) * HOUR_HEIGHT;
-                const heightPx = ((entry.endMins - entry.startMins) / 60) * HOUR_HEIGHT;
-                return (
-                  <AlterAvatar
-                    key={`${entry.sessionId}-${entry.alterId}`}
-                    alter={alter}
-                    color={color}
-                    topOffsetPx={topPx}
-                    heightPx={heightPx}
-                  />
-                );
-              })}
-            </div>
-          ))}
-
-          {/* Events (activities + emotions) */}
+          {/* Events column — far left, time-positioned */}
           <div
             className="absolute"
-            style={{ left: `${eventsLeft}px`, top: 0, right: 8 }}
+            style={{ left: 0, top: 0, width: `${EVENTS_WIDTH}px`, height: `${containerHeight}px` }}
           >
             {events.map((evt, idx) => {
               const topPx = (evt.mins / 60) * HOUR_HEIGHT;
@@ -178,19 +177,19 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
                 return (
                   <div
                     key={key}
-                    className="absolute left-0 right-0 cursor-pointer"
+                    className="absolute left-1 right-1 cursor-pointer"
                     style={{ top: `${topPx}px` }}
                     onClick={() => setExpandedItem(isExpanded ? null : key)}
                   >
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-start gap-1.5">
                       <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{ backgroundColor: a.color || "hsl(var(--primary))" }}
                       >
-                        <Activity className="w-3.5 h-3.5 text-white" />
+                        <Activity className="w-3 h-3 text-white" />
                       </div>
-                      <div className="text-xs pt-0.5">
-                        <p className="font-semibold leading-tight">{a.activity_name}</p>
+                      <div className="text-xs pt-0.5 overflow-hidden">
+                        <p className="font-semibold leading-tight truncate">{a.activity_name}</p>
                         {isExpanded && (
                           <>
                             <p className="text-muted-foreground">{format(new Date(a.timestamp), "h:mm a")}</p>
@@ -211,22 +210,22 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
                 return (
                   <div
                     key={key}
-                    className="absolute left-0 right-0 cursor-pointer"
+                    className="absolute left-1 right-1 cursor-pointer"
                     style={{ top: `${topPx}px` }}
                     onClick={() => setExpandedItem(isExpanded ? null : key)}
                   >
-                    <div className="flex items-start gap-2">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-destructive/20">
-                        <Heart className="w-3.5 h-3.5 text-destructive" />
+                    <div className="flex items-start gap-1.5">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 bg-destructive/20">
+                        <Heart className="w-3 h-3 text-destructive" />
                       </div>
-                      <div className="text-xs pt-0.5">
+                      <div className="text-xs pt-0.5 overflow-hidden">
                         {isExpanded ? (
                           <>
                             <p className="text-muted-foreground">{format(new Date(e.timestamp), "h:mm a")}</p>
                             {e.emotions?.length > 0 && (
                               <div className="flex gap-1 flex-wrap mt-0.5">
                                 {e.emotions.map((em) => (
-                                  <span key={em} className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-xs">
+                                  <span key={em} className="px-1 py-0.5 rounded-full bg-muted text-muted-foreground text-xs">
                                     {em}
                                   </span>
                                 ))}
@@ -234,7 +233,7 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
                             )}
                           </>
                         ) : (
-                          <p className="font-semibold leading-tight text-muted-foreground">Check-in</p>
+                          <p className="font-semibold leading-tight text-muted-foreground truncate">Check-in</p>
                         )}
                       </div>
                     </div>
@@ -245,6 +244,36 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
               return null;
             })}
           </div>
+
+          {/* Alter columns — after label */}
+          {columnsWithEntries.map((col, colIdx) => (
+            <div
+              key={colIdx}
+              className="absolute"
+              style={{
+                left: `${alterColumnsLeft + colIdx * COL_WIDTH}px`,
+                top: 0,
+                width: `${COL_WIDTH}px`,
+                height: `${containerHeight}px`,
+              }}
+            >
+              {col.map((entry) => {
+                const alter = alters.find((a) => a.id === entry.alterId);
+                const color = alter?.color || "#9333ea";
+                const topPx = (entry.startMins / 60) * HOUR_HEIGHT;
+                const heightPx = ((entry.endMins - entry.startMins) / 60) * HOUR_HEIGHT;
+                return (
+                  <AlterAvatar
+                    key={entry.key}
+                    alter={alter}
+                    color={color}
+                    topOffsetPx={topPx}
+                    heightPx={heightPx}
+                  />
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
     </div>
