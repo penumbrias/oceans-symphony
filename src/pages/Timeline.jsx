@@ -204,9 +204,9 @@ export default function Timeline() {
           </div>
           <div className="bg-muted/30 rounded-lg p-3 text-center">
             <p className="text-2xl font-bold">
-              {timelineItems.filter((i) => i.type === "switch").length}
+              {timelineItems.filter((i) => i.type === "switch").reduce((sum, i) => sum + i.data.fronters.length, 0)}
             </p>
-            <p className="text-xs text-muted-foreground">Switches</p>
+            <p className="text-xs text-muted-foreground">Fronters</p>
           </div>
           <div className="bg-muted/30 rounded-lg p-3 text-center">
             <p className="text-2xl font-bold">
