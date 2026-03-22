@@ -71,27 +71,34 @@ export default function TimelineItem({ item, alters, allItems }) {
   }
 
   if (item.type === "switch") {
-    const { allFronterIds, startTime, endTime, isActive, note } = item.data;
-    const durationMins = endTime
-      ? differenceInMinutes(new Date(endTime), new Date(startTime))
-      : null;
-    const durationLabel = durationMins
-      ? durationMins < 60
-        ? `${durationMins}m`
-        : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
-      : "Active";
-    // Scale: 1 minute = 0.5px, min 20px, max 200px
-    const lineHeight = durationMins ? Math.min(Math.max(durationMins * 0.5, 20), 200) : 30;
+    const { fronters, note } = item.data;
+    // Use the earliest start time for the label
+    const earliestStart = fronters.reduce((min, f) =>
+      new Date(f.startTime) < new Date(min) ? f.startTime : min,
+      fronters[0].startTime
+    );
 
     return (
       <div className="flex items-start gap-3">
         {/* Horizontal row of alter avatars, each with its own vertical duration line */}
         <div className="flex gap-2 items-start">
-          {allFronterIds.map((alterId) => {
+          {fronters.map(({ alterId, startTime, endTime, isActive }) => {
             const alter = alters.find((a) => a.id === alterId);
             const color = alter?.color || "#9333ea";
+            const durationMins = endTime
+              ? differenceInMinutes(new Date(endTime), new Date(startTime))
+              : null;
+            // Scale: 1 min = 0.5px, min 20px, max 200px
+            const lineHeight = durationMins
+              ? Math.min(Math.max(durationMins * 0.5, 20), 200)
+              : 30;
+
             return (
-              <div key={alterId} className="flex flex-col items-center cursor-pointer" onClick={() => setExpandedSwitch(!expandedSwitch)}>
+              <div
+                key={alterId}
+                className="flex flex-col items-center cursor-pointer"
+                onClick={() => setExpandedSwitch(!expandedSwitch)}
+              >
                 {/* Circle avatar */}
                 <div
                   className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
@@ -101,7 +108,9 @@ export default function TimelineItem({ item, alters, allItems }) {
                   {alter?.avatar_url ? (
                     <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
+                    <span className="text-xs font-bold text-white">
+                      {alter?.name?.charAt(0)?.toUpperCase() || "?"}
+                    </span>
                   )}
                 </div>
                 {/* Vertical duration line */}
@@ -119,9 +128,12 @@ export default function TimelineItem({ item, alters, allItems }) {
 
         {/* Time + duration label */}
         <div className="pt-1 text-xs">
-          <p className="text-muted-foreground font-medium">{format(new Date(startTime), "h:mm a")}</p>
-          <p className="text-muted-foreground">{durationLabel}</p>
-          {note && expandedSwitch && <p className="italic text-muted-foreground mt-1">{note}</p>}
+          <p className="text-muted-foreground font-medium">
+            {format(new Date(earliestStart), "h:mm a")}
+          </p>
+          {note && expandedSwitch && (
+            <p className="italic text-muted-foreground mt-1">{note}</p>
+          )}
         </div>
       </div>
     );
