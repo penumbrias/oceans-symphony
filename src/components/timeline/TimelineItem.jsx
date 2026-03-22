@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { format, differenceInMinutes } from "date-fns";
-import { Activity, Heart, ChevronDown, ChevronUp } from "lucide-react";
+import { Activity, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function TimelineItem({ item, alters, allItems }) {
@@ -17,21 +17,6 @@ export default function TimelineItem({ item, alters, allItems }) {
   const getAlterAvatar = (alterId) => {
     return alters.find((a) => a.id === alterId)?.avatar_url || null;
   };
-
-  // Calculate duration for a switch (time until next switch or end of day)
-  const getSwitchDuration = useMemo(() => {
-    if (item.type !== "switch" || !allItems) return null;
-    const currentIdx = allItems.findIndex((i) => i.type === item.type && i.timestamp === item.timestamp);
-    if (currentIdx === -1) return null;
-    
-    // Find next switch
-    for (let i = currentIdx + 1; i < allItems.length; i++) {
-      if (allItems[i].type === "switch") {
-        return differenceInMinutes(new Date(allItems[i].timestamp), new Date(item.timestamp));
-      }
-    }
-    return null; // Still fronting or no next switch recorded
-  }, [item, allItems]);
 
   if (item.type === "activity") {
     return (
