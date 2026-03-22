@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format, startOfDay, endOfDay, subDays, addDays, eachHourOfInterval } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import HourlyTimeline from "@/components/timeline/HourlyTimeline";
+import HourlyTimeline from "@/components/timeline/HourlyTimeline.jsx";
 
 export default function Timeline() {
   const [selectedDate, setSelectedDate] = useState(new Date());
