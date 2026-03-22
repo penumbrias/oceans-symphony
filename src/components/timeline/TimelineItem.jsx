@@ -86,102 +86,58 @@ export default function TimelineItem({ item, alters, allItems }) {
   }
 
   if (item.type === "switch") {
-    const switchArray = Array.isArray(item.data) ? item.data : [item.data];
+    const { allFronterIds, startTime, endTime, isActive, note } = item.data;
+    const durationMins = endTime
+      ? differenceInMinutes(new Date(endTime), new Date(startTime))
+      : null;
+    const durationLabel = durationMins
+      ? durationMins < 60
+        ? `${durationMins}m`
+        : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
+      : "Active";
+    // Scale: 1 minute = 0.5px, min 20px, max 200px
+    const lineHeight = durationMins ? Math.min(Math.max(durationMins * 0.5, 20), 200) : 30;
 
     return (
-      <div>
-        {/* Horizontal row of concurrent alters with individual duration lines */}
-        <div className="flex gap-0 pb-2">
-          {switchArray.map((switchRecord, idx) => {
-            const alter = alters.find((a) => a.id === switchRecord.primary_alter_id);
-            
-            // Calculate duration for this specific alter
-            const startTime = new Date(switchRecord.start_time);
-            const endTime = switchRecord.endTime ? new Date(switchRecord.endTime) : null;
-            const durationMins = endTime ? differenceInMinutes(endTime, startTime) : null;
-            
+      <div className="flex items-start gap-3">
+        {/* Horizontal row of alter avatars, each with its own vertical duration line */}
+        <div className="flex gap-2 items-start">
+          {allFronterIds.map((alterId) => {
+            const alter = alters.find((a) => a.id === alterId);
+            const color = alter?.color || "#9333ea";
             return (
-              <div key={idx} className="flex flex-col items-center group">
-                {/* Avatar icon */}
+              <div key={alterId} className="flex flex-col items-center cursor-pointer" onClick={() => setExpandedSwitch(!expandedSwitch)}>
+                {/* Circle avatar */}
                 <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
-                  style={{ backgroundColor: alter?.color || "#9333ea" }}
-                  title={getAlterName(switchRecord.primary_alter_id)}
-                  onClick={() => setExpandedSwitch(!expandedSwitch)}
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                  style={{ backgroundColor: color }}
+                  title={alter?.name}
                 >
                   {alter?.avatar_url ? (
                     <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase()}</span>
+                    <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
                   )}
                 </div>
-                
                 {/* Vertical duration line */}
-                {durationMins && (
-                  <div
-                    className="w-0.5 mt-0.5"
-                    style={{
-                      backgroundImage: `linear-gradient(to bottom, ${alter?.color || "#9333ea"}, ${alter?.color || "#9333ea"}80)`,
-                      height: `${Math.max(durationMins / 6, 20)}px`,
-                    }}
-                  />
-                )}
+                <div
+                  className="w-0.5 mt-0.5 rounded-full"
+                  style={{
+                    background: `linear-gradient(to bottom, ${color}, ${color}60)`,
+                    height: `${lineHeight}px`,
+                  }}
+                />
               </div>
             );
           })}
-          
-          {/* Time label */}
-          <div className="ml-2 pt-1">
-            <p className="text-xs text-muted-foreground font-medium">
-              {format(new Date(item.timestamp), "h:mm a")}
-            </p>
-          </div>
         </div>
 
-        {/* Expanded details */}
-        {expandedSwitch && (
-          <div className="ml-4 space-y-2 mb-3 text-xs bg-muted/30 rounded p-2">
-            {switchArray.map((switchRecord, idx) => {
-              const durationMins = switchRecord.endTime 
-                ? differenceInMinutes(new Date(switchRecord.endTime), new Date(switchRecord.start_time))
-                : null;
-              const durationLabel = durationMins
-                ? durationMins < 60
-                  ? `${durationMins}m`
-                  : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
-                : "Active";
-
-              return (
-                <div key={idx} className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-6 h-6 rounded-full border border-border flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: getAlterColor(switchRecord.primary_alter_id) }}
-                    >
-                      <span className="text-xs font-bold text-white">
-                        {getAlterName(switchRecord.primary_alter_id).charAt(0)}
-                      </span>
-                    </div>
-                    <span className="font-semibold">{getAlterName(switchRecord.primary_alter_id)}</span>
-                    <span className="text-muted-foreground">{durationLabel}</span>
-                  </div>
-                  {switchRecord.co_fronter_ids?.length > 0 && (
-                    <div className="flex gap-1.5 ml-8 flex-wrap">
-                      {switchRecord.co_fronter_ids.map((alterId) => (
-                        <span key={alterId} className="px-2 py-0.5 rounded-full text-white text-center text-xs" style={{ backgroundColor: getAlterColor(alterId) }}>
-                          {getAlterName(alterId)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {switchRecord.note && (
-                    <p className="text-muted-foreground italic ml-8">{switchRecord.note}</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Time + duration label */}
+        <div className="pt-1 text-xs">
+          <p className="text-muted-foreground font-medium">{format(new Date(startTime), "h:mm a")}</p>
+          <p className="text-muted-foreground">{durationLabel}</p>
+          {note && expandedSwitch && <p className="italic text-muted-foreground mt-1">{note}</p>}
+        </div>
       </div>
     );
   }
