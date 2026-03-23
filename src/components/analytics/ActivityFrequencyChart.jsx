@@ -20,23 +20,18 @@ export default function ActivityFrequencyChart({ activities = [], categories = [
     activities.forEach(activity => {
       const actTime = new Date(activity.timestamp).getTime();
       if (actTime >= fromMs && actTime <= toMs) {
-        // Get category names
-        const categoryNames = activity.activity_category_ids
-          ?.map(id => categoryMap[id]?.name)
-          .filter(Boolean)
-          .join(" + ") || activity.activity_name || "Unnamed";
+        // Each category ID on an activity is counted independently
+        const catIds = activity.activity_category_ids || [];
+        const entries = catIds.length > 0
+          ? catIds.map(id => ({ name: categoryMap[id]?.name, color: categoryMap[id]?.color, id }))
+          : [{ name: activity.activity_name || "Unnamed", color: "#8b5cf6", id: null }];
 
-        if (!stats[categoryNames]) {
-          stats[categoryNames] = {
-            name: categoryNames,
-            count: 0,
-            duration: 0,
-            color: categoryMap[activity.activity_category_ids?.[0]]?.color || "#8b5cf6"
-          };
-        }
-
-        stats[categoryNames].count += 1;
-        stats[categoryNames].duration += activity.duration_minutes || 0;
+        entries.forEach(({ name, color, id }) => {
+          if (!name) return;
+          if (!stats[name]) stats[name] = { name, count: 0, duration: 0, color: color || "#8b5cf6" };
+          stats[name].count += 1;
+          stats[name].duration += activity.duration_minutes || 0;
+        });
       }
     });
 
