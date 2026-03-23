@@ -134,11 +134,13 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expand
 }
 
 const TYPE_META = {
-  emotion:  { icon: "💭" },
-  journal:  { icon: "📓" },
-  checkin:  { icon: "✅" },
-  bulletin: { icon: "📌" },
-  task:     { icon: "☑️" },
+  emotion:      { icon: "💭" },
+  journal:      { icon: "📓" },
+  checkin:      { icon: "✅" },
+  bulletin:     { icon: "📌" },
+  task:         { icon: "☑️" },
+  task_done:    { icon: "✅" },
+  mention:      { icon: "@" },
 };
 
 function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
@@ -322,7 +324,13 @@ export default function InfiniteTimeline({
     journals.forEach((j) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(j.created_date), dayStart)), type: "journal", id: j.id, label: j.title || "Journal Entry", data: j }));
     checkIns.forEach((c) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)), type: "checkin", id: c.id, label: "System Check-In", data: c }));
     bulletins.forEach((b) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)), type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b }));
-    tasks.forEach((t) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t }));
+    tasks.forEach((t) => {
+      entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
+      // Also show completed tasks at their completion time
+      if (t.completed && t.completed_date) {
+        entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.completed_date), dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
+      }
+    });
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ci-${i}-${e.id}` }));
   }, [emotions, journals, checkIns, bulletins, tasks, dayStart]);
 

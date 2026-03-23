@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import MentionNotifications from "@/components/dashboard/MentionNotifications";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
@@ -39,6 +40,10 @@ export default function Dashboard() {
       </div>
 
       <CurrentFronters alters={alters} />
+      <MentionNotifications
+        frontingAlterIds={activeSession ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean) : []}
+        alters={alters}
+      />
       
       <button
         onClick={() => setShowEmotionModal(true)}
