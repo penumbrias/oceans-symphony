@@ -7,7 +7,7 @@ const HOUR_HEIGHT = 56;
 const LABEL_WIDTH = 44;
 const ALTER_COL_WIDTH = 38;
 const ACTIVITY_COL_WIDTH = 44;
-const CHECKIN_COL_WIDTH = 200; // merged emotions + journals/checkins
+const CHECKIN_COL_WIDTH = 100; // merged emotions + journals/checkins
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -340,12 +340,12 @@ export default function InfiniteTimeline({
   const checkInAreaWidth = CHECKIN_COL_WIDTH;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * ALTER_COL_WIDTH;
-  const totalWidth = activityAreaWidth + LABEL_WIDTH + checkInAreaWidth + alterAreaWidth;
+  const totalWidth = activityAreaWidth + checkInAreaWidth + LABEL_WIDTH + alterAreaWidth;
 
-  // Column starts
-  const timeLeft = activityAreaWidth;
-  const checkInLeft = timeLeft + LABEL_WIDTH;
-  const alterLeft = checkInLeft + checkInAreaWidth;
+  // Column starts: activities | check-ins | time label | alters
+  const checkInLeft = activityAreaWidth;
+  const timeLeft = checkInLeft + checkInAreaWidth;
+  const alterLeft = timeLeft + LABEL_WIDTH;
 
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
@@ -381,10 +381,10 @@ export default function InfiniteTimeline({
                 <span className="text-xs text-muted-foreground font-medium">Activities</span>
               </div>
             )}
-            <div style={{ width: LABEL_WIDTH }} />
             <div className="text-center py-1" style={{ width: checkInAreaWidth }}>
               <span className="text-xs text-muted-foreground font-medium">Check Ins</span>
             </div>
+            <div style={{ width: LABEL_WIDTH }} />
             <div className="text-center py-1" style={{ width: alterAreaWidth }}>
               <span className="text-xs text-muted-foreground font-medium">Alters</span>
             </div>

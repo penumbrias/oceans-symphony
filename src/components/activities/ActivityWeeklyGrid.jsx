@@ -54,16 +54,23 @@ export default function ActivityWeeklyGrid({
     return { count: dayActivities.length, duration: totalDuration };
   };
 
-  const getFrontingForHour = (date, hour) => {
+  // Returns deduplicated alter IDs (primary + co-fronters) active during a given hour — mirrors timeline logic
+  const getAlterIdsForHour = (date, hour) => {
     const hourStart = new Date(date);
     hourStart.setHours(hour, 0, 0, 0);
     const hourEnd = new Date(date);
     hourEnd.setHours(hour + 1, 0, 0, 0);
-    return frontingHistory.filter((session) => {
+    const sessions = frontingHistory.filter((session) => {
       const sessionStart = new Date(session.start_time);
       const sessionEnd = session.end_time ? new Date(session.end_time) : new Date();
       return sessionStart < hourEnd && sessionEnd > hourStart;
     });
+    const ids = new Set();
+    sessions.forEach((s) => {
+      if (s.primary_alter_id) ids.add(s.primary_alter_id);
+      (s.co_fronter_ids || []).forEach((id) => ids.add(id));
+    });
+    return [...ids];
   };
 
   const getAlterColor = (alterId) => {
@@ -172,7 +179,7 @@ export default function ActivityWeeklyGrid({
                 {String(hour).padStart(2, "0")}:00
               </div>
               {weekDays.map((date) => {
-                const fronting = getFrontingForHour(date, hour);
+                const fronting = getAlterIdsForHour(date, hour);
                 const cellActivities = getActivitiesForHour(date, hour);
                 const key = cellKey(date, hour);
                 const isExpanded = expandedCells.has(key);
@@ -229,33 +236,33 @@ export default function ActivityWeeklyGrid({
                             </div>
                           )}
                           {showAlters && fronting.length > 0 && (
-                            <div className="flex gap-0.5 justify-center flex-wrap">
-                              {Array.from(new Set(fronting.map(s => s.primary_alter_id).filter(Boolean))).slice(0, 4).map((alterId) => {
-                                const alter = alters.find((a) => a.id === alterId);
-                                return (
-                                  <div
-                                    key={alterId}
-                                    className="w-4 h-4 rounded-full border border-white/50 overflow-hidden flex items-center justify-center"
-                                    style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.2)" }}
-                                    title={alter?.name}
-                                  >
-                                    {alter?.avatar_url ? (
-                                      <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    ) : (
+                              <div className="flex gap-0.5 justify-center flex-wrap">
+                                {fronting.slice(0, 4).map((alterId) => {
+                                  const alter = alters.find((a) => a.id === alterId);
+                                  return (
+                                    <div
+                                      key={alterId}
+                                      className="w-4 h-4 rounded-full border border-white/50 overflow-hidden flex items-center justify-center"
+                                      style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.2)" }}
+                                      title={alter?.name}
+                                    >
+                                      {alter?.avatar_url ? (
+                                        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          </>
+                          ) : (
                       <>
                         {showAlters && fronting.length > 0 && (
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-0.5">
-                            {Array.from(new Set(fronting.map(s => s.primary_alter_id).filter(Boolean))).slice(0, 3).map((alterId) => {
+                            {fronting.slice(0, 3).map((alterId) => {
                               const alter = alters.find(a => a.id === alterId);
                               return (
                                 <div
@@ -278,7 +285,7 @@ export default function ActivityWeeklyGrid({
                         )}
                         {!showAlters && fronting.length > 0 && (
                           <div className="absolute top-1 left-1 right-1 flex gap-0.5 flex-wrap justify-center">
-                            {Array.from(new Set(fronting.map(s => s.primary_alter_id).filter(Boolean))).slice(0, 3).map((alterId) => (
+                            {fronting.slice(0, 3).map((alterId) => (
                               <div
                                 key={alterId}
                                 className="w-1.5 h-1.5 rounded-full border border-foreground/30"

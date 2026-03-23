@@ -179,19 +179,28 @@ export default function GroupPickerModal({ alter, open, onClose }) {
         .map((g) => g.color || "hsl(var(--primary))");
     }
 
+    // Build a lookup: sp_id → id for parent resolution
+    const spToId = Object.fromEntries(
+      allGroups.filter(g => g.sp_id).map(g => [g.sp_id, g.id])
+    );
+
+    // Resolve a parent reference (could be an id or an sp_id) to an entity id
+    const resolveParentId = (parent) => {
+      if (!parent || parent === "" || parent === "root") return null;
+      if (idSet.has(parent)) return parent; // it's already an id
+      if (spToId[parent]) return spToId[parent]; // it's an sp_id → resolve to id
+      return null; // orphan — treat as root
+    };
+
     function buildTree(parentId, depth) {
       return allGroups
         .filter((g) => {
-          const parent = g.parent || "";
-          if (parentId === null) {
-            return !parent || parent === "" || parent === "root" || !idSet.has(parent);
-          }
-          return parent === parentId || parent === allGroups.find(x => x.id === parentId)?.sp_id;
+          const resolvedParent = resolveParentId(g.parent);
+          return resolvedParent === parentId;
         })
         .sort((a, b) => (a.order || 0) - (b.order || 0))
         .map((g) => {
           const childNodes = buildTree(g.id, depth + 1);
-          // Show subgroup dots only if not selected directly (ancestor highlight)
           const dotColors = !selectedGroupIds.has(g.id) && ancestorGroupIds.has(g.id)
             ? getSubgroupDotColors(g.id)
             : [];
