@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -7,7 +7,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
-// Recursive group row with indentation
 function GroupRow({ group, depth, checked, onToggle, children }) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = children && children.length > 0;
@@ -16,7 +15,7 @@ function GroupRow({ group, depth, checked, onToggle, children }) {
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-muted/30 transition-colors"
+        className="flex items-center gap-2 py-2 rounded-lg hover:bg-muted/30 transition-colors"
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
         {hasChildren ? (
@@ -44,7 +43,7 @@ function GroupRow({ group, depth, checked, onToggle, children }) {
       </div>
       {hasChildren && expanded && (
         <div>
-          {children.map((child) => child)}
+          {children}
         </div>
       )}
     </div>
@@ -59,19 +58,21 @@ export default function GroupPickerModal({ alter, open, onClose }) {
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
+    // Always refetch fresh data when the picker opens
+    staleTime: 0,
   });
 
-  // Initialize selected groups from alter's current groups array (source of truth for display)
+  // Use group.member_sp_ids as the source of truth (not the stale alter.groups cache)
   useEffect(() => {
     if (!open || !alter || allGroups.length === 0) return;
-    const alterGroupIds = new Set((alter.groups || []).map((g) => g.id));
+    const alterId = alter.sp_id || alter.id;
     const initialSelected = new Set(
       allGroups
-        .filter((g) => alterGroupIds.has(g.sp_id || g.id))
+        .filter((g) => (g.member_sp_ids || []).includes(alterId))
         .map((g) => g.id)
     );
     setSelectedGroupIds(initialSelected);
-  }, [open, alter?.id, allGroups.length]);
+  }, [open, alter?.id, allGroups]);
 
   const toggleGroup = (groupId) => {
     setSelectedGroupIds((prev) => {
@@ -86,7 +87,6 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     if (!alter) return;
     setSaving(true);
     try {
-      // For each group, update its member_sp_ids
       const alterId = alter.sp_id || alter.id;
       for (const group of allGroups) {
         const currentMembers = new Set(group.member_sp_ids || []);
@@ -100,7 +100,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
           await base44.entities.Group.update(group.id, { member_sp_ids: [...currentMembers] });
         }
       }
-      // Also update groups array on alter for display
+      // Keep alter.groups in sync for display
       const newGroups = allGroups
         .filter((g) => selectedGroupIds.has(g.id))
         .map((g) => ({ id: g.sp_id || g.id, name: g.name, color: g.color || "" }));
@@ -118,31 +118,39 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     }
   };
 
-  // Build tree structure
-  function buildTree(groups, parentSpId = null, depth = 0) {
-    return groups
-      .filter((g) => {
-        const parent = g.parent || "";
-        if (parentSpId === null) return !parent || parent === "" || parent === "root";
-        return parent === parentSpId;
-      })
-      .map((g) => {
-        const children = buildTree(groups, g.sp_id || g.id, depth + 1);
-        return (
-          <GroupRow
-            key={g.id}
-            group={g}
-            depth={depth}
-            checked={selectedGroupIds.has(g.id)}
-            onToggle={toggleGroup}
-          >
-            {children}
-          </GroupRow>
-        );
-      });
-  }
+  // Build a proper nested tree using group.id as the key
+  const tree = useMemo(() => {
+    // Map all group IDs for quick lookup
+    const idSet = new Set(allGroups.map((g) => g.id));
 
-  const tree = buildTree(allGroups);
+    function buildTree(parentId, depth) {
+      return allGroups
+        .filter((g) => {
+          const parent = g.parent || "";
+          if (parentId === null) {
+            // Root groups: no parent, or parent doesn't exist in our list
+            return !parent || parent === "" || parent === "root" || !idSet.has(parent);
+          }
+          return parent === parentId;
+        })
+        .map((g) => {
+          const children = buildTree(g.id, depth + 1);
+          return (
+            <GroupRow
+              key={g.id}
+              group={g}
+              depth={depth}
+              checked={selectedGroupIds.has(g.id)}
+              onToggle={toggleGroup}
+            >
+              {children}
+            </GroupRow>
+          );
+        });
+    }
+
+    return buildTree(null, 0);
+  }, [allGroups, selectedGroupIds]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
