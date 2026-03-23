@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { User, Zap, RefreshCw, X, Edit2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -19,6 +20,7 @@ function getContrastColor(hex) {
 }
 
 function FronterChip({ alter, isPrimary, startTime, onHold }) {
+  const navigate = useNavigate();
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
@@ -37,11 +39,16 @@ function FronterChip({ alter, isPrimary, startTime, onHold }) {
     }
   };
 
+  const handleClick = () => {
+    navigate(`/alter/${alter.id}`);
+  };
+
   return (
     <div
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onClick={handleClick}
       className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-3 py-2.5 hover:border-border transition-all min-w-0 cursor-pointer"
     >
       <div className="relative flex-shrink-0">
