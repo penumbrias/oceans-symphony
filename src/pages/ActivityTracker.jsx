@@ -44,7 +44,7 @@ export default function ActivityTracker() {
     setSelectedStartHour(startHour);
     setSelectedEndHour(endHour);
     setIsModalOpen(true);
-    setAddMode(false);
+    // addMode stays on — user must toggle it off manually
   };
 
   const handleCloseModal = () => {
