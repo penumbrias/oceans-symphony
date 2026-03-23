@@ -192,6 +192,9 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       const catId = editData.activity_category_ids[0];
       const catName = catById[catId]?.name || "Activity";
       const activity_name = catName;
+
+      await base44.entities.Activity.update(act.id, {
+        activity_name,
         activity_category_ids: editData.activity_category_ids,
         timestamp: startDt.toISOString(),
         duration_minutes: duration,
