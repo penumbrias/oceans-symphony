@@ -32,6 +32,8 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
       }
     });
 
+    const activityLabels = Array.from(activitySet.values());
+
     const alterMap = {};
     alters.forEach(alter => {
       alterMap[alter.id] = { alter, counts: {}, total: 0, totalDuration: 0 };
