@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 import { parseISO } from 'npm:date-fns@3.6.0';
+
+Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -69,13 +71,17 @@ import { parseISO } from 'npm:date-fns@3.6.0';
                 co_fronter_ids: next.fronting_alter_ids.slice(1),
                 start_time: next.timestamp,
                 end_time: nextEnd.toISOString(),
-                note: `Merged from duplicate activity`,
+                note: 'Merged from duplicate activity',
                 is_active: false
               });
             }
 
             // Delete the duplicate activity
             await base44.entities.Activity.delete(next.id);
+
+            merged++;
+            acts.splice(i + 1, 1);
+            i--;
           }
         }
       }
