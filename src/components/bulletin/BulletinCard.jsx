@@ -99,7 +99,7 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, canDele
     : 0;
 
   return (
-    <div id={`bulletin-${bulletin.id}`} className={`bg-card border rounded-2xl p-4 ${bulletin.is_pinned ? "border-primary/40 bg-primary/5" : "border-border/50"}`}>
+    <div className={`bg-card border rounded-2xl p-4 ${bulletin.is_pinned ? "border-primary/40 bg-primary/5" : "border-border/50"}`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
