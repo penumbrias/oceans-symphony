@@ -79,13 +79,37 @@ export default function MessagesTab({ alterId, alters }) {
       {messages.length > 0 && (
         <div className="space-y-3">
           {mentions.length > 0 && <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Messages</h3>}
+          {messages.map((msg) => {
+            const author = altersById[msg.author_alter_id];
+            return (
+              <div key={msg.id} className="rounded-xl border border-border/50 bg-muted/10 p-4">
+                <p className="text-sm text-foreground whitespace-pre-wrap">{msg.content}</p>
+                <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/30">
+                  <div className="flex items-center gap-2">
+                    {author && (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full font-medium"
+                        style={{
+                          backgroundColor: author.color ? `${author.color}20` : "hsl(var(--muted))",
+                          color: author.color || "hsl(var(--foreground))",
+                        }}
+                      >
+                        {author.name}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {msg.created_date ? format(new Date(msg.created_date), "MMM d, yyyy") : ""}
+                    </span>
+                  </div>
+                  <button onClick={() => deleteMessage(msg.id)} className="text-muted-foreground hover:text-destructive p-1">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-
-      {messages.map((msg) => {
-        const author = altersById[msg.author_alter_id];
-        return (
-          <div key={msg.id} className="rounded-xl border border-border/50 bg-muted/10 p-4">
 
       {composing ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
