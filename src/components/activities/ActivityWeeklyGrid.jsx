@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import { format } from "date-fns";
-import { Plus, Eye, EyeOff, Settings } from "lucide-react";
+import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -15,55 +15,61 @@ export default function ActivityWeeklyGrid({
   frontingHistory = [],
   onTimeRangeSelect,
   onActivityClick,
+  addMode = false,
+  onToggleAddMode,
 }) {
   const [showAlters, setShowAlters] = useState(false);
   const [showEmotions, setShowEmotions] = useState(false);
   const [showCustomMenu, setShowCustomMenu] = useState(false);
   const [expandedCells, setExpandedCells] = useState(new Set());
-  const expandTimerRef = useRef(null);
-  const detailsTimerRef = useRef(null);
-  const holdFiredRef = useRef(false);
+  const lastTapRef = useRef({ key: "", time: 0 });
 
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
     queryFn: () => base44.entities.EmotionCheckIn.list(),
   });
 
-  const { data: activityCategories = [] } = useQuery({
-    queryKey: ["activityCategories"],
-    queryFn: () => base44.entities.ActivityCategory.list(),
-  });
-
-  const getEmotionsForActivity = (activity) => {
-    const emotionCheckIn = emotionCheckIns.find(e => {
-      const checkInTime = new Date(e.timestamp);
-      const actTime = new Date(activity.timestamp);
-      return Math.abs(checkInTime - actTime) < 300000;
+  const getEmotionsForHour = (date, hour) => {
+    const hourStart = new Date(date);
+    hourStart.setHours(hour, 0, 0, 0);
+    const hourEnd = new Date(date);
+    hourEnd.setHours(hour + 1, 0, 0, 0);
+    const all = [];
+    emotionCheckIns.forEach((e) => {
+      const t = new Date(e.timestamp);
+      if (t >= hourStart && t < hourEnd) all.push(...(e.emotions || []));
     });
-    return emotionCheckIn?.emotions || [];
+    return [...new Set(all)];
   };
 
-  const getActivitiesForDay = (date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    return activities.filter(a => format(new Date(a.timestamp), "yyyy-MM-dd") === dateStr);
+  const getActivitiesForHour = (date, hour) => {
+    const slotStart = new Date(date);
+    slotStart.setHours(hour, 0, 0, 0);
+    const slotEnd = new Date(date);
+    slotEnd.setHours(hour + 1, 0, 0, 0);
+    const matching = activities.filter((a) => {
+      const actStart = new Date(a.timestamp);
+      const durationMs = (a.duration_minutes || 60) * 60 * 1000;
+      const actEnd = new Date(actStart.getTime() + durationMs);
+      return actStart < slotEnd && actEnd > slotStart;
+    });
+    const seen = new Set();
+    return matching.filter((a) => {
+      if (seen.has(a.activity_name)) return false;
+      seen.add(a.activity_name);
+      return true;
+    });
   };
 
-  const getDayStats = (date) => {
-    const dayActivities = getActivitiesForDay(date);
-    const totalDuration = dayActivities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
-    return { count: dayActivities.length, duration: totalDuration };
-  };
-
-  // Returns deduplicated alter IDs (primary + co-fronters) active during a given hour — mirrors timeline logic
   const getAlterIdsForHour = (date, hour) => {
     const hourStart = new Date(date);
     hourStart.setHours(hour, 0, 0, 0);
     const hourEnd = new Date(date);
     hourEnd.setHours(hour + 1, 0, 0, 0);
-    const sessions = frontingHistory.filter((session) => {
-      const sessionStart = new Date(session.start_time);
-      const sessionEnd = session.end_time ? new Date(session.end_time) : new Date();
-      return sessionStart < hourEnd && sessionEnd > hourStart;
+    const sessions = frontingHistory.filter((s) => {
+      const start = new Date(s.start_time);
+      const end = s.end_time ? new Date(s.end_time) : new Date();
+      return start < hourEnd && end > hourStart;
     });
     const ids = new Set();
     sessions.forEach((s) => {
@@ -73,68 +79,55 @@ export default function ActivityWeeklyGrid({
     return [...ids];
   };
 
-  const getAlterColor = (alterId) => {
-    const alter = alters.find((a) => a.id === alterId);
-    return alter?.color || `hsl(${Math.abs(alterId.charCodeAt(0)) % 360}, 70%, 55%)`;
-  };
-
-  const getActivitiesForHour = (date, hour) => {
-    const slotStart = new Date(date);
-    slotStart.setHours(hour, 0, 0, 0);
-    const slotEnd = new Date(date);
-    slotEnd.setHours(hour + 1, 0, 0, 0);
-
-    const matching = activities.filter((a) => {
-      const actStart = new Date(a.timestamp);
-      const durationMs = (a.duration_minutes || 60) * 60 * 1000;
-      const actEnd = new Date(actStart.getTime() + durationMs);
-      return actStart < slotEnd && actEnd > slotStart;
-    });
-
-    // Collapse duplicate activity names into one entry
-    const seen = new Set();
-    return matching.filter((a) => {
-      if (seen.has(a.activity_name)) return false;
-      seen.add(a.activity_name);
-      return true;
-    });
+  const getDayStats = (date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const dayActivities = activities.filter(a => format(new Date(a.timestamp), "yyyy-MM-dd") === dateStr);
+    const totalDuration = dayActivities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
+    return { count: dayActivities.length, duration: totalDuration };
   };
 
   const cellKey = (date, hour) => `${format(date, "yyyy-MM-dd")}-${hour}`;
 
-  const clearPressTimers = () => {
-    if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
-    if (detailsTimerRef.current) { clearTimeout(detailsTimerRef.current); detailsTimerRef.current = null; }
-  };
+  const handleCellTap = useCallback((date, hour) => {
+    const key = cellKey(date, hour);
+    const now = Date.now();
+    const cellActivities = getActivitiesForHour(date, hour);
 
-  const handlePressStart = (date, hour) => {
-    holdFiredRef.current = false;
-    expandTimerRef.current = setTimeout(() => {
-      holdFiredRef.current = true;
-      const key = cellKey(date, hour);
+    const isDoubleTap = lastTapRef.current.key === key && now - lastTapRef.current.time < 300;
+    lastTapRef.current = { key, time: now };
+
+    if (isDoubleTap) {
+      // Double tap on filled cell → open edit modal
+      if (cellActivities.length > 0) {
+        onActivityClick?.(cellActivities);
+      }
+      return;
+    }
+
+    if (addMode) {
+      // In add mode: tap to create
+      onTimeRangeSelect(date, hour, hour);
+    } else if (cellActivities.length > 0) {
+      // Not in add mode: tap filled cell to expand/collapse
       setExpandedCells((prev) => {
         const next = new Set(prev);
         next.has(key) ? next.delete(key) : next.add(key);
         return next;
       });
-    }, 1500);
-    detailsTimerRef.current = setTimeout(() => {
-      holdFiredRef.current = true;
-      const cellActivities = getActivitiesForHour(date, hour);
-      if (cellActivities.length > 0) onActivityClick?.(cellActivities);
-    }, 3000);
-  };
-
-  const handlePressEnd = () => { clearPressTimers(); };
-
-  const handleCellClick = (date, hour) => {
-    if (holdFiredRef.current) return;
-    onTimeRangeSelect(date, hour, hour);
-  };
+    }
+  }, [addMode, onTimeRangeSelect, onActivityClick, activities, emotionCheckIns]);
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 flex-wrap">
+        <Button
+          variant={addMode ? "default" : "outline"}
+          size="sm"
+          onClick={onToggleAddMode}
+          className="gap-2"
+        >
+          {addMode ? <><X className="w-4 h-4" /> Cancel Add</> : <><Plus className="w-4 h-4" /> Add Activity</>}
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setShowEmotions(!showEmotions)} className="gap-2">
           {showEmotions ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
           {showEmotions ? "Hide" : "Show"} Emotions
@@ -148,6 +141,12 @@ export default function ActivityWeeklyGrid({
         </Button>
       </div>
 
+      {addMode && (
+        <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-xs text-primary font-medium">
+          Add mode active — tap any cell to log an activity for that time slot
+        </div>
+      )}
+
       {showCustomMenu && <ActivityCustomizationMenu onClose={() => setShowCustomMenu(false)} />}
 
       <div className="overflow-x-auto">
@@ -158,7 +157,7 @@ export default function ActivityWeeklyGrid({
             {weekDays.map((date) => {
               const stats = getDayStats(date);
               return (
-                <button key={format(date, "yyyy-MM-dd")} className="p-3 text-center border-r border-border hover:bg-muted/50 transition-colors cursor-pointer group">
+                <div key={format(date, "yyyy-MM-dd")} className="p-3 text-center border-r border-border">
                   <div className="text-xs font-semibold text-muted-foreground">{format(date, "EEE")}</div>
                   <div className="text-lg font-bold text-foreground">{format(date, "d")}</div>
                   {stats.count > 0 && (
@@ -166,8 +165,7 @@ export default function ActivityWeeklyGrid({
                       {stats.count} {stats.duration > 0 && `• ${Math.round(stats.duration / 60)}h`}
                     </div>
                   )}
-                  <div className="text-xs text-muted-foreground mt-1 opacity-0 group-hover:opacity-100 transition-opacity">+ Quick add</div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -179,122 +177,143 @@ export default function ActivityWeeklyGrid({
                 {String(hour).padStart(2, "0")}:00
               </div>
               {weekDays.map((date) => {
-                const fronting = getAlterIdsForHour(date, hour);
-                const cellActivities = getActivitiesForHour(date, hour);
                 const key = cellKey(date, hour);
+                const cellActivities = getActivitiesForHour(date, hour);
+                const alterIds = getAlterIdsForHour(date, hour);
+                const emotions = getEmotionsForHour(date, hour);
                 const isExpanded = expandedCells.has(key);
 
                 return (
                   <button
-                    key={`${format(date, "yyyy-MM-dd")}-${hour}`}
-                    onClick={() => handleCellClick(date, hour)}
-                    onMouseDown={() => handlePressStart(date, hour)}
-                    onMouseUp={handlePressEnd}
-                    onMouseLeave={handlePressEnd}
-                    onTouchStart={(e) => { e.preventDefault(); handlePressStart(date, hour); }}
-                    onTouchEnd={handlePressEnd}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      if (cellActivities.length > 0) onActivityClick?.(cellActivities);
-                    }}
-                    className={`border-r border-border/50 p-0 transition-all flex flex-col items-center justify-center relative group cursor-pointer overflow-hidden ${
+                    key={key}
+                    onClick={() => handleCellTap(date, hour)}
+                    className={`border-r border-border/50 p-0 transition-all flex flex-col items-center justify-start relative group cursor-pointer overflow-hidden ${
                       isExpanded ? "min-h-32" : "min-h-16"
                     } ${
-                      cellActivities.length === 0 ? "text-muted-foreground hover:bg-primary/10 hover:text-primary" : "text-white font-medium text-xs"
+                      cellActivities.length === 0
+                        ? addMode
+                          ? "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                          : "text-muted-foreground"
+                        : "text-white font-medium text-xs"
                     }`}
+                    style={{ userSelect: "none" }}
                   >
                     {cellActivities.length > 0 ? (
                       <>
-                        {/* Color strips background */}
+                        {/* Color background strips */}
                         <div className="absolute inset-0 flex">
                           {cellActivities.map((a) => (
-                            <div
-                              key={a.id}
-                              className="flex-1 h-full"
-                              style={{ backgroundColor: a.color || "hsl(var(--primary))" }}
-                            />
+                            <div key={a.id} className="flex-1 h-full"
+                              style={{ backgroundColor: a.color || "hsl(var(--primary))" }} />
                           ))}
                         </div>
                         {/* Content overlay */}
-                        <div className="relative z-10 text-center space-y-1 w-full px-0.5 drop-shadow">
-                          <div className="text-xs font-bold line-clamp-2 leading-tight">
+                        <div className="relative z-10 text-center w-full px-1 pt-1.5 drop-shadow space-y-0.5">
+                          <div className={`font-bold leading-tight ${isExpanded ? "text-xs" : "text-xs line-clamp-2"}`}>
                             {cellActivities.map(a => a.activity_name).join(" + ")}
                           </div>
                           {isExpanded && (
-                            <div className="text-xs text-white/90 space-y-0.5">
-                              {cellActivities.map(a => a.duration_minutes ? (
-                                <p key={a.id}>{a.duration_minutes}m</p>
-                              ) : null)}
-                              {cellActivities.some(a => a.notes) && (
-                                <p className="italic line-clamp-2">{cellActivities.find(a => a.notes)?.notes}</p>
+                            <div className="text-xs text-white/90 space-y-0.5 text-left px-0.5">
+                              {cellActivities.map(a => (
+                                <div key={a.id}>
+                                  <span className="font-semibold">{a.activity_name}</span>
+                                  {a.duration_minutes ? <span className="ml-1 opacity-80">{a.duration_minutes}m</span> : null}
+                                  {a.notes ? <p className="italic opacity-80 text-xs leading-tight">{a.notes}</p> : null}
+                                </div>
+                              ))}
+                              {showEmotions && emotions.length > 0 && (
+                                <div className="flex flex-wrap gap-0.5 mt-0.5">
+                                  {emotions.map((em, i) => (
+                                    <span key={i} className="px-1 py-0.5 rounded-full text-white text-xs"
+                                      style={{ fontSize: 8, backgroundColor: "rgba(255,255,255,0.25)" }}>
+                                      {em}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {showAlters && alterIds.length > 0 && (
+                                <div className="flex flex-wrap gap-0.5 mt-0.5">
+                                  {alterIds.slice(0, 6).map((alterId) => {
+                                    const alter = alters.find(a => a.id === alterId);
+                                    return (
+                                      <div key={alterId}
+                                        className="w-4 h-4 rounded-full border border-white/50 overflow-hidden flex items-center justify-center flex-shrink-0"
+                                        style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.3)" }}
+                                        title={alter?.name}>
+                                        {alter?.avatar_url
+                                          ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                          : <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>
+                                        }
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               )}
                             </div>
                           )}
-                          {showEmotions && (
-                            <div className="text-xs leading-tight">
-                              {getEmotionsForActivity(cellActivities[0]).slice(0, 2).map(e => e.charAt(0).toUpperCase()).join("")}
-                            </div>
+                          {/* Collapsed: show small alters/emotions indicators */}
+                          {!isExpanded && (
+                            <>
+                              {showEmotions && emotions.length > 0 && (
+                                <div className="text-white/80 text-xs">{emotions.slice(0, 2).map(e => e.charAt(0).toUpperCase()).join("")}</div>
+                              )}
+                              {showAlters && alterIds.length > 0 && (
+                                <div className="flex gap-0.5 justify-center flex-wrap">
+                                  {alterIds.slice(0, 4).map((alterId) => {
+                                    const alter = alters.find(a => a.id === alterId);
+                                    return (
+                                      <div key={alterId}
+                                        className="w-3.5 h-3.5 rounded-full border border-white/50 overflow-hidden flex items-center justify-center"
+                                        style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.3)" }}
+                                        title={alter?.name}>
+                                        {alter?.avatar_url
+                                          ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                          : <span className="font-bold text-white" style={{ fontSize: 6 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>
+                                        }
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </>
                           )}
-                          {showAlters && fronting.length > 0 && (
-                              <div className="flex gap-0.5 justify-center flex-wrap">
-                                {fronting.slice(0, 4).map((alterId) => {
-                                  const alter = alters.find((a) => a.id === alterId);
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Empty cell: show alter dots always, + icon only in addMode */}
+                        {alterIds.length > 0 && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-1">
+                            {showAlters
+                              ? alterIds.slice(0, 3).map((alterId) => {
+                                  const alter = alters.find(a => a.id === alterId);
                                   return (
-                                    <div
-                                      key={alterId}
-                                      className="w-4 h-4 rounded-full border border-white/50 overflow-hidden flex items-center justify-center"
-                                      style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.2)" }}
-                                      title={alter?.name}
-                                    >
-                                      {alter?.avatar_url ? (
-                                        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                                      ) : (
-                                        <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>
-                                      )}
+                                    <div key={alterId}
+                                      className="w-5 h-5 rounded-full border border-border/60 flex items-center justify-center overflow-hidden"
+                                      style={{ backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }}
+                                      title={alter?.name}>
+                                      {alter?.avatar_url
+                                        ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                        : <span className="font-bold text-white" style={{ fontSize: 8 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
+                                      }
                                     </div>
                                   );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                          </>
-                          ) : (
-                      <>
-                        {showAlters && fronting.length > 0 && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-0.5">
-                            {fronting.slice(0, 3).map((alterId) => {
-                              const alter = alters.find(a => a.id === alterId);
-                              return (
-                                <div
-                                  key={alterId}
-                                  className="w-5 h-5 rounded-full border border-border/60 flex items-center justify-center overflow-hidden flex-shrink-0"
-                                  style={{ backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }}
-                                  title={alter?.name}
-                                >
-                                  {alter?.avatar_url ? (
-                                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="font-bold text-white" style={{ fontSize: 8 }}>
-                                      {alter?.name?.charAt(0)?.toUpperCase() || "?"}
-                                    </span>
-                                  )}
+                                })
+                              : (
+                                <div className="flex gap-0.5 flex-wrap justify-center">
+                                  {alterIds.slice(0, 3).map((alterId) => {
+                                    const alter = alters.find(a => a.id === alterId);
+                                    return (
+                                      <div key={alterId} className="w-1.5 h-1.5 rounded-full"
+                                        style={{ backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }} />
+                                    );
+                                  })}
                                 </div>
-                              );
-                            })}
+                              )
+                            }
                           </div>
                         )}
-                        {!showAlters && fronting.length > 0 && (
-                          <div className="absolute top-1 left-1 right-1 flex gap-0.5 flex-wrap justify-center">
-                            {fronting.slice(0, 3).map((alterId) => (
-                              <div
-                                key={alterId}
-                                className="w-1.5 h-1.5 rounded-full border border-foreground/30"
-                                style={{ backgroundColor: getAlterColor(alterId) }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                        <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        {addMode && <Plus className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />}
                       </>
                     )}
                   </button>
