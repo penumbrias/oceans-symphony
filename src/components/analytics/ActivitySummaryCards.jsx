@@ -18,12 +18,19 @@ export default function ActivitySummaryCards({ activities = [], categories = [],
     const uniqueCategories = new Set(filtered.flatMap(a => a.activity_category_ids || [])).size;
     const avgDuration = filtered.length > 0 ? totalDuration / filtered.length : 0;
 
-    // Most common activity
+    // Most common activity — each category counted independently
     const countByLabel = {};
     filtered.forEach(act => {
       const ids = act.activity_category_ids || [];
-      const label = ids.map(id => catMap[id]?.name).filter(Boolean).join(" + ") || act.activity_name || "Unknown";
-      countByLabel[label] = (countByLabel[label] || 0) + 1;
+      if (ids.length === 0) {
+        const label = act.activity_name || "Unknown";
+        countByLabel[label] = (countByLabel[label] || 0) + 1;
+      } else {
+        ids.forEach(id => {
+          const cat = catMap[id];
+          if (cat) countByLabel[cat.name] = (countByLabel[cat.name] || 0) + 1;
+        });
+      }
     });
     const topActivity = Object.entries(countByLabel).sort((a, b) => b[1] - a[1])[0];
 
