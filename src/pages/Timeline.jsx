@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
-import { Activity, Heart, Users, Calendar, BookOpen } from "lucide-react";
+import { Activity, Heart, Users, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
 
