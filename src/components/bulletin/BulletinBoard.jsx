@@ -14,6 +14,7 @@ export default function BulletinBoard({ alters, currentAlterId }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const observerTarget = useRef(null);
   const queryClient = useQueryClient();
+  const [showComposer, setShowComposer] = useState(false);
 
   const { data: bulletins = [] } = useQuery({
     queryKey: ["bulletins"],
@@ -46,18 +47,13 @@ export default function BulletinBoard({ alters, currentAlterId }) {
       !b.read_by_alter_ids?.includes(currentAlterId)
   ).length;
   
-  const handleReply = async (bulletin) => {
+  const handleReply = (bulletin) => {
     const preview = bulletin.content.substring(0, 100) + (bulletin.content.length > 100 ? "..." : "");
-    const replyContent = `> ${preview}\n\n@${alters.find(a => a.id === bulletin.author_alter_id)?.name || "System"}: `;
-    
-    await base44.entities.Bulletin.create({
-      author_alter_id: currentAlterId,
-      content: replyContent,
-      mentioned_alter_ids: [bulletin.author_alter_id],
+    setReplyingTo({
+      id: bulletin.id,
+      preview: `> ${preview}\n\n@${alters.find(a => a.id === bulletin.author_alter_id)?.name || "System"}: `,
     });
-    
-    queryClient.invalidateQueries({ queryKey: ["bulletins"] });
-    setReplyingTo(null);
+    setShowComposer(true);
   };
 
   return (
@@ -106,12 +102,13 @@ export default function BulletinBoard({ alters, currentAlterId }) {
       )}
 
       {/* Composer */}
-      {composing && (
+      {(composing || showComposer) && (
         <div className="mb-4">
           <BulletinComposer
             alters={alters}
             authorAlterId={currentAlterId}
-            onClose={() => setComposing(false)}
+            onClose={() => { setComposing(false); setShowComposer(false); setReplyingTo(null); }}
+            replyTo={replyingTo}
           />
         </div>
       )}

@@ -9,9 +9,9 @@ import { toast } from "sonner";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
 
-export default function BulletinComposer({ alters, authorAlterId, onClose }) {
+export default function BulletinComposer({ alters, authorAlterId, onClose, replyTo }) {
   const qc = useQueryClient();
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(replyTo?.preview || "");
   const [pinned, setPinned] = useState(false);
   const [showPoll, setShowPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
@@ -105,13 +105,21 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
   return (
     <div className="bg-card border border-border/60 rounded-2xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-foreground">New Bulletin</p>
+        <p className="text-sm font-semibold text-foreground">{replyTo ? "Reply to Bulletin" : "New Bulletin"}</p>
         {onClose && (
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
+      
+      {replyTo && (
+        <div className="mb-3 p-3 bg-muted/30 border border-border/50 rounded-lg text-sm text-muted-foreground">
+          <p className="mb-2">Replying to:</p>
+          <p className="italic border-l-2 border-primary pl-2">{replyTo.preview}</p>
+          <a href={`#bulletin-${replyTo.id}`} className="text-xs text-primary hover:underline mt-2 inline-block">View full bulletin →</a>
+        </div>
+      )}
 
       <div className="relative">
         <Textarea
