@@ -166,12 +166,8 @@ export default function ActivityWeeklyGrid({
               {weekDays.map((date) => {
                 const fronting = getFrontingForHour(date, hour);
                 const cellActivities = getActivitiesForHour(date, hour);
-                const activity = cellActivities.length > 0 ? cellActivities[0] : null;
                 const key = cellKey(date, hour);
                 const isExpanded = expandedCells.has(key);
-                const isStartSelected =
-                  startSelection?.date.toDateString() === date.toDateString() &&
-                  startSelection?.hour === hour;
 
                 return (
                   <button
@@ -191,11 +187,12 @@ export default function ActivityWeeklyGrid({
                     } ${
                       cellActivities.length === 0 ? "text-muted-foreground hover:bg-primary/10 hover:text-primary" : "text-white font-medium text-xs"
                     }`}
+                  >
                     {cellActivities.length > 0 ? (
                       <>
                         {/* Color strips background */}
                         <div className="absolute inset-0 flex">
-                          {cellActivities.map((a, i) => (
+                          {cellActivities.map((a) => (
                             <div
                               key={a.id}
                               className="flex-1 h-full"
