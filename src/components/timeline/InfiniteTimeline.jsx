@@ -290,28 +290,19 @@ export default function InfiniteTimeline({
     return cols;
   }, [alterEntries]);
 
-  // Activity entries
+  // Activity entries — each activity is its own bar (no grouping by name)
   const activityEntries = useMemo(() => {
-    const byName = {};
-    activities.forEach((act) => {
+    return activities.map((act, i) => {
       const startMins = Math.max(0, minutesInDay(new Date(act.timestamp), dayStart));
-      const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 1, 1));
-      const name = act.activity_name;
-      if (!byName[name]) byName[name] = [];
-      byName[name].push({ startMins, endMins: Math.max(endMins, startMins + 5), activity: act });
+      const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
+      return {
+        startMins,
+        endMins: Math.max(endMins, startMins + 5),
+        activity: act,
+        mergedNames: [act.activity_name],
+        key: `act-${act.id || i}`,
+      };
     });
-    const merged = [];
-    Object.entries(byName).forEach(([name, segs]) => {
-      const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
-      const mergedSegs = [];
-      sorted.forEach((seg) => {
-        if (!mergedSegs.length) { mergedSegs.push({ ...seg, mergedNames: [name] }); return; }
-        const last = mergedSegs[mergedSegs.length - 1];
-        seg.startMins <= last.endMins + 10 ? (last.endMins = Math.max(last.endMins, seg.endMins)) : mergedSegs.push({ ...seg, mergedNames: [name] });
-      });
-      mergedSegs.forEach((seg, i) => merged.push({ ...seg, key: `act-${name}-${i}` }));
-    });
-    return merged;
   }, [activities, dayStart]);
 
   const activityColumns = useMemo(() => {
