@@ -25,45 +25,47 @@ Deno.serve(async (req) => {
       (a) => a.id === `sleep_${data.id}`
     );
 
+    // Tag notes with sleep record id for reliable matching on update/delete
+    const sleepTag = `[sleep_id:${data.id}]`;
+    const notesStr = `Sleep: ${bedtime.toLocaleString()} - ${wakeTime.toLocaleString()} ${sleepTag}`;
+
+    const findSleepActivity = async () => {
+      const all = await base44.asServiceRole.entities.Activity.filter({ activity_name: 'Sleep' });
+      return all.find(a => (a.notes || '').includes(sleepTag));
+    };
+
     if (event.type === 'create') {
-      // Create new activity for this sleep
-      await base44.entities.Activity.create({
+      await base44.asServiceRole.entities.Activity.create({
         timestamp: bedtime.toISOString(),
         activity_name: 'Sleep',
-        activity_category_ids: [], // No categories needed for sleep
-        color: '#3b82f6', // Blue color for sleep
+        activity_category_ids: [],
+        color: '#6366f1',
         duration_minutes: durationMinutes,
-        notes: `Sleep logged: ${bedtime.toLocaleTimeString()} - ${wakeTime.toLocaleTimeString()}`,
+        notes: notesStr,
       });
     } else if (event.type === 'update') {
-      // Find and update the existing sleep activity
-      const sleepActivities = await base44.entities.Activity.filter({
-        activity_name: 'Sleep',
-      });
-
-      // Find the activity that matches this sleep record's time
-      const matchingActivity = sleepActivities.find(
-        (a) => new Date(a.timestamp).getTime() === bedtime.getTime()
-      );
-
-      if (matchingActivity) {
-        await base44.entities.Activity.update(matchingActivity.id, {
+      const existing = await findSleepActivity();
+      if (existing) {
+        await base44.asServiceRole.entities.Activity.update(existing.id, {
+          timestamp: bedtime.toISOString(),
           duration_minutes: durationMinutes,
-          notes: `Sleep logged: ${bedtime.toLocaleTimeString()} - ${wakeTime.toLocaleTimeString()}`,
+          notes: notesStr,
+        });
+      } else {
+        // Fallback: create if missing
+        await base44.asServiceRole.entities.Activity.create({
+          timestamp: bedtime.toISOString(),
+          activity_name: 'Sleep',
+          activity_category_ids: [],
+          color: '#6366f1',
+          duration_minutes: durationMinutes,
+          notes: notesStr,
         });
       }
     } else if (event.type === 'delete') {
-      // Delete the corresponding activity
-      const sleepActivities = await base44.entities.Activity.filter({
-        activity_name: 'Sleep',
-      });
-
-      const matchingActivity = sleepActivities.find(
-        (a) => new Date(a.timestamp).getTime() === bedtime.getTime()
-      );
-
-      if (matchingActivity) {
-        await base44.entities.Activity.delete(matchingActivity.id);
+      const existing = await findSleepActivity();
+      if (existing) {
+        await base44.asServiceRole.entities.Activity.delete(existing.id);
       }
     }
 

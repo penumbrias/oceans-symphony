@@ -16,12 +16,13 @@ export default function ActivityWeeklyGrid({
   onTimeRangeSelect,
   onActivityClick,
 }) {
-  const [startSelection, setStartSelection] = useState(null);
   const [showAlters, setShowAlters] = useState(false);
   const [showEmotions, setShowEmotions] = useState(false);
   const [showCustomMenu, setShowCustomMenu] = useState(false);
   const [expandedCells, setExpandedCells] = useState(new Set());
-  const holdTimerRef = useRef(null);
+  const expandTimerRef = useRef(null);
+  const detailsTimerRef = useRef(null);
+  const holdFiredRef = useRef(false);
 
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
@@ -71,60 +72,49 @@ export default function ActivityWeeklyGrid({
   };
 
   const getActivitiesForHour = (date, hour) => {
-    const dateStr = format(date, "yyyy-MM-dd");
+    const slotStart = new Date(date);
+    slotStart.setHours(hour, 0, 0, 0);
+    const slotEnd = new Date(date);
+    slotEnd.setHours(hour + 1, 0, 0, 0);
+
     return activities.filter((a) => {
-      const actTimestamp = new Date(a.timestamp);
-      const actDate = format(actTimestamp, "yyyy-MM-dd");
-      const actHour = actTimestamp.getHours();
-      const durationHours = Math.ceil((a.duration_minutes || 60) / 60);
-      return actDate === dateStr && actHour <= hour && actHour + durationHours > hour;
+      const actStart = new Date(a.timestamp);
+      const durationMs = (a.duration_minutes || 60) * 60 * 1000;
+      const actEnd = new Date(actStart.getTime() + durationMs);
+      return actStart < slotEnd && actEnd > slotStart;
     });
   };
 
   const cellKey = (date, hour) => `${format(date, "yyyy-MM-dd")}-${hour}`;
 
-  const handleTimeBlockClick = (date, hour) => {
-    if (!startSelection) {
-      setStartSelection({ date, hour });
-    } else if (startSelection.date.toDateString() === date.toDateString()) {
-      const start = Math.min(startSelection.hour, hour);
-      const end = Math.max(startSelection.hour, hour);
-      onTimeRangeSelect(date, start, end);
-      setStartSelection(null);
-    } else {
-      setStartSelection({ date, hour });
-    }
-  };
-
-  const handleCellClick = (date, hour) => {
-    const cellActivities = getActivitiesForHour(date, hour);
-    if (cellActivities.length > 0) {
-      const key = cellKey(date, hour);
-      setExpandedCells((prev) => {
-        const next = new Set(prev);
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
-        return next;
-      });
-    } else {
-      handleTimeBlockClick(date, hour);
-    }
+  const clearPressTimers = () => {
+    if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
+    if (detailsTimerRef.current) { clearTimeout(detailsTimerRef.current); detailsTimerRef.current = null; }
   };
 
   const handlePressStart = (date, hour) => {
-    holdTimerRef.current = setTimeout(() => {
+    holdFiredRef.current = false;
+    expandTimerRef.current = setTimeout(() => {
+      holdFiredRef.current = true;
+      const key = cellKey(date, hour);
+      setExpandedCells((prev) => {
+        const next = new Set(prev);
+        next.has(key) ? next.delete(key) : next.add(key);
+        return next;
+      });
+    }, 1500);
+    detailsTimerRef.current = setTimeout(() => {
+      holdFiredRef.current = true;
       const cellActivities = getActivitiesForHour(date, hour);
-      if (cellActivities.length > 0) {
-        onActivityClick?.(cellActivities);
-      }
+      if (cellActivities.length > 0) onActivityClick?.(cellActivities);
     }, 3000);
   };
 
-  const handlePressEnd = () => {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
+  const handlePressEnd = () => { clearPressTimers(); };
+
+  const handleCellClick = (date, hour) => {
+    if (holdFiredRef.current) return;
+    onTimeRangeSelect(date, hour, hour);
   };
 
   return (
@@ -190,59 +180,70 @@ export default function ActivityWeeklyGrid({
                     onMouseDown={() => handlePressStart(date, hour)}
                     onMouseUp={handlePressEnd}
                     onMouseLeave={handlePressEnd}
-                    onTouchStart={() => handlePressStart(date, hour)}
+                    onTouchStart={(e) => { e.preventDefault(); handlePressStart(date, hour); }}
                     onTouchEnd={handlePressEnd}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       if (cellActivities.length > 0) onActivityClick?.(cellActivities);
                     }}
-                    className={`border-r border-border/50 p-1 transition-all flex flex-col items-center justify-center relative group cursor-pointer ${
+                    className={`border-r border-border/50 p-0 transition-all flex flex-col items-center justify-center relative group cursor-pointer overflow-hidden ${
                       isExpanded ? "min-h-32" : "min-h-16"
                     } ${
-                      activity ? "text-white font-medium text-xs" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                    } ${isStartSelected ? "border-primary ring-2 ring-primary" : ""}`}
-                    style={{ backgroundColor: activity ? activity.color : undefined }}
-                  >
-                    {activity ? (
-                      <div className="text-center space-y-1 w-full px-0.5">
-                        <div className="text-xs font-bold line-clamp-2 leading-tight">
-                          {cellActivities.map(a => a.activity_name).join(" + ")}
+                      cellActivities.length === 0 ? "text-muted-foreground hover:bg-primary/10 hover:text-primary" : "text-white font-medium text-xs"
+                    }`}
+                    {cellActivities.length > 0 ? (
+                      <>
+                        {/* Color strips background */}
+                        <div className="absolute inset-0 flex">
+                          {cellActivities.map((a, i) => (
+                            <div
+                              key={a.id}
+                              className="flex-1 h-full"
+                              style={{ backgroundColor: a.color || "hsl(var(--primary))" }}
+                            />
+                          ))}
                         </div>
-                        {isExpanded && (
-                          <div className="text-xs text-white/80 space-y-0.5">
-                            {cellActivities.map(a => a.duration_minutes ? (
-                              <p key={a.id}>{a.duration_minutes}m</p>
-                            ) : null)}
-                            {cellActivities.some(a => a.notes) && (
-                              <p className="italic line-clamp-2">{cellActivities.find(a => a.notes)?.notes}</p>
-                            )}
+                        {/* Content overlay */}
+                        <div className="relative z-10 text-center space-y-1 w-full px-0.5 drop-shadow">
+                          <div className="text-xs font-bold line-clamp-2 leading-tight">
+                            {cellActivities.map(a => a.activity_name).join(" + ")}
                           </div>
-                        )}
-                        {showEmotions && (
-                          <div className="text-xs leading-tight">
-                            {getEmotionsForActivity(activity).slice(0, 2).map(e => e.charAt(0).toUpperCase()).join("")}
-                          </div>
-                        )}
-                        {showAlters && activity.fronting_alter_ids?.length > 0 && (
-                          <div className="flex gap-0.5 justify-center flex-wrap">
-                            {activity.fronting_alter_ids.slice(0, 4).map((alterId) => {
-                              const alter = alters.find((a) => a.id === alterId);
-                              return (
-                                <div
-                                  key={alterId}
-                                  className="w-4 h-4 rounded-full border border-white/50"
-                                  style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.2)" }}
-                                  title={alter?.name}
-                                >
-                                  {alter?.avatar_url && (
-                                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full rounded-full object-cover" />
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                          {isExpanded && (
+                            <div className="text-xs text-white/90 space-y-0.5">
+                              {cellActivities.map(a => a.duration_minutes ? (
+                                <p key={a.id}>{a.duration_minutes}m</p>
+                              ) : null)}
+                              {cellActivities.some(a => a.notes) && (
+                                <p className="italic line-clamp-2">{cellActivities.find(a => a.notes)?.notes}</p>
+                              )}
+                            </div>
+                          )}
+                          {showEmotions && (
+                            <div className="text-xs leading-tight">
+                              {getEmotionsForActivity(cellActivities[0]).slice(0, 2).map(e => e.charAt(0).toUpperCase()).join("")}
+                            </div>
+                          )}
+                          {showAlters && cellActivities[0]?.fronting_alter_ids?.length > 0 && (
+                            <div className="flex gap-0.5 justify-center flex-wrap">
+                              {cellActivities[0].fronting_alter_ids.slice(0, 4).map((alterId) => {
+                                const alter = alters.find((a) => a.id === alterId);
+                                return (
+                                  <div
+                                    key={alterId}
+                                    className="w-4 h-4 rounded-full border border-white/50"
+                                    style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.2)" }}
+                                    title={alter?.name}
+                                  >
+                                    {alter?.avatar_url && (
+                                      <img src={alter.avatar_url} alt={alter.name} className="w-full h-full rounded-full object-cover" />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </>
                     ) : (
                       <>
                         {fronting.length > 0 && !showAlters && (

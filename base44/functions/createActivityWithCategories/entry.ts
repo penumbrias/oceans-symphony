@@ -19,10 +19,15 @@ Deno.serve(async (req) => {
     
     const activity_name = categoryNames.length > 0 ? categoryNames.join(" + ") : "Activity";
 
+    // Use color from the first matching category (or passed color)
+    const firstCategory = categories.find(c => (activity_category_ids || []).includes(c.id));
+    const color = firstCategory?.color || null;
+
     const activity = await base44.entities.Activity.create({
       timestamp: timestamp || new Date().toISOString(),
       activity_name,
       activity_category_ids: activity_category_ids || [],
+      color,
       duration_minutes,
       fronting_alter_ids: fronting_alter_ids || [],
       notes,

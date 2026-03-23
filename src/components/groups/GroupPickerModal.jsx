@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
-function GroupRow({ group, depth, checked, onToggle, children }) {
+function GroupRow({ group, depth, checked, isAncestor, onToggle, children }) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = children && children.length > 0;
   const color = group.color || "";
@@ -15,7 +15,9 @@ function GroupRow({ group, depth, checked, onToggle, children }) {
   return (
     <div>
       <div
-        className="flex items-center gap-2 py-2 rounded-lg hover:bg-muted/30 transition-colors"
+        className={`flex items-center gap-2 py-2 rounded-lg transition-colors ${
+          checked ? "bg-primary/15" : isAncestor ? "bg-primary/5" : "hover:bg-muted/30"
+        }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
         {hasChildren ? (
@@ -30,15 +32,16 @@ function GroupRow({ group, depth, checked, onToggle, children }) {
           checked={checked}
           onCheckedChange={() => onToggle(group.id)}
           className="flex-shrink-0"
-          style={color ? { borderColor: color, backgroundColor: checked ? color : "transparent" } : {}}
+          style={color ? { borderColor: color, backgroundColor: checked ? color : isAncestor ? `${color}40` : "transparent" } : {}}
         />
         <label
           htmlFor={group.id}
-          className="text-sm font-medium cursor-pointer flex-1 select-none"
+          className={`text-sm font-medium cursor-pointer flex-1 select-none ${isAncestor && !checked ? "opacity-70" : ""}`}
           style={{ color: color || undefined }}
           onClick={() => onToggle(group.id)}
         >
           {group.name}
+          {isAncestor && !checked && <span className="text-xs ml-1 opacity-50">(contains member)</span>}
         </label>
       </div>
       {hasChildren && expanded && (
@@ -118,9 +121,24 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     }
   };
 
-  // Build a proper nested tree using group.id as the key
+  // Compute ancestor groups of directly selected groups
+  const ancestorGroupIds = useMemo(() => {
+    const ancestors = new Set();
+    const groupById = Object.fromEntries(allGroups.map((g) => [g.id, g]));
+    for (const id of selectedGroupIds) {
+      let g = groupById[id];
+      while (g && g.parent && g.parent !== "root" && g.parent !== "") {
+        const parentGroup = allGroups.find(x => x.id === g.parent || x.sp_id === g.parent);
+        if (!parentGroup) break;
+        ancestors.add(parentGroup.id);
+        g = parentGroup;
+      }
+    }
+    return ancestors;
+  }, [allGroups, selectedGroupIds]);
+
+  // Build a proper nested tree using group.id as the key, sorted by order
   const tree = useMemo(() => {
-    // Map all group IDs for quick lookup
     const idSet = new Set(allGroups.map((g) => g.id));
 
     function buildTree(parentId, depth) {
@@ -128,11 +146,11 @@ export default function GroupPickerModal({ alter, open, onClose }) {
         .filter((g) => {
           const parent = g.parent || "";
           if (parentId === null) {
-            // Root groups: no parent, or parent doesn't exist in our list
             return !parent || parent === "" || parent === "root" || !idSet.has(parent);
           }
-          return parent === parentId;
+          return parent === parentId || parent === allGroups.find(x => x.id === parentId)?.sp_id;
         })
+        .sort((a, b) => (a.order || 0) - (b.order || 0))
         .map((g) => {
           const children = buildTree(g.id, depth + 1);
           return (
@@ -141,6 +159,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
               group={g}
               depth={depth}
               checked={selectedGroupIds.has(g.id)}
+              isAncestor={ancestorGroupIds.has(g.id) && !selectedGroupIds.has(g.id)}
               onToggle={toggleGroup}
             >
               {children}
@@ -150,7 +169,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
     }
 
     return buildTree(null, 0);
-  }, [allGroups, selectedGroupIds]);
+  }, [allGroups, selectedGroupIds, ancestorGroupIds]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
