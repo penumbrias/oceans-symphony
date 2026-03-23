@@ -15,15 +15,23 @@ export default function ActivityTrendsChart({ activities = [], categories = [], 
       return t >= fromDay.getTime() && t <= toDay.getTime();
     });
 
-    // Top 5 activities by count
+    // Top 5 activities by count — each category counted independently
     const countByLabel = {};
     const colorByLabel = {};
     filtered.forEach(act => {
       const ids = act.activity_category_ids || [];
-      const label = ids.map(id => catMap[id]?.name).filter(Boolean).join(" + ") || act.activity_name || "Unknown";
-      const color = catMap[ids[0]]?.color || "#8b5cf6";
-      countByLabel[label] = (countByLabel[label] || 0) + 1;
-      colorByLabel[label] = color;
+      if (ids.length === 0) {
+        const label = act.activity_name || "Unknown";
+        countByLabel[label] = (countByLabel[label] || 0) + 1;
+        colorByLabel[label] = "#8b5cf6";
+      } else {
+        ids.forEach(id => {
+          const cat = catMap[id];
+          if (!cat) return;
+          countByLabel[cat.name] = (countByLabel[cat.name] || 0) + 1;
+          colorByLabel[cat.name] = cat.color || "#8b5cf6";
+        });
+      }
     });
 
     const topLabels = Object.entries(countByLabel)
@@ -42,8 +50,12 @@ export default function ActivityTrendsChart({ activities = [], categories = [], 
         const t = new Date(act.timestamp).getTime();
         if (t >= dayMs && t <= dayEndMs) {
           const ids = act.activity_category_ids || [];
-          const label = ids.map(id => catMap[id]?.name).filter(Boolean).join(" + ") || act.activity_name || "Unknown";
-          if (topLabels.includes(label)) row[label] = (row[label] || 0) + 1;
+          const labels = ids.length > 0
+            ? ids.map(id => catMap[id]?.name).filter(Boolean)
+            : [act.activity_name || "Unknown"];
+          labels.forEach(label => {
+            if (topLabels.includes(label)) row[label] = (row[label] || 0) + 1;
+          });
         }
       });
       return row;
