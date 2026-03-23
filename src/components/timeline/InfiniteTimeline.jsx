@@ -1,13 +1,13 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Layers } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const HOUR_HEIGHT = 56;
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 52, checkIn: 110, alter: 40 };
-const EXPANDED_EXTRA = 100; // px added per expanded item
+const DEFAULT_COL_WIDTHS = { activity: 56, checkIn: 120, alter: 40 };
+const EXPANDED_EXTRA = 100;
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -23,7 +23,6 @@ function minutesInDay(date, dayStart) {
   return differenceInMinutes(date, dayStart);
 }
 
-// Double-tap hook
 function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
   const lastRef = useRef({ time: 0 });
   return useCallback((e) => {
@@ -34,7 +33,6 @@ function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
       onDoubleTap?.(e);
     } else {
       lastRef.current.time = now;
-      // delay single tap slightly to let double-tap cancel it
       setTimeout(() => {
         if (lastRef.current.time !== 0 && Date.now() - lastRef.current.time >= ms - 30) {
           lastRef.current.time = 0;
@@ -45,22 +43,11 @@ function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
   }, [onSingleTap, onDoubleTap, ms]);
 }
 
-// Draggable resize handle
 function ResizeHandle({ onDrag }) {
   const dragging = useRef(false);
   const startX = useRef(0);
-
-  const onMouseDown = (e) => {
-    dragging.current = true;
-    startX.current = e.clientX;
-    e.preventDefault();
-  };
-  const onTouchStart = (e) => {
-    dragging.current = true;
-    startX.current = e.touches[0].clientX;
-    e.preventDefault();
-  };
-
+  const onMouseDown = (e) => { dragging.current = true; startX.current = e.clientX; e.preventDefault(); };
+  const onTouchStart = (e) => { dragging.current = true; startX.current = e.touches[0].clientX; e.preventDefault(); };
   useEffect(() => {
     const move = (e) => {
       if (!dragging.current) return;
@@ -81,37 +68,28 @@ function ResizeHandle({ onDrag }) {
       window.removeEventListener("touchend", up);
     };
   }, [onDrag]);
-
   return (
-    <div
-      className="absolute top-0 bottom-0 z-20 flex items-center justify-center cursor-col-resize"
+    <div className="absolute top-0 bottom-0 z-20 flex items-center justify-center cursor-col-resize"
       style={{ width: 10, right: -5, userSelect: "none" }}
-      onMouseDown={onMouseDown}
-      onTouchStart={onTouchStart}
-    >
+      onMouseDown={onMouseDown} onTouchStart={onTouchStart}>
       <div className="w-0.5 h-full bg-border/60 hover:bg-primary/60 transition-colors" />
     </div>
   );
 }
 
-// Alter avatar + duration bar
 function AlterBar({ alter, color, topPx, heightPx }) {
-  const avatarSize = 26;
+  const sz = 26;
   return (
     <div className="absolute flex flex-col items-center" style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}>
-      <div
-        className="rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center"
-        style={{ width: avatarSize, height: avatarSize, backgroundColor: color }}
-        title={alter?.name}
-      >
+      <div className="rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center"
+        style={{ width: sz, height: sz, backgroundColor: color }} title={alter?.name}>
         {alter?.avatar_url
           ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
-          : <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
-        }
+          : <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
       </div>
-      {heightPx > avatarSize + 4 && (
+      {heightPx > sz + 4 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
-          height: Math.max(heightPx - avatarSize - 2, 4),
+          height: Math.max(heightPx - sz - 2, 4),
           background: `linear-gradient(to bottom, ${color}, ${color}40)`,
         }} />
       )}
@@ -119,52 +97,35 @@ function AlterBar({ alter, color, topPx, heightPx }) {
   );
 }
 
-// Activity bar — tap to expand/collapse; double-tap to navigate
-function ActivityBar({ activity, allNames, topPx, heightPx, expanded, onTap, onDoubleTap }) {
-  const color = activity.color || "hsl(var(--primary))";
-  const avatarSize = 26;
-  const hasNote = !!activity.notes;
+// Each bubble shows ONLY activity_name. Merged = same activity_name merged together.
+function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expanded, notes, onTap, onDoubleTap }) {
+  const sz = 26;
   const tap = useDoubleTap(onTap, onDoubleTap);
-
-  const displayName = allNames && allNames.length > 1
-    ? allNames.join(" • ")
-    : activity.activity_name;
-
   return (
-    <div
-      className="absolute flex flex-col items-center cursor-pointer"
+    <div className="absolute flex flex-col items-center cursor-pointer"
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
-      onClick={tap}
-    >
-      <div
-        className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
-        style={{ width: avatarSize, height: avatarSize, backgroundColor: color }}
-      >
+      onClick={tap}>
+      <div className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
+        style={{ width: sz, height: sz, backgroundColor: color }}>
         <span className="text-xs font-bold text-white leading-none">
-          {activity.activity_name?.charAt(0)?.toUpperCase() || "A"}
+          {activityName?.charAt(0)?.toUpperCase() || "A"}
         </span>
       </div>
-      <div className="text-center leading-tight mt-0.5 px-0.5" style={{ fontSize: 8, color, maxWidth: 52, wordBreak: "break-word" }}>
-        {displayName}
-        {hasNote && !expanded && <span className="ml-0.5 opacity-70">···</span>}
+      <div className="text-center leading-tight mt-0.5 px-0.5"
+        style={{ fontSize: 8, color, maxWidth: 54, wordBreak: "break-word" }}>
+        {activityName}
+        {mergedCount > 1 && !expanded && <span className="opacity-60"> ×{mergedCount}</span>}
       </div>
       {expanded && (
         <div className="mt-1 mx-1 p-1.5 rounded-lg border text-left w-full"
           style={{ backgroundColor: `${color}18`, borderColor: `${color}40`, maxWidth: 120 }}>
-          {activity.duration_minutes && (
-            <p className="text-xs text-muted-foreground leading-tight">{activity.duration_minutes}m</p>
-          )}
-          {hasNote && (
-            <p className="text-xs leading-tight mt-0.5" style={{ color, wordBreak: "break-word" }}>{activity.notes}</p>
-          )}
-          {allNames && allNames.length > 1 && (
-            <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{allNames.join(", ")}</p>
-          )}
+          {mergedCount > 1 && <p className="text-xs text-muted-foreground leading-tight">{mergedCount} instances</p>}
+          {notes && <p className="text-xs leading-tight mt-0.5" style={{ color, wordBreak: "break-word" }}>{notes}</p>}
         </div>
       )}
-      {!expanded && heightPx > avatarSize + 30 && (
+      {!expanded && heightPx > sz + 30 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
-          height: Math.max(heightPx - avatarSize - 26, 4),
+          height: Math.max(heightPx - sz - 26, 4),
           background: `linear-gradient(to bottom, ${color}, ${color}40)`,
         }} />
       )}
@@ -173,17 +134,16 @@ function ActivityBar({ activity, allNames, topPx, heightPx, expanded, onTap, onD
 }
 
 const TYPE_META = {
-  emotion: { icon: "💭", label: "Emotion" },
-  journal: { icon: "📓", label: "Journal" },
-  checkin: { icon: "✅", label: "Check-In" },
-  bulletin: { icon: "📌", label: "Bulletin" },
-  task: { icon: "☑️", label: "Task" },
+  emotion:  { icon: "💭" },
+  journal:  { icon: "📓" },
+  checkin:  { icon: "✅" },
+  bulletin: { icon: "📌" },
+  task:     { icon: "☑️" },
 };
 
-// Check-in column entry — tap to expand, double-tap to navigate
 function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
-  const meta = TYPE_META[entry.type] || { icon: "•", label: entry.type };
+  const meta = TYPE_META[entry.type] || { icon: "•" };
   const timeStr = entry.data.timestamp
     ? format(parseDate(entry.data.timestamp), "h:mm a")
     : entry.data.created_date
@@ -191,16 +151,11 @@ function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
     : "";
 
   return (
-    <div
-      className="absolute left-1 right-1 cursor-pointer z-10"
-      style={{ top: topPx, userSelect: "none" }}
-      onClick={tap}
-    >
+    <div className="absolute left-1 right-1 cursor-pointer z-10"
+      style={{ top: topPx, userSelect: "none" }} onClick={tap}>
       {entry.expanded ? (
         <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm">
-          <p className="text-xs text-muted-foreground leading-tight mb-1 font-medium">
-            {meta.icon} {timeStr}
-          </p>
+          <p className="text-xs text-muted-foreground leading-tight mb-1 font-medium">{meta.icon} {timeStr}</p>
           {entry.type === "emotion" && (
             <div className="flex flex-wrap gap-0.5">
               {(entry.data.emotions || []).map((em) => (
@@ -210,26 +165,16 @@ function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
               {entry.data.note && <p className="w-full text-xs text-muted-foreground italic mt-1">{entry.data.note}</p>}
             </div>
           )}
-          {entry.type === "journal" && (
-            <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.label}</p>
-          )}
-          {entry.type === "checkin" && (
-            <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>
-          )}
-          {entry.type === "bulletin" && (
-            <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.data.content}</p>
-          )}
-          {entry.type === "task" && (
-            <p className="text-xs text-muted-foreground leading-tight">{entry.label}{entry.data.completed ? " ✓" : ""}</p>
-          )}
+          {entry.type === "journal" && <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.label}</p>}
+          {entry.type === "checkin" && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
+          {entry.type === "bulletin" && <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.data.content}</p>}
+          {entry.type === "task" && <p className="text-xs text-muted-foreground leading-tight">{entry.label}{entry.data.completed ? " ✓" : ""}</p>}
         </div>
       ) : (
         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors min-w-0">
           <span style={{ fontSize: 11 }}>{meta.icon}</span>
           <p className="text-xs text-muted-foreground leading-tight truncate flex-1" style={{ fontSize: 10 }}>
-            {timeStr} {entry.type === "emotion"
-              ? (entry.data.emotions || []).slice(0, 2).join(", ")
-              : entry.label}
+            {timeStr} {entry.type === "emotion" ? (entry.data.emotions || []).slice(0, 2).join(", ") : entry.label}
           </p>
         </div>
       )}
@@ -243,14 +188,17 @@ export default function InfiniteTimeline({
   showActivities = true, showCheckIns = true,
   categories = [],
 }) {
+  // Build category -> parent map for merge-by-category
   const catMap = useMemo(() => {
     const m = {};
     categories.forEach(c => { m[c.id] = c; });
     return m;
   }, [categories]);
+
   const [collapsed, setCollapsed] = useState(!hasData);
   const [expandedKeys, setExpandedKeys] = useState(new Set());
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
+  const [mergeByCategory, setMergeByCategory] = useState(false);
   const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -264,13 +212,8 @@ export default function InfiniteTimeline({
   }, []);
 
   const dragCol = useCallback((col, delta) => {
-    setColWidths((prev) => ({
-      ...prev,
-      [col]: Math.max(30, prev[col] + delta),
-    }));
+    setColWidths((prev) => ({ ...prev, [col]: Math.max(30, prev[col] + delta) }));
   }, []);
-
-  // --- Build all entries ---
 
   // Alter segments
   const alterEntries = useMemo(() => {
@@ -313,28 +256,53 @@ export default function InfiniteTimeline({
     return cols;
   }, [alterEntries]);
 
-  // Activity entries — merge consecutive same-name activities, show activity_name
+  // Activity entries:
+  // - Each activity gets a bubble with its own activity_name
+  // - Merge same activity_name if overlapping/consecutive (always)
+  // - Optionally merge by parent category if mergeByCategory is on
   const activityEntries = useMemo(() => {
     const raw = activities.map((act) => {
       const startMins = Math.max(0, minutesInDay(parseDate(act.timestamp), dayStart));
       const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
-      return { startMins, endMins: Math.max(endMins, startMins + 5), activity: act };
+      // Determine merge key
+      let mergeKey = act.activity_name; // always merge same name
+      if (mergeByCategory && act.activity_category_ids?.length > 0) {
+        // Find the root (parent) category for the first assigned category
+        const firstCatId = act.activity_category_ids[0];
+        const cat = catMap[firstCatId];
+        mergeKey = cat?.parent_category_id ? catMap[cat.parent_category_id]?.name || cat.name : cat?.name || act.activity_name;
+      }
+      return {
+        startMins,
+        endMins: Math.max(endMins, startMins + 5),
+        activity: act,
+        mergeKey,
+      };
     }).sort((a, b) => a.startMins - b.startMins);
 
-    // Merge overlapping/consecutive entries with the same activity_name
+    // Group: merge overlapping/consecutive entries with the same mergeKey
     const merged = [];
     raw.forEach((entry) => {
       const last = merged[merged.length - 1];
-      if (last && last.activity.activity_name === entry.activity.activity_name && entry.startMins <= last.endMins + 5) {
+      if (last && last.mergeKey === entry.mergeKey && entry.startMins <= last.endMins + 5) {
         last.endMins = Math.max(last.endMins, entry.endMins);
-        last.mergedActivities.push(entry.activity);
+        last.mergedCount += 1;
       } else {
-        merged.push({ ...entry, mergedActivities: [entry.activity] });
+        merged.push({ ...entry, mergedCount: 1 });
       }
     });
-    return merged.map((m, i) => ({ ...m, key: `act-${m.activity.id || i}` }));
-  }, [activities, dayStart]);
 
+    return merged.map((m, i) => ({
+      ...m,
+      // Display name: when merging by category, show the category name; otherwise show activity_name
+      displayName: mergeByCategory && m.activity.activity_category_ids?.length > 0
+        ? m.mergeKey
+        : m.activity.activity_name,
+      key: `act-${m.activity.id || i}`,
+    }));
+  }, [activities, dayStart, mergeByCategory, catMap]);
+
+  // Place each entry into side-by-side columns (overlapping entries = different columns)
   const activityColumns = useMemo(() => {
     const cols = [];
     [...activityEntries].sort((a, b) => a.startMins - b.startMins).forEach((entry) => {
@@ -347,34 +315,18 @@ export default function InfiniteTimeline({
     return cols;
   }, [activityEntries]);
 
-  // Check-in entries (emotions + journals + system check-ins + bulletins + tasks)
+  // Check-in entries
   const checkInEntries = useMemo(() => {
     const entries = [];
-    emotions.forEach((e) => entries.push({
-      mins: Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart)),
-      type: "emotion", id: e.id, data: e,
-    }));
-    journals.forEach((j) => entries.push({
-      mins: Math.max(0, minutesInDay(parseDate(j.created_date), dayStart)),
-      type: "journal", id: j.id, label: j.title || "Journal Entry", data: j,
-    }));
-    checkIns.forEach((c) => entries.push({
-      mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)),
-      type: "checkin", id: c.id, label: "System Check-In", data: c,
-    }));
-    bulletins.forEach((b) => entries.push({
-      mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)),
-      type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b,
-    }));
-    tasks.forEach((t) => entries.push({
-      mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)),
-      type: "task", id: t.id, label: t.title || "Task", data: t,
-    }));
+    emotions.forEach((e) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart)), type: "emotion", id: e.id, data: e }));
+    journals.forEach((j) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(j.created_date), dayStart)), type: "journal", id: j.id, label: j.title || "Journal Entry", data: j }));
+    checkIns.forEach((c) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)), type: "checkin", id: c.id, label: "System Check-In", data: c }));
+    bulletins.forEach((b) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)), type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b }));
+    tasks.forEach((t) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t }));
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ci-${i}-${e.id}` }));
   }, [emotions, journals, checkIns, bulletins, tasks, dayStart]);
 
-  // --- Height adjustment for expanded items ---
-  // Collect all expanded entry positions
+  // Height adjustment for expanded items
   const expandedPositions = useMemo(() => {
     const positions = [];
     [...activityEntries, ...checkInEntries].forEach((entry) => {
@@ -386,9 +338,7 @@ export default function InfiniteTimeline({
   }, [expandedKeys, activityEntries, checkInEntries]);
 
   const getTopPx = useCallback((mins) => {
-    const extra = expandedPositions
-      .filter((p) => p.mins < mins)
-      .reduce((s, p) => s + p.extraHeight, 0);
+    const extra = expandedPositions.filter((p) => p.mins < mins).reduce((s, p) => s + p.extraHeight, 0);
     return (mins / 60) * HOUR_HEIGHT + extra;
   }, [expandedPositions]);
 
@@ -398,7 +348,7 @@ export default function InfiniteTimeline({
 
   const totalHeight = 24 * HOUR_HEIGHT + expandedPositions.reduce((s, p) => s + p.extraHeight, 0);
 
-  // Prevent check-in overlap: enforce minimum pixel spacing
+  // Prevent check-in overlap
   const MIN_CI_GAP = 28;
   const checkInPositioned = useMemo(() => {
     let minNext = -Infinity;
@@ -410,18 +360,16 @@ export default function InfiniteTimeline({
     });
   }, [checkInEntries, getTopPx]);
 
-  // --- Layout ---
+  // Layout
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
   const activityAreaWidth = numActivityCols * colWidths.activity;
   const checkInAreaWidth = showCheckIns ? colWidths.checkIn : 0;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * colWidths.alter;
   const totalWidth = activityAreaWidth + checkInAreaWidth + LABEL_WIDTH + alterAreaWidth;
-
   const checkInLeft = activityAreaWidth;
   const timeLeft = checkInLeft + checkInAreaWidth;
   const alterLeft = timeLeft + LABEL_WIDTH;
-
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
   return (
@@ -443,12 +391,23 @@ export default function InfiniteTimeline({
             </div>
           )}
         </div>
-        {collapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {!collapsed && showActivities && (
+            <button
+              onClick={() => setMergeByCategory(v => !v)}
+              title={mergeByCategory ? "Merged by category — click to show individual" : "Showing individual activities — click to merge by category"}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${mergeByCategory ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
+            >
+              <Layers className="w-3 h-3" />
+              {mergeByCategory ? "By category" : "Individual"}
+            </button>
+          )}
+          {collapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
+        </div>
       </button>
 
       {!collapsed && (
         <div className="overflow-x-auto border-t border-border">
-          {/* Column headers */}
           <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
             {showActivities && (
               <div className="text-center py-1 relative flex-shrink-0" style={{ width: activityAreaWidth }}>
@@ -472,7 +431,6 @@ export default function InfiniteTimeline({
           <div className="overflow-y-auto max-h-[500px]">
             <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
 
-              {/* Hour grid lines + time labels */}
               {HOURS.map((h) => {
                 const top = getTopPx(h * 60);
                 return (
@@ -486,7 +444,7 @@ export default function InfiniteTimeline({
                 );
               })}
 
-              {/* Activity columns */}
+              {/* Activity columns — each overlapping group of activities gets its own side-by-side column */}
               {showActivities && activityColumns.map((col, colIdx) => (
                 <div key={`acol-${colIdx}`} className="absolute"
                   style={{ left: colIdx * colWidths.activity, top: 0, width: colWidths.activity, height: totalHeight }}>
@@ -498,11 +456,13 @@ export default function InfiniteTimeline({
                     return (
                       <ActivityBar
                         key={entry.key}
-                        activity={entry.activity}
-                        mergedActivities={entry.mergedActivities}
+                        activityName={entry.displayName}
+                        color={entry.activity.color || "hsl(var(--primary))"}
+                        mergedCount={entry.mergedCount}
                         topPx={topPx}
                         heightPx={heightPx}
                         expanded={isExpanded}
+                        notes={entry.activity.notes}
                         onTap={() => toggleExpand(entry.key)}
                         onDoubleTap={() => navigate(`/activities?date=${dateStr}`)}
                       />
