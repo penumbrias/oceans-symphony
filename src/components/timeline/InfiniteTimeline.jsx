@@ -289,7 +289,7 @@ export default function InfiniteTimeline({
     const merged = [];
     raw.forEach((entry) => {
       const last = merged[merged.length - 1];
-      if (last && last.categoryId === entry.categoryId && entry.startMins <= last.endMins + 5) {
+      if (last && last.categoryId === entry.categoryId && entry.startMins <= last.endMins) {
         last.endMins = Math.max(last.endMins, entry.endMins);
         last.mergedCount += 1;
       } else {
