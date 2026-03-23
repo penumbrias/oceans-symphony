@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Loader2, Heart, X, Plus } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+import { useQuery } from "@tanstack/react-query";
 
 const PRESET_EMOTIONS = [
   "Happy", "Sad", "Angry", "Anxious", "Calm", "Excited", 
@@ -27,6 +28,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const { data: customEmotions = [] } = useQuery({
     queryKey: ["customEmotions"],
     queryFn: () => base44.entities.CustomEmotion.list(),
+  });
+
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
   const allEmotions = useMemo(() => {
@@ -107,29 +113,52 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   };
 
   const handleSaveActivity = async () => {
-    if (selectedActivityCategories.length > 0) {
-      try {
-        await base44.functions.invoke('createActivityWithCategories', {
-          activity_name: selectedActivityCategories.map(catId => {
-            // This will need the categories data, simplified for now
-            return "Activity";
-          }).join(" + "),
-          activity_category_ids: selectedActivityCategories,
-          duration_minutes: activityDuration ? parseInt(activityDuration) : null,
-          fronting_alter_ids: selectedAlters,
-        });
-      } catch (err) {
-        console.error("Failed to log activity", err);
-      }
-    }
+    if (selectedActivityCategories.length === 0) return;
+    const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+    const names = selectedActivityCategories
+      .map((id) => catById[id]?.name || id)
+      .join(", ");
+    await base44.entities.Activity.create({
+      timestamp: new Date().toISOString(),
+      activity_name: names,
+      activity_category_ids: selectedActivityCategories,
+      duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+      fronting_alter_ids: selectedAlters,
+    });
   };
 
   const handleSubmit = async () => {
     if (selectedEmotions.length === 0) return;
     setSaving(true);
-    await handleSaveActivity();
-    await createCheckInMutation.mutateAsync({});
-    setSaving(false);
+    try {
+      await handleSaveActivity();
+
+      // Update front history if alters changed
+      const currentSorted = [...currentFronterIds].sort();
+      const selectedSorted = [...selectedAlters].sort();
+      if (JSON.stringify(currentSorted) !== JSON.stringify(selectedSorted)) {
+        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+        if (activeSessions.length > 0) {
+          await base44.entities.FrontingSession.update(activeSessions[0].id, {
+            primary_alter_id: selectedAlters[0] || "",
+            co_fronter_ids: selectedAlters.slice(1),
+          });
+        } else if (selectedAlters.length > 0) {
+          await base44.entities.FrontingSession.create({
+            primary_alter_id: selectedAlters[0],
+            co_fronter_ids: selectedAlters.slice(1),
+            start_time: new Date().toISOString(),
+            is_active: true,
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      }
+
+      await createCheckInMutation.mutateAsync({});
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

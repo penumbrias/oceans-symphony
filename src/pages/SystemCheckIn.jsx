@@ -61,7 +61,7 @@ export default function SystemCheckInPage() {
     onError: (err) => toast.error(err.message),
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.date) {
       toast.error("Please select a date");
       return;
@@ -69,7 +69,7 @@ export default function SystemCheckInPage() {
 
     const dataToSave = { ...formData };
     const shouldCreateDiary = formData.create_diary_card;
-    delete dataToSave.create_diary_card; // Remove this field before saving
+    delete dataToSave.create_diary_card;
 
     if (currentCheckIn) {
       updateMutation.mutate(dataToSave);
@@ -77,19 +77,39 @@ export default function SystemCheckInPage() {
       createMutation.mutate(dataToSave);
     }
 
-    // If user checked the diary card option, navigate to diary creation
-    if (shouldCreateDiary) {
-      setTimeout(() => {
-        navigate("/diary?create=true");
-      }, 500);
+    // If step2 has alters_present, update the active fronting session
+    const altersPresent = formData.step2_notice?.alters_present || [];
+    const alterIds = altersPresent.filter((id) => alters.some((a) => a.id === id));
+    if (alterIds.length > 0) {
+      try {
+        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+        if (activeSessions.length > 0) {
+          const session = activeSessions[0];
+          const existingIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+          // Merge: add new alters without removing existing ones
+          const merged = [...new Set([...existingIds, ...alterIds])];
+          await base44.entities.FrontingSession.update(session.id, {
+            primary_alter_id: merged[0],
+            co_fronter_ids: merged.slice(1),
+          });
+        } else {
+          await base44.entities.FrontingSession.create({
+            primary_alter_id: alterIds[0],
+            co_fronter_ids: alterIds.slice(1),
+            start_time: new Date().toISOString(),
+            is_active: true,
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      } catch (err) {
+        console.error("Failed to update front from check-in", err);
+      }
     }
-  };
 
-  const handleNewCheckIn = () => {
-    const today = new Date().toISOString().split("T")[0];
-    setFormData({ date: today });
-    setCurrentCheckIn(null);
-    setView("create");
+    if (shouldCreateDiary) {
+      setTimeout(() => { navigate("/diary?create=true"); }, 500);
+    }
   };
 
   const handleEdit = (checkIn) => {

@@ -1,35 +1,69 @@
 import React, { useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { formatDistanceToNow } from "date-fns";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
 
 export default function ActivityTallyTracker({ activities = [] }) {
+  const { data: categories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
+  const catById = useMemo(() => {
+    const map = {};
+    categories.forEach((c) => { map[c.id] = c; });
+    return map;
+  }, [categories]);
+
+  // Get all ancestor category IDs for a given category
+  const getAncestorIds = (catId) => {
+    const ancestors = [];
+    let current = catById[catId];
+    while (current?.parent_category_id) {
+      ancestors.push(current.parent_category_id);
+      current = catById[current.parent_category_id];
+    }
+    return ancestors;
+  };
+
   const tallyData = useMemo(() => {
-    const grouped = {};
+    const tally = {};
 
     activities.forEach((activity) => {
-      const name = activity.activity_name || "Unknown";
-      if (!grouped[name]) {
-        grouped[name] = {
-          name,
-          count: 0,
-          totalMinutes: 0,
-          color: activity.color,
-        };
+      const catIds = activity.activity_category_ids || [];
+      const mins = activity.duration_minutes || 0;
+
+      if (catIds.length === 0) {
+        // No categories — tally by activity_name
+        const name = activity.activity_name || "Unknown";
+        if (!tally[name]) tally[name] = { name, count: 0, totalMinutes: 0, color: activity.color, isNameFallback: true };
+        tally[name].count++;
+        tally[name].totalMinutes += mins;
+      } else {
+        // Expand each category to include its ancestors, then tally uniquely per activity
+        const allIds = new Set(catIds);
+        catIds.forEach((id) => getAncestorIds(id).forEach((aid) => allIds.add(aid)));
+
+        allIds.forEach((catId) => {
+          const cat = catById[catId];
+          if (!cat) return;
+          const key = catId;
+          if (!tally[key]) tally[key] = { name: cat.name, count: 0, totalMinutes: 0, color: cat.color };
+          tally[key].count++;
+          tally[key].totalMinutes += mins;
+        });
       }
-      grouped[name].count += 1;
-      grouped[name].totalMinutes += activity.duration_minutes || 0;
     });
 
-    return Object.values(grouped)
-      .sort((a, b) => b.count - a.count);
-  }, [activities]);
+    return Object.values(tally).sort((a, b) => b.count - a.count);
+  }, [activities, catById]);
 
   const formatTime = (minutes) => {
+    if (!minutes) return null;
     if (minutes < 60) return `${Math.round(minutes)}m`;
     const hours = minutes / 60;
     if (hours < 24) return `${Math.round(hours * 10) / 10}h`;
-    const days = hours / 24;
-    return `${Math.round(days * 10) / 10}d`;
+    return `${Math.round((hours / 24) * 10) / 10}d`;
   };
 
   if (tallyData.length === 0) {
@@ -52,20 +86,17 @@ export default function ActivityTallyTracker({ activities = [] }) {
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
               {item.color && (
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: item.color }}
-                />
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
               )}
               <span className="text-sm font-medium truncate">{item.name}</span>
             </div>
             <div className="flex items-center gap-4 ml-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {item.count}x
-              </span>
-              <span className="text-xs font-semibold text-foreground whitespace-nowrap">
-                {formatTime(item.totalMinutes)}
-              </span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{item.count}x</span>
+              {formatTime(item.totalMinutes) && (
+                <span className="text-xs font-semibold text-foreground whitespace-nowrap">
+                  {formatTime(item.totalMinutes)}
+                </span>
+              )}
             </div>
           </div>
         ))}

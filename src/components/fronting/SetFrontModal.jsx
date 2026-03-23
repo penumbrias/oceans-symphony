@@ -115,34 +115,46 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
     }
     setSaving(true);
     try {
-      // End any active sessions
       const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      for (const s of activeSessions) {
-        await base44.entities.FrontingSession.update(s.id, {
-          is_active: false,
-          end_time: new Date().toISOString(),
-        });
-      }
-      
-      // If unsure, don't create a session
+
       if (isUnsure) {
+        // Clear front — end all active sessions
+        for (const s of activeSessions) {
+          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
+        }
         toast.success("Front cleared");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         onClose();
       } else {
-        // Create new session
-        const newSession = await base44.entities.FrontingSession.create({
-          primary_alter_id: primaryId,
-          co_fronter_ids: coFronterIds.filter((id) => id !== primaryId),
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
+        const coIds = coFronterIds.filter((id) => id !== primaryId);
+        let sessionId = null;
+        if (activeSessions.length > 0) {
+          // Update the existing active session (additive — keeps session continuity)
+          await base44.entities.FrontingSession.update(activeSessions[0].id, {
+            primary_alter_id: primaryId,
+            co_fronter_ids: coIds,
+          });
+          // End any extra duplicate active sessions
+          for (const s of activeSessions.slice(1)) {
+            await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
+          }
+          sessionId = activeSessions[0].id;
+        } else {
+          // No active session — create new
+          const newSession = await base44.entities.FrontingSession.create({
+            primary_alter_id: primaryId,
+            co_fronter_ids: coIds,
+            start_time: new Date().toISOString(),
+            is_active: true,
+          });
+          sessionId = newSession?.id || null;
+        }
         toast.success("Front updated!");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         if (journalSwitch) {
-          setNewSessionId(newSession?.id || null);
+          setNewSessionId(sessionId);
           setShowJournalModal(true);
         } else {
           onClose();
@@ -150,23 +162,6 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
       }
     } catch (e) {
       toast.error(e.message || "Failed to set front");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleEndFront = async () => {
-    if (!currentSession) return;
-    setSaving(true);
-    try {
-      await base44.entities.FrontingSession.update(currentSession.id, {
-        is_active: false,
-        end_time: new Date().toISOString(),
-      });
-      toast.success("Front ended.");
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      onClose();
     } finally {
       setSaving(false);
     }
@@ -183,55 +178,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
         {/* Selected chips - larger display */}
          {(selectedIds.size > 0 || isUnsure) && (
            <div className="bg-muted/30 rounded-lg p-3 mb-2 border border-border/50">
-             <div className="flex flex-wrap gap-2">
-               {isUnsure ? (
-                 <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-border bg-card text-center flex-1">
-                   <HelpCircle className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                   <span className="text-sm font-medium">Unsure who's fronting</span>
-                 </div>
-               ) : (
-                 [...selectedIds].map((id) => {
-                   const a = activeAlters.find((x) => x.id === id);
-                   if (!a) return null;
-                   return (
-                     <button
-                       key={id}
-                       onClick={() => setPrimary(id)}
-                       className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all cursor-pointer hover:shadow-md"
-                       style={{
-                         backgroundColor: a.color ? `${a.color}12` : "hsl(var(--card))",
-                         borderColor: primaryId === id ? a.color || "hsl(var(--primary))" : `${a.color || "hsl(var(--border))"}40`,
-                       }}
-                       title={primaryId === id ? "Primary fronter (click to change)" : "Click to set as primary"}
-                     >
-                       <div
-                         className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
-                         style={{ backgroundColor: a.color || "hsl(var(--muted))" }}
-                       >
-                         {a.avatar_url ? (
-                           <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
-                         ) : (
-                           <User className="w-6 h-6 text-white" />
-                         )}
-                       </div>
-                       <div className="text-left min-w-0">
-                         <p className="font-semibold text-sm">{a.name}</p>
-                         {primaryId === id && <p className="text-xs text-muted-foreground">Primary</p>}
-                       </div>
-                       {primaryId === id && <Star className="w-5 h-5 fill-amber-500 text-amber-500 flex-shrink-0" />}
-                       <button
-                         onClick={(e) => { e.stopPropagation(); toggleAlter(id); }}
-                         className="ml-1 p-1 hover:bg-destructive/20 rounded transition-colors flex-shrink-0"
-                       >
-                         <X className="w-4 h-4 opacity-60 hover:opacity-100" />
-                       </button>
-                     </button>
-                   );
-                 })
-               )}
-             </div>
-           </div>
-         )}
+             <div className="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto">
 
         <div className="text-xs text-muted-foreground space-y-1">
           <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary fronter</p>
