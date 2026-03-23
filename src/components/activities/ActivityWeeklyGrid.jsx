@@ -4,8 +4,6 @@ import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
