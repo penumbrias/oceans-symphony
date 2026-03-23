@@ -220,19 +220,21 @@ export default function ActivityWeeklyGrid({
                               {getEmotionsForActivity(cellActivities[0]).slice(0, 2).map(e => e.charAt(0).toUpperCase()).join("")}
                             </div>
                           )}
-                          {showAlters && cellActivities[0]?.fronting_alter_ids?.length > 0 && (
+                          {showAlters && fronting.length > 0 && (
                             <div className="flex gap-0.5 justify-center flex-wrap">
-                              {cellActivities[0].fronting_alter_ids.slice(0, 4).map((alterId) => {
-                                const alter = alters.find((a) => a.id === alterId);
+                              {fronting.slice(0, 4).map((session, idx) => {
+                                const alter = alters.find((a) => a.id === session.primary_alter_id);
                                 return (
                                   <div
-                                    key={alterId}
-                                    className="w-4 h-4 rounded-full border border-white/50"
+                                    key={idx}
+                                    className="w-4 h-4 rounded-full border border-white/50 overflow-hidden flex items-center justify-center"
                                     style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.2)" }}
                                     title={alter?.name}
                                   >
-                                    {alter?.avatar_url && (
-                                      <img src={alter.avatar_url} alt={alter.name} className="w-full h-full rounded-full object-cover" />
+                                    {alter?.avatar_url ? (
+                                      <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>
                                     )}
                                   </div>
                                 );
