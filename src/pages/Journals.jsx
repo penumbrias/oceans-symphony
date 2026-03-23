@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -98,6 +98,15 @@ export default function Journals() {
 
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
   const openEntry = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
+
+  // Open specific entry from URL ?id= param (e.g. from timeline double-click)
+  const [pendingId] = useState(() => new URLSearchParams(window.location.search).get('id'));
+  useEffect(() => {
+    if (pendingId && entries.length > 0) {
+      const entry = entries.find(e => e.id === pendingId);
+      if (entry) openEntry(entry);
+    }
+  }, [pendingId, entries.length]);
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;

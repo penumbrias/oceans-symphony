@@ -47,6 +47,11 @@ export default function Timeline() {
     queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 2000),
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
   // Lazy load more days as user scrolls to bottom
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -164,6 +169,7 @@ export default function Timeline() {
                 checkIns={dayCheckIns}
                 showActivities={showActivities}
                 showCheckIns={showCheckIns}
+                categories={categories}
               />
             </div>
           );

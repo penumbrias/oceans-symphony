@@ -38,6 +38,15 @@ export default function SystemCheckInPage() {
     queryFn: () => base44.entities.Group.list(),
   });
 
+  // Open specific check-in if ?id= URL param is present
+  const [pendingId] = useState(() => new URLSearchParams(window.location.search).get('id'));
+  React.useEffect(() => {
+    if (pendingId && checkIns.length > 0 && view === "list") {
+      const ci = checkIns.find(c => c.id === pendingId);
+      if (ci) { setCurrentCheckIn(ci); setFormData(ci); setView("create"); }
+    }
+  }, [pendingId, checkIns.length]);
+
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.SystemCheckIn.create(data),
     onSuccess: () => {
@@ -82,24 +91,21 @@ export default function SystemCheckInPage() {
     const alterIds = altersPresent.filter((id) => alters.some((a) => a.id === id));
     if (alterIds.length > 0) {
       try {
+        const now = new Date().toISOString();
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+        // End old session at this moment, then start fresh
         if (activeSessions.length > 0) {
-          const session = activeSessions[0];
-          const existingIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-          // Merge: add new alters without removing existing ones
-          const merged = [...new Set([...existingIds, ...alterIds])];
-          await base44.entities.FrontingSession.update(session.id, {
-            primary_alter_id: merged[0],
-            co_fronter_ids: merged.slice(1),
-          });
-        } else {
-          await base44.entities.FrontingSession.create({
-            primary_alter_id: alterIds[0],
-            co_fronter_ids: alterIds.slice(1),
-            start_time: new Date().toISOString(),
-            is_active: true,
+          await base44.entities.FrontingSession.update(activeSessions[0].id, {
+            is_active: false,
+            end_time: now,
           });
         }
+        await base44.entities.FrontingSession.create({
+          primary_alter_id: alterIds[0],
+          co_fronter_ids: alterIds.slice(1),
+          start_time: now,
+          is_active: true,
+        });
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       } catch (err) {

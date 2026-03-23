@@ -153,6 +153,32 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
               <th className="p-2 text-center font-medium text-muted-foreground min-w-[60px]">Total</th>
               <th className="p-2 text-center font-medium text-muted-foreground min-w-[60px]">Hours</th>
             </tr>
+            {/* Hierarchy connector line row */}
+            <tr>
+              <th className="p-0" />
+              {(() => {
+                const cells = [];
+                let i = 0;
+                while (i < visibleColumns.length) {
+                  const { cat, hasChildren } = visibleColumns[i];
+                  if (hasChildren && expandedParents.has(cat.id)) {
+                    const childCount = (childrenOf[cat.id] || []).filter(c => countsByCatKey[c.name] > 0).length;
+                    const span = 1 + childCount;
+                    cells.push(
+                      <th key={`hline-${cat.id}`} colSpan={span} className="p-0" style={{ height: 8 }}>
+                        <div style={{ height: 2, backgroundColor: cat.color || '#8b5cf6', margin: '0 6px', borderRadius: 1, opacity: 0.7 }} />
+                      </th>
+                    );
+                    i += span;
+                  } else {
+                    cells.push(<th key={`hempty-${i}`} className="p-0" style={{ height: 8 }} />);
+                    i++;
+                  }
+                }
+                return cells;
+              })()}
+              <th className="p-0" /><th className="p-0" />
+            </tr>
           </thead>
           <tbody>
             {alterRows.map(row => (

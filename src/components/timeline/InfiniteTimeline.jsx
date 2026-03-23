@@ -224,7 +224,13 @@ export default function InfiniteTimeline({
   day, sessions, activities, emotions, alters, hasData, isToday,
   journals = [], checkIns = [],
   showActivities = true, showCheckIns = true,
+  categories = [],
 }) {
+  const catMap = useMemo(() => {
+    const m = {};
+    categories.forEach(c => { m[c.id] = c; });
+    return m;
+  }, [categories]);
   const [collapsed, setCollapsed] = useState(!hasData);
   const [expandedKeys, setExpandedKeys] = useState(new Set());
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
@@ -290,20 +296,24 @@ export default function InfiniteTimeline({
     return cols;
   }, [alterEntries]);
 
-  // Activity entries — each activity is its own bar (no grouping by name)
+  // Activity entries — each activity is its own bar; resolve individual category names
   const activityEntries = useMemo(() => {
     return activities.map((act, i) => {
       const startMins = Math.max(0, minutesInDay(new Date(act.timestamp), dayStart));
       const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
+      const catNames = (act.activity_category_ids || [])
+        .map(id => catMap[id]?.name)
+        .filter(Boolean);
+      const mergedNames = catNames.length > 0 ? catNames : [act.activity_name];
       return {
         startMins,
         endMins: Math.max(endMins, startMins + 5),
         activity: act,
-        mergedNames: [act.activity_name],
+        mergedNames,
         key: `act-${act.id || i}`,
       };
     });
-  }, [activities, dayStart]);
+  }, [activities, dayStart, catMap]);
 
   const activityColumns = useMemo(() => {
     const cols = [];

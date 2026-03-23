@@ -136,17 +136,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       const currentSorted = [...currentFronterIds].sort();
       const selectedSorted = [...selectedAlters].sort();
       if (JSON.stringify(currentSorted) !== JSON.stringify(selectedSorted)) {
+        const now = new Date().toISOString();
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+        // End old session at this moment, then start a new one
         if (activeSessions.length > 0) {
           await base44.entities.FrontingSession.update(activeSessions[0].id, {
-            primary_alter_id: selectedAlters[0] || "",
-            co_fronter_ids: selectedAlters.slice(1),
+            is_active: false,
+            end_time: now,
           });
-        } else if (selectedAlters.length > 0) {
+        }
+        if (selectedAlters.length > 0) {
           await base44.entities.FrontingSession.create({
             primary_alter_id: selectedAlters[0],
             co_fronter_ids: selectedAlters.slice(1),
-            start_time: new Date().toISOString(),
+            start_time: now,
             is_active: true,
           });
         }
