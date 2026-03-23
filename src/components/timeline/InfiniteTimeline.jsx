@@ -169,9 +169,11 @@ function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
           {entry.type === "task" && <p className="text-xs text-muted-foreground leading-tight">{entry.label}{entry.data.completed ? " ✓" : ""}</p>}
         </div>
       ) : (
-        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors min-w-0">
+        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded border hover:bg-muted transition-colors min-w-0 ${
+          isTaskDone ? "bg-green-500/10 border-green-500/40" : isMention ? "bg-primary/10 border-primary/30" : "bg-muted/60 border-border/50"
+        }`}>
           <span style={{ fontSize: 11 }}>{meta.icon}</span>
-          <p className="text-xs text-muted-foreground leading-tight truncate flex-1" style={{ fontSize: 10 }}>
+          <p className={`text-xs leading-tight truncate flex-1 ${isTaskDone ? "text-green-600 dark:text-green-400" : isMention ? "text-primary" : "text-muted-foreground"}`} style={{ fontSize: 10 }}>
             {timeStr} {entry.type === "emotion" ? (entry.data.emotions || []).slice(0, 2).join(", ") : entry.label}
           </p>
         </div>
