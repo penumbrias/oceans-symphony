@@ -5,11 +5,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { format } from "date-fns";
+import { format, addMinutes } from "date-fns";
 import { toast } from "sonner";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, X } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+
+const EMOTION_COLORS = [
+  "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
+  "#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4",
+  "#f97316","#84cc16","#e11d48","#7c3aed","#0891b2",
+];
+function emotionColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return EMOTION_COLORS[h % EMOTION_COLORS.length];
+}
 
 function getContrastColor(hex) {
   if (!hex) return "#000000";
@@ -21,62 +31,171 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#000000" : "#ffffff";
 }
 
+function timeToStr(date) {
+  return format(date, "HH:mm");
+}
+function applyTimeStr(baseDate, timeStr) {
+  const [h, m] = timeStr.split(":").map(Number);
+  const d = new Date(baseDate);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+// Alter search+grid selector matching QuickCheckIn style
+function AlterSelector({ selectedIds, onChange, alters }) {
+  const [input, setInput] = useState("");
+  const activeAlters = useMemo(() => alters.filter(a => !a.is_archived), [alters]);
+  const filtered = useMemo(() => {
+    if (!input.trim()) return [];
+    return activeAlters.filter(a =>
+      !selectedIds.includes(a.id) &&
+      (a.name.toLowerCase().includes(input.toLowerCase()) ||
+       a.alias?.toLowerCase().includes(input.toLowerCase()))
+    );
+  }, [input, activeAlters, selectedIds]);
+
+  return (
+    <div>
+      <label className="block text-sm font-semibold mb-2">Fronting Alters</label>
+      <div className="relative mb-3">
+        <Input
+          placeholder="Type name or alias..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          className="text-sm"
+        />
+        {filtered.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 max-h-32 overflow-y-auto">
+            {filtered.map((alter) => (
+              <button
+                key={alter.id}
+                onClick={() => { onChange([...selectedIds, alter.id]); setInput(""); }}
+                className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm transition-colors"
+              >
+                {alter.avatar_url ? (
+                  <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                    style={{ backgroundColor: alter.color || "#8b5cf6" }}>
+                    {alter.name?.charAt(0)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{alter.name}</p>
+                  {alter.alias && <p className="text-xs text-muted-foreground">{alter.alias}</p>}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {selectedIds.length > 0 && (
+        <div className="grid grid-cols-4 gap-2">
+          {selectedIds.map((alterId) => {
+            const alter = activeAlters.find(a => a.id === alterId);
+            return (
+              <div key={alterId} className="relative group">
+                <div className="aspect-square rounded-lg bg-muted flex flex-col items-center justify-center p-1.5 overflow-hidden">
+                  {alter?.avatar_url ? (
+                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-full h-full rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
+                      <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>
+                        {alter?.name?.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <button onClick={() => onChange(selectedIds.filter(id => id !== alterId))}
+                    className="bg-destructive text-destructive-foreground rounded-full p-1">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+                <p className="text-xs font-medium text-center mt-1 truncate">{alter?.alias || alter?.name}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ActivityDetailsModal({ isOpen, onClose, activity, alters = [], onSave }) {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // Handle both single activity and array of activities
   const activities = useMemo(() => {
     if (!activity) return [];
     return Array.isArray(activity) ? activity : [activity];
   }, [activity]);
 
-  // Fetch emotion check-ins to show emotions for this time
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
     queryFn: () => base44.entities.EmotionCheckIn.list(),
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
+  const catById = useMemo(() => {
+    const m = {};
+    categories.forEach(c => { m[c.id] = c; });
+    return m;
+  }, [categories]);
+
   const getEmotionsNearActivity = (act) => {
     const actTime = new Date(act.timestamp);
-    const emotionData = emotionCheckIns.find((e) => {
-      const eTime = new Date(e.timestamp);
-      // Find emotions within 30 minutes
-      return Math.abs(eTime - actTime) < 30 * 60 * 1000;
-    });
-    return emotionData?.emotions || [];
+    const found = emotionCheckIns.find(e => Math.abs(new Date(e.timestamp) - actTime) < 30 * 60 * 1000);
+    return found?.emotions || [];
+  };
+
+  const getActivityColor = (act) => {
+    const ids = act.activity_category_ids || [];
+    for (const id of ids) {
+      const cat = catById[id];
+      if (cat?.color) return cat.color;
+    }
+    return act.color || "hsl(var(--primary))";
   };
 
   const handleEdit = (act) => {
+    const startTime = new Date(act.timestamp);
+    const endTime = addMinutes(startTime, act.duration_minutes || 60);
     setEditingId(act.id);
     setEditData({
       activity_category_ids: act.activity_category_ids || [],
-      duration_minutes: act.duration_minutes || 60,
+      startTimeStr: timeToStr(startTime),
+      endTimeStr: timeToStr(endTime),
       fronting_alter_ids: act.fronting_alter_ids || [],
       notes: act.notes || "",
     });
   };
 
-  const handleSave = async (actId) => {
+  const handleSave = async (act) => {
     if (editData.activity_category_ids.length === 0) {
       toast.error("Select an activity");
       return;
     }
-
     setIsLoading(true);
     try {
-      // Fetch categories to build activity name
-      const categories = await base44.entities.ActivityCategory.list();
-      const categoryNames = (editData.activity_category_ids || [])
-        .map(id => categories.find(c => c.id === id)?.name)
-        .filter(Boolean);
-      const activity_name = categoryNames.length > 0 ? categoryNames.join(" + ") : "Activity";
+      const startDt = applyTimeStr(act.timestamp, editData.startTimeStr);
+      const endDt = applyTimeStr(act.timestamp, editData.endTimeStr);
+      const duration = Math.max(1, Math.round((endDt - startDt) / 60000));
 
-      await base44.entities.Activity.update(actId, {
+      const catNames = editData.activity_category_ids.map(id => catById[id]?.name).filter(Boolean);
+      const activity_name = catNames.length > 0 ? catNames.join(" + ") : "Activity";
+
+      await base44.entities.Activity.update(act.id, {
         activity_name,
         activity_category_ids: editData.activity_category_ids,
-        duration_minutes: editData.duration_minutes,
+        timestamp: startDt.toISOString(),
+        duration_minutes: duration,
         fronting_alter_ids: editData.fronting_alter_ids,
         notes: editData.notes,
       });
@@ -92,34 +211,18 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
 
   const handleDelete = async (actId) => {
     if (!window.confirm("Delete this activity?")) return;
-
     setIsLoading(true);
     try {
       await base44.entities.Activity.delete(actId);
       toast.success("Activity deleted");
       onSave?.();
-      if (activities.length === 1) {
-        onClose();
-      }
-    } catch (err) {
-      toast.error("Failed to delete");
+      if (activities.length === 1) onClose();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const toggleAlter = (alterId) => {
-    setEditData((prev) => ({
-      ...prev,
-      fronting_alter_ids: prev.fronting_alter_ids.includes(alterId)
-        ? prev.fronting_alter_ids.filter((id) => id !== alterId)
-        : [...prev.fronting_alter_ids, alterId],
-    }));
-  };
-
-  if (activities.length === 0) {
-    return null;
-  }
+  if (activities.length === 0) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -132,200 +235,145 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
           {activities.map((act) => {
             const isEditing = editingId === act.id;
             const startTime = new Date(act.timestamp);
-            const endTime = new Date(startTime.getTime() + (act.duration_minutes || 60) * 60000);
-            const activityAlters = (act.fronting_alter_ids || [])
-              .map((id) => alters.find((a) => a.id === id))
-              .filter(Boolean);
+            const endTime = addMinutes(startTime, act.duration_minutes || 60);
+            const activityAlters = (act.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
             const emotions = getEmotionsNearActivity(act);
+            const color = getActivityColor(act);
 
             return (
-              <div
-                key={act.id}
-                className="border border-border rounded-lg p-4 space-y-4"
-              >
+              <div key={act.id} className="border border-border rounded-lg p-4 space-y-4">
                 {!isEditing ? (
-                  <>
-                    {/* View Mode */}
-                    <div className="space-y-3">
-                      {/* Activity Title */}
-                      <div
-                        className="rounded-lg p-3 text-center font-semibold text-lg"
-                        style={{
-                          backgroundColor: act.color,
-                          color: getContrastColor(act.color),
-                        }}
-                      >
-                        {act.activity_name}
+                  <div className="space-y-3">
+                    {/* Title */}
+                    <div className="rounded-lg p-3 text-center font-semibold text-lg"
+                      style={{ backgroundColor: color, color: getContrastColor(color) }}>
+                      {act.activity_name}
+                    </div>
+
+                    {/* Time */}
+                    <div className="grid grid-cols-3 gap-3 text-sm bg-muted/30 rounded-lg p-3">
+                      <div>
+                        <p className="text-muted-foreground text-xs font-semibold mb-1">Start</p>
+                        <p className="font-medium">{format(startTime, "HH:mm")}</p>
                       </div>
-
-                      {/* Time Info */}
-                      <div className="grid grid-cols-3 gap-3 text-sm bg-muted/30 rounded-lg p-3">
-                        <div>
-                          <p className="text-muted-foreground text-xs font-semibold mb-1">Start</p>
-                          <p className="font-medium">{format(startTime, "HH:mm")}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground text-xs font-semibold mb-1">End</p>
-                          <p className="font-medium">{format(endTime, "HH:mm")}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground text-xs font-semibold mb-1">Duration</p>
-                          <p className="font-medium">
-                            {Math.round((act.duration_minutes || 60) / 60 * 10) / 10}h
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs font-semibold mb-1">End</p>
+                        <p className="font-medium">{format(endTime, "HH:mm")}</p>
                       </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs font-semibold mb-1">Duration</p>
+                        <p className="font-medium">{Math.round((act.duration_minutes || 60) / 60 * 10) / 10}h</p>
+                      </div>
+                    </div>
 
-                      {/* Fronting Alters */}
-                      {activityAlters.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-2">
-                            Fronting Alters
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {activityAlters.map((alter) => (
-                              <div
-                                key={alter.id}
-                                className="px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2"
-                                style={{ borderColor: alter.color || "#999" }}
-                              >
-                                {alter.avatar_url && (
-                                  <img
-                                    src={alter.avatar_url}
-                                    alt={alter.name}
-                                    className="w-5 h-5 rounded-full object-cover"
-                                  />
-                                )}
-                                <span>{alter.alias || alter.name}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Emotions */}
-                      {emotions.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-2">
-                            Emotions
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {emotions.map((emotion, idx) => (
-                              <span
-                                key={idx}
-                                className="px-3 py-1.5 bg-accent/20 text-accent-foreground rounded-full text-sm font-medium"
-                              >
-                                {emotion}
+                    {/* Selected categories */}
+                    {(act.activity_category_ids || []).length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Categories</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(act.activity_category_ids || []).map(id => {
+                            const cat = catById[id];
+                            if (!cat) return null;
+                            return (
+                              <span key={id} className="px-2.5 py-1 rounded-full text-xs font-medium text-white"
+                                style={{ backgroundColor: cat.color || "#8b5cf6" }}>
+                                {cat.name}
                               </span>
-                            ))}
-                          </div>
+                            );
+                          })}
                         </div>
-                      )}
-
-                      {/* Notes */}
-                      {act.notes && (
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-2">
-                            Notes
-                          </p>
-                          <p className="text-sm bg-muted/30 rounded-lg p-3">{act.notes}</p>
-                        </div>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => handleEdit(act)}
-                          className="flex-1"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => handleDelete(act.id)}
-                          disabled={isLoading}
-                        >
-                          {isLoading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </Button>
                       </div>
+                    )}
+
+                    {/* Alters */}
+                    {activityAlters.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Fronting Alters</p>
+                        <div className="flex flex-wrap gap-2">
+                          {activityAlters.map(alter => (
+                            <div key={alter.id} className="px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2"
+                              style={{ borderColor: alter.color || "#999" }}>
+                              {alter.avatar_url && <img src={alter.avatar_url} alt={alter.name} className="w-5 h-5 rounded-full object-cover" />}
+                              <span>{alter.alias || alter.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Emotions */}
+                    {emotions.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Emotions</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {emotions.map((emotion, idx) => (
+                            <span key={idx} className="px-2.5 py-1 rounded-full text-xs font-medium text-white"
+                              style={{ backgroundColor: emotionColor(emotion) }}>
+                              {emotion}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {act.notes && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Notes</p>
+                        <p className="text-sm bg-muted/30 rounded-lg p-3">{act.notes}</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button variant="outline" onClick={() => handleEdit(act)} className="flex-1">Edit</Button>
+                      <Button variant="destructive" size="icon" onClick={() => handleDelete(act.id)} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                      </Button>
                     </div>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    {/* Edit Mode */}
-                    <div className="space-y-4">
-                      <ActivityPillSelector 
-                        selectedActivities={editData.activity_category_ids}
-                        onActivityChange={(ids) => setEditData({ ...editData, activity_category_ids: ids })}
-                        duration={String(editData.duration_minutes || "")}
-                        onDurationChange={(duration) => setEditData({ ...editData, duration_minutes: duration ? parseInt(duration) : 60 })}
-                      />
-
-                      <div>
-                        <label className="block text-sm font-semibold mb-2">
-                          Fronting Alters
-                        </label>
-                        <div className="space-y-2 border border-border rounded-lg p-3 bg-muted/20 max-h-48 overflow-y-auto">
-                          {alters.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No alters available</p>
-                          ) : (
-                            alters.map((alter) => (
-                              <div key={alter.id} className="flex items-center gap-2">
-                                <Checkbox
-                                  checked={editData.fronting_alter_ids.includes(alter.id)}
-                                  onCheckedChange={() => toggleAlter(alter.id)}
-                                  id={`alter-${alter.id}`}
-                                />
-                                <label
-                                  htmlFor={`alter-${alter.id}`}
-                                  className="text-sm cursor-pointer flex-1"
-                                >
-                                  {alter.alias || alter.name}
-                                </label>
-                              </div>
-                            ))
-                          )}
-                        </div>
+                  <div className="space-y-4">
+                    {/* Start / End time */}
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="text-sm font-medium block mb-1">Start time</label>
+                        <input type="time" value={editData.startTimeStr}
+                          onChange={e => setEditData(d => ({ ...d, startTimeStr: e.target.value }))}
+                          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
                       </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold mb-2">Notes</label>
-                        <Textarea
-                          value={editData.notes}
-                          onChange={(e) =>
-                            setEditData({ ...editData, notes: e.target.value })
-                          }
-                          placeholder="Add any notes..."
-                          className="h-20"
-                        />
-                      </div>
-
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => setEditingId(null)}
-                          disabled={isLoading}
-                          className="flex-1"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={() => handleSave(act.id)}
-                          disabled={isLoading}
-                          className="flex-1"
-                        >
-                          {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                          Save
-                        </Button>
+                      <div className="flex-1">
+                        <label className="text-sm font-medium block mb-1">End time</label>
+                        <input type="time" value={editData.endTimeStr}
+                          onChange={e => setEditData(d => ({ ...d, endTimeStr: e.target.value }))}
+                          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
                       </div>
                     </div>
-                  </>
+
+                    <ActivityPillSelector
+                      selectedActivities={editData.activity_category_ids}
+                      onActivityChange={(ids) => setEditData(d => ({ ...d, activity_category_ids: ids }))}
+                    />
+
+                    <AlterSelector
+                      selectedIds={editData.fronting_alter_ids}
+                      onChange={(ids) => setEditData(d => ({ ...d, fronting_alter_ids: ids }))}
+                      alters={alters}
+                    />
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Notes</label>
+                      <Textarea value={editData.notes}
+                        onChange={e => setEditData(d => ({ ...d, notes: e.target.value }))}
+                        placeholder="Add any notes..." className="h-20" />
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setEditingId(null)} disabled={isLoading} className="flex-1">Cancel</Button>
+                      <Button onClick={() => handleSave(act)} disabled={isLoading} className="flex-1">
+                        {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             );
