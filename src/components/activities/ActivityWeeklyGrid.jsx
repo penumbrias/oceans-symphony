@@ -273,8 +273,8 @@ export default function ActivityWeeklyGrid({
                               {showEmotions && emotions.length > 0 && (
                                 <div className="flex flex-wrap gap-0.5 mt-0.5">
                                   {emotions.map((em, i) => (
-                                    <span key={i} className="px-1 py-0.5 rounded-full text-white text-xs"
-                                      style={{ fontSize: 8, backgroundColor: "rgba(255,255,255,0.25)" }}>
+                                    <span key={i} className="px-1 py-0.5 rounded-full text-white font-medium"
+                                      style={{ fontSize: 8, backgroundColor: emotionColor(em) }}>
                                       {em}
                                     </span>
                                   ))}
