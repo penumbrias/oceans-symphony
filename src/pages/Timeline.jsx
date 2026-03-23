@@ -53,6 +53,16 @@ export default function Timeline() {
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
+  const { data: bulletins = [] } = useQuery({
+    queryKey: ["bulletins"],
+    queryFn: () => base44.entities.Bulletin.list("-created_date", 2000),
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => base44.entities.Task.list("-created_date", 2000),
+  });
+
   // Lazy load more days as user scrolls to bottom
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -154,7 +164,17 @@ export default function Timeline() {
             return t >= dayStart && t <= dayEnd;
           });
 
-          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0;
+          const dayBulletins = bulletins.filter((b) => {
+            const t = parseDate(b.created_date);
+            return t >= dayStart && t <= dayEnd;
+          });
+
+          const dayTasks = tasks.filter((t) => {
+            const d = parseDate(t.created_date);
+            return d >= dayStart && d <= dayEnd;
+          });
+
+          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0;
 
           return (
             <div key={dateStr} id={`day-${dateStr}`}>
@@ -168,6 +188,8 @@ export default function Timeline() {
                 isToday={isToday(day)}
                 journals={dayJournals}
                 checkIns={dayCheckIns}
+                bulletins={dayBulletins}
+                tasks={dayTasks}
                 showActivities={showActivities}
                 showCheckIns={showCheckIns}
                 categories={categories}
