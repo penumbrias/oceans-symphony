@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus } from "lucide-react";
+import { Loader2, Heart, X, Plus, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 
 const PRESET_EMOTIONS = [
@@ -23,6 +24,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const [saving, setSaving] = useState(false);
   const [activityDuration, setActivityDuration] = useState("");
   const [newEmotionInput, setNewEmotionInput] = useState("");
+  const [newActivityName, setNewActivityName] = useState("");
+  const [showNewActivity, setShowNewActivity] = useState(false);
 
   const { data: customEmotions = [] } = useQuery({
     queryKey: ["customEmotions"],
@@ -109,21 +112,38 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setNote("");
     setSelectedActivityCategories([]);
     setActivityDuration("");
+    setNewActivityName("");
+    setShowNewActivity(false);
   };
 
   const handleSaveActivity = async () => {
-    if (selectedActivityCategories.length === 0) return;
-    const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
-    const names = selectedActivityCategories
-      .map((id) => catById[id]?.name || id)
-      .join(", ");
-    await base44.entities.Activity.create({
-      timestamp: new Date().toISOString(),
-      activity_name: names,
-      activity_category_ids: selectedActivityCategories,
-      duration_minutes: activityDuration ? parseInt(activityDuration) : null,
-      fronting_alter_ids: selectedAlters,
-    });
+    if (selectedActivityCategories.length === 0 && !newActivityName.trim()) return;
+    
+    // Save category-based activities
+    if (selectedActivityCategories.length > 0) {
+      const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+      const names = selectedActivityCategories
+        .map((id) => catById[id]?.name || id)
+        .join(", ");
+      await base44.entities.Activity.create({
+        timestamp: new Date().toISOString(),
+        activity_name: names,
+        activity_category_ids: selectedActivityCategories,
+        duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+        fronting_alter_ids: selectedAlters,
+      });
+    }
+    
+    // Save new activity if entered
+    if (newActivityName.trim()) {
+      await base44.entities.Activity.create({
+        timestamp: new Date().toISOString(),
+        activity_name: newActivityName.trim(),
+        activity_category_ids: [],
+        duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+        fronting_alter_ids: selectedAlters,
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -301,6 +321,30 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             duration={activityDuration}
             onDurationChange={setActivityDuration}
           />
+
+          {/* New Activity */}
+          {showNewActivity ? (
+            <div className="space-y-2">
+              <Input
+                placeholder="Activity name..."
+                value={newActivityName}
+                onChange={(e) => setNewActivityName(e.target.value)}
+                className="text-sm"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => { setShowNewActivity(false); setNewActivityName(""); }} className="flex-1">Cancel</Button>
+                <Button size="sm" onClick={() => { setShowNewActivity(false); }} disabled={!newActivityName.trim()} className="flex-1">Add</Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowNewActivity(true)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1"
+            >
+              <Plus className="w-4 h-4" /> Create new activity
+            </button>
+          )}
 
           {/* Note */}
           <div>

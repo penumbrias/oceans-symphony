@@ -50,7 +50,7 @@ export default function Dashboard() {
         className="inline-flex items-center gap-2 px-4 py-2 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors font-medium text-sm mb-4"
       >
         <Heart className="w-4 h-4" />
-        Quick Emotion Check-In
+        Quick Check-In
       </button>
 
       <NewFeaturesBar />

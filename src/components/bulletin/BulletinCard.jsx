@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Pin, Trash2, User } from "lucide-react";
+import { Pin, Trash2, User, MessageCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
 
@@ -46,7 +47,7 @@ function renderContent(content, alters) {
   });
 }
 
-export default function BulletinCard({ bulletin, alters, currentAlterId, canDelete }) {
+export default function BulletinCard({ bulletin, alters, currentAlterId, canDelete, onReply }) {
   const qc = useQueryClient();
   const [showReactPicker, setShowReactPicker] = useState(false);
   const author = alters.find((a) => a.id === bulletin.author_alter_id);
@@ -183,6 +184,17 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, canDele
             <p className="text-xs text-muted-foreground">{totalVotes} vote{totalVotes !== 1 ? "s" : ""}</p>
           </div>
         </div>
+      )}
+
+      {/* Reply Button */}
+      {currentAlterId && (
+        <button
+          onClick={onReply}
+          className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50 transition-all mb-2"
+        >
+          <MessageCircle className="w-3.5 h-3.5" />
+          Reply
+        </button>
       )}
 
       {/* Reactions */}
