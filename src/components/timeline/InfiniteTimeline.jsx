@@ -265,23 +265,20 @@ export default function InfiniteTimeline({
     const raw = activities.map((act) => {
       const startMins = Math.max(0, minutesInDay(parseDate(act.timestamp), dayStart));
       const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
-      // Determine merge key
-      let mergeKey = act.activity_name; // always merge same name
-      if (mergeByCategory && act.activity_category_ids?.length > 0) {
-        // Find the root (parent) category for the first assigned category
-        const firstCatId = act.activity_category_ids[0];
-        const cat = catMap[firstCatId];
-        mergeKey = cat?.parent_category_id ? catMap[cat.parent_category_id]?.name || cat.name : cat?.name || act.activity_name;
-      }
+      // Each activity category gets its own entry
+      const firstCatId = act.activity_category_ids?.[0];
+      const cat = firstCatId ? catMap[firstCatId] : null;
+      const categoryName = cat?.name || act.activity_name;
       return {
         startMins,
         endMins: Math.max(endMins, startMins + 5),
         activity: act,
-        mergeKey,
+        mergeKey: firstCatId, // merge by category ID only
+        displayName: categoryName,
       };
     }).sort((a, b) => a.startMins - b.startMins);
 
-    // Group: merge overlapping/consecutive entries with the same mergeKey
+    // Group: merge overlapping/consecutive entries with the same category
     const merged = [];
     raw.forEach((entry) => {
       const last = merged[merged.length - 1];
@@ -295,13 +292,9 @@ export default function InfiniteTimeline({
 
     return merged.map((m, i) => ({
       ...m,
-      // Display name: when merging by category, show the category name; otherwise show activity_name
-      displayName: mergeByCategory && m.activity.activity_category_ids?.length > 0
-        ? m.mergeKey
-        : m.activity.activity_name,
       key: `act-${m.activity.id || i}`,
     }));
-  }, [activities, dayStart, mergeByCategory, catMap]);
+  }, [activities, dayStart, catMap]);
 
   // Place each entry into side-by-side columns (overlapping entries = different columns)
   const activityColumns = useMemo(() => {
