@@ -1,27 +1,35 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfDay, endOfDay, subDays, addDays, eachHourOfInterval } from "date-fns";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
+import { ChevronDown, ChevronUp, Activity, Heart, Users, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import HourlyTimeline from "@/components/timeline/HourlyTimeline.jsx";
+import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
+
+const CHUNK_DAYS = 14; // how many days to load per chunk
 
 export default function Timeline() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [daysBack, setDaysBack] = useState(CHUNK_DAYS);
+  const [showFronting, setShowFronting] = useState(true);
+  const [showActivities, setShowActivities] = useState(true);
+  const [showEmotions, setShowEmotions] = useState(true);
+  const [jumpDate, setJumpDate] = useState("");
+  const sentinelRef = useRef(null);
+  const containerRef = useRef(null);
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["frontHistory"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
+  });
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
-  });
-
-  const { data: switches = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list(),
+    queryFn: () => base44.entities.Activity.list("-timestamp", 2000),
   });
 
   const { data: emotions = [] } = useQuery({
-    queryKey: ["emotions"],
-    queryFn: () => base44.entities.EmotionCheckIn.list(),
+    queryKey: ["emotionCheckIns"],
+    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 2000),
   });
 
   const { data: alters = [] } = useQuery({
@@ -29,94 +37,121 @@ export default function Timeline() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const dayStart = useMemo(() => startOfDay(selectedDate), [selectedDate]);
-  const dayEnd = useMemo(() => endOfDay(selectedDate), [selectedDate]);
+  // Lazy load more days as user scrolls to bottom
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setDaysBack((prev) => prev + CHUNK_DAYS);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
 
-  // Filter data to selected day
-  const daySessions = useMemo(() =>
-    switches.filter((s) => {
-      const d = new Date(s.start_time);
-      return d >= dayStart && d <= dayEnd;
-    }),
-    [switches, dayStart, dayEnd]
-  );
+  const handleJumpToDate = () => {
+    if (!jumpDate) return;
+    const target = document.getElementById(`day-${jumpDate}`);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
-  const dayActivities = useMemo(() =>
-    activities.filter((a) => {
-      const d = new Date(a.timestamp);
-      return d >= dayStart && d <= dayEnd;
-    }),
-    [activities, dayStart, dayEnd]
-  );
+  // Build array of days from today back daysBack days
+  const days = Array.from({ length: daysBack }, (_, i) => subDays(new Date(), i));
 
-  const dayEmotions = useMemo(() =>
-    emotions.filter((e) => {
-      const d = new Date(e.timestamp);
-      return d >= dayStart && d <= dayEnd;
-    }),
-    [emotions, dayStart, dayEnd]
-  );
-
-  // Find earliest and latest hour with data (or default 0-23)
-  const hoursWithData = useMemo(() => {
-    const allTimes = [
-      ...daySessions.map((s) => new Date(s.start_time)),
-      ...dayActivities.map((a) => new Date(a.timestamp)),
-      ...dayEmotions.map((e) => new Date(e.timestamp)),
-    ];
-    if (allTimes.length === 0) return eachHourOfInterval({ start: dayStart, end: dayEnd });
-    const minHour = Math.min(...allTimes.map((t) => t.getHours()));
-    const maxHour = Math.max(...allTimes.map((t) => t.getHours()));
-    // Pad by 1 hour on each side
-    const from = new Date(dayStart);
-    from.setHours(Math.max(0, minHour - 1));
-    const to = new Date(dayStart);
-    to.setHours(Math.min(23, maxHour + 1));
-    return eachHourOfInterval({ start: from, end: to });
-  }, [daySessions, dayActivities, dayEmotions, dayStart]);
+  const toggleStyles = (active) =>
+    `px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+      active
+        ? "bg-primary text-primary-foreground border-primary"
+        : "bg-card text-muted-foreground border-border hover:border-primary/50"
+    }`;
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 max-w-3xl mx-auto" ref={containerRef}>
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-3xl font-bold">Timeline</h1>
-        <Button variant="outline" size="sm" onClick={() => setSelectedDate(new Date())}>
-          Today
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="date"
+            value={jumpDate}
+            onChange={(e) => setJumpDate(e.target.value)}
+            className="px-2 py-1.5 rounded-md border border-border bg-background text-xs"
+          />
+          <Button size="sm" variant="outline" onClick={handleJumpToDate} className="gap-1 text-xs">
+            <Calendar className="w-3 h-3" /> Jump
+          </Button>
+        </div>
       </div>
 
-      {/* Date Navigation */}
-      <div className="flex items-center justify-between bg-card rounded-lg border border-border p-4">
-        <Button variant="outline" size="sm" onClick={() => setSelectedDate(subDays(selectedDate, 1))}>
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <span className="text-lg font-semibold">{format(selectedDate, "EEEE, MMMM d, yyyy")}</span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-          disabled={selectedDate.toDateString() === new Date().toDateString()}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </Button>
+      {/* Toggles */}
+      <div className="flex gap-2 flex-wrap">
+        <button className={toggleStyles(showFronting)} onClick={() => setShowFronting(!showFronting)}>
+          <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> Fronting</span>
+        </button>
+        <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)}>
+          <span className="flex items-center gap-1.5"><Activity className="w-3 h-3" /> Activities</span>
+        </button>
+        <button className={toggleStyles(showEmotions)} onClick={() => setShowEmotions(!showEmotions)}>
+          <span className="flex items-center gap-1.5"><Heart className="w-3 h-3" /> Emotions</span>
+        </button>
       </div>
 
-      {daySessions.length === 0 && dayActivities.length === 0 && dayEmotions.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No activity recorded for this date.</p>
-        </div>
-      ) : (
-        <HourlyTimeline
-          hours={hoursWithData}
-          sessions={daySessions}
-          activities={dayActivities}
-          emotions={dayEmotions}
-          alters={alters}
-          dayStart={dayStart}
-        />
-      )}
+      {/* Timeline days */}
+      <div className="space-y-2">
+        {days.map((day) => {
+          const dateStr = format(day, "yyyy-MM-dd");
+          const dayStart = startOfDay(day);
+          const dayEnd = endOfDay(day);
+
+          const daySessions = showFronting
+            ? sessions.filter((s) => {
+                const start = new Date(s.start_time);
+                const end = s.end_time ? new Date(s.end_time) : new Date();
+                return start <= dayEnd && end >= dayStart;
+              })
+            : [];
+
+          const dayActivities = showActivities
+            ? activities.filter((a) => {
+                const t = new Date(a.timestamp);
+                return t >= dayStart && t <= dayEnd;
+              })
+            : [];
+
+          const dayEmotions = showEmotions
+            ? emotions.filter((e) => {
+                const t = new Date(e.timestamp);
+                return t >= dayStart && t <= dayEnd;
+              })
+            : [];
+
+          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0;
+
+          return (
+            <div key={dateStr} id={`day-${dateStr}`}>
+              <InfiniteTimeline
+                day={day}
+                sessions={daySessions}
+                activities={dayActivities}
+                emotions={dayEmotions}
+                alters={alters}
+                hasData={hasData}
+                isToday={isToday(day)}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Sentinel for lazy loading */}
+      <div ref={sentinelRef} className="h-12 flex items-center justify-center">
+        <p className="text-xs text-muted-foreground animate-pulse">Loading more...</p>
+      </div>
     </div>
   );
 }
