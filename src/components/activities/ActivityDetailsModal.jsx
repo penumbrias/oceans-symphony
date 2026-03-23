@@ -189,13 +189,13 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       const endDt = applyTimeStr(act.timestamp, editData.endTimeStr);
       const duration = Math.max(1, Math.round((endDt - startDt) / 60000));
 
+      // Each activity record has exactly ONE category (they are separate records now)
       const catId = editData.activity_category_ids[0];
       const catName = catById[catId]?.name || "Activity";
-      const activity_name = catName;
 
       await base44.entities.Activity.update(act.id, {
-        activity_name,
-        activity_category_ids: editData.activity_category_ids,
+        activity_name: catName,
+        activity_category_ids: [catId],
         timestamp: startDt.toISOString(),
         duration_minutes: duration,
         fronting_alter_ids: editData.fronting_alter_ids,
