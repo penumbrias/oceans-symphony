@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback } from "react";
 import { format } from "date-fns";
+import { parseDate } from "@/lib/dateUtils";
 import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -60,7 +61,7 @@ export default function ActivityWeeklyGrid({
     hourEnd.setHours(hour + 1, 0, 0, 0);
     const all = [];
     emotionCheckIns.forEach((e) => {
-      const t = new Date(e.timestamp);
+      const t = parseDate(e.timestamp);
       if (t >= hourStart && t < hourEnd) all.push(...(e.emotions || []));
     });
     return [...new Set(all)];
@@ -72,7 +73,7 @@ export default function ActivityWeeklyGrid({
     const slotEnd = new Date(date);
     slotEnd.setHours(hour + 1, 0, 0, 0);
     return activities.filter((a) => {
-      const actStart = new Date(a.timestamp);
+      const actStart = parseDate(a.timestamp);
       const durationMs = (a.duration_minutes || 60) * 60 * 1000;
       const actEnd = new Date(actStart.getTime() + durationMs);
       return actStart < slotEnd && actEnd > slotStart;
@@ -95,8 +96,8 @@ export default function ActivityWeeklyGrid({
     const hourEnd = new Date(date);
     hourEnd.setHours(hour + 1, 0, 0, 0);
     const sessions = frontingHistory.filter((s) => {
-      const start = new Date(s.start_time);
-      const end = s.end_time ? new Date(s.end_time) : new Date();
+      const start = parseDate(s.start_time);
+      const end = s.end_time ? parseDate(s.end_time) : new Date();
       return start < hourEnd && end > hourStart;
     });
     const ids = new Set();
@@ -109,7 +110,7 @@ export default function ActivityWeeklyGrid({
 
   const getDayStats = (date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    const dayActivities = activities.filter(a => format(new Date(a.timestamp), "yyyy-MM-dd") === dateStr);
+    const dayActivities = activities.filter(a => format(parseDate(a.timestamp), "yyyy-MM-dd") === dateStr);
     const totalDuration = dayActivities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
     return { count: dayActivities.length, duration: totalDuration };
   };
