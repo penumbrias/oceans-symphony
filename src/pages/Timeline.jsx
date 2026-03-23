@@ -74,7 +74,15 @@ export default function Timeline() {
   // Build array of days from today back daysBack days
   const days = Array.from({ length: daysBack }, (_, i) => subDays(new Date(), i));
 
-  const toggleStyles
+  const toggleStyles = (active) =>
+    `px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+      active
+        ? "bg-primary text-primary-foreground border-primary"
+        : "bg-card text-muted-foreground border-border hover:border-primary/50"
+    }`;
+
+  return (
+    <div className="space-y-4 max-w-3xl mx-auto" ref={containerRef}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-3xl font-bold">Timeline</h1>
         <div className="flex items-center gap-2 flex-wrap">
