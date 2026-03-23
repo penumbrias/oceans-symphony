@@ -1,12 +1,25 @@
 import React, { useState, useMemo, useRef, useCallback } from "react";
 import { format } from "date-fns";
 import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+const EMOTION_COLORS = [
+  "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
+  "#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4",
+  "#f97316","#84cc16","#e11d48","#7c3aed","#0891b2",
+];
+function emotionColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return EMOTION_COLORS[h % EMOTION_COLORS.length];
+}
 
 export default function ActivityWeeklyGrid({
   weekDays,
@@ -22,12 +35,25 @@ export default function ActivityWeeklyGrid({
   const [showEmotions, setShowEmotions] = useState(false);
   const [showCustomMenu, setShowCustomMenu] = useState(false);
   const [expandedCells, setExpandedCells] = useState(new Set());
+  // Two-tap add mode: first tap sets start, second sets end
+  const [pendingStartCell, setPendingStartCell] = useState(null); // { date, hour }
   const lastTapRef = useRef({ key: "", time: 0 });
 
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
     queryFn: () => base44.entities.EmotionCheckIn.list(),
   });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
+  const catById = useMemo(() => {
+    const m = {};
+    categories.forEach(c => { m[c.id] = c; });
+    return m;
+  }, [categories]);
 
   const getEmotionsForHour = (date, hour) => {
     const hourStart = new Date(date);
@@ -47,18 +73,22 @@ export default function ActivityWeeklyGrid({
     slotStart.setHours(hour, 0, 0, 0);
     const slotEnd = new Date(date);
     slotEnd.setHours(hour + 1, 0, 0, 0);
-    const matching = activities.filter((a) => {
+    return activities.filter((a) => {
       const actStart = new Date(a.timestamp);
       const durationMs = (a.duration_minutes || 60) * 60 * 1000;
       const actEnd = new Date(actStart.getTime() + durationMs);
       return actStart < slotEnd && actEnd > slotStart;
     });
-    const seen = new Set();
-    return matching.filter((a) => {
-      if (seen.has(a.activity_name)) return false;
-      seen.add(a.activity_name);
-      return true;
-    });
+  };
+
+  // Resolve live color for an activity from its categories
+  const getActivityColor = (act) => {
+    const ids = act.activity_category_ids || [];
+    for (const id of ids) {
+      const cat = catById[id];
+      if (cat?.color) return cat.color;
+    }
+    return act.color || "hsl(var(--primary))";
   };
 
   const getAlterIdsForHour = (date, hour) => {
@@ -105,8 +135,16 @@ export default function ActivityWeeklyGrid({
     }
 
     if (addMode) {
-      // In add mode: tap to create
-      onTimeRangeSelect(date, hour, hour);
+      if (!pendingStartCell) {
+        // First tap: select start
+        setPendingStartCell({ date, hour });
+      } else {
+        // Second tap: open modal with start → end range
+        const startHour = Math.min(pendingStartCell.hour, hour);
+        const endHour = Math.max(pendingStartCell.hour, hour);
+        onTimeRangeSelect(pendingStartCell.date, startHour, endHour);
+        setPendingStartCell(null);
+      }
     } else if (cellActivities.length > 0) {
       // Not in add mode: tap filled cell to expand/collapse
       setExpandedCells((prev) => {
@@ -115,7 +153,13 @@ export default function ActivityWeeklyGrid({
         return next;
       });
     }
-  }, [addMode, onTimeRangeSelect, onActivityClick, activities, emotionCheckIns]);
+  }, [addMode, pendingStartCell, onTimeRangeSelect, onActivityClick, activities, emotionCheckIns]);
+
+  // When add mode turns off, clear pending start
+  const handleToggleAddMode = () => {
+    setPendingStartCell(null);
+    onToggleAddMode?.();
+  };
 
   return (
     <div className="space-y-4">
@@ -123,7 +167,7 @@ export default function ActivityWeeklyGrid({
         <Button
           variant={addMode ? "default" : "outline"}
           size="sm"
-          onClick={onToggleAddMode}
+          onClick={handleToggleAddMode}
           className="gap-2"
         >
           {addMode ? <><X className="w-4 h-4" /> Cancel Add</> : <><Plus className="w-4 h-4" /> Add Activity</>}
@@ -143,7 +187,9 @@ export default function ActivityWeeklyGrid({
 
       {addMode && (
         <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-xs text-primary font-medium">
-          Add mode active — tap any cell to log an activity for that time slot
+          {pendingStartCell
+            ? `Start selected at ${String(pendingStartCell.hour).padStart(2, "0")}:00 — now tap an end cell`
+            : "Add mode active — tap a cell to select start time, then tap another for end time"}
         </div>
       )}
 
@@ -198,13 +244,18 @@ export default function ActivityWeeklyGrid({
                     }`}
                     style={{ userSelect: "none" }}
                   >
+                    {/* Pending start highlight */}
+                    {addMode && pendingStartCell && pendingStartCell.date.toDateString() === date.toDateString() && pendingStartCell.hour === hour && (
+                      <div className="absolute inset-0 ring-2 ring-primary ring-inset pointer-events-none z-20 rounded" />
+                    )}
+
                     {cellActivities.length > 0 ? (
                       <>
                         {/* Color background strips */}
                         <div className="absolute inset-0 flex">
                           {cellActivities.map((a) => (
                             <div key={a.id} className="flex-1 h-full"
-                              style={{ backgroundColor: a.color || "hsl(var(--primary))" }} />
+                              style={{ backgroundColor: getActivityColor(a) }} />
                           ))}
                         </div>
                         {/* Content overlay */}
@@ -255,7 +306,14 @@ export default function ActivityWeeklyGrid({
                           {!isExpanded && (
                             <>
                               {showEmotions && emotions.length > 0 && (
-                                <div className="text-white/80 text-xs">{emotions.slice(0, 2).map(e => e.charAt(0).toUpperCase()).join("")}</div>
+                                <div className="flex flex-wrap gap-0.5 justify-center mt-0.5">
+                                  {emotions.slice(0, 3).map((em, i) => (
+                                    <span key={i} className="px-1 py-0.5 rounded-full text-white font-medium leading-none"
+                                      style={{ fontSize: 7, backgroundColor: emotionColor(em) }}>
+                                      {em.charAt(0).toUpperCase()}{em.slice(1, 3)}
+                                    </span>
+                                  ))}
+                                </div>
                               )}
                               {showAlters && alterIds.length > 0 && (
                                 <div className="flex gap-0.5 justify-center flex-wrap">
