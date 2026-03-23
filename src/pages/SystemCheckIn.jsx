@@ -112,6 +112,12 @@ export default function SystemCheckInPage() {
     }
   };
 
+  const handleNewCheckIn = () => {
+    setCurrentCheckIn(null);
+    setFormData({ date: new Date().toISOString().split("T")[0] });
+    setView("create");
+  };
+
   const handleEdit = (checkIn) => {
     setCurrentCheckIn(checkIn);
     setFormData(checkIn);
