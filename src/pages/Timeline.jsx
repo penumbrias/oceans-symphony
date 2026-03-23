@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
-import { ChevronDown, ChevronUp, Activity, Heart, Users, Calendar } from "lucide-react";
+import { Activity, Heart, Users, Calendar, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
 
@@ -37,6 +37,16 @@ export default function Timeline() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
+  const { data: journals = [] } = useQuery({
+    queryKey: ["journalEntries"],
+    queryFn: () => base44.entities.JournalEntry.list("-created_date", 2000),
+  });
+
+  const { data: checkIns = [] } = useQuery({
+    queryKey: ["systemCheckIns"],
+    queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 2000),
+  });
+
   // Lazy load more days as user scrolls to bottom
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -63,6 +73,8 @@ export default function Timeline() {
 
   // Build array of days from today back daysBack days
   const days = Array.from({ length: daysBack }, (_, i) => subDays(new Date(), i));
+
+  const [showJournals, setShowJournals] = useState(true);
 
   const toggleStyles = (active) =>
     `px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
@@ -99,6 +111,9 @@ export default function Timeline() {
         <button className={toggleStyles(showEmotions)} onClick={() => setShowEmotions(!showEmotions)}>
           <span className="flex items-center gap-1.5"><Heart className="w-3 h-3" /> Emotions</span>
         </button>
+        <button className={toggleStyles(showJournals)} onClick={() => setShowJournals(!showJournals)}>
+          <span className="flex items-center gap-1.5"><BookOpen className="w-3 h-3" /> Journals</span>
+        </button>
       </div>
 
       {/* Timeline days */}
@@ -130,7 +145,21 @@ export default function Timeline() {
               })
             : [];
 
-          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0;
+          const dayJournals = showJournals
+            ? journals.filter((j) => {
+                const t = new Date(j.created_date);
+                return t >= dayStart && t <= dayEnd;
+              })
+            : [];
+
+          const dayCheckIns = showJournals
+            ? checkIns.filter((c) => {
+                const t = new Date(c.created_date);
+                return t >= dayStart && t <= dayEnd;
+              })
+            : [];
+
+          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0;
 
           return (
             <div key={dateStr} id={`day-${dateStr}`}>
@@ -142,6 +171,10 @@ export default function Timeline() {
                 alters={alters}
                 hasData={hasData}
                 isToday={isToday(day)}
+                journals={dayJournals}
+                checkIns={dayCheckIns}
+                showActivities={showActivities}
+                showEmotions={showEmotions}
               />
             </div>
           );
