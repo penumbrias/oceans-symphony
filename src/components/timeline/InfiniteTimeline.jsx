@@ -146,12 +146,8 @@ const TYPE_META = {
 function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
   const meta = TYPE_META[entry.type] || { icon: "•" };
-  const timeStr = entry.data.timestamp
-    ? format(parseDate(entry.data.timestamp), "h:mm a")
-    : entry.data.created_date
-    ? format(parseDate(entry.data.created_date), "h:mm a")
-    : "";
-
+  const isTaskDone = entry.type === "task_done";
+  const isMention = entry.type === "mention";
   return (
     <div className="absolute left-1 right-1 cursor-pointer z-10"
       style={{ top: topPx, userSelect: "none" }} onClick={tap}>
