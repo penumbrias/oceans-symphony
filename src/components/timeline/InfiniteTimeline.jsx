@@ -266,9 +266,9 @@ export default function InfiniteTimeline({
     activities.forEach((act) => {
       const startMins = Math.max(0, minutesInDay(parseDate(act.timestamp), dayStart));
       const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
-      // Create a separate entry for EACH category in this activity
+      // Create a separate entry for EACH category in this activity (deduplicated)
       const categoryIds = act.activity_category_ids && act.activity_category_ids.length > 0
-        ? act.activity_category_ids
+        ? [...new Set(act.activity_category_ids)]
         : [null];
       categoryIds.forEach((catId) => {
         const cat = catId ? catMap[catId] : null;
