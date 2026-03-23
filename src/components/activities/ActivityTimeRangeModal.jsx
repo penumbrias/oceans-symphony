@@ -2,14 +2,24 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { format, addHours } from "date-fns";
+import { format, addHours, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
-import { X } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+
+function toTimeString(date, hour) {
+  const d = new Date(date);
+  d.setHours(hour, 0, 0, 0);
+  return format(d, "HH:mm");
+}
+
+function parseTimeToDate(baseDate, timeStr) {
+  const [h, m] = timeStr.split(":").map(Number);
+  const d = new Date(baseDate);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
 
 export default function ActivityTimeRangeModal({
   isOpen,
@@ -17,50 +27,64 @@ export default function ActivityTimeRangeModal({
   startDate,
   startHour,
   endHour,
-  allActivities,
   alters,
   frontingHistory,
   onSave,
 }) {
+  const defaultStart = startDate && startHour !== undefined
+    ? toTimeString(startDate, Math.min(startHour, endHour ?? startHour))
+    : "";
+  const defaultEnd = startDate && endHour !== undefined
+    ? toTimeString(startDate, Math.max(startHour, endHour) + 1)
+    : "";
+
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
-  const [activityDuration, setActivityDuration] = useState("");
+  const [startTime, setStartTime] = useState(defaultStart);
+  const [endTime, setEndTime] = useState(defaultEnd);
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Calculate duration and determine default alters from fronting history
-  const duration = useMemo(() => {
-    if (startHour === undefined || endHour === undefined) return 0;
-    return Math.abs(endHour - startHour) || 1; // 1 hour minimum if same hour
-  }, [startHour, endHour]);
+  // Reset times when modal opens with new props
+  useMemo(() => {
+    if (startDate && startHour !== undefined) {
+      setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour)));
+      setEndTime(toTimeString(startDate, Math.max(startHour, endHour ?? startHour) + 1));
+      setSelectedActivityCategories([]);
+      setNotes("");
+    }
+  }, [startDate, startHour, endHour]);
 
   // Auto-populate alters from fronting history
   useMemo(() => {
     if (startDate && startHour !== undefined && endHour !== undefined) {
-      const startTime = addHours(startDate, Math.min(startHour, endHour));
-      const endTime = addHours(startDate, Math.max(startHour, endHour) + 1);
-
-      const relevantSessions = frontingHistory.filter((session) => {
-        const sessionStart = new Date(session.start_time);
-        const sessionEnd = session.end_time ? new Date(session.end_time) : new Date();
-        return sessionStart < endTime && sessionEnd > startTime;
+      const startDt = addHours(startDate, Math.min(startHour, endHour));
+      const endDt = addHours(startDate, Math.max(startHour, endHour) + 1);
+      const relevantSessions = frontingHistory.filter((s) => {
+        const ss = new Date(s.start_time);
+        const se = s.end_time ? new Date(s.end_time) : new Date();
+        return ss < endDt && se > startDt;
       });
-
       const alterIds = new Set();
-      relevantSessions.forEach((session) => {
-        if (session.primary_alter_id) alterIds.add(session.primary_alter_id);
-        if (session.co_fronter_ids) session.co_fronter_ids.forEach((id) => alterIds.add(id));
+      relevantSessions.forEach((s) => {
+        if (s.primary_alter_id) alterIds.add(s.primary_alter_id);
+        (s.co_fronter_ids || []).forEach((id) => alterIds.add(id));
       });
-
       setSelectedAlters(Array.from(alterIds));
     }
   }, [startDate, startHour, endHour, frontingHistory]);
 
+  const durationMinutes = useMemo(() => {
+    if (!startDate || !startTime || !endTime) return 0;
+    const s = parseTimeToDate(startDate, startTime);
+    const e = parseTimeToDate(startDate, endTime);
+    const diff = differenceInMinutes(e, s);
+    return diff > 0 ? diff : 0;
+  }, [startDate, startTime, endTime]);
+
   const handleToggleAlter = (alterId) => {
     setSelectedAlters((prev) =>
-      prev.includes(alterId)
-        ? prev.filter((id) => id !== alterId)
-        : [...prev, alterId]
+      prev.includes(alterId) ? prev.filter((id) => id !== alterId) : [...prev, alterId]
     );
   };
 
@@ -69,27 +93,33 @@ export default function ActivityTimeRangeModal({
       toast.error("Select an activity");
       return;
     }
+    if (!startTime || !endTime) {
+      toast.error("Set start and end times");
+      return;
+    }
+    if (durationMinutes <= 0) {
+      toast.error("End time must be after start time");
+      return;
+    }
 
     setIsLoading(true);
+    const timestamp = parseTimeToDate(startDate, startTime);
     try {
-      const timestamp = addHours(startDate, Math.min(startHour, endHour));
-      await base44.functions.invoke('createActivityWithCategories', {
+      await base44.functions.invoke("createActivityWithCategories", {
         activity_category_ids: selectedActivityCategories,
-        duration_minutes: activityDuration ? parseInt(activityDuration) : duration * 60,
+        duration_minutes: durationMinutes,
         fronting_alter_ids: selectedAlters,
         notes: notes || null,
         timestamp: timestamp.toISOString(),
       });
 
-      // Update front history with the logged alters
       if (selectedAlters.length > 0) {
         const now = new Date();
+        const endDt = parseTimeToDate(startDate, endTime);
         const diffMins = (now - timestamp) / 60000;
-        const isCurrentTime = diffMins < 10; // within 10 minutes = "now"
-
+        const isCurrentTime = diffMins < 10;
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
         if (isCurrentTime && activeSessions.length > 0) {
-          // Update active session
           const session = activeSessions[0];
           const existing = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
           const merged = [...new Set([...existing, ...selectedAlters])];
@@ -98,22 +128,18 @@ export default function ActivityTimeRangeModal({
             co_fronter_ids: merged.slice(1),
           });
         } else {
-          // Create historical session for that time
-          const endTime = new Date(timestamp.getTime() + (activityDuration ? parseInt(activityDuration) : duration * 60) * 60000);
-          const isStillActive = endTime >= now;
+          const isStillActive = endDt >= now;
           await base44.entities.FrontingSession.create({
             primary_alter_id: selectedAlters[0],
             co_fronter_ids: selectedAlters.slice(1),
             start_time: timestamp.toISOString(),
-            end_time: isStillActive ? null : endTime.toISOString(),
+            end_time: isStillActive ? null : endDt.toISOString(),
             is_active: isStillActive,
           });
         }
       }
 
       setSelectedActivityCategories([]);
-      setActivityDuration("");
-      setSelectedAlters([]);
       setNotes("");
       onSave?.();
       onClose();
@@ -124,11 +150,6 @@ export default function ActivityTimeRangeModal({
     }
   };
 
-  const timeLabel =
-    startHour !== undefined && endHour !== undefined
-      ? `${String(Math.min(startHour, endHour)).padStart(2, "0")}:00 - ${String(Math.max(startHour, endHour) + 1).padStart(2, "0")}:00`
-      : "Select time";
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -136,25 +157,48 @@ export default function ActivityTimeRangeModal({
           <DialogTitle>
             Log Activity
             {startDate && (
-              <>
-                <div className="text-sm font-normal text-muted-foreground mt-2">
-                  {format(startDate, "MMM d, yyyy")} • {timeLabel} ({duration}h)
-                </div>
-              </>
+              <div className="text-sm font-normal text-muted-foreground mt-1">
+                {format(startDate, "MMM d, yyyy")}
+              </div>
             )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Start / End time */}
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <label className="text-sm font-medium block mb-1">Start time</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-sm font-medium block mb-1">End time</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+              />
+            </div>
+            {durationMinutes > 0 && (
+              <div className="text-xs text-muted-foreground pb-2 whitespace-nowrap">
+                {durationMinutes >= 60
+                  ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60 > 0 ? durationMinutes % 60 + "m" : ""}`
+                  : `${durationMinutes}m`}
+              </div>
+            )}
+          </div>
+
           {/* Activities */}
-          <ActivityPillSelector 
+          <ActivityPillSelector
             selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
-            duration={activityDuration}
-            onDurationChange={setActivityDuration}
           />
-
-
 
           {/* Alters */}
           <div>
@@ -184,9 +228,7 @@ export default function ActivityTimeRangeModal({
 
           {/* Notes */}
           <div>
-            <label className="text-sm font-medium text-foreground">
-              Notes - Optional
-            </label>
+            <label className="text-sm font-medium text-foreground">Notes — Optional</label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -195,12 +237,9 @@ export default function ActivityTimeRangeModal({
             />
           </div>
 
-          {/* Save button */}
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isLoading} className="bg-primary hover:bg-primary/90">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave} disabled={isLoading}>
               {isLoading ? "Saving..." : "Save Activity"}
             </Button>
           </div>
