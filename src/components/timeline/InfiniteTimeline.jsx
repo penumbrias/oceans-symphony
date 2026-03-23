@@ -1,21 +1,52 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
-import { ChevronDown, ChevronUp, Activity, Heart } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-const HOUR_HEIGHT = 48;
-const LABEL_WIDTH = 48;
-const COL_WIDTH = 36;
+const HOUR_HEIGHT = 56;
+const LABEL_WIDTH = 44;
+const ALTER_COL_WIDTH = 38;
+const ACTIVITY_COL_WIDTH = 44;
+const EMOTION_COL_WIDTH = 130;
+const JOURNAL_COL_WIDTH = 160;
 
 function minutesInDay(date, dayStart) {
   return differenceInMinutes(date, dayStart);
 }
 
-function AlterAvatar({ alter, color, heightPx, topPx }) {
+// Long press hook
+function useLongPress(onLongPress, onClick, ms = 600) {
+  const timerRef = useRef(null);
+  const firedRef = useRef(false);
+
+  const start = useCallback((e) => {
+    firedRef.current = false;
+    timerRef.current = setTimeout(() => {
+      firedRef.current = true;
+      onLongPress?.(e);
+    }, ms);
+  }, [onLongPress, ms]);
+
+  const end = useCallback((e) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (!firedRef.current) onClick?.(e);
+  }, [onClick]);
+
+  const cancel = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  return { onMouseDown: start, onMouseUp: end, onMouseLeave: cancel, onTouchStart: start, onTouchEnd: end };
+}
+
+// Alter avatar + duration bar
+function AlterBar({ alter, color, topPx, heightPx, colWidth }) {
+  const avatarSize = 28;
   return (
     <div className="absolute flex flex-col items-center" style={{ top: `${topPx}px`, left: 0, right: 0 }}>
       <div
-        className="w-8 h-8 rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center"
-        style={{ backgroundColor: color }}
+        className="rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center"
+        style={{ width: avatarSize, height: avatarSize, backgroundColor: color }}
         title={alter?.name}
       >
         {alter?.avatar_url ? (
@@ -27,7 +58,7 @@ function AlterAvatar({ alter, color, heightPx, topPx }) {
       <div
         className="w-0.5 rounded-full mt-0.5"
         style={{
-          height: `${Math.max(heightPx - 32, 4)}px`,
+          height: `${Math.max(heightPx - avatarSize - 2, 4)}px`,
           background: `linear-gradient(to bottom, ${color}, ${color}40)`,
         }}
       />
@@ -35,115 +66,102 @@ function AlterAvatar({ alter, color, heightPx, topPx }) {
   );
 }
 
-function EventPill({ event, alters }) {
-  const [expanded, setExpanded] = useState(false);
-  const [noteExpanded, setNoteExpanded] = useState(false);
-
-  if (event.type === "activity") {
-    const a = event.data;
-    return (
+// Activity avatar + duration bar (like alters but with activity color)
+function ActivityBar({ activity, topPx, heightPx, onLongPress, onClick }) {
+  const color = activity.color || "hsl(var(--primary))";
+  const avatarSize = 26;
+  const handlers = useLongPress(onLongPress, onClick);
+  return (
+    <div
+      className="absolute flex flex-col items-center cursor-pointer"
+      style={{ top: `${topPx}px`, left: 0, right: 0 }}
+      {...handlers}
+    >
       <div
-        className="absolute left-1 right-1 cursor-pointer z-10"
-        style={{ top: `${(event.mins / 60) * HOUR_HEIGHT}px` }}
-        onClick={() => setExpanded(!expanded)}
+        className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
+        style={{ width: avatarSize, height: avatarSize, backgroundColor: color }}
+        title={activity.activity_name}
       >
-        <div className="flex items-start gap-1.5">
-          <div
-            className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-            style={{ backgroundColor: a.color || "hsl(var(--primary))" }}
-          >
-            <Activity className="w-2.5 h-2.5 text-white" />
-          </div>
-          <div className="text-xs overflow-hidden flex-1">
-            <p className="font-semibold leading-tight truncate">{a.activity_name}</p>
-            {expanded && (
-              <div className="mt-1 space-y-0.5">
-                <p className="text-muted-foreground">{format(new Date(a.timestamp), "h:mm a")}{a.duration_minutes ? ` • ${a.duration_minutes}m` : ""}</p>
-                {a.fronting_alter_ids?.length > 0 && (
-                  <div className="flex gap-1 flex-wrap">
-                    {a.fronting_alter_ids.map((id) => {
-                      const alter = alters.find((x) => x.id === id);
-                      return alter ? (
-                        <span
-                          key={id}
-                          className="px-1.5 py-0.5 rounded-full text-white text-xs"
-                          style={{ backgroundColor: alter.color || "#888" }}
-                        >
-                          {alter.alias || alter.name}
-                        </span>
-                      ) : null;
-                    })}
-                  </div>
-                )}
-                {a.notes && (
-                  <div>
-                    <button className="text-primary text-xs underline" onClick={(e) => { e.stopPropagation(); setNoteExpanded(!noteExpanded); }}>
-                      {noteExpanded ? "Hide note" : "Show note"}
-                    </button>
-                    {noteExpanded && <p className="text-muted-foreground italic mt-0.5">{a.notes}</p>}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          {expanded ? <ChevronUp className="w-3 h-3 flex-shrink-0 mt-0.5 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 flex-shrink-0 mt-0.5 text-muted-foreground" />}
-        </div>
+        <span className="text-xs font-bold text-white leading-none">
+          {activity.activity_name?.charAt(0)?.toUpperCase() || "A"}
+        </span>
       </div>
-    );
-  }
-
-  if (event.type === "emotion") {
-    const e = event.data;
-    return (
-      <div
-        className="absolute left-1 right-1 cursor-pointer z-10"
-        style={{ top: `${(event.mins / 60) * HOUR_HEIGHT}px` }}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-start gap-1.5">
-          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-rose-100">
-            <Heart className="w-2.5 h-2.5 text-rose-500" />
-          </div>
-          <div className="text-xs overflow-hidden flex-1">
-            {expanded ? (
-              <div className="space-y-0.5">
-                <p className="text-muted-foreground">{format(new Date(e.timestamp), "h:mm a")}</p>
-                {e.emotions?.length > 0 && (
-                  <div className="flex gap-1 flex-wrap">
-                    {e.emotions.map((em) => (
-                      <span key={em} className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground text-xs">{em}</span>
-                    ))}
-                  </div>
-                )}
-                {e.note && (
-                  <div>
-                    <button className="text-primary text-xs underline" onClick={(ev) => { ev.stopPropagation(); setNoteExpanded(!noteExpanded); }}>
-                      {noteExpanded ? "Hide note" : "Show note"}
-                    </button>
-                    {noteExpanded && <p className="text-muted-foreground italic mt-0.5">{e.note}</p>}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="font-semibold leading-tight text-muted-foreground">
-                Check-in{e.emotions?.length > 0 ? ` • ${e.emotions.slice(0, 2).join(", ")}` : ""}
-              </p>
-            )}
-          </div>
-          {expanded ? <ChevronUp className="w-3 h-3 flex-shrink-0 mt-0.5 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 flex-shrink-0 mt-0.5 text-muted-foreground" />}
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+      {heightPx > avatarSize + 4 && (
+        <div
+          className="w-0.5 rounded-full mt-0.5"
+          style={{
+            height: `${Math.max(heightPx - avatarSize - 2, 4)}px`,
+            background: `linear-gradient(to bottom, ${color}, ${color}40)`,
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
-export default function InfiniteTimeline({ day, sessions, activities, emotions, alters, hasData, isToday }) {
+// Emotion pill
+function EmotionPill({ emotion, topPx, navigate }) {
+  const [expanded, setExpanded] = useState(false);
+  const handlers = useLongPress(
+    () => { /* no dedicated page, just expand */ setExpanded(true); },
+    () => setExpanded(!expanded)
+  );
+
+  return (
+    <div
+      className="absolute left-1 right-1 cursor-pointer z-10"
+      style={{ top: `${topPx}px` }}
+      {...handlers}
+    >
+      <div className={`rounded-lg border border-rose-200 bg-rose-50 dark:bg-rose-950/30 dark:border-rose-800 px-1.5 py-1 transition-all ${expanded ? "" : ""}`}>
+        <p className="text-xs font-semibold text-rose-700 dark:text-rose-300 leading-tight">
+          💭 {emotion.emotions?.slice(0, 2).join(", ") || "Check-in"}
+        </p>
+        {expanded && (
+          <div className="mt-1 space-y-0.5">
+            <p className="text-xs text-muted-foreground">{format(new Date(emotion.timestamp), "h:mm a")}</p>
+            {emotion.emotions?.length > 0 && (
+              <div className="flex gap-1 flex-wrap mt-0.5">
+                {emotion.emotions.map((em) => (
+                  <span key={em} className="px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-300 text-xs">{em}</span>
+                ))}
+              </div>
+            )}
+            {emotion.note && <p className="text-xs text-muted-foreground italic">{emotion.note}</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Center column entry (journal / check-in title)
+function CenterEntry({ topPx, label, icon, onLongPress, onClick }) {
+  const handlers = useLongPress(onLongPress, onClick);
+  return (
+    <div
+      className="absolute left-0 right-0 cursor-pointer group"
+      style={{ top: `${topPx}px`, zIndex: 5 }}
+      {...handlers}
+    >
+      <div className="mx-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors group-active:opacity-70">
+        <p className="text-xs text-muted-foreground truncate leading-tight">
+          {icon} {label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function InfiniteTimeline({
+  day, sessions, activities, emotions, alters, hasData, isToday,
+  journals = [], checkIns = [],
+  showActivities = true, showEmotions = true,
+}) {
   const [collapsed, setCollapsed] = useState(!hasData);
+  const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
 
-  // Only show hours 0-23
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
   const containerHeight = 24 * HOUR_HEIGHT;
 
@@ -154,7 +172,11 @@ export default function InfiniteTimeline({ day, sessions, activities, emotions, 
       const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
       ids.forEach((alterId) => {
         const startMins = Math.max(0, minutesInDay(new Date(session.start_time), dayStart));
-        const endTime = session.end_time ? new Date(session.end_time) : (session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 23 * 60 * 60000));
+        const endTime = session.end_time
+          ? new Date(session.end_time)
+          : session.is_active && isToday
+            ? new Date()
+            : new Date(dayStart.getTime() + 23 * 60 * 60000);
         const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
         if (!byAlter[alterId]) byAlter[alterId] = [];
         byAlter[alterId].push({ startMins, endMins: Math.max(endMins, startMins + 8), isActive: session.is_active });
@@ -170,7 +192,6 @@ export default function InfiniteTimeline({ day, sessions, activities, emotions, 
         const last = mergedSegs[mergedSegs.length - 1];
         if (seg.startMins <= last.endMins + 2) {
           last.endMins = Math.max(last.endMins, seg.endMins);
-          last.isActive = last.isActive || seg.isActive;
         } else {
           mergedSegs.push({ ...seg });
         }
@@ -180,8 +201,8 @@ export default function InfiniteTimeline({ day, sessions, activities, emotions, 
     return merged;
   }, [sessions, dayStart, isToday]);
 
-  // Pack into columns
-  const columns = useMemo(() => {
+  // Pack alter entries into columns
+  const alterColumns = useMemo(() => {
     const cols = [];
     [...alterEntries].sort((a, b) => a.startMins - b.startMins).forEach((entry) => {
       let placed = false;
@@ -193,23 +214,89 @@ export default function InfiniteTimeline({ day, sessions, activities, emotions, 
     return cols;
   }, [alterEntries]);
 
-  // Events positioned
-  const events = useMemo(() => {
-    const evts = [];
-    activities.forEach((a) => {
-      const mins = Math.max(0, minutesInDay(new Date(a.timestamp), dayStart));
-      evts.push({ type: "activity", mins, data: a });
+  // Build activity segments (like alters: each unique named activity gets tracks)
+  const activityEntries = useMemo(() => {
+    const byName = {};
+    activities.forEach((act) => {
+      const startMins = Math.max(0, minutesInDay(new Date(act.timestamp), dayStart));
+      const durationMins = act.duration_minutes || 0;
+      // If no duration, check if same activity occurs consecutively — handled via merge
+      const endMins = Math.min(24 * 60, startMins + Math.max(durationMins, 1));
+      const key = act.activity_name;
+      if (!byName[key]) byName[key] = [];
+      byName[key].push({ startMins, endMins: Math.max(endMins, startMins + 5), activity: act });
     });
-    emotions.forEach((e) => {
-      const mins = Math.max(0, minutesInDay(new Date(e.timestamp), dayStart));
-      evts.push({ type: "emotion", mins, data: e });
-    });
-    return evts.sort((a, b) => a.mins - b.mins);
-  }, [activities, emotions, dayStart]);
 
-  const EVENTS_COL_WIDTH = 140;
-  const alterColumnsLeft = EVENTS_COL_WIDTH + LABEL_WIDTH;
-  const totalWidth = alterColumnsLeft + Math.max(1, columns.length) * COL_WIDTH;
+    // Merge consecutive occurrences of the same activity (within 10 mins)
+    const merged = [];
+    Object.entries(byName).forEach(([name, segs]) => {
+      const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
+      const mergedSegs = [];
+      sorted.forEach((seg) => {
+        if (!mergedSegs.length) { mergedSegs.push({ ...seg }); return; }
+        const last = mergedSegs[mergedSegs.length - 1];
+        if (seg.startMins <= last.endMins + 10) {
+          last.endMins = Math.max(last.endMins, seg.endMins);
+        } else {
+          mergedSegs.push({ ...seg });
+        }
+      });
+      mergedSegs.forEach((seg, i) => merged.push({ ...seg, key: `${name}-${i}` }));
+    });
+    return merged;
+  }, [activities, dayStart]);
+
+  // Pack activity entries into columns
+  const activityColumns = useMemo(() => {
+    const cols = [];
+    [...activityEntries].sort((a, b) => a.startMins - b.startMins).forEach((entry) => {
+      let placed = false;
+      for (const col of cols) {
+        if (col[col.length - 1].endMins <= entry.startMins + 2) { col.push(entry); placed = true; break; }
+      }
+      if (!placed) cols.push([entry]);
+    });
+    return cols;
+  }, [activityEntries]);
+
+  // Emotion events positioned
+  const emotionEvents = useMemo(() => {
+    return emotions.map((e) => ({
+      mins: Math.max(0, minutesInDay(new Date(e.timestamp), dayStart)),
+      data: e,
+    }));
+  }, [emotions, dayStart]);
+
+  // Center column entries: journals + check-ins at their time
+  const centerEntries = useMemo(() => {
+    const entries = [];
+    journals.forEach((j) => {
+      const t = new Date(j.created_date);
+      const mins = Math.max(0, minutesInDay(t, dayStart));
+      entries.push({ mins, type: "journal", id: j.id, label: j.title || "Journal Entry" });
+    });
+    checkIns.forEach((c) => {
+      const t = new Date(c.created_date);
+      const mins = Math.max(0, minutesInDay(t, dayStart));
+      entries.push({ mins, type: "checkin", id: c.id, label: "System Check-In" });
+    });
+    return entries;
+  }, [journals, checkIns, dayStart]);
+
+  // Layout widths
+  const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
+  const activityAreaWidth = showActivities ? numActivityCols * ACTIVITY_COL_WIDTH : 0;
+  const emotionAreaWidth = showEmotions ? EMOTION_COL_WIDTH : 0;
+  const centerAreaWidth = LABEL_WIDTH + JOURNAL_COL_WIDTH;
+  const numAlterCols = Math.max(1, alterColumns.length);
+  const alterAreaWidth = numAlterCols * ALTER_COL_WIDTH;
+  const totalWidth = activityAreaWidth + emotionAreaWidth + centerAreaWidth + alterAreaWidth;
+
+  // Column starts
+  const emotionLeft = activityAreaWidth;
+  const timeLeft = emotionLeft + emotionAreaWidth;
+  const journalLeft = timeLeft + LABEL_WIDTH;
+  const alterLeft = timeLeft + LABEL_WIDTH + JOURNAL_COL_WIDTH;
 
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
@@ -228,6 +315,7 @@ export default function InfiniteTimeline({ day, sessions, activities, emotions, 
               {sessions.length > 0 && <span>{sessions.length} session{sessions.length !== 1 ? "s" : ""}</span>}
               {activities.length > 0 && <span>{activities.length} activit{activities.length !== 1 ? "ies" : "y"}</span>}
               {emotions.length > 0 && <span>{emotions.length} check-in{emotions.length !== 1 ? "s" : ""}</span>}
+              {journals.length > 0 && <span>{journals.length} journal{journals.length !== 1 ? "s" : ""}</span>}
             </div>
           )}
         </div>
@@ -238,43 +326,97 @@ export default function InfiniteTimeline({ day, sessions, activities, emotions, 
         <div className="overflow-x-auto border-t border-border">
           <div className="overflow-y-auto max-h-96">
             <div className="relative" style={{ height: `${containerHeight}px`, minWidth: `${totalWidth}px` }}>
-              {/* Hour grid lines */}
+
+              {/* Hour grid lines + time labels */}
               {HOURS.map((h) => (
                 <div
                   key={h}
                   className="absolute flex items-start"
-                  style={{ top: `${h * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px`, left: `${EVENTS_COL_WIDTH}px`, right: 0 }}
+                  style={{ top: `${h * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px`, left: `${timeLeft}px`, right: 0 }}
                 >
-                  <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-2 text-right" style={{ width: `${LABEL_WIDTH}px` }}>
+                  <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-1 text-right" style={{ width: LABEL_WIDTH }}>
                     {format(new Date(dayStart.getTime() + h * 60 * 60000), "h a")}
                   </div>
                   <div className="flex-1 border-t border-border/30 mt-2" />
                 </div>
               ))}
 
-              {/* Events column */}
-              <div className="absolute" style={{ left: 0, top: 0, width: `${EVENTS_COL_WIDTH}px`, height: `${containerHeight}px` }}>
-                {events.map((evt, idx) => (
-                  <EventPill key={`${evt.type}-${idx}`} event={evt} alters={alters} />
+              {/* Activity bars — far left */}
+              {showActivities && activityColumns.map((col, colIdx) => (
+                <div
+                  key={`acol-${colIdx}`}
+                  className="absolute"
+                  style={{ left: colIdx * ACTIVITY_COL_WIDTH, top: 0, width: ACTIVITY_COL_WIDTH, height: containerHeight }}
+                >
+                  {col.map((entry) => {
+                    const topPx = (entry.startMins / 60) * HOUR_HEIGHT;
+                    const heightPx = ((entry.endMins - entry.startMins) / 60) * HOUR_HEIGHT;
+                    const dateStr = format(day, "yyyy-MM-dd");
+                    return (
+                      <ActivityBar
+                        key={entry.key}
+                        activity={entry.activity}
+                        topPx={topPx}
+                        heightPx={heightPx}
+                        onClick={() => navigate(`/activities?date=${dateStr}`)}
+                        onLongPress={() => navigate(`/activities?date=${dateStr}`)}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+
+              {/* Emotion/check-in column */}
+              {showEmotions && (
+                <div className="absolute" style={{ left: emotionLeft, top: 0, width: EMOTION_COL_WIDTH, height: containerHeight }}>
+                  {emotionEvents.map((evt, idx) => (
+                    <EmotionPill
+                      key={idx}
+                      emotion={evt.data}
+                      topPx={(evt.mins / 60) * HOUR_HEIGHT}
+                      navigate={navigate}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Center column: journal + check-in titles */}
+              <div className="absolute" style={{ left: journalLeft, top: 0, width: JOURNAL_COL_WIDTH, height: containerHeight }}>
+                {centerEntries.map((entry, idx) => (
+                  <CenterEntry
+                    key={idx}
+                    topPx={(entry.mins / 60) * HOUR_HEIGHT}
+                    label={entry.label}
+                    icon={entry.type === "journal" ? "📓" : "✅"}
+                    onClick={() => {
+                      if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
+                      else navigate(`/system-checkin?id=${entry.id}`);
+                    }}
+                    onLongPress={() => {
+                      if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
+                      else navigate(`/system-checkin?id=${entry.id}`);
+                    }}
+                  />
                 ))}
               </div>
 
               {/* Alter columns */}
-              {columns.map((col, colIdx) => (
+              {alterColumns.map((col, colIdx) => (
                 <div
-                  key={colIdx}
+                  key={`col-${colIdx}`}
                   className="absolute"
-                  style={{ left: `${alterColumnsLeft + colIdx * COL_WIDTH}px`, top: 0, width: `${COL_WIDTH}px`, height: `${containerHeight}px` }}
+                  style={{ left: alterLeft + colIdx * ALTER_COL_WIDTH, top: 0, width: ALTER_COL_WIDTH, height: containerHeight }}
                 >
                   {col.map((entry) => {
                     const alter = alters.find((a) => a.id === entry.alterId);
                     const color = alter?.color || "#9333ea";
                     const topPx = (entry.startMins / 60) * HOUR_HEIGHT;
                     const heightPx = ((entry.endMins - entry.startMins) / 60) * HOUR_HEIGHT;
-                    return <AlterAvatar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx} />;
+                    return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx} />;
                   })}
                 </div>
               ))}
+
             </div>
           </div>
         </div>
