@@ -169,157 +169,173 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Set Front</DialogTitle>
-        </DialogHeader>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Set Front</DialogTitle>
+          </DialogHeader>
 
-        {/* Selected chips - larger display */}
-         {(selectedIds.size > 0 || isUnsure) && (
-           <div className="bg-muted/30 rounded-lg p-3 mb-2 border border-border/50">
-             <div className="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto">
-
-        <div className="text-xs text-muted-foreground space-y-1">
-          <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary fronter</p>
-          {selectedIds.size > 0 && <p className="text-primary">Click primary to make them co-front only</p>}
-        </div>
-
-        {/* Search and View Toggle */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search alters..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex gap-1 bg-muted/50 rounded-md p-1">
-            <button
-              onClick={() => setViewMode("list")}
-              className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-              title="List view"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-              title="Grid view"
-            >
-              <Grid3x3 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* List or Grid View */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          {viewMode === "list" ? (
-            <div className="space-y-1.5">
-              {filtered.map((a) => (
-                <AlterPill
-                  key={a.id}
-                  alter={a}
-                  selected={selectedIds.has(a.id)}
-                  isPrimary={primaryId === a.id}
-                  onToggle={() => toggleAlter(a.id)}
-                  onSetPrimary={() => setPrimary(a.id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {filtered.map((a) => {
-                const isFronting = selectedIds.has(a.id);
-                const isPrimary = primaryId === a.id;
-                return (
-                  <button
-                    key={a.id}
-                    onClick={() => toggleAlter(a.id)}
-                    className="flex flex-col items-center gap-2 p-2 rounded-lg border transition-all hover:bg-muted/50"
-                    style={{
-                      borderColor: isFronting ? (a.color || "hsl(var(--primary))") : "hsl(var(--border))",
-                      backgroundColor: isFronting ? `${a.color || "hsl(var(--primary))"}15` : "transparent"
-                    }}
-                  >
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 flex-shrink-0"
-                      style={{
-                        backgroundColor: a.color || "hsl(var(--muted))",
-                        borderColor: isPrimary ? "hsl(var(--accent))" : (isFronting ? a.color || "hsl(var(--primary))" : "hsl(var(--border))")
-                      }}
-                    >
-                      {a.avatar_url ? (
-                        <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-6 h-6 text-white/70" />
-                      )}
-                    </div>
-                    <div className="text-center min-w-0">
-                      <p className="text-xs font-medium truncate">{a.name}</p>
-                      {isPrimary && <p className="text-xs text-primary leading-none">Primary</p>}
-                    </div>
-                  </button>
-                );
-              })}
+          {/* Selected chips */}
+          {(selectedIds.size > 0 || isUnsure) && (
+            <div className="bg-muted/30 rounded-lg p-3 mb-2 border border-border/50">
+              <div className="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto">
+                {isUnsure ? (
+                  <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs">Unsure</span>
+                ) : (
+                  [...selectedIds].map((id) => {
+                    const a = alters.find((x) => x.id === id);
+                    if (!a) return null;
+                    return (
+                      <span
+                        key={id}
+                        className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border"
+                        style={{ backgroundColor: a.color ? `${a.color}20` : undefined, borderColor: a.color || undefined }}
+                      >
+                        {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
+                        {a.name}
+                      </span>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
-        </div>
 
-        <div className="space-y-2 pt-2 border-t border-border/50">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="journal-switch"
-              checked={journalSwitch}
-              onCheckedChange={setJournalSwitch}
-              disabled={isUnsure}
-            />
-            <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
-              <BookOpen className="w-3.5 h-3.5" />
-              Journal this switch?
-            </label>
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary fronter</p>
+            {selectedIds.size > 0 && <p className="text-primary">Click primary to make them co-front only</p>}
           </div>
 
+          {/* Search and View Toggle */}
           <div className="flex gap-2">
-            <Button
-              variant={isUnsure ? "default" : "outline"}
-              onClick={() => {
-                setIsUnsure(!isUnsure);
-                if (!isUnsure) {
-                  setPrimaryId("");
-                  setCoFronterIds([]);
-                }
-              }}
-              disabled={saving}
-              className="flex-1"
-            >
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Unsure
-            </Button>
-            {currentSession && (
-              <Button variant="outline" onClick={handleEndFront} disabled={saving} className="flex-1">
-                Clear Front
-              </Button>
-            )}
-            <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-              Set Front
-            </Button>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search alters..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="flex gap-1 bg-muted/50 rounded-md p-1">
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                title="List view"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                title="Grid view"
+              >
+                <Grid3x3 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
 
-    {showJournalModal && (
-      <SwitchJournalModal
-        open={showJournalModal}
-        onClose={() => { setShowJournalModal(false); onClose(); }}
-        sessionId={newSessionId}
-        authorAlterId={primaryId}
-      />
-    )}
+          {/* List or Grid View */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {viewMode === "list" ? (
+              <div className="space-y-1.5">
+                {filtered.map((a) => (
+                  <AlterPill
+                    key={a.id}
+                    alter={a}
+                    selected={selectedIds.has(a.id)}
+                    isPrimary={primaryId === a.id}
+                    onToggle={() => toggleAlter(a.id)}
+                    onSetPrimary={() => setPrimary(a.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {filtered.map((a) => {
+                  const isFronting = selectedIds.has(a.id);
+                  const isPrimary = primaryId === a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => toggleAlter(a.id)}
+                      className="flex flex-col items-center gap-2 p-2 rounded-lg border transition-all hover:bg-muted/50"
+                      style={{
+                        borderColor: isFronting ? (a.color || "hsl(var(--primary))") : "hsl(var(--border))",
+                        backgroundColor: isFronting ? `${a.color || "hsl(var(--primary))"}15` : "transparent"
+                      }}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 flex-shrink-0"
+                        style={{
+                          backgroundColor: a.color || "hsl(var(--muted))",
+                          borderColor: isPrimary ? "hsl(var(--accent))" : (isFronting ? a.color || "hsl(var(--primary))" : "hsl(var(--border))")
+                        }}
+                      >
+                        {a.avatar_url ? (
+                          <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-6 h-6 text-white/70" />
+                        )}
+                      </div>
+                      <div className="text-center min-w-0">
+                        <p className="text-xs font-medium truncate">{a.name}</p>
+                        {isPrimary && <p className="text-xs text-primary leading-none">Primary</p>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="journal-switch"
+                checked={journalSwitch}
+                onCheckedChange={setJournalSwitch}
+                disabled={isUnsure}
+              />
+              <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+                <BookOpen className="w-3.5 h-3.5" />
+                Journal this switch?
+              </label>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant={isUnsure ? "default" : "outline"}
+                onClick={() => {
+                  setIsUnsure(!isUnsure);
+                  if (!isUnsure) {
+                    setPrimaryId("");
+                    setCoFronterIds([]);
+                  }
+                }}
+                disabled={saving}
+                className="flex-1"
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Unsure
+              </Button>
+              <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Set Front
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {showJournalModal && (
+        <SwitchJournalModal
+          open={showJournalModal}
+          onClose={() => { setShowJournalModal(false); onClose(); }}
+          sessionId={newSessionId}
+          authorAlterId={primaryId}
+        />
+      )}
     </>
   );
 }
