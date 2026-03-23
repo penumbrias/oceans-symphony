@@ -14,8 +14,8 @@ function minutesInDay(date, dayStart) {
   return differenceInMinutes(date, dayStart);
 }
 
-// Long press hook
-function useLongPress(onLongPress, onClick, ms = 600) {
+// Long press hook — onClick fires only if long press did NOT trigger
+function useLongPress(onLongPress, onClick, ms = 1500) {
   const timerRef = useRef(null);
   const firedRef = useRef(false);
 
@@ -66,11 +66,16 @@ function AlterBar({ alter, color, topPx, heightPx, colWidth }) {
   );
 }
 
-// Activity avatar + duration bar (like alters but with activity color)
-function ActivityBar({ activity, topPx, heightPx, onLongPress, onClick }) {
+// Activity bar with name label — shows full name, expands on tap, navigates on long press
+function ActivityBar({ activity, allNames, topPx, heightPx, onLongPress }) {
+  const [showAll, setShowAll] = useState(false);
   const color = activity.color || "hsl(var(--primary))";
-  const avatarSize = 26;
-  const handlers = useLongPress(onLongPress, onClick);
+  const avatarSize = 28;
+  const handlers = useLongPress(onLongPress, () => setShowAll((v) => !v));
+  const displayName = allNames && allNames.length > 1
+    ? (showAll ? allNames.join(" • ") : allNames[0] + " +" + (allNames.length - 1))
+    : activity.activity_name;
+
   return (
     <div
       className="absolute flex flex-col items-center cursor-pointer"
@@ -80,17 +85,23 @@ function ActivityBar({ activity, topPx, heightPx, onLongPress, onClick }) {
       <div
         className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
         style={{ width: avatarSize, height: avatarSize, backgroundColor: color }}
-        title={activity.activity_name}
+        title={displayName}
       >
         <span className="text-xs font-bold text-white leading-none">
           {activity.activity_name?.charAt(0)?.toUpperCase() || "A"}
         </span>
       </div>
-      {heightPx > avatarSize + 4 && (
+      <div
+        className="text-center leading-tight mt-0.5 px-0.5"
+        style={{ fontSize: 9, color, maxWidth: 52, wordBreak: "break-word" }}
+      >
+        {displayName}
+      </div>
+      {heightPx > avatarSize + 24 && (
         <div
           className="w-0.5 rounded-full mt-0.5"
           style={{
-            height: `${Math.max(heightPx - avatarSize - 2, 4)}px`,
+            height: `${Math.max(heightPx - avatarSize - 20, 4)}px`,
             background: `linear-gradient(to bottom, ${color}, ${color}40)`,
           }}
         />
@@ -135,17 +146,17 @@ function EmotionPill({ emotion, topPx, navigate }) {
   );
 }
 
-// Center column entry (journal / check-in title)
-function CenterEntry({ topPx, label, icon, onLongPress, onClick }) {
-  const handlers = useLongPress(onLongPress, onClick);
+// Center column entry — long press navigates, tap does nothing
+function CenterEntry({ topPx, label, icon, onLongPress }) {
+  const handlers = useLongPress(onLongPress, null);
   return (
     <div
       className="absolute left-0 right-0 cursor-pointer group"
       style={{ top: `${topPx}px`, zIndex: 5 }}
       {...handlers}
     >
-      <div className="mx-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors group-active:opacity-70">
-        <p className="text-xs text-muted-foreground truncate leading-tight">
+      <div className="mx-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors group-active:scale-95">
+        <p className="text-xs text-muted-foreground leading-tight">
           {icon} {label}
         </p>
       </div>
@@ -214,31 +225,31 @@ export default function InfiniteTimeline({
     return cols;
   }, [alterEntries]);
 
-  // Build activity segments (like alters: each unique named activity gets tracks)
+  // Build activity segments grouped by name, merged consecutively
   const activityEntries = useMemo(() => {
+    // Group all activities by time bucket (same minute = same slot), merge names
     const byName = {};
     activities.forEach((act) => {
       const startMins = Math.max(0, minutesInDay(new Date(act.timestamp), dayStart));
       const durationMins = act.duration_minutes || 0;
-      // If no duration, check if same activity occurs consecutively — handled via merge
       const endMins = Math.min(24 * 60, startMins + Math.max(durationMins, 1));
-      const key = act.activity_name;
-      if (!byName[key]) byName[key] = [];
-      byName[key].push({ startMins, endMins: Math.max(endMins, startMins + 5), activity: act });
+      const name = act.activity_name;
+      if (!byName[name]) byName[name] = [];
+      byName[name].push({ startMins, endMins: Math.max(endMins, startMins + 5), activity: act });
     });
 
-    // Merge consecutive occurrences of the same activity (within 10 mins)
+    // Merge consecutive same-name occurrences (within 10 mins)
     const merged = [];
     Object.entries(byName).forEach(([name, segs]) => {
       const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
       const mergedSegs = [];
       sorted.forEach((seg) => {
-        if (!mergedSegs.length) { mergedSegs.push({ ...seg }); return; }
+        if (!mergedSegs.length) { mergedSegs.push({ ...seg, mergedNames: [name] }); return; }
         const last = mergedSegs[mergedSegs.length - 1];
         if (seg.startMins <= last.endMins + 10) {
           last.endMins = Math.max(last.endMins, seg.endMins);
         } else {
-          mergedSegs.push({ ...seg });
+          mergedSegs.push({ ...seg, mergedNames: [name] });
         }
       });
       mergedSegs.forEach((seg, i) => merged.push({ ...seg, key: `${name}-${i}` }));
@@ -356,9 +367,9 @@ export default function InfiniteTimeline({
                       <ActivityBar
                         key={entry.key}
                         activity={entry.activity}
+                        allNames={entry.mergedNames}
                         topPx={topPx}
                         heightPx={heightPx}
-                        onClick={() => navigate(`/activities?date=${dateStr}`)}
                         onLongPress={() => navigate(`/activities?date=${dateStr}`)}
                       />
                     );
@@ -388,10 +399,6 @@ export default function InfiniteTimeline({
                     topPx={(entry.mins / 60) * HOUR_HEIGHT}
                     label={entry.label}
                     icon={entry.type === "journal" ? "📓" : "✅"}
-                    onClick={() => {
-                      if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
-                      else navigate(`/system-checkin?id=${entry.id}`);
-                    }}
                     onLongPress={() => {
                       if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
                       else navigate(`/system-checkin?id=${entry.id}`);
