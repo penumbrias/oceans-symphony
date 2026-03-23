@@ -363,7 +363,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
 
                     <ActivityPillSelector
                       selectedActivities={editData.activity_category_ids}
-                      onActivityChange={(ids) => setEditData(d => ({ ...d, activity_category_ids: ids }))}
+                      onActivityChange={(ids) => setEditData(d => ({ ...d, activity_category_ids: ids.slice(0, 1) }))}
                     />
 
                     <AlterSelector
