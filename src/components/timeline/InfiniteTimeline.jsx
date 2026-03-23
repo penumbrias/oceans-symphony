@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, Layers } from "lucide-react";
@@ -148,6 +149,7 @@ function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
   const meta = TYPE_META[entry.type] || { icon: "•" };
   const isTaskDone = entry.type === "task_done";
   const isMention = entry.type === "mention";
+  const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
   return (
     <div className="absolute left-1 right-1 cursor-pointer z-10"
       style={{ top: topPx, userSelect: "none" }} onClick={tap}>
