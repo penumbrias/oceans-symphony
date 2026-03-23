@@ -16,18 +16,22 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
       return t >= fromMs && t <= toMs;
     });
 
-    // Collect unique activity labels from filtered data
-    const activitySet = new Map(); // label -> { label, color, id }
+    // Each category on an activity is counted independently
+    const activitySet = new Map();
     filtered.forEach(act => {
       const ids = act.activity_category_ids || [];
-      const label = ids.map(id => catMap[id]?.name).filter(Boolean).join(" + ") || act.activity_name || "Unknown";
-      const color = catMap[ids[0]]?.color || "#8b5cf6";
-      const key = label;
-      if (!activitySet.has(key)) activitySet.set(key, { label, color, key });
+      if (ids.length === 0) {
+        const label = act.activity_name || "Unknown";
+        if (!activitySet.has(label)) activitySet.set(label, { label, color: "#8b5cf6", key: label });
+      } else {
+        ids.forEach(id => {
+          const cat = catMap[id];
+          if (!cat) return;
+          if (!activitySet.has(cat.name)) activitySet.set(cat.name, { label: cat.name, color: cat.color || "#8b5cf6", key: cat.name });
+        });
+      }
     });
-    const activityLabels = Array.from(activitySet.values());
 
-    // Build alter rows
     const alterMap = {};
     alters.forEach(alter => {
       alterMap[alter.id] = { alter, counts: {}, total: 0, totalDuration: 0 };
@@ -36,12 +40,16 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
 
     filtered.forEach(act => {
       const ids = act.activity_category_ids || [];
-      const label = ids.map(id => catMap[id]?.name).filter(Boolean).join(" + ") || act.activity_name || "Unknown";
+      const labels = ids.length > 0
+        ? ids.map(id => catMap[id]?.name).filter(Boolean)
+        : [act.activity_name || "Unknown"];
       const fronters = act.fronting_alter_ids || [];
       fronters.forEach(alterId => {
         if (!alterMap[alterId]) return;
-        alterMap[alterId].counts[label] = (alterMap[alterId].counts[label] || 0) + 1;
-        alterMap[alterId].total += 1;
+        labels.forEach(label => {
+          alterMap[alterId].counts[label] = (alterMap[alterId].counts[label] || 0) + 1;
+          alterMap[alterId].total += 1;
+        });
         alterMap[alterId].totalDuration += act.duration_minutes || 0;
       });
     });
