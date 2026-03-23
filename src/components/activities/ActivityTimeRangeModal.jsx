@@ -81,6 +81,36 @@ export default function ActivityTimeRangeModal({
         timestamp: timestamp.toISOString(),
       });
 
+      // Update front history with the logged alters
+      if (selectedAlters.length > 0) {
+        const now = new Date();
+        const diffMins = (now - timestamp) / 60000;
+        const isCurrentTime = diffMins < 10; // within 10 minutes = "now"
+
+        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+        if (isCurrentTime && activeSessions.length > 0) {
+          // Update active session
+          const session = activeSessions[0];
+          const existing = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+          const merged = [...new Set([...existing, ...selectedAlters])];
+          await base44.entities.FrontingSession.update(session.id, {
+            primary_alter_id: merged[0],
+            co_fronter_ids: merged.slice(1),
+          });
+        } else {
+          // Create historical session for that time
+          const endTime = new Date(timestamp.getTime() + (activityDuration ? parseInt(activityDuration) : duration * 60) * 60000);
+          const isStillActive = endTime >= now;
+          await base44.entities.FrontingSession.create({
+            primary_alter_id: selectedAlters[0],
+            co_fronter_ids: selectedAlters.slice(1),
+            start_time: timestamp.toISOString(),
+            end_time: isStillActive ? null : endTime.toISOString(),
+            is_active: isStillActive,
+          });
+        }
+      }
+
       setSelectedActivityCategories([]);
       setActivityDuration("");
       setSelectedAlters([]);
