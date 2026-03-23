@@ -172,36 +172,23 @@ function ActivityBar({ activity, allNames, topPx, heightPx, expanded, onTap, onD
   );
 }
 
+const TYPE_META = {
+  emotion: { icon: "💭", label: "Emotion" },
+  journal: { icon: "📓", label: "Journal" },
+  checkin: { icon: "✅", label: "Check-In" },
+  bulletin: { icon: "📌", label: "Bulletin" },
+  task: { icon: "☑️", label: "Task" },
+};
+
 // Check-in column entry — tap to expand, double-tap to navigate
 function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
-
-  if (entry.type === "emotion") {
-    return (
-      <div
-        className="absolute left-1 right-1 cursor-pointer z-10"
-        style={{ top: topPx, userSelect: "none" }}
-        onClick={tap}
-      >
-        <div className="rounded-lg border border-border/60 bg-card/80 px-1.5 py-1 shadow-sm">
-          <p className="text-xs text-muted-foreground leading-tight mb-1">
-            💭 {format(new Date(entry.data.timestamp), "h:mm a")}
-          </p>
-          <div className="flex flex-wrap gap-0.5">
-            {(entry.data.emotions || []).map((em) => (
-              <span key={em} className="px-1.5 py-0.5 rounded-full text-white font-medium"
-                style={{ fontSize: 9, backgroundColor: emotionColor(em) }}>
-                {em}
-              </span>
-            ))}
-          </div>
-          {entry.expanded && entry.data.note && (
-            <p className="text-xs text-muted-foreground italic mt-1">{entry.data.note}</p>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const meta = TYPE_META[entry.type] || { icon: "•", label: entry.type };
+  const timeStr = entry.data.timestamp
+    ? format(parseDate(entry.data.timestamp), "h:mm a")
+    : entry.data.created_date
+    ? format(parseDate(entry.data.created_date), "h:mm a")
+    : "";
 
   return (
     <div
@@ -209,21 +196,50 @@ function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
       style={{ top: topPx, userSelect: "none" }}
       onClick={tap}
     >
-      <div className="px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors">
-        <p className="text-xs text-muted-foreground leading-tight truncate">
-          {entry.type === "journal" ? "📓" : "✅"} {entry.label}
-        </p>
-        {entry.expanded && entry.type === "journal" && entry.data?.content && (
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-3 leading-tight">{entry.data.content?.replace(/[#*_]/g, "")}</p>
-        )}
-      </div>
+      {entry.expanded ? (
+        <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm">
+          <p className="text-xs text-muted-foreground leading-tight mb-1 font-medium">
+            {meta.icon} {timeStr}
+          </p>
+          {entry.type === "emotion" && (
+            <div className="flex flex-wrap gap-0.5">
+              {(entry.data.emotions || []).map((em) => (
+                <span key={em} className="px-1.5 py-0.5 rounded-full text-white font-medium"
+                  style={{ fontSize: 9, backgroundColor: emotionColor(em) }}>{em}</span>
+              ))}
+              {entry.data.note && <p className="w-full text-xs text-muted-foreground italic mt-1">{entry.data.note}</p>}
+            </div>
+          )}
+          {entry.type === "journal" && (
+            <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.label}</p>
+          )}
+          {entry.type === "checkin" && (
+            <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>
+          )}
+          {entry.type === "bulletin" && (
+            <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.data.content}</p>
+          )}
+          {entry.type === "task" && (
+            <p className="text-xs text-muted-foreground leading-tight">{entry.label}{entry.data.completed ? " ✓" : ""}</p>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors min-w-0">
+          <span style={{ fontSize: 11 }}>{meta.icon}</span>
+          <p className="text-xs text-muted-foreground leading-tight truncate flex-1" style={{ fontSize: 10 }}>
+            {timeStr} {entry.type === "emotion"
+              ? (entry.data.emotions || []).slice(0, 2).join(", ")
+              : entry.label}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function InfiniteTimeline({
   day, sessions, activities, emotions, alters, hasData, isToday,
-  journals = [], checkIns = [],
+  journals = [], checkIns = [], bulletins = [], tasks = [],
   showActivities = true, showCheckIns = true,
   categories = [],
 }) {
@@ -297,24 +313,27 @@ export default function InfiniteTimeline({
     return cols;
   }, [alterEntries]);
 
-  // Activity entries — each activity is its own bar; resolve individual category names
+  // Activity entries — merge consecutive same-name activities, show activity_name
   const activityEntries = useMemo(() => {
-    return activities.map((act, i) => {
+    const raw = activities.map((act) => {
       const startMins = Math.max(0, minutesInDay(parseDate(act.timestamp), dayStart));
       const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
-      const catNames = (act.activity_category_ids || [])
-        .map(id => catMap[id]?.name)
-        .filter(Boolean);
-      const mergedNames = catNames.length > 0 ? catNames : [act.activity_name];
-      return {
-        startMins,
-        endMins: Math.max(endMins, startMins + 5),
-        activity: act,
-        mergedNames,
-        key: `act-${act.id || i}`,
-      };
+      return { startMins, endMins: Math.max(endMins, startMins + 5), activity: act };
+    }).sort((a, b) => a.startMins - b.startMins);
+
+    // Merge overlapping/consecutive entries with the same activity_name
+    const merged = [];
+    raw.forEach((entry) => {
+      const last = merged[merged.length - 1];
+      if (last && last.activity.activity_name === entry.activity.activity_name && entry.startMins <= last.endMins + 5) {
+        last.endMins = Math.max(last.endMins, entry.endMins);
+        last.mergedActivities.push(entry.activity);
+      } else {
+        merged.push({ ...entry, mergedActivities: [entry.activity] });
+      }
     });
-  }, [activities, dayStart, catMap]);
+    return merged.map((m, i) => ({ ...m, key: `act-${m.activity.id || i}` }));
+  }, [activities, dayStart]);
 
   const activityColumns = useMemo(() => {
     const cols = [];
@@ -328,7 +347,7 @@ export default function InfiniteTimeline({
     return cols;
   }, [activityEntries]);
 
-  // Check-in entries (emotions + journals + system check-ins)
+  // Check-in entries (emotions + journals + system check-ins + bulletins + tasks)
   const checkInEntries = useMemo(() => {
     const entries = [];
     emotions.forEach((e) => entries.push({
@@ -343,8 +362,16 @@ export default function InfiniteTimeline({
       mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)),
       type: "checkin", id: c.id, label: "System Check-In", data: c,
     }));
+    bulletins.forEach((b) => entries.push({
+      mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)),
+      type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b,
+    }));
+    tasks.forEach((t) => entries.push({
+      mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)),
+      type: "task", id: t.id, label: t.title || "Task", data: t,
+    }));
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ci-${i}-${e.id}` }));
-  }, [emotions, journals, checkIns, dayStart]);
+  }, [emotions, journals, checkIns, bulletins, tasks, dayStart]);
 
   // --- Height adjustment for expanded items ---
   // Collect all expanded entry positions
@@ -370,6 +397,18 @@ export default function InfiniteTimeline({
   }, [getTopPx]);
 
   const totalHeight = 24 * HOUR_HEIGHT + expandedPositions.reduce((s, p) => s + p.extraHeight, 0);
+
+  // Prevent check-in overlap: enforce minimum pixel spacing
+  const MIN_CI_GAP = 28;
+  const checkInPositioned = useMemo(() => {
+    let minNext = -Infinity;
+    return checkInEntries.map((entry) => {
+      const raw = getTopPx(entry.mins);
+      const top = Math.max(raw, minNext);
+      minNext = top + MIN_CI_GAP;
+      return { ...entry, adjustedTop: top };
+    });
+  }, [checkInEntries, getTopPx]);
 
   // --- Layout ---
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
@@ -460,7 +499,7 @@ export default function InfiniteTimeline({
                       <ActivityBar
                         key={entry.key}
                         activity={entry.activity}
-                        allNames={entry.mergedNames}
+                        mergedActivities={entry.mergedActivities}
                         topPx={topPx}
                         heightPx={heightPx}
                         expanded={isExpanded}
@@ -475,18 +514,19 @@ export default function InfiniteTimeline({
               {/* Check-ins column */}
               {showCheckIns && (
                 <div className="absolute" style={{ left: checkInLeft, top: 0, width: checkInAreaWidth, height: totalHeight }}>
-                  {checkInEntries.map((entry) => {
-                    const topPx = getTopPx(entry.mins);
+                  {checkInPositioned.map((entry) => {
                     const isExpanded = expandedKeys.has(entry.key);
                     return (
                       <CheckInEntry
                         key={entry.key}
                         entry={{ ...entry, expanded: isExpanded }}
-                        topPx={topPx}
+                        topPx={entry.adjustedTop}
                         onTap={() => toggleExpand(entry.key)}
                         onDoubleTap={() => {
                           if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
                           else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
+                          else if (entry.type === "bulletin") navigate(`/`);
+                          else if (entry.type === "task") navigate(`/todo`);
                         }}
                       />
                     );
