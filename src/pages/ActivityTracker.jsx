@@ -19,6 +19,7 @@ export default function ActivityTracker() {
   const [selectedStartHour, setSelectedStartHour] = useState(undefined);
   const [selectedEndHour, setSelectedEndHour] = useState(undefined);
   const [selectedActivity, setSelectedActivity] = useState(null);
+  const [addMode, setAddMode] = useState(false);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -43,6 +44,7 @@ export default function ActivityTracker() {
     setSelectedStartHour(startHour);
     setSelectedEndHour(endHour);
     setIsModalOpen(true);
+    setAddMode(false);
   };
 
   const handleCloseModal = () => {
@@ -99,6 +101,8 @@ export default function ActivityTracker() {
           frontingHistory={frontingHistory}
           onTimeRangeSelect={handleTimeRangeSelect}
           onActivityClick={handleActivityClick}
+          addMode={addMode}
+          onToggleAddMode={() => setAddMode((v) => !v)}
         />
 
         <div className="mt-8">
