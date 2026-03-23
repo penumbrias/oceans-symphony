@@ -170,8 +170,9 @@ export default function Timeline() {
           });
 
           const dayTasks = tasks.filter((t) => {
-            const d = parseDate(t.created_date);
-            return d >= dayStart && d <= dayEnd;
+            const created = parseDate(t.created_date);
+            const completed = t.completed && t.completed_date ? parseDate(t.completed_date) : null;
+            return (created >= dayStart && created <= dayEnd) || (completed && completed >= dayStart && completed <= dayEnd);
           });
 
           const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0;
