@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
+import { parseDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -261,9 +262,9 @@ export default function InfiniteTimeline({
     sessions.forEach((session) => {
       const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
       ids.forEach((alterId) => {
-        const startMins = Math.max(0, minutesInDay(new Date(session.start_time), dayStart));
+        const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
         const endTime = session.end_time
-          ? new Date(session.end_time)
+          ? parseDate(session.end_time)
           : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 23 * 60 * 60000);
         const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
         if (!byAlter[alterId]) byAlter[alterId] = [];
@@ -299,7 +300,7 @@ export default function InfiniteTimeline({
   // Activity entries — each activity is its own bar; resolve individual category names
   const activityEntries = useMemo(() => {
     return activities.map((act, i) => {
-      const startMins = Math.max(0, minutesInDay(new Date(act.timestamp), dayStart));
+      const startMins = Math.max(0, minutesInDay(parseDate(act.timestamp), dayStart));
       const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
       const catNames = (act.activity_category_ids || [])
         .map(id => catMap[id]?.name)
@@ -331,15 +332,15 @@ export default function InfiniteTimeline({
   const checkInEntries = useMemo(() => {
     const entries = [];
     emotions.forEach((e) => entries.push({
-      mins: Math.max(0, minutesInDay(new Date(e.timestamp), dayStart)),
+      mins: Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart)),
       type: "emotion", id: e.id, data: e,
     }));
     journals.forEach((j) => entries.push({
-      mins: Math.max(0, minutesInDay(new Date(j.created_date), dayStart)),
+      mins: Math.max(0, minutesInDay(parseDate(j.created_date), dayStart)),
       type: "journal", id: j.id, label: j.title || "Journal Entry", data: j,
     }));
     checkIns.forEach((c) => entries.push({
-      mins: Math.max(0, minutesInDay(new Date(c.created_date), dayStart)),
+      mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)),
       type: "checkin", id: c.id, label: "System Check-In", data: c,
     }));
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ci-${i}-${e.id}` }));

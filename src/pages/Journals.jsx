@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import JournalEntryCard from "@/components/journal/JournalEntryCard";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
+import JournalViewModal from "@/components/journal/JournalViewModal";
 import FolderGrid from "@/components/journal/FolderGrid";
 
 const TABS = [
@@ -29,6 +30,7 @@ export default function Journals() {
   const [newFolderName, setNewFolderName] = useState("");
   const [newEntryFolder, setNewEntryFolder] = useState(null);
   const [viewingFolder, setViewingFolder] = useState(null);
+  const [viewingEntry, setViewingEntry] = useState(null);
 
   const { data: entries = [] } = useQuery({
     queryKey: ["journalEntries"],
@@ -97,14 +99,15 @@ export default function Journals() {
   }, [entries, tab, search, selectedTag, selectedFolder, viewingFolder, fronterOnly, currentAlterIds]);
 
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
-  const openEntry = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
+  const openEntry = (entry) => { setViewingEntry(entry); };
+  const openEdit = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
 
   // Open specific entry from URL ?id= param (e.g. from timeline double-click)
   const [pendingId] = useState(() => new URLSearchParams(window.location.search).get('id'));
   useEffect(() => {
     if (pendingId && entries.length > 0) {
       const entry = entries.find(e => e.id === pendingId);
-      if (entry) openEntry(entry);
+      if (entry) setViewingEntry(entry);
     }
   }, [pendingId, entries.length]);
 
@@ -279,6 +282,14 @@ export default function Journals() {
           ) : null}
         </>
       )}
+
+      <JournalViewModal
+        open={!!viewingEntry}
+        onClose={() => setViewingEntry(null)}
+        entry={viewingEntry}
+        altersById={altersById}
+        onEdit={(entry) => openEdit(entry)}
+      />
 
       <JournalEditorModal
         open={showEditor}

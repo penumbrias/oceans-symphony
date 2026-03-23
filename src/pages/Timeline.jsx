@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import { parseDate } from "@/lib/dateUtils";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
 import { Activity, Heart, Users, Calendar } from "lucide-react";
@@ -125,31 +126,31 @@ export default function Timeline() {
 
           const daySessions = showFronting
             ? sessions.filter((s) => {
-                const start = new Date(s.start_time);
-                const end = s.end_time ? new Date(s.end_time) : new Date();
+                const start = parseDate(s.start_time);
+                const end = s.end_time ? parseDate(s.end_time) : new Date();
                 return start <= dayEnd && end >= dayStart;
               })
             : [];
 
           const dayActivities = showActivities
             ? activities.filter((a) => {
-                const t = new Date(a.timestamp);
+                const t = parseDate(a.timestamp);
                 return t >= dayStart && t <= dayEnd;
               })
             : [];
 
           const dayEmotions = emotions.filter((e) => {
-            const t = new Date(e.timestamp);
+            const t = parseDate(e.timestamp);
             return t >= dayStart && t <= dayEnd;
           });
 
           const dayJournals = journals.filter((j) => {
-            const t = new Date(j.created_date);
+            const t = parseDate(j.created_date);
             return t >= dayStart && t <= dayEnd;
           });
 
           const dayCheckIns = checkIns.filter((c) => {
-            const t = new Date(c.created_date);
+            const t = parseDate(c.created_date);
             return t >= dayStart && t <= dayEnd;
           });
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { format } from "date-fns";
+import { parseDate } from "@/lib/dateUtils";
 import { BookOpen, Shuffle, Tag, Folder, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,7 +37,7 @@ export default function JournalEntryCard({ entry, altersById, onClick }) {
       </div>
 
       <p className="text-xs text-muted-foreground mb-2">
-        {format(new Date(entry.created_date), "MMM d, yyyy · h:mm a")}
+        {format(parseDate(entry.created_date), "MMM d, yyyy · h:mm a")}
         {author && <span className="ml-1.5">· by {author.name}</span>}
       </p>
 
