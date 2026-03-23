@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Loader2, Heart, X, Plus } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
-import { useQuery } from "@tanstack/react-query";
 
 const PRESET_EMOTIONS = [
   "Happy", "Sad", "Angry", "Anxious", "Calm", "Excited", 
