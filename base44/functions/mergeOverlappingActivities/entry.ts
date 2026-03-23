@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
-import { parseISO } from 'npm:date-fns@3.6.0';
 
 Deno.serve(async (req) => {
   try {
@@ -49,34 +48,24 @@ Deno.serve(async (req) => {
             const newEnd = new Date(new Date(next.timestamp).getTime() + (next.duration_minutes || 30) * 60000);
             const newDuration = Math.round((newEnd - new Date(current.timestamp)) / 60000);
 
-            // Only combine emotions
+            // Combine alters and emotions
+            const allAlters = [...new Set([
+              ...(current.fronting_alter_ids || []),
+              ...(next.fronting_alter_ids || [])
+            ])];
             const allEmotions = [...new Set([
               ...(current.emotions || []),
               ...(next.emotions || [])
             ])];
 
-            // Update current activity: extend duration and add emotions
+            // Update current
             await base44.entities.Activity.update(current.id, {
               duration_minutes: newDuration,
+              fronting_alter_ids: allAlters,
               emotions: allEmotions,
             });
 
-            // Create a NEW FrontingSession for the duplicate's fronts at duplicate's timestamp
-            if (next.fronting_alter_ids && next.fronting_alter_ids.length > 0) {
-              const nextTimestamp = parseISO(next.timestamp);
-              const nextEnd = new Date(nextTimestamp.getTime() + (next.duration_minutes || 30) * 60000);
-              
-              await base44.entities.FrontingSession.create({
-                primary_alter_id: next.fronting_alter_ids[0],
-                co_fronter_ids: next.fronting_alter_ids.slice(1),
-                start_time: next.timestamp,
-                end_time: nextEnd.toISOString(),
-                note: 'Merged from duplicate activity',
-                is_active: false
-              });
-            }
-
-            // Delete the duplicate activity
+            // Delete next
             await base44.entities.Activity.delete(next.id);
 
             merged++;
