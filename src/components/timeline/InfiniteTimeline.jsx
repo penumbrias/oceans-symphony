@@ -464,7 +464,7 @@ export default function InfiniteTimeline({
                       <ActivityBar
                         key={entry.key}
                         activityName={entry.displayName}
-                        color={entry.activity.color || "hsl(var(--primary))"}
+                        color={entry.categoryColor || "hsl(var(--primary))"
                         mergedCount={entry.mergedCount}
                         topPx={topPx}
                         heightPx={heightPx}
