@@ -10,7 +10,9 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { Lock, AlertCircle, Loader2 } from "lucide-react";
 
-export default function JournalEditorModal({ isOpen, onClose, editingEntry, alters }) {
+export default function JournalEditorModal({ isOpen, open, onClose, editingEntry, entry, alters }) {
+  const isOpenFinal = isOpen ?? open;
+  const editingEntryFinal = editingEntry ?? entry;
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -23,16 +25,15 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
 
   // Load and decrypt entry if editing
   useEffect(() => {
-    if (editingEntry) {
-      setTitle(editingEntry.title);
-      setIsEncrypted(editingEntry.is_encrypted || false);
+    if (editingEntryFinal) {
+      setTitle(editingEntryFinal.title);
+      setIsEncrypted(editingEntryFinal.is_encrypted || false);
 
-      if (editingEntry.is_encrypted) {
-        // Show decryption prompt
+      if (editingEntryFinal.is_encrypted) {
         setShowPasswordField(true);
         setContent("");
       } else {
-        setContent(editingEntry.content);
+        setContent(editingEntryFinal.content);
         setShowPasswordField(false);
       }
     } else {
@@ -44,14 +45,14 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
     setEncryptionPassword("");
     setDecryptionPassword("");
     setDecryptionError("");
-  }, [editingEntry, isOpen]);
+  }, [editingEntryFinal?.id, isOpenFinal]);
 
   // Handle decryption when editing encrypted entry
   const handleDecrypt = async () => {
     setIsDecrypting(true);
     setDecryptionError("");
     try {
-      const decrypted = await decryptContent(editingEntry.content, decryptionPassword);
+      const decrypted = await decryptContent(editingEntryFinal.content, decryptionPassword);
       setContent(decrypted);
       setShowPasswordField(false);
     } catch (error) {
@@ -63,8 +64,8 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
-      if (editingEntry) {
-        return base44.entities.JournalEntry.update(editingEntry.id, data);
+      if (editingEntryFinal) {
+        return base44.entities.JournalEntry.update(editingEntryFinal.id, data);
       } else {
         return base44.entities.JournalEntry.create(data);
       }
@@ -90,10 +91,10 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpenFinal} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{editingEntry ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
+          <DialogTitle>{editingEntryFinal ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -105,7 +106,7 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
           />
 
           {/* Encryption Toggle (only show on create, not edit) */}
-          {!editingEntry && (
+          {!editingEntryFinal && (
             <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
               <Checkbox
                 checked={isEncrypted}
@@ -120,7 +121,7 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
           )}
 
           {/* Encryption Password Input */}
-          {isEncrypted && !editingEntry && (
+          {isEncrypted && !editingEntryFinal && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Encryption Password</label>
               <Input
@@ -137,7 +138,7 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
           )}
 
           {/* Decryption Password Input (for editing encrypted entries) */}
-          {editingEntry?.is_encrypted && showPasswordField && (
+          {editingEntryFinal?.is_encrypted && showPasswordField && (
             <div className="space-y-2">
               <label className="text-sm font-medium">Entry Password</label>
               <div className="flex gap-2">
@@ -166,7 +167,7 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
           )}
 
           {/* Content Editor - only show if not encrypted or successfully decrypted */}
-          {!editingEntry?.is_encrypted || !showPasswordField && (
+          {(!editingEntryFinal?.is_encrypted || !showPasswordField) && (
             <>
               <label className="text-sm font-medium">Content</label>
               <ReactQuill
@@ -185,7 +186,7 @@ export default function JournalEditorModal({ isOpen, onClose, editingEntry, alte
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!title || !content || (isEncrypted && !encryptionPassword) || saveMutation.isPending}
+            disabled={!title || (isEncrypted && !encryptionPassword && !editingEntryFinal) || saveMutation.isPending}
           >
             {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Save Entry
