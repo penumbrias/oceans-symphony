@@ -262,27 +262,34 @@ export default function InfiniteTimeline({
   // - Merge same activity_name if overlapping/consecutive (always)
   // - Optionally merge by parent category if mergeByCategory is on
   const activityEntries = useMemo(() => {
-    const raw = activities.map((act) => {
+    const raw = [];
+    activities.forEach((act) => {
       const startMins = Math.max(0, minutesInDay(parseDate(act.timestamp), dayStart));
       const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
-      // Each activity category gets its own entry
-      const firstCatId = act.activity_category_ids?.[0];
-      const cat = firstCatId ? catMap[firstCatId] : null;
-      const categoryName = cat?.name || act.activity_name;
-      return {
-        startMins,
-        endMins: Math.max(endMins, startMins + 5),
-        activity: act,
-        mergeKey: firstCatId, // merge by category ID only
-        displayName: categoryName,
-      };
-    }).sort((a, b) => a.startMins - b.startMins);
+      // Create a separate entry for EACH category in this activity
+      const categoryIds = act.activity_category_ids && act.activity_category_ids.length > 0
+        ? act.activity_category_ids
+        : [null];
+      categoryIds.forEach((catId) => {
+        const cat = catId ? catMap[catId] : null;
+        const categoryName = cat?.name || act.activity_name;
+        raw.push({
+          startMins,
+          endMins: Math.max(endMins, startMins + 5),
+          activity: act,
+          categoryId: catId,
+          displayName: categoryName,
+          categoryColor: cat?.color || act.color,
+        });
+      });
+    });
+    raw.sort((a, b) => a.startMins - b.startMins);
 
-    // Group: merge overlapping/consecutive entries with the same category
+    // Group: merge overlapping/consecutive entries with the same category ID
     const merged = [];
     raw.forEach((entry) => {
       const last = merged[merged.length - 1];
-      if (last && last.mergeKey === entry.mergeKey && entry.startMins <= last.endMins + 5) {
+      if (last && last.categoryId === entry.categoryId && entry.startMins <= last.endMins + 5) {
         last.endMins = Math.max(last.endMins, entry.endMins);
         last.mergedCount += 1;
       } else {
@@ -292,7 +299,7 @@ export default function InfiniteTimeline({
 
     return merged.map((m, i) => ({
       ...m,
-      key: `act-${m.activity.id || i}`,
+      key: `act-${m.activity.id}-cat-${m.categoryId || i}`,
     }));
   }, [activities, dayStart, catMap]);
 
