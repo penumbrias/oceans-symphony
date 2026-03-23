@@ -230,11 +230,11 @@ export default function ActivityWeeklyGrid({
                           )}
                           {showAlters && fronting.length > 0 && (
                             <div className="flex gap-0.5 justify-center flex-wrap">
-                              {fronting.slice(0, 4).map((session, idx) => {
-                                const alter = alters.find((a) => a.id === session.primary_alter_id);
+                              {Array.from(new Set(fronting.map(s => s.primary_alter_id).filter(Boolean))).slice(0, 4).map((alterId) => {
+                                const alter = alters.find((a) => a.id === alterId);
                                 return (
                                   <div
-                                    key={idx}
+                                    key={alterId}
                                     className="w-4 h-4 rounded-full border border-white/50 overflow-hidden flex items-center justify-center"
                                     style={{ backgroundColor: alter?.color || "rgba(255,255,255,0.2)" }}
                                     title={alter?.name}
@@ -255,16 +255,34 @@ export default function ActivityWeeklyGrid({
                       <>
                         {showAlters && fronting.length > 0 && (
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-0.5">
-                            {/* Deduplicate alters across sessions */}
                             {Array.from(new Set(fronting.map(s => s.primary_alter_id).filter(Boolean))).slice(0, 3).map((alterId) => {
                               const alter = alters.find(a => a.id === alterId);
                               return (
+                                <div
+                                  key={alterId}
+                                  className="w-5 h-5 rounded-full border border-border/60 flex items-center justify-center overflow-hidden flex-shrink-0"
+                                  style={{ backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }}
+                                  title={alter?.name}
+                                >
+                                  {alter?.avatar_url ? (
+                                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="font-bold text-white" style={{ fontSize: 8 }}>
+                                      {alter?.name?.charAt(0)?.toUpperCase() || "?"}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {!showAlters && fronting.length > 0 && (
                           <div className="absolute top-1 left-1 right-1 flex gap-0.5 flex-wrap justify-center">
-                            {fronting.slice(0, 3).map((session, idx) => (
+                            {Array.from(new Set(fronting.map(s => s.primary_alter_id).filter(Boolean))).slice(0, 3).map((alterId) => (
                               <div
-                                key={idx}
+                                key={alterId}
                                 className="w-1.5 h-1.5 rounded-full border border-foreground/30"
-                                style={{ backgroundColor: session.primary_alter_id ? getAlterColor(session.primary_alter_id) : "hsl(var(--muted-foreground))" }}
+                                style={{ backgroundColor: getAlterColor(alterId) }}
                               />
                             ))}
                           </div>
