@@ -11,12 +11,23 @@ import TimeOfDayFronters from "@/components/analytics/TimeOfDayFronters";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
 import ActivityFrequencyChart from "@/components/analytics/ActivityFrequencyChart";
+import AlterActivityMatrix from "@/components/analytics/AlterActivityMatrix";
+import ActivityTrendsChart from "@/components/analytics/ActivityTrendsChart";
+import ActivityTimeOfDayChart from "@/components/analytics/ActivityTimeOfDayChart";
+import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline";
+import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
 
 const MAIN_TABS = [
   { id: "alters", label: "System Members" },
   { id: "activities", label: "Activities" },
   { id: "diary", label: "Diary Cards" },
   { id: "emotions", label: "Emotion Check-Ins" },
+];
+
+const ACTIVITY_SUB_TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "trends", label: "Trends" },
+  { id: "alters", label: "Alter × Activity" },
 ];
 
 const MODES = [
@@ -74,6 +85,7 @@ export default function Analytics() {
   const [to, setTo] = useState(new Date());
   const [mode, setMode] = useState("total");
   const [topTab, setTopTab] = useState("stats");
+  const [activitySubTab, setActivitySubTab] = useState("overview");
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["frontHistory"],
@@ -234,6 +246,10 @@ export default function Analytics() {
               ))}
             </div>
           )}
+
+          <div className="mt-6">
+            <AlterFrontingTimeline sessions={filtered} alters={alters} from={from} to={to} />
+          </div>
         </>
       )}
 
@@ -248,7 +264,41 @@ export default function Analytics() {
           <div className="mb-5">
             <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
           </div>
-          <ActivityFrequencyChart activities={activities} categories={activityCategories} from={from} to={to} />
+
+          {/* Activity sub-tabs */}
+          <div className="flex gap-1 bg-muted/50 rounded-xl p-1 mb-5">
+            {ACTIVITY_SUB_TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActivitySubTab(t.id)}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activitySubTab === t.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {activitySubTab === "overview" && (
+            <div className="space-y-6">
+              <ActivitySummaryCards activities={activities} categories={activityCategories} from={from} to={to} />
+              <ActivityFrequencyChart activities={activities} categories={activityCategories} from={from} to={to} />
+              <ActivityTimeOfDayChart activities={activities} categories={activityCategories} from={from} to={to} />
+            </div>
+          )}
+
+          {activitySubTab === "trends" && (
+            <div className="space-y-6">
+              <ActivityTrendsChart activities={activities} categories={activityCategories} from={from} to={to} />
+            </div>
+          )}
+
+          {activitySubTab === "alters" && (
+            <div className="space-y-6">
+              <AlterActivityMatrix activities={activities} categories={activityCategories} alters={alters} from={from} to={to} />
+            </div>
+          )}
         </>
       )}
 
