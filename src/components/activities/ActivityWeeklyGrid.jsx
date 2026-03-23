@@ -243,7 +243,30 @@ export default function ActivityWeeklyGrid({
                       </>
                     ) : (
                       <>
-                        {fronting.length > 0 && !showAlters && (
+                        {showAlters && fronting.length > 0 && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-0.5">
+                            {fronting.slice(0, 3).map((session, idx) => {
+                              const alter = alters.find(a => a.id === session.primary_alter_id);
+                              return (
+                                <div
+                                  key={idx}
+                                  className="w-5 h-5 rounded-full border border-white/60 flex items-center justify-center overflow-hidden flex-shrink-0"
+                                  style={{ backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }}
+                                  title={alter?.name}
+                                >
+                                  {alter?.avatar_url ? (
+                                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-xs font-bold text-white" style={{ fontSize: 8 }}>
+                                      {alter?.name?.charAt(0)?.toUpperCase() || "?"}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {!showAlters && fronting.length > 0 && (
                           <div className="absolute top-1 left-1 right-1 flex gap-0.5 flex-wrap justify-center">
                             {fronting.slice(0, 3).map((session, idx) => (
                               <div
