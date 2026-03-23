@@ -3,10 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { format, addHours, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 function toTimeString(date, hour) {
   const d = new Date(date);
@@ -229,10 +229,11 @@ export default function ActivityTimeRangeModal({
           {/* Notes */}
           <div>
             <label className="text-sm font-medium text-foreground">Notes — Optional</label>
-            <Textarea
+            <MentionTextarea
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any additional notes..."
+              onChange={setNotes}
+              alters={alters || []}
+              placeholder="Any additional notes... use @ to mention an alter"
               className="mt-1 h-20"
             />
           </div>

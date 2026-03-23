@@ -4,11 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { format, addMinutes } from "date-fns";
 import { toast } from "sonner";
 import { Trash2, Loader2, X } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { saveMentions } from "@/lib/mentionUtils";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -188,17 +189,25 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       const endDt = applyTimeStr(act.timestamp, editData.endTimeStr);
       const duration = Math.max(1, Math.round((endDt - startDt) / 60000));
 
-      const catNames = editData.activity_category_ids.map(id => catById[id]?.name).filter(Boolean);
-      const activity_name = catNames.length > 0 ? catNames.join(" + ") : "Activity";
-
-      await base44.entities.Activity.update(act.id, {
-        activity_name,
+      const catId = editData.activity_category_ids[0];
+      const catName = catById[catId]?.name || "Activity";
+      const activity_name = catName;
         activity_category_ids: editData.activity_category_ids,
         timestamp: startDt.toISOString(),
         duration_minutes: duration,
         fronting_alter_ids: editData.fronting_alter_ids,
         notes: editData.notes,
       });
+      if (editData.notes) {
+        await saveMentions({
+          content: editData.notes,
+          alters,
+          sourceType: "activity",
+          sourceId: act.id,
+          sourceLabel: `activity on ${format(new Date(act.timestamp), "MM/dd/yyyy")}`,
+          navigatePath: "/activities",
+        });
+      }
       toast.success("Activity updated");
       setEditingId(null);
       onSave?.();
@@ -361,10 +370,14 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                     />
 
                     <div>
-                      <label className="block text-sm font-semibold mb-2">Notes</label>
-                      <Textarea value={editData.notes}
-                        onChange={e => setEditData(d => ({ ...d, notes: e.target.value }))}
-                        placeholder="Add any notes..." className="h-20" />
+                       <label className="block text-sm font-semibold mb-2">Notes</label>
+                      <MentionTextarea
+                        value={editData.notes}
+                        onChange={(v) => setEditData(d => ({ ...d, notes: v }))}
+                        alters={alters}
+                        placeholder="Add any notes... use @ to mention an alter"
+                        className="h-20"
+                      />
                     </div>
 
                     <div className="flex gap-2 pt-2">
