@@ -12,7 +12,7 @@ export default function Timeline() {
   const [daysBack, setDaysBack] = useState(CHUNK_DAYS);
   const [showFronting, setShowFronting] = useState(true);
   const [showActivities, setShowActivities] = useState(true);
-  const [showEmotions, setShowEmotions] = useState(true);
+  const [showCheckIns, setShowCheckIns] = useState(true);
   const [jumpDate, setJumpDate] = useState("");
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
@@ -74,17 +74,7 @@ export default function Timeline() {
   // Build array of days from today back daysBack days
   const days = Array.from({ length: daysBack }, (_, i) => subDays(new Date(), i));
 
-  const [showJournals, setShowJournals] = useState(true);
-
-  const toggleStyles = (active) =>
-    `px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-      active
-        ? "bg-primary text-primary-foreground border-primary"
-        : "bg-card text-muted-foreground border-border hover:border-primary/50"
-    }`;
-
-  return (
-    <div className="space-y-4 max-w-3xl mx-auto" ref={containerRef}>
+  const toggleStyles
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-3xl font-bold">Timeline</h1>
         <div className="flex items-center gap-2 flex-wrap">
@@ -108,11 +98,8 @@ export default function Timeline() {
         <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)}>
           <span className="flex items-center gap-1.5"><Activity className="w-3 h-3" /> Activities</span>
         </button>
-        <button className={toggleStyles(showEmotions)} onClick={() => setShowEmotions(!showEmotions)}>
-          <span className="flex items-center gap-1.5"><Heart className="w-3 h-3" /> Emotions</span>
-        </button>
-        <button className={toggleStyles(showJournals)} onClick={() => setShowJournals(!showJournals)}>
-          <span className="flex items-center gap-1.5"><BookOpen className="w-3 h-3" /> Journals</span>
+        <button className={toggleStyles(showCheckIns)} onClick={() => setShowCheckIns(!showCheckIns)}>
+          <span className="flex items-center gap-1.5"><Heart className="w-3 h-3" /> Check Ins</span>
         </button>
       </div>
 
@@ -138,26 +125,20 @@ export default function Timeline() {
               })
             : [];
 
-          const dayEmotions = showEmotions
-            ? emotions.filter((e) => {
-                const t = new Date(e.timestamp);
-                return t >= dayStart && t <= dayEnd;
-              })
-            : [];
+          const dayEmotions = emotions.filter((e) => {
+            const t = new Date(e.timestamp);
+            return t >= dayStart && t <= dayEnd;
+          });
 
-          const dayJournals = showJournals
-            ? journals.filter((j) => {
-                const t = new Date(j.created_date);
-                return t >= dayStart && t <= dayEnd;
-              })
-            : [];
+          const dayJournals = journals.filter((j) => {
+            const t = new Date(j.created_date);
+            return t >= dayStart && t <= dayEnd;
+          });
 
-          const dayCheckIns = showJournals
-            ? checkIns.filter((c) => {
-                const t = new Date(c.created_date);
-                return t >= dayStart && t <= dayEnd;
-              })
-            : [];
+          const dayCheckIns = checkIns.filter((c) => {
+            const t = new Date(c.created_date);
+            return t >= dayStart && t <= dayEnd;
+          });
 
           const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0;
 
@@ -174,7 +155,7 @@ export default function Timeline() {
                 journals={dayJournals}
                 checkIns={dayCheckIns}
                 showActivities={showActivities}
-                showEmotions={showEmotions}
+                showCheckIns={showCheckIns}
               />
             </div>
           );
