@@ -76,11 +76,17 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
                   onClick={() => toggleActivity(main.id)}
                   className={`flex-1 px-3 py-2 rounded-full text-sm font-medium transition-all ${
                     isSelected
-                      ? "bg-primary text-primary-foreground"
+                      ? "text-white"
                       : "bg-muted text-muted-foreground hover:bg-accent"
                   }`}
+                  style={isSelected && main.color ? { backgroundColor: main.color } : isSelected ? {} : {}}
                 >
-                  {main.name}
+                  <span className="flex items-center gap-1.5">
+                    {main.color && !isSelected && (
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: main.color }} />
+                    )}
+                    {main.name}
+                  </span>
                 </button>
               </div>
 
@@ -95,11 +101,17 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
                         onClick={() => toggleActivity(sub.id)}
                         className={`w-full px-3 py-2 rounded-full text-sm font-medium transition-all text-left ${
                           isSubSelected
-                            ? "bg-primary text-primary-foreground"
+                            ? "text-white"
                             : "bg-muted text-muted-foreground hover:bg-accent"
                         }`}
+                        style={isSubSelected && sub.color ? { backgroundColor: sub.color } : {}}
                       >
-                        {sub.name}
+                        <span className="flex items-center gap-1.5">
+                          {sub.color && !isSubSelected && (
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sub.color }} />
+                          )}
+                          {sub.name}
+                        </span>
                       </button>
                     );
                   })}
