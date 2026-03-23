@@ -16,6 +16,7 @@ import ActivityTrendsChart from "@/components/analytics/ActivityTrendsChart";
 import ActivityTimeOfDayChart from "@/components/analytics/ActivityTimeOfDayChart";
 import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline";
 import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
+import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive";
 
 const MAIN_TABS = [
   { id: "alters", label: "System Members" },
@@ -28,6 +29,7 @@ const ACTIVITY_SUB_TABS = [
   { id: "overview", label: "Overview" },
   { id: "trends", label: "Trends" },
   { id: "alters", label: "Alter × Activity" },
+  { id: "deep", label: "Deep Dive" },
 ];
 
 const MODES = [
@@ -110,6 +112,16 @@ export default function Analytics() {
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
+  const { data: emotionCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns"],
+    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
+  });
+
+  const { data: systemCheckIns = [] } = useQuery({
+    queryKey: ["systemCheckIns"],
+    queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 500),
   });
 
   const altersById = useMemo(() => {
@@ -298,6 +310,18 @@ export default function Analytics() {
             <div className="space-y-6">
               <AlterActivityMatrix activities={activities} categories={activityCategories} alters={alters} from={from} to={to} />
             </div>
+          )}
+
+          {activitySubTab === "deep" && (
+            <AlterActivityDeepDive
+              activities={activities}
+              categories={activityCategories}
+              alters={alters}
+              emotionCheckIns={emotionCheckIns}
+              checkIns={systemCheckIns}
+              from={from}
+              to={to}
+            />
           )}
         </>
       )}
