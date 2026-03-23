@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,16 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   const [newSessionId, setNewSessionId] = useState(null);
   const [isUnsure, setIsUnsure] = useState(false);
   const [viewMode, setViewMode] = useState("list");
+
+  // Sync state when modal opens or currentSession changes
+  useEffect(() => {
+    if (open) {
+      setPrimaryId(currentSession?.primary_alter_id || "");
+      setCoFronterIds(currentSession?.co_fronter_ids || []);
+      setIsUnsure(false);
+      setJournalSwitch(false);
+    }
+  }, [open, currentSession?.primary_alter_id, currentSession?.co_fronter_ids]);
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const filtered = activeAlters.filter((a) =>
