@@ -7,19 +7,30 @@ const HOUR_HEIGHT = 56;
 const LABEL_WIDTH = 44;
 const ALTER_COL_WIDTH = 38;
 const ACTIVITY_COL_WIDTH = 44;
-const EMOTION_COL_WIDTH = 130;
-const JOURNAL_COL_WIDTH = 160;
+const CHECKIN_COL_WIDTH = 200; // merged emotions + journals/checkins
+
+const EMOTION_COLORS = [
+  "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
+  "#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4",
+  "#f97316","#84cc16","#e11d48","#7c3aed","#0891b2",
+];
+function emotionColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return EMOTION_COLORS[h % EMOTION_COLORS.length];
+}
 
 function minutesInDay(date, dayStart) {
   return differenceInMinutes(date, dayStart);
 }
 
-// Long press hook — onClick fires only if long press did NOT trigger
+// Long press — prevents text selection, onClick only fires if long press did NOT trigger
 function useLongPress(onLongPress, onClick, ms = 1500) {
   const timerRef = useRef(null);
   const firedRef = useRef(false);
 
   const start = useCallback((e) => {
+    e.preventDefault(); // prevent text selection on press
     firedRef.current = false;
     timerRef.current = setTimeout(() => {
       firedRef.current = true;
@@ -36,11 +47,15 @@ function useLongPress(onLongPress, onClick, ms = 1500) {
     if (timerRef.current) clearTimeout(timerRef.current);
   }, []);
 
-  return { onMouseDown: start, onMouseUp: end, onMouseLeave: cancel, onTouchStart: start, onTouchEnd: end };
+  return {
+    onMouseDown: start, onMouseUp: end, onMouseLeave: cancel,
+    onTouchStart: start, onTouchEnd: end,
+    style: { userSelect: "none", WebkitUserSelect: "none" },
+  };
 }
 
 // Alter avatar + duration bar
-function AlterBar({ alter, color, topPx, heightPx, colWidth }) {
+function AlterBar({ alter, color, topPx, heightPx }) {
   const avatarSize = 28;
   return (
     <div className="absolute flex flex-col items-center" style={{ top: `${topPx}px`, left: 0, right: 0 }}>
@@ -66,7 +81,7 @@ function AlterBar({ alter, color, topPx, heightPx, colWidth }) {
   );
 }
 
-// Activity bar with name label — shows full name, expands on tap, navigates on long press
+// Activity bar with name label — tap expands, long press navigates
 function ActivityBar({ activity, allNames, topPx, heightPx, onLongPress }) {
   const [showAll, setShowAll] = useState(false);
   const color = activity.color || "hsl(var(--primary))";
@@ -79,8 +94,12 @@ function ActivityBar({ activity, allNames, topPx, heightPx, onLongPress }) {
   return (
     <div
       className="absolute flex flex-col items-center cursor-pointer"
-      style={{ top: `${topPx}px`, left: 0, right: 0 }}
-      {...handlers}
+      style={{ top: `${topPx}px`, left: 0, right: 0, ...handlers.style }}
+      onMouseDown={handlers.onMouseDown}
+      onMouseUp={handlers.onMouseUp}
+      onMouseLeave={handlers.onMouseLeave}
+      onTouchStart={handlers.onTouchStart}
+      onTouchEnd={handlers.onTouchEnd}
     >
       <div
         className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
@@ -93,7 +112,7 @@ function ActivityBar({ activity, allNames, topPx, heightPx, onLongPress }) {
       </div>
       <div
         className="text-center leading-tight mt-0.5 px-0.5"
-        style={{ fontSize: 9, color, maxWidth: 52, wordBreak: "break-word" }}
+        style={{ fontSize: 9, color, maxWidth: 52, wordBreak: "break-word", userSelect: "none" }}
       >
         {displayName}
       </div>
@@ -110,54 +129,67 @@ function ActivityBar({ activity, allNames, topPx, heightPx, onLongPress }) {
   );
 }
 
-// Emotion pill
-function EmotionPill({ emotion, topPx, navigate }) {
+// Check-in column entry — emotion pill or journal/checkin entry
+function CheckInEntry({ entry, topPx, onLongPress }) {
   const [expanded, setExpanded] = useState(false);
-  const handlers = useLongPress(
-    () => { /* no dedicated page, just expand */ setExpanded(true); },
-    () => setExpanded(!expanded)
-  );
+  const handlers = useLongPress(onLongPress || null, entry.type === "emotion" ? () => setExpanded(v => !v) : null);
 
+  if (entry.type === "emotion") {
+    return (
+      <div
+        className="absolute left-1 right-1 cursor-pointer z-10"
+        style={{ top: `${topPx}px`, ...handlers.style }}
+        onMouseDown={handlers.onMouseDown}
+        onMouseUp={handlers.onMouseUp}
+        onMouseLeave={handlers.onMouseLeave}
+        onTouchStart={handlers.onTouchStart}
+        onTouchEnd={handlers.onTouchEnd}
+      >
+        <div className="rounded-lg border border-border/60 bg-card/80 px-1.5 py-1 shadow-sm">
+          <p className="text-xs text-muted-foreground mb-1 leading-tight">
+            💭 {format(new Date(entry.data.timestamp), "h:mm a")}
+          </p>
+          <div className="flex flex-wrap gap-0.5">
+            {(entry.data.emotions || []).slice(0, expanded ? 99 : 4).map((em) => {
+              const c = emotionColor(em);
+              return (
+                <span
+                  key={em}
+                  className="px-1.5 py-0.5 rounded-full text-white font-medium leading-none"
+                  style={{ fontSize: 9, backgroundColor: c }}
+                >
+                  {em}
+                </span>
+              );
+            })}
+            {!expanded && (entry.data.emotions || []).length > 4 && (
+              <span className="text-xs text-muted-foreground self-center">
+                +{entry.data.emotions.length - 4}
+              </span>
+            )}
+          </div>
+          {expanded && entry.data.note && (
+            <p className="text-xs text-muted-foreground italic mt-1 leading-tight">{entry.data.note}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // journal or checkin
   return (
     <div
       className="absolute left-1 right-1 cursor-pointer z-10"
-      style={{ top: `${topPx}px` }}
-      {...handlers}
+      style={{ top: `${topPx}px`, ...handlers.style }}
+      onMouseDown={handlers.onMouseDown}
+      onMouseUp={handlers.onMouseUp}
+      onMouseLeave={handlers.onMouseLeave}
+      onTouchStart={handlers.onTouchStart}
+      onTouchEnd={handlers.onTouchEnd}
     >
-      <div className={`rounded-lg border border-rose-200 bg-rose-50 dark:bg-rose-950/30 dark:border-rose-800 px-1.5 py-1 transition-all ${expanded ? "" : ""}`}>
-        <p className="text-xs font-semibold text-rose-700 dark:text-rose-300 leading-tight">
-          💭 {emotion.emotions?.slice(0, 2).join(", ") || "Check-in"}
-        </p>
-        {expanded && (
-          <div className="mt-1 space-y-0.5">
-            <p className="text-xs text-muted-foreground">{format(new Date(emotion.timestamp), "h:mm a")}</p>
-            {emotion.emotions?.length > 0 && (
-              <div className="flex gap-1 flex-wrap mt-0.5">
-                {emotion.emotions.map((em) => (
-                  <span key={em} className="px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-300 text-xs">{em}</span>
-                ))}
-              </div>
-            )}
-            {emotion.note && <p className="text-xs text-muted-foreground italic">{emotion.note}</p>}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Center column entry — long press navigates, tap does nothing
-function CenterEntry({ topPx, label, icon, onLongPress }) {
-  const handlers = useLongPress(onLongPress, null);
-  return (
-    <div
-      className="absolute left-0 right-0 cursor-pointer group"
-      style={{ top: `${topPx}px`, zIndex: 5 }}
-      {...handlers}
-    >
-      <div className="mx-1 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors group-active:scale-95">
-        <p className="text-xs text-muted-foreground leading-tight">
-          {icon} {label}
+      <div className="mx-0 px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 hover:bg-muted transition-colors">
+        <p className="text-xs text-muted-foreground leading-tight truncate">
+          {entry.type === "journal" ? "📓" : "✅"} {entry.label}
         </p>
       </div>
     </div>
@@ -227,7 +259,6 @@ export default function InfiniteTimeline({
 
   // Build activity segments grouped by name, merged consecutively
   const activityEntries = useMemo(() => {
-    // Group all activities by time bucket (same minute = same slot), merge names
     const byName = {};
     activities.forEach((act) => {
       const startMins = Math.max(0, minutesInDay(new Date(act.timestamp), dayStart));
@@ -238,7 +269,6 @@ export default function InfiniteTimeline({
       byName[name].push({ startMins, endMins: Math.max(endMins, startMins + 5), activity: act });
     });
 
-    // Merge consecutive same-name occurrences (within 10 mins)
     const merged = [];
     Object.entries(byName).forEach(([name, segs]) => {
       const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
@@ -270,44 +300,52 @@ export default function InfiniteTimeline({
     return cols;
   }, [activityEntries]);
 
-  // Emotion events positioned
-  const emotionEvents = useMemo(() => {
-    return emotions.map((e) => ({
-      mins: Math.max(0, minutesInDay(new Date(e.timestamp), dayStart)),
-      data: e,
-    }));
-  }, [emotions, dayStart]);
-
-  // Center column entries: journals + check-ins at their time
-  const centerEntries = useMemo(() => {
+  // Combined check-in column: emotions + journals + system check-ins, sorted by time
+  const checkInEntries = useMemo(() => {
     const entries = [];
+    if (showEmotions) {
+      emotions.forEach((e) => {
+        entries.push({
+          mins: Math.max(0, minutesInDay(new Date(e.timestamp), dayStart)),
+          type: "emotion",
+          id: e.id,
+          data: e,
+        });
+      });
+    }
     journals.forEach((j) => {
       const t = new Date(j.created_date);
-      const mins = Math.max(0, minutesInDay(t, dayStart));
-      entries.push({ mins, type: "journal", id: j.id, label: j.title || "Journal Entry" });
+      entries.push({
+        mins: Math.max(0, minutesInDay(t, dayStart)),
+        type: "journal",
+        id: j.id,
+        label: j.title || "Journal Entry",
+      });
     });
     checkIns.forEach((c) => {
       const t = new Date(c.created_date);
-      const mins = Math.max(0, minutesInDay(t, dayStart));
-      entries.push({ mins, type: "checkin", id: c.id, label: "System Check-In" });
+      entries.push({
+        mins: Math.max(0, minutesInDay(t, dayStart)),
+        type: "checkin",
+        id: c.id,
+        label: "System Check-In",
+      });
     });
-    return entries;
-  }, [journals, checkIns, dayStart]);
+    return entries.sort((a, b) => a.mins - b.mins);
+  }, [emotions, journals, checkIns, dayStart, showEmotions]);
 
   // Layout widths
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
   const activityAreaWidth = showActivities ? numActivityCols * ACTIVITY_COL_WIDTH : 0;
-  const emotionAreaWidth = showEmotions ? EMOTION_COL_WIDTH : 0;
-  const centerAreaWidth = LABEL_WIDTH + JOURNAL_COL_WIDTH;
+  const checkInAreaWidth = CHECKIN_COL_WIDTH;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * ALTER_COL_WIDTH;
-  const totalWidth = activityAreaWidth + emotionAreaWidth + centerAreaWidth + alterAreaWidth;
+  const totalWidth = activityAreaWidth + LABEL_WIDTH + checkInAreaWidth + alterAreaWidth;
 
   // Column starts
-  const emotionLeft = activityAreaWidth;
-  const timeLeft = emotionLeft + emotionAreaWidth;
-  const journalLeft = timeLeft + LABEL_WIDTH;
-  const alterLeft = timeLeft + LABEL_WIDTH + JOURNAL_COL_WIDTH;
+  const timeLeft = activityAreaWidth;
+  const checkInLeft = timeLeft + LABEL_WIDTH;
+  const alterLeft = checkInLeft + checkInAreaWidth;
 
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
@@ -317,6 +355,7 @@ export default function InfiniteTimeline({
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
+        style={{ userSelect: "none" }}
       >
         <div className="flex items-center gap-3">
           <span className={`font-semibold text-sm ${isToday ? "text-primary" : "text-foreground"}`}>{dateLabel}</span>
@@ -335,6 +374,22 @@ export default function InfiniteTimeline({
 
       {!collapsed && (
         <div className="overflow-x-auto border-t border-border">
+          {/* Column headers */}
+          <div className="flex border-b border-border/40 bg-muted/20" style={{ minWidth: `${totalWidth}px` }}>
+            {showActivities && (
+              <div className="text-center py-1" style={{ width: activityAreaWidth }}>
+                <span className="text-xs text-muted-foreground font-medium">Activities</span>
+              </div>
+            )}
+            <div style={{ width: LABEL_WIDTH }} />
+            <div className="text-center py-1" style={{ width: checkInAreaWidth }}>
+              <span className="text-xs text-muted-foreground font-medium">Check Ins</span>
+            </div>
+            <div className="text-center py-1" style={{ width: alterAreaWidth }}>
+              <span className="text-xs text-muted-foreground font-medium">Alters</span>
+            </div>
+          </div>
+
           <div className="overflow-y-auto max-h-96">
             <div className="relative" style={{ height: `${containerHeight}px`, minWidth: `${totalWidth}px` }}>
 
@@ -377,32 +432,20 @@ export default function InfiniteTimeline({
                 </div>
               ))}
 
-              {/* Emotion/check-in column */}
-              {showEmotions && (
-                <div className="absolute" style={{ left: emotionLeft, top: 0, width: EMOTION_COL_WIDTH, height: containerHeight }}>
-                  {emotionEvents.map((evt, idx) => (
-                    <EmotionPill
-                      key={idx}
-                      emotion={evt.data}
-                      topPx={(evt.mins / 60) * HOUR_HEIGHT}
-                      navigate={navigate}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Center column: journal + check-in titles */}
-              <div className="absolute" style={{ left: journalLeft, top: 0, width: JOURNAL_COL_WIDTH, height: containerHeight }}>
-                {centerEntries.map((entry, idx) => (
-                  <CenterEntry
+              {/* Combined Check Ins column: emotions + journals + system check-ins */}
+              <div className="absolute" style={{ left: checkInLeft, top: 0, width: checkInAreaWidth, height: containerHeight }}>
+                {checkInEntries.map((entry, idx) => (
+                  <CheckInEntry
                     key={idx}
+                    entry={entry}
                     topPx={(entry.mins / 60) * HOUR_HEIGHT}
-                    label={entry.label}
-                    icon={entry.type === "journal" ? "📓" : "✅"}
-                    onLongPress={() => {
-                      if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
-                      else navigate(`/system-checkin?id=${entry.id}`);
-                    }}
+                    onLongPress={
+                      entry.type === "journal"
+                        ? () => navigate(`/journals?id=${entry.id}`)
+                        : entry.type === "checkin"
+                          ? () => navigate(`/system-checkin?id=${entry.id}`)
+                          : null
+                    }
                   />
                 ))}
               </div>

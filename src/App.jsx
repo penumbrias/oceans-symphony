@@ -12,7 +12,7 @@ import Dashboard from '@/pages/Dashboard';
 import { Navigate } from 'react-router-dom';
 import AlterProfile from '@/pages/AlterProfile';
 import Settings from '@/pages/Settings';
-import FrontHistory from '@/pages/FrontHistory';
+
 import Analytics from '@/pages/Analytics';
 import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
@@ -61,7 +61,7 @@ const AuthenticatedApp = () => {
         <Route path="/Home" element={<Home />} />
         <Route path="/alter/:id" element={<AlterProfile />} />
         <Route path="/settings" element={<Settings />} />
-        <Route path="/front-history" element={<FrontHistory />} />
+
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/journals" element={<Journals />} />
         <Route path="/diary" element={<DiaryCards />} />
