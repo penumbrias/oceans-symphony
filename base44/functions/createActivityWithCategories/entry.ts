@@ -11,30 +11,27 @@ Deno.serve(async (req) => {
 
     const { activity_category_ids, duration_minutes, fronting_alter_ids, notes, emotions, timestamp } = await req.json();
 
-    // Fetch categories to build activity name
+    // Fetch categories for names and colors
     const categories = await base44.entities.ActivityCategory.list();
-    const categoryNames = (activity_category_ids || [])
-      .map(id => categories.find(c => c.id === id)?.name)
-      .filter(Boolean);
-    
-    const activity_name = categoryNames.length > 0 ? categoryNames.join(" + ") : "Activity";
 
-    // Use color from the first matching category (or passed color)
-    const firstCategory = categories.find(c => (activity_category_ids || []).includes(c.id));
-    const color = firstCategory?.color || null;
+    // Create ONE Activity per category — categories ARE the activities
+    const created = await Promise.all(
+      (activity_category_ids || []).map(async (catId) => {
+        const cat = categories.find(c => c.id === catId);
+        return base44.entities.Activity.create({
+          timestamp: timestamp || new Date().toISOString(),
+          activity_name: cat?.name || "Activity",
+          activity_category_ids: [catId],
+          color: cat?.color || null,
+          duration_minutes,
+          fronting_alter_ids: fronting_alter_ids || [],
+          notes,
+          emotions: emotions || [],
+        });
+      })
+    );
 
-    const activity = await base44.entities.Activity.create({
-      timestamp: timestamp || new Date().toISOString(),
-      activity_name,
-      activity_category_ids: activity_category_ids || [],
-      color,
-      duration_minutes,
-      fronting_alter_ids: fronting_alter_ids || [],
-      notes,
-      emotions: emotions || [],
-    });
-
-    return Response.json(activity);
+    return Response.json(created);
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
