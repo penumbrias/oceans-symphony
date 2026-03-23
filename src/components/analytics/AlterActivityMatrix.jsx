@@ -1,58 +1,75 @@
 import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { startOfDay, endOfDay } from "date-fns";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 export default function AlterActivityMatrix({ activities = [], categories = [], alters = [], from, to }) {
-  const [sortBy, setSortBy] = useState("total"); // "total" | activity id
+  const [expandedParents, setExpandedParents] = useState(new Set());
 
-  const { matrix, activityLabels, alterRows } = useMemo(() => {
+  const catMap = useMemo(() => {
+    const m = {};
+    categories.forEach(c => { m[c.id] = c; });
+    return m;
+  }, [categories]);
+
+  // Build parent→children hierarchy
+  const rootCategories = useMemo(
+    () => categories.filter(c => !c.parent_category_id).sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [categories]
+  );
+  const childrenOf = useMemo(() => {
+    const map = {};
+    categories.forEach(c => {
+      if (c.parent_category_id) {
+        if (!map[c.parent_category_id]) map[c.parent_category_id] = [];
+        map[c.parent_category_id].push(c);
+      }
+    });
+    return map;
+  }, [categories]);
+
+  const toggleParent = (id) => setExpandedParents(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const { alterRows, countsByCatKey } = useMemo(() => {
     const fromMs = startOfDay(from).getTime();
     const toMs = endOfDay(to).getTime();
-    const catMap = {};
-    categories.forEach(c => { catMap[c.id] = c; });
 
     const filtered = activities.filter(a => {
       const t = new Date(a.timestamp).getTime();
       return t >= fromMs && t <= toMs;
     });
 
-    // Each category on an activity is counted independently
-    const activitySet = new Map();
-    filtered.forEach(act => {
-      const ids = act.activity_category_ids || [];
-      if (ids.length === 0) {
-        const label = act.activity_name || "Unknown";
-        if (!activitySet.has(label)) activitySet.set(label, { label, color: "#8b5cf6", key: label });
-      } else {
-        ids.forEach(id => {
-          const cat = catMap[id];
-          if (!cat) return;
-          if (!activitySet.has(cat.name)) activitySet.set(cat.name, { label: cat.name, color: cat.color || "#8b5cf6", key: cat.name });
-        });
-      }
-    });
-
-    const activityLabels = Array.from(activitySet.values());
-
+    // alterMap: alterId → { alter, countsByKey: {catName→count}, total, totalDuration }
     const alterMap = {};
     alters.forEach(alter => {
-      alterMap[alter.id] = { alter, counts: {}, total: 0, totalDuration: 0 };
-      activityLabels.forEach(a => { alterMap[alter.id].counts[a.key] = 0; });
+      alterMap[alter.id] = { alter, countsByKey: {}, total: 0, totalDuration: 0 };
     });
 
     filtered.forEach(act => {
       const ids = act.activity_category_ids || [];
-      const labels = ids.length > 0
+      const catNames = ids.length > 0
         ? ids.map(id => catMap[id]?.name).filter(Boolean)
         : [act.activity_name || "Unknown"];
       const fronters = act.fronting_alter_ids || [];
       fronters.forEach(alterId => {
         if (!alterMap[alterId]) return;
-        labels.forEach(label => {
-          alterMap[alterId].counts[label] = (alterMap[alterId].counts[label] || 0) + 1;
+        catNames.forEach(name => {
+          alterMap[alterId].countsByKey[name] = (alterMap[alterId].countsByKey[name] || 0) + 1;
           alterMap[alterId].total += 1;
         });
         alterMap[alterId].totalDuration += act.duration_minutes || 0;
+      });
+    });
+
+    // Aggregate counts by category key across all alters (for column visibility)
+    const countsByCatKey = {};
+    Object.values(alterMap).forEach(({ countsByKey }) => {
+      Object.entries(countsByKey).forEach(([k, v]) => {
+        countsByCatKey[k] = (countsByCatKey[k] || 0) + v;
       });
     });
 
@@ -60,8 +77,25 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
       .filter(r => r.total > 0)
       .sort((a, b) => b.total - a.total);
 
-    return { matrix: alterMap, activityLabels, alterRows };
-  }, [activities, categories, alters, from, to]);
+    return { alterRows, countsByCatKey };
+  }, [activities, categories, alters, from, to, catMap]);
+
+  // Build visible columns: root cats + optionally their children if expanded
+  const visibleColumns = useMemo(() => {
+    const cols = [];
+    const addCat = (cat, level) => {
+      const hasChildren = (childrenOf[cat.id] || []).length > 0;
+      const hasData = countsByCatKey[cat.name] > 0 ||
+        (childrenOf[cat.id] || []).some(c => countsByCatKey[c.name] > 0);
+      if (!hasData) return;
+      cols.push({ cat, level, hasChildren, isParent: level === 0 && hasChildren });
+      if (hasChildren && expandedParents.has(cat.id)) {
+        (childrenOf[cat.id] || []).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(child => addCat(child, level + 1));
+      }
+    };
+    rootCategories.forEach(cat => addCat(cat, 0));
+    return cols;
+  }, [rootCategories, childrenOf, expandedParents, countsByCatKey]);
 
   if (alterRows.length === 0) {
     return (
@@ -74,12 +108,14 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
     );
   }
 
-  const maxCount = Math.max(...alterRows.flatMap(r => Object.values(r.counts)));
+  const maxCount = Math.max(...alterRows.flatMap(r => Object.values(r.countsByKey).filter(Number)));
 
   return (
     <Card className="p-4">
       <h3 className="text-sm font-semibold mb-1">Alter ↔ Activity Association</h3>
-      <p className="text-xs text-muted-foreground mb-4">How many times each alter was fronting during each activity</p>
+      <p className="text-xs text-muted-foreground mb-4">
+        Click parent column headers to expand sub-activities. Each cell = times fronting during that activity.
+      </p>
 
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">
@@ -88,13 +124,29 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
               <th className="text-left p-2 font-medium text-muted-foreground sticky left-0 bg-card z-10 min-w-[120px]">
                 Alter
               </th>
-              {activityLabels.map(a => (
-                <th key={a.key} className="p-2 text-center font-medium min-w-[80px]">
+              {visibleColumns.map(({ cat, level, hasChildren, isParent }) => (
+                <th key={cat.id} className="p-2 text-center font-medium min-w-[80px]">
                   <div className="flex flex-col items-center gap-1">
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: a.color }} />
-                    <span className="text-muted-foreground leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", maxHeight: 80, overflow: "hidden" }}>
-                      {a.label}
-                    </span>
+                    <button
+                      className="flex flex-col items-center gap-1 w-full"
+                      onClick={() => hasChildren && toggleParent(cat.id)}
+                      title={hasChildren ? (expandedParents.has(cat.id) ? "Collapse" : "Expand sub-activities") : undefined}
+                    >
+                      <div className="flex items-center gap-0.5">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color || "#8b5cf6" }} />
+                        {hasChildren && (
+                          expandedParents.has(cat.id)
+                            ? <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                            : <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                        )}
+                      </div>
+                      <span
+                        className={`text-muted-foreground leading-tight ${level > 0 ? "opacity-70" : ""}`}
+                        style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", maxHeight: 80, overflow: "hidden", paddingLeft: level * 4 }}
+                      >
+                        {cat.name}
+                      </span>
+                    </button>
                   </div>
                 </th>
               ))}
@@ -118,15 +170,15 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
                     <span className="font-medium truncate max-w-[80px]">{row.alter.alias || row.alter.name}</span>
                   </div>
                 </td>
-                {activityLabels.map(a => {
-                  const count = row.counts[a.key] || 0;
+                {visibleColumns.map(({ cat }) => {
+                  const count = row.countsByKey[cat.name] || 0;
                   const intensity = maxCount > 0 ? count / maxCount : 0;
                   return (
-                    <td key={a.key} className="p-1 text-center">
+                    <td key={cat.id} className="p-1 text-center">
                       {count > 0 ? (
                         <div
                           className="mx-auto w-8 h-8 rounded-md flex items-center justify-center font-semibold text-white text-xs"
-                          style={{ backgroundColor: a.color, opacity: 0.3 + intensity * 0.7 }}
+                          style={{ backgroundColor: cat.color || "#8b5cf6", opacity: 0.3 + intensity * 0.7 }}
                         >
                           {count}
                         </div>
