@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pin, PenLine, Bell, Search, MessageCircle } from "lucide-react";
@@ -11,6 +12,9 @@ export default function BulletinBoard({ alters, currentAlterId }) {
   const [composing, setComposing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(10);
+  const [highlightId, setHighlightId] = useState(null);
+  const location = useLocation();
+  const bulletinRefs = useRef({});
   const [replyingTo, setReplyingTo] = useState(null);
   const observerTarget = useRef(null);
   const queryClient = useQueryClient();
@@ -19,6 +23,22 @@ export default function BulletinBoard({ alters, currentAlterId }) {
     queryKey: ["bulletins"],
     queryFn: () => base44.entities.Bulletin.list("-created_date", 100),
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const bid = params.get("bulletin");
+    if (bid && bulletins.length > 0) {
+      setHighlightId(bid);
+      // ensure visible
+      const idx = bulletins.findIndex((b) => b.id === bid);
+      if (idx !== -1) setVisibleCount((v) => Math.max(v, idx + 5));
+      setTimeout(() => {
+        bulletinRefs.current[bid]?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+      const timer = setTimeout(() => setHighlightId(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [location.search, bulletins.length]);
   
   // Intersection observer for lazy loading
   useEffect(() => {
@@ -125,13 +145,15 @@ export default function BulletinBoard({ alters, currentAlterId }) {
           </div>
           <div className="space-y-3">
             {pinned.map((b) => (
+            <div key={b.id} ref={(el) => (bulletinRefs.current[b.id] = el)}>
               <BulletinCard
-                key={b.id}
                 bulletin={b}
                 alters={alters}
                 currentAlterId={currentAlterId}
                 canDelete
+                highlight={highlightId === b.id}
               />
+            </div>
             ))}
           </div>
         </div>
@@ -145,16 +167,17 @@ export default function BulletinBoard({ alters, currentAlterId }) {
          )}
          <div className="space-y-3">
            {filteredRecent.slice(0, visibleCount).map((b) => (
-             <BulletinCard
-               key={b.id}
-               bulletin={b}
-               alters={alters}
-               currentAlterId={currentAlterId}
-               canDelete
-               onReply={() => handleReply(b)}
-             />
-           ))}
-         </div>
+              <div key={b.id} ref={(el) => (bulletinRefs.current[b.id] = el)}>
+                <BulletinCard
+                  bulletin={b}
+                  alters={alters}
+                  currentAlterId={currentAlterId}
+                  canDelete
+                  highlight={highlightId === b.id}
+                />
+              </div>
+            ))}
+           </div>
          {visibleCount < filteredRecent.length && (
            <div ref={observerTarget} className="py-4 text-center">
              <p className="text-xs text-muted-foreground">Loading more...</p>
