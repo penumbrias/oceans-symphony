@@ -124,24 +124,26 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
 
   return (
     <div className="px-4 py-3 bg-muted/20 border-t border-border/40 space-y-2 text-xs">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-muted-foreground font-medium mb-1">Emotions</p>
+          <p className="text-muted-foreground font-medium mb-1">Activities</p>
           <div className="flex flex-wrap gap-1">
-            {emotionTally.length > 0 ? (
-              emotionTally.slice(0, 5).map(([em, count]) => (
-                <div key={em} className="px-1.5 py-0.5 rounded text-white font-medium text-xs flex items-center gap-1"
-                  style={{ backgroundColor: emotionColor(em) }}>
-                  {em} <span className="opacity-80">×{count}</span>
+            {uniqueActivities.length > 0 ? (
+              uniqueActivities.slice(0, 6).map((name) => (
+                <div key={name} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium text-xs">
+                  {name}
                 </div>
               ))
             ) : (
               <span className="text-muted-foreground italic">None</span>
             )}
+            {uniqueActivities.length > 6 && (
+              <span className="text-muted-foreground text-xs">+{uniqueActivities.length - 6} more</span>
+            )}
           </div>
         </div>
 
-        <div className="flex gap-4 col-span-1">
+        <div className="flex gap-4">
           <div className="flex flex-col items-center justify-start">
             <p className="text-muted-foreground font-medium text-xs mb-1">Switches</p>
             <p className="text-2xl font-bold text-primary">{switchCount}</p>
@@ -166,19 +168,17 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
         </div>
 
         <div>
-          <p className="text-muted-foreground font-medium mb-1">Activities</p>
+          <p className="text-muted-foreground font-medium mb-1">Emotions</p>
           <div className="flex flex-wrap gap-1">
-            {uniqueActivities.length > 0 ? (
-              uniqueActivities.slice(0, 6).map((name) => (
-                <div key={name} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium text-xs">
-                  {name}
+            {emotionTally.length > 0 ? (
+              emotionTally.slice(0, 5).map(([em, count]) => (
+                <div key={em} className="px-1.5 py-0.5 rounded text-white font-medium text-xs flex items-center gap-1"
+                  style={{ backgroundColor: emotionColor(em) }}>
+                  {em} <span className="opacity-80">×{count}</span>
                 </div>
               ))
             ) : (
               <span className="text-muted-foreground italic">None</span>
-            )}
-            {uniqueActivities.length > 6 && (
-              <span className="text-muted-foreground text-xs">+{uniqueActivities.length - 6} more</span>
             )}
           </div>
         </div>
