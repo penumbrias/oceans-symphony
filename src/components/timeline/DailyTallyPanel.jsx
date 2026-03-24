@@ -141,30 +141,29 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <div>
-            <p className="text-muted-foreground font-medium mb-1">Switches</p>
-            <p className="text-base font-semibold">{switchCount}</p>
-            {switchCount > 0 && (
-              <p className="text-muted-foreground text-xs">avg {avgSwitchTime}m each</p>
-            )}
+        <div>
+          <div className="flex items-start justify-between mb-2">
+            <p className="text-muted-foreground font-medium">Fronters</p>
+            <div className="text-right">
+              <p className="text-base font-semibold">{switchCount}</p>
+              <p className="text-muted-foreground text-xs">switches</p>
+            </div>
           </div>
-          <div>
-            <p className="text-muted-foreground font-medium mb-1">Fronters</p>
-            <div className="space-y-0.5">
-              {fronterTally.length > 0 ? (
-                fronterTally.slice(0, 3).map(({ alter, mins }) => (
-                  <div key={alter?.id} className="flex items-center gap-1.5">
+          <div className="space-y-0.5">
+            {fronterTally.length > 0 ? (
+              fronterTally.map(({ alter, mins }) => (
+                <div key={alter?.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: alter?.color || "#9333ea" }} />
                     <span className="truncate">{alter?.name || "Unknown"}</span>
-                    <span className="text-muted-foreground">{Math.round(mins / 60)}h</span>
                   </div>
-                ))
-              ) : (
-                <span className="text-muted-foreground italic">None</span>
-              )}
-            </div>
+                  <span className="text-muted-foreground text-xs">{Math.round(mins / 60)}h</span>
+                </div>
+              ))
+            ) : (
+              <span className="text-muted-foreground italic">None</span>
+            )}
           </div>
         </div>
 
