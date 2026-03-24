@@ -14,6 +14,16 @@ import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 export default function Dashboard() {
   const [showEmotionModal, setShowEmotionModal] = useState(false);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
+  const [highlightBulletinId, setHighlightBulletinId] = useState(null);
+
+  const handleNotifClick = (mentionLog) => {
+    const bid = mentionLog.source_id;
+    if (bid) {
+      setShowNotifHistory(false);
+      setHighlightBulletinId(bid);
+      setTimeout(() => setHighlightBulletinId(null), 3000);
+    }
+  };
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -49,6 +59,7 @@ export default function Dashboard() {
         mentionLogs={mentionLogs}
         alters={alters}
         frontingAlterIds={frontingAlterIds}
+        onNotifClick={handleNotifClick}
       />
       <div className="mb-5 flex items-start justify-between">
         <div>
@@ -71,6 +82,7 @@ export default function Dashboard() {
         open={showNotifHistory}
         onClose={() => setShowNotifHistory(false)}
         alters={alters}
+        onNotifClick={handleNotifClick}
       />
       
       <button
@@ -83,7 +95,7 @@ export default function Dashboard() {
 
       <NewFeaturesBar />
       <QuickNavMenu />
-      <BulletinBoard alters={alters} currentAlterId={currentAlterId} />
+      <BulletinBoard alters={alters} currentAlterId={currentAlterId} highlightBulletinId={highlightBulletinId} />
 
       <QuickCheckInModal 
         isOpen={showEmotionModal} 

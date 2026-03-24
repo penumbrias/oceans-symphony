@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Bell, X } from "lucide-react";
 import { format } from "date-fns";
 
-export default function NotificationPopups({ mentionLogs = [], alters = [], frontingAlterIds = [] }) {
-  const navigate = useNavigate();
+export default function NotificationPopups({ mentionLogs = [], alters = [], frontingAlterIds = [], onNotifClick }) {
   const [dismissed, setDismissed] = useState(new Set());
 
   const relevant = mentionLogs.filter(
@@ -35,7 +34,7 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
               className="flex-1 text-left min-w-0"
               onClick={() => {
                 setDismissed((d) => new Set([...d, m.id]));
-                navigate(m.navigate_path || "/");
+                onNotifClick?.(m);
               }}
             >
               <div className="flex items-center gap-1.5 mb-0.5">

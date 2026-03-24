@@ -6,8 +6,7 @@ import { Bell, X } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-export default function NotificationHistoryModal({ open, onClose, alters = [] }) {
-  const navigate = useNavigate();
+export default function NotificationHistoryModal({ open, onClose, alters = [], onNotifClick }) {
 
   const { data: mentionLogs = [] } = useQuery({
     queryKey: ["mentionLogs"],
@@ -33,7 +32,7 @@ export default function NotificationHistoryModal({ open, onClose, alters = [] })
             return (
               <button
                 key={m.id}
-                onClick={() => { onClose(); navigate(m.navigate_path || "/"); }}
+                onClick={() => { onClose(); onNotifClick?.(m); }}
                 className="w-full text-left rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/30 p-3 flex gap-3 transition-colors"
               >
                 <div
