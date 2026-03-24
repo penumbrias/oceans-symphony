@@ -1,18 +1,23 @@
 import React from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
-  { path: "/Home", label: "Members", icon: Users },
+function useNavItems(terms) {
+  return [
+  { path: "/Home", label: terms.Alters, icon: Users },
   { path: "/system-checkin", label: "Check-In", icon: ClipboardList },
   { path: "/journals", label: "Journals", icon: BookOpen },
   { path: "/tasks", label: "Tasks", icon: CheckSquare },
-];
+  ];
+}
 
 export default function AppLayout() {
   const location = useLocation();
+  const terms = useTerms();
+  const navItems = useNavItems(terms);
 
   return (
     <div className="min-h-screen bg-background">
