@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +17,7 @@ const PRESET_EMOTIONS = [
 
 export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [] }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const [selectedEmotions, setSelectedEmotions] = useState([]);
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
@@ -250,10 +252,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
           {/* Alters */}
           <div>
-            <p className="text-sm font-medium mb-2">Who's fronting? (optional)</p>
+            <p className="text-sm font-medium mb-2">Who's {terms.fronting}? (optional)</p>
             <div className="relative mb-3">
               <Input
-                placeholder="Type name or alias..."
+                placeholder={`Type ${terms.alter} name or alias...`}
                 value={alterInput}
                 onChange={(e) => setAlterInput(e.target.value)}
                 className="text-sm"

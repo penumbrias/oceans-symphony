@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 export default function AlterSelector({ alters, selected, onChange }) {
+  const terms = useTerms();
   const [alterInput, setAlterInput] = useState("");
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
@@ -21,10 +23,10 @@ export default function AlterSelector({ alters, selected, onChange }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-medium">Who's fronting?</p>
+      <p className="text-sm font-medium">Who's {terms.fronting}?</p>
       <div className="relative">
         <Input
-          placeholder="Type name or alias..."
+          placeholder={`Type ${terms.alter} name or alias...`}
           value={alterInput}
           onChange={(e) => setAlterInput(e.target.value)}
           className="text-sm"
