@@ -554,26 +554,33 @@ export default function InfiniteTimeline({
                 </div>
               ))}
 
-              {/* Check-ins column */}
+              {/* Check-ins column: emotions right, events left */}
               {showCheckIns && (
                 <div className="absolute" style={{ left: checkInLeft, top: 0, width: checkInAreaWidth, height: totalHeight }}>
-                  {checkInPositioned.map((entry) => {
-                    const isExpanded = expandedKeys.has(entry.key);
-                    return (
-                      <CheckInEntry
-                        key={entry.key}
-                        entry={{ ...entry, expanded: isExpanded }}
-                        topPx={entry.adjustedTop}
-                        onTap={() => toggleExpand(entry.key)}
-                        onDoubleTap={() => {
-                          if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
-                          else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
-                          else if (entry.type === "bulletin") navigate(`/`);
-                          else if (entry.type === "task") navigate(`/todo`);
-                        }}
-                      />
-                    );
-                  })}
+                  {emotionPositioned.map((entry) => (
+                    <EmotionBubble
+                      key={entry.key}
+                      entry={entry}
+                      topPx={entry.adjustedTop}
+                      expanded={expandedKeys.has(entry.key)}
+                      onTap={() => toggleExpand(entry.key)}
+                    />
+                  ))}
+                  {eventPositioned.map((entry) => (
+                    <EventEntry
+                      key={entry.key}
+                      entry={entry}
+                      topPx={entry.adjustedTop}
+                      expanded={expandedKeys.has(entry.key)}
+                      onTap={() => toggleExpand(entry.key)}
+                      onDoubleTap={() => {
+                        if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
+                        else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
+                        else if (entry.type === "bulletin") navigate(`/`);
+                        else if (entry.type === "task") navigate(`/todo`);
+                      }}
+                    />
+                  ))}
                 </div>
               )}
 
