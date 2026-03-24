@@ -1,9 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Bell, X } from "lucide-react";
 import { format } from "date-fns";
 
+const STORAGE_KEY = "seen_notification_ids";
+
+function getSeenIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")); }
+  catch { return new Set(); }
+}
+
+function markSeen(id) {
+  const ids = getSeenIds();
+  ids.add(id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+}
+
 export default function NotificationPopups({ mentionLogs = [], alters = [], frontingAlterIds = [], onNotifClick }) {
-  const [dismissed, setDismissed] = useState(new Set());
+  const [dismissed, setDismissed] = useState(() => getSeenIds());
 
   const relevant = mentionLogs.filter(
     (m) =>
@@ -32,6 +45,7 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
             <button
               className="flex-1 text-left min-w-0"
               onClick={() => {
+                markSeen(m.id);
                 setDismissed((d) => new Set([...d, m.id]));
                 onNotifClick?.(m);
               }}
@@ -49,7 +63,7 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
               <span className="text-[10px] text-primary mt-1 block">in {m.source_label} · tap to view</span>
             </button>
             <button
-              onClick={() => setDismissed((d) => new Set([...d, m.id]))}
+              onClick={() => { markSeen(m.id); setDismissed((d) => new Set([...d, m.id])); }}
               className="flex-shrink-0 text-muted-foreground hover:text-foreground p-0.5"
             >
               <X className="w-3.5 h-3.5" />
