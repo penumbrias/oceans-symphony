@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { parseDate } from "@/lib/dateUtils";
 import { startOfDay, endOfDay } from "date-fns";
 
@@ -14,7 +15,8 @@ function emotionColor(name) {
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
 
-export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters, checkIns = [], tasks = [], dailyTasksTotal = 0, dailyTasksCompleted = 0 }) {
+export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters, checkIns = [], tasks = [] }) {
+  const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const dayEnd = useMemo(() => endOfDay(day), [day]);
 
@@ -189,21 +191,26 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
         </div>
 
         <div>
-          <p className="text-muted-foreground font-medium mb-1">Daily Tasks</p>
-          <p className="font-semibold text-base">{dailyTasksCompleted}/{dailyTasksTotal}</p>
-        </div>
-
-        <div>
-          <p className="text-muted-foreground font-medium mb-1">Tasks</p>
-          <div className="flex gap-3">
-            <div>
-              <p className="font-semibold text-base">{taskStats.completed}/{taskStats.created}</p>
-              <p className="text-muted-foreground text-xs">{taskStats.percent}% done</p>
-            </div>
-            <div>
-              <p className="font-semibold text-base">{journalCount}</p>
-              <p className="text-muted-foreground text-xs">journals</p>
-            </div>
+          <p className="text-muted-foreground font-medium mb-1">Entries</p>
+          <div className="space-y-1 text-xs">
+            {journalCount > 0 && (
+              <button onClick={() => navigate(`/journals`)} className="block text-primary hover:underline text-left">
+                {journalCount} journal{journalCount !== 1 ? "s" : ""}
+              </button>
+            )}
+            {checkInCount > 0 && (
+              <button onClick={() => navigate(`/system-checkin`)} className="block text-primary hover:underline text-left">
+                {checkInCount} check-in{checkInCount !== 1 ? "s" : ""}
+              </button>
+            )}
+            {taskStats.created > 0 && (
+              <button onClick={() => navigate(`/todo`)} className="block text-primary hover:underline text-left">
+                {taskStats.completed}/{taskStats.created} to-do{taskStats.created !== 1 ? "s" : ""}
+              </button>
+            )}
+            {journalCount === 0 && checkInCount === 0 && taskStats.created === 0 && (
+              <span className="text-muted-foreground italic">None</span>
+            )}
           </div>
         </div>
       </div>
