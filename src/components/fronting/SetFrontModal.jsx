@@ -8,6 +8,7 @@ import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3 } f
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+import { useTerms } from "@/lib/useTerms";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -60,6 +61,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
 
 export default function SetFrontModal({ open, onClose, alters, currentSession }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const [search, setSearch] = useState("");
   const [primaryId, setPrimaryId] = useState(currentSession?.primary_alter_id || "");
   const [coFronterIds, setCoFronterIds] = useState(currentSession?.co_fronter_ids || []);
@@ -182,7 +184,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Set Front</DialogTitle>
+            <DialogTitle>Set {terms.Front}</DialogTitle>
           </DialogHeader>
 
           {/* Selected chips */}
@@ -225,8 +227,8 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           )}
 
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary fronter</p>
-            {selectedIds.size > 0 && <p className="text-primary">Click primary to make them co-front only</p>}
+            <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
+            {selectedIds.size > 0 && <p className="text-primary">Click primary to make them co-{terms.front} only</p>}
           </div>
 
           {/* Search and View Toggle */}
@@ -234,7 +236,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search alters..."
+                placeholder={`Search ${terms.alters}...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -322,7 +324,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
               />
               <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
                 <BookOpen className="w-3.5 h-3.5" />
-                Journal this switch?
+                Journal this {terms.switch}?
               </label>
             </div>
 
@@ -344,7 +346,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
               </Button>
               <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
                 {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Set Front
+                Set {terms.Front}
               </Button>
             </div>
           </div>

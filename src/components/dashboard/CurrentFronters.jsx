@@ -20,7 +20,7 @@ function getContrastColor(hex) {
   return lum > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function FronterChip({ alter, isPrimary, startTime, onHold }) {
+function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
   const navigate = useNavigate();
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
@@ -72,7 +72,7 @@ function FronterChip({ alter, isPrimary, startTime, onHold }) {
       <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground truncate">{alter.name}</p>
         <p className="text-[11px] text-muted-foreground">
-          {isPrimary ? `Primary · ` : `${useTermsLocal} · `}
+          {isPrimary ? `Primary · ` : `${coFronterLabel} · `}
           {formatDistanceToNow(new Date(startTime), { addSuffix: false })}
         </p>
       </div>
@@ -177,6 +177,7 @@ export default function CurrentFronters({ alters }) {
               isPrimary={i === 0}
               startTime={active.start_time}
               onHold={handleSetPrimaryFromHold}
+              coFronterLabel={`Co-${terms.fronting}`}
             />
           ))}
         </div>

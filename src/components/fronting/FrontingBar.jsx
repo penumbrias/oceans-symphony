@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { User, Star, Plus, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
 import SetFrontModal from "./SetFrontModal";
+import { useTerms } from "@/lib/useTerms";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -48,6 +49,7 @@ function FronterAvatar({ alter, isPrimary, size = "md" }) {
 
 export default function FrontingBar({ alters }) {
   const [showModal, setShowModal] = useState(false);
+  const terms = useTerms();
 
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["activeFront"],
@@ -81,7 +83,7 @@ export default function FrontingBar({ alters }) {
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${session ? "bg-green-500 animate-pulse" : "bg-muted-foreground/30"}`} />
             <span className="text-sm font-medium text-foreground">
-              {session ? "Currently Fronting" : "No Active Front"}
+              {session ? `Currently ${terms.Fronting}` : `No Active ${terms.Front}`}
             </span>
             {duration && <span className="text-xs text-muted-foreground">· {duration}</span>}
           </div>
@@ -92,9 +94,9 @@ export default function FrontingBar({ alters }) {
             className="h-8 text-xs gap-1.5"
           >
             {session ? (
-              <><Pencil className="w-3.5 h-3.5" /> Edit Front</>
+              <><Pencil className="w-3.5 h-3.5" /> Edit {terms.Front}</>
             ) : (
-              <><Plus className="w-3.5 h-3.5" /> Set Front</>
+              <><Plus className="w-3.5 h-3.5" /> Set {terms.Front}</>
             )}
           </Button>
         </div>
@@ -109,7 +111,7 @@ export default function FrontingBar({ alters }) {
                   {primaryAlter.pronouns && (
                     <p className="text-xs text-muted-foreground">{primaryAlter.pronouns}</p>
                   )}
-                  <p className="text-xs text-amber-500 font-medium">Primary</p>
+                  <p className="text-xs text-amber-500 font-medium">Primary {terms.alter}</p>
                 </div>
               </div>
             )}
@@ -133,7 +135,7 @@ export default function FrontingBar({ alters }) {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No one is currently fronting. Set a front to track who's out.
+            No one is currently {terms.fronting}. Set a {terms.front} to track who's out.
           </p>
         )}
       </motion.div>
