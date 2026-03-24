@@ -184,7 +184,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Set {terms.Front}</DialogTitle>
+            <DialogTitle>Set {terms.Front}ers</DialogTitle>
           </DialogHeader>
 
           {/* Selected chips */}
@@ -346,7 +346,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
               </Button>
               <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
                 {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Set {terms.Front}
+                Set {terms.Front}ers
               </Button>
             </div>
           </div>

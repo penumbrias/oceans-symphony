@@ -74,10 +74,10 @@ export default function AlterGrid({ alters, currentSession = null }) {
           size="sm"
           onClick={() => setShowFolders(!showFolders)}
           className="rounded-xl h-9 px-3 text-xs gap-1.5 border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground"
-          title={showFolders ? "Hide folders" : "Show folders"}
+          title={showFolders ? "Hide groups" : "Show groups"}
         >
           {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          {showFolders ? "Folders" : "No folders"}
+          {showFolders ? "Groups" : "No groups"}
         </Button>
         <Button
           variant={viewMode === "list" ? "default" : "outline"}
