@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
+import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate } from "@/lib/dateUtils";
-import { ChevronDown, ChevronUp, Layers } from "lucide-react";
+import { ChevronDown, ChevronUp, Layers, BarChart3, Heart, Activity, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
 
@@ -255,7 +256,7 @@ function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
 export default function InfiniteTimeline({
   day, sessions, activities, emotions, alters, hasData, isToday,
   journals = [], checkIns = [], bulletins = [], tasks = [],
-  showActivities = true, showCheckIns = true,
+  showActivities = true, showCheckIns = true, showEmotions = true,
   categories = [],
 }) {
   // Build category -> parent map for merge-by-category
@@ -270,6 +271,7 @@ export default function InfiniteTimeline({
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
 
   const [mergeByCategory, setMergeByCategory] = useState(false);
+  const [showTally, setShowTally] = useState(false);
   const [sessionPopover, setSessionPopover] = useState(null); // { session, alter }
   const [editingSession, setEditingSession] = useState(null); // { session, alter }
   const navigate = useNavigate();
@@ -500,6 +502,16 @@ export default function InfiniteTimeline({
           )}
         </div>
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {!collapsed && (
+            <button
+              onClick={() => setShowTally(v => !v)}
+              title={showTally ? "Hide daily tally" : "Show daily tally"}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
+            >
+              <BarChart3 className="w-3 h-3" />
+              Tally
+            </button>
+          )}
           {!collapsed && showActivities && (
             <button
               onClick={() => setMergeByCategory(v => !v)}
@@ -526,13 +538,15 @@ export default function InfiniteTimeline({
             {showCheckIns && (
               <>
                 <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
-                  <span className="text-xs text-muted-foreground font-medium">Events</span>
+                  <Activity className="w-3.5 h-3.5 inline" />
                   <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
                 </div>
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
-                  <span className="text-xs text-muted-foreground font-medium">Emotions</span>
-                  <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
-                </div>
+                {showEmotions && (
+                  <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
+                    <Heart className="w-3.5 h-3.5 inline" />
+                    <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
+                  </div>
+                )}
               </>
             )}
             <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
@@ -620,7 +634,7 @@ export default function InfiniteTimeline({
               )}
 
               {/* Emotions column (right of events) */}
-              {showCheckIns && (
+              {showCheckIns && showEmotions && (
                 <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth, height: totalHeight }}>
                   {emotionPositioned.map((entry) => (
                     <EmotionBubble
@@ -669,11 +683,23 @@ export default function InfiniteTimeline({
               })}
 
             </div>
-          </div>
-        </div>
-      )}
+            </div>
+            </div>
+            )}
 
-      {/* Alter session info popover (single tap) */}
+            {/* Daily tally panel */}
+            {!collapsed && showTally && (
+            <DailyTallyPanel
+            day={day}
+            sessions={sessions}
+            activities={activities}
+            emotions={emotions}
+            journals={journals}
+            alters={alters}
+            />
+            )}
+
+            {/* Alter session info popover (single tap) */}
       {sessionPopover && !editingSession && (
         <AlterSessionInfo
           session={sessionPopover.session}
