@@ -116,14 +116,14 @@ export default function Timeline() {
 
       {/* Toggles */}
       <div className="flex gap-2 flex-wrap">
-        <button className={toggleStyles(showFronting)} onClick={() => setShowFronting(!showFronting)}>
-          <span className="flex items-center gap-1.5"><Users className="w-3 h-3" /> Fronting</span>
+        <button className={toggleStyles(showFronting)} onClick={() => setShowFronting(!showFronting)} title="Fronting">
+          <Users className="w-3.5 h-3.5" />
         </button>
-        <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)}>
-          <span className="flex items-center gap-1.5"><Activity className="w-3 h-3" /> Activities</span>
+        <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)} title="Activities">
+          <Activity className="w-3.5 h-3.5" />
         </button>
-        <button className={toggleStyles(showCheckIns)} onClick={() => setShowCheckIns(!showCheckIns)}>
-          <span className="flex items-center gap-1.5"><Heart className="w-3 h-3" /> Check Ins</span>
+        <button className={toggleStyles(showCheckIns)} onClick={() => setShowCheckIns(!showCheckIns)} title="Check Ins">
+          <Heart className="w-3.5 h-3.5" />
         </button>
       </div>
 
