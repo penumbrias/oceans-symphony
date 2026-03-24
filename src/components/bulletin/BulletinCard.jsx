@@ -5,7 +5,6 @@ import { Pin, Trash2, User, MessageCircle, ChevronDown, ChevronUp } from "lucide
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDistanceToNow } from "date-fns";
-import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
