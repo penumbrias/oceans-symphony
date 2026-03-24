@@ -595,7 +595,7 @@ export default function InfiniteTimeline({
                 <div className="absolute top-0 bottom-0 border-l border-border/30 pointer-events-none"
                   style={{ left: eventColLeft, height: totalHeight }} />
               )}
-              {showCheckIns && showEmotions && (
+              {showEmotions && (
                 <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
                   style={{ left: emotionColLeft, height: totalHeight }} />
               )}
