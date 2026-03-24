@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,7 @@ export default function SystemCheckInPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const terms = useTerms();
   const [view, setView] = useState("list"); // "list" | "create" | "edit"
   const [currentCheckIn, setCurrentCheckIn] = useState(null);
   const [formData, setFormData] = useState({});
@@ -149,9 +151,9 @@ export default function SystemCheckInPage() {
       {view === "list" ? (
         <div>
           <div className="mb-8">
-            <h1 className="font-display text-3xl font-semibold text-foreground">System Check-Ins</h1>
+            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Check-Ins</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              A 5-minute guided ritual to connect with your system
+              A 5-minute guided ritual to connect with your {terms.system}
             </p>
           </div>
 
@@ -229,10 +231,10 @@ export default function SystemCheckInPage() {
 
           <div className="mb-8">
             <h1 className="font-display text-3xl font-semibold text-foreground">
-              {currentCheckIn ? "Edit Check-In" : "New System Check-In"}
+              {currentCheckIn ? "Edit Check-In" : `New ${terms.System} Check-In`}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Take 5 minutes to connect with your system
+              Take 5 minutes to connect with your {terms.system}
             </p>
           </div>
 

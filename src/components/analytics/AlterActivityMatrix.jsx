@@ -2,8 +2,10 @@ import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { startOfDay, endOfDay } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 export default function AlterActivityMatrix({ activities = [], categories = [], alters = [], from, to }) {
+  const terms = useTerms();
   const [expandedParents, setExpandedParents] = useState(new Set());
 
   const catMap = useMemo(() => {
@@ -100,9 +102,9 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
   if (alterRows.length === 0) {
     return (
       <Card className="p-4">
-        <h3 className="text-sm font-semibold mb-2">Alter ↔ Activity Association</h3>
+        <h3 className="text-sm font-semibold mb-2">{terms.Alter} ↔ Activity Association</h3>
         <p className="text-muted-foreground text-sm text-center py-8">
-          No activity data with fronting alters in this range.
+          No activity data with {terms.fronting} {terms.alters} in this range.
         </p>
       </Card>
     );
@@ -112,9 +114,9 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
 
   return (
     <Card className="p-4">
-      <h3 className="text-sm font-semibold mb-1">Alter ↔ Activity Association</h3>
+      <h3 className="text-sm font-semibold mb-1">{terms.Alter} ↔ Activity Association</h3>
       <p className="text-xs text-muted-foreground mb-4">
-        Click parent column headers to expand sub-activities. Each cell = times fronting during that activity.
+        Click parent column headers to expand sub-activities. Each cell = times {terms.fronting} during that activity.
       </p>
 
       <div className="overflow-x-auto">
@@ -122,7 +124,7 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
           <thead>
             <tr>
               <th className="text-left p-2 font-medium text-muted-foreground sticky left-0 bg-card z-10 min-w-[120px]">
-                Alter
+                {terms.Alter}
               </th>
               {visibleColumns.map(({ cat, level, hasChildren, isParent }) => (
                 <th key={cat.id} className="p-2 text-center font-medium min-w-[80px]">

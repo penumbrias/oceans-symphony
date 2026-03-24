@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import AlterGroupPicker from "./AlterGroupPicker";
+import { useTerms } from "@/lib/useTerms";
 
 export default function CheckInStep2({ data, onChange, alters = [], groups = [] }) {
+  const terms = useTerms();
   const step = data?.step2_notice || {};
 
   return (
@@ -17,7 +19,7 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [] 
         <CardContent className="space-y-4">
           <div className="space-y-3">
              <div>
-               <Label className="text-sm mb-2 block">Alters & Groups present</Label>
+              <Label className="text-sm mb-2 block">{terms.Alters} & Groups present</Label>
                <AlterGroupPicker
                  alters={alters}
                  groups={groups}
