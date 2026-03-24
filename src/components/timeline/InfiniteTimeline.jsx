@@ -7,7 +7,8 @@ import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterS
 
 const HOUR_HEIGHT = 56;
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 56, checkIn: 120, alter: 40 };
+const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, alter: 40 };
+const EVENT_DETAIL_MIN_WIDTH = 72;
 const EXPANDED_EXTRA = 100;
 
 const EMOTION_COLORS = [
@@ -162,13 +163,14 @@ const TYPE_META = {
 };
 
 // Emotion bubble — always visible as colored circle with first letter
-function EmotionBubble({ entry, topPx, expanded, onTap }) {
+function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
 
   return (
     <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={onTap}>
+
       {expanded ? (
         <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm text-right">
           <p className="text-xs text-muted-foreground mb-1 font-medium">{timeStr}</p>
@@ -203,11 +205,18 @@ function EmotionBubble({ entry, topPx, expanded, onTap }) {
 }
 
 // Non-emotion entry — icon button that hugs the left
-function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap }) {
+function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
   const meta = TYPE_META[entry.type] || { icon: "•", emoji: false };
   const isTaskDone = entry.type === "task_done";
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+  const showLabel = !expanded && colWidth >= EVENT_DETAIL_MIN_WIDTH;
+
+  const shortLabel =
+    entry.type === 'checkin' ? 'Check-In' :
+    entry.type === 'journal' ? (entry.label || 'Journal') :
+    entry.type === 'bulletin' ? 'Bulletin' :
+    (entry.label || 'Task');
 
   return (
     <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
@@ -218,6 +227,13 @@ function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap }) {
           {entry.type === "checkin" && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
           {entry.type === "bulletin" && <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.data.content}</p>}
           {(entry.type === "task" || entry.type === "task_done") && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
+        </div>
+      ) : showLabel ? (
+        <div className="flex items-center gap-1 rounded-full border shadow-sm bg-card border-border/60 px-1.5 py-0.5 hover:scale-105 transition-transform"
+          style={{ maxWidth: colWidth - 8 }}
+          title={entry.label}>
+          <span style={{ fontSize: 11 }}>{meta.icon}</span>
+          <span className="text-muted-foreground truncate" style={{ fontSize: 9, maxWidth: colWidth - 32 }}>{shortLabel}</span>
         </div>
       ) : (
         <div className={`flex items-center justify-center rounded-full border shadow-sm hover:scale-110 transition-transform ${
@@ -248,6 +264,7 @@ export default function InfiniteTimeline({
   const [collapsed, setCollapsed] = useState(!hasData);
   const [expandedKeys, setExpandedKeys] = useState(new Set());
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
+
   const [mergeByCategory, setMergeByCategory] = useState(false);
   const [sessionPopover, setSessionPopover] = useState(null); // { session, alter }
   const [editingSession, setEditingSession] = useState(null); // { session, alter }
@@ -266,6 +283,9 @@ export default function InfiniteTimeline({
   const dragCol = useCallback((col, delta) => {
     setColWidths((prev) => ({ ...prev, [col]: Math.max(30, prev[col] + delta) }));
   }, []);
+
+  const eventColWidth = colWidths.eventCol;
+  const emotionColWidth = colWidths.emotionCol;
 
   // Alter segments
   const alterEntries = useMemo(() => {
@@ -446,10 +466,12 @@ export default function InfiniteTimeline({
   // Layout
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
   const activityAreaWidth = numActivityCols * colWidths.activity;
-  const checkInAreaWidth = showCheckIns ? colWidths.checkIn : 0;
+  const checkInAreaWidth = showCheckIns ? (eventColWidth + emotionColWidth) : 0;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * colWidths.alter;
   const totalWidth = activityAreaWidth + checkInAreaWidth + LABEL_WIDTH + alterAreaWidth;
+  const eventColLeft = activityAreaWidth;
+  const emotionColLeft = eventColLeft + eventColWidth;
   const checkInLeft = activityAreaWidth;
   const timeLeft = checkInLeft + checkInAreaWidth;
   const alterLeft = timeLeft + LABEL_WIDTH;
@@ -499,10 +521,16 @@ export default function InfiniteTimeline({
               </div>
             )}
             {showCheckIns && (
-              <div className="text-center py-1 relative flex-shrink-0" style={{ width: checkInAreaWidth }}>
-                <span className="text-xs text-muted-foreground font-medium">Check Ins</span>
-                <ResizeHandle onDrag={(d) => dragCol("checkIn", d)} />
-              </div>
+              <>
+                <div className="text-center py-1 relative flex-shrink-0 border-r border-border/30" style={{ width: eventColWidth }}>
+                  <span className="text-xs text-muted-foreground font-medium">Events</span>
+                  <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
+                </div>
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth }}>
+                  <span className="text-xs text-muted-foreground font-medium">Emotions</span>
+                  <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
+                </div>
+              </>
             )}
             <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
             <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
@@ -554,24 +582,16 @@ export default function InfiniteTimeline({
                 </div>
               ))}
 
-              {/* Check-ins column: emotions right, events left */}
+              {/* Events column (left) */}
               {showCheckIns && (
-                <div className="absolute" style={{ left: checkInLeft, top: 0, width: checkInAreaWidth, height: totalHeight }}>
-                  {emotionPositioned.map((entry) => (
-                    <EmotionBubble
-                      key={entry.key}
-                      entry={entry}
-                      topPx={entry.adjustedTop}
-                      expanded={expandedKeys.has(entry.key)}
-                      onTap={() => toggleExpand(entry.key)}
-                    />
-                  ))}
+                <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth, height: totalHeight }}>
                   {eventPositioned.map((entry) => (
                     <EventEntry
                       key={entry.key}
                       entry={entry}
                       topPx={entry.adjustedTop}
                       expanded={expandedKeys.has(entry.key)}
+                      colWidth={eventColWidth}
                       onTap={() => toggleExpand(entry.key)}
                       onDoubleTap={() => {
                         if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
@@ -579,7 +599,22 @@ export default function InfiniteTimeline({
                         else if (entry.type === "bulletin") navigate(`/`);
                         else if (entry.type === "task") navigate(`/todo`);
                       }}
+                    />
+                  ))}
+                </div>
+              )}
 
+              {/* Emotions column (right of events) */}
+              {showCheckIns && (
+                <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth, height: totalHeight }}>
+                  {emotionPositioned.map((entry) => (
+                    <EmotionBubble
+                      key={entry.key}
+                      entry={entry}
+                      topPx={entry.adjustedTop}
+                      expanded={expandedKeys.has(entry.key)}
+                      colWidth={emotionColWidth}
+                      onTap={() => toggleExpand(entry.key)}
                     />
                   ))}
                 </div>
