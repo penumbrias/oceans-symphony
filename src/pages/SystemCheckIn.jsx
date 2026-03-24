@@ -191,9 +191,22 @@ export default function SystemCheckInPage() {
                 <CardContent className="py-4 px-4">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 2 · Notice</p>
                   {(currentCheckIn.step2_notice.alters_present || []).length > 0 && (
-                    <div className="flex items-center gap-2 text-sm mb-1">
-                      <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>{currentCheckIn.step2_notice.alters_present.length} {terms.alter}(s) present</span>
+                    <div className="mb-2">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <Users className="w-3.5 h-3.5" />
+                        <span>{terms.alter}s present</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {currentCheckIn.step2_notice.alters_present.map((id) => {
+                          const alter = alters.find(a => a.id === id) || groups.find(g => g.id === id);
+                          return (
+                            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border border-border"
+                              style={{ backgroundColor: alter?.color ? `${alter.color}20` : undefined, color: alter?.color || undefined }}>
+                              {alter?.name || id}
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                   {currentCheckIn.step2_notice.feelings && <p className="text-sm text-foreground mb-1"><span className="text-muted-foreground text-xs">Feelings: </span>{currentCheckIn.step2_notice.feelings}</p>}
