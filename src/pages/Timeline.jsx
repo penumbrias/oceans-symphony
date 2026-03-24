@@ -64,6 +64,11 @@ export default function Timeline() {
     queryFn: () => base44.entities.Task.list("-created_date", 2000),
   });
 
+  const { data: dailyProgress = [] } = useQuery({
+    queryKey: ["dailyProgress"],
+    queryFn: () => base44.entities.DailyProgress.list("-date", 365),
+  });
+
   // Lazy load more days as user scrolls to bottom
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -199,6 +204,7 @@ export default function Timeline() {
                 showCheckIns={showCheckIns}
                 showEmotions={showEmotions}
                 categories={categories}
+                dailyProgress={dailyProgress.find((p) => p.date === format(day, "yyyy-MM-dd"))}
               />
             </div>
           );
