@@ -107,6 +107,7 @@ export default function ActivityTracker() {
           onActivityClick={handleActivityClick}
           addMode={addMode}
           onToggleAddMode={() => setAddMode((v) => !v)}
+          highlightActivityId={highlightId}
         />
 
         <div className="mt-8">
