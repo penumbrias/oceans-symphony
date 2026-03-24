@@ -369,7 +369,7 @@ export default function SystemCheckInPage() {
             </Button>
           </div>
         </div>
-      )}
+      : null}
     </motion.div>
   );
 }
