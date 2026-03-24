@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, Plus } from "lucide-react";
+import { ArrowLeft, Save, Plus, Pencil, Eye, CheckCircle2, Users, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -40,12 +40,12 @@ export default function SystemCheckInPage() {
     queryFn: () => base44.entities.Group.list(),
   });
 
-  // Open specific check-in if ?id= URL param is present
+  // Open specific check-in if ?id= URL param is present — view mode by default
   const [pendingId] = useState(() => new URLSearchParams(window.location.search).get('id'));
   React.useEffect(() => {
     if (pendingId && checkIns.length > 0 && view === "list") {
       const ci = checkIns.find(c => c.id === pendingId);
-      if (ci) { setCurrentCheckIn(ci); setFormData(ci); setView("create"); }
+      if (ci) { setCurrentCheckIn(ci); setFormData(ci); setView("view"); }
     }
   }, [pendingId, checkIns.length]);
 
@@ -146,8 +146,107 @@ export default function SystemCheckInPage() {
     }
   };
 
+  const handleView = (checkIn) => {
+    setCurrentCheckIn(checkIn);
+    setFormData(checkIn);
+    setView("view");
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+      {view === "view" && currentCheckIn && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="ghost" size="sm" onClick={() => setView("list")} className="gap-2">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setView("create")} className="gap-2">
+              <Pencil className="w-4 h-4" /> Edit
+            </Button>
+          </div>
+          <div className="mb-6">
+            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Check-In</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              {new Date(currentCheckIn.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            </p>
+          </div>
+          <div className="space-y-4 max-w-2xl">
+            {/* Step 1 */}
+            {currentCheckIn.step1_arrive && (
+              <Card>
+                <CardContent className="py-4 px-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 1 · Arrive</p>
+                  {currentCheckIn.step1_arrive.breaths_taken && (
+                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 mb-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Breaths taken
+                    </div>
+                  )}
+                  {currentCheckIn.step1_arrive.notes && <p className="text-sm text-foreground">{currentCheckIn.step1_arrive.notes}</p>}
+                </CardContent>
+              </Card>
+            )}
+            {/* Step 2 */}
+            {currentCheckIn.step2_notice && (
+              <Card>
+                <CardContent className="py-4 px-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 2 · Notice</p>
+                  {(currentCheckIn.step2_notice.alters_present || []).length > 0 && (
+                    <div className="flex items-center gap-2 text-sm mb-1">
+                      <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>{currentCheckIn.step2_notice.alters_present.length} {terms.alter}(s) present</span>
+                    </div>
+                  )}
+                  {currentCheckIn.step2_notice.feelings && <p className="text-sm text-foreground mb-1"><span className="text-muted-foreground text-xs">Feelings: </span>{currentCheckIn.step2_notice.feelings}</p>}
+                  {currentCheckIn.step2_notice.sensations && <p className="text-sm text-foreground mb-1"><span className="text-muted-foreground text-xs">Sensations: </span>{currentCheckIn.step2_notice.sensations}</p>}
+                  {currentCheckIn.step2_notice.notes && <p className="text-sm text-foreground">{currentCheckIn.step2_notice.notes}</p>}
+                </CardContent>
+              </Card>
+            )}
+            {/* Step 3 */}
+            {currentCheckIn.step3_greet?.notes && (
+              <Card>
+                <CardContent className="py-4 px-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 3 · Greet</p>
+                  <p className="text-sm text-foreground">{currentCheckIn.step3_greet.notes}</p>
+                </CardContent>
+              </Card>
+            )}
+            {/* Step 4 */}
+            {currentCheckIn.step4_share && (
+              <Card>
+                <CardContent className="py-4 px-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 4 · Share</p>
+                  {currentCheckIn.step4_share.invitation_given && (
+                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 mb-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Invitation given
+                    </div>
+                  )}
+                  {currentCheckIn.step4_share.notes && <p className="text-sm text-foreground">{currentCheckIn.step4_share.notes}</p>}
+                </CardContent>
+              </Card>
+            )}
+            {/* Step 5 */}
+            {currentCheckIn.step5_closing && (
+              <Card>
+                <CardContent className="py-4 px-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 5 · Closing</p>
+                  {currentCheckIn.step5_closing.gratitude_expressed && (
+                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 mb-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Gratitude expressed
+                    </div>
+                  )}
+                  {currentCheckIn.step5_closing.reminder_given && (
+                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 mb-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Reminder given
+                    </div>
+                  )}
+                  {currentCheckIn.step5_closing.notes && <p className="text-sm text-foreground">{currentCheckIn.step5_closing.notes}</p>}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
       {view === "list" ? (
         <div>
           <div className="mb-8">
@@ -156,12 +255,10 @@ export default function SystemCheckInPage() {
               A 5-minute guided ritual to connect with your {terms.system}
             </p>
           </div>
-
           <Button onClick={handleNewCheckIn} className="gap-2 mb-6">
             <Plus className="w-4 h-4" />
             New Check-In
           </Button>
-
           {checkIns.length === 0 ? (
             <Card className="bg-muted/30">
               <CardContent className="py-12 text-center">
@@ -173,42 +270,21 @@ export default function SystemCheckInPage() {
               {checkIns.map((checkIn) => {
                 const date = new Date(checkIn.date);
                 const formatted = date.toLocaleDateString("en-US", {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
+                  weekday: "short", month: "short", day: "numeric", year: "numeric",
                 });
-
                 return (
                   <Card key={checkIn.id} className="hover:bg-card/80 transition-colors">
                     <CardContent className="py-4 px-4 flex items-center justify-between">
-                      <div
-                        className="flex-1 cursor-pointer"
-                        onClick={() => handleEdit(checkIn)}
-                      >
+                      <div className="flex-1 cursor-pointer" onClick={() => handleView(checkIn)}>
                         <p className="font-medium text-foreground">{formatted}</p>
                         {checkIn.overall_notes && (
-                          <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
-                            {checkIn.overall_notes}
-                          </p>
+                          <p className="text-sm text-muted-foreground line-clamp-1 mt-1">{checkIn.overall_notes}</p>
                         )}
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(checkIn)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(checkIn.id)}
-                        >
-                          Delete
-                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleView(checkIn)}><Eye className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(checkIn)}>Edit</Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(checkIn.id)}>Delete</Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -217,12 +293,12 @@ export default function SystemCheckInPage() {
             </div>
           )}
         </div>
-      ) : (
+      ) : view === "create" ? (
         <div>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setView("list")}
+            onClick={() => currentCheckIn ? setView("view") : setView("list")}
             className="mb-6 gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
