@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
 import { motion } from "framer-motion";
 import { subDays, isWithinInterval, startOfDay, endOfDay, parseISO } from "date-fns";
 import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer } from "lucide-react";
@@ -18,19 +19,9 @@ import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline"
 import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
 import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive";
 
-const MAIN_TABS = [
-  { id: "alters", label: "System Members" },
-  { id: "activities", label: "Activities" },
-  { id: "diary", label: "Diary Cards" },
-  { id: "emotions", label: "Emotion Check-Ins" },
-];
+// MAIN_TABS defined dynamically in component
 
-const ACTIVITY_SUB_TABS = [
-  { id: "overview", label: "Overview" },
-  { id: "trends", label: "Trends" },
-  { id: "alters", label: "Alter × Activity" },
-  { id: "deep", label: "Deep Dive" },
-];
+// ACTIVITY_SUB_TABS defined dynamically in component
 
 const MODES = [
   { id: "total", label: "Total", icon: Clock, description: "Total fronting times" },
@@ -82,6 +73,19 @@ function computeStats(sessions, alters, from, to) {
 }
 
 export default function Analytics() {
+  const terms = useTerms();
+  const MAIN_TABS = [
+    { id: "alters", label: `${terms.System} Members` },
+    { id: "activities", label: "Activities" },
+    { id: "diary", label: "Diary Cards" },
+    { id: "emotions", label: "Emotion Check-Ins" },
+  ];
+  const ACTIVITY_SUB_TABS = [
+    { id: "overview", label: "Overview" },
+    { id: "trends", label: "Trends" },
+    { id: "alters", label: `${terms.Alter} × Activity` },
+    { id: "deep", label: "Deep Dive" },
+  ];
   const [mainTab, setMainTab] = useState("alters");
   const [from, setFrom] = useState(subDays(new Date(), 30));
   const [to, setTo] = useState(new Date());
@@ -171,7 +175,7 @@ export default function Analytics() {
           <h1 className="font-display text-3xl font-semibold text-foreground">Analytics</h1>
         </div>
         <p className="text-muted-foreground text-sm">
-          Track system and wellness data over time
+          Track {terms.system} and wellness data over time
         </p>
       </motion.div>
 
@@ -247,7 +251,7 @@ export default function Analytics() {
           {rows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <BarChart2 className="w-10 h-10 text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground text-sm">No fronting data in this date range.</p>
+              <p className="text-muted-foreground text-sm">No {terms.fronting} data in this date range.</p>
             </div>
           ) : (
             <div className="space-y-2">

@@ -8,9 +8,11 @@ import { useNavigate } from "react-router-dom";
 import AlterCard from "./AlterCard";
 import AlterGridView from "./AlterGridView";
 import FolderGroupsSection from "./FolderGroupsSection.jsx";
+import { useTerms } from "@/lib/useTerms";
 
 export default function AlterGrid({ alters, currentSession = null }) {
   const navigate = useNavigate();
+  const terms = useTerms();
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState("asc"); // "asc" | "desc"
   const [showFolders, setShowFolders] = useState(true);
@@ -51,7 +53,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search system members..."
+            placeholder={`Search ${terms.system} members...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10 bg-card/50 border-border/50"
@@ -117,7 +119,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {/* Alters list/grid */}
         <div>
           {showFolders && rootGroups.length > 0 && (
-            <h3 className="text-xs font-medium text-muted-foreground mb-3 px-1">System Members</h3>
+            <h3 className="text-xs font-medium text-muted-foreground mb-3 px-1">{terms.System} Members</h3>
           )}
           {filtered.length > 0 ? (
             viewMode === "list" ? (
@@ -135,7 +137,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
                 <Users className="w-7 h-7 text-muted-foreground" />
               </div>
               <p className="text-muted-foreground text-sm">
-                {search ? "No members match your search" : "No system members yet"}
+                {search ? `No ${terms.alters} match your search` : `No ${terms.alters} yet`}
               </p>
             </div>
           )}

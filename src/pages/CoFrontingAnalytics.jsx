@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useTerms } from "@/lib/useTerms";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -8,6 +9,7 @@ import { format, subDays } from "date-fns";
 import { Search, X, ChevronRight } from "lucide-react";
 
 export default function CoFrontingAnalytics() {
+  const terms = useTerms();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAlterId, setSelectedAlterId] = useState(null);
 
@@ -130,15 +132,15 @@ export default function CoFrontingAnalytics() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold">Co-Fronting Analytics</h1>
-        <p className="text-muted-foreground mt-1">Track co-fronting patterns and connections</p>
+        <h1 className="text-3xl font-bold">{terms.Cofronting} Analytics</h1>
+        <p className="text-muted-foreground mt-1">Track {terms.cofronting} patterns and connections</p>
       </div>
 
       {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search alters..."
+          placeholder={`Search ${terms.alters}...`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-9 pr-9"
@@ -156,7 +158,7 @@ export default function CoFrontingAnalytics() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Alter List */}
         <Card className="p-4">
-          <h2 className="text-lg font-semibold mb-4">Alters ({filteredAlters.length})</h2>
+          <h2 className="text-lg font-semibold mb-4">{terms.Alters} ({filteredAlters.length})</h2>
           <div className="space-y-2">
             {filteredAlters.map((alter) => (
               <button
@@ -185,7 +187,7 @@ export default function CoFrontingAnalytics() {
           {selectedAlterId ? (
             <>
               <h2 className="text-lg font-semibold mb-4">
-                Co-Fronters ({analytics.selectedAlterPairs.length})
+                {terms.Cofronters} ({analytics.selectedAlterPairs.length})
               </h2>
               {analytics.selectedAlterPairs.length > 0 ? (
                 <div className="space-y-3">
@@ -199,8 +201,8 @@ export default function CoFrontingAnalytics() {
                         <div className="flex-1">
                           <p className="font-medium text-sm">{pair.name}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Fronted together {pair.frequency} times
-                          </p>
+                                     {terms.Fronting} together {pair.frequency} times
+                                   </p>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-muted-foreground">Avg Duration</p>
@@ -212,13 +214,13 @@ export default function CoFrontingAnalytics() {
                 </div>
               ) : (
                 <p className="text-muted-foreground text-sm">
-                  No co-fronting data for this alter yet
+                  No {terms.cofronting} data for this {terms.alter} yet
                 </p>
               )}
             </>
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p className="text-sm">Select an alter to view co-fronters</p>
+              <p className="text-sm">Select {terms.alter} to view {terms.cofronters}</p>
             </div>
           )}
         </Card>
@@ -227,7 +229,7 @@ export default function CoFrontingAnalytics() {
       {/* Trend */}
       {analytics.trendData.length > 0 && (
         <Card className="p-6">
-          <h2 className="text-lg font-semibold mb-4">Co-Fronting Trend (Last 30 Days)</h2>
+          <h2 className="text-lg font-semibold mb-4">{terms.Cofronting} Trend (Last 30 Days)</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={analytics.trendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
