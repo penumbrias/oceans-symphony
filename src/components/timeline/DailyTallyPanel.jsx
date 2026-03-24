@@ -167,18 +167,27 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
           )}
         </div>
 
-        <div>
-          <p className="text-muted-foreground font-medium mb-1">Activity</p>
-          <div className="flex gap-3">
-            <div>
-              <p className="font-semibold text-base">{activityCount}</p>
-              <p className="text-muted-foreground text-xs">activities</p>
-            </div>
-            <div>
-              <p className="font-semibold text-base">{checkInCount}</p>
-              <p className="text-muted-foreground text-xs">check-ins</p>
-            </div>
+        <div className="col-span-2">
+          <p className="text-muted-foreground font-medium mb-1">Activities</p>
+          <div className="flex flex-wrap gap-1">
+            {uniqueActivities.length > 0 ? (
+              uniqueActivities.slice(0, 6).map((name) => (
+                <div key={name} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium text-xs">
+                  {name}
+                </div>
+              ))
+            ) : (
+              <span className="text-muted-foreground italic">None</span>
+            )}
+            {uniqueActivities.length > 6 && (
+              <span className="text-muted-foreground text-xs">+{uniqueActivities.length - 6} more</span>
+            )}
           </div>
+        </div>
+
+        <div>
+          <p className="text-muted-foreground font-medium mb-1">Check-ins</p>
+          <p className="font-semibold text-base">{checkInCount}</p>
         </div>
 
         <div>
