@@ -226,11 +226,11 @@ function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
               </div>
             )}
           </div>
-        </div>
-      )
-    </div>
-  );
-}
+          </div>
+          )}
+          </div>
+          );
+          }
 
 // Non-emotion entry — icon button that hugs the left
 function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
