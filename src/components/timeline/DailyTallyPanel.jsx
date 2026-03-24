@@ -124,7 +124,7 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
 
   return (
     <div className="px-4 py-3 bg-muted/20 border-t border-border/40 space-y-2 text-xs">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div>
           <p className="text-muted-foreground font-medium mb-1">Emotions</p>
           <div className="flex flex-wrap gap-1">
@@ -141,33 +141,31 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
           </div>
         </div>
 
-        <div>
-          <div className="flex items-start justify-between mb-2">
-            <p className="text-muted-foreground font-medium">Fronters</p>
-            <div className="text-right">
-              <p className="text-base font-semibold">{switchCount}</p>
-              <p className="text-muted-foreground text-xs">switches</p>
-            </div>
+        <div className="flex gap-4 col-span-1">
+          <div className="flex flex-col items-center justify-start">
+            <p className="text-muted-foreground font-medium text-xs mb-1">Switches</p>
+            <p className="text-2xl font-bold text-primary">{switchCount}</p>
           </div>
-          <div className="space-y-0.5">
-            {fronterTally.length > 0 ? (
-              fronterTally.map(({ alter, mins }) => (
-                <div key={alter?.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full flex-shrink-0"
+          <div className="flex-1">
+            <p className="text-muted-foreground font-medium mb-1">Fronters</p>
+            <div className="space-y-0.5">
+              {fronterTally.length > 0 ? (
+                fronterTally.map(({ alter, mins }) => (
+                  <div key={alter?.id} className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ backgroundColor: alter?.color || "#9333ea" }} />
-                    <span className="truncate">{alter?.name || "Unknown"}</span>
+                    <span className="truncate text-xs">{alter?.name || "Unknown"}</span>
+                    <span className="text-muted-foreground text-xs">{Math.round(mins / 60)}h</span>
                   </div>
-                  <span className="text-muted-foreground text-xs">{Math.round(mins / 60)}h</span>
-                </div>
-              ))
-            ) : (
-              <span className="text-muted-foreground italic">None</span>
-            )}
+                ))
+              ) : (
+                <span className="text-muted-foreground italic">None</span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="col-span-2">
+        <div>
           <p className="text-muted-foreground font-medium mb-1">Activities</p>
           <div className="flex flex-wrap gap-1">
             {uniqueActivities.length > 0 ? (
