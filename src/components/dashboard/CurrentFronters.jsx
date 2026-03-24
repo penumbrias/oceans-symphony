@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
+import { useTerms } from "@/lib/useTerms";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -71,7 +72,7 @@ function FronterChip({ alter, isPrimary, startTime, onHold }) {
       <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground truncate">{alter.name}</p>
         <p className="text-[11px] text-muted-foreground">
-          {isPrimary ? "Primary · " : "Co-fronter · "}
+          {isPrimary ? `Primary · ` : `${useTermsLocal} · `}
           {formatDistanceToNow(new Date(startTime), { addSuffix: false })}
         </p>
       </div>
@@ -85,6 +86,7 @@ export default function CurrentFronters({ alters }) {
   const [statusText, setStatusText] = useState("");
   const [tempStatus, setTempStatus] = useState("");
   const queryClient = useQueryClient();
+  const terms = useTerms();
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontHistory"],
@@ -138,11 +140,11 @@ export default function CurrentFronters({ alters }) {
         <div className="bg-muted/40 border border-border/40 rounded-2xl px-4 py-4 mb-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">No one is currently fronting</p>
+            <p className="text-sm text-muted-foreground">No one is currently {terms.fronting}</p>
           </div>
           <Button size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs">
             <RefreshCw className="w-3 h-3" />
-            Set Front
+            Set {terms.Front}
           </Button>
         </div>
         <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={null} />
@@ -160,11 +162,11 @@ export default function CurrentFronters({ alters }) {
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Currently Fronting</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Currently {terms.Fronting}</p>
           </div>
           <Button size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs h-7 px-2.5">
             <RefreshCw className="w-3 h-3" />
-            Switch
+            {terms.Switch}
           </Button>
         </div>
         <div className="grid grid-cols-2 gap-2 mb-3">

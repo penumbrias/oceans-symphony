@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import FrontingBar from "@/components/fronting/FrontingBar";
 import AlterEditModal from "@/components/alters/AlterEditModal";
+import { useTerms } from "@/lib/useTerms";
 
 export default function Home() {
   const [showAddAlter, setShowAddAlter] = useState(false);
+  const terms = useTerms();
 
   const { data: alters = [], isLoading: altersLoading } = useQuery({
     queryKey: ["alters"],
@@ -56,7 +58,7 @@ export default function Home() {
           Welcome to Innerworld
         </h1>
         <p className="text-muted-foreground max-w-md leading-relaxed mb-8">
-          Connect your Simply Plural account to import members, or add them manually.
+          Connect your Simply Plural account to import {terms.alters}, or add them manually.
         </p>
         <div className="flex gap-3">
           <Link to="/settings">
@@ -66,7 +68,7 @@ export default function Home() {
           </Link>
           <Button onClick={() => setShowAddAlter(true)} className="bg-primary hover:bg-primary/90 rounded-xl px-6">
             <Plus className="w-4 h-4 mr-2" />
-            Add Alter
+            Add {terms.Alter}
           </Button>
         </div>
         <AlterEditModal open={showAddAlter} onClose={() => setShowAddAlter(false)} mode="create" />
@@ -87,7 +89,7 @@ export default function Home() {
           </h1>
           <p className="text-muted-foreground mt-1 flex items-center gap-2">
             <Users className="w-4 h-4" />
-            {activeAlters.length} active member{activeAlters.length !== 1 && "s"}
+            {activeAlters.length} active {activeAlters.length !== 1 ? terms.alters : terms.alter}
             {archivedAlters.length > 0 && (
               <span className="text-muted-foreground/60">· {archivedAlters.length} archived</span>
             )}
@@ -99,7 +101,7 @@ export default function Home() {
           className="bg-primary hover:bg-primary/90 gap-1.5"
         >
           <Plus className="w-4 h-4" />
-          Add Alter
+          Add {terms.Alter}
         </Button>
       </motion.div>
 
