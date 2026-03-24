@@ -163,14 +163,16 @@ const TYPE_META = {
 };
 
 // Emotion bubble — always visible as colored circle with first letter
+const EMOTION_DETAIL_MIN_WIDTH = 60;
 function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+  const showDetails = expanded || colWidth >= EMOTION_DETAIL_MIN_WIDTH;
 
   return (
     <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={onTap}>
-      {expanded ? (
+      {showDetails ? (
         <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm text-right">
           <p className="text-xs text-muted-foreground mb-1 font-medium">{timeStr}</p>
           <div className="flex flex-wrap gap-0.5 justify-end">
@@ -180,6 +182,28 @@ function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
             ))}
           </div>
           {note && <p className="text-xs text-muted-foreground italic mt-1 text-right">{note}</p>}
+        </div>
+      ) : colWidth < EMOTION_DETAIL_MIN_WIDTH ? (
+        <div className="relative">
+          {note && (
+            <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>
+          )}
+          <div className="flex gap-0.5 flex-wrap justify-end">
+            {emotions.slice(0, 2).map((em) => (
+              <div key={em}
+                className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
+                style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }}
+                title={em}>
+                <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
+              </div>
+            ))}
+            {emotions.length > 2 && (
+              <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
+                style={{ width: 18, height: 18 }}>
+                <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 2}</span>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="relative">
@@ -203,7 +227,7 @@ function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
             )}
           </div>
         </div>
-      )}
+      )
     </div>
   );
 }
