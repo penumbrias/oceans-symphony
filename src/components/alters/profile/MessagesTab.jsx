@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, MessageSquare } from "lucide-react";
+import { Plus, Trash2, MessageSquare, AtSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
@@ -11,6 +11,7 @@ export default function MessagesTab({ alterId, alters }) {
   const [composing, setComposing] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [saving, setSaving] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all"); // all | messages | mentions
 
   const { data: messages = [] } = useQuery({
     queryKey: ["alterMessages", alterId],
@@ -39,8 +40,34 @@ export default function MessagesTab({ alterId, alters }) {
     queryClient.invalidateQueries({ queryKey: ["alterMessages", alterId] });
   };
 
+  const showMessages = activeFilter === "all" || activeFilter === "messages";
+  const showMentions = activeFilter === "all" || activeFilter === "mentions";
+
   return (
     <div className="space-y-4">
+      {/* Filter tabs */}
+      <div className="flex gap-1 border-b border-border/40 pb-2">
+        {[{ key: "all", label: "All" }, { key: "messages", label: "Messages" }, { key: "mentions", label: "Mentions" }].map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setActiveFilter(f.key)}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+              activeFilter === f.key
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {f.label}
+            {f.key === "messages" && messages.length > 0 && (
+              <span className="ml-1 text-[10px] bg-muted rounded-full px-1">{messages.length}</span>
+            )}
+            {f.key === "mentions" && mentions.length > 0 && (
+              <span className="ml-1 text-[10px] bg-primary/20 text-primary rounded-full px-1">{mentions.length}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {mentions.length === 0 && messages.length === 0 && !composing && (
         <div className="text-center py-16 text-muted-foreground text-sm">
           <MessageSquare className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
@@ -48,7 +75,7 @@ export default function MessagesTab({ alterId, alters }) {
         </div>
       )}
 
-      {mentions.length > 0 && (
+      {showMentions && mentions.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mentions</h3>
           {mentions.map((mention) => (
@@ -72,13 +99,13 @@ export default function MessagesTab({ alterId, alters }) {
         </div>
       )}
 
-      {messages.length > 0 && mentions.length > 0 && (
+      {showMessages && showMentions && messages.length > 0 && mentions.length > 0 && (
         <div className="border-t border-border/30 my-4" />
       )}
 
-      {messages.length > 0 && (
+      {showMessages && messages.length > 0 && (
         <div className="space-y-3">
-          {mentions.length > 0 && <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Messages</h3>}
+          {mentions.length > 0 && showMentions && <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Messages</h3>}
           {messages.map((msg) => {
             const author = altersById[msg.author_alter_id];
             return (

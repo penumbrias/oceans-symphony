@@ -11,22 +11,45 @@ export function extractMentionedIds(content, alters) {
   return Array.from(mentioned);
 }
 
-export async function saveMentions({ content, alters, sourceType, sourceId, sourceLabel, navigatePath }) {
+export async function saveMentions({ content, alters, sourceType, sourceId, sourceLabel, navigatePath, authorAlterId }) {
   if (!content) return;
   const mentionedIds = extractMentionedIds(content, alters);
-  if (mentionedIds.length === 0) return;
   const today = format(new Date(), "yyyy-MM-dd");
-  await Promise.all(
-    mentionedIds.map((id) =>
+  const preview = content.slice(0, 120);
+
+  const logs = [];
+
+  // Log for each mentioned alter
+  for (const id of mentionedIds) {
+    logs.push(
       base44.entities.MentionLog.create({
         mentioned_alter_id: id,
+        author_alter_id: authorAlterId || null,
         source_type: sourceType,
         source_id: sourceId || "",
         source_label: sourceLabel || sourceType,
         source_date: today,
-        preview_text: content.slice(0, 120),
-        navigate_path: navigatePath || "/timeline",
+        preview_text: preview,
+        navigate_path: navigatePath || "/",
       })
-    )
-  );
+    );
+  }
+
+  // Also log in the author's board (if author mentioned others)
+  if (authorAlterId && mentionedIds.length > 0) {
+    logs.push(
+      base44.entities.MentionLog.create({
+        mentioned_alter_id: authorAlterId,
+        author_alter_id: authorAlterId,
+        source_type: sourceType + "_sent",
+        source_id: sourceId || "",
+        source_label: `Mentioned ${mentionedIds.length} alter${mentionedIds.length > 1 ? "s" : ""} in ${sourceLabel || sourceType}`,
+        source_date: today,
+        preview_text: preview,
+        navigate_path: navigatePath || "/",
+      })
+    );
+  }
+
+  await Promise.all(logs);
 }

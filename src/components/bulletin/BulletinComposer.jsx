@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign, ListTodo } from "lucide-react";
 import { toast } from "sonner";
+import { saveMentions } from "@/lib/mentionUtils";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
 
@@ -95,8 +96,17 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
         .join("\n");
       data.content = data.content + todoContent;
     }
-    await base44.entities.Bulletin.create(data);
+    const bulletin = await base44.entities.Bulletin.create(data);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
+    await saveMentions({
+      content: data.content,
+      alters,
+      sourceType: "bulletin",
+      sourceId: bulletin.id,
+      sourceLabel: "Bulletin Board",
+      navigatePath: "/",
+      authorAlterId: authorAlterId || null,
+    });
     toast.success("Bulletin posted!");
     setSaving(false);
     onClose?.();

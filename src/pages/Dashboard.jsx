@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
-import { Heart } from "lucide-react";
+import { Heart, Bell } from "lucide-react";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
-import MentionNotifications from "@/components/dashboard/MentionNotifications";
+import NotificationPopups from "@/components/dashboard/NotificationPopups";
+import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
@@ -12,6 +13,7 @@ import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 
 export default function Dashboard() {
   const [showEmotionModal, setShowEmotionModal] = useState(false);
+  const [showNotifHistory, setShowNotifHistory] = useState(false);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -32,16 +34,42 @@ export default function Dashboard() {
   });
   const systemName = settings[0]?.system_name || "Your System";
 
+  const { data: mentionLogs = [] } = useQuery({
+    queryKey: ["mentionLogs"],
+    queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
+  });
+
+  const frontingAlterIds = activeSession
+    ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+    : [];
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <div className="mb-5">
-        <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Welcome home 💜</p>
+      <NotificationPopups
+        mentionLogs={mentionLogs}
+        alters={alters}
+        frontingAlterIds={frontingAlterIds}
+      />
+      <div className="mb-5 flex items-start justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Welcome home 💜</p>
+        </div>
+        <button
+          onClick={() => setShowNotifHistory(true)}
+          className="relative mt-1 p-2 rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Bell className="w-5 h-5" />
+          {mentionLogs.length > 0 && (
+            <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
+          )}
+        </button>
       </div>
 
       <CurrentFronters alters={alters} />
-      <MentionNotifications
-        frontingAlterIds={activeSession ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean) : []}
+      <NotificationHistoryModal
+        open={showNotifHistory}
+        onClose={() => setShowNotifHistory(false)}
         alters={alters}
       />
       
