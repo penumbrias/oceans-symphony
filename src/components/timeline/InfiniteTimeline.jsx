@@ -470,15 +470,14 @@ export default function InfiniteTimeline({
   // Layout
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
   const activityAreaWidth = numActivityCols * colWidths.activity;
+  const eventColLeft = activityAreaWidth;
+  const emotionColLeft = eventColLeft + (showCheckIns ? eventColWidth : 0);
   const checkInAreaWidth = showCheckIns ? (eventColWidth + emotionColWidth) : 0;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * colWidths.alter;
-  const totalWidth = activityAreaWidth + checkInAreaWidth + LABEL_WIDTH + alterAreaWidth;
-  const eventColLeft = activityAreaWidth;
-  const emotionColLeft = eventColLeft + eventColWidth;
-  const checkInLeft = activityAreaWidth;
-  const timeLeft = checkInLeft + checkInAreaWidth;
+  const timeLeft = activityAreaWidth + checkInAreaWidth;
   const alterLeft = timeLeft + LABEL_WIDTH;
+  const totalWidth = timeLeft + LABEL_WIDTH + alterAreaWidth;
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
   return (
@@ -526,11 +525,11 @@ export default function InfiniteTimeline({
             )}
             {showCheckIns && (
               <>
-                <div className="text-center py-1 relative flex-shrink-0 border-r border-border/30" style={{ width: eventColWidth }}>
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
                   <span className="text-xs text-muted-foreground font-medium">Events</span>
                   <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
                 </div>
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth }}>
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
                   <span className="text-xs text-muted-foreground font-medium">Emotions</span>
                   <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
                 </div>
@@ -585,6 +584,18 @@ export default function InfiniteTimeline({
                   })}
                 </div>
               ))}
+
+              {/* Vertical dividers between columns */}
+              {showCheckIns && (
+                <div className="absolute top-0 bottom-0 border-l border-border/30 pointer-events-none"
+                  style={{ left: eventColLeft, height: totalHeight }} />
+              )}
+              {showCheckIns && (
+                <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
+                  style={{ left: emotionColLeft, height: totalHeight }} />
+              )}
+              <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
+                style={{ left: timeLeft, height: totalHeight }} />
 
               {/* Events column (left) */}
               {showCheckIns && (
