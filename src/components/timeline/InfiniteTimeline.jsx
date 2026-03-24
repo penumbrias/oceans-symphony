@@ -625,8 +625,8 @@ export default function InfiniteTimeline({
               )}
 
               {/* Emotions column (right of events) */}
-              {showCheckIns && showEmotions && (
-                <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth, height: totalHeight }}>
+              {showEmotions && (
+                <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth_actual, height: totalHeight }}>
                   {emotionPositioned.map((entry) => (
                     <EmotionBubble
                       key={entry.key}
