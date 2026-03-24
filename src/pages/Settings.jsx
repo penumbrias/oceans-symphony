@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Palette, Save, Loader2, Moon, Sun, LogOut, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/lib/ThemeContext";
 import TermsSettings from "@/components/settings/TermsSettings";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
@@ -53,24 +54,21 @@ export default function Settings() {
   const settings = settingsList[0] || null;
 
   const [systemName, setSystemName] = useState("");
+  const [systemDescription, setSystemDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (settings?.system_name) {
-      setSystemName(settings.system_name);
-    }
+    if (settings?.system_name) setSystemName(settings.system_name);
+    if (settings?.system_description !== undefined) setSystemDescription(settings.system_description || "");
   }, [settings]);
 
   const handleSaveName = async () => {
     setSaving(true);
+    const data = { system_name: systemName, system_description: systemDescription };
     if (settings?.id) {
-      await base44.entities.SystemSettings.update(settings.id, {
-        system_name: systemName,
-      });
+      await base44.entities.SystemSettings.update(settings.id, data);
     } else {
-      await base44.entities.SystemSettings.create({
-        system_name: systemName,
-      });
+      await base44.entities.SystemSettings.create(data);
     }
     setSaving(false);
     refetch();
@@ -151,6 +149,18 @@ export default function Settings() {
                   value={systemName}
                   onChange={(e) => setSystemName(e.target.value)}
                   className="mt-2 bg-card/50"
+                />
+              </div>
+              <div>
+                <Label htmlFor="system-description" className="text-sm font-medium">
+                  System Description
+                </Label>
+                <Textarea
+                  id="system-description"
+                  placeholder="Describe your system..."
+                  value={systemDescription}
+                  onChange={(e) => setSystemDescription(e.target.value)}
+                  className="mt-2 bg-card/50 min-h-[100px]"
                 />
               </div>
               <Button

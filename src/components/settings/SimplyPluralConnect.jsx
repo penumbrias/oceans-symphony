@@ -86,18 +86,12 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       const systemId = await getSystemId(token.trim());
       const systemUser = await getSystemUser(token.trim(), systemId);
       const systemName = systemUser?.username || systemUser?.name || "";
+      const systemDescription = systemUser?.desc || systemUser?.description || "";
+      const spData = { sp_token: token.trim(), sp_system_id: systemId, system_name: systemName, system_description: systemDescription };
       if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, {
-          sp_token: token.trim(),
-          sp_system_id: systemId,
-          system_name: systemName,
-        });
+        await base44.entities.SystemSettings.update(settings.id, spData);
       } else {
-        await base44.entities.SystemSettings.create({
-          sp_token: token.trim(),
-          sp_system_id: systemId,
-          system_name: systemName,
-        });
+        await base44.entities.SystemSettings.create(spData);
       }
       const count = await syncMembers(token.trim(), systemId);
       setToken("");
