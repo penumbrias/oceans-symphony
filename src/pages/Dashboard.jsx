@@ -11,11 +11,18 @@ import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+import TourModal from "@/components/onboarding/TourModal";
 
 export default function Dashboard() {
   const [showEmotionModal, setShowEmotionModal] = useState(false);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
+  const [showTour, setShowTour] = useState(() => !localStorage.getItem("tour_seen"));
+
+  const handleTourClose = () => {
+    localStorage.setItem("tour_seen", "1");
+    setShowTour(false);
+  };
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -80,15 +87,24 @@ export default function Dashboard() {
           <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Welcome home 💜</p>
         </div>
+        <div className="flex items-center gap-1">
+        <button
+          onClick={() => setShowTour(true)}
+          className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+          title="Open guide"
+        >
+          Guide
+        </button>
         <button
           onClick={() => setShowNotifHistory(true)}
-          className="relative mt-1 p-2 rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+          className="relative mt-0 p-2 rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
         >
           <Bell className="w-5 h-5" />
           {mentionLogs.length > 0 && (
             <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
           )}
         </button>
+        </div>
       </div>
 
       <CurrentFronters alters={alters} />
@@ -111,6 +127,7 @@ export default function Dashboard() {
       <QuickNavMenu />
       <BulletinBoard alters={alters} currentAlterId={currentAlterId} highlightBulletinId={highlightBulletinId} />
 
+      <TourModal open={showTour} onClose={handleTourClose} />
       <QuickCheckInModal 
         isOpen={showEmotionModal} 
         onClose={() => setShowEmotionModal(false)} 
