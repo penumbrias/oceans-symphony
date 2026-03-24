@@ -279,13 +279,6 @@ export default function InfiniteTimeline({
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-  // Compute daily task completion
-  const dailyTasksData = useMemo(() => {
-    if (!isToday) return { completed: 0, total: DAILY_TASKS.length };
-    const completed = Math.max(1, journals.length + (checkIns.length > 0 ? 1 : 0) + (bulletins.length > 0 ? 1 : 0));
-    return { completed, total: DAILY_TASKS.length };
-  }, [isToday, journals, checkIns, bulletins]);
-
   const toggleExpand = useCallback((key) => {
     setExpandedKeys((prev) => {
       const next = new Set(prev);
@@ -696,8 +689,6 @@ export default function InfiniteTimeline({
                 checkIns={checkIns}
                 tasks={tasks}
                 alters={alters}
-                dailyTasksTotal={dailyTasksData.total}
-                dailyTasksCompleted={dailyTasksData.completed}
               />
             )}
 
