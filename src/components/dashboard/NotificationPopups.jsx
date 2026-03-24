@@ -8,7 +8,10 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
   const [dismissed, setDismissed] = useState(new Set());
 
   const relevant = mentionLogs.filter(
-    (m) => frontingAlterIds.includes(m.mentioned_alter_id) && !dismissed.has(m.id)
+    (m) =>
+      frontingAlterIds.includes(m.mentioned_alter_id) &&
+      !dismissed.has(m.id) &&
+      !m.source_type?.endsWith("_sent")
   );
 
   if (relevant.length === 0) return null;
