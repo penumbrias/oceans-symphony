@@ -2,13 +2,14 @@ import React, { useState, useMemo } from "react";
 import { Coffee, Sun, Sunset, Moon, User } from "lucide-react";
 import { getHours } from "date-fns";
 import { Link } from "react-router-dom";
+import { useTerms } from "@/lib/useTerms";
 
 // Morning: 5–11, Day: 12–17, Evening: 18–21, Night: 22–4
-const PERIODS = [
-  { id: "morning", label: "Morning fronters", icon: Coffee, range: [5, 11], color: "text-amber-400" },
-  { id: "day",     label: "Day fronters",     icon: Sun,    range: [12, 17], color: "text-yellow-400" },
-  { id: "evening", label: "Evening fronters", icon: Sunset, range: [18, 21], color: "text-orange-400" },
-  { id: "night",   label: "Night fronters",   icon: Moon,   range: [22, 4],  color: "text-blue-400" },
+const PERIOD_DEFS = [
+  { id: "morning", labelPrefix: "Morning", icon: Coffee, range: [5, 11], color: "text-amber-400" },
+  { id: "day",     labelPrefix: "Day",     icon: Sun,    range: [12, 17], color: "text-yellow-400" },
+  { id: "evening", labelPrefix: "Evening", icon: Sunset, range: [18, 21], color: "text-orange-400" },
+  { id: "night",   labelPrefix: "Night",   icon: Moon,   range: [22, 4],  color: "text-blue-400" },
 ];
 
 function getContrastColor(hex) {
@@ -73,6 +74,8 @@ function AlterRow({ alter, duration, periodLabel }) {
 }
 
 export default function TimeOfDayFronters({ sessions, alters }) {
+  const terms = useTerms();
+  const PERIODS = PERIOD_DEFS.map(p => ({ ...p, label: `${p.labelPrefix} ${terms.alters}` }));
   const [activePeriod, setActivePeriod] = useState("morning");
 
   const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
@@ -109,7 +112,7 @@ export default function TimeOfDayFronters({ sessions, alters }) {
       {/* Results */}
       {periodData.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-muted-foreground text-sm">No fronting data during this time</p>
+          <p className="text-muted-foreground text-sm">No {terms.fronting} data during this time</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -148,7 +151,7 @@ export default function TimeOfDayFronters({ sessions, alters }) {
       </div>
 
       <p className="text-center text-xs text-primary font-semibold uppercase tracking-wider mt-2">
-        Time of fronting
+        Time of {terms.fronting}
       </p>
     </div>
   );
