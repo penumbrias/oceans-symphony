@@ -3,6 +3,7 @@ import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, Layers } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
 
 const HOUR_HEIGHT = 56;
 const LABEL_WIDTH = 44;
@@ -93,11 +94,13 @@ function StatusNoteBadge({ note, topPx }) {
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx }) {
+function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap }) {
   const sz = 26;
+  const tap = useDoubleTap(onTap, onDoubleTap);
   return (
-    <div className="absolute flex flex-col items-center" style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}>
-      <div className="rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center"
+    <div className="absolute flex flex-col items-center cursor-pointer" style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
+      onClick={tap}>
+      <div className="rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
         style={{ width: sz, height: sz, backgroundColor: color }} title={alter?.name}>
         {alter?.avatar_url
           ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
@@ -216,6 +219,8 @@ export default function InfiniteTimeline({
   const [expandedKeys, setExpandedKeys] = useState(new Set());
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
   const [mergeByCategory, setMergeByCategory] = useState(false);
+  const [sessionPopover, setSessionPopover] = useState(null); // { session, alter }
+  const [editingSession, setEditingSession] = useState(null); // { session, alter }
   const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -526,7 +531,14 @@ export default function InfiniteTimeline({
                     const color = alter?.color || "#9333ea";
                     const topPx = getTopPx(entry.startMins);
                     const heightPx = getRangePx(entry.startMins, entry.endMins);
-                    return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx} />;
+                    // Find the actual session for this entry
+                    const entrySession = sessions.find(s => {
+                      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+                      return ids.includes(entry.alterId);
+                    });
+                    return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx}
+                      onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
+                      onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })} />;
                   })}
                 </div>
               ))}
@@ -546,6 +558,25 @@ export default function InfiniteTimeline({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Alter session info popover (single tap) */}
+      {sessionPopover && !editingSession && (
+        <AlterSessionInfo
+          session={sessionPopover.session}
+          alter={sessionPopover.alter}
+          onClose={() => setSessionPopover(null)}
+          onEdit={() => { setEditingSession(sessionPopover); setSessionPopover(null); }}
+        />
+      )}
+
+      {/* Alter session edit modal (double tap or via info) */}
+      {editingSession && (
+        <AlterSessionEdit
+          session={editingSession.session}
+          alter={editingSession.alter}
+          onClose={() => setEditingSession(null)}
+        />
       )}
     </div>
   );
