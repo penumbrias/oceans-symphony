@@ -77,6 +77,22 @@ function ResizeHandle({ onDrag }) {
   );
 }
 
+function StatusNoteBadge({ note, topPx }) {
+  return (
+    <div
+      className="absolute left-0 right-0 z-10 flex items-start"
+      style={{ top: topPx, userSelect: "none" }}
+    >
+      <div className="mx-1 px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-muted-foreground leading-tight truncate w-full"
+        style={{ fontSize: 9 }}
+        title={note}
+      >
+        💬 {note}
+      </div>
+    </div>
+  );
+}
+
 function AlterBar({ alter, color, topPx, heightPx }) {
   const sz = 26;
   return (
@@ -514,6 +530,18 @@ export default function InfiniteTimeline({
                   })}
                 </div>
               ))}
+
+              {/* Session status notes — shown in the alters area */}
+              {sessions.filter(s => s.note).map((session) => {
+                const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+                const topPx = getTopPx(startMins);
+                return (
+                  <div key={`note-${session.id}`} className="absolute"
+                    style={{ left: alterLeft, right: 0, top: 0, height: totalHeight, pointerEvents: "none" }}>
+                    <StatusNoteBadge note={session.note} topPx={topPx} />
+                  </div>
+                );
+              })}
 
             </div>
           </div>
