@@ -13,8 +13,7 @@ export default function Timeline() {
   const [daysBack, setDaysBack] = useState(CHUNK_DAYS);
   const [showFronting, setShowFronting] = useState(true);
   const [showActivities, setShowActivities] = useState(true);
-  const [showEvents, setShowEvents] = useState(true);
-  const [showEmotions, setShowEmotions] = useState(true);
+  const [showCheckIns, setShowCheckIns] = useState(true);
   const [jumpDate, setJumpDate] = useState("");
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
@@ -123,10 +122,7 @@ export default function Timeline() {
         <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)} title="Activities">
           <Activity className="w-3.5 h-3.5" />
         </button>
-        <button className={toggleStyles(showEvents)} onClick={() => setShowEvents(!showEvents)} title="Events">
-          📋
-        </button>
-        <button className={toggleStyles(showEmotions)} onClick={() => setShowEmotions(!showEmotions)} title="Emotions">
+        <button className={toggleStyles(showCheckIns)} onClick={() => setShowCheckIns(!showCheckIns)} title="Check Ins">
           <Heart className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -196,8 +192,7 @@ export default function Timeline() {
                 bulletins={dayBulletins}
                 tasks={dayTasks}
                 showActivities={showActivities}
-                showEvents={showEvents}
-                showEmotions={showEmotions}
+                showCheckIns={showCheckIns}
                 categories={categories}
               />
             </div>

@@ -163,16 +163,14 @@ const TYPE_META = {
 };
 
 // Emotion bubble — always visible as colored circle with first letter
-const EMOTION_DETAIL_MIN_WIDTH = 60;
 function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
-  const showDetails = expanded || colWidth >= EMOTION_DETAIL_MIN_WIDTH;
 
   return (
     <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={onTap}>
-      {showDetails ? (
+      {expanded ? (
         <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm text-right">
           <p className="text-xs text-muted-foreground mb-1 font-medium">{timeStr}</p>
           <div className="flex flex-wrap gap-0.5 justify-end">
@@ -183,35 +181,13 @@ function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
           </div>
           {note && <p className="text-xs text-muted-foreground italic mt-1 text-right">{note}</p>}
         </div>
-      ) : colWidth < EMOTION_DETAIL_MIN_WIDTH ? (
-        <div className="relative">
-          {note && (
-            <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>
-          )}
-          <div className="flex gap-0.5 flex-wrap justify-end">
-            {emotions.slice(0, 2).map((em) => (
-              <div key={em}
-                className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
-                style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }}
-                title={em}>
-                <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
-              </div>
-            ))}
-            {emotions.length > 2 && (
-              <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
-                style={{ width: 18, height: 18 }}>
-                <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 2}</span>
-              </div>
-            )}
-          </div>
-        </div>
       ) : (
         <div className="relative">
           {note && (
             <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>
           )}
           <div className="flex gap-0.5 flex-wrap justify-end">
-            {emotions.map((em) => (
+            {emotions.slice(0, 4).map((em) => (
               <div key={em}
                 className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
                 style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }}
@@ -219,12 +195,18 @@ function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
                 <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
               </div>
             ))}
+            {emotions.length > 4 && (
+              <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
+                style={{ width: 18, height: 18 }}>
+                <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 4}</span>
+              </div>
+            )}
           </div>
-          </div>
-          )}
-          </div>
-          );
-          }
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Non-emotion entry — icon button that hugs the left
 function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
@@ -273,7 +255,7 @@ function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
 export default function InfiniteTimeline({
   day, sessions, activities, emotions, alters, hasData, isToday,
   journals = [], checkIns = [], bulletins = [], tasks = [],
-  showActivities = true, showEvents = true, showEmotions = true,
+  showActivities = true, showCheckIns = true,
   categories = [],
 }) {
   // Build category -> parent map for merge-by-category
@@ -489,8 +471,8 @@ export default function InfiniteTimeline({
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
   const activityAreaWidth = numActivityCols * colWidths.activity;
   const eventColLeft = activityAreaWidth;
-  const emotionColLeft = eventColLeft + (showEvents ? eventColWidth : 0);
-  const checkInAreaWidth = (showEvents ? eventColWidth : 0) + (showEmotions ? emotionColWidth : 0);
+  const emotionColLeft = eventColLeft + (showCheckIns ? eventColWidth : 0);
+  const checkInAreaWidth = showCheckIns ? (eventColWidth + emotionColWidth) : 0;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * colWidths.alter;
   const timeLeft = activityAreaWidth + checkInAreaWidth;
@@ -537,21 +519,21 @@ export default function InfiniteTimeline({
           <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
             {showActivities && (
               <div className="text-center py-1 relative flex-shrink-0" style={{ width: activityAreaWidth }}>
-                <span className="text-xs text-muted-foreground font-medium">🎯</span>
+                <span className="text-xs text-muted-foreground font-medium">Activities</span>
                 <ResizeHandle onDrag={(d) => dragCol("activity", d / numActivityCols)} />
               </div>
             )}
-            {showEvents && (
-              <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
-                <span className="text-xs text-muted-foreground font-medium">📋</span>
-                <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
-              </div>
-            )}
-            {showEmotions && (
-              <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
-                <span className="text-xs text-muted-foreground font-medium">❤️</span>
-                <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
-              </div>
+            {showCheckIns && (
+              <>
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
+                  <span className="text-xs text-muted-foreground font-medium">Events</span>
+                  <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
+                </div>
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
+                  <span className="text-xs text-muted-foreground font-medium">Emotions</span>
+                  <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
+                </div>
+              </>
             )}
             <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
             <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
@@ -604,11 +586,11 @@ export default function InfiniteTimeline({
               ))}
 
               {/* Vertical dividers between columns */}
-              {showEvents && (
+              {showCheckIns && (
                 <div className="absolute top-0 bottom-0 border-l border-border/30 pointer-events-none"
                   style={{ left: eventColLeft, height: totalHeight }} />
               )}
-              {showEmotions && (
+              {showCheckIns && (
                 <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
                   style={{ left: emotionColLeft, height: totalHeight }} />
               )}
@@ -616,7 +598,7 @@ export default function InfiniteTimeline({
                 style={{ left: timeLeft, height: totalHeight }} />
 
               {/* Events column (left) */}
-              {showEvents && (
+              {showCheckIns && (
                 <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth, height: totalHeight }}>
                   {eventPositioned.map((entry) => (
                     <EventEntry
@@ -638,7 +620,7 @@ export default function InfiniteTimeline({
               )}
 
               {/* Emotions column (right of events) */}
-              {showEmotions && (
+              {showCheckIns && (
                 <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth, height: totalHeight }}>
                   {emotionPositioned.map((entry) => (
                     <EmotionBubble
