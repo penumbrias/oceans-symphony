@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { Heart, Bell } from "lucide-react";
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const bid = location.state?.highlightBulletinId;
@@ -28,11 +29,13 @@ export default function Dashboard() {
   }, [location.state]);
 
   const handleNotifClick = (mentionLog) => {
-    const bid = mentionLog.source_id;
-    if (bid) {
-      setShowNotifHistory(false);
-      setHighlightBulletinId(bid);
+    setShowNotifHistory(false);
+    const path = mentionLog.navigate_path || "/";
+    if (path === "/" && mentionLog.source_id) {
+      setHighlightBulletinId(mentionLog.source_id);
       setTimeout(() => setHighlightBulletinId(null), 3000);
+    } else {
+      navigate(path);
     }
   };
 
