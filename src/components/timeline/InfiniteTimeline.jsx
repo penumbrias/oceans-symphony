@@ -529,18 +529,16 @@ export default function InfiniteTimeline({
               </div>
             )}
             {showCheckIns && (
-              <>
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
-                  <BookOpen className="w-3.5 h-3.5 inline" />
-                  <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
-                </div>
-                {showEmotions && (
-                  <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
-                    <Heart className="w-3.5 h-3.5 inline" />
-                    <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
-                  </div>
-                )}
-              </>
+              <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
+                <BookOpen className="w-3.5 h-3.5 inline" />
+                <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
+              </div>
+            )}
+            {showEmotions && (
+              <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
+                <Heart className="w-3.5 h-3.5 inline" />
+                <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
+              </div>
             )}
             <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
             <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
