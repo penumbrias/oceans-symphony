@@ -14,7 +14,7 @@ function emotionColor(name) {
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
 
-export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters }) {
+export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters, checkIns = [], tasks = [] }) {
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const dayEnd = useMemo(() => endOfDay(day), [day]);
 
@@ -85,6 +85,37 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
     }).length;
   }, [journals, dayStart, dayEnd]);
 
+  // Check-in count
+  const checkInCount = useMemo(() => {
+    return checkIns.filter((c) => {
+      const t = parseDate(c.created_date);
+      return t >= dayStart && t <= dayEnd;
+    }).length;
+  }, [checkIns, dayStart, dayEnd]);
+
+  // Tasks: created and completed on this day
+  const taskStats = useMemo(() => {
+    const dayTasks = tasks.filter((t) => {
+      const created = parseDate(t.created_date);
+      const completed = t.completed && t.completed_date ? parseDate(t.completed_date) : null;
+      return (created >= dayStart && created <= dayEnd) || (completed && completed >= dayStart && completed <= dayEnd);
+    });
+    const completedCount = dayTasks.filter((t) => t.completed && parseDate(t.completed_date) >= dayStart && parseDate(t.completed_date) <= dayEnd).length;
+    const createdCount = dayTasks.filter((t) => parseDate(t.created_date) >= dayStart && parseDate(t.created_date) <= dayEnd).length;
+    const completionPercent = createdCount > 0 ? Math.round((completedCount / createdCount) * 100) : 0;
+    return { created: createdCount, completed: completedCount, percent: completionPercent };
+  }, [tasks, dayStart, dayEnd]);
+
+  // Unique activities
+  const uniqueActivities = useMemo(() => {
+    const dayActs = activities.filter((a) => {
+      const t = parseDate(a.timestamp);
+      return t >= dayStart && t <= dayEnd;
+    });
+    const names = [...new Set(dayActs.map((a) => a.activity_name))];
+    return names;
+  }, [activities, dayStart, dayEnd]);
+
   const avgSwitchTime = useMemo(() => {
     if (switchCount === 0) return 0;
     const totalMins = fronterTally.reduce((sum, f) => sum + f.mins, 0);
@@ -136,18 +167,40 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
           )}
         </div>
 
-        <div className="space-y-1">
-          <p className="text-muted-foreground font-medium">Activity</p>
-          <div className="flex gap-3">
-            <div>
-              <p className="font-semibold text-base">{activityCount}</p>
-              <p className="text-muted-foreground text-xs">activities</p>
+        <div className="col-span-2">
+          <p className="text-muted-foreground font-medium mb-1">Activities</p>
+          {uniqueActivities.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {uniqueActivities.slice(0, 6).map((name) => (
+                <span key={name} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary text-xs">
+                  {name}
+                </span>
+              ))}
+              {uniqueActivities.length > 6 && (
+                <span className="px-1.5 py-0.5 text-muted-foreground text-xs">+{uniqueActivities.length - 6} more</span>
+              )}
             </div>
-            <div>
-              <p className="font-semibold text-base">{journalCount}</p>
-              <p className="text-muted-foreground text-xs">journals</p>
-            </div>
-          </div>
+          ) : (
+            <span className="text-muted-foreground italic text-xs">None</span>
+          )}
+        </div>
+
+        <div>
+          <p className="text-muted-foreground font-medium mb-1">Checks</p>
+          <p className="font-semibold text-base">{checkInCount}</p>
+          <p className="text-muted-foreground text-xs">check-ins</p>
+        </div>
+
+        <div>
+          <p className="text-muted-foreground font-medium mb-1">To-dos</p>
+          <p className="font-semibold text-base">{taskStats.completed}/{taskStats.created}</p>
+          <p className="text-muted-foreground text-xs">{taskStats.percent}% done</p>
+        </div>
+
+        <div>
+          <p className="text-muted-foreground font-medium mb-1">Journals</p>
+          <p className="font-semibold text-base">{journalCount}</p>
+          <p className="text-muted-foreground text-xs">entries</p>
         </div>
       </div>
     </div>
