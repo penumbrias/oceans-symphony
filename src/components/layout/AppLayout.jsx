@@ -30,7 +30,7 @@ export default function AppLayout() {
               <Sparkles className="w-4 h-4 text-primary" />
             </div>
             <span className="font-display text-lg font-semibold tracking-tight text-foreground">
-              Innerworld
+              Symphony
             </span>
           </Link>
 
