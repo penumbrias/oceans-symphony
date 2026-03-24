@@ -13,7 +13,10 @@ import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 
 export default function ActivityTracker() {
   const qc = useQueryClient();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const urlParams = new URLSearchParams(window.location.search);
+  const highlightId = urlParams.get("highlight") || null;
+  const jumpDate = urlParams.get("date") || null;
+  const [currentDate, setCurrentDate] = useState(() => jumpDate ? new Date(jumpDate + "T00:00:00") : new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
