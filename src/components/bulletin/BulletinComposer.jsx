@@ -104,7 +104,7 @@ export default function BulletinComposer({ alters, authorAlterId, onClose }) {
       sourceType: "bulletin",
       sourceId: bulletin.id,
       sourceLabel: "Bulletin Board",
-      navigatePath: "/",
+      navigatePath: `/?bulletin=${bulletin.id}`,
       authorAlterId: authorAlterId || null,
     });
     toast.success("Bulletin posted!");

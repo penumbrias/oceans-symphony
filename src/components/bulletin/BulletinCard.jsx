@@ -48,7 +48,7 @@ function renderContent(content, alters) {
   });
 }
 
-export default function BulletinCard({ bulletin, alters, currentAlterId, canDelete }) {
+export default function BulletinCard({ bulletin, alters, currentAlterId, canDelete, highlight }) {
   const qc = useQueryClient();
   const [showReactPicker, setShowReactPicker] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -129,7 +129,10 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, canDele
   };
 
   return (
-    <div className={`bg-card border rounded-2xl p-4 ${bulletin.is_pinned ? "border-primary/40 bg-primary/5" : "border-border/50"}`}>
+    <div className={`bg-card border rounded-2xl p-4 transition-all duration-700 ${
+      highlight ? "border-primary ring-2 ring-primary/30 bg-primary/5" :
+      bulletin.is_pinned ? "border-primary/40 bg-primary/5" : "border-border/50"
+    }`}>
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
