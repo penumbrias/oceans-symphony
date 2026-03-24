@@ -219,8 +219,8 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, canDele
         </div>
       )}
 
-      {/* Comments Toggle */}
-      <div className="flex items-center gap-1">
+      {/* Reactions + Comments row */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-1">
         {comments.length > 0 && (
           <button
             onClick={() => setShowComments(!showComments)}

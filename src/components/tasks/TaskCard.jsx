@@ -2,19 +2,25 @@ import React from "react";
 import { Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+const NAV_MAP = {
+  parts_checkin: "/system-checkin",
+  card_entry: "/diary",
+  journal_entry: "/journals",
+  check_in: null,
+};
+
 export default function TaskCard({ task, completed, onToggle }) {
   const navigate = useNavigate();
 
-  const handlePartsCheckInClick = () => {
-    if (task.id === "parts_checkin") {
-      navigate("/system-checkin");
-    }
+  const handleClick = () => {
+    const path = NAV_MAP[task.id];
+    if (path) navigate(path);
   };
 
   return (
-    <div 
-      onClick={handlePartsCheckInClick}
-      className={`bg-card border rounded-xl p-4 transition-all cursor-pointer hover:border-primary/40 ${
+    <div
+      onClick={handleClick}
+      className={`bg-card border rounded-xl p-4 transition-all ${NAV_MAP[task.id] ? "cursor-pointer hover:border-primary/40" : ""} ${
         completed ? "border-primary/30 bg-primary/5" : "border-border/50"
       }`}>
       <div className="flex items-start justify-between gap-3">
