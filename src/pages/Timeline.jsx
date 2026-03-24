@@ -14,6 +14,7 @@ export default function Timeline() {
   const [showFronting, setShowFronting] = useState(true);
   const [showActivities, setShowActivities] = useState(true);
   const [showCheckIns, setShowCheckIns] = useState(true);
+  const [showEmotions, setShowEmotions] = useState(true);
   const [jumpDate, setJumpDate] = useState("");
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
@@ -130,6 +131,9 @@ export default function Timeline() {
         <button className={toggleStyles(showCheckIns)} onClick={() => setShowCheckIns(!showCheckIns)} title="Events">
           <BookOpen className="w-3.5 h-3.5" />
         </button>
+        <button className={toggleStyles(showEmotions)} onClick={() => setShowEmotions(!showEmotions)} title="Emotions">
+          <Heart className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Timeline days */}
@@ -198,6 +202,7 @@ export default function Timeline() {
                 tasks={dayTasks}
                 showActivities={showActivities}
                 showCheckIns={showCheckIns}
+                showEmotions={showEmotions}
                 categories={categories}
                 dailyProgress={dailyProgress.find((p) => p.date === format(day, "yyyy-MM-dd"))}
               />
