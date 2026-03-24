@@ -167,40 +167,32 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
           )}
         </div>
 
-        <div className="col-span-2">
-          <p className="text-muted-foreground font-medium mb-1">Activities</p>
-          {uniqueActivities.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {uniqueActivities.slice(0, 6).map((name) => (
-                <span key={name} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary text-xs">
-                  {name}
-                </span>
-              ))}
-              {uniqueActivities.length > 6 && (
-                <span className="px-1.5 py-0.5 text-muted-foreground text-xs">+{uniqueActivities.length - 6} more</span>
-              )}
+        <div>
+          <p className="text-muted-foreground font-medium mb-1">Activity</p>
+          <div className="flex gap-3">
+            <div>
+              <p className="font-semibold text-base">{activityCount}</p>
+              <p className="text-muted-foreground text-xs">activities</p>
             </div>
-          ) : (
-            <span className="text-muted-foreground italic text-xs">None</span>
-          )}
+            <div>
+              <p className="font-semibold text-base">{checkInCount}</p>
+              <p className="text-muted-foreground text-xs">check-ins</p>
+            </div>
+          </div>
         </div>
 
         <div>
-          <p className="text-muted-foreground font-medium mb-1">Checks</p>
-          <p className="font-semibold text-base">{checkInCount}</p>
-          <p className="text-muted-foreground text-xs">check-ins</p>
-        </div>
-
-        <div>
-          <p className="text-muted-foreground font-medium mb-1">To-dos</p>
-          <p className="font-semibold text-base">{taskStats.completed}/{taskStats.created}</p>
-          <p className="text-muted-foreground text-xs">{taskStats.percent}% done</p>
-        </div>
-
-        <div>
-          <p className="text-muted-foreground font-medium mb-1">Journals</p>
-          <p className="font-semibold text-base">{journalCount}</p>
-          <p className="text-muted-foreground text-xs">entries</p>
+          <p className="text-muted-foreground font-medium mb-1">Tasks</p>
+          <div className="flex gap-3">
+            <div>
+              <p className="font-semibold text-base">{taskStats.completed}/{taskStats.created}</p>
+              <p className="text-muted-foreground text-xs">{taskStats.percent}% done</p>
+            </div>
+            <div>
+              <p className="font-semibold text-base">{journalCount}</p>
+              <p className="text-muted-foreground text-xs">journals</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
