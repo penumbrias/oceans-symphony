@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseDate } from "@/lib/dateUtils";
@@ -14,10 +14,17 @@ import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 export default function ActivityTracker() {
   const qc = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
-  const highlightId = urlParams.get("highlight") || null;
   const jumpDate = urlParams.get("date") || null;
+  const [highlightId, setHighlightId] = useState(() => urlParams.get("highlight") || null);
   const [currentDate, setCurrentDate] = useState(() => jumpDate ? new Date(jumpDate + "T00:00:00") : new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (highlightId) {
+      const timer = setTimeout(() => setHighlightId(null), 5500);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId]);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedStartHour, setSelectedStartHour] = useState(undefined);
