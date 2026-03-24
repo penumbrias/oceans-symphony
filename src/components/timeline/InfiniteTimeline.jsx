@@ -512,16 +512,6 @@ export default function InfiniteTimeline({
               Tally
             </button>
           )}
-          {!collapsed && showActivities && (
-            <button
-              onClick={() => setMergeByCategory(v => !v)}
-              title={mergeByCategory ? "Merged by category — click to show individual" : "Showing individual activities — click to merge by category"}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${mergeByCategory ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
-            >
-              <Layers className="w-3 h-3" />
-              {mergeByCategory ? "By category" : "Individual"}
-            </button>
-          )}
           {collapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
         </div>
       </button>
@@ -531,7 +521,7 @@ export default function InfiniteTimeline({
           <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
             {showActivities && (
               <div className="text-center py-1 relative flex-shrink-0" style={{ width: activityAreaWidth }}>
-                <span className="text-xs text-muted-foreground font-medium">Activities</span>
+                <Activity className="w-3.5 h-3.5 inline" />
                 <ResizeHandle onDrag={(d) => dragCol("activity", d / numActivityCols)} />
               </div>
             )}
@@ -551,7 +541,7 @@ export default function InfiniteTimeline({
             )}
             <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
             <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
-              <span className="text-xs text-muted-foreground font-medium">Alters</span>
+              <Users className="w-3.5 h-3.5 inline" />
               <ResizeHandle onDrag={(d) => dragCol("alter", d / numAlterCols)} />
             </div>
           </div>
@@ -689,14 +679,16 @@ export default function InfiniteTimeline({
 
             {/* Daily tally panel */}
             {!collapsed && showTally && (
-            <DailyTallyPanel
-            day={day}
-            sessions={sessions}
-            activities={activities}
-            emotions={emotions}
-            journals={journals}
-            alters={alters}
-            />
+              <DailyTallyPanel
+                day={day}
+                sessions={sessions}
+                activities={activities}
+                emotions={emotions}
+                journals={journals}
+                checkIns={checkIns}
+                tasks={tasks}
+                alters={alters}
+              />
             )}
 
             {/* Alter session info popover (single tap) */}
