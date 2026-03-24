@@ -579,6 +579,7 @@ export default function InfiniteTimeline({
                         else if (entry.type === "bulletin") navigate(`/`);
                         else if (entry.type === "task") navigate(`/todo`);
                       }}
+
                     />
                   ))}
                 </div>
