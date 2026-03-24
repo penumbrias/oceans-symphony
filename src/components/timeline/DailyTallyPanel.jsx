@@ -14,7 +14,7 @@ function emotionColor(name) {
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
 
-export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters, checkIns = [], tasks = [] }) {
+export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters, checkIns = [], tasks = [], dailyTasksTotal = 0, dailyTasksCompleted = 0 }) {
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const dayEnd = useMemo(() => endOfDay(day), [day]);
 
@@ -186,6 +186,11 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
         <div>
           <p className="text-muted-foreground font-medium mb-1">Check-ins</p>
           <p className="font-semibold text-base">{checkInCount}</p>
+        </div>
+
+        <div>
+          <p className="text-muted-foreground font-medium mb-1">Daily Tasks</p>
+          <p className="font-semibold text-base">{dailyTasksCompleted}/{dailyTasksTotal}</p>
         </div>
 
         <div>
