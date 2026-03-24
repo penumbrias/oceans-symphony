@@ -122,9 +122,6 @@ export default function Timeline() {
 
       {/* Toggles */}
       <div className="flex gap-2 flex-wrap">
-        <button className={toggleStyles(showFronting)} onClick={() => setShowFronting(!showFronting)} title="Fronting">
-          <Users className="w-3.5 h-3.5" />
-        </button>
         <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)} title="Activities">
           <Activity className="w-3.5 h-3.5" />
         </button>
@@ -133,6 +130,9 @@ export default function Timeline() {
         </button>
         <button className={toggleStyles(showEmotions)} onClick={() => setShowEmotions(!showEmotions)} title="Emotions">
           <Heart className="w-3.5 h-3.5" />
+        </button>
+        <button className={toggleStyles(showFronting)} onClick={() => setShowFronting(!showFronting)} title="Fronting">
+          <Users className="w-3.5 h-3.5" />
         </button>
       </div>
 
