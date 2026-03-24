@@ -473,9 +473,11 @@ export default function InfiniteTimeline({
   // Layout
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
   const activityAreaWidth = numActivityCols * colWidths.activity;
+  const eventColWidth_actual = showCheckIns ? eventColWidth : 0;
+  const emotionColWidth_actual = showEmotions ? emotionColWidth : 0;
   const eventColLeft = activityAreaWidth;
-  const emotionColLeft = eventColLeft + (showCheckIns ? eventColWidth : 0);
-  const checkInAreaWidth = showCheckIns ? (eventColWidth + emotionColWidth) : 0;
+  const emotionColLeft = eventColLeft + eventColWidth_actual;
+  const checkInAreaWidth = eventColWidth_actual + emotionColWidth_actual;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * colWidths.alter;
   const timeLeft = activityAreaWidth + checkInAreaWidth;
