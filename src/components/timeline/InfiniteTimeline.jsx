@@ -153,49 +153,79 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expand
 }
 
 const TYPE_META = {
-  emotion:      { icon: "💭" },
-  journal:      { icon: "📓" },
-  checkin:      { icon: "✅" },
-  bulletin:     { icon: "📌" },
-  task:         { icon: "☑️" },
-  task_done:    { icon: "✅" },
-  mention:      { icon: "@" },
+  journal:      { icon: "📓", emoji: true },
+  checkin:      { icon: "✅", emoji: true },
+  bulletin:     { icon: "📌", emoji: true },
+  task:         { icon: "☑️", emoji: true },
+  task_done:    { icon: "✅", emoji: true },
+  mention:      { icon: "@",  emoji: false },
 };
 
-function CheckInEntry({ entry, topPx, onTap, onDoubleTap }) {
-  const tap = useDoubleTap(onTap, onDoubleTap);
-  const meta = TYPE_META[entry.type] || { icon: "•" };
-  const isTaskDone = entry.type === "task_done";
-  const isMention = entry.type === "mention";
+// Emotion bubble — always visible as colored circle with first letter
+function EmotionBubble({ entry, topPx, expanded, onTap }) {
+  const emotions = entry.data.emotions || [];
+  const note = entry.data.note;
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+
   return (
-    <div className="absolute left-1 right-1 cursor-pointer z-10"
-      style={{ top: topPx, userSelect: "none" }} onClick={tap}>
-      {entry.expanded ? (
-        <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm">
-          <p className="text-xs text-muted-foreground leading-tight mb-1 font-medium">{meta.icon} {timeStr}</p>
-          {entry.type === "emotion" && (
-            <div className="flex flex-wrap gap-0.5">
-              {(entry.data.emotions || []).map((em) => (
-                <span key={em} className="px-1.5 py-0.5 rounded-full text-white font-medium"
-                  style={{ fontSize: 9, backgroundColor: emotionColor(em) }}>{em}</span>
-              ))}
-              {entry.data.note && <p className="w-full text-xs text-muted-foreground italic mt-1">{entry.data.note}</p>}
+    <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={onTap}>
+      {expanded ? (
+        <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm text-right">
+          <p className="text-xs text-muted-foreground mb-1 font-medium">{timeStr}</p>
+          <div className="flex flex-wrap gap-0.5 justify-end">
+            {emotions.map((em) => (
+              <span key={em} className="px-1.5 py-0.5 rounded-full text-white font-medium"
+                style={{ fontSize: 9, backgroundColor: emotionColor(em) }}>{em}</span>
+            ))}
+          </div>
+          {note && <p className="text-xs text-muted-foreground italic mt-1 text-right">{note}</p>}
+        </div>
+      ) : (
+        <div className="flex gap-0.5 flex-wrap justify-end">
+          {emotions.slice(0, 4).map((em) => (
+            <div key={em}
+              className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
+              style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }}
+              title={em}>
+              <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
+            </div>
+          ))}
+          {emotions.length > 4 && (
+            <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
+              style={{ width: 18, height: 18 }}>
+              <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 4}</span>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Non-emotion entry — icon button that hugs the left
+function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap }) {
+  const tap = useDoubleTap(onTap, onDoubleTap);
+  const meta = TYPE_META[entry.type] || { icon: "•", emoji: false };
+  const isTaskDone = entry.type === "task_done";
+  const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+
+  return (
+    <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+      {expanded ? (
+        <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm">
+          <p className="text-xs text-muted-foreground leading-tight mb-1 font-medium">{meta.icon} {timeStr}</p>
           {entry.type === "journal" && <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.label}</p>}
           {entry.type === "checkin" && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
           {entry.type === "bulletin" && <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.data.content}</p>}
-          {entry.type === "task" && <p className="text-xs text-muted-foreground leading-tight">{entry.label}{entry.data.completed ? " ✓" : ""}</p>}
+          {(entry.type === "task" || entry.type === "task_done") && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
         </div>
       ) : (
-        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded border hover:bg-muted transition-colors min-w-0 ${
-          isTaskDone ? "bg-green-500/10 border-green-500/40" : isMention ? "bg-primary/10 border-primary/30" : "bg-muted/60 border-border/50"
-        }`}>
-          <span style={{ fontSize: 11 }}>{meta.icon}</span>
-          <p className={`text-xs leading-tight truncate flex-1 ${isTaskDone ? "text-green-600 dark:text-green-400" : isMention ? "text-primary" : "text-muted-foreground"}`} style={{ fontSize: 10 }}>
-            {timeStr} {entry.type === "emotion" ? (entry.data.emotions || []).slice(0, 2).join(", ") : entry.label}
-          </p>
+        <div className={`flex items-center justify-center rounded-full border shadow-sm hover:scale-110 transition-transform ${
+          isTaskDone ? "bg-green-500/10 border-green-500/40" : "bg-card border-border/60"
+        }`}
+          style={{ width: 22, height: 22 }}
+          title={entry.label}>
+          <span style={{ fontSize: 12 }}>{meta.icon}</span>
         </div>
       )}
     </div>
