@@ -35,7 +35,7 @@ const AuthenticatedApp = () => {
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
-          <p className="text-muted-foreground text-sm font-medium">Loading Innerworld...</p>
+          <p className="text-muted-foreground text-sm font-medium">Loading Symphony...</p>
         </div>
       </div>
     );
