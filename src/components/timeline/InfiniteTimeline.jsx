@@ -3,7 +3,7 @@ import { format, differenceInMinutes, startOfDay } from "date-fns";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate } from "@/lib/dateUtils";
 import { DAILY_TASKS } from "@/lib/dailyTasks";
-import { ChevronDown, ChevronUp, Layers, BarChart3, Heart, Activity, Users } from "lucide-react";
+import { ChevronDown, ChevronUp, Layers, BarChart3, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
 
@@ -257,7 +257,7 @@ function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
 export default function InfiniteTimeline({
   day, sessions, activities, emotions, alters, hasData, isToday,
   journals = [], checkIns = [], bulletins = [], tasks = [],
-  showActivities = true, showCheckIns = true, showEmotions = true,
+  showActivities = true, showCheckIns = true,
   categories = [],
 }) {
   // Build category -> parent map for merge-by-category
@@ -527,18 +527,10 @@ export default function InfiniteTimeline({
               </div>
             )}
             {showCheckIns && (
-              <>
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
-                  <Activity className="w-3.5 h-3.5 inline" />
-                  <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
-                </div>
-                {showEmotions && (
-                  <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
-                    <Heart className="w-3.5 h-3.5 inline" />
-                    <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
-                  </div>
-                )}
-              </>
+              <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
+                <BookOpen className="w-3.5 h-3.5 inline" />
+                <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
+              </div>
             )}
             <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
             <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
@@ -624,21 +616,7 @@ export default function InfiniteTimeline({
                 </div>
               )}
 
-              {/* Emotions column (right of events) */}
-              {showCheckIns && showEmotions && (
-                <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth, height: totalHeight }}>
-                  {emotionPositioned.map((entry) => (
-                    <EmotionBubble
-                      key={entry.key}
-                      entry={entry}
-                      topPx={entry.adjustedTop}
-                      expanded={expandedKeys.has(entry.key)}
-                      colWidth={emotionColWidth}
-                      onTap={() => toggleExpand(entry.key)}
-                    />
-                  ))}
-                </div>
-              )}
+
 
               {/* Alter columns */}
               {alterColumns.map((col, colIdx) => (
