@@ -202,7 +202,7 @@ export default function CurrentFronters({ alters }) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setEditingStatus(false)}
+              onClick={() => { setTempStatus(statusText); setEditingStatus(false); }}
               className="gap-1.5 text-xs h-8 px-2.5"
             >
               <X className="w-3 h-3" />
