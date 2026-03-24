@@ -367,22 +367,31 @@ export default function InfiniteTimeline({
     return cols;
   }, [activityEntries]);
 
-  // Check-in entries
-  const checkInEntries = useMemo(() => {
+  // Split check-in entries into emotions (right side) and events (left side)
+  const emotionEntries = useMemo(() => {
+    return emotions.map((e, i) => ({
+      mins: Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart)),
+      type: "emotion", id: e.id, data: e,
+      key: `em-${i}-${e.id}`
+    })).sort((a, b) => a.mins - b.mins);
+  }, [emotions, dayStart]);
+
+  const eventEntries = useMemo(() => {
     const entries = [];
-    emotions.forEach((e) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart)), type: "emotion", id: e.id, data: e }));
     journals.forEach((j) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(j.created_date), dayStart)), type: "journal", id: j.id, label: j.title || "Journal Entry", data: j }));
     checkIns.forEach((c) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)), type: "checkin", id: c.id, label: "System Check-In", data: c }));
     bulletins.forEach((b) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)), type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b }));
     tasks.forEach((t) => {
       entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
-      // Also show completed tasks at their completion time
       if (t.completed && t.completed_date) {
         entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.completed_date), dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
       }
     });
-    return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ci-${i}-${e.id}` }));
-  }, [emotions, journals, checkIns, bulletins, tasks, dayStart]);
+    return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
+  }, [journals, checkIns, bulletins, tasks, dayStart]);
+
+  // Combined for expansion tracking
+  const checkInEntries = useMemo(() => [...emotionEntries, ...eventEntries], [emotionEntries, eventEntries]);
 
   // Height adjustment for expanded items
   const expandedPositions = useMemo(() => {
@@ -406,17 +415,33 @@ export default function InfiniteTimeline({
 
   const totalHeight = 24 * HOUR_HEIGHT + expandedPositions.reduce((s, p) => s + p.extraHeight, 0);
 
-  // Prevent check-in overlap
-  const MIN_CI_GAP = 28;
-  const checkInPositioned = useMemo(() => {
+  // Position entries with gap-based anti-overlap (respect expansion extra heights)
+  const MIN_EMOTION_GAP = 22;
+  const MIN_EVENT_GAP = 26;
+
+  const emotionPositioned = useMemo(() => {
     let minNext = -Infinity;
-    return checkInEntries.map((entry) => {
+    return emotionEntries.map((entry) => {
+      const expanded = expandedKeys.has(entry.key);
       const raw = getTopPx(entry.mins);
       const top = Math.max(raw, minNext);
-      minNext = top + MIN_CI_GAP;
+      const height = expanded ? EXPANDED_EXTRA : MIN_EMOTION_GAP;
+      minNext = top + height;
       return { ...entry, adjustedTop: top };
     });
-  }, [checkInEntries, getTopPx]);
+  }, [emotionEntries, getTopPx, expandedKeys]);
+
+  const eventPositioned = useMemo(() => {
+    let minNext = -Infinity;
+    return eventEntries.map((entry) => {
+      const expanded = expandedKeys.has(entry.key);
+      const raw = getTopPx(entry.mins);
+      const top = Math.max(raw, minNext);
+      const height = expanded ? EXPANDED_EXTRA : MIN_EVENT_GAP;
+      minNext = top + height;
+      return { ...entry, adjustedTop: top };
+    });
+  }, [eventEntries, getTopPx, expandedKeys]);
 
   // Layout
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
