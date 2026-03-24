@@ -688,6 +688,8 @@ export default function InfiniteTimeline({
                 checkIns={checkIns}
                 tasks={tasks}
                 alters={alters}
+                dailyTasksTotal={dailyTasksData.total}
+                dailyTasksCompleted={dailyTasksData.completed}
               />
             )}
 
