@@ -3,13 +3,15 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { saveMentions } from "@/lib/mentionUtils";
 
 export default function TaskFormModal({ open, onClose, editingTask, parentTaskId, allTasks = [] }) {
   const queryClient = useQueryClient();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -60,13 +62,24 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
         goal_target: formData.goal_target ? parseInt(formData.goal_target) : null,
       };
 
+      let savedTask;
       if (editingTask) {
-        await base44.entities.Task.update(editingTask.id, data);
+        savedTask = await base44.entities.Task.update(editingTask.id, data);
         toast.success("Task updated!");
       } else {
-        await base44.entities.Task.create(data);
+        savedTask = await base44.entities.Task.create(data);
         toast.success("Task created!");
       }
+
+      const fullContent = [formData.title, formData.description].filter(Boolean).join(" ");
+      await saveMentions({
+        content: fullContent,
+        alters,
+        sourceType: "task",
+        sourceId: savedTask?.id || editingTask?.id || "",
+        sourceLabel: "To-Do List",
+        navigatePath: "/todo",
+      });
 
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       onClose();
@@ -97,10 +110,11 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
 
           <div>
             <label className="text-sm font-medium">Description</label>
-            <Textarea
+            <MentionTextarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Add details..."
+              onChange={(val) => setFormData({ ...formData, description: val })}
+              alters={alters}
+              placeholder="Add details… use @ to mention an alter"
               rows={3}
             />
           </div>
