@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { Pin, Trash2, User, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Pin, Trash2, User, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatDistanceToNow } from "date-fns";
@@ -48,7 +48,7 @@ function renderContent(content, alters) {
   });
 }
 
-export default function BulletinCard({ bulletin, alters, currentAlterId, canDelete, onReply }) {
+export default function BulletinCard({ bulletin, alters, currentAlterId, canDelete }) {
   const qc = useQueryClient();
   const [showReactPicker, setShowReactPicker] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -216,17 +216,8 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, canDele
         </div>
       )}
 
-      {/* Reply & Comments Toggle */}
+      {/* Comments Toggle */}
       <div className="flex items-center gap-1">
-        {currentAlterId && (
-          <button
-            onClick={onReply}
-            className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50 transition-all"
-          >
-            <MessageCircle className="w-3.5 h-3.5" />
-            Reply
-          </button>
-        )}
         {comments.length > 0 && (
           <button
             onClick={() => setShowComments(!showComments)}
