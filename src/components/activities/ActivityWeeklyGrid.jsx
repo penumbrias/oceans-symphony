@@ -74,8 +74,11 @@ export default function ActivityWeeklyGrid({
     slotEnd.setHours(hour + 1, 0, 0, 0);
     return activities.filter((a) => {
       const actStart = parseDate(a.timestamp);
-      const durationMs = (a.duration_minutes || 60) * 60 * 1000;
-      const actEnd = new Date(actStart.getTime() + durationMs);
+      if (!a.duration_minutes) {
+        // No duration: point-in-time, only show in the hour it started
+        return actStart >= slotStart && actStart < slotEnd;
+      }
+      const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
       return actStart < slotEnd && actEnd > slotStart;
     });
   };
