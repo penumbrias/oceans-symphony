@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 function useNavItems(terms) {
   return [
   { path: "/Home", label: terms.Alters, icon: Users },
-  { path: "/system-checkin", label: "Check-In", icon: ClipboardList },
+  { path: "/system-checkin", label: "Check-In", icon: Sparkles },
   { path: "/journals", label: "Journals", icon: BookOpen },
   { path: "/tasks", label: "Tasks", icon: CheckSquare },
   ];
