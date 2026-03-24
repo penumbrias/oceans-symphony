@@ -97,9 +97,9 @@ export default function CurrentFronters({ alters }) {
   const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
 
   useEffect(() => {
-    if (active && active.note) {
-      setStatusText(active.note);
-      setTempStatus(active.note);
+    if (active) {
+      setStatusText(active.note || "");
+      setTempStatus(active.note || "");
     }
   }, [active?.id]);
 
