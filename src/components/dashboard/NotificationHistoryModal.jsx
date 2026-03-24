@@ -11,11 +11,13 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const loaderRef = useRef(null);
 
-  const { data: mentionLogs = [] } = useQuery({
+  const { data: rawLogs = [] } = useQuery({
     queryKey: ["mentionLogs"],
     queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
     enabled: open,
   });
+
+  const mentionLogs = rawLogs.filter((m) => !m.source_type?.endsWith("_sent"));
 
   useEffect(() => {
     if (!open) { setVisibleCount(PAGE_SIZE); return; }
