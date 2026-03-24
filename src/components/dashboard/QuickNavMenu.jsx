@@ -20,7 +20,6 @@ function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
     { label: "Check-In", icon: Sparkles, path: "/system-checkin" },
   ],
   "Analytics": [
-    { label: `${frontLabel} History`, icon: Clock, path: "/front-history" },
     { label: "Analytics", icon: BarChart2, path: "/analytics" },
     { label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics" },
     { label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map" },
@@ -35,7 +34,6 @@ function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
 function buildGridItems(altersLabel, frontLabel, systemLabel) {
   return [
   { label: altersLabel, icon: Users, path: "/Home", color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
-  { label: `${frontLabel} History`, icon: Clock, path: "/front-history", color: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
   { label: "Analytics", icon: BarChart2, path: "/analytics", color: "bg-green-500/15 text-green-600 dark:text-green-400" },
   { label: "Journals", icon: BookOpen, path: "/journals", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
   { label: "Daily Tasks", icon: CheckSquare, path: "/tasks", color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
