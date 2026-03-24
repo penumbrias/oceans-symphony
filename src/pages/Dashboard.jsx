@@ -12,16 +12,23 @@ import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import TourModal from "@/components/onboarding/TourModal";
+import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
 
 export default function Dashboard() {
   const [showEmotionModal, setShowEmotionModal] = useState(false);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
-  const [showTour, setShowTour] = useState(() => !localStorage.getItem("tour_seen"));
+  const [showTour, setShowTour] = useState(false);
+  const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
 
   const handleTourClose = () => {
     localStorage.setItem("tour_seen", "1");
     setShowTour(false);
+  };
+
+  const handleTermsDone = () => {
+    setShowTermsSetup(false);
+    if (!localStorage.getItem("tour_seen")) setShowTour(true);
   };
   const location = useLocation();
   const navigate = useNavigate();
@@ -127,6 +134,11 @@ export default function Dashboard() {
       <QuickNavMenu />
       <BulletinBoard alters={alters} currentAlterId={currentAlterId} highlightBulletinId={highlightBulletinId} />
 
+      <TermsSetupModal
+        open={showTermsSetup}
+        onClose={handleTermsDone}
+        existingSettingsId={settings[0]?.id || null}
+      />
       <TourModal open={showTour} onClose={handleTourClose} />
       <QuickCheckInModal 
         isOpen={showEmotionModal} 
