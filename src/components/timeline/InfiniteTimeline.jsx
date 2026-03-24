@@ -578,7 +578,7 @@ export default function InfiniteTimeline({
                         expanded={isExpanded}
                         notes={entry.activity.notes}
                         onTap={() => toggleExpand(entry.key)}
-                        onDoubleTap={() => navigate(`/activities?date=${dateStr}`)}
+                        onDoubleTap={() => navigate(`/activities?date=${dateStr}&highlight=${entry.activity.id}`)}
                       />
                     );
                   })}
