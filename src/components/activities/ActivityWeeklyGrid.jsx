@@ -29,6 +29,7 @@ export default function ActivityWeeklyGrid({
   onActivityClick,
   addMode = false,
   onToggleAddMode,
+  highlightActivityId = null,
 }) {
   const [showAlters, setShowAlters] = useState(false);
   const [showEmotions, setShowEmotions] = useState(false);
@@ -246,6 +247,10 @@ export default function ActivityWeeklyGrid({
                     }`}
                     style={{ userSelect: "none" }}
                   >
+                    {/* Highlight from timeline nav */}
+                    {highlightActivityId && cellActivities.some(a => a.id === highlightActivityId) && (
+                      <div className="absolute inset-0 ring-4 ring-yellow-400 ring-inset pointer-events-none z-20 rounded animate-pulse" />
+                    )}
                     {/* Pending start highlight */}
                     {addMode && pendingStartCell && pendingStartCell.date.toDateString() === date.toDateString() && pendingStartCell.hour === hour && (
                       <div className="absolute inset-0 ring-2 ring-primary ring-inset pointer-events-none z-20 rounded" />
