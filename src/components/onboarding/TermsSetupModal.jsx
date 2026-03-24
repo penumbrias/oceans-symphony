@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 const PRESETS = [
   { label: "DID / OSDD (default)", system: "system", alter: "alter", switch: "switch", front: "front" },
   { label: "Headmates", system: "system", alter: "headmate", switch: "switch", front: "front" },
-  { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "active" },
+  { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "influenc" },
   { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
 ];
 
