@@ -12,6 +12,7 @@ import DailySectionPanel from "@/components/diary/DailySectionPanel";
 import AlterSelector from "@/components/diary/AlterSelector";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import ExistingCardDialog from "@/components/diary/ExistingCardDialog";
+import DiaryCardView from "@/components/diary/DiaryCardView";
 
 const DEFAULT_SECTIONS = [
   { id: "emotions", emoji: "😊", title: "Emotions", subtitle: "Tap to log feelings", enabled: true },
@@ -321,7 +322,7 @@ export default function DiaryCards() {
   // ── ENTRY VIEW ──
   if (view === "entry" && viewingEntry) {
     const card = viewingEntry;
-    const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
+    const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]).filter(Boolean);
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
         <div className="flex items-center justify-between gap-3">
@@ -346,20 +347,21 @@ export default function DiaryCards() {
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
+
+        {/* Fronters display */}
         {fronters.length > 0 && (
-          <p className="text-sm text-muted-foreground">Fronting: <span className="text-foreground">{fronters.join(", ")}</span></p>
+          <div className="flex flex-wrap gap-2">
+            {fronters.map((alter) => (
+              <div key={alter.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border/50 text-xs font-medium">
+                <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#8b5cf6" }} />
+                {alter.alias || alter.name}
+              </div>
+            ))}
+          </div>
         )}
-        <div className="space-y-2">
-           {sections.map((s) => (
-             <div key={s.id} className="flex items-center gap-3 px-4 py-3 bg-card border border-border/50 rounded-xl">
-               <span className="text-xl">{s.emoji}</span>
-               <div className="flex-1">
-                 <p className="font-medium text-sm">{s.title}</p>
-               </div>
-               <span className="text-xs text-muted-foreground">{getSectionSummary(s.id, card)}</span>
-             </div>
-           ))}
-         </div>
+
+        <DiaryCardView card={card} altersById={altersById} sections={sections} />
+
         <Button onClick={() => startEdit(card)} className="w-full bg-primary hover:bg-primary/90 gap-1.5">
           Edit Card
         </Button>
