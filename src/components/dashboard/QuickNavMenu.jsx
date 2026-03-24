@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from "react";
+import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
 import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, Search, X, LayoutGrid, List } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-const NAV_GROUPS = {
+function buildNavGroups(altersLabel) {
+  return {
   "System": [
-    { label: "Members", icon: Users, path: "/Home" },
+    { label: altersLabel, icon: Users, path: "/Home" },
     { label: "Settings", icon: Settings, path: "/settings" },
   ],
   "Tracking": [
@@ -27,10 +29,12 @@ const NAV_GROUPS = {
   "Journal": [
     { label: "Journals", icon: BookOpen, path: "/journals" },
   ],
-};
+  };
+}
 
-const GRID_ITEMS = [
-  { label: "Members", icon: Users, path: "/Home", color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
+function buildGridItems(altersLabel) {
+  return [
+  { label: altersLabel, icon: Users, path: "/Home", color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
   { label: "History", icon: Clock, path: "/front-history", color: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
   { label: "Analytics", icon: BarChart2, path: "/analytics", color: "bg-green-500/15 text-green-600 dark:text-green-400" },
   { label: "Journals", icon: BookOpen, path: "/journals", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
@@ -43,11 +47,15 @@ const GRID_ITEMS = [
   { label: "Co-Fronting", icon: GitBranch, path: "/cofronting-analytics", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
   { label: "System Map", icon: GitBranch, path: "/system-map", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
   { label: "Timeline", icon: Clock, path: "/timeline", color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
-];
+  ];
+}
 
 export default function QuickNavMenu() {
+  const terms = useTerms();
   const [searchQuery, setSearchQuery] = useState("");
   const [isGridLayout, setIsGridLayout] = useState(false);
+  const NAV_GROUPS = useMemo(() => buildNavGroups(terms.Alters), [terms.Alters]);
+  const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters), [terms.Alters]);
 
   const filteredGroups = useMemo(() => {
     if (!searchQuery.trim()) return NAV_GROUPS;

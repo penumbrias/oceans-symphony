@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Palette, Save, Loader2, Moon, Sun, LogOut, Trash2 } from "lucide-react";
 import { useTheme } from "@/lib/ThemeContext";
-import DiaryCardPresetsManager from "@/components/settings/DiaryCardPresetsManager";
 import TermsSettings from "@/components/settings/TermsSettings";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
@@ -171,81 +170,19 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Diary Card Presets */}
-        <DiaryCardPresetsManager />
-
-        {/* Custom Fields */}
-         <CustomFieldsManager />
-
-         {/* Archived Alters */}
-         <ArchivedAltersManager />
-
-         {/* Account */}
-         <Card className="border-border/50">
-           <CardHeader>
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-                 <LogOut className="w-5 h-5 text-destructive" />
-               </div>
-               <div>
-                 <CardTitle className="text-lg">Account</CardTitle>
-                 <CardDescription>Manage your account and data</CardDescription>
-               </div>
-             </div>
-           </CardHeader>
-           <CardContent className="space-y-3">
-             <Button onClick={handleSignOut} variant="outline" className="w-full gap-2">
-               <LogOut className="w-4 h-4" /> Sign Out
-             </Button>
-             {!showDeleteConfirm && !deleted && (
-               <Button
-                 onClick={() => setShowDeleteConfirm(true)}
-                 variant="ghost"
-                 className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
-               >
-                 <Trash2 className="w-4 h-4" /> Delete My Account
-               </Button>
-             )}
-             {showDeleteConfirm && !deleted && (
-               <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
-                 <p className="text-sm font-semibold text-destructive">⚠️ This is permanent</p>
-                 <p className="text-xs text-muted-foreground">
-                   All your system data — alters, journals, diary cards, bulletins, activities, and everything else — will be permanently deleted. This cannot be undone.
-                 </p>
-                 <p className="text-xs font-medium">Type <span className="font-mono bg-muted px-1 rounded">delete my account</span> to confirm:</p>
-                 <Input
-                   value={deleteInput}
-                   onChange={(e) => setDeleteInput(e.target.value)}
-                   placeholder="delete my account"
-                   className="h-8 text-sm border-destructive/40"
-                 />
-                 <div className="flex gap-2">
-                   <Button size="sm" variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }} className="flex-1">Cancel</Button>
-                   <Button
-                     size="sm"
-                     onClick={handleDeleteAccount}
-                     disabled={deleteInput.trim().toLowerCase() !== "delete my account"}
-                     className="flex-1 bg-destructive hover:bg-destructive/90 text-white"
-                   >
-                     Delete Everything
-                   </Button>
-                 </div>
-               </div>
-             )}
-             {deleted && (
-               <div className="rounded-xl border border-green-500/40 bg-green-500/5 p-4 text-center space-y-2">
-                 <p className="text-sm font-semibold text-green-600">✅ Account data deleted</p>
-                 <p className="text-xs text-muted-foreground">All your data has been completely removed. You can close the app or sign out.</p>
-                 <Button size="sm" onClick={handleSignOut} variant="outline" className="w-full">Sign Out Now</Button>
-               </div>
-             )}
-           </CardContent>
-         </Card>
-
-         {/* Terminology */}
+        {/* Terminology */}
         <TermsSettings />
 
         {/* Simply Plural */}
+        <SimplyPluralConnect
+           settings={settings}
+           onSettingsChange={() => {
+             refetch();
+             queryClient.invalidateQueries({ queryKey: ["alters"] });
+           }}
+         />
+
+         {/* Account */}
         <SimplyPluralConnect
            settings={settings}
            onSettingsChange={() => {

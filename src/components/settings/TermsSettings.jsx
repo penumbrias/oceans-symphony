@@ -1,4 +1,11 @@
 import React, { useState, useEffect } from "react";
+
+const PRESETS = [
+  { label: "DID / OSDD (default)", system: "system", alter: "alter", switch: "switch", front: "front" },
+  { label: "Headmates", system: "system", alter: "headmate", switch: "switch", front: "front" },
+  { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "influenc" },
+  { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
+];
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +19,10 @@ export default function TermsSettings() {
   const terms = useTerms();
   const [vals, setVals] = useState({ system: "", alter: "", switch: "", front: "" });
   const [saving, setSaving] = useState(false);
+
+  const applyPreset = (preset) => {
+    setVals({ system: preset.system, alter: preset.alter, switch: preset.switch, front: preset.front });
+  };
 
   useEffect(() => {
     setVals({
@@ -41,7 +52,7 @@ export default function TermsSettings() {
 
   const fields = [
     { key: "system", label: "System", hint: "e.g. system, collective, network" },
-    { key: "alter", label: "Alter / Member", hint: "e.g. alter, headmate, part, member" },
+    { key: "alter", label: "Alter", hint: "e.g. alter, headmate, part, member" },
     { key: "switch", label: "Switch", hint: "e.g. switch, shift, change" },
     { key: "front", label: "Front", hint: "e.g. front, active, present" },
   ];
@@ -60,6 +71,18 @@ export default function TermsSettings() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          {PRESETS.map((p, i) => (
+            <button
+              key={i}
+              onClick={() => applyPreset(p)}
+              className="rounded-xl border border-border/50 p-2.5 text-left text-xs hover:border-primary/50 hover:bg-primary/5 transition-all"
+            >
+              <p className="font-medium text-foreground">{p.label}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{p.alter} · {p.front}ing</p>
+            </button>
+          ))}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           {fields.map(({ key, label, hint }) => (
             <div key={key}>
