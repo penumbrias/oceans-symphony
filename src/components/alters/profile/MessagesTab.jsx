@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Plus, Trash2, MessageSquare, AtSign } from "lucide-react";
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 
 export default function MessagesTab({ alterId, alters }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [composing, setComposing] = useState(false);
   const [newContent, setNewContent] = useState("");
@@ -79,7 +81,13 @@ export default function MessagesTab({ alterId, alters }) {
         <div className="space-y-3">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Mentions</h3>
           {mentions.map((mention) => (
-            <div key={mention.id} className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div
+              key={mention.id}
+              className={`rounded-xl border border-primary/20 bg-primary/5 p-4 ${mention.source_id ? "cursor-pointer hover:bg-primary/10 transition-colors" : ""}`}
+              onClick={() => {
+                if (mention.source_id) navigate("/", { state: { highlightBulletinId: mention.source_id } });
+              }}
+            >
               <p className="text-sm text-foreground whitespace-pre-wrap">{mention.preview_text}</p>
               <div className="flex items-center justify-between mt-3 pt-2 border-t border-primary/10">
                 <div className="flex flex-col gap-0.5">
@@ -93,6 +101,7 @@ export default function MessagesTab({ alterId, alters }) {
                     {mention.source_date ? format(new Date(mention.source_date), "MMM d, yyyy") : ""}
                   </span>
                 </div>
+                {mention.source_id && <span className="text-[10px] text-primary">tap to view →</span>}
               </div>
             </div>
           ))}
