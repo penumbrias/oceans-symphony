@@ -6,12 +6,13 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-import MobileLayout from '@/components/layout/MobileLayout';
+import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
 import { Navigate } from 'react-router-dom';
 import AlterProfile from '@/pages/AlterProfile';
 import Settings from '@/pages/Settings';
+
 import Analytics from '@/pages/Analytics';
 import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
@@ -28,6 +29,7 @@ import SystemMapPage from '@/pages/SystemMap';
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
+  // Show loading screen while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
@@ -39,23 +41,27 @@ const AuthenticatedApp = () => {
     );
   }
 
+  // Handle authentication errors
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
+      // Redirect to login automatically
       navigateToLogin();
       return null;
     }
   }
 
+  // Render the main app
   return (
     <Routes>
-      <Route element={<MobileLayout />}>
+      <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/Dashboard" element={<Navigate to="/" replace />} />
         <Route path="/Home" element={<Home />} />
         <Route path="/alter/:id" element={<AlterProfile />} />
         <Route path="/settings" element={<Settings />} />
+
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/journals" element={<Journals />} />
         <Route path="/diary" element={<DiaryCards />} />
@@ -74,7 +80,9 @@ const AuthenticatedApp = () => {
   );
 };
 
+
 function App() {
+
   return (
     <ThemeProvider>
       <AuthProvider>
