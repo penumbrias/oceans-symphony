@@ -2,8 +2,10 @@ import React, { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { startOfDay, endOfDay, eachDayOfInterval, format, differenceInMinutes } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useTerms } from "@/lib/useTerms";
 
 export default function AlterFrontingTimeline({ sessions = [], alters = [], from, to }) {
+  const terms = useTerms();
   const { chartData, topAlters } = useMemo(() => {
     const fromDay = startOfDay(from);
     const toDay = endOfDay(to);
@@ -71,8 +73,8 @@ export default function AlterFrontingTimeline({ sessions = [], alters = [], from
 
   return (
     <Card className="p-4">
-      <h3 className="text-sm font-semibold mb-1">Top 5 Alters — Fronting Hours Per Day</h3>
-      <p className="text-xs text-muted-foreground mb-4">Stacked daily hours for the most active fronters</p>
+      <h3 className="text-sm font-semibold mb-1">Top 5 {terms.Alters} — {terms.Fronting} Hours Per Day</h3>
+      <p className="text-xs text-muted-foreground mb-4">Stacked daily hours for the most active {terms.alters}</p>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={chartData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
