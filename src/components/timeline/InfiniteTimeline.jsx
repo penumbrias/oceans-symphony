@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate } from "@/lib/dateUtils";
