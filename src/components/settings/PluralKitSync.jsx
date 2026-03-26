@@ -82,6 +82,7 @@ export default function PluralKitSync() {
   const [importing, setImporting] = useState(false);
   const [status, setStatus] = useState(null); // { type, message }
   const [tokenSaved, setTokenSaved] = useState(false);
+  const [syncMode, setSyncMode] = useState("new-only"); // 'new-only', 'update-existing', 'replace-all'
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
@@ -142,26 +143,64 @@ export default function PluralKitSync() {
        return;
      }
 
-     // Send each member to PluralKit API
-     let successCount = 0;
-     for (const member of members) {
+     // Fetch existing members from PluralKit
+     let existingMembers = [];
+     if (syncMode !== "replace-all") {
        try {
-         const response = await fetch("https://api.pluralkit.me/v2/members", {
-           method: "POST",
-           headers: {
-             "Content-Type": "application/json",
-             "Authorization": token,
-           },
-           body: JSON.stringify(member),
+         const existingResponse = await fetch("https://api.pluralkit.me/v2/members", {
+           headers: { "Authorization": token },
          });
-
-         if (response.ok) {
-           successCount++;
+         if (existingResponse.ok) {
+           existingMembers = await existingResponse.json();
          }
        } catch {}
      }
 
-     showStatus("success", `Synced ${successCount} members to PluralKit!`);
+     // Process each member based on sync mode
+     let successCount = 0;
+     for (const member of members) {
+       try {
+         const existing = existingMembers.find(m => m.id === member.id);
+
+         if (syncMode === "replace-all" || !existing) {
+           // Create new
+           const response = await fetch("https://api.pluralkit.me/v2/members", {
+             method: "POST",
+             headers: {
+               "Content-Type": "application/json",
+               "Authorization": token,
+             },
+             body: JSON.stringify(member),
+           });
+           if (response.ok) successCount++;
+         } else if (syncMode === "update-existing" && existing) {
+           // Update existing
+           const response = await fetch(`https://api.pluralkit.me/v2/members/${member.id}`, {
+             method: "PATCH",
+             headers: {
+               "Content-Type": "application/json",
+               "Authorization": token,
+             },
+             body: JSON.stringify(member),
+           });
+           if (response.ok) successCount++;
+         } else if (syncMode === "new-only" && !existing) {
+           // Only sync new
+           const response = await fetch("https://api.pluralkit.me/v2/members", {
+             method: "POST",
+             headers: {
+               "Content-Type": "application/json",
+               "Authorization": token,
+             },
+             body: JSON.stringify(member),
+           });
+           if (response.ok) successCount++;
+         }
+       } catch {}
+     }
+
+     const modeLabel = syncMode === "replace-all" ? "replaced" : syncMode === "update-existing" ? "synced" : "synced (new only)";
+     showStatus("success", `${modeLabel} ${successCount} members with PluralKit!`);
    } catch (e) {
      showStatus("error", `Export failed: ${e.message}`);
    } finally {
@@ -273,20 +312,57 @@ export default function PluralKitSync() {
         </div>
 
         {tokenSaved && (
-         <div className="space-y-2 pt-2 border-t border-border">
-           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sync</p>
-           <Button
-             variant="outline"
-             onClick={handleExportToPluralKit}
-             disabled={syncing}
-             className="w-full gap-2 justify-start"
-           >
-             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-             <div className="text-left">
-               <p className="font-medium text-sm">Export to PluralKit</p>
-               <p className="text-xs text-muted-foreground">Push Symphony alters to your PluralKit system</p>
-             </div>
-           </Button>
+          <div className="space-y-3 pt-2 border-t border-border">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Sync Mode</p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="syncMode"
+                    value="new-only"
+                    checked={syncMode === "new-only"}
+                    onChange={(e) => setSyncMode(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-foreground">Add New Only (skip existing)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="syncMode"
+                    value="update-existing"
+                    checked={syncMode === "update-existing"}
+                    onChange={(e) => setSyncMode(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-foreground">Create & Update (new + existing)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="syncMode"
+                    value="replace-all"
+                    checked={syncMode === "replace-all"}
+                    onChange={(e) => setSyncMode(e.target.value)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-foreground">Replace All (overwrite PluralKit)</span>
+                </label>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleExportToPluralKit}
+              disabled={syncing}
+              className="w-full gap-2 justify-start"
+            >
+              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              <div className="text-left">
+                <p className="font-medium text-sm">Sync to PluralKit</p>
+                <p className="text-xs text-muted-foreground">Push Symphony alters to your PluralKit system</p>
+              </div>
+            </Button>
            <Button
              variant="outline"
              onClick={handleImportFromPluralKit}

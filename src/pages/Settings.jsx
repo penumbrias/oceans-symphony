@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Palette, Save, Loader2, Moon, Sun, LogOut, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/lib/ThemeContext";
+import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
@@ -17,11 +18,13 @@ import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import PluralKitSync from "@/components/settings/PluralKitSync";
+import ThemeColorSettings from "@/components/settings/ThemeColorSettings";
 import { isLocalMode } from "@/lib/storageMode";
 
 export default function Settings() {
   const queryClient = useQueryClient();
   const { theme, toggleTheme } = useTheme();
+  const terms = useTerms();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
   const [deleted, setDeleted] = useState(false);
@@ -96,7 +99,7 @@ export default function Settings() {
         Settings
       </h1>
       <p className="text-muted-foreground mb-8">
-        Configure your system and integrations
+        Customize {terms.system} and manage your account
       </p>
 
       <div className="space-y-6 max-w-2xl">
@@ -135,9 +138,9 @@ export default function Settings() {
                 <Palette className="w-5 h-5 text-accent-foreground" />
               </div>
               <div>
-                <CardTitle className="text-lg">System Info</CardTitle>
+                <CardTitle className="text-lg">{terms.System} Info</CardTitle>
                 <CardDescription>
-                  Set your system name and details
+                  Set your {terms.system} name and details
                 </CardDescription>
               </div>
             </div>
@@ -146,27 +149,27 @@ export default function Settings() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="system-name" className="text-sm font-medium">
-                  System Name
-                </Label>
-                <Input
-                  id="system-name"
-                  placeholder="Enter your system name..."
-                  value={systemName}
-                  onChange={(e) => setSystemName(e.target.value)}
-                  className="mt-2 bg-card/50"
-                />
-              </div>
-              <div>
-                <Label htmlFor="system-description" className="text-sm font-medium">
-                  System Description
-                </Label>
-                <Textarea
-                  id="system-description"
-                  placeholder="Describe your system..."
-                  value={systemDescription}
-                  onChange={(e) => setSystemDescription(e.target.value)}
-                  className="mt-2 bg-card/50 min-h-[100px]"
-                />
+                    {terms.System} Name
+                  </Label>
+                  <Input
+                    id="system-name"
+                    placeholder={`Enter your ${terms.system} name...`}
+                    value={systemName}
+                    onChange={(e) => setSystemName(e.target.value)}
+                    className="mt-2 bg-card/50"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="system-description" className="text-sm font-medium">
+                    {terms.System} Description
+                  </Label>
+                  <Textarea
+                    id="system-description"
+                    placeholder={`Describe your ${terms.system}...`}
+                    value={systemDescription}
+                    onChange={(e) => setSystemDescription(e.target.value)}
+                    className="mt-2 bg-card/50 min-h-[100px]"
+                  />
               </div>
               <Button
                 onClick={handleSaveName}
@@ -248,11 +251,22 @@ export default function Settings() {
          {/* Storage Mode */}
          <StorageModeSettings />
 
-         {/* Backup & Export */}
-         <DataBackupRestore />
-
-         {/* PluralKit Sync */}
-         {!isLocalMode() && <PluralKitSync />}
+         {/* Integrations */}
+         {!isLocalMode() && (
+           <div className="space-y-4">
+             <div>
+               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
+             </div>
+             <SimplyPluralConnect
+               settings={settings}
+               onSettingsChange={() => {
+                 refetch();
+                 queryClient.invalidateQueries({ queryKey: ["alters"] });
+               }}
+             />
+             <PluralKitSync />
+           </div>
+         )}
 
          {/* Diary Template */}
          <DiaryTemplateManager settings={settings} />
