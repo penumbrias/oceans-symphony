@@ -22,21 +22,18 @@ function downloadJson(data, filename) {
   URL.revokeObjectURL(url);
 }
 
-
-
 export default function DataBackupRestore() {
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
-  const [status, setStatus] = useState(null); // { type: 'success'|'error', message }
-  const [importMode, setImportMode] = useState('add'); // 'add' or 'replace'
+  const [status, setStatus] = useState(null);
+  const [importMode, setImportMode] = useState('add');
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
     setTimeout(() => setStatus(null), 4000);
   };
 
-  // Full Symphony JSON export (all entities)
   const handleExportFull = async () => {
     setExportLoading(true);
     try {
@@ -48,7 +45,6 @@ export default function DataBackupRestore() {
         for (const name of ENTITY_NAMES) {
           try { dump[name] = await base44.entities[name].list(); } catch {}
         }
-        // Convert array to map (same shape as localDb)
         for (const name of ENTITY_NAMES) {
           if (Array.isArray(dump[name])) {
             dump[name] = Object.fromEntries(dump[name].map(r => [r.id, r]));
@@ -71,9 +67,6 @@ export default function DataBackupRestore() {
     }
   };
 
-
-
-  // Import from JSON file
   const handleImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -82,7 +75,6 @@ export default function DataBackupRestore() {
       const text = await file.text();
       const parsed = JSON.parse(text);
 
-      // Handle full Symphony backup
       if (parsed.__format === "symphony_backup" && parsed.data) {
         if (isLocalMode()) {
           await loadDbDump(parsed.data);
@@ -91,18 +83,23 @@ export default function DataBackupRestore() {
         } else {
           // Cloud mode
           if (importMode === 'replace') {
-            // Delete all records for each entity
             for (const entityName of ENTITY_NAMES) {
               try {
-                const records = await base44.entities[entityName].list();
-                for (const record of records) {
-                  await base44.entities[entityName].delete(record.id);
+                let hasMore = true;
+                while (hasMore) {
+                  const records = await base44.entities[entityName].list();
+                  if (records.length === 0) {
+                    hasMore = false;
+                  } else {
+                    for (const record of records) {
+                      await base44.entities[entityName].delete(record.id);
+                    }
+                  }
                 }
               } catch {}
             }
           }
           
-          // Create records for each entity
           let count = 0;
           for (const [entityName, recordsMap] of Object.entries(parsed.data)) {
             if (!ENTITY_NAMES.includes(entityName)) continue;
@@ -116,8 +113,6 @@ export default function DataBackupRestore() {
         }
         return;
       }
-
-
 
       showStatus("error", "Unknown file format. Expected Symphony backup or Simply Plural export.");
     } catch (e) {
@@ -158,7 +153,6 @@ export default function DataBackupRestore() {
               <p className="text-xs text-muted-foreground font-normal">All data as JSON — can be re-imported into Symphony</p>
             </div>
           </Button>
-
         </div>
 
         <div className="space-y-2 pt-1">
@@ -191,16 +185,16 @@ export default function DataBackupRestore() {
           </div>
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
           <Button
-           variant="outline"
-           onClick={() => fileInputRef.current?.click()}
-           disabled={importLoading}
-           className="w-full gap-2 justify-start"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importLoading}
+            className="w-full gap-2 justify-start"
           >
-           {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-           <div className="text-left">
-             <p className="font-medium">Import from File</p>
-             <p className="text-xs text-muted-foreground font-normal">Symphony backup JSON</p>
-           </div>
+            {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            <div className="text-left">
+              <p className="font-medium">Import from File</p>
+              <p className="text-xs text-muted-foreground font-normal">Symphony backup JSON</p>
+            </div>
           </Button>
           <p className="text-xs text-muted-foreground">{importMode === 'replace' ? '⚠️ Replace All will delete existing data and import from backup.' : '⚠️ Add New imports records — it does not replace existing data.'}</p>
         </div>
