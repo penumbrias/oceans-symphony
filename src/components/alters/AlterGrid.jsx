@@ -67,7 +67,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
           title={sortDir === "asc" ? "A → Z" : "Z → A"}>
           
           {sortDir === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
-          {sortDir === "asc" ? "A–Z" : "Z–A"}
+          {sortDir === "asc" ? "" : ""}
         </Button>
         <Button
           variant="ghost"
