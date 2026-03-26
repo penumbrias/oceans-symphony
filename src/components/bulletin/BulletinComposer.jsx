@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign } from "lucide-react";
 import { toast } from "sonner";
-import { saveMentions } from "@/lib/mentionUtils";
+import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
 
@@ -41,6 +41,15 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const [showSignpostMenu, setShowSignpostMenu] = useState(false);
   const [signpostQuery, setSignpostQuery] = useState("");
   const textareaRef = useRef(null);
+
+  // Fix cursor position: when opened with initialContent, move cursor to end
+  React.useEffect(() => {
+    if (initialContent && textareaRef.current) {
+      const len = textareaRef.current.value.length;
+      textareaRef.current.setSelectionRange(len, len);
+      textareaRef.current.focus();
+    }
+  }, []);
 
   const activeAlters = alters.filter(a => !a.is_archived);
 
@@ -138,9 +147,20 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       sourceType: "bulletin",
       sourceId: bulletin.id,
       sourceLabel: "Bulletin Board",
-      navigatePath: `/?bulletin=${bulletin.id}`,
+      navigatePath: `/bulletin/${bulletin.id}`,
       authorAlterId: finalAuthorIds[0] || authorAlterId || null,
     });
+    // Log authored entry for each author's board
+    for (const authorId of finalAuthorIds) {
+      await saveAuthoredLog({
+        authorAlterId: authorId,
+        sourceType: "bulletin",
+        sourceId: bulletin.id,
+        sourceLabel: "Bulletin Board",
+        navigatePath: `/bulletin/${bulletin.id}`,
+        previewText: cleanContent,
+      });
+    }
     toast.success("Bulletin posted!");
     setSaving(false);
     onClose?.();

@@ -128,8 +128,10 @@ function AlterSelector({ selectedIds, onChange, alters }) {
 
 export default function ActivityDetailsModal({ isOpen, onClose, activity, alters = [], onSave }) {
   const [editingId, setEditingId] = useState(null);
-  const [editData, setEditData] = useState({});
+  // keyed by act.id so each activity has independent edit state
+  const [editDataMap, setEditDataMap] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const editData = editDataMap[editingId] || {};
 
   const activities = useMemo(() => {
     if (!activity) return [];
@@ -171,27 +173,37 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     const startTime = new Date(act.timestamp);
     const endTime = addMinutes(startTime, act.duration_minutes || 60);
     setEditingId(act.id);
-    setEditData({
-      activity_category_ids: act.activity_category_ids || [],
-      startTimeStr: timeToStr(startTime),
-      endTimeStr: timeToStr(endTime),
-      fronting_alter_ids: act.fronting_alter_ids || [],
-      notes: act.notes || "",
-    });
+    setEditDataMap(prev => ({
+      ...prev,
+      [act.id]: {
+        activity_category_ids: act.activity_category_ids || [],
+        startTimeStr: timeToStr(startTime),
+        endTimeStr: timeToStr(endTime),
+        fronting_alter_ids: act.fronting_alter_ids || [],
+        notes: act.notes || "",
+      }
+    }));
+  };
+
+  const setEditDataForAct = (actId, updater) => {
+    setEditDataMap(prev => ({
+      ...prev,
+      [actId]: updater(prev[actId] || {}),
+    }));
   };
 
   const handleSave = async (act) => {
-    if (editData.activity_category_ids.length === 0) {
+    const data = editDataMap[act.id] || {};
+    if (!data.activity_category_ids?.length) {
       toast.error("Select an activity");
       return;
     }
     setIsLoading(true);
     try {
-      const startDt = applyTimeStr(act.timestamp, editData.startTimeStr);
-      const endDt = applyTimeStr(act.timestamp, editData.endTimeStr);
+      const startDt = applyTimeStr(act.timestamp, data.startTimeStr);
+      const endDt = applyTimeStr(act.timestamp, data.endTimeStr);
       const duration = Math.max(1, Math.round((endDt - startDt) / 60000));
-
-      const catIds = editData.activity_category_ids;
+      const catIds = data.activity_category_ids;
       const catName = catIds.map(id => catById[id]?.name).filter(Boolean).join(" + ") || "Activity";
 
       await base44.entities.Activity.update(act.id, {
@@ -199,12 +211,12 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         activity_category_ids: catIds,
         timestamp: startDt.toISOString(),
         duration_minutes: duration,
-        fronting_alter_ids: editData.fronting_alter_ids,
-        notes: editData.notes,
+        fronting_alter_ids: data.fronting_alter_ids,
+        notes: data.notes,
       });
-      if (editData.notes) {
+      if (data.notes) {
         await saveMentions({
-          content: editData.notes,
+          content: data.notes,
           alters,
           sourceType: "activity",
           sourceId: act.id,
@@ -347,37 +359,37 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                 ) : (
                   <div className="space-y-4">
                     {/* Start / End time — datetime-local supports cross-day spans */}
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <label className="text-sm font-medium block mb-1">Start</label>
-                        <input type="datetime-local" value={editData.startTimeStr}
-                          onChange={e => setEditData(d => ({ ...d, startTimeStr: e.target.value }))}
-                          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-sm font-medium block mb-1">End</label>
-                        <input type="datetime-local" value={editData.endTimeStr}
-                          onChange={e => setEditData(d => ({ ...d, endTimeStr: e.target.value }))}
+                     <div className="flex gap-3">
+                       <div className="flex-1">
+                         <label className="text-sm font-medium block mb-1">Start</label>
+                         <input type="datetime-local" value={(editDataMap[act.id] || {}).startTimeStr || ""}
+                           onChange={e => setEditDataForAct(act.id, d => ({ ...d, startTimeStr: e.target.value }))}
+                           className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
+                       </div>
+                       <div className="flex-1">
+                         <label className="text-sm font-medium block mb-1">End</label>
+                         <input type="datetime-local" value={(editDataMap[act.id] || {}).endTimeStr || ""}
+                           onChange={e => setEditDataForAct(act.id, d => ({ ...d, endTimeStr: e.target.value }))}
                           className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
                       </div>
                     </div>
 
                     <ActivityPillSelector
-                      selectedActivities={editData.activity_category_ids}
-                      onActivityChange={(ids) => setEditData(d => ({ ...d, activity_category_ids: ids }))}
+                      selectedActivities={(editDataMap[act.id] || {}).activity_category_ids || []}
+                      onActivityChange={(ids) => setEditDataForAct(act.id, d => ({ ...d, activity_category_ids: ids }))}
                     />
 
                     <AlterSelector
-                      selectedIds={editData.fronting_alter_ids}
-                      onChange={(ids) => setEditData(d => ({ ...d, fronting_alter_ids: ids }))}
+                      selectedIds={(editDataMap[act.id] || {}).fronting_alter_ids || []}
+                      onChange={(ids) => setEditDataForAct(act.id, d => ({ ...d, fronting_alter_ids: ids }))}
                       alters={alters}
                     />
 
                     <div>
                        <label className="block text-sm font-semibold mb-2">Notes</label>
                       <MentionTextarea
-                        value={editData.notes}
-                        onChange={(v) => setEditData(d => ({ ...d, notes: v }))}
+                         value={(editDataMap[act.id] || {}).notes || ""}
+                         onChange={(v) => setEditDataForAct(act.id, d => ({ ...d, notes: v }))}
                         alters={alters}
                         placeholder="Add any notes... use @ to mention an alter"
                         className="h-20"

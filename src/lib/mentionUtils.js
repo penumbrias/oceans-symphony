@@ -11,10 +11,24 @@ export function extractMentionedIds(content, alters) {
   return Array.from(mentioned);
 }
 
+export async function saveAuthoredLog({ authorAlterId, sourceType, sourceId, sourceLabel, navigatePath, previewText }) {
+  if (!authorAlterId) return;
+  await base44.entities.MentionLog.create({
+    mentioned_alter_id: authorAlterId,
+    author_alter_id: authorAlterId,
+    log_type: "authored",
+    source_type: sourceType,
+    source_id: sourceId || "",
+    source_label: sourceLabel || sourceType,
+    source_date: new Date().toISOString(),
+    preview_text: (previewText || "").slice(0, 120),
+    navigate_path: navigatePath || "/",
+  });
+}
+
 export async function saveMentions({ content, alters, sourceType, sourceId, sourceLabel, navigatePath, authorAlterId }) {
   if (!content) return;
   const mentionedIds = extractMentionedIds(content, alters);
-  const today = format(new Date(), "yyyy-MM-dd");
   const preview = content.slice(0, 120);
 
   const logs = [];
@@ -25,26 +39,11 @@ export async function saveMentions({ content, alters, sourceType, sourceId, sour
       base44.entities.MentionLog.create({
         mentioned_alter_id: id,
         author_alter_id: authorAlterId || null,
+        log_type: "mention",
         source_type: sourceType,
         source_id: sourceId || "",
         source_label: sourceLabel || sourceType,
-        source_date: today,
-        preview_text: preview,
-        navigate_path: navigatePath || "/",
-      })
-    );
-  }
-
-  // Also log in the author's board (if author mentioned others)
-  if (authorAlterId && mentionedIds.length > 0) {
-    logs.push(
-      base44.entities.MentionLog.create({
-        mentioned_alter_id: authorAlterId,
-        author_alter_id: authorAlterId,
-        source_type: sourceType + "_sent",
-        source_id: sourceId || "",
-        source_label: `Mentioned ${mentionedIds.length} alter${mentionedIds.length > 1 ? "s" : ""} in ${sourceLabel || sourceType}`,
-        source_date: today,
+        source_date: new Date().toISOString(),
         preview_text: preview,
         navigate_path: navigatePath || "/",
       })

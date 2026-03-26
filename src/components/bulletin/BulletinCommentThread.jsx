@@ -6,6 +6,7 @@ import { Trash2, Reply, Link as LinkIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import AuthorsRow from "./AuthorsRow";
+import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -66,13 +67,34 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     setSaving(true);
     const { authorIds, cleanContent } = parseSignposts(text, alters);
     const finalAuthorIds = authorIds.length > 0 ? authorIds : frontingAlterIds;
-    await base44.entities.BulletinComment.create({
+    const comment = await base44.entities.BulletinComment.create({
       bulletin_id: bulletinId,
       parent_comment_id: parentCommentId || null,
       author_alter_id: finalAuthorIds[0] || null,
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
       reactions: {},
+    });
+    const sourceType = parentCommentId ? "reply" : "comment";
+    // Log authored entry + mentions for each author
+    for (const authorId of finalAuthorIds) {
+      await saveAuthoredLog({
+        authorAlterId: authorId,
+        sourceType,
+        sourceId: bulletinId,
+        sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
+        navigatePath: `/bulletin/${bulletinId}`,
+        previewText: cleanContent,
+      });
+    }
+    await saveMentions({
+      content: cleanContent,
+      alters,
+      sourceType,
+      sourceId: bulletinId,
+      sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
+      navigatePath: `/bulletin/${bulletinId}`,
+      authorAlterId: finalAuthorIds[0] || null,
     });
     setText("");
     setSaving(false);

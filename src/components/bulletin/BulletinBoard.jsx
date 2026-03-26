@@ -8,14 +8,24 @@ import BulletinComposer from "./BulletinComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
 import { toast } from "sonner";
 
-function QuickTaskAdd() {
+function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+  const qc = useQueryClient();
 
   const handleKeyDown = async (e) => {
     if (e.key !== "Enter" || !text.trim()) return;
     setSaving(true);
     await base44.entities.Task.create({ title: text.trim(), completed: false, priority: "medium" });
+    // Also post to bulletin board
+    await base44.entities.Bulletin.create({
+      content: `☑️ New task added: ${text.trim()}`,
+      author_alter_ids: frontingAlterIds,
+      author_alter_id: frontingAlterIds[0] || null,
+      reactions: {},
+      read_by_alter_ids: frontingAlterIds,
+    });
+    qc.invalidateQueries({ queryKey: ["bulletins"] });
     toast.success("Task added!");
     setText("");
     setSaving(false);
@@ -73,6 +83,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
     const val = e.target.value;
     if (val.trim()) {
       setComposeInitial(val);
+      e.target.value = "";
       setComposing(true);
     }
   };
@@ -131,7 +142,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
       )}
 
       {/* Quick Task Add */}
-      <QuickTaskAdd />
+      <QuickTaskAdd frontingAlterIds={frontingAlterIds} />
 
       {/* Mention alerts */}
       {currentAlterId && (
