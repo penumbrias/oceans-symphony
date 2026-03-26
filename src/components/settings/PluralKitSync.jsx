@@ -117,44 +117,72 @@ export default function PluralKitSync() {
   };
 
   const handleExportToPluralKit = async () => {
-   if (!token.trim()) {
-     showStatus("error", "Please save your PluralKit token first.");
-     return;
-   }
-   setSyncing(true);
-   try {
-     let alters, systemFields;
-     if (isLocalMode()) {
-       const dump = getFullDbDump();
-       alters = Object.values(dump["Alter"] || {});
-       systemFields = Object.values(dump["CustomField"] || {});
-     } else {
-       alters = await base44.entities.Alter.list();
-       systemFields = await base44.entities.CustomField.list();
-     }
+    if (!token.trim()) {
+      showStatus("error", "Please save your PluralKit token first.");
+      return;
+    }
+    setSyncing(true);
+    try {
+      // Fetch system info to get system ID
+      const sysResponse = await fetch("https://api.pluralkit.me/v2/systems/@me", {
+        headers: { "Authorization": token },
+      });
+      if (!sysResponse.ok) throw new Error("Failed to fetch system info. Check your token.");
+      const system = await sysResponse.json();
+      const systemId = system.id;
 
-     const members = alters
-       .filter(a => !a.is_archived)
-       .map(alter => toPluralKitMember(alter, systemFields));
+      let alters, systemFields;
+      if (isLocalMode()) {
+        const dump = getFullDbDump();
+        alters = Object.values(dump["Alter"] || {});
+        systemFields = Object.values(dump["CustomField"] || {});
+      } else {
+        alters = await base44.entities.Alter.list();
+        systemFields = await base44.entities.CustomField.list();
+      }
 
-     if (members.length === 0) {
-       showStatus("error", "No alters to export.");
-       setSyncing(false);
-       return;
-     }
+      const members = alters
+        .filter(a => !a.is_archived)
+        .map(alter => toPluralKitMember(alter, systemFields));
 
-     // Fetch existing members from PluralKit
-     let existingMembers = [];
-     if (syncMode !== "replace-all") {
-       try {
-         const existingResponse = await fetch("https://api.pluralkit.me/v2/members", {
-           headers: { "Authorization": token },
-         });
-         if (existingResponse.ok) {
-           existingMembers = await existingResponse.json();
-         }
-       } catch {}
-     }
+      if (members.length === 0) {
+        showStatus("error", "No alters to export.");
+        setSyncing(false);
+        return;
+      }
+
+      // Delete existing members if replace-all
+      if (syncMode === "replace-all") {
+        try {
+          const membersResponse = await fetch(`https://api.pluralkit.me/v2/systems/${systemId}/members`, {
+            headers: { "Authorization": token },
+          });
+          if (membersResponse.ok) {
+            const existingMembers = await membersResponse.json();
+            for (const member of existingMembers) {
+              try {
+                await fetch(`https://api.pluralkit.me/v2/members/${member.id}`, {
+                  method: "DELETE",
+                  headers: { "Authorization": token },
+                });
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+
+      // Fetch existing members from PluralKit for new-only and update checks
+      let existingMembers = [];
+      if (syncMode !== "replace-all") {
+        try {
+          const existingResponse = await fetch(`https://api.pluralkit.me/v2/systems/${systemId}/members`, {
+            headers: { "Authorization": token },
+          });
+          if (existingResponse.ok) {
+            existingMembers = await existingResponse.json();
+          }
+        } catch {}
+      }
 
      // Process each member based on sync mode
      let successCount = 0;

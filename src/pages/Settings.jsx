@@ -191,17 +191,6 @@ export default function Settings() {
         {/* Terminology */}
         <TermsSettings />
 
-        {/* Simply Plural */}
-        {!isLocalMode() && (
-        <SimplyPluralConnect
-           settings={settings}
-           onSettingsChange={() => {
-             refetch();
-             queryClient.invalidateQueries({ queryKey: ["alters"] });
-           }}
-         />
-        )}
-
          {/* Account */}
          {!isLocalMode() && (
          <Card className="border-border/50">

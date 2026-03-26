@@ -21,8 +21,15 @@ export default function Dashboard() {
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
+  const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
 
+
+  const handleTogglePreview = () => {
+    const newState = !showPreview;
+    setShowPreview(newState);
+    localStorage.setItem("preview_open", newState ? "true" : "false");
+  };
 
   const handleTourClose = () => {
     localStorage.setItem("tour_seen", "1");
