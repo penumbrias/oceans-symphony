@@ -14,72 +14,9 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [importMode, setImportMode] = useState("standard");
-  const [exportMode, setExportMode] = useState("standard");
   const queryClient = useQueryClient();
 
   const isConnected = !!settings?.sp_token;
-
-  const syncMembers = async (spToken, systemId) => {
-    const [members, groupsRaw] = await Promise.all([
-      getMembers(spToken, systemId),
-      getGroups(spToken, systemId),
-    ]);
-    if (!members || members.length === 0) {
-      throw new Error("No members returned from Simply Plural. Check your token and system ID.");
-    }
-
-    // Build a lookup of groups by their SP id
-    const groupsById = {};
-    groupsRaw.forEach((g) => {
-      const gid = g.id || g._id;
-      const gc = g.content || g;
-      groupsById[gid] = {
-        id: gid,
-        name: gc.name || "",
-        color: gc.color ? (gc.color.startsWith("#") ? gc.color : `#${gc.color}`) : "",
-        parent: gc.parent || null,
-        members: gc.members || [],
-      };
-    });
-
-    // Sync groups to Group entity
-    const existingGroups = await base44.entities.Group.list();
-    const existingGroupsBySpId = {};
-    existingGroups.forEach((g) => { if (g.sp_id) existingGroupsBySpId[g.sp_id] = g; });
-    for (const g of Object.values(groupsById)) {
-      const groupData = {
-        sp_id: g.id,
-        name: g.name,
-        color: g.color,
-        parent: g.parent || "",
-        member_sp_ids: g.members,
-      };
-      const existing = existingGroupsBySpId[g.id];
-      if (existing) {
-        await base44.entities.Group.update(existing.id, groupData);
-      } else {
-        await base44.entities.Group.create(groupData);
-      }
-    }
-
-    // Sync members/alters
-    const existingAlters = await base44.entities.Alter.list();
-    const existingBySpId = {};
-    existingAlters.forEach((a) => {
-      if (a.sp_id) existingBySpId[a.sp_id] = a;
-    });
-    for (const member of members) {
-      const alterData = mapMemberToAlter(member, groupsById);
-      if (!alterData.sp_id) continue;
-      const existing = existingBySpId[alterData.sp_id];
-      if (existing) {
-        await base44.entities.Alter.update(existing.id, alterData);
-      } else {
-        await base44.entities.Alter.create(alterData);
-      }
-    }
-    return members.length;
-  };
 
   const handleConnect = async () => {
     if (!token.trim()) return;
@@ -95,10 +32,9 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       } else {
         await base44.entities.SystemSettings.create(spData);
       }
-      const count = await syncMembers(token.trim(), systemId);
       setToken("");
       onSettingsChange();
-      toast.success(`Connected! Imported ${count} member${count !== 1 ? "s" : ""}.`);
+      toast.success("Connected to Simply Plural");
     } catch (e) {
       toast.error(e.message || "Connection failed");
     } finally {
