@@ -15,9 +15,9 @@ import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
+import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
-import PluralKitSync from "@/components/settings/PluralKitSync";
 import ThemeColorSettings from "@/components/settings/ThemeColorSettings";
 import { isLocalMode } from "@/lib/storageMode";
 
@@ -250,11 +250,17 @@ export default function Settings() {
              <div>
                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
              </div>
-             <PluralKitSync />
-           </div>
-         )}
+             <SimplyPluralConnect
+               settings={settings}
+               onSettingsChange={() => {
+                 refetch();
+                 queryClient.invalidateQueries({ queryKey: ["alters"] });
+               }}
+             />
+             </div>
+             )}
 
-         {/* Diary Template */}
+             {/* Diary Template */}
          <DiaryTemplateManager settings={settings} />
 
          {/* Custom Fields */}
