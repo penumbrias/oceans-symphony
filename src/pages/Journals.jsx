@@ -13,7 +13,6 @@ import FolderGrid from "@/components/journal/FolderGrid";
 
 const TABS = [
   { id: "all", label: "All", icon: BookOpen },
-  { id: "personal", label: "Personal", icon: BookOpen },
   { id: "switch_log", label: "Switch Logs", icon: Shuffle },
 ];
 

@@ -127,7 +127,7 @@ export default function Settings() {
                   placeholder={`Enter your ${terms.system} name...`}
                   value={systemName}
                   onChange={(e) => setSystemName(e.target.value)}
-                  className="mt-2 bg-card/50"
+                  className="mt-2"
                 />
               </div>
               <div>
@@ -139,7 +139,7 @@ export default function Settings() {
                   placeholder={`Describe your ${terms.system}...`}
                   value={systemDescription}
                   onChange={(e) => setSystemDescription(e.target.value)}
-                  className="mt-2 bg-card/50 min-h-[100px]"
+                  className="mt-2 min-h-[100px]"
                 />
               </div>
               <Button
