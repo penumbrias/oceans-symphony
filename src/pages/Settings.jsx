@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/lib/ThemeContext";
 import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
-import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
+
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
@@ -235,6 +235,7 @@ export default function Settings() {
              )}
              <div className="border-t border-border pt-4 space-y-3">
                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Data Management</p>
+               <StorageModeSettings />
                <DataBackupRestore />
              </div>
              </CardContent>
@@ -249,13 +250,6 @@ export default function Settings() {
              <div>
                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
              </div>
-             <SimplyPluralConnect
-               settings={settings}
-               onSettingsChange={() => {
-                 refetch();
-                 queryClient.invalidateQueries({ queryKey: ["alters"] });
-               }}
-             />
              <PluralKitSync />
            </div>
          )}
