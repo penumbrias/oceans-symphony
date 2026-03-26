@@ -94,9 +94,20 @@ export default function InfoTab({ alter, systemFields }) {
                       className="flex-1 text-sm min-h-[60px]"
                       autoFocus
                     />
+                  ) : field.field_type === "boolean" ? (
+                    <select
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                      autoFocus
+                    >
+                      <option value="">Select...</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
                   ) : (
                     <Input
-                      type={field.field_type === "number" ? "number" : "text"}
+                      type="number"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       className="flex-1 text-sm"
@@ -114,7 +125,9 @@ export default function InfoTab({ alter, systemFields }) {
                 </div>
               ) : (
                 <p className="text-sm text-foreground min-h-[1.25rem]">
-                  {customFieldValues[field.id] || <span className="text-muted-foreground/50 italic">Not filled</span>}
+                  {field.field_type === "boolean" && customFieldValues[field.id]
+                    ? (customFieldValues[field.id] === "true" || customFieldValues[field.id] === true ? "Yes" : "No")
+                    : (customFieldValues[field.id] || <span className="text-muted-foreground/50 italic">Not filled</span>)}
                 </p>
               )}
             </div>
