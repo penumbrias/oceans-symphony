@@ -81,8 +81,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     mutationFn: async (data) => {
       let journalEntryId = null;
       
-      // If note is over 500 words, create journal entry
-      if (note && note.split(/\s+/).length > 500) {
+      // If note is over 50 words, create journal entry
+      const wordCount = note ? note.trim().split(/\s+/).filter(Boolean).length : 0;
+      if (note && wordCount > 50) {
         const entry = await base44.entities.JournalEntry.create({
           title: `Emotion Check-in - ${new Date().toLocaleDateString()}`,
           content: note,
@@ -96,7 +97,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         timestamp: new Date().toISOString(),
         emotions: selectedEmotions,
         fronting_alter_ids: selectedAlters,
-        note: note.split(/\s+/).length <= 500 ? note : note.substring(0, 500) + "...",
+        note: note.trim().split(/\s+/).filter(Boolean).length <= 50 ? note : note.substring(0, 300) + "...",
         journal_entry_id: journalEntryId
       });
     },
@@ -350,7 +351,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
           {/* Note */}
           <div>
-            <p className="text-sm font-medium mb-2">Quick note (max 500 words)</p>
+            <p className="text-sm font-medium mb-2">Quick note (max 50 words — longer becomes a journal)</p>
             <Textarea
               placeholder="Optional note..."
               value={note}
@@ -359,8 +360,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             />
             {note && (
               <p className="text-xs text-muted-foreground mt-1">
-                {note.split(/\s+/).length} words
-                {note.split(/\s+/).length > 500 && " (will create journal entry)"}
+                {note.trim().split(/\s+/).filter(Boolean).length} / 50 words
+                {note.trim().split(/\s+/).filter(Boolean).length > 50 && " — will save as journal entry"}
               </p>
             )}
           </div>

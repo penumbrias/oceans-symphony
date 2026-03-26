@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import PullToRefresh from "@/components/layout/PullToRefresh";
 import { useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -23,14 +22,7 @@ export default function Dashboard() {
   const [showTour, setShowTour] = useState(false);
   const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
 
-  const handleRefresh = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["alters"] }),
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] }),
-      queryClient.invalidateQueries({ queryKey: ["mentionLogs"] }),
-      queryClient.invalidateQueries({ queryKey: ["bulletins"] }),
-    ]);
-  };
+
 
   const handleTourClose = () => {
     localStorage.setItem("tour_seen", "1");
@@ -145,9 +137,7 @@ export default function Dashboard() {
 
       <NewFeaturesBar />
       <QuickNavMenu />
-      <PullToRefresh onRefresh={handleRefresh}>
-        <BulletinBoard alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlightBulletinId={highlightBulletinId} />
-      </PullToRefresh>
+      <BulletinBoard alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlightBulletinId={highlightBulletinId} />
 
       <TermsSetupModal
         open={showTermsSetup}
