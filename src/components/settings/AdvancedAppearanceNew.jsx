@@ -43,6 +43,7 @@ export default function AdvancedAppearance() {
     setSelectedTheme(themeName);
     setPendingColors(null);
     setEditingColor(null);
+    updateCustomColors(null);
   };
 
   const handleStartEditColor = (key) => {
@@ -152,9 +153,10 @@ export default function AdvancedAppearance() {
               return (
                 <button
                   key={theme}
+                  type="button"
                   onClick={() => handleSelectPreset(theme)}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all capitalize ${
-                    isSelected ? 'ring-2 ring-primary' : ''
+                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all capitalize cursor-pointer ${
+                    isSelected ? 'ring-2 ring-offset-2 ring-primary' : ''
                   }`}
                   style={{
                     backgroundImage: `linear-gradient(135deg, ${lightBg} 0%, ${lightPrimary} 100%)`,
@@ -178,10 +180,11 @@ export default function AdvancedAppearance() {
             {Object.entries(colorLabels).map(([key, label]) => (
               <div key={key} className="space-y-1">
                 <label className="text-xs font-medium text-foreground">{label}</label>
-                <div
-                  className="w-full h-10 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary"
-                  style={{ backgroundColor: currentColors[key] }}
+                <button
+                  type="button"
                   onClick={() => handleStartEditColor(key)}
+                  className="w-full h-10 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                  style={{ backgroundColor: currentColors[key] }}
                   title="Click to edit"
                 />
               </div>
@@ -206,7 +209,7 @@ export default function AdvancedAppearance() {
             <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-sm mx-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">{colorLabels[editingColor]}</h3>
-                <button onClick={() => setEditingColor(null)} className="text-muted-foreground hover:text-foreground">
+                <button type="button" onClick={() => setEditingColor(null)} className="text-muted-foreground hover:text-foreground">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -231,14 +234,16 @@ export default function AdvancedAppearance() {
 
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setEditingColor(null)}
-                  className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 font-medium text-sm"
+                  className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 font-medium text-sm cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleSaveColor}
-                  className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm"
+                  className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm cursor-pointer"
                 >
                   Save
                 </button>
