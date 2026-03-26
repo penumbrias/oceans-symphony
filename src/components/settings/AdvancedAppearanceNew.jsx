@@ -7,7 +7,7 @@ import { HexColorPicker } from 'react-colorful';
 import { Monitor, Palette, ChevronDown, Save, X } from 'lucide-react';
 
 export default function AdvancedAppearance() {
-  const { themeMode, selectedTheme, customColors, updateCustomColors, cycleThemeMode, presets, setSelectedTheme, selectedFont, setSelectedFont, userCustomPresets, saveCustomPreset, allPresets } = useTheme();
+  const { themeMode, selectedTheme, customColors, updateCustomColors, cycleThemeMode, presets, setSelectedTheme, selectedFont, setSelectedFont, userCustomPresets, saveCustomPreset, allPresets, isDarkMode } = useTheme();
   
   const [editingColor, setEditingColor] = useState(null);
   const [hexInput, setHexInput] = useState('');
@@ -16,6 +16,11 @@ export default function AdvancedAppearance() {
   const [showCustomDropdown, setShowCustomDropdown] = useState(false);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState('');
+  const [pendingColors, setPendingColors] = useState(null);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+
+  // Determine current display mode for preview
+  const isDark = themeMode === 'dark' || (themeMode === 'system' && document.documentElement.classList.contains('dark'));
 
   const colorLabels = {
     bg: 'Background',
@@ -28,10 +33,23 @@ export default function AdvancedAppearance() {
     'text-secondary': 'Text Secondary',
   };
 
-  const currentColors = customColors ? customColors.light : allPresets[selectedTheme]?.light || presets[selectedTheme]?.light;
+  // Show pending colors if editing, otherwise show current colors in current display mode
+  const currentColors = pendingColors 
+    ? (isDark ? pendingColors.dark : pendingColors.light)
+    : (customColors ? (isDark ? customColors.dark : customColors.light) : (isDark ? allPresets[selectedTheme]?.dark : allPresets[selectedTheme]?.light));
+
   const filteredFonts = FONT_OPTIONS.filter(f => f.label.toLowerCase().includes(fontSearch.toLowerCase()));
 
   const handleColorDoubleClick = (key, value) => {
+    if (!pendingColors) {
+      // Start editing - initialize pending colors
+      if (customColors) {
+        setPendingColors(customColors);
+      } else {
+        const theme = allPresets[selectedTheme];
+        setPendingColors(theme);
+      }
+    }
     setEditingColor(key);
     setHexInput(value);
   };
@@ -43,15 +61,37 @@ export default function AdvancedAppearance() {
 
   const handleSaveColor = () => {
     if (editingColor && /^#[0-9A-F]{6}$/i.test(hexInput)) {
-      const newColors = { ...currentColors, [editingColor]: hexInput };
-      updateCustomColors(newColors);
+      const mode = isDark ? 'dark' : 'light';
+      const newColors = {
+        ...pendingColors,
+        [mode]: {
+          ...pendingColors[mode],
+          [editingColor]: hexInput
+        }
+      };
+      setPendingColors(newColors);
+      setHasPendingChanges(true);
       setEditingColor(null);
     }
   };
 
+  const handleApplyChanges = () => {
+    if (pendingColors) {
+      updateCustomColors(pendingColors.light);
+      setPendingColors(null);
+      setHasPendingChanges(false);
+    }
+  };
+
+  const handleCancelChanges = () => {
+    setPendingColors(null);
+    setHasPendingChanges(false);
+    setEditingColor(null);
+  };
+
   const handleSaveCustomPreset = () => {
-    if (presetName.trim() && currentColors) {
-      saveCustomPreset(presetName, { light: currentColors, dark: customColors?.dark || currentColors });
+    if (presetName.trim() && pendingColors) {
+      saveCustomPreset(presetName, pendingColors);
       setPresetName('');
       setShowSavePreset(false);
     }
@@ -144,6 +184,7 @@ export default function AdvancedAppearance() {
                   key={theme}
                   onClick={() => {
                     setSelectedTheme(theme);
+                    handleCancelChanges();
                   }}
                   className={`px-3 py-2 rounded-lg text-xs font-medium transition-all capitalize relative overflow-hidden ${
                     isSelected ? 'ring-2 ring-primary' : ''
@@ -184,6 +225,7 @@ export default function AdvancedAppearance() {
                         const colors = userCustomPresets[name];
                         updateCustomColors(colors.light);
                         setShowCustomDropdown(false);
+                        handleCancelChanges();
                       }}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
                     >
@@ -199,7 +241,7 @@ export default function AdvancedAppearance() {
         {/* Color Customization */}
         <div className="space-y-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Custom Colors {customColors && '(Active)'}
+            Custom Colors {(customColors || pendingColors) && '(Active)'}
           </p>
           <div className="grid grid-cols-2 gap-3">
             {Object.entries(colorLabels).map(([key, label]) => (
@@ -216,15 +258,34 @@ export default function AdvancedAppearance() {
           </div>
         </div>
 
-        {/* Save Custom Preset */}
-        {customColors && (
-          <Button
-            onClick={() => setShowSavePreset(!showSavePreset)}
-            variant="outline"
-            className="w-full"
-          >
-            Save Custom Preset
-          </Button>
+        {/* Save/Cancel for Custom Preset */}
+        {(customColors || pendingColors) && (
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowSavePreset(!showSavePreset)}
+              variant="outline"
+              className="flex-1"
+            >
+              Save as Preset
+            </Button>
+            {hasPendingChanges && (
+              <>
+                <Button
+                  onClick={handleApplyChanges}
+                  className="flex-1 bg-primary hover:bg-primary/90"
+                >
+                  Save Changes
+                </Button>
+                <Button
+                  onClick={handleCancelChanges}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </>
+            )}
+          </div>
         )}
 
         {showSavePreset && (
