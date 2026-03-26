@@ -22,36 +22,36 @@ export default function AlterCard({ alter, index }) {
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-    >
+      transition={{ duration: 0.3, delay: index * 0.03 }}>
+      
       <Link to={`/alter/${alter.id}`}>
-        <div
-          className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
-          style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}
-        >
+        <div className="bg-card pt-2 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
+
+        style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
+          
           {/* Avatar */}
           <div
             className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
-            style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
-          >
-            {alter.avatar_url ? (
-              <img
-                src={alter.avatar_url}
-                alt={alter.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                  e.target.nextSibling.style.display = "flex";
-                }}
-              />
-            ) : null}
+            style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
+            
+            {alter.avatar_url ?
+            <img
+              src={alter.avatar_url}
+              alt={alter.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = "none";
+                e.target.nextSibling.style.display = "flex";
+              }} /> :
+
+            null}
             <div
               className="w-full h-full items-center justify-center"
               style={{
                 display: alter.avatar_url ? "none" : "flex",
-                color: textColor || "hsl(var(--muted-foreground))",
-              }}
-            >
+                color: textColor || "hsl(var(--muted-foreground))"
+              }}>
+              
               <User className="w-5 h-5" />
             </div>
           </div>
@@ -61,26 +61,26 @@ export default function AlterCard({ alter, index }) {
             <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
               {alter.name}
             </p>
-            {alter.pronouns && (
-              <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>
-            )}
+            {alter.pronouns &&
+            <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>
+            }
           </div>
 
-          {alter.role && (
-            <span
-              className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-              style={{
-                backgroundColor: bgColor ? `${bgColor}20` : "hsl(var(--muted))",
-                color: bgColor || "hsl(var(--muted-foreground))",
-              }}
-            >
+          {alter.role &&
+          <span
+            className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+            style={{
+              backgroundColor: bgColor ? `${bgColor}20` : "hsl(var(--muted))",
+              color: bgColor || "hsl(var(--muted-foreground))"
+            }}>
+            
               {alter.role}
             </span>
-          )}
+          }
 
           <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         </div>
       </Link>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
