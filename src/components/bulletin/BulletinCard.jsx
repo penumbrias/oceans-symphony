@@ -57,9 +57,14 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
     const next = existing.includes(currentAlterId)
       ? existing.filter(id => id !== currentAlterId)
       : [...existing, currentAlterId];
-    await base44.entities.Bulletin.update(bulletin.id, { reactions: { ...reactions, [emoji]: next } });
-    qc.invalidateQueries({ queryKey: ["bulletins"] });
+    const newReactions = { ...reactions, [emoji]: next };
+    // Optimistic update
+    qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
+      Array.isArray(old) ? old.map(b => b.id === bulletin.id ? { ...b, reactions: newReactions } : b) : old
+    );
     setShowReactPicker(false);
+    await base44.entities.Bulletin.update(bulletin.id, { reactions: newReactions });
+    qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
   const handleVote = async (optionIndex) => {
@@ -67,16 +72,28 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
     const poll = { ...bulletin.poll };
     poll.options = poll.options.map(opt => ({ ...opt, votes: (opt.votes || []).filter(id => id !== currentAlterId) }));
     poll.options[optionIndex] = { ...poll.options[optionIndex], votes: [...(poll.options[optionIndex].votes || []), currentAlterId] };
+    // Optimistic update
+    qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
+      Array.isArray(old) ? old.map(b => b.id === bulletin.id ? { ...b, poll } : b) : old
+    );
     await base44.entities.Bulletin.update(bulletin.id, { poll });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
   const handlePin = async () => {
-    await base44.entities.Bulletin.update(bulletin.id, { is_pinned: !bulletin.is_pinned });
+    const newPinned = !bulletin.is_pinned;
+    qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
+      Array.isArray(old) ? old.map(b => b.id === bulletin.id ? { ...b, is_pinned: newPinned } : b) : old
+    );
+    await base44.entities.Bulletin.update(bulletin.id, { is_pinned: newPinned });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
   const handleDelete = async () => {
+    // Optimistic removal
+    qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
+      Array.isArray(old) ? old.filter(b => b.id !== bulletin.id) : old
+    );
     await base44.entities.Bulletin.delete(bulletin.id);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
@@ -106,11 +123,11 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
         <AuthorsRow authorIds={authorIds} fallbackIds={frontingAlterIds} alters={alters} timestamp={timeAgo} />
         <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
           {bulletin.is_pinned && <Pin className="w-3.5 h-3.5 text-primary" />}
-          <button onClick={handlePin} className="text-muted-foreground hover:text-foreground p-1">
+          <button onClick={handlePin} aria-label={bulletin.is_pinned ? "Unpin bulletin" : "Pin bulletin"} className="text-muted-foreground hover:text-foreground p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg">
             <Pin className={`w-3.5 h-3.5 ${bulletin.is_pinned ? "text-primary" : ""}`} />
           </button>
           {canDelete && (
-            <button onClick={handleDelete} className="text-muted-foreground hover:text-destructive p-1">
+            <button onClick={handleDelete} aria-label="Delete bulletin" className="text-muted-foreground hover:text-destructive p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}

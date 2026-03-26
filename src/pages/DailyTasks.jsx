@@ -147,13 +147,23 @@ export default function DailyTasks() {
       return done ? sum + (t.points || 0) : sum;
     }, 0);
 
+    // Optimistic update — immediately reflect new state in the cache
+    const optimisticRecord = { date: TODAY, completed_task_ids: [...newCompleted], xp_earned: newXP };
+    queryClient.setQueryData(["dailyProgress"], (old) => {
+      if (!Array.isArray(old)) return old;
+      const exists = old.find(p => p.date === TODAY);
+      return exists
+        ? old.map(p => p.date === TODAY ? { ...p, ...optimisticRecord } : p)
+        : [...old, { id: "__optimistic__", ...optimisticRecord }];
+    });
+
+    if (nowCompleted) toast.success(`+${task.points} XP — ${task.title} done! 🎉`);
+
     if (todayRecord) {
       await base44.entities.DailyProgress.update(todayRecord.id, { completed_task_ids: [...newCompleted], xp_earned: newXP });
     } else {
       await base44.entities.DailyProgress.create({ date: TODAY, completed_task_ids: [...newCompleted], xp_earned: newXP });
     }
-
-    if (nowCompleted) toast.success(`+${task.points} XP — ${task.title} done! 🎉`);
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
 
