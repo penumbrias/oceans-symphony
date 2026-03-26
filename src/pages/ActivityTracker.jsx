@@ -50,6 +50,14 @@ export default function ActivityTracker() {
     queryFn: () => base44.entities.FrontingSession.list(),
   });
 
+  // Real-time refresh when activities change (e.g. sleep auto-sync)
+  useEffect(() => {
+    const unsub = base44.entities.Activity.subscribe(() => {
+      qc.invalidateQueries({ queryKey: ["activities"] });
+    });
+    return unsub;
+  }, [qc]);
+
   const handleTimeRangeSelect = (date, startHour, endHour) => {
     setSelectedDate(date);
     setSelectedStartHour(startHour);
