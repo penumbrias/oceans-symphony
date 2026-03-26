@@ -9,91 +9,42 @@
     --font-sans: 'Inter', sans-serif;
     --font-display: 'Playfair Display', serif;
 
-    --background: 270 20% 98%;
-    --foreground: 270 30% 12%;
-    --card: 270 25% 99%;
-    --card-foreground: 270 30% 12%;
-    --popover: 270 25% 99%;
-    --popover-foreground: 270 30% 12%;
-    --primary: 211 68% 62%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 270 20% 94%;
-    --secondary-foreground: 227 30% 20%;
-    --muted: 270 15% 93%;
-    --muted-foreground: 211 10% 45%;
-    --accent: 320 50% 92%;
-    --accent-foreground: 320 40% 30%;
-    --destructive: 0 72% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 270 15% 90%;
-    --input: 270 15% 88%;
-    --ring: 265 60% 55%;
-    --chart-1: 265 60% 55%;
-    --chart-2: 320 50% 60%;
-    --chart-3: 200 60% 50%;
-    --chart-4: 40 70% 55%;
-    --chart-5: 150 50% 45%;
+    --color-bg: #F0F9FF;
+    --color-surface: #E0F2FE;
+    --color-primary: #3B82F6;
+    --color-secondary: #DBEAFE;
+    --color-accent: #38BDF8;
+    --color-muted: #B6D4E3;
+    --color-text-primary: #1E293B;
+    --color-text-secondary: #64748B;
+
     --radius: 0.75rem;
-    --sidebar-background: 270 20% 97%;
-    --sidebar-foreground: 270 30% 20%;
-    --sidebar-primary: 265 60% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 20% 93%;
-    --sidebar-accent-foreground: 270 30% 20%;
-    --sidebar-border: 270 15% 90%;
-    --sidebar-ring: 265 60% 55%;
   }
 
   .dark {
-    --background: 270 20% 6%;
-    --foreground: 270 10% 92%;
-    --card: 270 20% 8%;
-    --card-foreground: 270 10% 92%;
-    --popover: 270 20% 8%;
-    --popover-foreground: 270 10% 92%;
-    --primary: 265 60% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 270 15% 14%;
-    --secondary-foreground: 270 10% 90%;
-    --muted: 270 15% 14%;
-    --muted-foreground: 270 10% 55%;
-    --accent: 320 40% 18%;
-    --accent-foreground: 320 30% 85%;
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 270 15% 16%;
-    --input: 270 15% 16%;
-    --ring: 265 60% 60%;
-    --chart-1: 265 60% 60%;
-    --chart-2: 320 50% 55%;
-    --chart-3: 200 55% 55%;
-    --chart-4: 40 65% 55%;
-    --chart-5: 150 45% 50%;
-    --sidebar-background: 270 20% 8%;
-    --sidebar-foreground: 270 10% 90%;
-    --sidebar-primary: 265 60% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 270 15% 14%;
-    --sidebar-accent-foreground: 270 10% 90%;
-    --sidebar-border: 270 15% 16%;
-    --sidebar-ring: 265 60% 60%;
+    --color-bg: #0B1220;
+    --color-surface: #121A2A;
+    --color-primary: #3B82F6;
+    --color-secondary: #1E3A5F;
+    --color-accent: #38BDF8;
+    --color-muted: #334155;
+    --color-text-primary: #E0F2FE;
+    --color-text-secondary: #94A3B8;
   }
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--color-muted);
   }
 
   html {
-    /* Disable native browser bounce/overscroll */
     overscroll-behavior: none;
   }
 
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-    /* Safe area insets for notched/home-indicator devices */
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
@@ -101,13 +52,11 @@
     overscroll-behavior: none;
   }
 
-  /* Prevent text selection on interactive/button elements */
   button, a, [role="button"], nav {
     -webkit-user-select: none;
     user-select: none;
   }
 
-  /* Preserve text selection in reading/content areas */
   p, span, h1, h2, h3, h4, h5, h6, li, blockquote, .selectable {
     -webkit-user-select: text;
     user-select: text;

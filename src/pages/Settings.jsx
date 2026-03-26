@@ -24,7 +24,7 @@ import { isLocalMode } from "@/lib/storageMode";
 
 export default function Settings() {
   const queryClient = useQueryClient();
-  const { theme, toggleTheme } = useTheme();
+  const { themeMode, cycleThemeMode } = useTheme();
   const terms = useTerms();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
@@ -104,99 +104,7 @@ export default function Settings() {
       </p>
 
       <div className="space-y-6 max-w-2xl">
-         {/* Theme Toggle */}
-         <Card className="border-border/50">
-           <CardHeader>
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                 {theme === 'dark' ? <Moon className="w-5 h-5 text-accent-foreground" /> : <Sun className="w-5 h-5 text-accent-foreground" />}
-               </div>
-               <div>
-                 <CardTitle className="text-lg">Appearance</CardTitle>
-                 <CardDescription>
-                   Customize your theme
-                 </CardDescription>
-               </div>
-             </div>
-           </CardHeader>
-           <CardContent>
-             <Button
-               onClick={toggleTheme}
-               variant="outline"
-               className="w-full"
-             >
-               {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
-               Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
-             </Button>
-           </CardContent>
-         </Card>
-
          {/* System Name */}
-         <Card className="border-border/50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                <Palette className="w-5 h-5 text-accent-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">{terms.System} Info</CardTitle>
-                <CardDescription>
-                  Set your {terms.system} name and details
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="system-name" className="text-sm font-medium">
-                    {terms.System} Name
-                  </Label>
-                  <Input
-                    id="system-name"
-                    placeholder={`Enter your ${terms.system} name...`}
-                    value={systemName}
-                    onChange={(e) => setSystemName(e.target.value)}
-                    className="mt-2 bg-card/50"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="system-description" className="text-sm font-medium">
-                    {terms.System} Description
-                  </Label>
-                  <Textarea
-                    id="system-description"
-                    placeholder={`Describe your ${terms.system}...`}
-                    value={systemDescription}
-                    onChange={(e) => setSystemDescription(e.target.value)}
-                    className="mt-2 bg-card/50 min-h-[100px]"
-                  />
-              </div>
-              <Button
-                onClick={handleSaveName}
-                disabled={saving}
-                size="sm"
-                className="bg-primary hover:bg-primary/90"
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                Save
-              </Button>
-            </div>
-          </CardContent>
-          </Card>
-
-          {/* Advanced Appearance */}
-          <AdvancedAppearance />
-
-          {/* Terminology */}
-          <TermsSettings />
-
-         {/* Account */}
-         {!isLocalMode() && (
          <Card className="border-border/50">
            <CardHeader>
              <div className="flex items-center gap-3">
