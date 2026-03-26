@@ -28,9 +28,12 @@ export default function SleepLogModal({
   React.useEffect(() => {
     if (isOpen && selectedDate) {
       const dateStr = format(selectedDate, "yyyy-MM-dd");
-      // Default to reasonable times
+      // Wake time defaults to 7 AM the NEXT day
+      const nextDay = new Date(selectedDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayStr = format(nextDay, "yyyy-MM-dd");
       setBedtime(`${dateStr}T23:00`);
-      setWakeTime(`${dateStr}T07:00`);
+      setWakeTime(`${nextDayStr}T07:00`);
     }
   }, [isOpen, selectedDate]);
 
