@@ -77,7 +77,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
           title={showFolders ? "Hide groups" : "Show groups"}>
           
           {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          {showFolders ? "Groups" : "No groups"}
+          {showFolders ? "groups" : "groups"}
         </Button>
         <Button
           variant={viewMode === "list" ? "default" : "outline"}
