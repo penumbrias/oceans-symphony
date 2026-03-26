@@ -29,6 +29,7 @@ export default function DataBackupRestore() {
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success'|'error', message }
+  const [importMode, setImportMode] = useState('add'); // 'add' or 'replace'
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
@@ -88,7 +89,20 @@ export default function DataBackupRestore() {
           showStatus("success", "Data restored! The app will reload.");
           setTimeout(() => window.location.reload(), 1200);
         } else {
-          // Cloud mode: create records for each entity
+          // Cloud mode
+          if (importMode === 'replace') {
+            // Delete all records for each entity
+            for (const entityName of ENTITY_NAMES) {
+              try {
+                const records = await base44.entities[entityName].list();
+                for (const record of records) {
+                  await base44.entities[entityName].delete(record.id);
+                }
+              } catch {}
+            }
+          }
+          
+          // Create records for each entity
           let count = 0;
           for (const [entityName, recordsMap] of Object.entries(parsed.data)) {
             if (!ENTITY_NAMES.includes(entityName)) continue;
@@ -98,7 +112,7 @@ export default function DataBackupRestore() {
               try { await base44.entities[entityName].create(data); count++; } catch {}
             }
           }
-          showStatus("success", `Imported ${count} records to cloud.`);
+          showStatus("success", `${importMode === 'replace' ? 'Replaced' : 'Imported'} ${count} records.`);
         }
         return;
       }
@@ -149,6 +163,32 @@ export default function DataBackupRestore() {
 
         <div className="space-y-2 pt-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Import</p>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="importMode"
+                  value="add"
+                  checked={importMode === 'add'}
+                  onChange={(e) => setImportMode(e.target.value)}
+                  className="w-4 h-4"
+                />
+                <span className="text-xs font-medium">Add New</span>
+              </label>
+              <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="importMode"
+                  value="replace"
+                  checked={importMode === 'replace'}
+                  onChange={(e) => setImportMode(e.target.value)}
+                  className="w-4 h-4"
+                />
+                <span className="text-xs font-medium">Replace All</span>
+              </label>
+            </div>
+          </div>
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
           <Button
            variant="outline"
@@ -162,7 +202,7 @@ export default function DataBackupRestore() {
              <p className="text-xs text-muted-foreground font-normal">Symphony backup JSON</p>
            </div>
           </Button>
-          <p className="text-xs text-muted-foreground">⚠️ Importing adds records — it does not replace existing data. For PluralKit sync, see PluralKit Sync section.</p>
+          <p className="text-xs text-muted-foreground">{importMode === 'replace' ? '⚠️ Replace All will delete existing data and import from backup.' : '⚠️ Add New imports records — it does not replace existing data.'}</p>
         </div>
       </CardContent>
     </Card>
