@@ -203,13 +203,13 @@ export default function ActivityWeeklyGrid({
       */}
       <div className="border border-border rounded-lg overflow-hidden flex">
         {/* Fixed time column — always visible */}
-        <div className="flex-shrink-0 w-14 bg-muted border-r border-border flex flex-col">
+        <div className="flex-shrink-0 bg-muted border-r border-border flex flex-col">
           {/* Spacer matching header height */}
           <div className="border-b border-border" style={{ height: HEADER_H, minHeight: HEADER_H }} />
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="px-1 text-xs font-medium text-muted-foreground text-right border-b border-border/50 flex items-center justify-end flex-shrink-0"
+              className="px-2 text-xs font-medium text-muted-foreground text-right border-b border-border/50 flex items-center justify-end flex-shrink-0 whitespace-nowrap"
               style={{ height: ROW_H, minHeight: ROW_H }}
             >
               {String(hour).padStart(2, "0")}:00
