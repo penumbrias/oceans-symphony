@@ -7,7 +7,7 @@ import { HexColorPicker } from 'react-colorful';
 import { Palette, X } from 'lucide-react';
 
 export default function AdvancedAppearance() {
-  const { themeMode, selectedTheme, customColors, updateCustomColors, cycleThemeMode, presets, setSelectedTheme, allPresets } = useTheme();
+  const { themeMode, selectedTheme, customColors, updateCustomColors, clearCustomColors, cycleThemeMode, presets, setSelectedTheme, allPresets } = useTheme();
   
   const [editingColor, setEditingColor] = useState(null);
   const [hexInput, setHexInput] = useState('');
@@ -40,7 +40,7 @@ export default function AdvancedAppearance() {
 
   const handleSelectPreset = (themeName) => {
     // Clear custom colors and switch to preset
-    updateCustomColors(null);
+    clearCustomColors();
     setSelectedTheme(themeName);
     setPendingColors(null);
     setEditingColor(null);
@@ -103,11 +103,7 @@ export default function AdvancedAppearance() {
   const handleCancelEdit = () => {
     setPendingColors(null);
     setEditingColor(null);
-    // Revert to preset
-    const preset = allPresets[selectedTheme];
-    if (preset && customColors) {
-      updateCustomColors(preset.light);
-    }
+    clearCustomColors();
   };
 
   const basicThemes = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];

@@ -371,6 +371,10 @@ export function ThemeProvider({ children }) {
     setSelectedTheme('custom');
   };
 
+  const clearCustomColors = () => {
+    setCustomColors(null);
+  };
+
   const saveCustomPreset = (name, colors) => {
     setUserCustomPresets(prev => ({
       ...prev,
@@ -390,6 +394,7 @@ export function ThemeProvider({ children }) {
       selectedTheme,
       customColors,
       updateCustomColors,
+      clearCustomColors,
       cycleThemeMode,
       presets: THEME_PRESETS,
       setSelectedTheme,
