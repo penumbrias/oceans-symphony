@@ -25,6 +25,7 @@ import ToDoList from '@/pages/ToDoList';
 import Timeline from '@/pages/Timeline.jsx';
 import CoFrontingAnalytics from '@/pages/CoFrontingAnalytics';
 import SystemMapPage from '@/pages/SystemMap';
+import BulletinPage from '@/pages/BulletinPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -74,6 +75,7 @@ const AuthenticatedApp = () => {
         <Route path="/timeline" element={<Timeline />} />
         <Route path="/cofronting-analytics" element={<CoFrontingAnalytics />} />
         <Route path="/system-map" element={<SystemMapPage />} />
+        <Route path="/bulletin/:id" element={<BulletinPage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

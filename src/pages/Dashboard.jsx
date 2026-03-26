@@ -132,7 +132,7 @@ export default function Dashboard() {
 
       <NewFeaturesBar />
       <QuickNavMenu />
-      <BulletinBoard alters={alters} currentAlterId={currentAlterId} highlightBulletinId={highlightBulletinId} />
+      <BulletinBoard alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlightBulletinId={highlightBulletinId} />
 
       <TermsSetupModal
         open={showTermsSetup}

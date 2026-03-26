@@ -1,20 +1,49 @@
 import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pin, PenLine, Bell, Search, MessageCircle } from "lucide-react";
+import { Pin, Search, X, CheckSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
 import BulletinComposer from "./BulletinComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
+import { toast } from "sonner";
 
-export default function BulletinBoard({ alters, currentAlterId, highlightBulletinId }) {
+function QuickTaskAdd() {
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleKeyDown = async (e) => {
+    if (e.key !== "Enter" || !text.trim()) return;
+    setSaving(true);
+    await base44.entities.Task.create({ title: text.trim(), completed: false, priority: "medium" });
+    toast.success("Task added!");
+    setText("");
+    setSaving(false);
+  };
+
+  return (
+    <div className="flex items-center gap-2 bg-muted/40 border border-border/40 rounded-xl px-3 py-2 mb-3">
+      <CheckSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+      <input
+        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+        placeholder="Quick task… press Enter to add"
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onKeyDown={handleKeyDown}
+        disabled={saving}
+      />
+    </div>
+  );
+}
+
+export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds = [], highlightBulletinId }) {
   const [composing, setComposing] = useState(false);
+  const [composeInitial, setComposeInitial] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(10);
   const bulletinRefs = useRef({});
-  const [replyingTo, setReplyingTo] = useState(null);
   const observerTarget = useRef(null);
-  const queryClient = useQueryClient();
 
   const { data: bulletins = [] } = useQuery({
     queryKey: ["bulletins"],
@@ -23,107 +52,90 @@ export default function BulletinBoard({ alters, currentAlterId, highlightBulleti
 
   useEffect(() => {
     if (!highlightBulletinId || bulletins.length === 0) return;
-    const idx = bulletins.findIndex((b) => b.id === highlightBulletinId);
-    if (idx !== -1) setVisibleCount((v) => Math.max(v, idx + 5));
+    const idx = bulletins.findIndex(b => b.id === highlightBulletinId);
+    if (idx !== -1) setVisibleCount(v => Math.max(v, idx + 5));
     setTimeout(() => {
       bulletinRefs.current[highlightBulletinId]?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 100);
   }, [highlightBulletinId, bulletins.length]);
-  
-  // Intersection observer for lazy loading
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && visibleCount < filteredRecent.length) {
-        setVisibleCount((prev) => Math.min(prev + 5, filteredRecent.length));
-      }
-    }, { threshold: 0.1 });
-    
-    if (observerTarget.current) observer.observe(observerTarget.current);
-    return () => observer.disconnect();
-  }, [visibleCount]);
-  
-  const filteredBulletins = bulletins.filter((b) =>
-    b.content?.toLowerCase().includes(searchQuery.toLowerCase())
+
+  const filteredBulletins = bulletins.filter(b =>
+    !searchQuery || b.content?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const pinned = filteredBulletins.filter(b => b.is_pinned);
+  const filteredRecent = filteredBulletins.filter(b => !b.is_pinned);
 
-  const pinned = filteredBulletins.filter((b) => b.is_pinned);
-  const filteredRecent = filteredBulletins.filter((b) => !b.is_pinned);
-
-  const unreadCount = filteredBulletins.filter(
-    (b) =>
-      currentAlterId &&
-      b.mentioned_alter_ids?.includes(currentAlterId) &&
-      !b.read_by_alter_ids?.includes(currentAlterId)
+  const unreadCount = bulletins.filter(b =>
+    currentAlterId && b.mentioned_alter_ids?.includes(currentAlterId) && !b.read_by_alter_ids?.includes(currentAlterId)
   ).length;
-  
-  const handleReply = async (bulletin) => {
-    const preview = bulletin.content.substring(0, 100) + (bulletin.content.length > 100 ? "..." : "");
-    const replyContent = `> ${preview}\n\n@${alters.find(a => a.id === bulletin.author_alter_id)?.name || "System"}: `;
-    
-    await base44.entities.Bulletin.create({
-      author_alter_id: currentAlterId,
-      content: replyContent,
-      mentioned_alter_ids: [bulletin.author_alter_id],
-    });
-    
-    queryClient.invalidateQueries({ queryKey: ["bulletins"] });
-    setReplyingTo(null);
+
+  const handleInlineType = (e) => {
+    const val = e.target.value;
+    if (val.trim()) {
+      setComposeInitial(val);
+      setComposing(true);
+    }
   };
 
   return (
     <div>
-      {/* Section header */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold text-foreground text-base">Bulletin Board</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-foreground text-base">Bulletin Board</h2>
+          {unreadCount > 0 && (
+            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">{unreadCount}</span>
+          )}
+        </div>
         <button
-          onClick={() => setComposing((p) => !p)}
-          className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          onClick={() => { setSearchOpen(p => !p); if (searchOpen) setSearchQuery(""); }}
+          className={`p-1.5 rounded-lg transition-colors ${searchOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
         >
-          <PenLine className="w-3.5 h-3.5" />
-          Post
+          {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
         </button>
       </div>
-      
-      {/* Search and unread */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+
+      {/* Search (toggle) */}
+      {searchOpen && (
+        <div className="mb-3">
           <Input
+            autoFocus
             placeholder="Search bulletins..."
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setVisibleCount(10);
-            }}
-            className="pl-8 h-8 text-sm"
+            onChange={e => { setSearchQuery(e.target.value); setVisibleCount(10); }}
+            className="h-8 text-sm"
           />
         </div>
-        {unreadCount > 0 && (
-          <span className="flex items-center gap-1 text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full font-medium whitespace-nowrap">
-            <Bell className="w-3 h-3" />
-            {unreadCount}
-          </span>
-        )}
-      </div>
+      )}
 
-      {/* Mention alert banner */}
-      {currentAlterId && (
-        <MentionAlertBanner
-          bulletins={bulletins}
-          currentAlterId={currentAlterId}
-          alters={alters}
+      {/* Inline compose trigger */}
+      {!composing && (
+        <input
+          className="w-full h-9 px-3 rounded-xl border border-border/50 bg-muted/30 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50 mb-3"
+          placeholder="Write something…"
+          onChange={handleInlineType}
         />
       )}
 
-      {/* Composer */}
+      {/* Full composer */}
       {composing && (
-        <div className="mb-4">
+        <div className="mb-3">
           <BulletinComposer
             alters={alters}
             authorAlterId={currentAlterId}
-            onClose={() => setComposing(false)}
+            frontingAlterIds={frontingAlterIds}
+            initialContent={composeInitial}
+            onClose={() => { setComposing(false); setComposeInitial(""); }}
           />
         </div>
+      )}
+
+      {/* Quick Task Add */}
+      <QuickTaskAdd />
+
+      {/* Mention alerts */}
+      {currentAlterId && (
+        <MentionAlertBanner bulletins={bulletins} currentAlterId={currentAlterId} alters={alters} />
       )}
 
       {/* Pinned */}
@@ -134,16 +146,10 @@ export default function BulletinBoard({ alters, currentAlterId, highlightBulleti
             <p className="text-xs font-semibold text-primary uppercase tracking-wider">Pinned</p>
           </div>
           <div className="space-y-3">
-            {pinned.map((b) => (
-            <div key={b.id} ref={(el) => (bulletinRefs.current[b.id] = el)}>
-              <BulletinCard
-                bulletin={b}
-                alters={alters}
-                currentAlterId={currentAlterId}
-                canDelete
-                highlight={highlightBulletinId === b.id}
-              />
-            </div>
+            {pinned.map(b => (
+              <div key={b.id} ref={el => (bulletinRefs.current[b.id] = el)}>
+                <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+              </div>
             ))}
           </div>
         </div>
@@ -151,41 +157,28 @@ export default function BulletinBoard({ alters, currentAlterId, highlightBulleti
 
       {/* Recent */}
       {filteredRecent.length > 0 && (
-       <div>
-         {pinned.length > 0 && (
-           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent</p>
-         )}
-         <div className="space-y-3">
-           {filteredRecent.slice(0, visibleCount).map((b) => (
-              <div key={b.id} ref={(el) => (bulletinRefs.current[b.id] = el)}>
-                <BulletinCard
-                  bulletin={b}
-                  alters={alters}
-                  currentAlterId={currentAlterId}
-                  canDelete
-                  highlight={highlightBulletinId === b.id}
-                  />
-                  </div>
-                  ))}
-                  </div>
-         {visibleCount < filteredRecent.length && (
-           <div ref={observerTarget} className="py-4 text-center">
-             <p className="text-xs text-muted-foreground">Loading more...</p>
-           </div>
-         )}
-       </div>
+        <div>
+          {pinned.length > 0 && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent</p>}
+          <div className="space-y-3">
+            {filteredRecent.slice(0, visibleCount).map(b => (
+              <div key={b.id} ref={el => (bulletinRefs.current[b.id] = el)}>
+                <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+              </div>
+            ))}
+          </div>
+          {visibleCount < filteredRecent.length && (
+            <div ref={observerTarget} className="py-4 text-center">
+              <button onClick={() => setVisibleCount(v => v + 10)} className="text-xs text-muted-foreground hover:text-foreground">Load more</button>
+            </div>
+          )}
+        </div>
       )}
 
-      {filteredBulletins.length === 0 && !composing && searchQuery && (
-       <div className="text-center py-10">
-         <p className="text-muted-foreground text-sm">No bulletins match your search</p>
-       </div>
+      {filteredBulletins.length === 0 && searchQuery && (
+        <div className="text-center py-10"><p className="text-muted-foreground text-sm">No bulletins match your search</p></div>
       )}
-
-      {bulletins.length === 0 && !composing && !searchQuery && (
-       <div className="text-center py-10">
-         <p className="text-muted-foreground text-sm">No bulletins yet. Be the first to post!</p>
-       </div>
+      {bulletins.length === 0 && !composing && (
+        <div className="text-center py-10"><p className="text-muted-foreground text-sm">No bulletins yet. Start writing above!</p></div>
       )}
     </div>
   );
