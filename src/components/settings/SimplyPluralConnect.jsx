@@ -13,7 +13,6 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const [token, setToken] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [importMode, setImportMode] = useState("standard");
   const [exportMode, setExportMode] = useState("standard");
   const queryClient = useQueryClient();
@@ -132,34 +131,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     }
   };
 
-  const handleExport = async () => {
-    if (!settings?.sp_token || !settings?.sp_system_id) return;
-    setExporting(true);
-    try {
-      const res = await base44.functions.invoke('syncToSimplyPlural', {
-        sp_token: settings.sp_token,
-        sp_system_id: settings.sp_system_id,
-        mode: exportMode,
-      });
-      toast.success(
-        `Exported: ${res.alters.created} new, ${res.alters.updated} updated alters`
-      );
-    } catch (e) {
-      toast.error(e.message || "Export failed");
-    } finally {
-      setExporting(false);
-    }
-  };
 
-  const handleDisconnect = async () => {
-    if (!settings?.id) return;
-    await base44.entities.SystemSettings.update(settings.id, {
-      sp_token: "",
-      sp_system_id: "",
-    });
-    onSettingsChange();
-    toast.success("Disconnected from Simply Plural");
-  };
 
   return (
     <Card className="border-border/50">
@@ -229,41 +201,6 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                     <ArrowDownLeft className="w-4 h-4 mr-2" />
                   )}
                   {syncing ? "Importing..." : "Import Now"}
-                </Button>
-              </div>
-            </div>
-
-            {/* Export Section */}
-            <div className="border-t pt-4">
-              <div className="flex items-center gap-2 mb-3">
-                <ArrowUpRight className="w-4 h-4 text-green-500" />
-                <h4 className="font-medium text-sm">Export to Simply Plural</h4>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="export-mode" className="text-xs">Export Mode</Label>
-                  <select
-                    id="export-mode"
-                    value={exportMode}
-                    onChange={(e) => setExportMode(e.target.value)}
-                    className="w-full text-sm border rounded-md px-2 py-2 bg-card mt-1"
-                  >
-                    <option value="standard">Standard (Update & Add New)</option>
-                    <option value="new_only">New Only</option>
-                  </select>
-                </div>
-                <Button
-                  onClick={handleExport}
-                  disabled={exporting}
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 w-full"
-                >
-                  {exporting ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <ArrowUpRight className="w-4 h-4 mr-2" />
-                  )}
-                  {exporting ? "Exporting..." : "Export Now"}
                 </Button>
               </div>
             </div>
