@@ -40,10 +40,10 @@ export default function AdvancedAppearance() {
 
   const handleSelectPreset = (themeName) => {
     // Clear custom colors and switch to preset
+    updateCustomColors(null);
     setSelectedTheme(themeName);
     setPendingColors(null);
     setEditingColor(null);
-    updateCustomColors(null);
   };
 
   const handleStartEditColor = (key) => {
