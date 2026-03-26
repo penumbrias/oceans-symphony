@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     }
 
     // Tag embedded in notes to reliably identify the linked activity
-    const sleepTag = `[sleep_id:${data.id}]`;
+    const sleepTag = `[sleep_id:${event.entity_id}]`;
 
     const findLinkedActivity = async () => {
       // User-scoped search — respects RLS so results are visible in the UI
