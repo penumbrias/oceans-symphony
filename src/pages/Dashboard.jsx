@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import PullToRefresh from "@/components/layout/PullToRefresh";
 import { useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -15,11 +16,21 @@ import TourModal from "@/components/onboarding/TourModal";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
   const [showEmotionModal, setShowEmotionModal] = useState(false);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
+
+  const handleRefresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["alters"] }),
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] }),
+      queryClient.invalidateQueries({ queryKey: ["mentionLogs"] }),
+      queryClient.invalidateQueries({ queryKey: ["bulletins"] }),
+    ]);
+  };
 
   const handleTourClose = () => {
     localStorage.setItem("tour_seen", "1");
@@ -104,11 +115,12 @@ export default function Dashboard() {
         </button>
         <button
           onClick={() => setShowNotifHistory(true)}
-          className="relative mt-0 p-2 rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Notifications"
+          className="relative mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
         >
           <Bell className="w-5 h-5" />
           {mentionLogs.length > 0 && (
-            <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />
           )}
         </button>
         </div>
@@ -124,7 +136,8 @@ export default function Dashboard() {
       
       <button
         onClick={() => setShowEmotionModal(true)}
-        className="inline-flex items-center gap-2 px-4 py-2 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors font-medium text-sm mb-4"
+        aria-label="Quick emotional check-in"
+        className="inline-flex items-center gap-2 px-4 min-h-[44px] bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors font-medium text-sm mb-4"
       >
         <Heart className="w-4 h-4" />
         Quick Check-In
@@ -132,7 +145,9 @@ export default function Dashboard() {
 
       <NewFeaturesBar />
       <QuickNavMenu />
-      <BulletinBoard alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlightBulletinId={highlightBulletinId} />
+      <PullToRefresh onRefresh={handleRefresh}>
+        <BulletinBoard alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlightBulletinId={highlightBulletinId} />
+      </PullToRefresh>
 
       <TermsSetupModal
         open={showTermsSetup}
