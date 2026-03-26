@@ -2,20 +2,16 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useTheme, FONT_OPTIONS } from '@/lib/ThemeContext';
+import { useTheme } from '@/lib/ThemeContext';
 import { HexColorPicker } from 'react-colorful';
-import { Palette, ChevronDown, Save, X } from 'lucide-react';
+import { Palette, X } from 'lucide-react';
 
 export default function AdvancedAppearance() {
-  const { themeMode, selectedTheme, customColors, updateCustomColors, cycleThemeMode, presets, setSelectedTheme, userCustomPresets, saveCustomPreset, allPresets } = useTheme();
+  const { themeMode, selectedTheme, customColors, updateCustomColors, cycleThemeMode, presets, setSelectedTheme, allPresets } = useTheme();
   
   const [editingColor, setEditingColor] = useState(null);
   const [hexInput, setHexInput] = useState('');
-  const [showCustomDropdown, setShowCustomDropdown] = useState(false);
-  const [showSavePreset, setShowSavePreset] = useState(false);
-  const [presetName, setPresetName] = useState('');
   const [pendingColors, setPendingColors] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
 
   // Determine current display mode
   const isDark = themeMode === 'dark' || (themeMode === 'system' && document.documentElement.classList.contains('dark'));
@@ -31,7 +27,7 @@ export default function AdvancedAppearance() {
     'text-secondary': 'Text Secondary',
   };
 
-  // Get current display colors (what's actually showing)
+  // Get current display colors
   const getCurrentColors = () => {
     if (customColors) {
       return isDark ? customColors.dark : customColors.light;
@@ -40,36 +36,29 @@ export default function AdvancedAppearance() {
     return isDark ? preset.dark : preset.light;
   };
 
-  const currentColors = getCurrentColors();
+  const currentColors = pendingColors ? (isDark ? pendingColors.dark : pendingColors.light) : getCurrentColors();
 
   const handleSelectPreset = (themeName) => {
-    // If user was editing custom colors, save them first
-    if (isEditing && pendingColors) {
-      saveCustomPreset(presetName || `Custom ${new Date().toLocaleTimeString()}`, pendingColors);
-    }
-    
-    // Clear custom colors and apply preset
+    // Clear custom colors and switch to preset
     setSelectedTheme(themeName);
     setPendingColors(null);
-    setIsEditing(false);
     setEditingColor(null);
-    setShowSavePreset(false);
   };
 
   const handleStartEditColor = (key) => {
-    if (!isEditing) {
-      // Start editing - clone current colors
-      const lightColors = allPresets[selectedTheme]?.light || {};
-      const darkColors = allPresets[selectedTheme]?.dark || {};
+    // Initialize pending colors if not already editing
+    if (!pendingColors) {
+      const lightColors = customColors?.light || (allPresets[selectedTheme]?.light || {});
+      const darkColors = customColors?.dark || (allPresets[selectedTheme]?.dark || {});
       setPendingColors({
         light: { ...lightColors },
         dark: { ...darkColors }
       });
-      setIsEditing(true);
     }
+    
     setEditingColor(key);
     const mode = isDark ? 'dark' : 'light';
-    setHexInput(pendingColors?.[mode]?.[key] || currentColors[key]);
+    setHexInput(pendingColors?.[mode]?.[key] || currentColors[key] || '#000000');
   };
 
   const handleHexChange = (e) => {
@@ -79,7 +68,8 @@ export default function AdvancedAppearance() {
 
   const handleColorPickerChange = (newHex) => {
     setHexInput(newHex);
-    if (isEditing && pendingColors && editingColor) {
+    // Live update
+    if (pendingColors && editingColor) {
       const mode = isDark ? 'dark' : 'light';
       const updated = {
         ...pendingColors,
@@ -89,13 +79,12 @@ export default function AdvancedAppearance() {
         }
       };
       setPendingColors(updated);
-      // Apply live
       updateCustomColors(updated.light);
     }
   };
 
   const handleSaveColor = () => {
-    if (editingColor && /^#[0-9A-F]{6}$/i.test(hexInput)) {
+    if (editingColor && /^#[0-9A-F]{6}$/i.test(hexInput) && pendingColors) {
       const mode = isDark ? 'dark' : 'light';
       const updated = {
         ...pendingColors,
@@ -110,24 +99,12 @@ export default function AdvancedAppearance() {
     }
   };
 
-  const handleSaveCustomPreset = () => {
-    if (presetName.trim() && pendingColors) {
-      saveCustomPreset(presetName, pendingColors);
-      setPresetName('');
-      setShowSavePreset(false);
-      setIsEditing(false);
-    }
-  };
-
   const handleCancelEdit = () => {
     setPendingColors(null);
-    setIsEditing(false);
     setEditingColor(null);
-    setShowSavePreset(false);
-    setPresetName('');
-    // Revert to current theme's colors
+    // Revert to preset
     const preset = allPresets[selectedTheme];
-    if (preset) {
+    if (preset && customColors) {
       updateCustomColors(preset.light);
     }
   };
@@ -163,7 +140,7 @@ export default function AdvancedAppearance() {
           </Button>
         </div>
 
-        {/* Basic Preset Themes */}
+        {/* Theme Presets */}
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Theme Presets</p>
           <div className="grid grid-cols-3 gap-2">
@@ -176,7 +153,7 @@ export default function AdvancedAppearance() {
                 <button
                   key={theme}
                   onClick={() => handleSelectPreset(theme)}
-                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all capitalize relative overflow-hidden ${
+                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all capitalize ${
                     isSelected ? 'ring-2 ring-primary' : ''
                   }`}
                   style={{
@@ -189,44 +166,6 @@ export default function AdvancedAppearance() {
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        {/* Custom Preset Dropdown */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Custom Presets</p>
-          <div className="relative">
-            <button
-              onClick={() => setShowCustomDropdown(!showCustomDropdown)}
-              className="w-full px-3 py-2 rounded-lg border border-input bg-card text-left flex items-center justify-between hover:bg-muted/50"
-            >
-              <span className="text-sm">{Object.keys(userCustomPresets).length > 0 ? 'View custom presets' : 'No custom presets'}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showCustomDropdown ? 'rotate-180' : ''}`} />
-            </button>
-            {showCustomDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
-                {Object.keys(userCustomPresets).length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">No custom presets yet</div>
-                ) : (
-                  Object.keys(userCustomPresets).map(name => (
-                    <button
-                      key={name}
-                      onClick={() => {
-                        const colors = userCustomPresets[name];
-                        updateCustomColors(colors.light);
-                        setSelectedTheme(name);
-                        setShowCustomDropdown(false);
-                        setIsEditing(false);
-                        setPendingColors(null);
-                      }}
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                    >
-                      {name}
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
           </div>
         </div>
 
@@ -250,48 +189,20 @@ export default function AdvancedAppearance() {
           </div>
         </div>
 
-        {/* Save/Cancel for Custom Editing */}
-        {isEditing && customColors && (
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowSavePreset(!showSavePreset)}
-              variant="outline"
-              className="flex-1"
-            >
-              Save as Preset
-            </Button>
-            <Button
-              onClick={handleCancelEdit}
-              variant="outline"
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-          </div>
-        )}
-
-        {showSavePreset && (
-          <div className="rounded-lg border border-border bg-surface p-3 space-y-2">
-            <Input
-              placeholder="Preset name..."
-              value={presetName}
-              onChange={(e) => setPresetName(e.target.value)}
-              className="text-sm"
-            />
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setShowSavePreset(false)} className="flex-1">
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleSaveCustomPreset} className="flex-1">
-                Save
-              </Button>
-            </div>
-          </div>
+        {/* Cancel for Custom Editing */}
+        {customColors && pendingColors && (
+          <Button
+            onClick={handleCancelEdit}
+            variant="outline"
+            className="w-full"
+          >
+            Revert to Preset
+          </Button>
         )}
 
         {/* Color Editor Modal */}
         {editingColor && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 rounded-lg">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-sm mx-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">{colorLabels[editingColor]}</h3>
