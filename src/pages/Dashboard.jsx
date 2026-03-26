@@ -11,7 +11,7 @@ import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
-import TourModal from "@/components/onboarding/TourModal.jsx";
+import TourModal from "@/components/onboarding/TourModal";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
 
 export default function Dashboard() {
