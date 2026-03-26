@@ -8,72 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import SectionRow from "@/components/diary/SectionRow";
-import DailySectionPanel from "@/components/diary/DailySectionPanel";
+import DiarySectionPanel from "@/components/diary/DiarySectionPanel";
 import AlterSelector from "@/components/diary/AlterSelector";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import ExistingCardDialog from "@/components/diary/ExistingCardDialog";
 import DiaryCardView from "@/components/diary/DiaryCardView";
-
-const DEFAULT_SECTIONS = [
-  { id: "emotions", emoji: "😊", title: "Emotions", subtitle: "Tap to log feelings", enabled: true },
-  { id: "urges", emoji: "🆘", title: "Urges to", subtitle: "Rate the intensity", enabled: true },
-  { id: "body_mind", emoji: "🌿", title: "Body + mind", subtitle: "Rate wellbeing", enabled: true },
-  { id: "skills", emoji: "🧠", title: "Skills used", subtitle: "How many skills", enabled: true },
-  { id: "medication", emoji: "💊", title: "Medication + safety", subtitle: "Rx meds + safety", enabled: true },
-  { id: "notes", emoji: "📝", title: "Notes", subtitle: "Details + context", enabled: true },
-  { id: "checklist", emoji: "🔲", title: "Symptoms Checklist", subtitle: "Symptoms, habits & more", enabled: true },
-];
-
-function getSectionSummary(section, data) {
-  if (section === "emotions") {
-    const e = data.emotions || [];
-    return e.length ? e.slice(0, 2).join(", ") + (e.length > 2 ? ` +${e.length - 2}` : "") : "None selected";
-  }
-  if (section === "urges") {
-    const rated = Object.values(data.urges || {}).filter((v) => v !== undefined).length;
-    return rated ? `${rated} rated` : "None rated";
-  }
-  if (section === "body_mind") {
-    const rated = Object.values(data.body_mind || {}).filter((v) => v !== undefined).length;
-    return rated ? `${rated} rated` : "None rated";
-  }
-  if (section === "skills") {
-    return data.skills_practiced !== undefined ? `${data.skills_practiced} skills` : "Not rated";
-  }
-  if (section === "medication") {
-    const m = data.medication_safety || {};
-    if (m.rx_meds_taken === undefined && m.self_harm_occurred === undefined && m.substances_count === undefined) return "Not set";
-    return "Set";
-  }
-  if (section === "notes") {
-    return data.notes?.what ? "Added" : "No notes yet";
-  }
-  if (section === "checklist") {
-    const cl = data.checklist || {};
-    const s = Object.values(cl.symptoms || {}).filter((v) => v !== undefined).length;
-    const h = Object.values(cl.habits || {}).filter((v) => v !== undefined).length;
-    return s + h > 0 ? `${s + h} logged` : "Not logged";
-  }
-  return "";
-}
-
-function getCompletion(data) {
-  let filled = 0;
-  if ((data.emotions || []).length > 0) filled++;
-  if (Object.values(data.urges || {}).some((v) => v !== undefined)) filled++;
-  if (Object.values(data.body_mind || {}).some((v) => v !== undefined)) filled++;
-  if (data.skills_practiced !== undefined) filled++;
-  const m = data.medication_safety || {};
-  if (m.rx_meds_taken !== undefined || m.self_harm_occurred !== undefined || m.substances_count !== undefined) filled++;
-  if (data.notes?.what || data.notes?.optional) filled++;
-  const cl = data.checklist || {};
-  if (Object.values(cl.symptoms || {}).some((v) => v !== undefined) || Object.values(cl.habits || {}).some((v) => v !== undefined)) filled++;
-  return Math.round((filled / 7) * 100);
-}
+import { getActiveTemplate, getSectionSummary, getCompletion } from "@/lib/diaryCardTemplate";
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
-  const [view, setView] = useState("list"); // "list" | "new" | "entry" | "edit" | "analytics"
+  const [view, setView] = useState("list");
   const [activeSection, setActiveSection] = useState(null);
   const [entryName, setEntryName] = useState("");
   const [draftData, setDraftData] = useState({});
@@ -104,7 +48,10 @@ export default function DiaryCards() {
     queryFn: () => base44.entities.SystemSettings.list(),
   });
 
-  const sections = (settingsList[0]?.diary_sections || DEFAULT_SECTIONS).filter(s => s.enabled);
+  const activeSections = useMemo(() => {
+    const template = getActiveTemplate(settingsList[0]);
+    return template.sections.filter((s) => s.enabled);
+  }, [settingsList]);
 
   const altersById = useMemo(() =>
     Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
@@ -129,13 +76,11 @@ export default function DiaryCards() {
   const startNew = () => {
     const today = format(new Date(), "yyyy-MM-dd");
     const cardForToday = cards.find((c) => c.date === today);
-
     if (cardForToday) {
       setExistingCardToday(cardForToday);
       setShowExistingCardDialog(true);
       return;
     }
-
     const activeSession = sessions.find((s) => s.is_active);
     const currentIds = activeSession
       ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
@@ -210,7 +155,34 @@ export default function DiaryCards() {
     setView("list");
   };
 
-  const completion = getCompletion(draftData);
+  const completion = getCompletion(activeSections, draftData);
+
+  const SectionsList = ({ onSectionClick }) => (
+    <div className="space-y-2">
+      {activeSections.map((s) => (
+        <SectionRow
+          key={s.id}
+          emoji={s.emoji}
+          title={s.label}
+          subtitle={s.subtitle}
+          value={getSectionSummary(s, draftData)}
+          onClick={() => onSectionClick(s.id)}
+        />
+      ))}
+    </div>
+  );
+
+  const CompletionBar = () => (
+    <div className="bg-card border border-border/50 rounded-xl p-4 space-y-2">
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>Completion</span>
+        <span>{completion}%</span>
+      </div>
+      <div className="w-full bg-muted rounded-full h-2">
+        <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${completion}%` }} />
+      </div>
+    </div>
+  );
 
   // ── LIST ──
   if (view === "list") {
@@ -223,12 +195,10 @@ export default function DiaryCards() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
-              <BarChart2 className="w-4 h-4" />
-              Analytics
+              <BarChart2 className="w-4 h-4" />Analytics
             </Button>
             <Button onClick={startNew} className="bg-primary hover:bg-primary/90 gap-1.5">
-              <Plus className="w-4 h-4" />
-              New Entry
+              <Plus className="w-4 h-4" />New Entry
             </Button>
           </div>
         </div>
@@ -247,36 +217,26 @@ export default function DiaryCards() {
               <div key={date} className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="font-medium text-sm text-foreground">{format(new Date(date), "EEEE, MMMM d, yyyy")}</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">{dateCards.length} entry{dateCards.length !== 1 ? "ies" : ""}</span>
+                  <h3 className="font-medium text-sm text-foreground">{format(new Date(date + "T12:00:00"), "EEEE, MMMM d, yyyy")}</h3>
+                  <span className="text-xs text-muted-foreground ml-auto">{dateCards.length} entr{dateCards.length !== 1 ? "ies" : "y"}</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {dateCards.map((card) => {
-                    const comp = getCompletion(card);
+                    const comp = getCompletion(activeSections, card);
                     const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
                     return (
-                      <div
-                        key={card.id}
-                        className="text-left bg-card border border-border/50 rounded-xl p-4 hover:shadow-md transition-all space-y-2"
-                      >
+                      <div key={card.id} className="text-left bg-card border border-border/50 rounded-xl p-4 hover:shadow-md transition-all space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <button
-                            onClick={() => { setViewingEntry(card); setView("entry"); }}
-                            className="flex-1 text-left"
-                          >
+                          <button onClick={() => { setViewingEntry(card); setView("entry"); }} className="flex-1 text-left">
                             <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>
                             {fronters.length > 0 && (
                               <p className="text-xs text-muted-foreground mt-1">Fronting: {fronters.join(", ")}</p>
                             )}
                           </button>
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            variant="ghost" size="icon"
                             className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(card.id);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(card.id); }}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
@@ -284,9 +244,7 @@ export default function DiaryCards() {
                         <div className="w-full bg-muted rounded-full h-1.5">
                           <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${comp}%` }} />
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-block ${
-                          comp === 100 ? "bg-green-500/10 text-green-600" : "bg-primary/10 text-primary"
-                        }`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-block ${comp === 100 ? "bg-green-500/10 text-green-600" : "bg-primary/10 text-primary"}`}>
                           {comp}%
                         </span>
                       </div>
@@ -336,19 +294,13 @@ export default function DiaryCards() {
             </div>
           </div>
           <Button
-            variant="ghost"
-            size="icon"
+            variant="ghost" size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => {
-              handleDelete(card.id);
-              setView("list");
-            }}
+            onClick={() => { handleDelete(card.id); setView("list"); }}
           >
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
-
-        {/* Fronters display */}
         {fronters.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {fronters.map((alter) => (
@@ -359,9 +311,7 @@ export default function DiaryCards() {
             ))}
           </div>
         )}
-
-        <DiaryCardView card={card} altersById={altersById} sections={sections} />
-
+        <DiaryCardView card={card} altersById={altersById} sections={activeSections} />
         <Button onClick={() => startEdit(card)} className="w-full bg-primary hover:bg-primary/90 gap-1.5">
           Edit Card
         </Button>
@@ -382,58 +332,30 @@ export default function DiaryCards() {
             <p className="text-muted-foreground text-xs">{editingEntry.date}</p>
           </div>
         </div>
-
-        <div className="bg-card border border-border/50 rounded-xl p-4 space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Completion</span>
-            <span>{completion}%</span>
-          </div>
-          <div className="w-full bg-muted rounded-full h-2">
-            <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${completion}%` }} />
-          </div>
-        </div>
-
+        <CompletionBar />
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Entry name</label>
           <Input value={entryName} onChange={(e) => setEntryName(e.target.value)} />
         </div>
-
         <div className="bg-card border border-border/50 rounded-xl p-4">
           <AlterSelector alters={alters} selected={frontingAlterIds} onChange={setFrontingAlterIds} />
         </div>
-
         <AnimatePresence mode="wait">
           {activeSection ? (
-            <motion.div
-              key={activeSection}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="bg-card border border-border/60 rounded-xl p-4"
-            >
-              <DailySectionPanel
-                section={activeSection}
+            <motion.div key={activeSection} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="bg-card border border-border/60 rounded-xl p-4">
+              <DiarySectionPanel
+                section={activeSections.find((s) => s.id === activeSection)}
                 data={draftData}
                 onChange={handleChange}
                 onClose={() => setActiveSection(null)}
               />
             </motion.div>
           ) : (
-            <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-               {sections.map((s) => (
-                 <SectionRow
-                   key={s.id}
-                   emoji={s.emoji}
-                   title={s.title}
-                   subtitle={s.subtitle}
-                   value={getSectionSummary(s.id, draftData)}
-                   onClick={() => setActiveSection(s.id)}
-                 />
-               ))}
-             </motion.div>
+            <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <SectionsList onSectionClick={setActiveSection} />
+            </motion.div>
           )}
         </AnimatePresence>
-
         {!activeSection && (
           <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
             {saving ? "Saving..." : "Save Changes"}
@@ -444,87 +366,49 @@ export default function DiaryCards() {
   }
 
   // ── NEW ENTRY ──
-  const pageTitle = editingEntry ? "Edit Diary Card" : "Daily Diary Card";
-  const pageDate = editingEntry ? editingEntry.date : format(new Date(), "MMMM d, yyyy");
-
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => {
-          if (editingEntry) setView("entry");
-          else setView("list");
-        }} className="h-8 w-8">
+        <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
           <ChevronLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="font-display text-2xl font-semibold">{pageTitle}</h1>
-          <p className="text-muted-foreground text-xs">{pageDate}</p>
+          <h1 className="font-display text-2xl font-semibold">Daily Diary Card</h1>
+          <p className="text-muted-foreground text-xs">{format(new Date(), "MMMM d, yyyy")}</p>
         </div>
       </div>
-
-      <div className="bg-card border border-border/50 rounded-xl p-4 space-y-2">
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Completion</span>
-          <span>{completion}%</span>
-        </div>
-        <div className="w-full bg-muted rounded-full h-2">
-          <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${completion}%` }} />
-        </div>
-      </div>
-
+      <CompletionBar />
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Entry name <span className="text-muted-foreground font-normal">(optional)</span></label>
         <Input value={entryName} onChange={(e) => setEntryName(e.target.value)} placeholder={`Daily — ${format(new Date(), "MMM d, yyyy")}`} />
       </div>
-
       <div className="bg-card border border-border/50 rounded-xl p-4">
         <AlterSelector alters={alters} selected={frontingAlterIds} onChange={setFrontingAlterIds} />
       </div>
-
       <AnimatePresence mode="wait">
         {activeSection ? (
-          <motion.div
-            key={activeSection}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            className="bg-card border border-border/60 rounded-xl p-4"
-          >
-            <DailySectionPanel
-              section={activeSection}
+          <motion.div key={activeSection} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="bg-card border border-border/60 rounded-xl p-4">
+            <DiarySectionPanel
+              section={activeSections.find((s) => s.id === activeSection)}
               data={draftData}
               onChange={handleChange}
               onClose={() => setActiveSection(null)}
             />
           </motion.div>
         ) : (
-          <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-             {sections.map((s) => (
-               <SectionRow
-                 key={s.id}
-                 emoji={s.emoji}
-                 title={s.title}
-                 subtitle={s.subtitle}
-                 value={getSectionSummary(s.id, draftData)}
-                 onClick={() => setActiveSection(s.id)}
-               />
-             ))}
-           </motion.div>
+          <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <SectionsList onSectionClick={setActiveSection} />
+          </motion.div>
         )}
       </AnimatePresence>
-
       {!activeSection && (
         <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-          {saving ? "Saving..." : editingEntry ? "Save Changes" : "Save Diary Card"}
+          {saving ? "Saving..." : "Save Diary Card"}
         </Button>
       )}
-
       <ExistingCardDialog
         isOpen={showExistingCardDialog}
-        onClose={() => {
-          setShowExistingCardDialog(false);
-          setExistingCardToday(null);
-        }}
+        onClose={() => { setShowExistingCardDialog(false); setExistingCardToday(null); }}
         onUpdate={proceedWithUpdate}
         onCreateNew={proceedWithNewCard}
         existingCard={existingCardToday}

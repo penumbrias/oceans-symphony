@@ -33,9 +33,11 @@ function getContrastColor(hex) {
 }
 
 function timeToStr(date) {
-  return format(date, "HH:mm");
+  return format(date, "yyyy-MM-dd'T'HH:mm");
 }
 function applyTimeStr(baseDate, timeStr) {
+  // If timeStr is a full datetime-local string, parse directly
+  if (timeStr.includes('T') && timeStr.length > 6) return new Date(timeStr);
   const [h, m] = timeStr.split(":").map(Number);
   const d = new Date(baseDate);
   d.setHours(h, m, 0, 0);
@@ -345,17 +347,17 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Start / End time */}
+                    {/* Start / End time — datetime-local supports cross-day spans */}
                     <div className="flex gap-3">
                       <div className="flex-1">
-                        <label className="text-sm font-medium block mb-1">Start time</label>
-                        <input type="time" value={editData.startTimeStr}
+                        <label className="text-sm font-medium block mb-1">Start</label>
+                        <input type="datetime-local" value={editData.startTimeStr}
                           onChange={e => setEditData(d => ({ ...d, startTimeStr: e.target.value }))}
                           className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
                       </div>
                       <div className="flex-1">
-                        <label className="text-sm font-medium block mb-1">End time</label>
-                        <input type="time" value={editData.endTimeStr}
+                        <label className="text-sm font-medium block mb-1">End</label>
+                        <input type="datetime-local" value={editData.endTimeStr}
                           onChange={e => setEditData(d => ({ ...d, endTimeStr: e.target.value }))}
                           className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
                       </div>

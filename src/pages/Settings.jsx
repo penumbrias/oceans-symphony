@@ -13,6 +13,7 @@ import TermsSettings from "@/components/settings/TermsSettings";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
+import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -235,6 +236,9 @@ export default function Settings() {
              )}
            </CardContent>
          </Card>
+
+         {/* Diary Template */}
+         <DiaryTemplateManager settings={settings} />
 
          {/* Custom Fields */}
          <CustomFieldsManager />

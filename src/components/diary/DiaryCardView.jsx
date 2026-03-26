@@ -54,7 +54,7 @@ export default function DiaryCardView({ card, altersById, sections }) {
         if (s.id === "emotions") {
           const e = card.emotions || [];
           return (
-            <Section key={s.id} emoji={s.emoji} title={s.title} summary={e.length ? `${e.length} selected` : "None"}>
+            <Section key={s.id} emoji={s.emoji} title={s.label || s.title} summary={e.length ? `${e.length} selected` : "None"}>
               {e.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {e.map((em) => (
@@ -72,7 +72,7 @@ export default function DiaryCardView({ card, altersById, sections }) {
           const u = card.urges || {};
           const count = [u.suicidal, u.self_harm, u.alcohol_drugs].filter((v) => v !== undefined).length;
           return (
-            <Section key={s.id} emoji={s.emoji} title={s.title} summary={count ? `${count} rated` : "None rated"}>
+            <Section key={s.id} emoji={s.emoji} title={s.label || s.title} summary={count ? `${count} rated` : "None rated"}>
               <div className="space-y-3">
                 <RatingDisplay label="🆘 Suicidal urges" value={u.suicidal} />
                 <RatingDisplay label="✏️ Self-harm" value={u.self_harm} />
@@ -86,7 +86,7 @@ export default function DiaryCardView({ card, altersById, sections }) {
           const bm = card.body_mind || {};
           const count = [bm.emotional_misery, bm.physical_misery, bm.joy].filter((v) => v !== undefined).length;
           return (
-            <Section key={s.id} emoji={s.emoji} title={s.title} summary={count ? `${count} rated` : "None rated"}>
+            <Section key={s.id} emoji={s.emoji} title={s.label || s.title} summary={count ? `${count} rated` : "None rated"}>
               <div className="space-y-3">
                 <RatingDisplay label="😩 Emotional misery" value={bm.emotional_misery} />
                 <RatingDisplay label="🖐️ Physical misery" value={bm.physical_misery} />
@@ -99,7 +99,7 @@ export default function DiaryCardView({ card, altersById, sections }) {
         if (s.id === "skills") {
           const val = card.skills_practiced;
           return (
-            <Section key={s.id} emoji={s.emoji} title={s.title} summary={val !== undefined ? `${val} / 7` : "Not rated"}>
+            <Section key={s.id} emoji={s.emoji} title={s.label || s.title} summary={val !== undefined ? `${val} / 7` : "Not rated"}>
               <RatingDisplay label="🧠 Skills practiced" value={val} max={7} />
             </Section>
           );
@@ -109,7 +109,7 @@ export default function DiaryCardView({ card, altersById, sections }) {
           const m = card.medication_safety || {};
           const hasData = m.rx_meds_taken !== undefined || m.self_harm_occurred !== undefined || m.substances_count !== undefined;
           return (
-            <Section key={s.id} emoji={s.emoji} title={s.title} summary={hasData ? "Logged" : "Not set"}>
+            <Section key={s.id} emoji={s.emoji} title={s.label || s.title} summary={hasData ? "Logged" : "Not set"}>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">💊 Rx meds taken</span>
@@ -136,7 +136,7 @@ export default function DiaryCardView({ card, altersById, sections }) {
           const n = card.notes || {};
           const hasNotes = n.what || n.judgments || n.optional;
           return (
-            <Section key={s.id} emoji={s.emoji} title={s.title} summary={hasNotes ? "Written" : "No notes"}>
+            <Section key={s.id} emoji={s.emoji} title={s.label || s.title} summary={hasNotes ? "Written" : "No notes"}>
               {hasNotes ? (
                 <div className="space-y-3 text-sm">
                   {n.what && (
@@ -171,7 +171,7 @@ export default function DiaryCardView({ card, altersById, sections }) {
           const habits = cl.habits || {};
           const total = Object.values(symptoms).filter((v) => v !== undefined).length + Object.values(habits).filter((v) => v !== undefined).length;
           return (
-            <Section key={s.id} emoji={s.emoji} title={s.title} summary={total > 0 ? `${total} logged` : "Not logged"}>
+            <Section key={s.id} emoji={s.emoji} title={s.label || s.title} summary={total > 0 ? `${total} logged` : "Not logged"}>
               {total > 0 ? (
                 <div className="space-y-3">
                   {Object.keys(symptoms).length > 0 && (
