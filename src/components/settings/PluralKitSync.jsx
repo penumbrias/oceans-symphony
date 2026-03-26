@@ -14,8 +14,8 @@ const ENTITY_NAMES = [
 ];
 
 // Convert Symphony alters to PluralKit format
-function toPluralKitMember(alter) {
-  return {
+function toPluralKitMember(alter, systemFields = []) {
+  const pkMember = {
     id: alter.sp_id || alter.id.slice(0, 5),
     name: alter.name || "",
     displayname: alter.name || "",
@@ -26,6 +26,40 @@ function toPluralKitMember(alter) {
     banner: null,
     created: alter.created_date || new Date().toISOString(),
   };
+
+  // Add proxy tag if alias exists (format: text-[alias})
+  if (alter.alias) {
+    pkMember.proxy_tags = [
+      {
+        prefix: "",
+        suffix: "-[" + alter.alias + "}",
+      },
+    ];
+  }
+
+  // Add custom fields to description
+  const customFieldTexts = [];
+  if (alter.custom_fields) {
+    for (const fieldId in alter.custom_fields) {
+      const field = systemFields.find(f => f.id === fieldId);
+      if (field) {
+        const value = alter.custom_fields[fieldId];
+        customFieldTexts.push(`${field.name}: ${value}`);
+      }
+    }
+  }
+  if (alter.alter_custom_fields && Array.isArray(alter.alter_custom_fields)) {
+    for (const field of alter.alter_custom_fields) {
+      customFieldTexts.push(`${field.name}: ${field.value}`);
+    }
+  }
+  if (customFieldTexts.length > 0) {
+    pkMember.description = pkMember.description
+      ? `${pkMember.description}\n\n${customFieldTexts.join("\n")}`
+      : customFieldTexts.join("\n");
+  }
+
+  return pkMember;
 }
 
 // Convert PluralKit member to Symphony alter
@@ -82,43 +116,57 @@ export default function PluralKitSync() {
   };
 
   const handleExportToPluralKit = async () => {
-    if (!token.trim()) {
-      showStatus("error", "Please save your PluralKit token first.");
-      return;
-    }
-    setSyncing(true);
-    try {
-      let alters;
-      if (isLocalMode()) {
-        const dump = getFullDbDump();
-        alters = Object.values(dump["Alter"] || {});
-      } else {
-        alters = await base44.entities.Alter.list();
-      }
+   if (!token.trim()) {
+     showStatus("error", "Please save your PluralKit token first.");
+     return;
+   }
+   setSyncing(true);
+   try {
+     let alters, systemFields;
+     if (isLocalMode()) {
+       const dump = getFullDbDump();
+       alters = Object.values(dump["Alter"] || {});
+       systemFields = Object.values(dump["CustomField"] || {});
+     } else {
+       alters = await base44.entities.Alter.list();
+       systemFields = await base44.entities.CustomField.list();
+     }
 
-      const members = alters.filter(a => !a.is_archived).map(toPluralKitMember);
+     const members = alters
+       .filter(a => !a.is_archived)
+       .map(alter => toPluralKitMember(alter, systemFields));
 
-      // Send to PluralKit API
-      const response = await fetch("https://api.pluralkit.me/v2/members", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": token,
-        },
-        body: JSON.stringify(members[0] || {}),
-      });
+     if (members.length === 0) {
+       showStatus("error", "No alters to export.");
+       setSyncing(false);
+       return;
+     }
 
-      if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`PluralKit API error: ${response.status} - ${err}`);
-      }
+     // Send each member to PluralKit API
+     let successCount = 0;
+     for (const member of members) {
+       try {
+         const response = await fetch("https://api.pluralkit.me/v2/members", {
+           method: "POST",
+           headers: {
+             "Content-Type": "application/json",
+             "Authorization": token,
+           },
+           body: JSON.stringify(member),
+         });
 
-      showStatus("success", `Exported ${members.length} members to PluralKit!`);
-    } catch (e) {
-      showStatus("error", `Export failed: ${e.message}`);
-    } finally {
-      setSyncing(false);
-    }
+         if (response.ok) {
+           successCount++;
+         }
+       } catch {}
+     }
+
+     showStatus("success", `Synced ${successCount} members to PluralKit!`);
+   } catch (e) {
+     showStatus("error", `Export failed: ${e.message}`);
+   } finally {
+     setSyncing(false);
+   }
   };
 
   const handleImportFromPluralKit = async () => {
@@ -157,32 +205,7 @@ export default function PluralKitSync() {
     }
   };
 
-  const handleImportFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      const text = await file.text();
-      const pkData = JSON.parse(text);
-      const members = Array.isArray(pkData) ? pkData : pkData.members || [];
-      let count = 0;
 
-      for (const member of members) {
-        const alterData = fromPluralKitMember(member);
-        try {
-          await base44.entities.Alter.create(alterData);
-          count++;
-        } catch {}
-      }
-
-      showStatus("success", `Imported ${count} members from file!`);
-    } catch (e) {
-      showStatus("error", `Import failed: ${e.message}`);
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
 
   return (
     <Card className="border-border/50">
@@ -250,51 +273,34 @@ export default function PluralKitSync() {
         </div>
 
         {tokenSaved && (
-          <div className="space-y-2 pt-2 border-t border-border">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sync</p>
-            <Button
-              variant="outline"
-              onClick={handleExportToPluralKit}
-              disabled={syncing}
-              className="w-full gap-2 justify-start"
-            >
-              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              <div className="text-left">
-                <p className="font-medium text-sm">Export to PluralKit</p>
-                <p className="text-xs text-muted-foreground">Push Symphony alters to your PluralKit system</p>
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleImportFromPluralKit}
-              disabled={syncing}
-              className="w-full gap-2 justify-start"
-            >
-              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              <div className="text-left">
-                <p className="font-medium text-sm">Import from PluralKit</p>
-                <p className="text-xs text-muted-foreground">Pull members from your PluralKit system</p>
-              </div>
-            </Button>
-          </div>
+         <div className="space-y-2 pt-2 border-t border-border">
+           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Sync</p>
+           <Button
+             variant="outline"
+             onClick={handleExportToPluralKit}
+             disabled={syncing}
+             className="w-full gap-2 justify-start"
+           >
+             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+             <div className="text-left">
+               <p className="font-medium text-sm">Export to PluralKit</p>
+               <p className="text-xs text-muted-foreground">Push Symphony alters to your PluralKit system</p>
+             </div>
+           </Button>
+           <Button
+             variant="outline"
+             onClick={handleImportFromPluralKit}
+             disabled={syncing}
+             className="w-full gap-2 justify-start"
+           >
+             {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+             <div className="text-left">
+               <p className="font-medium text-sm">Import from PluralKit</p>
+               <p className="text-xs text-muted-foreground">Pull members from your PluralKit system</p>
+             </div>
+           </Button>
+         </div>
         )}
-
-        <div className="space-y-2 pt-2 border-t border-border">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">File Import</p>
-          <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="w-full gap-2 justify-start"
-          >
-            {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            <div className="text-left">
-              <p className="font-medium text-sm">Import from PluralKit File</p>
-              <p className="text-xs text-muted-foreground">Import members from exported PluralKit JSON</p>
-            </div>
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );
