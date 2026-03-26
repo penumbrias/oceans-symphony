@@ -3,7 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { HardDrive, Cloud, Lock, Unlock, Loader2, ShieldCheck, ShieldOff, Eye, EyeOff } from "lucide-react";
+import { HardDrive, Cloud, Lock, Loader2, ShieldCheck, ShieldOff, Eye, EyeOff, AlertCircle } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from "@/components/ui/dialog";
 import {
   getMode, setMode,
   isEncryptionEnabled, setEncryptionEnabled,
@@ -14,6 +17,8 @@ export default function StorageModeSettings() {
   const mode = getMode();
   const encEnabled = isEncryptionEnabled();
 
+  const [switchConfirmOpen, setSwitchConfirmOpen] = useState(false);
+  const [switchTarget, setSwitchTarget] = useState(null); // 'local' or 'cloud'
   const [showPasswordForm, setShowPasswordForm] = useState(null); // 'enable' | 'disable' | 'change'
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -23,16 +28,27 @@ export default function StorageModeSettings() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const confirmSwitch = () => {
+    setSwitchConfirmOpen(true);
+  };
+
   const handleSwitchToCloud = () => {
+    setSwitchConfirmOpen(false);
     setMode("cloud");
     window.location.reload();
   };
 
   const handleSwitchToLocal = async () => {
+    setSwitchConfirmOpen(false);
     setMode("local");
     setEncryptionEnabled(false);
     await initLocalDb(null);
     window.location.reload();
+  };
+
+  const promptSwitch = (target) => {
+    setSwitchTarget(target);
+    confirmSwitch();
   };
 
   const handleEnableEncryption = async () => {
@@ -82,6 +98,7 @@ export default function StorageModeSettings() {
   };
 
   return (
+    <>
     <Card className="border-border/50">
       <CardHeader>
         <div className="flex items-center gap-3">
@@ -173,7 +190,7 @@ export default function StorageModeSettings() {
               </div>
             )}
 
-            <Button variant="ghost" onClick={handleSwitchToCloud} className="w-full gap-2 text-muted-foreground hover:text-foreground text-sm">
+            <Button variant="ghost" onClick={() => promptSwitch('cloud')} className="w-full gap-2 text-muted-foreground hover:text-foreground text-sm">
               <Cloud className="w-4 h-4" /> Switch to Cloud Sync (requires account)
             </Button>
           </>
@@ -182,12 +199,35 @@ export default function StorageModeSettings() {
             <div className="text-sm text-muted-foreground bg-muted/40 rounded-xl p-3">
               Your data is synced to the cloud and accessible from any device.
             </div>
-            <Button variant="outline" onClick={handleSwitchToLocal} className="w-full gap-2">
+            <Button variant="outline" onClick={() => promptSwitch('local')} className="w-full gap-2">
               <HardDrive className="w-4 h-4" /> Switch to Local Only
             </Button>
           </>
         )}
-      </CardContent>
-    </Card>
-  );
-}
+        </CardContent>
+        </Card>
+
+        <Dialog open={switchConfirmOpen} onOpenChange={setSwitchConfirmOpen}>
+        <DialogContent>
+         <DialogHeader>
+           <DialogTitle className="flex items-center gap-2">
+             <AlertCircle className="w-5 h-5 text-amber-600" />
+             Backup Your Data First
+           </DialogTitle>
+         </DialogHeader>
+         <DialogDescription className="space-y-2">
+           <p>You're about to switch from <strong>{mode === 'local' ? 'Local' : 'Cloud'}</strong> to <strong>{switchTarget === 'local' ? 'Local' : 'Cloud'}</strong>.</p>
+           <p>⚠️ <strong>Please backup your data before switching</strong> — use "Backup & Export" below to save a full copy.</p>
+           <p className="text-xs text-muted-foreground">After switching, you can import your data if needed.</p>
+         </DialogDescription>
+         <DialogFooter className="flex gap-2">
+           <Button variant="outline" onClick={() => setSwitchConfirmOpen(false)}>Cancel</Button>
+           <Button onClick={switchTarget === 'local' ? handleSwitchToLocal : handleSwitchToCloud} className="bg-primary">
+             Continue
+           </Button>
+         </DialogFooter>
+         </DialogContent>
+         </Dialog>
+         </>
+         );
+         }

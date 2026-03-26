@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Users, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { getFullDbDump, loadDbDump } from "@/lib/localDb";
@@ -22,26 +22,12 @@ function downloadJson(data, filename) {
   URL.revokeObjectURL(url);
 }
 
-// Convert Symphony alters to Simply Plural member format
-function toSimplyPluralMember(alter) {
-  return {
-    id: alter.sp_id || alter.id,
-    name: alter.name || "",
-    pronouns: alter.pronouns || "",
-    description: alter.description || "",
-    color: alter.color || "",
-    avatarUrl: alter.avatar_url || "",
-    roles: alter.role ? [alter.role] : [],
-    isCustomFront: false,
-    isArchived: alter.is_archived || false,
-  };
-}
+
 
 export default function DataBackupRestore() {
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
-  const [spExportLoading, setSpExportLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: 'success'|'error', message }
 
   const showStatus = (type, message) => {
@@ -84,41 +70,7 @@ export default function DataBackupRestore() {
     }
   };
 
-  // Simply Plural compatible export
-  const handleExportSimplyPlural = async () => {
-    setSpExportLoading(true);
-    try {
-      let alters, settings;
-      if (isLocalMode()) {
-        const dump = getFullDbDump();
-        alters = Object.values(dump["Alter"] || {});
-        settings = Object.values(dump["SystemSettings"] || {})[0] || {};
-      } else {
-        alters = await base44.entities.Alter.list();
-        const settingsList = await base44.entities.SystemSettings.list();
-        settings = settingsList[0] || {};
-      }
 
-      const spData = {
-        __format: "simply_plural_compatible",
-        version: "1.0",
-        exported_at: new Date().toISOString(),
-        system: {
-          name: settings.system_name || "My System",
-          description: settings.system_description || "",
-          tag: settings.system_name || "system",
-        },
-        members: alters.filter(a => !a.is_archived).map(toSimplyPluralMember),
-      };
-      const date = new Date().toISOString().slice(0, 10);
-      downloadJson(spData, `symphony-simply-plural-export-${date}.json`);
-      showStatus("success", "Simply Plural–compatible export downloaded.");
-    } catch (e) {
-      showStatus("error", `Export failed: ${e.message}`);
-    } finally {
-      setSpExportLoading(false);
-    }
-  };
 
   // Import from JSON file
   const handleImport = async (e) => {
@@ -151,46 +103,7 @@ export default function DataBackupRestore() {
         return;
       }
 
-      // Handle Simply Plural compatible import
-      if (parsed.__format === "simply_plural_compatible" || parsed.members) {
-        const members = parsed.members || [];
-        const systemInfo = parsed.system || {};
-        let count = 0;
 
-        // Import system settings
-        if (systemInfo.name) {
-          try {
-            if (isLocalMode()) {
-              await base44.entities.SystemSettings.create({ system_name: systemInfo.name, system_description: systemInfo.description || "" });
-            } else {
-              const existing = await base44.entities.SystemSettings.list();
-              if (existing[0]) {
-                await base44.entities.SystemSettings.update(existing[0].id, { system_name: systemInfo.name, system_description: systemInfo.description || "" });
-              } else {
-                await base44.entities.SystemSettings.create({ system_name: systemInfo.name, system_description: systemInfo.description || "" });
-              }
-            }
-          } catch {}
-        }
-
-        // Import members as Alters
-        for (const m of members) {
-          try {
-            await base44.entities.Alter.create({
-              name: m.name || m.displayName || "Unknown",
-              pronouns: m.pronouns || "",
-              description: m.description || "",
-              color: m.color || "",
-              avatar_url: m.avatarUrl || m.avatar_url || "",
-              role: (m.roles || [])[0] || "",
-              sp_id: m.id || "",
-            });
-            count++;
-          } catch {}
-        }
-        showStatus("success", `Imported ${count} members from Simply Plural file.`);
-        return;
-      }
 
       showStatus("error", "Unknown file format. Expected Symphony backup or Simply Plural export.");
     } catch (e) {
@@ -231,31 +144,25 @@ export default function DataBackupRestore() {
               <p className="text-xs text-muted-foreground font-normal">All data as JSON — can be re-imported into Symphony</p>
             </div>
           </Button>
-          <Button variant="outline" onClick={handleExportSimplyPlural} disabled={spExportLoading} className="w-full gap-2 justify-start">
-            {spExportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
-            <div className="text-left">
-              <p className="font-medium">Simply Plural Format</p>
-              <p className="text-xs text-muted-foreground font-normal">Members & system info — importable into Simply Plural</p>
-            </div>
-          </Button>
+
         </div>
 
         <div className="space-y-2 pt-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Import</p>
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
           <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importLoading}
-            className="w-full gap-2 justify-start"
+           variant="outline"
+           onClick={() => fileInputRef.current?.click()}
+           disabled={importLoading}
+           className="w-full gap-2 justify-start"
           >
-            {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            <div className="text-left">
-              <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal">Symphony backup or Simply Plural JSON</p>
-            </div>
+           {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+           <div className="text-left">
+             <p className="font-medium">Import from File</p>
+             <p className="text-xs text-muted-foreground font-normal">Symphony backup JSON</p>
+           </div>
           </Button>
-          <p className="text-xs text-muted-foreground">⚠️ Importing adds records — it does not replace existing data.</p>
+          <p className="text-xs text-muted-foreground">⚠️ Importing adds records — it does not replace existing data. For PluralKit sync, see PluralKit Sync section.</p>
         </div>
       </CardContent>
     </Card>

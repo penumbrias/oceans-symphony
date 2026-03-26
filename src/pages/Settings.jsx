@@ -16,6 +16,7 @@ import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
+import PluralKitSync from "@/components/settings/PluralKitSync";
 import { isLocalMode } from "@/lib/storageMode";
 
 export default function Settings() {
@@ -244,6 +245,15 @@ export default function Settings() {
          </Card>
          )}
 
+         {/* Storage Mode */}
+         <StorageModeSettings />
+
+         {/* Backup & Export */}
+         <DataBackupRestore />
+
+         {/* PluralKit Sync */}
+         {!isLocalMode() && <PluralKitSync />}
+
          {/* Diary Template */}
          <DiaryTemplateManager settings={settings} />
 
@@ -252,12 +262,6 @@ export default function Settings() {
 
          {/* Archived Alters */}
          <ArchivedAltersManager />
-
-         {/* Storage Mode */}
-         <StorageModeSettings />
-
-         {/* Backup & Export */}
-         <DataBackupRestore />
       </div>
     </motion.div>
   );
