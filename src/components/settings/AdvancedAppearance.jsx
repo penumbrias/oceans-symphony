@@ -1,220 +1,274 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Moon, Sun, Palette } from 'lucide-react';
-import { useTheme } from '@/lib/ThemeContext';
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Palette, RotateCcw, Loader2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
 
-const THEMES = {
-  teal: {
-    name: 'Teal',
-    light: { primary: '#4A9BA8', secondary: '#E8F4F7', background: '#F5FAFB' },
-    dark: { primary: '#5EB5C2', secondary: '#1A3C42', background: '#0F1B1E' }
+const COLOR_PRESETS = {
+  warm: {
+    name: "Warm",
+    colors: {
+      "--primary": "40 70% 55%",
+      "--secondary": "20 60% 92%",
+      "--accent": "20 70% 65%",
+      "--destructive": "0 72% 60%",
+      "--chart-1": "40 70% 55%",
+      "--chart-2": "20 60% 65%",
+      "--chart-3": "10 50% 55%",
+      "--chart-4": "30 65% 60%",
+      "--chart-5": "50 70% 50%",
+    }
   },
-  sage: {
-    name: 'Sage',
-    light: { primary: '#6B9B7F', secondary: '#E8F3ED', background: '#F5FAF7' },
-    dark: { primary: '#8BB799', secondary: '#1E3A2F', background: '#0F1A15' }
+  cool: {
+    name: "Cool",
+    colors: {
+      "--primary": "200 70% 55%",
+      "--secondary": "210 40% 90%",
+      "--accent": "220 60% 70%",
+      "--destructive": "0 72% 60%",
+      "--chart-1": "200 70% 55%",
+      "--chart-2": "220 70% 50%",
+      "--chart-3": "240 60% 55%",
+      "--chart-4": "190 50% 60%",
+      "--chart-5": "210 65% 55%",
+    }
   },
-  warmtan: {
-    name: 'Warm Tan',
-    light: { primary: '#B8956A', secondary: '#F5EDE3', background: '#FAF8F5' },
-    dark: { primary: '#D4AF86', secondary: '#3A2F25', background: '#16110A' }
+  neutral: {
+    name: "Neutral",
+    colors: {
+      "--primary": "210 50% 50%",
+      "--secondary": "210 15% 92%",
+      "--accent": "220 40% 70%",
+      "--destructive": "0 72% 60%",
+      "--chart-1": "210 50% 50%",
+      "--chart-2": "220 40% 55%",
+      "--chart-3": "200 40% 55%",
+      "--chart-4": "210 35% 60%",
+      "--chart-5": "230 40% 50%",
+    }
   },
-  clay: {
-    name: 'Clay',
-    light: { primary: '#C99B7C', secondary: '#F5E9E0', background: '#FAF7F4' },
-    dark: { primary: '#E8B89A', secondary: '#3F2E24', background: '#17110A' }
+  forest: {
+    name: "Forest",
+    colors: {
+      "--primary": "120 50% 45%",
+      "--secondary": "140 40% 88%",
+      "--accent": "110 60% 55%",
+      "--destructive": "0 72% 60%",
+      "--chart-1": "120 50% 45%",
+      "--chart-2": "140 45% 50%",
+      "--chart-3": "100 40% 50%",
+      "--chart-4": "160 50% 55%",
+      "--chart-5": "80 60% 50%",
+    }
   },
-  lavender: {
-    name: 'Lavender',
-    light: { primary: '#A582B5', secondary: '#F0E5F5', background: '#F8F5FA' },
-    dark: { primary: '#C9A8D8', secondary: '#3D2847', background: '#16110F' }
-  }
+  sunset: {
+    name: "Sunset",
+    colors: {
+      "--primary": "20 80% 55%",
+      "--secondary": "35 90% 90%",
+      "--accent": "350 70% 65%",
+      "--destructive": "0 72% 60%",
+      "--chart-1": "20 80% 55%",
+      "--chart-2": "350 70% 55%",
+      "--chart-3": "10 75% 60%",
+      "--chart-4": "40 85% 60%",
+      "--chart-5": "280 60% 50%",
+    }
+  },
+  ocean: {
+    name: "Ocean",
+    colors: {
+      "--primary": "210 80% 50%",
+      "--secondary": "220 60% 88%",
+      "--accent": "190 70% 60%",
+      "--destructive": "0 72% 60%",
+      "--chart-1": "210 80% 50%",
+      "--chart-2": "240 60% 55%",
+      "--chart-3": "190 70% 50%",
+      "--chart-4": "200 75% 55%",
+      "--chart-5": "270 50% 55%",
+    }
+  },
+  berry: {
+    name: "Berry",
+    colors: {
+      "--primary": "280 60% 55%",
+      "--secondary": "300 50% 92%",
+      "--accent": "320 70% 65%",
+      "--destructive": "0 72% 60%",
+      "--chart-1": "280 60% 55%",
+      "--chart-2": "320 70% 55%",
+      "--chart-3": "260 50% 55%",
+      "--chart-4": "340 60% 60%",
+      "--chart-5": "10 70% 50%",
+    }
+  },
 };
 
-const FONTS = [
-  { name: 'Inter', value: 'Inter, sans-serif' },
-  { name: 'Playfair Display', value: 'Playfair Display, serif' },
-  { name: 'Georgia', value: 'Georgia, serif' },
-  { name: 'Comic Sans MS', value: 'Comic Sans MS, sans-serif' },
-];
-
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}` : null;
-}
-
-function applyTheme(mode, themeData) {
-  const root = document.documentElement;
-  const colors = themeData[mode];
-  
-  const primaryRgb = hexToRgb(colors.primary);
-  const bgRgb = hexToRgb(colors.background);
-  
-  if (primaryRgb) root.style.setProperty('--primary', `${primaryRgb} / <alpha-value>`);
-  if (colors.secondary) root.style.setProperty('--secondary', colors.secondary);
-  if (bgRgb) root.style.setProperty('--background', bgRgb);
-  
-  localStorage.setItem('theme_mode', mode);
-  localStorage.setItem('theme_preset', 'custom');
-}
-
-function applyPreset(presetKey, mode) {
-  const theme = THEMES[presetKey];
-  if (!theme) return;
-  
-  applyTheme(mode, theme);
-  localStorage.setItem('theme_preset', presetKey);
-  localStorage.setItem('theme_mode', mode);
-}
-
 export default function AdvancedAppearance() {
-  const { theme, setTheme } = useTheme();
-  const [mode, setMode] = useState(theme || 'light');
-  const [customColor, setCustomColor] = useState(localStorage.getItem('custom_primary') || '#4A9BA8');
-  const [font, setFont] = useState(localStorage.getItem('custom_font') || 'Inter');
-  const colorPickerRef = useRef(null);
+  const [selectedPreset, setSelectedPreset] = useState("warm");
+  const [customColors, setCustomColors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
-    if (theme) setMode(theme);
-  }, [theme]);
-
-  const handleModeToggle = (newMode) => {
-    setMode(newMode);
-    setTheme(newMode);
-    const preset = localStorage.getItem('theme_preset') || 'teal';
-    if (preset !== 'custom') {
-      applyPreset(preset, newMode);
+    const root = document.documentElement;
+    const stored = localStorage.getItem("custom-theme-colors");
+    if (stored) {
+      const colors = JSON.parse(stored);
+      setCustomColors(colors);
     } else {
-      const bgHex = newMode === 'dark' ? '#0F1B1E' : '#F5FAFB';
-      applyTheme(newMode, { light: { primary: customColor, background: bgHex }, dark: { primary: customColor, background: bgHex } });
+      const colors = {};
+      Object.keys(COLOR_PRESETS.warm.colors).forEach(key => {
+        colors[key] = getComputedStyle(root).getPropertyValue(key).trim();
+      });
+      setCustomColors(colors);
+    }
+  }, []);
+
+  const applyPreset = (presetKey) => {
+    const preset = COLOR_PRESETS[presetKey];
+    const root = document.documentElement;
+    Object.entries(preset.colors).forEach(([key, value]) => {
+      root.style.setProperty(key, value);
+    });
+    setCustomColors(preset.colors);
+    setSelectedPreset(presetKey);
+    localStorage.setItem("custom-theme-colors", JSON.stringify(preset.colors));
+    toast.success(`Applied ${preset.name} theme`);
+  };
+
+  const handleColorChange = (key, value) => {
+    const updated = { ...customColors, [key]: value };
+    setCustomColors(updated);
+    const root = document.documentElement;
+    root.style.setProperty(key, value);
+  };
+
+  const handleSaveCustom = async () => {
+    setSaving(true);
+    try {
+      localStorage.setItem("custom-theme-colors", JSON.stringify(customColors));
+      setSelectedPreset(null);
+      toast.success("Custom theme saved");
+    } catch (e) {
+      toast.error("Failed to save theme");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleFontChange = (fontValue) => {
-    setFont(fontValue);
-    localStorage.setItem('custom_font', fontValue);
-    document.documentElement.style.setProperty('--font-sans', fontValue);
+  const handleReset = () => {
+    applyPreset("warm");
+    setShowAdvanced(false);
   };
 
-  const handleCustomColorChange = (hex) => {
-    setCustomColor(hex);
-    localStorage.setItem('custom_primary', hex);
-    const bgHex = mode === 'dark' ? '#0F1B1E' : '#F5FAFB';
-    applyTheme(mode, { light: { primary: hex, background: bgHex }, dark: { primary: hex, background: bgHex } });
-  };
+  const colorVars = [
+    { key: "--primary", label: "Primary" },
+    { key: "--secondary", label: "Secondary" },
+    { key: "--accent", label: "Accent" },
+    { key: "--muted", label: "Muted" },
+    { key: "--destructive", label: "Destructive" },
+    { key: "--chart-1", label: "Chart 1" },
+    { key: "--chart-2", label: "Chart 2" },
+    { key: "--chart-3", label: "Chart 3" },
+    { key: "--chart-4", label: "Chart 4" },
+    { key: "--chart-5", label: "Chart 5" },
+  ];
 
   return (
     <Card className="border-border/50">
       <CardHeader>
-        <CardTitle className="text-lg">Appearance</CardTitle>
-        <CardDescription>Customize colors, fonts, and dark mode</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Dark Mode Toggle */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Theme Mode</Label>
-          <div className="flex gap-2">
-            <Button
-              variant={mode === 'light' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => handleModeToggle('light')}
-              className="gap-2"
-            >
-              <Sun className="w-4 h-4" /> Light
-            </Button>
-            <Button
-              variant={mode === 'dark' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => handleModeToggle('dark')}
-              className="gap-2"
-            >
-              <Moon className="w-4 h-4" /> Dark
-            </Button>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+            <Palette className="w-5 h-5 text-accent-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Advanced Appearance</CardTitle>
+            <CardDescription>Customize colors and themes</CardDescription>
           </div>
         </div>
-
-        {/* Font Selection */}
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Presets */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">Font</Label>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">System Themes</p>
           <div className="grid grid-cols-2 gap-2">
-            {FONTS.map(f => (
+            {Object.entries(COLOR_PRESETS).map(([key, preset]) => (
               <Button
-                key={f.value}
-                variant={font === f.value ? 'default' : 'outline'}
+                key={key}
+                variant={selectedPreset === key ? "default" : "outline"}
+                onClick={() => applyPreset(key)}
                 size="sm"
-                onClick={() => handleFontChange(f.value)}
-                style={{ fontFamily: f.value }}
+                className="text-xs"
               >
-                {f.name}
+                {preset.name}
               </Button>
             ))}
           </div>
         </div>
 
-        {/* Theme Presets */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Color Presets</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(THEMES).map(([key, theme]) => (
-              <button
-                key={key}
-                onClick={() => applyPreset(key, mode)}
-                className="p-3 rounded-lg border-2 border-transparent hover:border-primary/50 transition-all"
-                title={theme.name}
-              >
-                <div className="flex gap-1.5 mb-2">
-                  <div
-                    className="w-6 h-6 rounded"
-                    style={{ backgroundColor: theme.light.primary }}
-                    title="Light"
-                  />
-                  <div
-                    className="w-6 h-6 rounded"
-                    style={{ backgroundColor: theme.dark.primary }}
-                    title="Dark"
-                  />
-                </div>
-                <p className="text-xs font-medium">{theme.name}</p>
-              </button>
-            ))}
-          </div>
+        {/* Advanced Toggle */}
+        <div className="border-t pt-4">
+          <Button
+            variant="ghost"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            {showAdvanced ? "Hide" : "Show"} Advanced Customization
+          </Button>
         </div>
 
-        {/* Custom Color */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Custom Color</Label>
-          <div className="flex gap-2">
-            <div
-              className="w-10 h-10 rounded-lg border-2 border-border cursor-pointer hover:border-primary/50 transition-colors"
-              style={{ backgroundColor: customColor }}
-              onClick={() => colorPickerRef.current?.click()}
-              onDoubleClick={() => colorPickerRef.current?.click()}
-              title="Double-click to pick from palette"
-            />
-            <input
-              type="color"
-              value={customColor}
-              onChange={(e) => handleCustomColorChange(e.target.value)}
-              className="hidden"
-              ref={colorPickerRef}
-            />
-            <Input
-              type="text"
-              placeholder="#000000"
-              value={customColor}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (/^#[0-9A-F]{6}$/i.test(val)) {
-                  handleCustomColorChange(val);
-                }
-              }}
-              className="font-mono text-sm flex-1"
-            />
+        {/* Advanced Controls */}
+        {showAdvanced && (
+          <div className="space-y-4 pt-4 border-t">
+            <div className="grid gap-3 max-h-96 overflow-y-auto">
+              {colorVars.map(({ key, label }) => (
+                <div key={key} className="space-y-1">
+                  <Label className="text-xs font-medium">{label}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      value={customColors[key] || ""}
+                      onChange={(e) => handleColorChange(key, e.target.value)}
+                      placeholder="e.g., 210 68% 62%"
+                      className="text-xs flex-1"
+                    />
+                    <div
+                      className="w-10 h-9 rounded-md border border-border"
+                      style={{
+                        backgroundColor: `hsl(${customColors[key]})`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">HSL format: hue saturation% lightness%</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={handleSaveCustom}
+                disabled={saving}
+                className="flex-1 bg-primary hover:bg-primary/90"
+                size="sm"
+              >
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Save Custom Theme
+              </Button>
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                size="sm"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Palette, Save, Loader2, LogOut, Trash2 } from "lucide-react";
+import { Palette, Save, Loader2, Moon, Sun, LogOut, Trash2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { useTheme } from "@/lib/ThemeContext";
 import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
 
@@ -17,11 +18,13 @@ import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
+import ThemeColorSettings from "@/components/settings/ThemeColorSettings";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearance";
 import { isLocalMode } from "@/lib/storageMode";
 
 export default function Settings() {
   const queryClient = useQueryClient();
+  const { theme, toggleTheme } = useTheme();
   const terms = useTerms();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
@@ -101,8 +104,35 @@ export default function Settings() {
       </p>
 
       <div className="space-y-6 max-w-2xl">
-        {/* System Info */}
-        <Card className="border-border/50">
+         {/* Theme Toggle */}
+         <Card className="border-border/50">
+           <CardHeader>
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+                 {theme === 'dark' ? <Moon className="w-5 h-5 text-accent-foreground" /> : <Sun className="w-5 h-5 text-accent-foreground" />}
+               </div>
+               <div>
+                 <CardTitle className="text-lg">Appearance</CardTitle>
+                 <CardDescription>
+                   Customize your theme
+                 </CardDescription>
+               </div>
+             </div>
+           </CardHeader>
+           <CardContent>
+             <Button
+               onClick={toggleTheme}
+               variant="outline"
+               className="w-full"
+             >
+               {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+               Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
+             </Button>
+           </CardContent>
+         </Card>
+
+         {/* System Name */}
+         <Card className="border-border/50">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
@@ -120,27 +150,27 @@ export default function Settings() {
             <div className="space-y-4">
               <div>
                 <Label htmlFor="system-name" className="text-sm font-medium">
-                  {terms.System} Name
-                </Label>
-                <Input
-                  id="system-name"
-                  placeholder={`Enter your ${terms.system} name...`}
-                  value={systemName}
-                  onChange={(e) => setSystemName(e.target.value)}
-                  className="mt-2 bg-card/50"
-                />
-              </div>
-              <div>
-                <Label htmlFor="system-description" className="text-sm font-medium">
-                  {terms.System} Description
-                </Label>
-                <Textarea
-                  id="system-description"
-                  placeholder={`Describe your ${terms.system}...`}
-                  value={systemDescription}
-                  onChange={(e) => setSystemDescription(e.target.value)}
-                  className="mt-2 bg-card/50 min-h-[100px]"
-                />
+                    {terms.System} Name
+                  </Label>
+                  <Input
+                    id="system-name"
+                    placeholder={`Enter your ${terms.system} name...`}
+                    value={systemName}
+                    onChange={(e) => setSystemName(e.target.value)}
+                    className="mt-2 bg-card/50"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="system-description" className="text-sm font-medium">
+                    {terms.System} Description
+                  </Label>
+                  <Textarea
+                    id="system-description"
+                    placeholder={`Describe your ${terms.system}...`}
+                    value={systemDescription}
+                    onChange={(e) => setSystemDescription(e.target.value)}
+                    className="mt-2 bg-card/50 min-h-[100px]"
+                  />
               </div>
               <Button
                 onClick={handleSaveName}
@@ -157,59 +187,59 @@ export default function Settings() {
               </Button>
             </div>
           </CardContent>
-        </Card>
-
-        {/* Advanced Appearance */}
-        <AdvancedAppearance />
-
-        {/* Terminology */}
-        <TermsSettings />
-
-        {/* Account */}
-        {!isLocalMode() && (
-          <Card className="border-border/50">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-                  <LogOut className="w-5 h-5 text-destructive" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Account</CardTitle>
-                  <CardDescription>Manage your account and data</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button onClick={handleSignOut} variant="outline" className="w-full gap-2">
-                <LogOut className="w-4 h-4" /> Sign Out
-              </Button>
-              {!showDeleteConfirm && !deleted && (
-                <Button onClick={() => setShowDeleteConfirm(true)} variant="ghost" className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
-                  <Trash2 className="w-4 h-4" /> Delete My Account
-                </Button>
-              )}
-              {showDeleteConfirm && !deleted && (
-                <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
-                  <p className="text-sm font-semibold text-destructive">⚠️ This is permanent</p>
-                  <p className="text-xs text-muted-foreground">All your system data will be permanently deleted. This cannot be undone.</p>
-                  <p className="text-xs font-medium">Type <span className="font-mono bg-muted px-1 rounded">delete my account</span> to confirm:</p>
-                  <Input value={deleteInput} onChange={(e) => setDeleteInput(e.target.value)} placeholder="delete my account" className="h-8 text-sm border-destructive/40" />
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }} className="flex-1">Cancel</Button>
-                    <Button size="sm" onClick={handleDeleteAccount} disabled={deleteInput.trim().toLowerCase() !== "delete my account"} className="flex-1 bg-destructive hover:bg-destructive/90 text-white">Delete Everything</Button>
-                  </div>
-                </div>
-              )}
-              {deleted && (
-                <div className="rounded-xl border border-green-500/40 bg-green-500/5 p-4 text-center space-y-2">
-                  <p className="text-sm font-semibold text-green-600">✅ Account data deleted</p>
-                  <p className="text-xs text-muted-foreground">All your data has been removed. You can close the app or sign out.</p>
-                  <Button size="sm" onClick={handleSignOut} variant="outline" className="w-full">Sign Out Now</Button>
-                </div>
-              )}
-            </CardContent>
           </Card>
-        )}
+
+          {/* Advanced Appearance */}
+          <AdvancedAppearance />
+
+          {/* Terminology */}
+          <TermsSettings />
+
+         {/* Account */}
+         {!isLocalMode() && (
+         <Card className="border-border/50">
+           <CardHeader>
+             <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                 <LogOut className="w-5 h-5 text-destructive" />
+               </div>
+               <div>
+                 <CardTitle className="text-lg">Account</CardTitle>
+                 <CardDescription>Manage your account and data</CardDescription>
+               </div>
+             </div>
+           </CardHeader>
+           <CardContent className="space-y-3">
+             <Button onClick={handleSignOut} variant="outline" className="w-full gap-2">
+               <LogOut className="w-4 h-4" /> Sign Out
+             </Button>
+             {!showDeleteConfirm && !deleted && (
+               <Button onClick={() => setShowDeleteConfirm(true)} variant="ghost" className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
+                 <Trash2 className="w-4 h-4" /> Delete My Account
+               </Button>
+             )}
+             {showDeleteConfirm && !deleted && (
+               <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+                 <p className="text-sm font-semibold text-destructive">⚠️ This is permanent</p>
+                 <p className="text-xs text-muted-foreground">All your system data will be permanently deleted. This cannot be undone.</p>
+                 <p className="text-xs font-medium">Type <span className="font-mono bg-muted px-1 rounded">delete my account</span> to confirm:</p>
+                 <Input value={deleteInput} onChange={(e) => setDeleteInput(e.target.value)} placeholder="delete my account" className="h-8 text-sm border-destructive/40" />
+                 <div className="flex gap-2">
+                   <Button size="sm" variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }} className="flex-1">Cancel</Button>
+                   <Button size="sm" onClick={handleDeleteAccount} disabled={deleteInput.trim().toLowerCase() !== "delete my account"} className="flex-1 bg-destructive hover:bg-destructive/90 text-white">Delete Everything</Button>
+                 </div>
+               </div>
+             )}
+             {deleted && (
+               <div className="rounded-xl border border-green-500/40 bg-green-500/5 p-4 text-center space-y-2">
+                 <p className="text-sm font-semibold text-green-600">✅ Account data deleted</p>
+                 <p className="text-xs text-muted-foreground">All your data has been removed. You can close the app or sign out.</p>
+                 <Button size="sm" onClick={handleSignOut} variant="outline" className="w-full">Sign Out Now</Button>
+               </div>
+             )}
+             </CardContent>
+             </Card>
+             )}
 
         {/* Data Management */}
         <div className="space-y-3">
@@ -218,30 +248,30 @@ export default function Settings() {
           <DataBackupRestore />
         </div>
 
-        {/* Integrations */}
-        {!isLocalMode() && (
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
-            </div>
-            <SimplyPluralConnect
-              settings={settings}
-              onSettingsChange={() => {
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-              }}
-            />
-          </div>
-        )}
+         {/* Integrations */}
+         {!isLocalMode() && (
+           <div className="space-y-4">
+             <div>
+               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
+             </div>
+             <SimplyPluralConnect
+               settings={settings}
+               onSettingsChange={() => {
+                 refetch();
+                 queryClient.invalidateQueries({ queryKey: ["alters"] });
+               }}
+             />
+             </div>
+             )}
 
-        {/* Diary Template */}
-        <DiaryTemplateManager settings={settings} />
+             {/* Diary Template */}
+         <DiaryTemplateManager settings={settings} />
 
-        {/* Custom Fields */}
-        <CustomFieldsManager />
+         {/* Custom Fields */}
+         <CustomFieldsManager />
 
-        {/* Archived Alters */}
-        <ArchivedAltersManager />
+         {/* Archived Alters */}
+         <ArchivedAltersManager />
       </div>
     </motion.div>
   );
