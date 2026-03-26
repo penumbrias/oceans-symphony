@@ -22,12 +22,12 @@
   }
 
   .dark {
-    --color-bg: #0B1220;
-    --color-surface: #121A2A;
+    --color-bg: #0A0E17;
+    --color-surface: #101820;
     --color-primary: #3B82F6;
     --color-secondary: #1E3A5F;
     --color-accent: #38BDF8;
-    --color-muted: #334155;
+    --color-muted: #1F2937;
     --color-text-primary: #E0F2FE;
     --color-text-secondary: #94A3B8;
   }

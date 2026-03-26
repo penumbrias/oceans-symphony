@@ -4,22 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTheme, FONT_OPTIONS } from '@/lib/ThemeContext';
 import { HexColorPicker } from 'react-colorful';
-import { Monitor, Palette, ChevronDown, Save, X } from 'lucide-react';
+import { Palette, ChevronDown, Save, X } from 'lucide-react';
 
 export default function AdvancedAppearance() {
-  const { themeMode, selectedTheme, customColors, updateCustomColors, cycleThemeMode, presets, setSelectedTheme, selectedFont, setSelectedFont, userCustomPresets, saveCustomPreset, allPresets, isDarkMode } = useTheme();
+  const { themeMode, selectedTheme, customColors, updateCustomColors, cycleThemeMode, presets, setSelectedTheme, userCustomPresets, saveCustomPreset, allPresets } = useTheme();
   
   const [editingColor, setEditingColor] = useState(null);
   const [hexInput, setHexInput] = useState('');
-  const [fontSearch, setFontSearch] = useState('');
-  const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [showCustomDropdown, setShowCustomDropdown] = useState(false);
   const [showSavePreset, setShowSavePreset] = useState(false);
   const [presetName, setPresetName] = useState('');
   const [pendingColors, setPendingColors] = useState(null);
-  const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Determine current display mode for preview
+  // Determine current display mode
   const isDark = themeMode === 'dark' || (themeMode === 'system' && document.documentElement.classList.contains('dark'));
 
   const colorLabels = {
@@ -33,25 +31,45 @@ export default function AdvancedAppearance() {
     'text-secondary': 'Text Secondary',
   };
 
-  // Show pending colors if editing, otherwise show current colors in current display mode
-  const currentColors = pendingColors 
-    ? (isDark ? pendingColors.dark : pendingColors.light)
-    : (customColors ? (isDark ? customColors.dark : customColors.light) : (isDark ? allPresets[selectedTheme]?.dark : allPresets[selectedTheme]?.light));
+  // Get current display colors (what's actually showing)
+  const getCurrentColors = () => {
+    if (customColors) {
+      return isDark ? customColors.dark : customColors.light;
+    }
+    const preset = allPresets[selectedTheme];
+    return isDark ? preset.dark : preset.light;
+  };
 
-  const filteredFonts = FONT_OPTIONS.filter(f => f.label.toLowerCase().includes(fontSearch.toLowerCase()));
+  const currentColors = getCurrentColors();
 
-  const handleColorDoubleClick = (key, value) => {
-    if (!pendingColors) {
-      // Start editing - initialize pending colors
-      if (customColors) {
-        setPendingColors(customColors);
-      } else {
-        const theme = allPresets[selectedTheme];
-        setPendingColors(theme);
-      }
+  const handleSelectPreset = (themeName) => {
+    // If user was editing custom colors, save them first
+    if (isEditing && pendingColors) {
+      saveCustomPreset(presetName || `Custom ${new Date().toLocaleTimeString()}`, pendingColors);
+    }
+    
+    // Clear custom colors and apply preset
+    setSelectedTheme(themeName);
+    setPendingColors(null);
+    setIsEditing(false);
+    setEditingColor(null);
+    setShowSavePreset(false);
+  };
+
+  const handleStartEditColor = (key) => {
+    if (!isEditing) {
+      // Start editing - clone current colors
+      const lightColors = allPresets[selectedTheme]?.light || {};
+      const darkColors = allPresets[selectedTheme]?.dark || {};
+      setPendingColors({
+        light: { ...lightColors },
+        dark: { ...darkColors }
+      });
+      setIsEditing(true);
     }
     setEditingColor(key);
-    setHexInput(value);
+    const mode = isDark ? 'dark' : 'light';
+    setHexInput(pendingColors?.[mode]?.[key] || currentColors[key]);
   };
 
   const handleHexChange = (e) => {
@@ -59,34 +77,37 @@ export default function AdvancedAppearance() {
     if (/^#?[0-9A-F]{0,6}$/.test(val)) setHexInput(val);
   };
 
+  const handleColorPickerChange = (newHex) => {
+    setHexInput(newHex);
+    if (isEditing && pendingColors && editingColor) {
+      const mode = isDark ? 'dark' : 'light';
+      const updated = {
+        ...pendingColors,
+        [mode]: {
+          ...pendingColors[mode],
+          [editingColor]: newHex
+        }
+      };
+      setPendingColors(updated);
+      // Apply live
+      updateCustomColors(updated.light);
+    }
+  };
+
   const handleSaveColor = () => {
     if (editingColor && /^#[0-9A-F]{6}$/i.test(hexInput)) {
       const mode = isDark ? 'dark' : 'light';
-      const newColors = {
+      const updated = {
         ...pendingColors,
         [mode]: {
           ...pendingColors[mode],
           [editingColor]: hexInput
         }
       };
-      setPendingColors(newColors);
-      setHasPendingChanges(true);
+      setPendingColors(updated);
+      updateCustomColors(updated.light);
       setEditingColor(null);
     }
-  };
-
-  const handleApplyChanges = () => {
-    if (pendingColors) {
-      updateCustomColors(pendingColors.light);
-      setPendingColors(null);
-      setHasPendingChanges(false);
-    }
-  };
-
-  const handleCancelChanges = () => {
-    setPendingColors(null);
-    setHasPendingChanges(false);
-    setEditingColor(null);
   };
 
   const handleSaveCustomPreset = () => {
@@ -94,6 +115,20 @@ export default function AdvancedAppearance() {
       saveCustomPreset(presetName, pendingColors);
       setPresetName('');
       setShowSavePreset(false);
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setPendingColors(null);
+    setIsEditing(false);
+    setEditingColor(null);
+    setShowSavePreset(false);
+    setPresetName('');
+    // Revert to current theme's colors
+    const preset = allPresets[selectedTheme];
+    if (preset) {
+      updateCustomColors(preset.light);
     }
   };
 
@@ -109,7 +144,7 @@ export default function AdvancedAppearance() {
           </div>
           <div>
             <CardTitle className="text-lg">Advanced Appearance</CardTitle>
-            <CardDescription>Customize colors, fonts, and theme</CardDescription>
+            <CardDescription>Customize colors and theme</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -128,48 +163,6 @@ export default function AdvancedAppearance() {
           </Button>
         </div>
 
-        {/* Font Selection */}
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Font</p>
-          <div className="relative">
-            <button
-              onClick={() => setShowFontDropdown(!showFontDropdown)}
-              className="w-full px-3 py-2 rounded-lg border border-input bg-card text-left flex items-center justify-between hover:bg-muted/50"
-            >
-              <span>{FONT_OPTIONS.find(f => f.value === selectedFont)?.label || 'Select font'}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showFontDropdown ? 'rotate-180' : ''}`} />
-            </button>
-            {showFontDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50">
-                <input
-                  type="text"
-                  placeholder="Search fonts..."
-                  value={fontSearch}
-                  onChange={(e) => setFontSearch(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border-b border-border bg-card"
-                />
-                <div className="max-h-48 overflow-y-auto">
-                  {filteredFonts.map(font => (
-                    <button
-                      key={font.value}
-                      onClick={() => {
-                        setSelectedFont(font.value);
-                        setShowFontDropdown(false);
-                        setFontSearch('');
-                      }}
-                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted ${
-                        selectedFont === font.value ? 'bg-primary/10 text-primary' : ''
-                      }`}
-                    >
-                      {font.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Basic Preset Themes */}
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Theme Presets</p>
@@ -182,10 +175,7 @@ export default function AdvancedAppearance() {
               return (
                 <button
                   key={theme}
-                  onClick={() => {
-                    setSelectedTheme(theme);
-                    handleCancelChanges();
-                  }}
+                  onClick={() => handleSelectPreset(theme)}
                   className={`px-3 py-2 rounded-lg text-xs font-medium transition-all capitalize relative overflow-hidden ${
                     isSelected ? 'ring-2 ring-primary' : ''
                   }`}
@@ -224,8 +214,10 @@ export default function AdvancedAppearance() {
                       onClick={() => {
                         const colors = userCustomPresets[name];
                         updateCustomColors(colors.light);
+                        setSelectedTheme(name);
                         setShowCustomDropdown(false);
-                        handleCancelChanges();
+                        setIsEditing(false);
+                        setPendingColors(null);
                       }}
                       className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
                     >
@@ -241,7 +233,7 @@ export default function AdvancedAppearance() {
         {/* Color Customization */}
         <div className="space-y-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Custom Colors {(customColors || pendingColors) && '(Active)'}
+            Custom Colors {customColors && '(Editing)'}
           </p>
           <div className="grid grid-cols-2 gap-3">
             {Object.entries(colorLabels).map(([key, label]) => (
@@ -250,16 +242,16 @@ export default function AdvancedAppearance() {
                 <div
                   className="w-full h-10 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary"
                   style={{ backgroundColor: currentColors[key] }}
-                  onDoubleClick={() => handleColorDoubleClick(key, currentColors[key])}
-                  title="Double-click to edit"
+                  onClick={() => handleStartEditColor(key)}
+                  title="Click to edit"
                 />
               </div>
             ))}
           </div>
         </div>
 
-        {/* Save/Cancel for Custom Preset */}
-        {(customColors || pendingColors) && (
+        {/* Save/Cancel for Custom Editing */}
+        {isEditing && customColors && (
           <div className="flex gap-2">
             <Button
               onClick={() => setShowSavePreset(!showSavePreset)}
@@ -268,23 +260,13 @@ export default function AdvancedAppearance() {
             >
               Save as Preset
             </Button>
-            {hasPendingChanges && (
-              <>
-                <Button
-                  onClick={handleApplyChanges}
-                  className="flex-1 bg-primary hover:bg-primary/90"
-                >
-                  Save Changes
-                </Button>
-                <Button
-                  onClick={handleCancelChanges}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </>
-            )}
+            <Button
+              onClick={handleCancelEdit}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancel
+            </Button>
           </div>
         )}
 
@@ -318,7 +300,7 @@ export default function AdvancedAppearance() {
                 </button>
               </div>
               
-              <HexColorPicker color={hexInput} onChange={setHexInput} />
+              <HexColorPicker color={hexInput} onChange={handleColorPickerChange} />
               
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground">HEX</label>
