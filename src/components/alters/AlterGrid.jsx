@@ -62,7 +62,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")} className="bg-card/50 text-muted-foreground px-1 text-xs font-medium rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
 
           title={sortDir === "asc" ? "A → Z" : "Z → A"}>
           
@@ -72,7 +72,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setShowFolders(!showFolders)} className="bg-card/50 text-muted-foreground px-1 text-xs font-medium rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+          onClick={() => setShowFolders(!showFolders)} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
 
           title={showFolders ? "Hide groups" : "Show groups"}>
           
@@ -100,7 +100,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/groups")} className="bg-card/50 text-muted-foreground px-1 text-xs font-thin lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+          onClick={() => navigate("/groups")} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
 
           title="Manage groups">
           
