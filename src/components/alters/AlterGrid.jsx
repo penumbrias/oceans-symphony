@@ -49,7 +49,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
   return (
     <div>
       {/* Toolbar */}
-      <div className="my-5 flex items-center gap-3">
+      <div className="my-1 flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -119,7 +119,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {/* Alters list/grid */}
         <div>
           {showFolders && rootGroups.length > 0 &&
-          <h3 className="text-xs font-medium text-muted-foreground mb-3 px-1">{terms.Alters}</h3>
+          <h3 className="text-muted-foreground mb-3 px-1 text-xs font-medium">{terms.Alters}</h3>
           }
           {filtered.length > 0 ?
           viewMode === "list" ?
