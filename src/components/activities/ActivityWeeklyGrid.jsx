@@ -20,7 +20,6 @@ function emotionColor(name) {
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
 
-// Row height in px — must match both the fixed column and scrollable grid
 const ROW_H = 64;
 const HEADER_H = 73;
 
@@ -204,13 +203,13 @@ export default function ActivityWeeklyGrid({
       */}
       <div className="border border-border rounded-lg overflow-hidden flex">
         {/* Fixed time column — always visible */}
-        <div className="flex-shrink-0 w-20 bg-muted border-r border-border flex flex-col">
+        <div className="flex-shrink-0 w-14 bg-muted border-r border-border flex flex-col">
           {/* Spacer matching header height */}
           <div className="border-b border-border" style={{ height: HEADER_H, minHeight: HEADER_H }} />
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="px-2 text-xs font-medium text-muted-foreground text-right border-b border-border/50 flex items-center justify-end flex-shrink-0"
+              className="px-1 text-xs font-medium text-muted-foreground text-right border-b border-border/50 flex items-center justify-end flex-shrink-0"
               style={{ height: ROW_H, minHeight: ROW_H }}
             >
               {String(hour).padStart(2, "0")}:00

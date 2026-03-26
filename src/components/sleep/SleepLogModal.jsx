@@ -47,12 +47,26 @@ export default function SleepLogModal({
     try {
       const dateStr = format(selectedDate || new Date(), "yyyy-MM-dd");
       
+      const bedtimeISO = new Date(bedtime).toISOString();
+      const wakeTimeISO = new Date(wakeTime).toISOString();
+      const durationMinutes = Math.round((new Date(wakeTimeISO) - new Date(bedtimeISO)) / 60000);
+
       await base44.entities.Sleep.create({
         date: dateStr,
-        bedtime: new Date(bedtime).toISOString(),
-        wake_time: new Date(wakeTime).toISOString(),
+        bedtime: bedtimeISO,
+        wake_time: wakeTimeISO,
         quality: quality || null,
         notes: notes || null,
+      });
+
+      // Create matching Activity so it appears in the Activity Tracker
+      await base44.entities.Activity.create({
+        timestamp: bedtimeISO,
+        activity_name: "Sleep",
+        duration_minutes: durationMinutes,
+        color: "#6366f1",
+        notes: notes || null,
+        activity_category_ids: [],
       });
 
       setBedtime("");
