@@ -12,6 +12,7 @@ export default function AdvancedAppearance() {
   const [editingColor, setEditingColor] = useState(null);
   const [hexInput, setHexInput] = useState('');
   const [pendingColors, setPendingColors] = useState(null);
+  const [originalTheme, setOriginalTheme] = useState(selectedTheme);
 
   // Determine current display mode
   const isDark = themeMode === 'dark' || (themeMode === 'system' && document.documentElement.classList.contains('dark'));
@@ -23,8 +24,6 @@ export default function AdvancedAppearance() {
     secondary: 'Secondary',
     accent: 'Accent',
     muted: 'Muted',
-    'text-primary': 'Text Primary',
-    'text-secondary': 'Text Secondary',
   };
 
   // Get current display colors
@@ -49,6 +48,7 @@ export default function AdvancedAppearance() {
   const handleStartEditColor = (key) => {
     // Initialize pending colors if not already editing
     if (!pendingColors) {
+      setOriginalTheme(selectedTheme);
       const lightColors = customColors?.light || (allPresets[selectedTheme]?.light || {});
       const darkColors = customColors?.dark || (allPresets[selectedTheme]?.dark || {});
       setPendingColors({
@@ -104,6 +104,7 @@ export default function AdvancedAppearance() {
     setPendingColors(null);
     setEditingColor(null);
     clearCustomColors();
+    setSelectedTheme(originalTheme);
   };
 
   const basicThemes = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
