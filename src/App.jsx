@@ -16,7 +16,7 @@ import Settings from '@/pages/Settings';
 import Analytics from '@/pages/Analytics';
 import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
-import DailyTasks from '@/pages/DailyTasks';
+import DailyTasks from '@/pages/DailyTasks.jsx';
 import GroupsManager from '@/pages/GroupsManager';
 import SystemCheckIn from '@/pages/SystemCheckIn';
 import ActivityTracker from '@/pages/ActivityTracker';

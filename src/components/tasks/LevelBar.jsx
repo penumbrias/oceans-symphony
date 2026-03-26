@@ -1,5 +1,5 @@
 import React from "react";
-import { getLevelFromTotalXP } from "@/lib/dailyTasks";
+import { getLevelFromTotalXP } from "@/lib/dailyTaskSystem";
 
 export default function LevelBar({ totalXP, todayXP, todayPossibleXP, streak, bestStreak }) {
   const { level, xpIntoLevel, xpForNextLevel } = getLevelFromTotalXP(totalXP);

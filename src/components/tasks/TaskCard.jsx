@@ -2,44 +2,46 @@ import React from "react";
 import { Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const NAV_MAP = {
-  parts_checkin: "/system-checkin",
-  card_entry: "/diary",
-  journal_entry: "/journals",
-  check_in: null,
-};
-
 export default function TaskCard({ task, completed, onToggle }) {
   const navigate = useNavigate();
 
-  const handleClick = () => {
-    const path = NAV_MAP[task.id];
-    if (path) navigate(path);
+  const handleCardClick = () => {
+    if (task.mode === "AUTO" && task.nav_path) navigate(task.nav_path);
+    if (task.mode === "MANUAL" && task.nav_path) navigate(task.nav_path);
   };
+
+  const isClickable = !!task.nav_path;
 
   return (
     <div
-      onClick={handleClick}
-      className={`bg-card border rounded-xl p-4 transition-all ${NAV_MAP[task.id] ? "cursor-pointer hover:border-primary/40" : ""} ${
+      onClick={isClickable ? handleCardClick : undefined}
+      className={`bg-card border rounded-xl p-4 transition-all ${isClickable ? "cursor-pointer hover:border-primary/40" : ""} ${
         completed ? "border-primary/30 bg-primary/5" : "border-border/50"
-      }`}>
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="font-semibold text-sm text-foreground">{task.label}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full border border-border/60 text-muted-foreground font-medium">
-              {task.type}
+            <span className="font-semibold text-sm text-foreground">{task.title}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+              task.mode === "AUTO"
+                ? "border-blue-400/50 text-blue-500"
+                : "border-border/60 text-muted-foreground"
+            }`}>
+              {task.mode}
             </span>
             <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-              {task.xp} pts
+              {task.points} pts
             </span>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">{task.description}</p>
+          {task.description && (
+            <p className="text-xs text-muted-foreground leading-relaxed">{task.description}</p>
+          )}
         </div>
 
-        {task.type === "MANUAL" ? (
+        {task.mode === "MANUAL" ? (
           <button
-            onClick={() => onToggle(task.id)}
+            onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
             className={`flex-shrink-0 w-12 h-6 rounded-full transition-all duration-300 relative ${
               completed ? "bg-primary" : "bg-muted"
             }`}
