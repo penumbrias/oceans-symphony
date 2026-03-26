@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pin, Search, X, CheckSquare } from "lucide-react";
+import TaskBulletinCard from "./TaskBulletinCard";
 import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
 import BulletinComposer from "./BulletinComposer";
@@ -16,10 +17,9 @@ function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
   const handleKeyDown = async (e) => {
     if (e.key !== "Enter" || !text.trim()) return;
     setSaving(true);
-    await base44.entities.Task.create({ title: text.trim(), completed: false, priority: "medium" });
-    // Also post to bulletin board
+    const task = await base44.entities.Task.create({ title: text.trim(), completed: false, priority: "medium" });
     await base44.entities.Bulletin.create({
-      content: `☑️ New task added: ${text.trim()}`,
+      content: `[task:${task.id}] ${text.trim()}`,
       author_alter_ids: frontingAlterIds,
       author_alter_id: frontingAlterIds[0] || null,
       reactions: {},
@@ -159,7 +159,11 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
           <div className="space-y-3">
             {pinned.map(b => (
               <div key={b.id} ref={el => (bulletinRefs.current[b.id] = el)}>
-                <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+                {b.content?.match(/^\[task:/) ? (
+                  <TaskBulletinCard bulletin={b} alters={alters} frontingAlterIds={frontingAlterIds} highlight={highlightBulletinId === b.id} />
+                ) : (
+                  <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+                )}
               </div>
             ))}
           </div>
@@ -173,7 +177,11 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
           <div className="space-y-3">
             {filteredRecent.slice(0, visibleCount).map(b => (
               <div key={b.id} ref={el => (bulletinRefs.current[b.id] = el)}>
-                <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+                {b.content?.match(/^\[task:/) ? (
+                  <TaskBulletinCard bulletin={b} alters={alters} frontingAlterIds={frontingAlterIds} highlight={highlightBulletinId === b.id} />
+                ) : (
+                  <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+                )}
               </div>
             ))}
           </div>

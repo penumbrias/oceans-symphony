@@ -95,7 +95,7 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
 
   return (
     <div
-      className={`bg-card border rounded-2xl p-4 transition-all duration-700 cursor-pointer select-none ${
+      className={`bg-card border rounded-2xl p-4 transition-all duration-700 cursor-pointer ${
         highlight ? "border-primary ring-2 ring-primary/30 bg-primary/5" :
         bulletin.is_pinned ? "border-primary/40 bg-primary/5" : "border-border/50"
       }`}

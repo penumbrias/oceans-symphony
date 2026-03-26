@@ -256,42 +256,77 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
           <DialogTitle>Activity Details</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {activities.map((act) => {
-            const isEditing = editingId === act.id;
-            const startTime = new Date(act.timestamp);
-            const endTime = addMinutes(startTime, act.duration_minutes || 60);
-            const activityAlters = (act.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
-            const emotions = getEmotionsNearActivity(act);
+        <div className="space-y-4">
+          {editingId ? (() => {
+            const act = activities.find(a => a.id === editingId);
+            if (!act) return null;
             const color = getActivityColor(act);
-
             return (
-              <div key={act.id} className="border border-border rounded-lg p-4 space-y-4">
-                {!isEditing ? (
-                  <div className="space-y-3">
-                    {/* Title */}
+              <div className="space-y-4">
+                <div className="rounded-lg p-3 text-center font-semibold"
+                  style={{ backgroundColor: color, color: getContrastColor(color) }}>
+                  ✏️ Editing: {act.activity_name}
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-sm font-medium block mb-1">Start</label>
+                    <input type="datetime-local" value={(editDataMap[act.id] || {}).startTimeStr || ""}
+                      onChange={e => setEditDataForAct(act.id, d => ({ ...d, startTimeStr: e.target.value }))}
+                      className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-sm font-medium block mb-1">End</label>
+                    <input type="datetime-local" value={(editDataMap[act.id] || {}).endTimeStr || ""}
+                      onChange={e => setEditDataForAct(act.id, d => ({ ...d, endTimeStr: e.target.value }))}
+                      className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
+                  </div>
+                </div>
+                <ActivityPillSelector
+                  selectedActivities={(editDataMap[act.id] || {}).activity_category_ids || []}
+                  onActivityChange={(ids) => setEditDataForAct(act.id, d => ({ ...d, activity_category_ids: ids }))}
+                />
+                <AlterSelector
+                  selectedIds={(editDataMap[act.id] || {}).fronting_alter_ids || []}
+                  onChange={(ids) => setEditDataForAct(act.id, d => ({ ...d, fronting_alter_ids: ids }))}
+                  alters={alters}
+                />
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Notes</label>
+                  <MentionTextarea
+                    value={(editDataMap[act.id] || {}).notes || ""}
+                    onChange={(v) => setEditDataForAct(act.id, d => ({ ...d, notes: v }))}
+                    alters={alters}
+                    placeholder="Add any notes... use @ to mention an alter"
+                    className="h-20"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setEditingId(null)} disabled={isLoading} className="flex-1">Cancel</Button>
+                  <Button onClick={() => handleSave(act)} disabled={isLoading} className="flex-1">
+                    {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save
+                  </Button>
+                </div>
+              </div>
+            );
+          })() : (
+            <div className="space-y-4">
+              {activities.map((act) => {
+                const startTime = new Date(act.timestamp);
+                const endTime = addMinutes(startTime, act.duration_minutes || 60);
+                const activityAlters = (act.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
+                const emotions = getEmotionsNearActivity(act);
+                const color = getActivityColor(act);
+                return (
+                  <div key={act.id} className="border border-border rounded-lg p-4 space-y-3">
                     <div className="rounded-lg p-3 text-center font-semibold text-lg"
                       style={{ backgroundColor: color, color: getContrastColor(color) }}>
                       {act.activity_name}
                     </div>
-
-                    {/* Time */}
                     <div className="grid grid-cols-3 gap-3 text-sm bg-muted/30 rounded-lg p-3">
-                      <div>
-                        <p className="text-muted-foreground text-xs font-semibold mb-1">Start</p>
-                        <p className="font-medium">{format(startTime, "HH:mm")}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs font-semibold mb-1">End</p>
-                        <p className="font-medium">{format(endTime, "HH:mm")}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs font-semibold mb-1">Duration</p>
-                        <p className="font-medium">{Math.round((act.duration_minutes || 60) / 60 * 10) / 10}h</p>
-                      </div>
+                      <div><p className="text-muted-foreground text-xs font-semibold mb-1">Start</p><p className="font-medium">{format(startTime, "HH:mm")}</p></div>
+                      <div><p className="text-muted-foreground text-xs font-semibold mb-1">End</p><p className="font-medium">{format(endTime, "HH:mm")}</p></div>
+                      <div><p className="text-muted-foreground text-xs font-semibold mb-1">Duration</p><p className="font-medium">{Math.round((act.duration_minutes || 60) / 60 * 10) / 10}h</p></div>
                     </div>
-
-                    {/* Selected categories */}
                     {(act.activity_category_ids || []).length > 0 && (
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Categories</p>
@@ -299,25 +334,17 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                           {(act.activity_category_ids || []).map(id => {
                             const cat = catById[id];
                             if (!cat) return null;
-                            return (
-                              <span key={id} className="px-2.5 py-1 rounded-full text-xs font-medium text-white"
-                                style={{ backgroundColor: cat.color || "#8b5cf6" }}>
-                                {cat.name}
-                              </span>
-                            );
+                            return <span key={id} className="px-2.5 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: cat.color || "#8b5cf6" }}>{cat.name}</span>;
                           })}
                         </div>
                       </div>
                     )}
-
-                    {/* Alters */}
                     {activityAlters.length > 0 && (
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Fronting Alters</p>
                         <div className="flex flex-wrap gap-2">
                           {activityAlters.map(alter => (
-                            <div key={alter.id} className="px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2"
-                              style={{ borderColor: alter.color || "#999" }}>
+                            <div key={alter.id} className="px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2" style={{ borderColor: alter.color || "#999" }}>
                               {alter.avatar_url && <img src={alter.avatar_url} alt={alter.name} className="w-5 h-5 rounded-full object-cover" />}
                               <span>{alter.alias || alter.name}</span>
                             </div>
@@ -325,30 +352,22 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                         </div>
                       </div>
                     )}
-
-                    {/* Emotions */}
                     {emotions.length > 0 && (
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Emotions</p>
                         <div className="flex flex-wrap gap-1.5">
                           {emotions.map((emotion, idx) => (
-                            <span key={idx} className="px-2.5 py-1 rounded-full text-xs font-medium text-white"
-                              style={{ backgroundColor: emotionColor(emotion) }}>
-                              {emotion}
-                            </span>
+                            <span key={idx} className="px-2.5 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: emotionColor(emotion) }}>{emotion}</span>
                           ))}
                         </div>
                       </div>
                     )}
-
-                    {/* Notes */}
                     {act.notes && (
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Notes</p>
                         <p className="text-sm bg-muted/30 rounded-lg p-3">{act.notes}</p>
                       </div>
                     )}
-
                     <div className="flex gap-2 pt-2">
                       <Button variant="outline" onClick={() => handleEdit(act)} className="flex-1">Edit</Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDelete(act.id)} disabled={isLoading}>
@@ -356,57 +375,10 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                       </Button>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Start / End time — datetime-local supports cross-day spans */}
-                     <div className="flex gap-3">
-                       <div className="flex-1">
-                         <label className="text-sm font-medium block mb-1">Start</label>
-                         <input type="datetime-local" value={(editDataMap[act.id] || {}).startTimeStr || ""}
-                           onChange={e => setEditDataForAct(act.id, d => ({ ...d, startTimeStr: e.target.value }))}
-                           className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
-                       </div>
-                       <div className="flex-1">
-                         <label className="text-sm font-medium block mb-1">End</label>
-                         <input type="datetime-local" value={(editDataMap[act.id] || {}).endTimeStr || ""}
-                           onChange={e => setEditDataForAct(act.id, d => ({ ...d, endTimeStr: e.target.value }))}
-                          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
-                      </div>
-                    </div>
-
-                    <ActivityPillSelector
-                      selectedActivities={(editDataMap[act.id] || {}).activity_category_ids || []}
-                      onActivityChange={(ids) => setEditDataForAct(act.id, d => ({ ...d, activity_category_ids: ids }))}
-                    />
-
-                    <AlterSelector
-                      selectedIds={(editDataMap[act.id] || {}).fronting_alter_ids || []}
-                      onChange={(ids) => setEditDataForAct(act.id, d => ({ ...d, fronting_alter_ids: ids }))}
-                      alters={alters}
-                    />
-
-                    <div>
-                       <label className="block text-sm font-semibold mb-2">Notes</label>
-                      <MentionTextarea
-                         value={(editDataMap[act.id] || {}).notes || ""}
-                         onChange={(v) => setEditDataForAct(act.id, d => ({ ...d, notes: v }))}
-                        alters={alters}
-                        placeholder="Add any notes... use @ to mention an alter"
-                        className="h-20"
-                      />
-                    </div>
-
-                    <div className="flex gap-2 pt-2">
-                      <Button variant="outline" onClick={() => setEditingId(null)} disabled={isLoading} className="flex-1">Cancel</Button>
-                      <Button onClick={() => handleSave(act)} disabled={isLoading} className="flex-1">
-                        {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

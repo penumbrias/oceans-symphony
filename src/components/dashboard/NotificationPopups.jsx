@@ -22,7 +22,7 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
     (m) =>
       frontingAlterIds.includes(m.mentioned_alter_id) &&
       !dismissed.has(m.id) &&
-      !m.source_type?.endsWith("_sent")
+      m.log_type !== "authored"
   );
 
   if (relevant.length === 0) return null;
