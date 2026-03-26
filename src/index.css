@@ -85,8 +85,31 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    /* Disable native browser bounce/overscroll */
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
+    /* Safe area insets for notched/home-indicator devices */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    overscroll-behavior: none;
+  }
+
+  /* Prevent text selection on interactive/button elements */
+  button, a, [role="button"], nav {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Preserve text selection in reading/content areas */
+  p, span, h1, h2, h3, h4, h5, h6, li, blockquote, .selectable {
+    -webkit-user-select: text;
+    user-select: text;
   }
 }
