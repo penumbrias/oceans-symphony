@@ -131,7 +131,19 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     }
   };
 
-
+  const handleDisconnect = async () => {
+    if (!settings?.id) return;
+    try {
+      await base44.entities.SystemSettings.update(settings.id, {
+        sp_token: "",
+        sp_system_id: "",
+      });
+      onSettingsChange();
+      toast.success("Disconnected from Simply Plural");
+    } catch (e) {
+      toast.error(e.message || "Disconnect failed");
+    }
+  };
 
   return (
     <Card className="border-border/50">
