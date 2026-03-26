@@ -18,7 +18,7 @@ import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
-import AdvancedAppearance from "@/components/settings/AdvancedAppearance";
+import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import { isLocalMode } from "@/lib/storageMode";
 
 export default function Settings() {

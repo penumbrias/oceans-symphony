@@ -2,6 +2,17 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeContext = createContext();
 
+export const FONT_OPTIONS = [
+  { label: 'Inter', value: 'inter' },
+  { label: 'Playfair Display', value: 'display' },
+  { label: 'System Sans', value: 'system-sans' },
+  { label: 'Georgia', value: 'georgia' },
+  { label: 'Courier', value: 'courier' },
+  { label: 'Trebuchet MS', value: 'trebuchet' },
+  { label: 'Verdana', value: 'verdana' },
+  { label: 'Comic Sans', value: 'comic-sans' },
+];
+
 const THEME_PRESETS = {
   warm: {
     light: {
@@ -135,7 +146,89 @@ const THEME_PRESETS = {
       'text-secondary': '#F0ABFC',
     },
   },
+  charcoal: {
+    light: {
+      bg: '#F5F5F5',
+      surface: '#EBEBEB',
+      primary: '#3F3F3F',
+      secondary: '#D9D9D9',
+      accent: '#5A5A5A',
+      muted: '#BFBFBF',
+      'text-primary': '#1A1A1A',
+      'text-secondary': '#555555',
+    },
+    dark: {
+      bg: '#1A1A1A',
+      surface: '#2D2D2D',
+      primary: '#A0A0A0',
+      secondary: '#3F3F3F',
+      accent: '#BFBFBF',
+      muted: '#4A4A4A',
+      'text-primary': '#F5F5F5',
+      'text-secondary': '#D9D9D9',
+    },
+  },
+  ivory: {
+    light: {
+      bg: '#FFFEF9',
+      surface: '#F8F6F1',
+      primary: '#8B7355',
+      secondary: '#E8E5DC',
+      accent: '#A68B7E',
+      muted: '#D4CEC3',
+      'text-primary': '#3E3E38',
+      'text-secondary': '#6B6660',
+    },
+    dark: {
+      bg: '#2A2824',
+      surface: '#37332D',
+      primary: '#8B7355',
+      secondary: '#4A4641',
+      accent: '#A68B7E',
+      muted: '#5A5550',
+      'text-primary': '#E8E5DC',
+      'text-secondary': '#C4BFB4',
+    },
+  },
 };
+
+// Custom preset themes (from user screenshots)
+const CUSTOM_PRESETS = {
+  antiquePeach: { 
+    light: { bg: '#FFE8D1', surface: '#FFE8D1', primary: '#F4A460', secondary: '#FFE8D1', accent: '#D2691E', muted: '#DEB887', 'text-primary': '#5C4033', 'text-secondary': '#8B6F47' },
+    dark: { bg: '#3E2723', surface: '#5D4037', primary: '#FF8C42', secondary: '#4E342E', accent: '#FF6F00', muted: '#795548', 'text-primary': '#EFEBE9', 'text-secondary': '#BCAAA4' }
+  },
+  oceanBlue: {
+    light: { bg: '#5E8EA3', surface: '#6BA3B8', primary: '#4A7BA7', secondary: '#B8E1F0', accent: '#2F5C7D', muted: '#7DADCF', 'text-primary': '#0D2D44', 'text-secondary': '#1A4D6B' },
+    dark: { bg: '#0D2D44', surface: '#1A4D6B', primary: '#4A7BA7', secondary: '#2F5C7D', accent: '#6BA3B8', muted: '#3A6B8F', 'text-primary': '#B8E1F0', 'text-secondary': '#7DADCF' }
+  },
+  amethyst: {
+    light: { bg: '#E8D5F2', surface: '#D4B5E8', primary: '#9B59B6', secondary: '#D4B5E8', accent: '#8E44AD', muted: '#C9AFDE', 'text-primary': '#4A235A', 'text-secondary': '#6B3A7D' },
+    dark: { bg: '#2C1A3E', surface: '#441A5E', primary: '#BA68C8', secondary: '#6B3A7D', accent: '#CE93D8', muted: '#7B4A8F', 'text-primary': '#E8D5F2', 'text-secondary': '#D4B5E8' }
+  },
+  salmonSunset: {
+    light: { bg: '#FFD4CC', surface: '#FFCFC5', primary: '#FF6B4A', secondary: '#FFDDD4', accent: '#FF9A6E', muted: '#FFBFA7', 'text-primary': '#8B3A2B', 'text-secondary': '#B8594A' },
+    dark: { bg: '#3D1F1A', surface: '#5A2F27', primary: '#FF9A6E', secondary: '#7A4033', accent: '#FFAC81', muted: '#8B5F52', 'text-primary': '#FFCFC5', 'text-secondary': '#FFBFA7' }
+  },
+  dustyRose: {
+    light: { bg: '#E8CCC7', surface: '#D9B8B1', primary: '#B98580', secondary: '#E8CCC7', accent: '#A67C78', muted: '#D4A49F', 'text-primary': '#5C3F39', 'text-secondary': '#8B5A54' },
+    dark: { bg: '#3D2928', surface: '#522F2A', primary: '#C9A8A3', secondary: '#6B4743', accent: '#D4A49F', muted: '#8B6962', 'text-primary': '#E8CCC7', 'text-secondary': '#D9B8B1' }
+  },
+  forestGreen: {
+    light: { bg: '#D4E8D4', surface: '#C4DEC4', primary: '#5BA65B', secondary: '#DCEAE0', accent: '#4A8F4A', muted: '#B8D4B8', 'text-primary': '#234A23', 'text-secondary': '#3A6B3A' },
+    dark: { bg: '#1A3A1A', surface: '#2D4A2D', primary: '#7BC87B', secondary: '#3A6B3A', accent: '#9ACD9A', muted: '#5A8F5A', 'text-primary': '#D4E8D4', 'text-secondary': '#C4DEC4' }
+  },
+  softLavender: {
+    light: { bg: '#F0E8F5', surface: '#E8DFF0', primary: '#B8A3D4', secondary: '#E8DFF0', accent: '#9B8DB8', muted: '#D9CCEB', 'text-primary': '#5A3F75', 'text-secondary': '#7B5A99' },
+    dark: { bg: '#3A2D52', surface: '#4A3A63', primary: '#C9AFDB', secondary: '#6B5483', accent: '#DAC5EB', muted: '#8B7BA3', 'text-primary': '#F0E8F5', 'text-secondary': '#E8DFF0' }
+  },
+  mintGreen: {
+    light: { bg: '#D4EDEA', surface: '#C4E4E0', primary: '#5BB8A8', secondary: '#DFF0EE', accent: '#4A9A8F', muted: '#B8D9D1', 'text-primary': '#1A5A52', 'text-secondary': '#2D8B78' },
+    dark: { bg: '#1A3A38', surface: '#2D5A54', primary: '#7BC9B8', secondary: '#3D7B6F', accent: '#9ADCD9', muted: '#5A9B90', 'text-primary': '#D4EDEA', 'text-secondary': '#C4E4E0' }
+  },
+};
+
+export const ALL_PRESETS = { ...THEME_PRESETS, ...CUSTOM_PRESETS };
 
 // Convert HEX to RGB
 function hexToRgb(hex) {
@@ -221,6 +314,8 @@ export function ThemeProvider({ children }) {
   const [themeMode, setThemeMode] = useState('system');
   const [selectedTheme, setSelectedTheme] = useState('cool');
   const [customColors, setCustomColors] = useState(null);
+  const [selectedFont, setSelectedFont] = useState('inter');
+  const [userCustomPresets, setUserCustomPresets] = useState({});
   const [mounted, setMounted] = useState(false);
   const [isDarkOS, setIsDarkOS] = useState(false);
 
@@ -228,10 +323,14 @@ export function ThemeProvider({ children }) {
     const saved = localStorage.getItem('symphony_themeMode');
     const savedTheme = localStorage.getItem('symphony_selectedTheme');
     const savedCustom = localStorage.getItem('symphony_customColors');
+    const savedFont = localStorage.getItem('symphony_selectedFont');
+    const savedUserPresets = localStorage.getItem('symphony_userCustomPresets');
     
     setThemeMode(saved || 'system');
     setSelectedTheme(savedTheme || 'cool');
     if (savedCustom) setCustomColors(JSON.parse(savedCustom));
+    if (savedFont) setSelectedFont(savedFont);
+    if (savedUserPresets) setUserCustomPresets(JSON.parse(savedUserPresets));
     
     const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
     setIsDarkOS(darkMq.matches);
@@ -247,6 +346,8 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('symphony_themeMode', themeMode);
     localStorage.setItem('symphony_selectedTheme', selectedTheme);
     if (customColors) localStorage.setItem('symphony_customColors', JSON.stringify(customColors));
+    localStorage.setItem('symphony_selectedFont', selectedFont);
+    localStorage.setItem('symphony_userCustomPresets', JSON.stringify(userCustomPresets));
     
     const isDark = themeMode === 'dark' || (themeMode === 'system' && isDarkOS);
     document.documentElement.classList.toggle('dark', isDark);
@@ -255,18 +356,26 @@ export function ThemeProvider({ children }) {
     if (customColors) {
       colors = isDark ? customColors.dark : customColors.light;
     } else {
-      colors = isDark ? THEME_PRESETS[selectedTheme].dark : THEME_PRESETS[selectedTheme].light;
+      const theme = ALL_PRESETS[selectedTheme];
+      colors = isDark ? theme.dark : theme.light;
     }
     
     for (const [key, value] of Object.entries(colors)) {
       document.documentElement.style.setProperty(`--color-${key}`, value);
     }
-  }, [themeMode, selectedTheme, customColors, mounted, isDarkOS]);
+  }, [themeMode, selectedTheme, customColors, mounted, isDarkOS, selectedFont, userCustomPresets]);
 
   const updateCustomColors = (newLight) => {
     const newDark = generateDarkTheme(newLight);
     setCustomColors({ light: newLight, dark: newDark });
     setSelectedTheme('custom');
+  };
+
+  const saveCustomPreset = (name, colors) => {
+    setUserCustomPresets(prev => ({
+      ...prev,
+      [name]: colors
+    }));
   };
 
   const cycleThemeMode = () => {
@@ -284,6 +393,11 @@ export function ThemeProvider({ children }) {
       cycleThemeMode,
       presets: THEME_PRESETS,
       setSelectedTheme,
+      selectedFont,
+      setSelectedFont,
+      userCustomPresets,
+      saveCustomPreset,
+      allPresets: ALL_PRESETS,
     }}>
       {children}
     </ThemeContext.Provider>
