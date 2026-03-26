@@ -19,6 +19,7 @@ import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import ThemeColorSettings from "@/components/settings/ThemeColorSettings";
+import AdvancedAppearance from "@/components/settings/AdvancedAppearance";
 import { isLocalMode } from "@/lib/storageMode";
 
 export default function Settings() {
@@ -186,10 +187,13 @@ export default function Settings() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+          </Card>
 
-        {/* Terminology */}
-        <TermsSettings />
+          {/* Advanced Appearance */}
+          <AdvancedAppearance />
+
+          {/* Terminology */}
+          <TermsSettings />
 
          {/* Account */}
          {!isLocalMode() && (

@@ -105,7 +105,7 @@ export default function DataBackupRestore() {
             if (!ENTITY_NAMES.includes(entityName)) continue;
             const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap || {});
             for (const record of records) {
-              const { id, created_date, updated_date, created_by, ...data } = record;
+              const { id, ...data } = record;
               try { await base44.entities[entityName].create(data); count++; } catch {}
             }
           }
