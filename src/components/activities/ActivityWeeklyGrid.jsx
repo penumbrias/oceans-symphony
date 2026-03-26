@@ -206,7 +206,7 @@ export default function ActivityWeeklyGrid({
         <div className="inline-grid gap-0 border border-border rounded-lg overflow-hidden">
           {/* Header row */}
           <div className="grid grid-cols-[80px_repeat(7,120px)] gap-0 bg-card border-b border-border">
-            <div className="bg-muted/50 p-2 sticky left-0 z-20"></div>
+            <div className="bg-muted p-2 sticky left-0 z-20"></div>
             {weekDays.map((date) => {
               const stats = getDayStats(date);
               return (
@@ -226,7 +226,7 @@ export default function ActivityWeeklyGrid({
           {/* Time blocks */}
           {HOURS.map((hour) => (
             <div key={hour} className="grid grid-cols-[80px_repeat(7,120px)] gap-0 border-b border-border/50">
-              <div className="bg-muted/30 px-2 py-3 text-xs font-medium text-muted-foreground text-right sticky left-0 z-10">
+              <div className="bg-muted px-2 py-3 text-xs font-medium text-muted-foreground text-right sticky left-0 z-10 border-r border-border/50">
                 {String(hour).padStart(2, "0")}:00
               </div>
               {weekDays.map((date) => {
