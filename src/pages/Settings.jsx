@@ -14,6 +14,9 @@ import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
+import StorageModeSettings from "@/components/settings/StorageModeSettings";
+import DataBackupRestore from "@/components/settings/DataBackupRestore";
+import { isLocalMode } from "@/lib/storageMode";
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -185,6 +188,7 @@ export default function Settings() {
         <TermsSettings />
 
         {/* Simply Plural */}
+        {!isLocalMode() && (
         <SimplyPluralConnect
            settings={settings}
            onSettingsChange={() => {
@@ -192,8 +196,10 @@ export default function Settings() {
              queryClient.invalidateQueries({ queryKey: ["alters"] });
            }}
          />
+        )}
 
          {/* Account */}
+         {!isLocalMode() && (
          <Card className="border-border/50">
            <CardHeader>
              <div className="flex items-center gap-3">
@@ -236,6 +242,7 @@ export default function Settings() {
              )}
            </CardContent>
          </Card>
+         )}
 
          {/* Diary Template */}
          <DiaryTemplateManager settings={settings} />
@@ -245,6 +252,12 @@ export default function Settings() {
 
          {/* Archived Alters */}
          <ArchivedAltersManager />
+
+         {/* Storage Mode */}
+         <StorageModeSettings />
+
+         {/* Backup & Export */}
+         <DataBackupRestore />
       </div>
     </motion.div>
   );

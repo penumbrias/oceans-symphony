@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
+import { isLocalMode, getMode } from '@/lib/storageMode';
 
 const AuthContext = createContext();
 
@@ -14,6 +15,17 @@ export const AuthProvider = ({ children }) => {
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
 
   useEffect(() => {
+    // In local mode, skip cloud auth entirely
+    if (isLocalMode()) {
+      (async () => {
+        const localUser = await base44.auth.me();
+        setUser(localUser);
+        setIsAuthenticated(true);
+        setIsLoadingAuth(false);
+        setIsLoadingPublicSettings(false);
+      })();
+      return;
+    }
     checkAppState();
   }, []);
 

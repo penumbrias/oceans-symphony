@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster"
+import { useState, useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -26,6 +27,9 @@ import Timeline from '@/pages/Timeline.jsx';
 import CoFrontingAnalytics from '@/pages/CoFrontingAnalytics';
 import SystemMapPage from '@/pages/SystemMap';
 import BulletinPage from '@/pages/BulletinPage';
+import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
+import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
+import { isDbInitialized, initLocalDb } from '@/lib/localDb';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -84,6 +88,24 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  const [setupState, setSetupState] = useState(() => {
+    if (isFirstRun()) return 'first_run';
+    if (isLocalMode() && isEncryptionEnabled() && !isDbInitialized()) return 'unlock';
+    if (isLocalMode() && !isDbInitialized()) {
+      // Auto-init unencrypted local db
+      initLocalDb(null).catch(() => {});
+    }
+    return null;
+  });
+
+  if (setupState) {
+    return (
+      <StorageModeSetup
+        mode={setupState}
+        onComplete={() => setSetupState(null)}
+      />
+    );
+  }
 
   return (
     <ThemeProvider>
