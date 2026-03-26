@@ -233,12 +233,15 @@ export default function Settings() {
                  <Button size="sm" onClick={handleSignOut} variant="outline" className="w-full">Sign Out Now</Button>
                </div>
              )}
-           </CardContent>
-         </Card>
-         )}
+             <div className="border-t border-border pt-4 space-y-3">
+               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Data Management</p>
+               <DataBackupRestore />
+             </div>
+             </CardContent>
+             </Card>
+             )}
 
-         {/* Storage Mode */}
-         <StorageModeSettings />
+
 
          {/* Integrations */}
          {!isLocalMode() && (

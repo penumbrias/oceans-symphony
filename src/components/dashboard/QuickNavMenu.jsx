@@ -51,7 +51,7 @@ function buildGridItems(altersLabel, frontLabel, systemLabel) {
 export default function QuickNavMenu() {
   const terms = useTerms();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isGridLayout, setIsGridLayout] = useState(false);
+  const [isGridLayout, setIsGridLayout] = useState(() => localStorage.getItem("nav_grid_layout") === "true");
   const NAV_GROUPS = useMemo(() => buildNavGroups(terms.Alters, terms.System, terms.Front, terms.Switch), [terms.Alters, terms.System, terms.Front, terms.Switch]);
   const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.Front, terms.System), [terms.Alters, terms.Front, terms.System]);
 
@@ -104,7 +104,11 @@ export default function QuickNavMenu() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setIsGridLayout(!isGridLayout)}
+          onClick={() => {
+            const newState = !isGridLayout;
+            setIsGridLayout(newState);
+            localStorage.setItem("nav_grid_layout", newState ? "true" : "false");
+          }}
           title={isGridLayout ? "Switch to list view" : "Switch to grid view"}
         >
           {isGridLayout ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}

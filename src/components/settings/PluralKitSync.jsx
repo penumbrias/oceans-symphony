@@ -188,22 +188,25 @@ export default function PluralKitSync() {
      let successCount = 0;
      for (const member of members) {
        try {
-         const existing = existingMembers.find(m => m.id === member.id);
+         // Match existing members by sp_id (our internal PluralKit ID)
+         const pkId = member.id;
+         const existing = existingMembers.find(m => m.id === pkId);
 
          if (syncMode === "replace-all" || !existing) {
-           // Create new
+           // Create new (no ID in request body for creation)
+           const { id, ...memberData } = member;
            const response = await fetch("https://api.pluralkit.me/v2/members", {
              method: "POST",
              headers: {
                "Content-Type": "application/json",
                "Authorization": token,
              },
-             body: JSON.stringify(member),
+             body: JSON.stringify(memberData),
            });
            if (response.ok) successCount++;
          } else if (syncMode === "update-existing" && existing) {
            // Update existing
-           const response = await fetch(`https://api.pluralkit.me/v2/members/${member.id}`, {
+           const response = await fetch(`https://api.pluralkit.me/v2/members/${pkId}`, {
              method: "PATCH",
              headers: {
                "Content-Type": "application/json",
@@ -213,14 +216,15 @@ export default function PluralKitSync() {
            });
            if (response.ok) successCount++;
          } else if (syncMode === "new-only" && !existing) {
-           // Only sync new
+           // Only sync new (no ID in request body for creation)
+           const { id, ...memberData } = member;
            const response = await fetch("https://api.pluralkit.me/v2/members", {
              method: "POST",
              headers: {
                "Content-Type": "application/json",
                "Authorization": token,
              },
-             body: JSON.stringify(member),
+             body: JSON.stringify(memberData),
            });
            if (response.ok) successCount++;
          }
