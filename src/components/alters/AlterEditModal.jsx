@@ -9,9 +9,11 @@ import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users } from "lucide-re
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
+import { useTerms } from "@/lib/useTerms";
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) {
   const queryClient = useQueryClient();
+  const t = useTerms();
   const isNew = mode === "create";
 
   const [form, setForm] = useState({
@@ -49,7 +51,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
     try {
       if (isNew) {
         await base44.entities.Alter.create({ ...form, is_archived: false });
-        toast.success("Alter created!");
+        toast.success(`${t.Alter} created!`);
       } else {
         await base44.entities.Alter.update(alter.id, form);
         toast.success("Saved!");
@@ -77,11 +79,11 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Permanently delete ${alter?.name}? This cannot be undone.`)) return;
+    if (!confirm(`Permanently delete ${alter?.name}? This cannot be undone. All data linked to this ${t.alter} will be removed.`)) return;
     setDeleting(true);
     try {
       await base44.entities.Alter.delete(alter.id);
-      toast.success("Alter deleted.");
+      toast.success(`${t.Alter} deleted.`);
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       onClose();
     } catch (e) {
@@ -97,7 +99,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isNew ? "Add New Alter" : `Edit ${alter?.name || "Alter"}`}</DialogTitle>
+          <DialogTitle>{isNew ? `Add New ${t.Alter}` : `Edit ${alter?.name || t.Alter}`}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
@@ -108,7 +110,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
 
           <div className="space-y-2">
             <Label>Name *</Label>
-            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alter name" />
+            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={`${t.Alter} name`} />
           </div>
 
           <div className="space-y-2">
@@ -202,7 +204,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
           <div className="flex flex-col gap-2 pt-2">
             <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
               {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              {isNew ? "Create Alter" : "Save Changes"}
+              {isNew ? `Create ${t.Alter}` : "Save Changes"}
             </Button>
 
             {!isNew && (

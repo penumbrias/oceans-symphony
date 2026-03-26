@@ -14,7 +14,7 @@ export function useTerms() {
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
-    staleTime: 30000,
+    staleTime: 0,
   });
 
   const s = settingsList[0] || {};
