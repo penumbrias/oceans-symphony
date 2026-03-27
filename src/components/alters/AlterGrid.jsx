@@ -55,8 +55,8 @@ export default function AlterGrid({ alters, currentSession = null }) {
           <Input
             placeholder={`Search ${terms.alters}...`}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-card/50 border-border/50" />
+            onChange={(e) => setSearch(e.target.value)} className="bg-transparent text-foreground pl-10 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-border/50" />
+          
           
         </div>
         <Button
@@ -123,7 +123,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
           }
           {filtered.length > 0 ?
           viewMode === "list" ?
-          <div className="flex flex-col gap-2">
+          <div className="mx-auto flex flex-col gap-2">
                 {filtered.map((alter, i) =>
             <AlterCard key={alter.id} alter={alter} index={i} />
             )}
