@@ -79,7 +79,7 @@ export default function FrontingBar({ alters }) {
         animate={{ opacity: 1, y: 0 }} className="bg-card mb-6 px-4 py-1 rounded-2xl border border-border/50">
 
         
-        <div className="flex items-center justify-between mb-3">
+        <div className="pb-1 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${session ? "bg-green-500 animate-pulse" : "bg-muted-foreground/30"}`} />
             <span className="text-sm font-medium text-foreground">
@@ -90,8 +90,8 @@ export default function FrontingBar({ alters }) {
           <Button
             size="sm"
             variant={session ? "outline" : "default"}
-            onClick={() => setShowModal(true)}
-            className="h-8 text-xs gap-1.5">
+            onClick={() => setShowModal(true)} className="bg-background mt-1 pr-2 pl-2 text-xs font-medium rounded-md inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-8 gap-1.5">
+            
             
             {session ?
             <><Pencil className="w-3.5 h-3.5" /> Edit {terms.Front}</> :
@@ -102,7 +102,7 @@ export default function FrontingBar({ alters }) {
         </div>
 
         {session ?
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="mb-1 pb-1 flex items-center gap-3 flex-wrap">
             {primaryAlter &&
           <div className="flex items-center gap-2.5">
                 <FronterAvatar alter={primaryAlter} isPrimary={true} size="lg" />
