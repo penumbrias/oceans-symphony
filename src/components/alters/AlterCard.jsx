@@ -25,7 +25,7 @@ export default function AlterCard({ alter, index }) {
       transition={{ duration: 0.3, delay: index * 0.03 }}>
       
       <Link to={`/alter/${alter.id}`}>
-        <div className="bg-card pt-2 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
+        <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
 
         style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
           
