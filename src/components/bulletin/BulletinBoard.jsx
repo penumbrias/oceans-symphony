@@ -123,7 +123,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
       {!composing &&
       <input className="bg-transparent text-foreground mb-2 px-3 text-sm rounded-xl w-full h-9 border border-border/50 placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
 
-      placeholder="Write something…"
+      placeholder="type here… use @ to mention, -name to sign as author"
       onChange={handleInlineType} />
 
       }
