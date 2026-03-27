@@ -121,7 +121,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
 
       {/* Inline compose trigger */}
       {!composing &&
-      <input className="bg-muted/30 text-foreground mb-2 px-3 text-sm rounded-xl w-full h-9 border border-border/50 placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
+      <input className="bg-transparent text-foreground mb-2 px-3 text-sm rounded-xl w-full h-9 border border-border/50 placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
 
       placeholder="Write something…"
       onChange={handleInlineType} />
