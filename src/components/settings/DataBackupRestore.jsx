@@ -197,7 +197,7 @@ export default function DataBackupRestore() {
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">{importMode === 'replace' ? '⚠️ Replace All will delete existing data and import from backup.' : '⚠️ Add New imports records — it does not replace existing data.'}</p>
-          <p className="text-xs text-muted-foreground">{importMode === 'replace' && '⚠️ importing backup data to another account in the cloud is glitching. Data is being backed up/exported properly, and fully imports into local'}</p>
+          <p className="text-xs text-muted-foreground">{importMode === 'replace' ? '⚠️ importing backup data to another account in the cloud is glitching. Data is being backed up/exported properly, and fully imports into local' : '⚠️ importing backup data to another account in the cloud is glitching. Data is being backed up/exported properly, and fully imports into local'}</p>
         </div>
       </CardContent>
     </Card>);
