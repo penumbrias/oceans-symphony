@@ -197,7 +197,7 @@ export default function StorageModeSettings() {
 
           <>
             <div className="text-sm text-muted-foreground bg-muted/40 rounded-xl p-3">
-              Your data is synced to the cloud and accessible from any device.
+              Your data is synced to the cloud and accessible only through your account, from any device.
             </div>
             <Button variant="outline" onClick={() => promptSwitch('local')} className="w-full gap-2">
               <HardDrive className="w-4 h-4" /> Switch to Local Only
