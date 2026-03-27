@@ -83,9 +83,9 @@ function FolderRow({ group, onClick }) {
 
       style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}>
       
-      <div
-        className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}>
+      <div className="rounded-xl w-9 h-9 flex items-center justify-center flex-shrink-0"
+
+      style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}>
         
         <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
       </div>
@@ -146,7 +146,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", currentSe
   return (
     <div>
       {/* Breadcrumb Navigation with Action Buttons */}
-      <div className="mb-3 pb-1 flex items-center gap-2 border-b border-border">
+      <div className="mb-1 pb-1 flex items-center gap-2 border-b border-border">
         {navStack.length > 0 &&
         <Button
           onClick={navigateBack}
