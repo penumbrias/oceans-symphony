@@ -79,7 +79,7 @@ function FolderRow({ group, onClick }) {
     <motion.button
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      onClick={() => onClick(group)} className="bg-card px-3 text-left rounded-xl w-full flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
+      onClick={() => onClick(group)} className="bg-card pr-3 pl-3 text-left rounded-xl w-full flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
 
       style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}>
       
@@ -146,7 +146,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", currentSe
   return (
     <div>
       {/* Breadcrumb Navigation with Action Buttons */}
-      <div className="mb-1 pb-1 flex items-center gap-2 border-b border-border">
+      <div className="pb-1 flex items-center gap-2 border-b border-border">
         {navStack.length > 0 &&
         <Button
           onClick={navigateBack}
