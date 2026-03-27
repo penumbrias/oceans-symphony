@@ -217,9 +217,9 @@ export default function StorageModeSettings() {
          </DialogHeader>
          <DialogDescription className="space-y-2">
            <p>You're about to switch from <strong>{mode === 'local' ? 'Local' : 'Cloud'}</strong> to <strong>{switchTarget === 'local' ? 'Local' : 'Cloud'}</strong>.</p>
-           <p>Local stores all data offline on your device itself rather than uploading data to a server/"the cloud".
+           <p className="font-bold">Local stores all data offline on your device** itself rather than uploading data to a server/"the cloud". ⚠️ Please backup your data before switching — use "Backup & Export" below to save a full copy.
 
-⚠️ Please backup your data before switching — use "Backup & Export" below to save a full copy.</p>
+**Because this is still just a webapp, CLEARING YOUR BROWSER HISTORY WILL CLEAR YOUR LOCAL DATA!! until the app is installable, make FREQUENT backups of your data if you store locally!!</p>
            <p className="text-xs text-muted-foreground">After switching, you can import your data if needed.</p>
          </DialogDescription>
          <DialogFooter className="flex gap-2">
