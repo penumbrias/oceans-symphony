@@ -33,8 +33,9 @@ export default function DailyTasks() {
   });
 
   // Seed defaults for new users (once templates have loaded and are empty)
-  useEffect(() => {
-    if (templatesLoading || templates.length > 0) return;
+ useEffect(() => {
+  if (templatesLoading) return;
+  if (templates.length === 0) {
     const seed = async () => {
       for (const def of DEFAULT_TASK_TEMPLATES) {
         await base44.entities.DailyTaskTemplate.create({ ...def });
@@ -42,7 +43,27 @@ export default function DailyTasks() {
       queryClient.invalidateQueries({ queryKey: ["dailyTaskTemplates"] });
     };
     seed();
-  }, [templatesLoading, templates.length]);
+  } else {
+    // Migrate any old hardcoded titles to use terminology tokens
+    const migrations = {
+      "Parts check-in": "{{System}} check-in",
+      "parts check-in": "{{System}} check-in",
+      " check-in": "{{System}} check-in",
+    };
+    const toMigrate = templates.filter(t => migrations[t.title]);
+    if (toMigrate.length > 0) {
+      const migrate = async () => {
+        for (const t of toMigrate) {
+          await base44.entities.DailyTaskTemplate.update(t.id, {
+            title: migrations[t.title],
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ["dailyTaskTemplates"] });
+      };
+      migrate();
+    }
+  }
+}, [templatesLoading, templates.length]);
 
   // Daily progress records
   const { data: allProgress = [], isLoading: progressLoading } = useQuery({
