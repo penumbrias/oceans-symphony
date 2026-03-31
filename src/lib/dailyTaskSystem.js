@@ -36,7 +36,7 @@ export const DEFAULT_TASK_TEMPLATES = [
     nav_path: "/diary",
   },
   {
-    title: "Parts check-in",
+    title: "{terms.system} check-in",
     description: "Gently notice any parts that want attention and what your body is feeling. No fixing, just noticing.",
     points: 4,
     mode: "AUTO",
