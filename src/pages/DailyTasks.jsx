@@ -9,13 +9,16 @@ import {
   totalPossiblePoints,
   getLevelFromTotalXP,
   DEFAULT_TASK_TEMPLATES,
+  applyTerms,
 } from "@/lib/dailyTaskSystem";
+import { useTerms } from "@/lib/useTerms";
 import LevelBar from "@/components/tasks/LevelBar";
 import TaskCard from "@/components/tasks/TaskCard";
 import TaskTemplateManager from "@/components/tasks/TaskTemplateManager";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { toast } from "sonner";
+const terms = useTerms();
 
 export default function DailyTasks() {
   const queryClient = useQueryClient();
@@ -217,13 +220,17 @@ export default function DailyTasks() {
 
       <div className="space-y-3">
         {activeTasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            completed={isTaskCompleted(task, manualCompletedIds, autoTriggers)}
-            onToggle={toggleManual}
-          />
-        ))}
+  <TaskCard
+    key={task.id}
+    task={{
+      ...task,
+      title: applyTerms(task.title, terms),
+      description: applyTerms(task.description, terms),
+    }}
+    completed={isTaskCompleted(task, manualCompletedIds, autoTriggers)}
+    onToggle={toggleManual}
+  />
+))}
       </div>
     </motion.div>
   );
