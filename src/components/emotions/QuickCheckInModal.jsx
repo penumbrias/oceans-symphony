@@ -162,20 +162,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         const now = new Date().toISOString();
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
         // End old session at this moment, then start a new one
-        if (activeSessions.length > 0) {
-          await base44.entities.FrontingSession.update(activeSessions[0].id, {
-            is_active: false,
-            end_time: now,
-          });
-        }
-        if (selectedAlters.length > 0) {
-          await base44.entities.FrontingSession.create({
-            primary_alter_id: selectedAlters[0],
-            co_fronter_ids: selectedAlters.slice(1),
-            start_time: now,
-            is_active: true,
-          });
-        }
+        for (const s of activeSessions) {
+  await base44.entities.FrontingSession.update(s.id, {
+    is_active: false,
+    end_time: now,
+  });
+}
+if (selectedAlters.length > 0) {
+  await base44.entities.FrontingSession.create({
+    primary_alter_id: selectedAlters[0],
+    co_fronter_ids: selectedAlters.slice(1),
+    start_time: now,
+    is_active: true,
+  });
+}
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       }
