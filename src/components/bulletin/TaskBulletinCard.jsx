@@ -30,7 +30,8 @@ export default function TaskBulletinCard({ bulletin, alters, currentAlterId, fro
     ? bulletin.author_alter_ids
     : (bulletin.author_alter_id ? [bulletin.author_alter_id] : frontingAlterIds);
 
-const timeAgo = formatDistanceToNow(new Date(bulletin.created_date), { addSuffix: true, includeSeconds: true });
+const rawDate = bulletin.created_date;
+const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
   const isCompleted = parsed.completed;
 
   const handleToggle = async (e) => {
