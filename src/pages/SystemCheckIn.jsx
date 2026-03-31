@@ -181,7 +181,12 @@ export default function SystemCheckInPage() {
           <div className="mb-6">
             <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Check-In</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {new Date(currentCheckIn.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+{(() => {
+  const [y, m, d] = currentCheckIn.date.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric"
+  });
+})()}
             </p>
           </div>
           <div className="space-y-4 max-w-2xl">
