@@ -148,7 +148,8 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const hasMoreDepth = hasChildren && maxDepth !== null && depth >= maxDepth;
   const shouldRenderChildren = maxDepth === null || depth < maxDepth;
   const reactions = comment.reactions || {};
-  const timeAgo = formatDistanceToNow(new Date(comment.created_date), { addSuffix: true });
+const rawDate = comment.created_date;
+const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
   const authorIds = comment.author_alter_ids?.length > 0 ? comment.author_alter_ids : (comment.author_alter_id ? [comment.author_alter_id] : frontingAlterIds);
   const canDelete = currentAlterId === comment.author_alter_id || authorIds.includes(currentAlterId);
   const pending = pendingDeletes[comment.id];
