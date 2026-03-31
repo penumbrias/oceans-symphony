@@ -160,7 +160,13 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
             {pinned.map((b) =>
           <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
                 {b.content?.match(/^\[task:/) ?
-            <TaskBulletinCard bulletin={b} alters={alters} frontingAlterIds={frontingAlterIds} highlight={highlightBulletinId === b.id} /> :
+            <TaskBulletinCard 
+  bulletin={b} 
+  alters={alters} 
+  currentAlterId={currentAlterId}  // add this
+  frontingAlterIds={frontingAlterIds} 
+  highlight={highlightBulletinId === b.id} 
+/> :
 
             <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
             }
@@ -178,7 +184,13 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
             {filteredRecent.slice(0, visibleCount).map((b) =>
           <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
                 {b.content?.match(/^\[task:/) ?
-            <TaskBulletinCard bulletin={b} alters={alters} frontingAlterIds={frontingAlterIds} highlight={highlightBulletinId === b.id} /> :
+            <TaskBulletinCard 
+  bulletin={b} 
+  alters={alters} 
+  currentAlterId={currentAlterId}  // add this
+  frontingAlterIds={frontingAlterIds} 
+  highlight={highlightBulletinId === b.id} 
+/> :
 
             <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
             }
