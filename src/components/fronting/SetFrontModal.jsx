@@ -142,17 +142,21 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
         const coIds = coFronterIds.filter((id) => id !== primaryId);
         let sessionId = null;
         if (activeSessions.length > 0) {
-          // Update the existing active session (additive — keeps session continuity)
-          await base44.entities.FrontingSession.update(activeSessions[0].id, {
-            primary_alter_id: primaryId,
-            co_fronter_ids: coIds,
-          });
-          // End any extra duplicate active sessions
-          for (const s of activeSessions.slice(1)) {
-            await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
-          }
-          sessionId = activeSessions[0].id;
-        } else {
+  const now = new Date().toISOString();
+  for (const s of activeSessions) {
+    await base44.entities.FrontingSession.update(s.id, {
+      is_active: false,
+      end_time: now,
+    });
+  }
+  const newSession = await base44.entities.FrontingSession.create({
+    primary_alter_id: primaryId,
+    co_fronter_ids: coIds,
+    start_time: now,
+    is_active: true,
+  });
+  sessionId = newSession?.id || null;
+} else {
           // No active session — create new
           const newSession = await base44.entities.FrontingSession.create({
             primary_alter_id: primaryId,
