@@ -188,8 +188,8 @@ export default function CurrentFronters({ alters }) {
             <Input
             placeholder="Add a status..."
             value={tempStatus}
-            onChange={(e) => setTempStatus(e.target.value)}
-            className="text-sm h-8 bg-card/50"
+            onChange={(e) => setTempStatus(e.target.value)} className="bg-transparent text-foreground px-3 py-1 text-sm rounded-md flex w-full border border-input shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-8"
+
             autoFocus />
           
             <Button
