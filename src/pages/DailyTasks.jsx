@@ -18,10 +18,10 @@ import TaskTemplateManager from "@/components/tasks/TaskTemplateManager";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { toast } from "sonner";
-const terms = useTerms();
 
 export default function DailyTasks() {
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const TODAY = getTodayString();
   const [showManager, setShowManager] = useState(false);
 
