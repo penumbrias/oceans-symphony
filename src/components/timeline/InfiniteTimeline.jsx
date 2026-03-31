@@ -97,14 +97,23 @@ function StatusNoteBadge({ note, topPx }) {
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap }) {
+function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary }) {
   const sz = 26;
   const tap = useDoubleTap(onTap, onDoubleTap);
   return (
-    <div className="absolute flex flex-col items-center cursor-pointer" style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
+    <div className="absolute flex flex-col items-center cursor-pointer" 
+      style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
       onClick={tap}>
-      <div className="rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
-        style={{ width: sz, height: sz, backgroundColor: color }} title={alter?.name}>
+      <div 
+        className="rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
+        style={{ 
+          width: sz, 
+          height: sz, 
+          backgroundColor: color,
+          border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
+          boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
+        }} 
+        title={alter?.name + (isPrimary ? " (primary)" : "")}>
         {alter?.avatar_url
           ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
           : <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
@@ -112,7 +121,9 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap }) {
       {heightPx > sz + 4 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
           height: Math.max(heightPx - sz - 2, 4),
-          background: `linear-gradient(to bottom, ${color}, ${color}40)`,
+          background: isPrimary 
+            ? `linear-gradient(to bottom, #f59e0b, #f59e0b40)`
+            : `linear-gradient(to bottom, ${color}, ${color}40)`,
         }} />
       )}
     </div>
