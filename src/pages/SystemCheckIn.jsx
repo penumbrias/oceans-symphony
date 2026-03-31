@@ -295,10 +295,11 @@ export default function SystemCheckInPage() {
           ) : (
             <div className="grid gap-3">
               {checkIns.map((checkIn) => {
-                const date = new Date(checkIn.date);
-                const formatted = date.toLocaleDateString("en-US", {
-                  weekday: "short", month: "short", day: "numeric", year: "numeric",
-                });
+                const [y, m, d] = checkIn.date.split("-").map(Number);
+const date = new Date(y, m - 1, d);
+const formatted = date.toLocaleDateString("en-US", {
+  weekday: "short", month: "short", day: "numeric", year: "numeric",
+});
                 return (
                   <Card key={checkIn.id} className="hover:bg-card/80 transition-colors">
                     <CardContent className="py-4 px-4 flex items-center justify-between">
