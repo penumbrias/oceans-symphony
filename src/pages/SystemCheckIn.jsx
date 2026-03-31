@@ -91,29 +91,43 @@ export default function SystemCheckInPage() {
     // If step2 has alters_present, update the active fronting session
     const altersPresent = formData.step2_notice?.alters_present || [];
     const alterIds = altersPresent.filter((id) => alters.some((a) => a.id === id));
-    if (alterIds.length > 0) {
-      try {
-        const now = new Date().toISOString();
-        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-        // End old session at this moment, then start fresh
-        if (activeSessions.length > 0) {
-          await base44.entities.FrontingSession.update(activeSessions[0].id, {
-            is_active: false,
-            end_time: now,
-          });
-        }
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: alterIds[0],
-          co_fronter_ids: alterIds.slice(1),
-          start_time: now,
-          is_active: true,
+   if (alterIds.length > 0) {
+  try {
+    const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+    if (activeSessions.length > 0) {
+      // Additive — merge noticed alters into existing session without ending it
+      const session = activeSessions[0];
+      const existing = [
+        session.primary_alter_id, 
+        ...(session.co_fronter_ids || [])
+      ].filter(Boolean);
+      const merged = [...new Set([...existing, ...alterIds])];
+      await base44.entities.FrontingSession.update(session.id, {
+        primary_alter_id: merged[0],
+        co_fronter_ids: merged.slice(1),
+      });
+      // End any duplicate active sessions
+      for (const s of activeSessions.slice(1)) {
+        await base44.entities.FrontingSession.update(s.id, {
+          is_active: false,
+          end_time: new Date().toISOString(),
         });
-        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      } catch (err) {
-        console.error("Failed to update front from check-in", err);
       }
+    } else {
+      // No active session — create one
+      await base44.entities.FrontingSession.create({
+        primary_alter_id: alterIds[0],
+        co_fronter_ids: alterIds.slice(1),
+        start_time: new Date().toISOString(),
+        is_active: true,
+      });
     }
+    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+  } catch (err) {
+    console.error("Failed to update front from check-in", err);
+  }
+}
 
     if (shouldCreateDiary) {
       setTimeout(() => { navigate("/diary?create=true"); }, 500);
