@@ -48,6 +48,21 @@ const handleSave = async () => {
     const dateStr = format(selectedDate || new Date(), "yyyy-MM-dd");
     const bedtimeISO = new Date(bedtime).toISOString();
     const wakeTimeISO = new Date(wakeTime).toISOString();
+    const durationMinutes = Math.round(
+      (new Date(wakeTimeISO) - new Date(bedtimeISO)) / 60000
+    );
+
+    // Find sleep category if it exists
+    const categories = await base44.entities.ActivityCategory.list();
+    let sleepCat = categories.find(c => c.name?.toLowerCase() === "sleep");
+    
+    // Create it if it doesn't exist
+    if (!sleepCat) {
+      sleepCat = await base44.entities.ActivityCategory.create({
+        name: "sleep",
+        color: "#6366f1",
+      });
+    }
 
     await base44.entities.Sleep.create({
       date: dateStr,
@@ -57,7 +72,14 @@ const handleSave = async () => {
       notes: notes || null,
     });
 
-    // Do NOT manually create Activity here — syncSleepToActivity handles it
+    await base44.entities.Activity.create({
+      timestamp: bedtimeISO,
+      activity_name: "Sleep",
+      duration_minutes: durationMinutes,
+      color: "#6366f1",
+      notes: notes || null,
+      activity_category_ids: [sleepCat.id],
+    });
 
     setBedtime("");
     setWakeTime("");
