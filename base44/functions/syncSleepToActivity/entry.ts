@@ -19,9 +19,17 @@ Deno.serve(async (req) => {
     const sleepTag = `[sleep_id:${event.entity_id}]`;
 
     const findLinkedActivity = async () => {
-      // User-scoped search — respects RLS so results are visible in the UI
       const all = await base44.entities.Activity.list('-created_date', 500);
       return all.find(a => (a.notes || '').includes(sleepTag));
+    };
+
+    // Helper to find the sleep category ID
+    const findSleepCategoryId = async () => {
+      const categories = await base44.entities.ActivityCategory.list();
+      const sleepCat = categories.find(
+        c => c.name?.toLowerCase() === "sleep"
+      );
+      return sleepCat ? [sleepCat.id] : [];
     };
 
     if (event.type === 'create') {
@@ -29,7 +37,6 @@ Deno.serve(async (req) => {
         return Response.json({ success: true, message: 'Skipped — missing bedtime/wake_time' });
       }
 
-      // Prevent duplicates: check if one already exists
       const existing = await findLinkedActivity();
       if (existing) {
         return Response.json({ success: true, message: 'Activity already exists, skipping' });
@@ -38,15 +45,13 @@ Deno.serve(async (req) => {
       const bedtime = new Date(data.bedtime);
       const wakeTime = new Date(data.wake_time);
       const durationMinutes = Math.round((wakeTime - bedtime) / (1000 * 60));
-      const notesStr = [
-        data.notes ? data.notes : null,
-        sleepTag,
-      ].filter(Boolean).join(' ');
+      const notesStr = [data.notes ? data.notes : null, sleepTag].filter(Boolean).join(' ');
+      const sleepCategoryIds = await findSleepCategoryId();
 
       await base44.entities.Activity.create({
         timestamp: bedtime.toISOString(),
         activity_name: 'Sleep',
-        activity_category_ids: [],
+        activity_category_ids: sleepCategoryIds,
         color: '#6366f1',
         duration_minutes: durationMinutes,
         notes: notesStr,
@@ -61,10 +66,7 @@ Deno.serve(async (req) => {
       const bedtime = new Date(data.bedtime);
       const wakeTime = new Date(data.wake_time);
       const durationMinutes = Math.round((wakeTime - bedtime) / (1000 * 60));
-      const notesStr = [
-        data.notes ? data.notes : null,
-        sleepTag,
-      ].filter(Boolean).join(' ');
+      const notesStr = [data.notes ? data.notes : null, sleepTag].filter(Boolean).join(' ');
 
       const existing = await findLinkedActivity();
       if (existing) {
@@ -74,11 +76,11 @@ Deno.serve(async (req) => {
           notes: notesStr,
         });
       } else {
-        // Create if missing (e.g. backfill after migration)
+        const sleepCategoryIds = await findSleepCategoryId();
         await base44.entities.Activity.create({
           timestamp: bedtime.toISOString(),
           activity_name: 'Sleep',
-          activity_category_ids: [],
+          activity_category_ids: sleepCategoryIds,
           color: '#6366f1',
           duration_minutes: durationMinutes,
           notes: notesStr,
