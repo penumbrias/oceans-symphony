@@ -185,6 +185,12 @@ const handleNotifClick = (mentionLog) => {
         </div>
       </nav>
       
+      <NotificationPopups
+        mentionLogs={mentionLogs}
+        alters={alters}
+        frontingAlterIds={frontingAlterIds}
+        onNotifClick={handleNotifClick}
+      />
     </div>);
 
 }
