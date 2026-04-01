@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,6 +58,7 @@ function getContrastColor(hex) {
 
 export default function ProfileTab({ alter }) {
   const queryClient = useQueryClient();
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [form, setForm] = useState({
     name: "",
     alias: "",
@@ -197,11 +198,11 @@ export default function ProfileTab({ alter }) {
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Color</label>
           <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={form.color || "#8b5cf6"}
-              onChange={(e) => set("color", e.target.value)}
-              className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+            <button
+              type="button"
+              onClick={() => setShowColorPicker(true)}
+              className="w-10 h-10 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
+              style={{ backgroundColor: form.color || "#8b5cf6" }}
             />
             <Input
               value={form.color}
@@ -307,12 +308,7 @@ export default function ProfileTab({ alter }) {
         </Button>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleArchive}
-            disabled={saving}
-            className="flex-1"
-          >
+          <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
             {alter?.is_archived ? (
               <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
             ) : (
@@ -336,6 +332,15 @@ export default function ProfileTab({ alter }) {
         open={showGroupPicker}
         onClose={() => setShowGroupPicker(false)}
       />
+
+      {showColorPicker && (
+        <ColorPickerModal
+          color={form.color || "#8b5cf6"}
+          label="Alter Color"
+          onSave={(hex) => set("color", hex)}
+          onClose={() => setShowColorPicker(false)}
+        />
+      )}
     </div>
   );
 }
