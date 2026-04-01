@@ -9,6 +9,8 @@ import { encryptContent, decryptContent } from "@/lib/encryption";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { Lock, AlertCircle, Loader2 } from "lucide-react";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { saveMentions } from "@/lib/mentionUtils";
 
 export default function JournalEditorModal({ isOpen, open, onClose, editingEntry, entry, alters }) {
   const isOpenFinal = isOpen ?? open;
