@@ -88,7 +88,25 @@ export default function SystemCheckInPage() {
     } else {
       createMutation.mutate(dataToSave);
     }
+// Save mentions from check-in step notes
+const allStepContent = [
+  formData.step3_greet?.notes,
+  formData.step4_share?.notes,
+  formData.step5_closing?.notes,
+].filter(Boolean).join(" ");
 
+if (allStepContent && alters.length > 0) {
+  const checkInId = currentCheckIn?.id || "new";
+  await saveMentions({
+    content: allStepContent,
+    alters,
+    sourceType: "checkin",
+    sourceId: checkInId,
+    sourceLabel: "System Check-In",
+    navigatePath: `/system-checkin?id=${checkInId}`,
+    authorAlterId: null,
+  });
+}
     // If step2 has alters_present, update the active fronting session
     const altersPresent = formData.step2_notice?.alters_present || [];
     const alterIds = altersPresent.filter((id) => alters.some((a) => a.id === id));
