@@ -123,10 +123,11 @@ export default function Dashboard() {
 
       <CurrentFronters alters={alters} />
       <NotificationHistoryModal
-        open={showNotifHistory}
-        onClose={() => setShowNotifHistory(false)}
-        alters={alters}
-        onNotifClick={handleNotifClick} />
+  open={showNotifHistory}
+  onClose={() => setShowNotifHistory(false)}
+  alters={alters}
+  frontingAlterIds={frontingAlterIds}
+  onNotifClick={handleNotifClick} />
       
       
       <button
