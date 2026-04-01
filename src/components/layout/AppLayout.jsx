@@ -29,7 +29,7 @@ export default function AppLayout() {
   const terms = useTerms();
   const navItems = useNavItems(terms);
   const [historyDepth, setHistoryDepth] = useState(0);
-  const navigate = useNavigate();
+ 
 
 const { data: alters = [] } = useQuery({
   queryKey: ["alters"],
