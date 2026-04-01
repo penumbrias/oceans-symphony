@@ -94,6 +94,19 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
       content: finalContent,
       is_encrypted: isEncrypted,
     });
+    
+    if (mentionNote.trim() && alters?.length > 0) {
+  const savedId = editingEntryFinal?.id || "pending";
+  await saveMentions({
+    content: mentionNote,
+    alters,
+    sourceType: "journal",
+    sourceId: savedId,
+    sourceLabel: title || "Journal Entry",
+    navigatePath: `/journals?id=${savedId}`,
+    authorAlterId: null,
+  });
+}
   };
 
   return (
