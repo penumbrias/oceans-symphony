@@ -52,7 +52,9 @@ const frontingAlterIds = activeSession
   : [];
 
 const handleNotifClick = (mentionLog) => {
-  navigate(mentionLog.navigate_path || "/");
+  navigate(mentionLog.navigate_path || "/", {
+    state: { highlightId: mentionLog.source_id }
+  });
 };
 
   useEffect(() => {
