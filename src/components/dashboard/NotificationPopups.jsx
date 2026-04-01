@@ -45,10 +45,10 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
             <button
               className="flex-1 text-left min-w-0"
               onClick={() => {
-                markSeen(m.id);
-                setDismissed((d) => new Set([...d, m.id]));
-                onNotifClick?.(m);
-              }}
+  markSeen(m.id);
+  setDismissed((d) => new Set([...d, m.id]));
+  onNotifClick?.(m);
+}}
             >
               <div className="flex items-center gap-1.5 mb-0.5">
                 <Bell className="w-3 h-3 text-primary flex-shrink-0" />
