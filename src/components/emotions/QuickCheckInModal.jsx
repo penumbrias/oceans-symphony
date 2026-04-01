@@ -160,19 +160,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     if (selectedActivityCategories.length === 0 && !newActivityName.trim()) return;
     
     // Save category-based activities
-    if (selectedActivityCategories.length > 0) {
-      const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
-      const names = selectedActivityCategories
-        .map((id) => catById[id]?.name || id)
-        .join(", ");
-      await base44.entities.Activity.create({
-        timestamp: new Date().toISOString(),
-        activity_name: names,
-        activity_category_ids: selectedActivityCategories,
-        duration_minutes: activityDuration ? parseInt(activityDuration) : null,
-        fronting_alter_ids: selectedAlters,
-      });
-    }
+   if (selectedActivityCategories.length > 0) {
+  const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+  // Create one activity record per selected category
+  for (const catId of selectedActivityCategories) {
+    const cat = catById[catId];
+    await base44.entities.Activity.create({
+      timestamp: new Date().toISOString(),
+      activity_name: cat?.name || catId,
+      activity_category_ids: [catId],
+      duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+      fronting_alter_ids: selectedAlters,
+    });
+  }
+}
     
     // Save new activity if entered
     if (newActivityName.trim()) {
