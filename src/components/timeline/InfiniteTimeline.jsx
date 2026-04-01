@@ -678,12 +678,12 @@ export default function InfiniteTimeline({
               {/* Session status notes — shown in the alters area */}
               {sessions
   .filter(s => s.note)
-  .filter((session, idx, arr) => {
-    // Only show if note is different from the previous session's note
-    const sorted = [...arr].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  .filter((session) => {
+    const sorted = [...sessions].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
     const pos = sorted.findIndex(s => s.id === session.id);
     if (pos === 0) return true;
-    return sorted[pos - 1].note !== session.note;
+    const prev = sorted[pos - 1];
+    return !prev || prev.note !== session.note;
   })
   .map((session) => {
                 const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
