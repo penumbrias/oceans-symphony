@@ -5,7 +5,6 @@ import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { useNavigate } from "react-router-dom";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
