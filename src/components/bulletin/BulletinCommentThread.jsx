@@ -106,13 +106,12 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   return (
     <div className="relative">
       <div className="flex gap-2">
-        <Textarea
-          ref={textareaRef}
-          placeholder="Reply… use @ to mention, -name to sign as author"
-          value={content}
-          onChange={handleContentChange}
-          className="min-h-[80px] text-sm resize-none"
-          autoFocus
+        <input
+          className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+          placeholder={parentCommentId ? "Reply… use -name to sign (Cmd+Enter)" : "Add a comment… use -name to sign (Cmd+Enter)"}
+          value={text}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
         />
         <button
           onClick={handleSubmit}
