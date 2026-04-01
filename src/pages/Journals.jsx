@@ -261,7 +261,13 @@ useEffect(() => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {filtered.map((entry) => (
-              <JournalEntryCard key={entry.id} entry={entry} altersById={altersById} onClick={() => openEntry(entry)} />
+<JournalEntryCard 
+  key={entry.id} 
+  entry={entry} 
+  altersById={altersById} 
+  onClick={() => openEntry(entry)}
+  highlight={highlightId === entry.id}
+/>
             ))}
           </div>
         )
