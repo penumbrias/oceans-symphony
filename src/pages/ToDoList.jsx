@@ -194,6 +194,7 @@ export default function ToDoList() {
               <TaskItem
                 key={task.id}
                 task={task}
+                highlight={highlightId === task.id}
                 subTasks={[]}
                 onToggle={handleToggle}
                 onDelete={handleDelete}
