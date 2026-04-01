@@ -185,7 +185,17 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
             </>
           )}
         </div>
-
+<div>
+  <label className="text-sm font-medium">Mention alters</label>
+  <p className="text-xs text-muted-foreground mb-1">Tag alters who appear in this entry</p>
+  <MentionTextarea
+    value={mentionNote}
+    onChange={setMentionNote}
+    alters={alters || []}
+    placeholder="Use @ to mention alters..."
+    className="h-16"
+  />
+</div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
