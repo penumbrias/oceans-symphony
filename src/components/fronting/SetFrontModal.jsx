@@ -120,68 +120,71 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
     setPrimaryId(id);
   };
 
-  const handleSave = async () => {
-    if (!isUnsure && !primaryId && coFronterIds.length === 0) {
-      toast.error("Select at least one fronter or mark as unsure");
-      return;
-    }
-    setSaving(true);
-    try {
-      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-
-      if (isUnsure) {
-        // Clear front — end all active sessions
-        for (const s of activeSessions) {
-          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
-        }
-        toast.success("Front cleared");
-        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-        onClose();
-      } else {
-        const coIds = coFronterIds.filter((id) => id !== primaryId);
-        let sessionId = null;
-        if (activeSessions.length > 0) {
-  const now = new Date().toISOString();
-  for (const s of activeSessions) {
-    await base44.entities.FrontingSession.update(s.id, {
-      is_active: false,
-      end_time: now,
-    });
+ const handleSave = async () => {
+  if (!isUnsure && !primaryId && coFronterIds.length === 0) {
+    toast.error("Select at least one fronter or mark as unsure");
+    return;
   }
-  const newSession = await base44.entities.FrontingSession.create({
-    primary_alter_id: primaryId,
-    co_fronter_ids: coIds,
-    start_time: now,
-    is_active: true,
-  });
-  sessionId = newSession?.id || null;
-} else {
-          // No active session — create new
-          const newSession = await base44.entities.FrontingSession.create({
-            primary_alter_id: primaryId,
-            co_fronter_ids: coIds,
-            start_time: new Date().toISOString(),
-            is_active: true,
-          });
-          sessionId = newSession?.id || null;
-        }
-        toast.success("Front updated!");
-        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-        if (journalSwitch) {
-          setNewSessionId(sessionId);
-          setShowJournalModal(true);
-        } else {
-          onClose();
-        }
+  setSaving(true);
+  try {
+    const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+
+    if (isUnsure) {
+      for (const s of activeSessions) {
+        await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
       }
-    } catch (e) {
-      toast.error(e.message || "Failed to set front");
-    } finally {
-      setSaving(false);
+      toast.success("Front cleared");
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      onClose();
+    } else {
+      const coIds = coFronterIds.filter((id) => id !== primaryId);
+      const previousNote = currentSession?.note || null;
+      let sessionId = null;
+
+      if (activeSessions.length > 0) {
+        const now = new Date().toISOString();
+        for (const s of activeSessions) {
+          await base44.entities.FrontingSession.update(s.id, {
+            is_active: false,
+            end_time: now,
+          });
+        }
+        const newSession = await base44.entities.FrontingSession.create({
+          primary_alter_id: primaryId,
+          co_fronter_ids: coIds,
+          start_time: now,
+          is_active: true,
+          note: previousNote,
+        });
+        sessionId = newSession?.id || null;
+      } else {
+        const newSession = await base44.entities.FrontingSession.create({
+          primary_alter_id: primaryId,
+          co_fronter_ids: coIds,
+          start_time: new Date().toISOString(),
+          is_active: true,
+          note: previousNote,
+        });
+        sessionId = newSession?.id || null;
+      }
+
+      toast.success("Front updated!");
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      if (journalSwitch) {
+        setNewSessionId(sessionId);
+        setShowJournalModal(true);
+      } else {
+        onClose();
+      }
     }
-  };
+  } catch (e) {
+    toast.error(e.message || "Failed to set front");
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <>
