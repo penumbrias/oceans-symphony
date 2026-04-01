@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useTerms } from "@/lib/useTerms";
+import { saveMentions } from "@/lib/mentionUtils";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
