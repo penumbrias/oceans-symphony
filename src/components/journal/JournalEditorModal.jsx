@@ -31,7 +31,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
     
     if (editingEntryFinal) {
       setTitle(editingEntryFinal.title);
-      setMentionNote("");
+      
       setIsEncrypted(editingEntryFinal.is_encrypted || false);
 
       if (editingEntryFinal.is_encrypted) {
@@ -44,6 +44,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
     } else {
       setTitle("");
       setContent("");
+      setMentionNote("");
       setIsEncrypted(false);
       setShowPasswordField(false);
     }
