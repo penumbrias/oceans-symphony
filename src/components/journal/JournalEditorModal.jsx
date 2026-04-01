@@ -28,6 +28,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
 
   // Load and decrypt entry if editing
   useEffect(() => {
+    
     if (editingEntryFinal) {
       setTitle(editingEntryFinal.title);
       setIsEncrypted(editingEntryFinal.is_encrypted || false);
@@ -48,6 +49,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
     setEncryptionPassword("");
     setDecryptionPassword("");
     setDecryptionError("");
+    setMentionNote("");
   }, [editingEntryFinal?.id, isOpenFinal]);
 
   // Handle decryption when editing encrypted entry
