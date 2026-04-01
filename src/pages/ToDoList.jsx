@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -7,19 +7,10 @@ import TaskItem from "@/components/tasks/TaskItem";
 import TaskFormModal from "@/components/tasks/TaskFormModal";
 import { useLocation } from "react-router-dom";
 
-// inside component:
-const location = useLocation();
-const [highlightId, setHighlightId] = useState(() => location.state?.highlightId || null);
-
-useEffect(() => {
-  if (highlightId) {
-    const timer = setTimeout(() => setHighlightId(null), 5000);
-    return () => clearTimeout(timer);
-  }
-}, [highlightId]);
-
 export default function ToDoList() {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const [highlightId, setHighlightId] = useState(() => location.state?.highlightId || null);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [parentTaskId, setParentTaskId] = useState(null);
@@ -27,33 +18,32 @@ export default function ToDoList() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
 
-  // Fetch tasks
+  useEffect(() => {
+    if (highlightId) {
+      const timer = setTimeout(() => setHighlightId(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId]);
+
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
     queryFn: () => base44.entities.Task.list(),
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (taskId) => base44.entities.Task.delete(taskId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks"] }); },
   });
 
-  // Toggle completion mutation
   const toggleMutation = useMutation({
     mutationFn: ({ taskId, completed }) =>
       base44.entities.Task.update(taskId, {
         completed,
         completed_date: completed ? new Date().toISOString() : null,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks"] }); },
   });
 
-  // Organize tasks by hierarchy
   const tasksByParent = useMemo(() => {
     const map = new Map();
     tasks.forEach((task) => {
@@ -64,7 +54,6 @@ export default function ToDoList() {
     return map;
   }, [tasks]);
 
-  // Filter tasks
   const rootTasks = useMemo(() => {
     const root = tasksByParent.get("root") || [];
     let filtered = root.filter((t) =>
@@ -87,11 +76,8 @@ export default function ToDoList() {
 
   const handleToggleExpand = (taskId) => {
     const newExpanded = new Set(expandedTasks);
-    if (newExpanded.has(taskId)) {
-      newExpanded.delete(taskId);
-    } else {
-      newExpanded.add(taskId);
-    }
+    if (newExpanded.has(taskId)) newExpanded.delete(taskId);
+    else newExpanded.add(taskId);
     setExpandedTasks(newExpanded);
   };
 
@@ -102,9 +88,7 @@ export default function ToDoList() {
   };
 
   const handleDelete = (taskId) => {
-    if (confirm("Delete this task and all subtasks?")) {
-      deleteMutation.mutate(taskId);
-    }
+    if (confirm("Delete this task and all subtasks?")) deleteMutation.mutate(taskId);
   };
 
   const handleToggle = (taskId) => {
@@ -134,7 +118,6 @@ export default function ToDoList() {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         <select
           value={filterCategory}
@@ -159,7 +142,6 @@ export default function ToDoList() {
         </Button>
       </div>
 
-      {/* Active Tasks */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Active Tasks</h2>
         {rootTasks.length === 0 ? (
@@ -184,7 +166,6 @@ export default function ToDoList() {
         )}
       </div>
 
-      {/* Completed Tasks */}
       {completedTasks.length > 0 && (
         <div className="space-y-3 border-t border-border pt-6">
           <h2 className="text-lg font-semibold text-muted-foreground">
@@ -206,7 +187,6 @@ export default function ToDoList() {
         </div>
       )}
 
-      {/* Task Form Modal */}
       {showForm && (
         <TaskFormModal
           open={showForm}
