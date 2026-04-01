@@ -31,6 +31,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
     
     if (editingEntryFinal) {
       setTitle(editingEntryFinal.title);
+      setMentionNote("");
       setIsEncrypted(editingEntryFinal.is_encrypted || false);
 
       if (editingEntryFinal.is_encrypted) {
@@ -49,7 +50,6 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
     setEncryptionPassword("");
     setDecryptionPassword("");
     setDecryptionError("");
-    setMentionNote("");
   }, [editingEntryFinal?.id, isOpenFinal]);
 
   // Handle decryption when editing encrypted entry
