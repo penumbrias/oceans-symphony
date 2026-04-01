@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityTimeRangeModal from "@/components/activities/ActivityTimeRangeModal";
-import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
+// import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 
