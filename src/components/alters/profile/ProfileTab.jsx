@@ -69,8 +69,7 @@ const QUILL_MODULES = {
   ],
 };
 
-export default function ProfileTab({ alter, editMode, onEditModeChange }) {
-  const queryClient = useQueryClient();
+export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [] }) {  const queryClient = useQueryClient();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [form, setForm] = useState({
     name: "",
