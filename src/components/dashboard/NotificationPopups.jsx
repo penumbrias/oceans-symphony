@@ -17,6 +17,30 @@ function markSeen(id) {
 
 export default function NotificationPopups({ mentionLogs = [], alters = [], frontingAlterIds = [], onNotifClick }) {
   const [dismissed, setDismissed] = useState(() => getSeenIds());
+  const prevFrontingRef = React.useRef([]);
+
+  // When fronting changes, un-dismiss notifications for newly fronting alters
+  React.useEffect(() => {
+    const prev = prevFrontingRef.current;
+    const newlyFronting = frontingAlterIds.filter(id => !prev.includes(id));
+    
+    if (newlyFronting.length > 0) {
+      // Find mention logs for newly fronting alters and remove from dismissed
+      const relevantIds = mentionLogs
+        .filter(m => newlyFronting.includes(m.mentioned_alter_id) && m.log_type !== "authored")
+        .map(m => m.id);
+      
+      if (relevantIds.length > 0) {
+        setDismissed(prev => {
+          const next = new Set(prev);
+          relevantIds.forEach(id => next.delete(id));
+          return next;
+        });
+      }
+    }
+    
+    prevFrontingRef.current = frontingAlterIds;
+  }, [frontingAlterIds.join(",")]);
 
   const relevant = mentionLogs.filter(
     (m) =>
@@ -45,10 +69,10 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
             <button
               className="flex-1 text-left min-w-0"
               onClick={() => {
-  markSeen(m.id);
-  setDismissed((d) => new Set([...d, m.id]));
-  onNotifClick?.(m);
-}}
+                markSeen(m.id);
+                setDismissed((d) => new Set([...d, m.id]));
+                onNotifClick?.(m);
+              }}
             >
               <div className="flex items-center gap-1.5 mb-0.5">
                 <Bell className="w-3 h-3 text-primary flex-shrink-0" />
