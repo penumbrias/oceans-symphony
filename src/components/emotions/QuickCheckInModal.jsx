@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, ChevronDown } from "lucide-react";
+import { Loader2, Heart, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { HexColorPicker } from "react-colorful";
@@ -48,7 +48,7 @@ function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose 
 }
 
 const PRESET_EMOTIONS = [
-  "Happy", "Sad", "Angry", "Anxious", "Calm", "Excited", 
+  "Happy", "Sad", "Angry", "Anxious", "Calm", "Excited",
   "Confused", "Grateful", "Frustrated", "Hopeful", "Neutral", "Overwhelmed"
 ];
 
@@ -82,13 +82,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   }, [customEmotions]);
 
   const activeAlters = useMemo(() => alters.filter(a => !a.is_archived), [alters]);
-  
+
   const filteredAlters = useMemo(() => {
     if (!alterInput.trim()) return [];
     return activeAlters.filter(
-      a => 
+      a =>
         !selectedAlters.includes(a.id) &&
-        (a.name.toLowerCase().includes(alterInput.toLowerCase()) || 
+        (a.name.toLowerCase().includes(alterInput.toLowerCase()) ||
          a.alias?.toLowerCase().includes(alterInput.toLowerCase()))
     );
   }, [alterInput, activeAlters, selectedAlters]);
@@ -96,9 +96,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const addCustomEmotionMutation = useMutation({
     mutationFn: async (label) => {
       const existing = customEmotions.find(e => e.label.toLowerCase() === label.toLowerCase());
-      if (existing) {
-        return existing;
-      }
+      if (existing) return existing;
       return base44.entities.CustomEmotion.create({ label });
     },
     onSuccess: (emotion) => {
@@ -115,10 +113,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   }, [isOpen, currentFronterIds]);
 
   const createCheckInMutation = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async () => {
       let journalEntryId = null;
-      
-      // If note is over 50 words, create journal entry
       const wordCount = note ? note.trim().split(/\s+/).filter(Boolean).length : 0;
       if (note && wordCount > 50) {
         const entry = await base44.entities.JournalEntry.create({
@@ -129,7 +125,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         });
         journalEntryId = entry.id;
       }
-
       return base44.entities.EmotionCheckIn.create({
         timestamp: new Date().toISOString(),
         emotions: selectedEmotions,
@@ -156,45 +151,28 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setShowNewActivity(false);
   };
 
-  const handleSaveActivity = async () => {
-    if (selectedActivityCategories.length === 0 && !newActivityName.trim()) return;
-    
-    // Save category-based activities
-   if (selectedActivityCategories.length > 0) {
-  const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
-  // Create one activity record per selected category
-  for (const catId of selectedActivityCategories) {
-    const cat = catById[catId];
-    await base44.entities.Activity.create({
-      timestamp: new Date().toISOString(),
-      activity_name: cat?.name || catId,
-      activity_category_ids: [catId],
-      duration_minutes: activityDuration ? parseInt(activityDuration) : null,
-      fronting_alter_ids: selectedAlters,
+  const handleCreateNewActivity = async () => {
+    if (!newActivityName.trim()) return;
+    const newCat = await base44.entities.ActivityCategory.create({
+      name: newActivityName.trim(),
+      color: "#8b5cf6",
+      parent_category_id: null,
     });
-  }
-}
+    queryClient.invalidateQueries({ queryKey: ["activityCategories"] });
+    setSelectedActivityCategories([...selectedActivityCategories, newCat.id]);
+    setNewActivityName("");
+    setShowNewActivity(false);
+  };
 
-const handleCreateNewActivity = async () => {
-  if (!newActivityName.trim()) return;
-  // Create a new ActivityCategory
-  const newCat = await base44.entities.ActivityCategory.create({
-    name: newActivityName.trim(),
-    color: "#8b5cf6",
-    parent_category_id: null,
-  });
-  queryClient.invalidateQueries({ queryKey: ["activityCategories"] });
-  setSelectedActivityCategories([...selectedActivityCategories, newCat.id]);
-  setNewActivityName("");
-  setShowNewActivity(false);
-};
-    
-    // Save new activity if entered
-    if (newActivityName.trim()) {
+  const handleSaveActivity = async () => {
+    if (selectedActivityCategories.length === 0) return;
+    const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+    for (const catId of selectedActivityCategories) {
+      const cat = catById[catId];
       await base44.entities.Activity.create({
         timestamp: new Date().toISOString(),
-        activity_name: newActivityName.trim(),
-        activity_category_ids: [],
+        activity_name: cat?.name || catId,
+        activity_category_ids: [catId],
         duration_minutes: activityDuration ? parseInt(activityDuration) : null,
         fronting_alter_ids: selectedAlters,
       });
@@ -207,27 +185,22 @@ const handleCreateNewActivity = async () => {
     try {
       await handleSaveActivity();
 
-      // Update front history if alters changed
       const currentSorted = [...currentFronterIds].sort();
       const selectedSorted = [...selectedAlters].sort();
       if (JSON.stringify(currentSorted) !== JSON.stringify(selectedSorted)) {
         const now = new Date().toISOString();
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-        // End old session at this moment, then start a new one
         for (const s of activeSessions) {
-  await base44.entities.FrontingSession.update(s.id, {
-    is_active: false,
-    end_time: now,
-  });
-}
-if (selectedAlters.length > 0) {
-  await base44.entities.FrontingSession.create({
-    primary_alter_id: selectedAlters[0],
-    co_fronter_ids: selectedAlters.slice(1),
-    start_time: now,
-    is_active: true,
-  });
-}
+          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+        }
+        if (selectedAlters.length > 0) {
+          await base44.entities.FrontingSession.create({
+            primary_alter_id: selectedAlters[0],
+            co_fronter_ids: selectedAlters.slice(1),
+            start_time: now,
+            is_active: true,
+          });
+        }
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       }
@@ -275,7 +248,6 @@ if (selectedAlters.length > 0) {
               ))}
             </div>
 
-            {/* Add custom emotion */}
             <div className="flex gap-2 mt-3">
               <Input
                 placeholder="Add custom emotion..."
@@ -292,9 +264,7 @@ if (selectedAlters.length > 0) {
                 size="icon"
                 variant="outline"
                 onClick={() => {
-                  if (newEmotionInput.trim()) {
-                    addCustomEmotionMutation.mutate(newEmotionInput.trim());
-                  }
+                  if (newEmotionInput.trim()) addCustomEmotionMutation.mutate(newEmotionInput.trim());
                 }}
                 disabled={!newEmotionInput.trim()}
               >
@@ -337,7 +307,6 @@ if (selectedAlters.length > 0) {
               )}
             </div>
 
-            {/* Selected alters grid */}
             {selectedAlters.length > 0 && (
               <div className="grid grid-cols-4 gap-2">
                 {selectedAlters.map((alterId) => {
@@ -370,7 +339,7 @@ if (selectedAlters.length > 0) {
           </div>
 
           {/* Activities */}
-          <ActivityPillSelector 
+          <ActivityPillSelector
             selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
             duration={activityDuration}
@@ -389,7 +358,8 @@ if (selectedAlters.length > 0) {
               />
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => { setShowNewActivity(false); setNewActivityName(""); }} className="flex-1">Cancel</Button>
-<Button size="sm" onClick={handleCreateNewActivity} disabled={!newActivityName.trim()} className="flex-1">Add</Button>              </div>
+                <Button size="sm" onClick={handleCreateNewActivity} disabled={!newActivityName.trim()} className="flex-1">Add</Button>
+              </div>
             </div>
           ) : (
             <button
