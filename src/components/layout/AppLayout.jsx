@@ -3,6 +3,10 @@ import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare, Home, Settings, ChevronLeft } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { useNavigate } from "react-router-dom";
+import NotificationPopups from "@/components/dashboard/NotificationPopups";
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
@@ -26,6 +30,31 @@ export default function AppLayout() {
   const terms = useTerms();
   const navItems = useNavItems(terms);
   const [historyDepth, setHistoryDepth] = useState(0);
+  const navigate = useNavigate();
+
+const { data: alters = [] } = useQuery({
+  queryKey: ["alters"],
+  queryFn: () => base44.entities.Alter.list(),
+});
+
+const { data: sessions = [] } = useQuery({
+  queryKey: ["frontHistory"],
+  queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
+});
+
+const { data: mentionLogs = [] } = useQuery({
+  queryKey: ["mentionLogs"],
+  queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
+});
+
+const activeSession = sessions.find((s) => s.is_active);
+const frontingAlterIds = activeSession
+  ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+  : [];
+
+const handleNotifClick = (mentionLog) => {
+  navigate(mentionLog.navigate_path || "/");
+};
 
   useEffect(() => {
     setHistoryDepth((prev) => isTabRoot(location.pathname) ? 0 : prev + 1);
@@ -154,6 +183,12 @@ export default function AppLayout() {
           })}
         </div>
       </nav>
+      <NotificationPopups
+  mentionLogs={mentionLogs}
+  alters={alters}
+  frontingAlterIds={frontingAlterIds}
+  onNotifClick={handleNotifClick}
+/>
     </div>);
 
 }
