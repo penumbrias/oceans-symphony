@@ -179,8 +179,7 @@ export default function AlterProfile() {
 
       {/* Tab content */}
       <div>
-{tab === "profile" && <ProfileTab alter={alter} editMode={editMode} onEditModeChange={setEditMode} systemFields={systemFields} />}
-        {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
+{tab === "profile" && <ProfileTab alter={alter} editMode={editMode} onEditModeChange={setEditMode} systemFields={systemFields} />}        {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
         {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
         {tab === "history" && <HistoryTab alterId={alter.id} />}
         {tab === "notes" && <NotesTab alterId={alter.id} />}
