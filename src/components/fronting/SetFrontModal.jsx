@@ -139,7 +139,6 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
       onClose();
     } else {
       const coIds = coFronterIds.filter((id) => id !== primaryId);
-      const previousNote = currentSession?.note || null;
       let sessionId = null;
 
       if (activeSessions.length > 0) {
@@ -155,7 +154,6 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           co_fronter_ids: coIds,
           start_time: now,
           is_active: true,
-          note: previousNote,
         });
         sessionId = newSession?.id || null;
       } else {
@@ -164,7 +162,6 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           co_fronter_ids: coIds,
           start_time: new Date().toISOString(),
           is_active: true,
-          note: previousNote,
         });
         sessionId = newSession?.id || null;
       }
