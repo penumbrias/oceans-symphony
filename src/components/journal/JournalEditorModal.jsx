@@ -76,10 +76,24 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
         return base44.entities.JournalEntry.create(data);
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["journals"] });
-      onClose();
-    },
+    onSuccess: async (savedEntry) => {
+  if (mentionNote.trim() && alters?.length > 0) {
+    await saveMentions({
+      content: mentionNote,
+      alters,
+      sourceType: "journal",
+      sourceId: savedEntry.id,
+      sourceLabel: title || "Journal Entry",
+      navigatePath: `/journals?id=${savedEntry.id}`,
+      authorAlterId: null,
+    });
+  }
+  queryClient.invalidateQueries({ queryKey: ["journals"] });
+  queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
+  queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
+  setMentionNote("");
+  onClose();
+},
   });
 
   const handleSave = async () => {
