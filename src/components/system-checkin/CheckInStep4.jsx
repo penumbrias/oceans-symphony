@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 
-export default function CheckInStep4({ data, onChange }) {
+export default function CheckInStep4({ data, onChange, alters = [] }) {
   const step = data?.step4_share || {};
 
   return (
