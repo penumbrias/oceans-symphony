@@ -215,7 +215,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         notes: data.notes,
       });
       
-      }
+      
       toast.success("Activity updated");
       setEditingId(null);
       onSave?.();
