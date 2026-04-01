@@ -174,6 +174,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     });
   }
 }
+
+const handleCreateNewActivity = async () => {
+  if (!newActivityName.trim()) return;
+  // Create a new ActivityCategory
+  const newCat = await base44.entities.ActivityCategory.create({
+    name: newActivityName.trim(),
+    color: "#8b5cf6",
+    parent_category_id: null,
+  });
+  queryClient.invalidateQueries({ queryKey: ["activityCategories"] });
+  setSelectedActivityCategories([...selectedActivityCategories, newCat.id]);
+  setNewActivityName("");
+  setShowNewActivity(false);
+};
     
     // Save new activity if entered
     if (newActivityName.trim()) {
@@ -375,8 +389,7 @@ if (selectedAlters.length > 0) {
               />
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => { setShowNewActivity(false); setNewActivityName(""); }} className="flex-1">Cancel</Button>
-                <Button size="sm" onClick={() => { setShowNewActivity(false); }} disabled={!newActivityName.trim()} className="flex-1">Add</Button>
-              </div>
+<Button size="sm" onClick={handleCreateNewActivity} disabled={!newActivityName.trim()} className="flex-1">Add</Button>              </div>
             </div>
           ) : (
             <button
