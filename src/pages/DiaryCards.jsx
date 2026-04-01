@@ -13,6 +13,7 @@ import AlterSelector from "@/components/diary/AlterSelector";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import ExistingCardDialog from "@/components/diary/ExistingCardDialog";
 import DiaryCardView from "@/components/diary/DiaryCardView";
+import { useEffect } from "react";
 import { getActiveTemplate, getSectionSummary, getCompletion } from "@/lib/diaryCardTemplate";
 
 export default function DiaryCards() {
@@ -27,11 +28,20 @@ export default function DiaryCards() {
   const [editingEntry, setEditingEntry] = useState(null);
   const [showExistingCardDialog, setShowExistingCardDialog] = useState(false);
   const [existingCardToday, setExistingCardToday] = useState(null);
+  
 
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
     queryFn: () => base44.entities.DiaryCard.list("-created_date"),
   });
+
+const [pendingId] = useState(() => new URLSearchParams(window.location.search).get('id'));
+useEffect(() => {
+  if (pendingId && cards.length > 0) {
+    const card = cards.find(c => c.id === pendingId);
+    if (card) { setViewingEntry(card); setView("entry"); }
+  }
+}, [pendingId, cards.length]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
