@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2, X, Check, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,28 @@ export default function InfoTab({ alter, systemFields }) {
   const [newAlterField, setNewAlterField] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const systemSettings = settingsList[0] || null;
+  const hiddenFieldIds = systemSettings?.hidden_field_ids || [];
+
   const customFieldValues = alter.custom_fields || {};
   const alterSpecificFields = alter.alter_custom_fields || [];
+
+  const isVisible = (fieldId) => !hiddenFieldIds.includes(fieldId);
+
+  const toggleFieldVisibility = async (fieldId) => {
+    if (!systemSettings) return;
+    const updated = isVisible(fieldId)
+      ? [...hiddenFieldIds, fieldId]
+      : hiddenFieldIds.filter(id => id !== fieldId);
+    await base44.entities.SystemSettings.update(systemSettings.id, {
+      hidden_field_ids: updated,
+    });
+    queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
 
   const startEditSystem = (field) => {
     setEditingFieldId(field.id);
@@ -30,13 +50,6 @@ export default function InfoTab({ alter, systemFields }) {
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
     setEditingFieldId(null);
     setSaving(false);
-  };
-
-  const toggleFieldVisibility = async (field) => {
-    await base44.entities.CustomField.update(field.id, {
-      is_visible: !field.is_visible,
-    });
-    queryClient.invalidateQueries({ queryKey: ["customFields"] });
   };
 
   const startEditAlter = (idx) => {
@@ -80,19 +93,20 @@ export default function InfoTab({ alter, systemFields }) {
         <div className="space-y-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">System Fields</p>
           {systemFields.map((field) => {
-            const isFilled = !!customFieldValues[field.id];
-            const isVisible = field.is_visible !== false; // default true
+            const visible = isVisible(field.id);
             return (
-              <div key={field.id} className={`rounded-xl border p-3 transition-all ${isVisible ? "border-border/50 bg-muted/10" : "border-border/30 bg-muted/5 opacity-60"}`}>
+              <div key={field.id} className={`rounded-xl border p-3 transition-all ${visible ? "border-border/50 bg-muted/10" : "border-border/30 bg-muted/5 opacity-60"}`}>
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs text-muted-foreground">{field.name}</p>
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => toggleFieldVisibility(field)}
+                      onClick={() => toggleFieldVisibility(field.id)}
                       className="text-muted-foreground hover:text-foreground p-0.5"
-                      title={isVisible ? "Hide from profile" : "Show on profile"}
+                      title={visible ? "Hide from profile" : "Show on profile"}
                     >
-                      {isVisible ? <Eye className="w-3.5 h-3.5 text-primary/70" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      {visible
+                        ? <Eye className="w-3.5 h-3.5 text-primary/70" />
+                        : <EyeOff className="w-3.5 h-3.5" />}
                     </button>
                     {editingFieldId !== field.id && (
                       <button onClick={() => startEditSystem(field)} className="text-muted-foreground hover:text-foreground p-0.5">
