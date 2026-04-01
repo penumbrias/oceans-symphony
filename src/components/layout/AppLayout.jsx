@@ -56,9 +56,14 @@ const frontingAlterIds = activeSession
   : [];
 
 const handleNotifClick = (mentionLog) => {
-  navigate(mentionLog.navigate_path || "/", {
-    state: { highlightId: mentionLog.source_id }
-  });
+  if (mentionLog.navigate_path?.includes("?id=")) {
+    // Already has ID in URL param — navigate directly
+    navigate(mentionLog.navigate_path);
+  } else {
+    navigate(mentionLog.navigate_path || "/", {
+      state: { highlightId: mentionLog.source_id }
+    });
+  }
 };
 
   useEffect(() => {
