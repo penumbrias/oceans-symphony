@@ -102,7 +102,7 @@ export default function Journals() {
   const openEdit = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
 
   // Open specific entry from URL ?id= param (e.g. from timeline double-click)
-  const [pendingId] = useState(() => new URLSearchParams(window.location.search).get('id'));
+
   useEffect(() => {
     if (pendingId && entries.length > 0) {
       const entry = entries.find(e => e.id === pendingId);
@@ -110,7 +110,9 @@ export default function Journals() {
     }
   }, [pendingId, entries.length]);
 
-  const [highlightId, setHighlightId] = useState(() => new URLSearchParams(window.location.search).get('id'));
+const [searchParams] = useSearchParams();
+const pendingId = searchParams.get('id');
+const [highlightId, setHighlightId] = useState(() => searchParams.get('id'));
 
 useEffect(() => {
   if (highlightId) {
