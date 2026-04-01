@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,7 @@ function getContrastColor(hex) {
 export default function AlterProfile() {
   const { id: alterId } = useParams();
   const [tab, setTab] = useState("profile");
+  const [editMode, setEditMode] = useState(false);
 
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
@@ -87,32 +88,43 @@ export default function AlterProfile() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Navigation */}
-       <div className="flex items-center justify-between mb-4">
-         <Link to="/Home">
-           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
-             <ArrowLeft className="w-4 h-4 mr-2" />
-             Back
-           </Button>
-         </Link>
-         <div className="flex items-center gap-2">
-           {prevAlter && (
-             <Link to={`/alter/${prevAlter.id}`}>
-               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                 <ArrowLeft className="w-4 h-4 mr-2" />
-                 Prev
-               </Button>
-             </Link>
-           )}
-           {nextAlter && (
-             <Link to={`/alter/${nextAlter.id}`}>
-               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                 <ArrowRight className="w-4 h-4 ml-2" />
-                 Next
-               </Button>
-             </Link>
-           )}
-         </div>
-       </div>
+      <div className="flex items-center justify-between mb-4">
+        <Link to="/Home">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+        </Link>
+        <div className="flex items-center gap-2">
+          {prevAlter && (
+            <Link to={`/alter/${prevAlter.id}`}>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Prev
+              </Button>
+            </Link>
+          )}
+          {nextAlter && (
+            <Link to={`/alter/${nextAlter.id}`}>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                Next
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          )}
+          {/* Edit/View toggle — only on profile tab */}
+          {tab === "profile" && (
+            <Button
+              variant={editMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => setEditMode(e => !e)}
+              className="gap-1.5"
+            >
+              {editMode ? <><Eye className="w-3.5 h-3.5" /> View</> : <><Pencil className="w-3.5 h-3.5" /> Edit</>}
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Header strip */}
       <div
@@ -136,7 +148,7 @@ export default function AlterProfile() {
             </div>
           )}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
           {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
           {alter.role && <p className="text-xs text-muted-foreground/70 mt-0.5">{alter.role}</p>}
@@ -150,7 +162,7 @@ export default function AlterProfile() {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => { setTab(t.id); if (t.id !== "profile") setEditMode(false); }}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0",
                 tab === t.id
@@ -167,7 +179,7 @@ export default function AlterProfile() {
 
       {/* Tab content */}
       <div>
-        {tab === "profile" && <ProfileTab alter={alter} />}
+        {tab === "profile" && <ProfileTab alter={alter} editMode={editMode} onEditModeChange={setEditMode} />}
         {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
         {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
         {tab === "history" && <HistoryTab alterId={alter.id} />}
