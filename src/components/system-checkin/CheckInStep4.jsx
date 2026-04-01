@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 export default function CheckInStep4({ data, onChange }) {
   const step = data?.step4_share || {};
@@ -41,17 +42,13 @@ export default function CheckInStep4({ data, onChange }) {
               <Label htmlFor="step4-notes" className="text-sm mb-2 block">
                 Anything you would like to record?
               </Label>
-              <Textarea
-                id="step4-notes"
-                placeholder="Any reflections, responses, or observations..."
-                value={step.notes || ""}
-                onChange={(e) =>
-                  onChange({
-                    step4_share: { ...step, notes: e.target.value }
-                  })
-                }
-                className="resize-none h-24"
-              />
+              <MentionTextarea
+  value={step.notes || ""}
+  onChange={(val) => onChange({ step4_share: { ...step, notes: val } })}
+  alters={alters}
+  placeholder="Any reflections, responses, or observations..."
+  className="resize-none h-24"
+/>
             </div>
           </div>
         </CardContent>
