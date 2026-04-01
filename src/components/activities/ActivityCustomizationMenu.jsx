@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import ActivityTreeRow from "@/components/activities/ActivityTreeRow";
 
 export default function ActivityCustomizationMenu({ onClose }) {
+  const [showRootColorPicker, setShowRootColorPicker] = useState(false);
   const qc = useQueryClient();
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [selectedId, setSelectedId] = useState(null);
@@ -165,12 +166,20 @@ export default function ActivityCustomizationMenu({ onClose }) {
           <div className="space-y-2 pt-2 border-t border-border">
             <p className="text-sm font-medium">New Root Activity</p>
             <div className="flex gap-2 items-center">
-              <input
-                type="color"
-                value={newRootColor}
-                onChange={(e) => setNewRootColor(e.target.value)}
-                className="w-9 h-9 rounded cursor-pointer border-0 flex-shrink-0"
-              />
+              <button
+  type="button"
+  onClick={() => setShowRootColorPicker(true)}
+  className="w-9 h-9 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
+  style={{ backgroundColor: newRootColor }}
+/>
+{showRootColorPicker && (
+  <ColorPickerModal
+    color={newRootColor}
+    label="Activity Color"
+    onSave={(hex) => setNewRootColor(hex)}
+    onClose={() => setShowRootColorPicker(false)}
+  />
+)}
               <Input
                 autoFocus
                 value={newRootName}
