@@ -15,6 +15,13 @@ export default function MentionNotifications({ frontingAlterIds = [], alters = [
     enabled: frontingAlterIds.length > 0,
   });
 
+const relevant = mentionLogs.filter((m) => {
+  if (m.log_type === "authored") return false;
+  if (!frontingAlterIds.includes(m.mentioned_alter_id)) return false;
+  const dismissedBy = m.dismissed_by_alter_ids || [];
+  return !dismissedBy.includes(m.mentioned_alter_id);
+});
+
   const relevant = mentionLogs.filter((m) => frontingAlterIds.includes(m.mentioned_alter_id) && m.log_type !== "authored");
   if (relevant.length === 0) return null;
 
