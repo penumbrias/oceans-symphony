@@ -3,11 +3,12 @@ import { base44 } from "@/api/base44Client";
 import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { HexColorPicker } from "react-colorful";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose }) {
   const [hex, setHex] = React.useState(color);
@@ -56,7 +57,19 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-export default function ProfileTab({ alter }) {
+const QUILL_MODULES = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ color: [] }, { background: [] }],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["blockquote", "code-block"],
+    ["link", "image"],
+    ["clean"],
+  ],
+};
+
+export default function ProfileTab({ alter, editMode, onEditModeChange }) {
   const queryClient = useQueryClient();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [form, setForm] = useState({
@@ -87,16 +100,14 @@ export default function ProfileTab({ alter }) {
   }, [alter]);
 
   const handleSave = async () => {
-    if (!form.name.trim()) {
-      toast.error("Name is required");
-      return;
-    }
+    if (!form.name.trim()) { toast.error("Name is required"); return; }
     setSaving(true);
     try {
       await base44.entities.Alter.update(alter.id, form);
       toast.success("Saved!");
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+      onEditModeChange(false);
     } catch (e) {
       toast.error(e.message || "Failed to save");
     } finally {
@@ -149,14 +160,98 @@ export default function ProfileTab({ alter }) {
     }
   };
 
+  // ── VIEW MODE ──
+  if (!editMode) {
+    return (
+      <div className="space-y-6">
+        {/* Avatar + basic info */}
+        <div className="flex gap-4 items-start">
+          <div
+            className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
+            style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}
+          >
+            {alter.avatar_url ? (
+              <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-10 h-10" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }} />
+            )}
+          </div>
+          <div className="flex-1 min-w-0 space-y-1">
+            <h2 className="font-display text-2xl font-semibold text-foreground">{alter.name}</h2>
+            {alter.alias && <p className="text-sm text-muted-foreground">aka {alter.alias}</p>}
+            {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
+            {alter.role && (
+              <span
+                className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
+                style={{
+                  backgroundColor: alter.color ? `${alter.color}20` : "hsl(var(--muted))",
+                  color: alter.color || "hsl(var(--muted-foreground))",
+                }}
+              >
+                {alter.role}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Rich text bio */}
+        {alter.description ? (
+          <div
+            className="prose prose-sm dark:prose-invert max-w-none bg-muted/20 rounded-xl p-4 border border-border/40"
+            dangerouslySetInnerHTML={{ __html: alter.description }}
+          />
+        ) : (
+          <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
+            No bio yet. Tap <strong>Edit</strong> to add one.
+          </div>
+        )}
+
+        {/* Groups */}
+        {alter.groups && alter.groups.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
+            <div className="flex flex-wrap gap-1.5">
+              {alter.groups.map((g) => (
+                <span
+                  key={g.id}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium border"
+                  style={{
+                    backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
+                    borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
+                    color: g.color || "hsl(var(--foreground))",
+                  }}
+                >
+                  {g.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tags */}
+        {alter.tags && alter.tags.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tags</p>
+            <div className="flex flex-wrap gap-1.5">
+              {alter.tags.map((tag) => (
+                <span key={tag} className="px-2.5 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── EDIT MODE ──
   return (
     <div className="space-y-6">
-      {/* Color preview strip */}
       {form.color && (
         <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />
       )}
 
-      {/* Avatar */}
       <div className="flex justify-center">
         <div
           className="w-32 h-32 rounded-2xl border-4 border-border overflow-hidden shadow-xl"
@@ -172,7 +267,6 @@ export default function ProfileTab({ alter }) {
         </div>
       </div>
 
-      {/* Editable Fields */}
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Name *</label>
@@ -217,21 +311,10 @@ export default function ProfileTab({ alter }) {
           <label className="text-xs text-muted-foreground font-medium">Avatar</label>
           <div className="flex gap-2">
             <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingAvatar}
-            >
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
               {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={handleAvatarUpload}
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
           </div>
           {form.avatar_url && (
             <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />
@@ -240,41 +323,37 @@ export default function ProfileTab({ alter }) {
 
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
-          <Textarea
-            value={form.description}
-            onChange={(e) => set("description", e.target.value)}
-            placeholder="Write a description..."
-            className="min-h-[100px] resize-none"
-          />
+          <p className="text-xs text-muted-foreground">Supports rich text, images, headers, and more</p>
+          <div className="rounded-lg border border-input overflow-hidden bg-background">
+            <ReactQuill
+              value={form.description}
+              onChange={(val) => set("description", val)}
+              modules={QUILL_MODULES}
+              theme="snow"
+              placeholder="Write a bio… add images, headers, styling…"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Groups */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-primary flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" /> Groups
           </label>
-          <button
-            type="button"
-            onClick={() => setShowGroupPicker(true)}
-            className="text-xs text-primary hover:text-primary/80 font-medium"
-          >
+          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">
             Edit groups →
           </button>
         </div>
         {alter.groups && alter.groups.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {alter.groups.map((g) => (
-              <span
-                key={g.id}
-                className="px-2 py-0.5 rounded-full text-xs font-medium border"
+              <span key={g.id} className="px-2 py-0.5 rounded-full text-xs font-medium border"
                 style={{
                   backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
                   borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
                   color: g.color || "hsl(var(--foreground))",
-                }}
-              >
+                }}>
                 {g.name}
               </span>
             ))}
@@ -284,7 +363,6 @@ export default function ProfileTab({ alter }) {
         )}
       </div>
 
-      {/* Tags */}
       {alter.tags && alter.tags.length > 0 && (
         <div>
           <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-3">
@@ -300,38 +378,23 @@ export default function ProfileTab({ alter }) {
         </div>
       )}
 
-      {/* Action Buttons */}
       <div className="flex flex-col gap-2 pt-2">
         <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
           {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           Save Changes
         </Button>
-
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
-            {alter?.is_archived ? (
-              <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
-            ) : (
-              <><Archive className="w-4 h-4 mr-2" /> Archive</>
-            )}
+            {alter?.is_archived ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</> : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
           </Button>
-          <Button
-            variant="outline"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex-1 text-destructive hover:text-destructive border-destructive/30"
-          >
+          <Button variant="outline" onClick={handleDelete} disabled={deleting} className="flex-1 text-destructive hover:text-destructive border-destructive/30">
             {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
             Delete
           </Button>
         </div>
       </div>
 
-      <GroupPickerModal
-        alter={alter}
-        open={showGroupPicker}
-        onClose={() => setShowGroupPicker(false)}
-      />
+      <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
 
       {showColorPicker && (
         <ColorPickerModal
