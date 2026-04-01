@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useTerms } from "@/lib/useTerms";
 import { saveMentions } from "@/lib/mentionUtils";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -200,12 +201,13 @@ export default function CurrentFronters({ alters }) {
         {/* Custom Status */}
         {editingStatus ?
         <div className="flex gap-2">
-            <Input
-            placeholder="Add a status..."
-            value={tempStatus}
-            onChange={(e) => setTempStatus(e.target.value)} className="bg-transparent text-foreground px-3 py-1 text-sm rounded-md flex w-full border border-input shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm h-8"
-
-            autoFocus />
+            <MentionTextarea
+  value={tempStatus}
+  onChange={setTempStatus}
+  alters={alters}
+  placeholder="Add a status..."
+  className="h-10 min-h-0 resize-none text-sm"
+/>
           
             <Button
             size="sm"
