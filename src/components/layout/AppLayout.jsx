@@ -39,11 +39,15 @@ const { data: alters = [] } = useQuery({
 const { data: sessions = [] } = useQuery({
   queryKey: ["frontHistory"],
   queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
+  refetchInterval: 10000,
+  refetchIntervalInBackground: false,
 });
 
 const { data: mentionLogs = [] } = useQuery({
   queryKey: ["mentionLogs"],
   queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
+  refetchInterval: 15000, // refetch every 15 seconds
+  refetchIntervalInBackground: false, // only when tab is active
 });
 
 const activeSession = sessions.find((s) => s.is_active);
