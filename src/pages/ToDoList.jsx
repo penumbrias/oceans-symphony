@@ -5,6 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Plus, Filter } from "lucide-react";
 import TaskItem from "@/components/tasks/TaskItem";
 import TaskFormModal from "@/components/tasks/TaskFormModal";
+import { useLocation } from "react-router-dom";
+
+// inside component:
+const location = useLocation();
+const [highlightId, setHighlightId] = useState(() => location.state?.highlightId || null);
+
+useEffect(() => {
+  if (highlightId) {
+    const timer = setTimeout(() => setHighlightId(null), 5000);
+    return () => clearTimeout(timer);
+  }
+}, [highlightId]);
 
 export default function ToDoList() {
   const queryClient = useQueryClient();
