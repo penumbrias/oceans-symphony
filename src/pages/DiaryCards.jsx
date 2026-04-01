@@ -30,7 +30,9 @@ export default function DiaryCards() {
   const [showExistingCardDialog, setShowExistingCardDialog] = useState(false);
   const [existingCardToday, setExistingCardToday] = useState(null);
   const [mentionNote, setMentionNote] = useState("");
-  const [highlightId] = useState(() => new URLSearchParams(window.location.search).get('id'));
+  const [searchParams] = useSearchParams();
+const pendingId = searchParams.get('id');
+const highlightId = searchParams.get('id');
 
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
@@ -38,7 +40,6 @@ export default function DiaryCards() {
   });
 
   // Auto-open card from URL ?id= param
-  const [pendingId] = useState(() => new URLSearchParams(window.location.search).get('id'));
   useEffect(() => {
     if (pendingId && cards.length > 0) {
       const card = cards.find(c => c.id === pendingId);
