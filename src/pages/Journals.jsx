@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import JournalEntryCard from "@/components/journal/JournalEntryCard";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import JournalViewModal from "@/components/journal/JournalViewModal";
 import FolderGrid from "@/components/journal/FolderGrid";
+
 
 const TABS = [
   { id: "all", label: "All", icon: BookOpen },
