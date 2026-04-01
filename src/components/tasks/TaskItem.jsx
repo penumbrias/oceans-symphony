@@ -14,7 +14,6 @@ export default function TaskItem({
   isExpanded,
   onToggleExpand,
   level = 0,
-    highlight = false,
 }) {
   const progress = task.goal_target
     ? Math.round((task.current_progress / task.goal_target) * 100)
