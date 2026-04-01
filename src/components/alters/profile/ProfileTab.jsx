@@ -243,6 +243,39 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
             </div>
           </div>
         )}
+
+        {/* Custom fields — visible and filled */}
+        {(() => {
+          const customFieldValues = alter.custom_fields || {};
+          const visibleFilled = systemFields.filter(
+            f => f.is_visible !== false && customFieldValues[f.id]
+          );
+          const alterSpecific = (alter.alter_custom_fields || []).filter(f => f.value);
+          if (visibleFilled.length === 0 && alterSpecific.length === 0) return null;
+          return (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
+              <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden">
+                {visibleFilled.map((field, i) => (
+                  <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
+                    <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
+                    <span className="text-xs text-foreground flex-1 leading-relaxed">
+                      {field.field_type === "boolean"
+                        ? (customFieldValues[field.id] === "true" ? "Yes" : "No")
+                        : customFieldValues[field.id]}
+                    </span>
+                  </div>
+                ))}
+                {alterSpecific.map((field, idx) => (
+                  <div key={idx} className={`flex gap-3 px-3 py-2.5 ${idx < alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
+                    <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
+                    <span className="text-xs text-foreground flex-1 leading-relaxed">{field.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }
