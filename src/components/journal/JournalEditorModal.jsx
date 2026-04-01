@@ -24,6 +24,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
   const [decryptionPassword, setDecryptionPassword] = useState("");
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [decryptionError, setDecryptionError] = useState("");
+  const [mentionNote, setMentionNote] = useState("");
 
   // Load and decrypt entry if editing
   useEffect(() => {
