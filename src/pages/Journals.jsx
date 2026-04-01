@@ -110,6 +110,15 @@ export default function Journals() {
     }
   }, [pendingId, entries.length]);
 
+  const [highlightId, setHighlightId] = useState(() => new URLSearchParams(window.location.search).get('id'));
+
+useEffect(() => {
+  if (highlightId) {
+    const timer = setTimeout(() => setHighlightId(null), 5000);
+    return () => clearTimeout(timer);
+  }
+}, [highlightId]);
+
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
     const name = newFolderName.trim();
