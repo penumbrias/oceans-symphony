@@ -93,11 +93,7 @@ export default function Dashboard() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <NotificationPopups
-        mentionLogs={mentionLogs}
-        alters={alters}
-        frontingAlterIds={frontingAlterIds}
-        onNotifClick={handleNotifClick} />
+      
       
       <div className="mb-3 flex items-start justify-between">
         <div>
