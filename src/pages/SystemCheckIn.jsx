@@ -366,9 +366,9 @@ const formatted = date.toLocaleDateString("en-US", {
             {/* Steps */}
              <CheckInStep1 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
              <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} groups={groups} />
-             <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-             <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-             <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
+            <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+<CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+<CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
 
             {/* Next Steps */}
             <Card>
