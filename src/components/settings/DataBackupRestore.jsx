@@ -44,7 +44,21 @@ export default function DataBackupRestore() {
       } else {
         dump = {};
         for (const name of ENTITY_NAMES) {
-          try { dump[name] = await base44.entities[name].list(); } catch {}
+          try {
+            // Fetch all records — list() may be paginated so keep fetching
+            let allRecords = [];
+            let page = 0;
+            const PAGE_SIZE = 500;
+            while (true) {
+              const batch = await base44.entities[name].list(null, PAGE_SIZE);
+              if (!batch || batch.length === 0) break;
+              allRecords = [...allRecords, ...batch];
+              if (batch.length < PAGE_SIZE) break; // got everything
+              page++;
+              if (page > 20) break; // safety cap
+            }
+            dump[name] = allRecords;
+          } catch {}
         }
         for (const name of ENTITY_NAMES) {
           if (Array.isArray(dump[name])) {
