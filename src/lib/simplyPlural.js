@@ -82,30 +82,22 @@ export async function getCustomFields(token, systemId) {
   }
 }
 
-// Fetch all notes for a system (notes are per-member in SP)
-export async function getNotes(token, systemId) {
-  try {
-    const data = await spFetch(`/notes/${systemId}`, token);
-    return Array.isArray(data) ? data : (data.data ?? []);
-  } catch {
-    return [];
-  }
-}
-
 function normalizeColor(raw) {
   if (!raw) return "";
-  return raw.startsWith("#") ? raw : `#${raw}`;
+  const s = raw.toString().trim();
+  return s.startsWith("#") ? s : `#${s}`;
 }
 
+// SP response shape: { exists, id, content: { name, color, members: [...spMemberIds], parent, ... } }
 export function mapMemberToAlter(member, groupsById = {}) {
-  const id = member.id || member._id || "";
+  const spId = member.id || member._id || "";
   const c = member.content || member;
 
-  // Find which groups this member belongs to
+  // Find which groups this member belongs to by checking content.members
   const memberGroups = Object.values(groupsById)
     .filter((g) => {
       const gc = g.content || g;
-      return Array.isArray(gc.members) && gc.members.includes(id);
+      return Array.isArray(gc.members) && gc.members.includes(spId);
     })
     .map((g) => {
       const gc = g.content || g;
@@ -117,7 +109,7 @@ export function mapMemberToAlter(member, groupsById = {}) {
     });
 
   return {
-    sp_id: id,
+    sp_id: spId,
     name: c.name || "Unknown",
     pronouns: Array.isArray(c.pronouns)
       ? c.pronouns.join(", ")
@@ -127,51 +119,35 @@ export function mapMemberToAlter(member, groupsById = {}) {
     avatar_url: c.avatarUrl || c.avatar_url || "",
     banner_url: c.bannerUrl || c.banner_url || "",
     role: c.role || "",
-    // SP uses 'info' for custom field values
     custom_fields: c.info || {},
     tags: Array.isArray(c.tags) ? c.tags : [],
     groups: memberGroups,
     is_archived: !!c.archived,
-    // Additional SP fields
     birthday: c.birthday || c.birthdate || "",
-    // 'pkId' links to a PluralKit member if the system uses both
     pk_id: c.pkId || "",
   };
 }
 
-export function mapGroupToLocalGroup(group, memberSpIds = []) {
-  const id = group.id || group._id || "";
+// SP group shape: { exists, id, content: { name, color, members: [...spMemberIds], parent, desc, emoji } }
+export function mapGroupToLocalGroup(group) {
+  const spId = group.id || group._id || "";
   const c = group.content || group;
 
-  // SP stores group members as an array of member IDs
+  // members in SP groups are arrays of SP member IDs
   const spMemberIds = Array.isArray(c.members) ? c.members : [];
 
+  // parent is a SP group ID — we store it for potential nested group support
+  const parentSpId = c.parent || "";
+
   return {
-    sp_id: id,
+    sp_id: spId,
     name: c.name || "Unnamed Group",
     color: normalizeColor(c.color),
     description: c.desc || c.description || "",
-    // We store the raw SP member IDs here; the import step resolves these
-    // to local alter IDs after alters are imported
-    sp_member_ids: spMemberIds,
+    emoji: c.emoji || "",
+    sp_member_ids: spMemberIds,   // raw SP IDs, resolved to local alter_ids in import step
+    sp_parent_id: parentSpId,     // raw SP parent group ID
     tags: Array.isArray(c.tags) ? c.tags : [],
     is_hidden: !!c.private,
-  };
-}
-
-export function mapNoteToAlterNote(note, alterIdBySpId = {}) {
-  const c = note.content || note;
-  const spMemberId = c.member || c.memberId || "";
-
-  return {
-    sp_id: note.id || note._id || "",
-    alter_id: alterIdBySpId[spMemberId] || null,
-    sp_member_id: spMemberId,
-    title: c.title || "",
-    note: c.note || c.text || c.body || "",
-    is_private: !!c.private,
-    created_date: c.lastOperationTime
-      ? new Date(c.lastOperationTime).toISOString()
-      : new Date().toISOString(),
   };
 }
