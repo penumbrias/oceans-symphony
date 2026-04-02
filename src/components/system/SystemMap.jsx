@@ -20,6 +20,7 @@ const SystemMap = () => {
   const [cofronterCount, setCofronterCount] = useState(10);
   const [cofronters, setCofronters] = useState([]);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -144,7 +145,7 @@ const SystemMap = () => {
 
   // Filter alters based on search and selection
   const filteredAlters = useMemo(() => {
-    let result = alters;
+    let result = alters.filter(a => showArchived ? true : !a.is_archived);
 
     if (selectedGroup) {
       const group = groups.find((g) => g.id === selectedGroup);
@@ -467,6 +468,17 @@ const SystemMap = () => {
         {panelOpen && (
           <div className="p-4 space-y-3 border-t border-border max-h-[70vh] overflow-y-auto">
             <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Show Archived
+              </label>
+              <button
+                onClick={() => setShowArchived(v => !v)}
+                className={`w-10 h-5 rounded-full transition-colors ${showArchived ? "bg-primary" : "bg-muted"} relative`}
+              >
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${showArchived ? "left-5" : "left-0.5"}`} />
+              </button>
+            </div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
                 Search Alters
               </label>
