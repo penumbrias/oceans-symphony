@@ -662,10 +662,19 @@ export default function InfiniteTimeline({
       const color = alter?.color || "#9333ea";
       const topPx = getTopPx(entry.startMins);
       const heightPx = getRangePx(entry.startMins, entry.endMins);
-      const entrySession = sessions.find(s => {
-        const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-        return ids.includes(entry.alterId);
-      });
+      const entrySession = sessions
+        .filter(s => {
+          const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+          return ids.includes(entry.alterId);
+        })
+        .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
+        .find(s => {
+          const startMins = Math.max(0, minutesInDay(parseDate(s.start_time), dayStart));
+          return startMins >= entry.startMins - 2;
+        }) || sessions.find(s => {
+          const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+          return ids.includes(entry.alterId);
+        });
       const isPrimary = entrySession?.primary_alter_id === entry.alterId;
       return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx}
         isPrimary={isPrimary}
