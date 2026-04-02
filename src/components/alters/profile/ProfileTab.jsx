@@ -366,18 +366,8 @@ const quillRef = useRef(null);
             <ReactQuill
 ref={quillRef}
               value={form.description}
-              onChange={(val) => {
-                set("description", val);
-                setTimeout(() => {
-                  const quill = quillRef.current?.getEditor();
-                  if (quill) {
-                    const selection = quill.getSelection();
-                    quill.blur();
-                    quill.focus();
-                    if (selection) quill.setSelection(selection);
-                  }
-                }, 0);
-              }}              modules={{
+              onChange={(val) => set("description", val)}
+                            modules={{
                 ...QUILL_MODULES,
                 toolbar: {
                   ...QUILL_MODULES.toolbar,
