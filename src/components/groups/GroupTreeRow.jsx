@@ -42,6 +42,8 @@ export default function GroupTreeRow({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const autoExpandTimeoutRef = useRef(null);
   const isCreatingSubgroup = creatingSubgroupFor === group.id;
+  const [showColorPicker, setShowColorPicker] = useState(false);
+const [pendingColor, setPendingColor] = useState(group.color || "#9333ea");
 
   // Find children by matching parent to this group's ID or sp_id
   const childGroups = allGroups
