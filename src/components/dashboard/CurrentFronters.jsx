@@ -95,8 +95,19 @@ export default function CurrentFronters({ alters }) {
 
   useEffect(() => {
     if (active) {
-      setStatusText(active.note || "");
-      setTempStatus(active.note || "");
+      let latest = "";
+      try {
+        const parsed = JSON.parse(active.note || "[]");
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          latest = parsed[parsed.length - 1].text;
+        } else if (active.note && !active.note.startsWith("[")) {
+          latest = active.note;
+        }
+      } catch {
+        latest = active.note || "";
+      }
+      setStatusText(latest);
+      setTempStatus(latest);
     }
   }, [active?.id]);
 
