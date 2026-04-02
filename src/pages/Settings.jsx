@@ -101,27 +101,6 @@ export default function Settings() {
       </p>
 
       <div className="space-y-6 max-w-2xl">
-      {/* Privacy & Security Notice */}
-        <Card className="border-amber-500/30 bg-amber-500/5">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <span className="text-lg">🔐</span>
-              </div>
-              <div>
-                <CardTitle className="text-lg">Privacy & Data Notice</CardTitle>
-                <CardDescription>Please read before entering sensitive information</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Oceans-Symphony is built on the Base44 platform. Your data is stored on Base44's servers with row-level security — meaning other users cannot access your data.</p>
-            <p>As the developer, I technically have access to data through the Base44 dashboard. I am committed to never accessing, reading, or using your personal data. However, I want to be transparent that this technical access exists.</p>
-            <p><strong className="text-foreground">Custom fields</strong> (trauma triggers, fears, beliefs, etc.) and other personal entries are currently stored without end-to-end encryption. Please be mindful of what you enter if this concerns you.</p>
-            <p className="text-amber-600 dark:text-amber-400 font-medium">🔒 Higher-level security and end-to-end encryption is planned and is a top development priority. This includes migrating to a more privacy-forward infrastructure.</p>
-            <p>This app is free, open, and shared in good faith with the plural community. If you have concerns, please reach out.</p>
-          </CardContent>
-        </Card>
         {/* System Name */}
         <Card className="border-border/50">
           <CardHeader>
