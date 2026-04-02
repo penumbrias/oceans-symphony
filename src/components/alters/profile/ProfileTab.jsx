@@ -362,41 +362,39 @@ const quillRef = useRef(null);
           <p className="text-xs text-muted-foreground">Supports rich text, images, headers, and more</p>
           <div className="rounded-lg border border-input overflow-hidden bg-background">
             <ReactQuill
-ref={quillRef}
+              ref={quillRef}
               value={form.description}
               onChange={(val) => set("description", val)}
-                            modules={{
-                ...QUILL_MODULES,
-                toolbar: {
-                  ...QUILL_MODULES.toolbar,
-                  handlers: {
-                    image: function() {
-                      const input = document.createElement("input");
-                      input.setAttribute("type", "file");
-                      input.setAttribute("accept", "image/*");
-                      input.click();
-                      input.onchange = async () => {
-                        const file = input.files[0];
-                        if (!file) return;
-                        try {
-                          toast.loading("Uploading image...");
-                          const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                          toast.dismiss();
-                          toast.success("Image uploaded!");
-const quill = quillRef.current?.getEditor();
-                          const range = quill.getSelection() || { index: 0 };
-                          quill.insertEmbed(range.index, "image", file_url);
-                          quill.setSelection(range.index + 1);                        } catch {
-                          toast.dismiss();
-                          toast.error("Failed to upload image");
-                        }
-                      };
-                    }
-                  }
-                }
-              }}
+              modules={QUILL_MODULES}
               theme="snow"
               placeholder="Write a bio… add images, headers, styling…"
+              onFocus={() => {
+                const quill = quillRef.current?.getEditor();
+                if (!quill) return;
+                const toolbar = quill.getModule("toolbar");
+                toolbar.addHandler("image", () => {
+                  const input = document.createElement("input");
+                  input.setAttribute("type", "file");
+                  input.setAttribute("accept", "image/*");
+                  input.click();
+                  input.onchange = async () => {
+                    const file = input.files[0];
+                    if (!file) return;
+                    try {
+                      toast.loading("Uploading image...");
+                      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                      toast.dismiss();
+                      toast.success("Image uploaded!");
+                      const range = quill.getSelection() || { index: 0 };
+                      quill.insertEmbed(range.index, "image", file_url);
+                      quill.setSelection(range.index + 1);
+                    } catch {
+                      toast.dismiss();
+                      toast.error("Failed to upload image");
+                    }
+                  };
+                });
+              }}
             />
           </div>
         </div>
