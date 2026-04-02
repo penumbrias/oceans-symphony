@@ -675,26 +675,19 @@ export default function InfiniteTimeline({
   </div>
 ))}
 
-              {/* Session status notes — shown in the alters area */}
-              {sessions
-  .filter(s => s.note)
-  .filter((session) => {
-    const sorted = [...sessions].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-    const pos = sorted.findIndex(s => s.id === session.id);
-    if (pos === 0) return true;
-    const prev = sorted[pos - 1];
-    return !prev || prev.note !== session.note;
-  })
-  .map((session) => {
-                const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
-                const topPx = getTopPx(startMins);
-                return (
-                  <div key={`note-${session.id}`} className="absolute"
-                    style={{ left: alterLeft, right: 0, top: 0, height: totalHeight, pointerEvents: "none" }}>
-                    <StatusNoteBadge note={session.note} topPx={topPx} />
-                  </div>
-                );
-              })}
+              {/* Session status notes — one badge per saved status with its own timestamp */}
+              {sessions.flatMap((session) =>
+                (session.status_notes || (session.note ? [{ text: session.note, timestamp: session.start_time }] : [])).map((sn, i) => {
+                  const mins = Math.max(0, minutesInDay(parseDate(sn.timestamp), dayStart));
+                  const topPx = getTopPx(mins);
+                  return (
+                    <div key={`note-${session.id}-${i}`} className="absolute"
+                      style={{ left: alterLeft, right: 0, top: 0, height: totalHeight, pointerEvents: "none" }}>
+                      <StatusNoteBadge note={sn.text} topPx={topPx} />
+                    </div>
+                  );
+                })
+              )}
 
             </div>
             </div>
