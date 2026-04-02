@@ -69,7 +69,7 @@ function FirstRunSetup({ onComplete }) {
             <div>
               <p className="font-semibold text-foreground">Local Only</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                All data stays on this device. No account required. Optional password encryption.
+                All data stays on this device. No account required. Optional password encryption (currently bugged). Backup/export your data frequently - but<strong> use this method! much more secure!</strong>
               </p>
             </div>
           </button>
@@ -83,7 +83,7 @@ function FirstRunSetup({ onComplete }) {
             <div>
               <p className="font-semibold text-foreground">Cloud Sync</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Data synced to the cloud. Requires an account. Access from any device.
+                Data synced to the cloud. Requires an account. Access from any device. Saves data on base44 servers - please do not use this!
               </p>
             </div>
           </button>
