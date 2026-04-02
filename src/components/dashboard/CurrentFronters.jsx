@@ -122,8 +122,11 @@ export default function CurrentFronters({ alters }) {
   const handleSaveStatus = async () => {
     if (!active) return;
     try {
+      const existing = JSON.parse(active.note || "[]").catch?.() ?? 
+        (active.note ? (active.note.startsWith("[") ? JSON.parse(active.note) : [{ text: active.note, timestamp: active.start_time }]) : []);
+      const updated = [...existing, { text: tempStatus, timestamp: new Date().toISOString() }];
       await base44.entities.FrontingSession.update(active.id, {
-        note: tempStatus || null
+        note: JSON.stringify(updated),
       });
       setStatusText(tempStatus);
       setEditingStatus(false);
