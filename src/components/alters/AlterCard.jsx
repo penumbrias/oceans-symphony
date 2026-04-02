@@ -41,18 +41,32 @@ export function FrontingToggleButton({ alter, currentSession }) {
         const session = activeSessions[0];
         const allFronters = new Set([session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean));
         if (allFronters.has(alter.id)) {
-          allFronters.delete(alter.id);
-          if (allFronters.size === 0) {
-            await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: new Date().toISOString() });
-          } else {
-            const remaining = Array.from(allFronters);
-            const newPrimary = session.primary_alter_id === alter.id ? remaining[0] : session.primary_alter_id;
-            await base44.entities.FrontingSession.update(session.id, {
-              primary_alter_id: newPrimary,
-              co_fronter_ids: remaining.filter(id => id !== newPrimary),
-            });
-          }
-          toast.success(`${alter.name} removed from front`);
+            if (session.primary_alter_id === alter.id) {
+              // Demote primary to co-fronter instead of removing
+              const coIds = (session.co_fronter_ids || []).filter(Boolean);
+              if (coIds.length === 0) {
+                // No one to promote — just clear front entirely
+                await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: new Date().toISOString() });
+                toast.success(`${alter.name} removed from front`);
+              } else {
+                const newPrimary = coIds[0];
+                const newCoFronters = [...coIds.filter(id => id !== newPrimary), alter.id];
+                await base44.entities.FrontingSession.update(session.id, {
+                  primary_alter_id: newPrimary,
+                  co_fronter_ids: newCoFronters,
+                });
+                toast.success(`${alter.name} demoted to co-fronter`);
+              }
+            } else {
+              // Remove co-fronter entirely
+              allFronters.delete(alter.id);
+              const remaining = Array.from(allFronters).filter(Boolean);
+              await base44.entities.FrontingSession.update(session.id, {
+                primary_alter_id: session.primary_alter_id,
+                co_fronter_ids: remaining.filter(id => id !== session.primary_alter_id),
+              });
+              toast.success(`${alter.name} removed from front`);
+            }
         } else {
           await base44.entities.FrontingSession.update(session.id, {
             co_fronter_ids: [...(session.co_fronter_ids || []), alter.id],
