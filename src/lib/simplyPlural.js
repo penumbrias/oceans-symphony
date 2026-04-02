@@ -88,12 +88,10 @@ function normalizeColor(raw) {
   return s.startsWith("#") ? s : `#${s}`;
 }
 
-// SP response shape: { exists, id, content: { name, color, members: [...spMemberIds], parent, ... } }
 export function mapMemberToAlter(member, groupsById = {}) {
   const spId = member.id || member._id || "";
   const c = member.content || member;
 
-  // Find which groups this member belongs to by checking content.members
   const memberGroups = Object.values(groupsById)
     .filter((g) => {
       const gc = g.content || g;
@@ -111,9 +109,7 @@ export function mapMemberToAlter(member, groupsById = {}) {
   return {
     sp_id: spId,
     name: c.name || "Unknown",
-    pronouns: Array.isArray(c.pronouns)
-      ? c.pronouns.join(", ")
-      : (c.pronouns || ""),
+    pronouns: Array.isArray(c.pronouns) ? c.pronouns.join(", ") : (c.pronouns || ""),
     description: c.desc || c.description || "",
     color: normalizeColor(c.color),
     avatar_url: c.avatarUrl || c.avatar_url || "",
@@ -133,21 +129,19 @@ export function mapGroupToLocalGroup(group) {
   const spId = group.id || group._id || "";
   const c = group.content || group;
 
-  // members in SP groups are arrays of SP member IDs
-  const spMemberIds = Array.isArray(c.members) ? c.members : [];
-
-  // parent is a SP group ID — we store it for potential nested group support
-  const parentSpId = c.parent || "";
-
   return {
     sp_id: spId,
     name: c.name || "Unnamed Group",
     color: normalizeColor(c.color),
     description: c.desc || c.description || "",
     emoji: c.emoji || "",
-    sp_member_ids: spMemberIds,   // raw SP IDs, resolved to local alter_ids in import step
-    sp_parent_id: parentSpId,     // raw SP parent group ID
+    // member_sp_ids: raw SP member IDs — FolderGroupsSection reads this directly
+    member_sp_ids: Array.isArray(c.members) ? c.members : [],
+    // sp_parent_id: resolved to local group ID (parent field) in the import step
+    sp_parent_id: c.parent || "",
     tags: Array.isArray(c.tags) ? c.tags : [],
     is_hidden: !!c.private,
+    // parent: set after all groups created, resolved from sp_parent_id -> local id
+    parent: "",
   };
 }
