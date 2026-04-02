@@ -98,12 +98,32 @@ export default function ActivityCustomizationMenu({ onClose }) {
   });
 
   const createRootMutation = useMutation({
-    mutationFn: (data) => base44.entities.ActivityCategory.create({
-      name: data.name,
-      color: data.color,
-      parent_category_id: null,
-      order: rootCategories.length,
-    }),
+    mutationFn: async (data) => {
+      // Check if a category with this name already exists (including archived/deleted ones)
+      const existing = categories.find(
+        c => c.name.toLowerCase() === data.name.toLowerCase()
+      );
+      if (existing) {
+        // Just update color if needed and return existing
+        await base44.entities.ActivityCategory.update(existing.id, { color: data.color });
+        return existing;
+      }
+      return base44.entities.ActivityCategory.create({
+        name: data.name,
+        color: data.color,
+        parent_category_id: null,
+        order: rootCategories.length,
+      });
+    },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["activityCategories"] });
+      setIsCreatingRoot(false);
+      setNewRootName("");
+      setNewRootColor("#8b5cf6");
+      toast.success(result.order !== undefined ? "Activity restored! Your old data is linked back." : "Activity created!");
+    },
+    onError: (e) => toast.error(e.message),
+  });
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["activityCategories"] });
       setIsCreatingRoot(false);
