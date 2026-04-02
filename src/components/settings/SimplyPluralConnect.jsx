@@ -72,22 +72,20 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       if (localMode) {
         const { sp_token: tok, sp_system_id: sysId } = effectiveSettings;
 
-        // --- Step 1: Fetch members and groups from SP ---
+        // --- Step 1: Fetch from SP ---
         setImportProgress("Fetching members...");
         const members = await getMembers(tok, sysId);
 
         setImportProgress("Fetching groups...");
         const groups = await getGroups(tok, sysId);
-        console.log("SP groups raw:", JSON.stringify(groups[0], null, 2));
 
-        // Build groupsById map keyed by SP group ID
+        // Build groupsById for member->group embedding
         const groupsById = {};
         for (const g of groups) {
           const gid = g.id || g._id || "";
           if (gid) groupsById[gid] = g;
         }
 
-        // Map members with group info embedded
         const mappedAlters = members.map((m) => mapMemberToAlter(m, groupsById));
 
         // --- Step 2: Import alters ---
@@ -128,13 +126,12 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           }
         }
 
-        // --- Step 3: Import groups ---
+        // --- Step 3: Import groups (pass 1 — create without parent) ---
         setImportProgress("Importing groups...");
         const existingGroups = await localEntities.Group.list();
         let groupsCreated = 0;
         let groupsUpdated = 0;
 
-        // Delete all existing groups if replace_all
         if (importMode === "replace_all") {
           for (const g of existingGroups) await localEntities.Group.delete(g.id);
         }
@@ -146,32 +143,46 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           }
         }
 
+        // Track sp_id -> local group id for parent resolution
+        const groupIdBySpId = {};
+
         for (const spGroup of groups) {
           const mapped = mapGroupToLocalGroup(spGroup);
+          // Don't set parent yet — resolve in pass 2
+          mapped.parent = "";
 
-          // Resolve SP member IDs -> local alter IDs
-          mapped.alter_ids = (mapped.sp_member_ids || [])
-            .map((spId) => alterIdBySpId[spId])
-            .filter(Boolean);
-
-          if (importMode === "replace_all") {
-            await localEntities.Group.create(mapped);
+          const existing = existingGroupsBySpId[mapped.sp_id];
+          if (importMode === "replace_all" || !existing) {
+            const created = await localEntities.Group.create(mapped);
+            groupIdBySpId[mapped.sp_id] = created.id;
             groupsCreated++;
+          } else if (importMode !== "new_only") {
+            await localEntities.Group.update(existing.id, { ...mapped, parent: existing.parent });
+            groupIdBySpId[mapped.sp_id] = existing.id;
+            groupsUpdated++;
           } else {
-            const existing = existingGroupsBySpId[mapped.sp_id];
-            if (existing) {
-              if (importMode !== "new_only") {
-                await localEntities.Group.update(existing.id, mapped);
-                groupsUpdated++;
-              }
-            } else {
-              await localEntities.Group.create(mapped);
-              groupsCreated++;
-            }
+            groupIdBySpId[mapped.sp_id] = existing.id;
           }
         }
 
-        // --- Step 4: Update last_sync ---
+        // --- Step 4: Resolve parent IDs (pass 2) ---
+        setImportProgress("Resolving group nesting...");
+        for (const spGroup of groups) {
+          const spId = spGroup.id || spGroup._id || "";
+          const c = spGroup.content || spGroup;
+          const spParentId = c.parent || "";
+
+          const localGroupId = groupIdBySpId[spId];
+          if (!localGroupId) continue;
+
+          // Only set parent if there's a valid SP parent that we also imported
+          const localParentId = spParentId ? (groupIdBySpId[spParentId] || "") : "";
+          if (localParentId !== undefined) {
+            await localEntities.Group.update(localGroupId, { parent: localParentId });
+          }
+        }
+
+        // --- Step 5: Update last_sync ---
         if (effectiveSettings?.id) {
           await localEntities.SystemSettings.update(effectiveSettings.id, {
             last_sync: new Date().toISOString(),
@@ -186,7 +197,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           `Import complete! Alters: ${altersCreated} new, ${altersUpdated} updated · Groups: ${groupsCreated} new, ${groupsUpdated} updated`
         );
       } else {
-        // Cloud mode — use base44 serverless function
+        // Cloud mode
         const res = await base44.functions.invoke("importFromSimplyPlural", {
           sp_token: effectiveSettings.sp_token,
           sp_system_id: effectiveSettings.sp_system_id,
