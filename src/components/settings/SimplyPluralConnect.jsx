@@ -8,15 +8,43 @@ import { base44 } from "@/api/base44Client";
 import { getSystemId, getSystemUser, getMembers, getGroups, mapMemberToAlter } from "@/lib/simplyPlural";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { isLocalMode } from "@/lib/storageMode";
+
+// --- Local mode storage helpers ---
+const LOCAL_SP_KEY = "oceans_sp_settings";
+
+function getLocalSpSettings() {
+  try {
+    const raw = localStorage.getItem(LOCAL_SP_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLocalSpSettings(data) {
+  const existing = getLocalSpSettings() || {};
+  localStorage.setItem(LOCAL_SP_KEY, JSON.stringify({ ...existing, ...data }));
+}
+
+function clearLocalSpSettings() {
+  localStorage.removeItem(LOCAL_SP_KEY);
+}
 
 export default function SimplyPluralConnect({ settings, onSettingsChange }) {
+  const localMode = isLocalMode();
+
+  // In local mode, read from localStorage instead of the settings prop
+  const localSettings = localMode ? getLocalSpSettings() : null;
+  const effectiveSettings = localMode ? localSettings : settings;
+
   const [token, setToken] = useState("");
   const [connecting, setConnecting] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [importMode, setImportMode] = useState("standard");
   const queryClient = useQueryClient();
 
-  const isConnected = !!settings?.sp_token;
+  const isConnected = !!effectiveSettings?.sp_token;
 
   const handleConnect = async () => {
     if (!token.trim()) return;
@@ -26,14 +54,27 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       const systemUser = await getSystemUser(token.trim(), systemId);
       const systemName = systemUser?.username || systemUser?.name || "";
       const systemDescription = systemUser?.desc || systemUser?.description || "";
-      const spData = { sp_token: token.trim(), sp_system_id: systemId, system_name: systemName, system_description: systemDescription };
-      if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, spData);
+
+      const spData = {
+        sp_token: token.trim(),
+        sp_system_id: systemId,
+        system_name: systemName,
+        system_description: systemDescription,
+      };
+
+      if (localMode) {
+        saveLocalSpSettings(spData);
+        onSettingsChange();
       } else {
-        await base44.entities.SystemSettings.create(spData);
+        if (settings?.id) {
+          await base44.entities.SystemSettings.update(settings.id, spData);
+        } else {
+          await base44.entities.SystemSettings.create(spData);
+        }
+        onSettingsChange();
       }
+
       setToken("");
-      onSettingsChange();
       toast.success("Connected to Simply Plural");
     } catch (e) {
       toast.error(e.message || "Connection failed");
@@ -43,23 +84,62 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   };
 
   const handleImport = async () => {
-    if (!settings?.sp_token || !settings?.sp_system_id) return;
+    if (!effectiveSettings?.sp_token || !effectiveSettings?.sp_system_id) return;
     setSyncing(true);
     try {
-      const res = await base44.functions.invoke('importFromSimplyPlural', {
-        sp_token: settings.sp_token,
-        sp_system_id: settings.sp_system_id,
-        mode: importMode,
-      });
-      await base44.entities.SystemSettings.update(settings.id, {
-        last_sync: new Date().toISOString(),
-      });
-      onSettingsChange();
-      queryClient.invalidateQueries({ queryKey: ["alters"] });
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-      toast.success(
-        `Imported: ${res.alters.created} new, ${res.alters.updated} updated alters`
-      );
+      if (localMode) {
+        // In local mode, import directly without base44 functions
+        const members = await getMembers(effectiveSettings.sp_token, effectiveSettings.sp_system_id);
+        const groups = await getGroups(effectiveSettings.sp_token, effectiveSettings.sp_system_id);
+
+        // Load existing local alters
+        const existingRaw = localStorage.getItem("oceans_alters");
+        const existingAlters = existingRaw ? JSON.parse(existingRaw) : [];
+
+        const mapped = members.map((m) => mapMemberToAlter(m));
+        let created = 0;
+        let updated = 0;
+
+        if (importMode === "replace_all") {
+          localStorage.setItem("oceans_alters", JSON.stringify(mapped));
+          created = mapped.length;
+        } else {
+          const merged = [...existingAlters];
+          for (const incoming of mapped) {
+            const existingIdx = merged.findIndex((a) => a.sp_id === incoming.sp_id);
+            if (existingIdx !== -1) {
+              if (importMode !== "new_only") {
+                merged[existingIdx] = { ...merged[existingIdx], ...incoming };
+                updated++;
+              }
+            } else {
+              merged.push({ ...incoming, id: `local_${Date.now()}_${Math.random()}` });
+              created++;
+            }
+          }
+          localStorage.setItem("oceans_alters", JSON.stringify(merged));
+        }
+
+        saveLocalSpSettings({ last_sync: new Date().toISOString() });
+        onSettingsChange();
+        queryClient.invalidateQueries({ queryKey: ["alters"] });
+        queryClient.invalidateQueries({ queryKey: ["groups"] });
+        toast.success(`Imported: ${created} new, ${updated} updated alters`);
+      } else {
+        // Cloud mode — use base44 function as before
+        const res = await base44.functions.invoke("importFromSimplyPlural", {
+          sp_token: effectiveSettings.sp_token,
+          sp_system_id: effectiveSettings.sp_system_id,
+          mode: importMode,
+        });
+        await base44.entities.SystemSettings.update(settings.id, {
+          last_sync: new Date().toISOString(),
+        });
+        onSettingsChange();
+        queryClient.invalidateQueries({ queryKey: ["alters"] });
+        queryClient.invalidateQueries({ queryKey: ["groups"] });
+        toast.success(`Imported: ${res.alters.created} new, ${res.alters.updated} updated alters`);
+      }
     } catch (e) {
       toast.error(e.message || "Import failed");
     } finally {
@@ -68,13 +148,18 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   };
 
   const handleDisconnect = async () => {
-    if (!settings?.id) return;
     try {
-      await base44.entities.SystemSettings.update(settings.id, {
-        sp_token: "",
-        sp_system_id: "",
-      });
-      onSettingsChange();
+      if (localMode) {
+        clearLocalSpSettings();
+        onSettingsChange();
+      } else {
+        if (!settings?.id) return;
+        await base44.entities.SystemSettings.update(settings.id, {
+          sp_token: "",
+          sp_system_id: "",
+        });
+        onSettingsChange();
+      }
       toast.success("Disconnected from Simply Plural");
     } catch (e) {
       toast.error(e.message || "Disconnect failed");
@@ -103,16 +188,21 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               <div className="flex items-center gap-2 text-sm flex-wrap mb-4">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
                 <span className="text-foreground font-medium">Connected</span>
-                {settings.system_name && (
-                  <span className="text-muted-foreground">· {settings.system_name}</span>
+                {effectiveSettings.system_name && (
+                  <span className="text-muted-foreground">· {effectiveSettings.system_name}</span>
                 )}
                 <span className="text-muted-foreground/60 text-xs font-mono">
-                  {settings.sp_system_id?.slice(0, 8)}...
+                  {effectiveSettings.sp_system_id?.slice(0, 8)}...
                 </span>
               </div>
-              {settings.last_sync && (
+              {effectiveSettings.last_sync && (
                 <p className="text-xs text-muted-foreground">
-                  Last synced: {new Date(settings.last_sync).toLocaleString()}
+                  Last synced: {new Date(effectiveSettings.last_sync).toLocaleString()}
+                </p>
+              )}
+              {localMode && (
+                <p className="text-xs text-amber-500 mt-1">
+                  🔒 Token stored locally on this device only
                 </p>
               )}
             </div>
@@ -175,6 +265,11 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               <p className="text-xs text-muted-foreground mt-1 mb-2">
                 Find your token in Simply Plural → Settings → Tokens
               </p>
+              {localMode && (
+                <p className="text-xs text-amber-500 mb-2">
+                  🔒 In local mode, your token is stored only on this device
+                </p>
+              )}
               <Input
                 id="sp-token"
                 type="password"
