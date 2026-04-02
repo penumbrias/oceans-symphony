@@ -116,31 +116,37 @@ export default function CurrentFronters({ alters }) {
     }
   };
 
-  const handleSaveStatus = async () => {
-    if (!active) return;
-    try {
-      await base44.entities.FrontingSession.update(active.id, {
-        note: tempStatus || null,
+ const handleSaveStatus = async () => {
+  if (!active) return;
+  try {
+    const existingNotes = active.status_notes || [];
+    const newNote = {
+      text: tempStatus,
+      timestamp: new Date().toISOString(),
+    };
+    await base44.entities.FrontingSession.update(active.id, {
+      note: tempStatus || null,
+      status_notes: tempStatus ? [...existingNotes, newNote] : existingNotes,
+    });
+    if (tempStatus && alters.length > 0) {
+      await saveMentions({
+        content: tempStatus,
+        alters,
+        sourceType: "checkin",
+        sourceId: active.id,
+        sourceLabel: "Custom status",
+        navigatePath: "/",
+        authorAlterId: active.primary_alter_id || null,
       });
-      if (tempStatus && alters.length > 0) {
-        await saveMentions({
-          content: tempStatus,
-          alters,
-          sourceType: "checkin",
-          sourceId: active.id,
-          sourceLabel: "Custom status",
-          navigatePath: "/",
-          authorAlterId: active.primary_alter_id || null,
-        });
-      }
-      setStatusText(tempStatus);
-      setEditingStatus(false);
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      toast.success("Status updated!");
-    } catch (e) {
-      toast.error("Failed to update status");
     }
-  };
+    setStatusText(tempStatus);
+    setEditingStatus(false);
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    toast.success("Status updated!");
+  } catch (e) {
+    toast.error("Failed to update status");
+  }
+};
 
   if (!active) {
     return (
