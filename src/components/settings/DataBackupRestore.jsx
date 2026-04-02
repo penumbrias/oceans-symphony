@@ -106,8 +106,12 @@ export default function DataBackupRestore() {
             const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap || {});
             for (const record of records) {
               const { id, ...data } = record;
-              try {await base44.entities[entityName].create(data);count++;} catch {}
-            }
+try {
+  await base44.entities[entityName].create(data);
+  count++;
+} catch (err) {
+  console.warn(`Failed to import ${entityName}:`, err.message, data);
+}            }
           }
           showStatus("success", `${importMode === 'replace' ? 'Replaced' : 'Imported'} ${count} records.`);
         }
