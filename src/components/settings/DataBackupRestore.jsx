@@ -96,41 +96,71 @@ export default function DataBackupRestore() {
             }
           }
 
-          // Import in batches with a small delay between entities to avoid rate limits
+          // Import order matters — entities that others reference come first
+          const IMPORT_ORDER = [
+            "Alter", "Group", "ActivityCategory", "CustomField", "CustomEmotion",
+            "SystemSettings", "DailyTaskTemplate",
+            "FrontingSession", "Bulletin", "JournalEntry", "DiaryCard",
+            "BulletinComment", "AlterNote", "AlterMessage", "MentionLog",
+            "EmotionCheckIn", "SystemCheckIn", "Activity", "Sleep",
+            "Task", "DailyProgress", "ActivityGoal", "Symptom"
+          ];
+
+          // Fields that contain IDs referencing other records
+          const ID_REF_FIELDS = [
+            "primary_alter_id", "alter_id", "author_alter_id",
+            "mentioned_alter_id", "co_fronter_ids", "fronting_alter_ids",
+            "author_alter_ids", "allowed_alter_ids", "member_ids",
+          ];
+
+          // Build old->new ID map as we create records
+          const idMap = {};
+
+          const remapIds = (data) => {
+            const result = { ...data };
+            for (const field of ID_REF_FIELDS) {
+              if (!result[field]) continue;
+              if (Array.isArray(result[field])) {
+                result[field] = result[field].map(id => idMap[id] || id);
+              } else {
+                result[field] = idMap[result[field]] || result[field];
+              }
+            }
+            return result;
+          };
+
           let count = 0;
           let failed = 0;
-          const entityEntries = Object.entries(parsed.data).filter(([name]) => ENTITY_NAMES.includes(name));
 
-          for (const [entityName, recordsMap] of entityEntries) {
+          for (const entityName of IMPORT_ORDER) {
+            const recordsMap = parsed.data[entityName];
+            if (!recordsMap) continue;
             setImportProgress(`Importing ${entityName}...`);
             const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap || {});
-            
-            // Process in chunks of 5 to avoid rate limits
+
             const CHUNK_SIZE = 5;
             for (let i = 0; i < records.length; i += CHUNK_SIZE) {
               const chunk = records.slice(i, i + CHUNK_SIZE);
-              const results = await Promise.allSettled(
-                chunk.map(record => {
-                  const { id, created_by_id, is_sample, ...data } = record;
-                  return base44.entities[entityName].create(data)
-                    .then(() => 1)
-                    .catch(err => {
-                      console.warn(`Failed: ${entityName}`, err.message);
-                      return 0;
-                    });
+              await Promise.allSettled(
+                chunk.map(async record => {
+                  const { id, created_by_id, is_sample, ...rawData } = record;
+                  const data = remapIds(rawData);
+                  try {
+                    const created = await base44.entities[entityName].create(data);
+                    // Store old->new ID mapping
+                    if (id && created?.id) idMap[id] = created.id;
+                    count++;
+                  } catch (err) {
+                    console.warn(`Failed: ${entityName}`, err.message);
+                    failed++;
+                  }
                 })
               );
-              count += results.filter(r => r.value === 1).length;
-              failed += results.filter(r => r.value === 0).length;
-              // Small delay between chunks
               if (i + CHUNK_SIZE < records.length) {
                 await new Promise(res => setTimeout(res, 200));
               }
             }
           }
-
-          setImportProgress(null);
-          showStatus("success", `Imported ${count} records${failed > 0 ? ` (${failed} skipped)` : ""}.`);
         }
       } else {
         showStatus("error", "Unknown file format. Expected Symphony backup.");
