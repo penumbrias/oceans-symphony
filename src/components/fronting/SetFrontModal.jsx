@@ -209,8 +209,8 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
                     
                         {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
                         <button
-                      onClick={() => setPrimary(id)}
-                      className="hover:underline"
+                      onClick={() => setPrimary(id)} className="text-sm hover:underline"
+
                       title="Set as primary">
                       
                           {a.name}
@@ -220,7 +220,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
                       className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
                       title="Remove">
                       
-                          <X className="w-3 h-3" />
+                          <X className="lucide lucide-x w-3 h-3" />
                         </button>
                       </span>);
 
