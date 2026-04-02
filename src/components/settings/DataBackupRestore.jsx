@@ -182,9 +182,8 @@ export default function DataBackupRestore() {
             failed++;
           }
           // Small delay every 10 records to avoid rate limits
-          if (count % 10 === 0) {
-            await new Promise(res => setTimeout(res, 100));
-          }
+          // Rate limit: delay after every record
+          await new Promise(res => setTimeout(res, 120));
         }
       }
 
