@@ -77,8 +77,8 @@ const SystemMap = () => {
 
     if (!selectedAlter) {
       // Default layout: sorted by fronting time
-      const altersSorted = [...alters].sort((a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0));
-      
+
+      const altersSorted = [...filteredAlters].sort((a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0));
       altersSorted.forEach((alter, idx) => {
         if (idx === 0) {
           positions[alter.id] = { x: centerX, y: centerY };
@@ -99,7 +99,7 @@ const SystemMap = () => {
     // Radial layout when alter is selected
     positions[selectedAlter.id] = { x: centerX, y: centerY };
 
-    const otherAlters = alters.filter((a) => a.id !== selectedAlter.id);
+const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
     const maxCofrontWithSelected = Math.max(
       ...otherAlters.map((a) => cofrontingMap[selectedAlter.id]?.[a.id] || 0),
       1
@@ -141,7 +141,7 @@ const SystemMap = () => {
     });
 
     return positions;
-  }, [alters, selectedAlter, frontingTime, cofrontingMap]);
+}, [alters, filteredAlters, selectedAlter, frontingTime, cofrontingMap]);
 
   // Filter alters based on search and selection
   const filteredAlters = useMemo(() => {
