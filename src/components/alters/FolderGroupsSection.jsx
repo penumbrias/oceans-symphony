@@ -21,7 +21,7 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function MemberRow({ alter, onClick}) {
+function MemberRow({ alter, onClick, currentSession }) {
   const hasColor = alter.color && alter.color.length > 3;
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
