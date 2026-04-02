@@ -85,47 +85,28 @@ export default function DataBackupRestore() {
           if (importMode === 'replace') {
             for (const entityName of ENTITY_NAMES) {
               try {
-                let hasMore = true;
-                while (hasMore) {
-                  const records = await base44.entities[entityName].list();
-                  if (records.length === 0) {
-                    hasMore = false;
-                  } else {
-                    for (const record of records) {
-                      await base44.entities[entityName].delete(record.id);
-                    }
-                  }
-                }
+                const records = await base44.entities[entityName].list();
+                await Promise.all(records.map(r => 
+                  base44.entities[entityName].delete(r.id).catch(() => {})
+                ));
               } catch {}
             }
           }
 
-          let count = 0;
+         let count = 0;
           for (const [entityName, recordsMap] of Object.entries(parsed.data)) {
             if (!ENTITY_NAMES.includes(entityName)) continue;
             const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap || {});
-            for (const record of records) {
-              const { id, ...data } = record;
-try {
-  await base44.entities[entityName].create(data);
-  count++;
-} catch (err) {
-  console.warn(`Failed to import ${entityName}:`, err.message, data);
-}            }
+            const results = await Promise.allSettled(
+              records.map(record => {
+                const { id, ...data } = record;
+                return base44.entities[entityName].create(data)
+                  .then(() => 1)
+                  .catch(err => { console.warn(`Failed: ${entityName}`, err.message); return 0; });
+              })
+            );
+            count += results.filter(r => r.value === 1).length;
           }
-          showStatus("success", `${importMode === 'replace' ? 'Replaced' : 'Imported'} ${count} records.`);
-        }
-        return;
-      }
-
-      showStatus("error", "Unknown file format. Expected Symphony backup or Simply Plural export.");
-    } catch (e) {
-      showStatus("error", `Import failed: ${e.message}`);
-    } finally {
-      setImportLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
 
   return (
     <Card className="border-border/50">
