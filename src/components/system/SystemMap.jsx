@@ -69,7 +69,32 @@ const SystemMap = () => {
     return map;
   }, [frontingSessions]);
 
-  // Calculate node positions based on selected alter or fronting time
+
+
+  // Filter alters based on search and selection
+  const filteredAlters = useMemo(() => {
+    let result = alters.filter(a => showArchived ? true : !a.is_archived);
+
+    if (selectedGroup) {
+      const group = groups.find((g) => g.id === selectedGroup);
+      if (group && group.member_sp_ids) {
+        result = result.filter((a) => group.member_sp_ids.includes(a.sp_id));
+      }
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (a) =>
+          a.name.toLowerCase().includes(query) ||
+          (a.alias && a.alias.toLowerCase().includes(query))
+      );
+    }
+
+    return result;
+  }, [alters, groups, selectedGroup, searchQuery]);
+
+    // Calculate node positions based on selected alter or fronting time
   const nodePositions = useMemo(() => {
     const positions = {};
     const centerX = 600;
@@ -141,30 +166,7 @@ const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
     });
 
     return positions;
-}, [alters, filteredAlters, selectedAlter, frontingTime, cofrontingMap]);
-
-  // Filter alters based on search and selection
-  const filteredAlters = useMemo(() => {
-    let result = alters.filter(a => showArchived ? true : !a.is_archived);
-
-    if (selectedGroup) {
-      const group = groups.find((g) => g.id === selectedGroup);
-      if (group && group.member_sp_ids) {
-        result = result.filter((a) => group.member_sp_ids.includes(a.sp_id));
-      }
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (a) =>
-          a.name.toLowerCase().includes(query) ||
-          (a.alias && a.alias.toLowerCase().includes(query))
-      );
-    }
-
-    return result;
-  }, [alters, groups, selectedGroup, searchQuery]);
+}, [filteredAlters, selectedAlter, frontingTime, cofrontingMap]);
 
   // Get co-fronters for selected alter
   useEffect(() => {
