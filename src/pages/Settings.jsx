@@ -239,7 +239,7 @@ Please use local mode!!! It does not save your data on the servers!!! </p>
         </div>
 
         {/* Integrations */}
-        {!isLocalMode() &&
+        
         <div className="space-y-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
@@ -252,7 +252,7 @@ Please use local mode!!! It does not save your data on the servers!!! </p>
             }} />
           
           </div>
-        }
+        
 
         {/* Diary Template */}
         <DiaryTemplateManager settings={settings} />
