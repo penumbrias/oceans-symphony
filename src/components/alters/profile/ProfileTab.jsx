@@ -196,6 +196,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
         {/* Rich text bio */}
         {alter.description ? (
           <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
+<div className="bg-muted/20 rounded-xl p-4 border border-border/40">
   <div
     className="ql-editor"
     style={{ padding: 0, whiteSpace: "normal" }}
