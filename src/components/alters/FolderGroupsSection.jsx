@@ -8,6 +8,7 @@ import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import AlterEditModal from "@/components/alters/AlterEditModal";
+import { useNavigate } from "react-router-dom";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -104,6 +105,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", currentSe
   const [setFrontOpen, setSetFrontOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedAlter, setSelectedAlter] = useState(null);
+  const navigate = useNavigate();
 
   const { data: allGroups = [], refetch: refetchGroups } = useQuery({
     queryKey: ["groups"],
@@ -201,8 +203,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", currentSe
           key={alter.id}
           alter={alter}
           onDoubleClick={() => {
-            setSelectedAlter(alter);
-            setSetFrontOpen(true);
+            navigate(`/alter/${alter.id}`);
           }}
           onLongPress={() => {
             setSelectedAlter(alter);
