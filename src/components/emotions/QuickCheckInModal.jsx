@@ -6,49 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus } from "lucide-react";
+import { Loader2, Heart, X, Plus, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
-import { HexColorPicker } from "react-colorful";
-
-function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose }) {
-  const [hex, setHex] = React.useState(color);
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-sm mx-4 w-full">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">{label}</h3>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <HexColorPicker color={hex} onChange={setHex} style={{ width: "100%" }} />
-        <input
-          type="text"
-          value={hex}
-          onChange={(e) => { if (/^#?[0-9A-F]{0,6}$/i.test(e.target.value)) setHex(e.target.value); }}
-          placeholder="#000000"
-          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-mono"
-        />
-        <div className="w-full h-12 rounded-lg border-2 border-border" style={{ backgroundColor: hex }} />
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 font-medium text-sm cursor-pointer">
-            Cancel
-          </button>
-          <button type="button" onClick={() => { onSave(hex); onClose(); }}
-            disabled={!/^#[0-9A-F]{6}$/i.test(hex)}
-            className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm cursor-pointer disabled:opacity-50">
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 const PRESET_EMOTIONS = [
-  "Happy", "Sad", "Angry", "Anxious", "Calm", "Excited",
+  "Happy", "Sad", "Angry", "Anxious", "Calm", "Excited", 
   "Confused", "Grateful", "Frustrated", "Hopeful", "Neutral", "Overwhelmed"
 ];
 
@@ -82,13 +45,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   }, [customEmotions]);
 
   const activeAlters = useMemo(() => alters.filter(a => !a.is_archived), [alters]);
-
+  
   const filteredAlters = useMemo(() => {
     if (!alterInput.trim()) return [];
     return activeAlters.filter(
-      a =>
+      a => 
         !selectedAlters.includes(a.id) &&
-        (a.name.toLowerCase().includes(alterInput.toLowerCase()) ||
+        (a.name.toLowerCase().includes(alterInput.toLowerCase()) || 
          a.alias?.toLowerCase().includes(alterInput.toLowerCase()))
     );
   }, [alterInput, activeAlters, selectedAlters]);
@@ -96,7 +59,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const addCustomEmotionMutation = useMutation({
     mutationFn: async (label) => {
       const existing = customEmotions.find(e => e.label.toLowerCase() === label.toLowerCase());
-      if (existing) return existing;
+      if (existing) {
+        return existing;
+      }
       return base44.entities.CustomEmotion.create({ label });
     },
     onSuccess: (emotion) => {
@@ -113,8 +78,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   }, [isOpen, currentFronterIds]);
 
   const createCheckInMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (data) => {
       let journalEntryId = null;
+      
+      // If note is over 50 words, create journal entry
       const wordCount = note ? note.trim().split(/\s+/).filter(Boolean).length : 0;
       if (note && wordCount > 50) {
         const entry = await base44.entities.JournalEntry.create({
@@ -125,6 +92,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         });
         journalEntryId = entry.id;
       }
+
       return base44.entities.EmotionCheckIn.create({
         timestamp: new Date().toISOString(),
         emotions: selectedEmotions,
@@ -151,28 +119,30 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setShowNewActivity(false);
   };
 
-  const handleCreateNewActivity = async () => {
-    if (!newActivityName.trim()) return;
-    const newCat = await base44.entities.ActivityCategory.create({
-      name: newActivityName.trim(),
-      color: "#8b5cf6",
-      parent_category_id: null,
-    });
-    queryClient.invalidateQueries({ queryKey: ["activityCategories"] });
-    setSelectedActivityCategories([...selectedActivityCategories, newCat.id]);
-    setNewActivityName("");
-    setShowNewActivity(false);
-  };
-
   const handleSaveActivity = async () => {
-    if (selectedActivityCategories.length === 0) return;
-    const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
-    for (const catId of selectedActivityCategories) {
-      const cat = catById[catId];
+    if (selectedActivityCategories.length === 0 && !newActivityName.trim()) return;
+    
+    // Save category-based activities
+    if (selectedActivityCategories.length > 0) {
+      const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+      const names = selectedActivityCategories
+        .map((id) => catById[id]?.name || id)
+        .join(", ");
       await base44.entities.Activity.create({
         timestamp: new Date().toISOString(),
-        activity_name: cat?.name || catId,
-        activity_category_ids: [catId],
+        activity_name: names,
+        activity_category_ids: selectedActivityCategories,
+        duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+        fronting_alter_ids: selectedAlters,
+      });
+    }
+    
+    // Save new activity if entered
+    if (newActivityName.trim()) {
+      await base44.entities.Activity.create({
+        timestamp: new Date().toISOString(),
+        activity_name: newActivityName.trim(),
+        activity_category_ids: [],
         duration_minutes: activityDuration ? parseInt(activityDuration) : null,
         fronting_alter_ids: selectedAlters,
       });
@@ -185,13 +155,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     try {
       await handleSaveActivity();
 
+      // Update front history if alters changed
       const currentSorted = [...currentFronterIds].sort();
       const selectedSorted = [...selectedAlters].sort();
       if (JSON.stringify(currentSorted) !== JSON.stringify(selectedSorted)) {
         const now = new Date().toISOString();
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-        for (const s of activeSessions) {
-          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+        // End old session at this moment, then start a new one
+        if (activeSessions.length > 0) {
+          await base44.entities.FrontingSession.update(activeSessions[0].id, {
+            is_active: false,
+            end_time: now,
+          });
         }
         if (selectedAlters.length > 0) {
           await base44.entities.FrontingSession.create({
@@ -248,6 +223,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               ))}
             </div>
 
+            {/* Add custom emotion */}
             <div className="flex gap-2 mt-3">
               <Input
                 placeholder="Add custom emotion..."
@@ -264,7 +240,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                 size="icon"
                 variant="outline"
                 onClick={() => {
-                  if (newEmotionInput.trim()) addCustomEmotionMutation.mutate(newEmotionInput.trim());
+                  if (newEmotionInput.trim()) {
+                    addCustomEmotionMutation.mutate(newEmotionInput.trim());
+                  }
                 }}
                 disabled={!newEmotionInput.trim()}
               >
@@ -307,6 +285,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               )}
             </div>
 
+            {/* Selected alters grid */}
             {selectedAlters.length > 0 && (
               <div className="grid grid-cols-4 gap-2">
                 {selectedAlters.map((alterId) => {
@@ -339,7 +318,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           </div>
 
           {/* Activities */}
-          <ActivityPillSelector
+          <ActivityPillSelector 
             selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
             duration={activityDuration}
@@ -358,7 +337,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               />
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => { setShowNewActivity(false); setNewActivityName(""); }} className="flex-1">Cancel</Button>
-                <Button size="sm" onClick={handleCreateNewActivity} disabled={!newActivityName.trim()} className="flex-1">Add</Button>
+                <Button size="sm" onClick={() => { setShowNewActivity(false); }} disabled={!newActivityName.trim()} className="flex-1">Add</Button>
               </div>
             </div>
           ) : (

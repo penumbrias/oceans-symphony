@@ -95,7 +95,7 @@ export default function Analytics() {
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["frontHistory"],
-queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
   });
 
   const { data: alters = [] } = useQuery({

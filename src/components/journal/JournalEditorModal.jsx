@@ -9,8 +9,6 @@ import { encryptContent, decryptContent } from "@/lib/encryption";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { Lock, AlertCircle, Loader2 } from "lucide-react";
-import MentionTextarea from "@/components/shared/MentionTextarea";
-import { saveMentions } from "@/lib/mentionUtils";
 
 export default function JournalEditorModal({ isOpen, open, onClose, editingEntry, entry, alters }) {
   const isOpenFinal = isOpen ?? open;
@@ -24,14 +22,11 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
   const [decryptionPassword, setDecryptionPassword] = useState("");
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [decryptionError, setDecryptionError] = useState("");
-  const [mentionNote, setMentionNote] = useState("");
 
   // Load and decrypt entry if editing
   useEffect(() => {
-    
     if (editingEntryFinal) {
       setTitle(editingEntryFinal.title);
-      
       setIsEncrypted(editingEntryFinal.is_encrypted || false);
 
       if (editingEntryFinal.is_encrypted) {
@@ -44,7 +39,6 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
     } else {
       setTitle("");
       setContent("");
-      setMentionNote("");
       setIsEncrypted(false);
       setShowPasswordField(false);
     }
@@ -76,24 +70,10 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
         return base44.entities.JournalEntry.create(data);
       }
     },
-    onSuccess: async (savedEntry) => {
-  if (mentionNote.trim() && alters?.length > 0) {
-    await saveMentions({
-      content: mentionNote,
-      alters,
-      sourceType: "journal",
-      sourceId: savedEntry.id,
-      sourceLabel: title || "Journal Entry",
-      navigatePath: `/journals?id=${savedEntry.id}`,
-      authorAlterId: null,
-    });
-  }
-  queryClient.invalidateQueries({ queryKey: ["journals"] });
-  queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
-  queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
-  setMentionNote("");
-  onClose();
-},
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["journals"] });
+      onClose();
+    },
   });
 
   const handleSave = async () => {
@@ -108,19 +88,6 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
       content: finalContent,
       is_encrypted: isEncrypted,
     });
-    
-    if (mentionNote.trim() && alters?.length > 0) {
-  const savedId = editingEntryFinal?.id || "pending";
-  await saveMentions({
-    content: mentionNote,
-    alters,
-    sourceType: "journal",
-    sourceId: savedId,
-    sourceLabel: title || "Journal Entry",
-    navigatePath: `/journals?id=${savedId}`,
-    authorAlterId: null,
-  });
-}
   };
 
   return (
@@ -212,17 +179,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
             </>
           )}
         </div>
-<div>
-  <label className="text-sm font-medium">Mention alters</label>
-  <p className="text-xs text-muted-foreground mb-1">Tag alters to notify them of this entry</p>
-  <MentionTextarea
-    value={mentionNote}
-    onChange={setMentionNote}
-    alters={alters || []}
-    placeholder="Use @ to mention alters..."
-    className="h-16"
-  />
-</div>
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel

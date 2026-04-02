@@ -214,8 +214,16 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         fronting_alter_ids: data.fronting_alter_ids,
         notes: data.notes,
       });
-      
-      
+      if (data.notes) {
+        await saveMentions({
+          content: data.notes,
+          alters,
+          sourceType: "activity",
+          sourceId: act.id,
+          sourceLabel: `activity on ${format(new Date(act.timestamp), "MM/dd/yyyy")}`,
+          navigatePath: "/activities",
+        });
+      }
       toast.success("Activity updated");
       setEditingId(null);
       onSave?.();

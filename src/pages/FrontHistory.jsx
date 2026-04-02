@@ -153,7 +153,7 @@ export default function FrontHistory() {
 
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 20000),
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 200),
   });
 
   const { data: alters = [] } = useQuery({

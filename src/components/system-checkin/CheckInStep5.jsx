@@ -3,9 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import MentionTextarea from "@/components/shared/MentionTextarea";
 
-export default function CheckInStep5({ data, onChange, alters = [] }) {
+export default function CheckInStep5({ data, onChange }) {
   const step = data?.step5_closing || {};
 
   return (
@@ -57,13 +56,17 @@ export default function CheckInStep5({ data, onChange, alters = [] }) {
               <Label htmlFor="step5-notes" className="text-sm mb-2 block">
                 Notes
               </Label>
-              <MentionTextarea
-  value={step.notes || ""}
-  onChange={(val) => onChange({ step5_closing: { ...step, notes: val } })}
-  alters={alters}
-  placeholder="How did the check-in feel overall? Any final reflections?"
-  className="resize-none h-20"
-/>
+              <Textarea
+                id="step5-notes"
+                placeholder="How did the check-in feel overall? Any final reflections?"
+                value={step.notes || ""}
+                onChange={(e) =>
+                  onChange({
+                    step5_closing: { ...step, notes: e.target.value }
+                  })
+                }
+                className="resize-none h-20"
+              />
             </div>
           </div>
         </CardContent>

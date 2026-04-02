@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useTerms } from "@/lib/useTerms";
-import { saveMentions } from "@/lib/mentionUtils";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -28,7 +27,9 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
 
   const handleMouseDown = () => {
-    const timeoutId = setTimeout(() => { onHold(alter); }, 500);
+    const timeoutId = setTimeout(() => {
+      onHold(alter);
+    }, 500);
     setLongPressTimeoutId(timeoutId);
   };
 
@@ -39,7 +40,9 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
     }
   };
 
-  const handleClick = () => { navigate(`/alter/${alter.id}`); };
+  const handleClick = () => {
+    navigate(`/alter/${alter.id}`);
+  };
 
   return (
     <div
@@ -116,37 +119,20 @@ export default function CurrentFronters({ alters }) {
     }
   };
 
- const handleSaveStatus = async () => {
-  if (!active) return;
-  try {
-    const existingNotes = active.status_notes || [];
-    const newNote = {
-      text: tempStatus,
-      timestamp: new Date().toISOString(),
-    };
-    await base44.entities.FrontingSession.update(active.id, {
-      note: tempStatus || null,
-      status_notes: tempStatus ? [...existingNotes, newNote] : existingNotes,
-    });
-    if (tempStatus && alters.length > 0) {
-      await saveMentions({
-        content: tempStatus,
-        alters,
-        sourceType: "checkin",
-        sourceId: active.id,
-        sourceLabel: "Custom status",
-        navigatePath: "/",
-        authorAlterId: active.primary_alter_id || null,
+  const handleSaveStatus = async () => {
+    if (!active) return;
+    try {
+      await base44.entities.FrontingSession.update(active.id, {
+        note: tempStatus || null,
       });
+      setStatusText(tempStatus);
+      setEditingStatus(false);
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      toast.success("Status updated!");
+    } catch (e) {
+      toast.error("Failed to update status");
     }
-    setStatusText(tempStatus);
-    setEditingStatus(false);
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    toast.success("Status updated!");
-  } catch (e) {
-    toast.error("Failed to update status");
-  }
-};
+  };
 
   if (!active) {
     return (
@@ -172,19 +158,18 @@ export default function CurrentFronters({ alters }) {
 
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-5">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Currently {terms.Fronting}</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Currently {terms.Fronting}</p>
           </div>
           <Button size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs h-7 px-2.5">
             <RefreshCw className="w-3 h-3" />
             {terms.Switch}
           </Button>
         </div>
-
-        <div className="mb-2 grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           {all.map((alter, i) => (
             <FronterChip
               key={alter.id}
@@ -199,19 +184,27 @@ export default function CurrentFronters({ alters }) {
 
         {/* Custom Status */}
         {editingStatus ? (
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2">
             <Input
+              placeholder="Add a status..."
               value={tempStatus}
               onChange={(e) => setTempStatus(e.target.value)}
-              placeholder="Add a status..."
-              className="text-sm h-8 flex-1"
+              className="text-sm h-8 bg-card/50"
               autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") handleSaveStatus(); }}
             />
-            <Button size="sm" onClick={handleSaveStatus} className="gap-1.5 text-xs h-8 px-2.5">
+            <Button
+              size="sm"
+              onClick={handleSaveStatus}
+              className="gap-1.5 text-xs h-8 px-2.5"
+            >
               Save
             </Button>
-            <Button size="sm" variant="outline" onClick={() => { setTempStatus(statusText); setEditingStatus(false); }} className="h-8 px-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { setTempStatus(statusText); setEditingStatus(false); }}
+              className="gap-1.5 text-xs h-8 px-2.5"
+            >
               <X className="w-3 h-3" />
             </Button>
           </div>

@@ -139,31 +139,15 @@ export default function MessagesTab({ alterId, alters }) {
     return allItems.filter(i => i.source_type === key).length;
   };
 
-const postMessage = async () => {
-  if (!newContent.trim()) return;
-  setSaving(true);
-  const msg = await base44.entities.AlterMessage.create({ 
-    alter_id: alterId, 
-    content: newContent.trim() 
-  });
-  // Notify the alter whose board this is
-  await base44.entities.MentionLog.create({
-    mentioned_alter_id: alterId,
-    author_alter_id: null,
-    log_type: "mention",
-    source_type: "message",
-    source_id: alterId,
-    source_label: "Board message",
-    source_date: new Date().toISOString(),
-    preview_text: newContent.trim().slice(0, 120),
-    navigate_path: `/alter/${alterId}`,
-  });
-  queryClient.invalidateQueries({ queryKey: ["alterMessages", alterId] });
-  queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
-  setNewContent("");
-  setComposing(false);
-  setSaving(false);
-};
+  const postMessage = async () => {
+    if (!newContent.trim()) return;
+    setSaving(true);
+    await base44.entities.AlterMessage.create({ alter_id: alterId, content: newContent.trim() });
+    queryClient.invalidateQueries({ queryKey: ["alterMessages", alterId] });
+    setNewContent("");
+    setComposing(false);
+    setSaving(false);
+  };
 
   const deleteMessage = async (rawId) => {
     await base44.entities.AlterMessage.delete(rawId);

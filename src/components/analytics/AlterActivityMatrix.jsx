@@ -52,37 +52,20 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
     });
 
     filtered.forEach(act => {
-  const ids = act.activity_category_ids || [];
-  // Collect all category names including ancestors for rollup
-  const allNames = new Set();
-  if (ids.length > 0) {
-    ids.forEach(id => {
-      const cat = catMap[id];
-      if (!cat) return;
-      allNames.add(cat.name);
-      // Walk up the hierarchy to add parent names
-      let current = cat;
-      while (current.parent_category_id) {
-        const parent = catMap[current.parent_category_id];
-        if (!parent) break;
-        allNames.add(parent.name);
-        current = parent;
-      }
+      const ids = act.activity_category_ids || [];
+      const catNames = ids.length > 0
+        ? ids.map(id => catMap[id]?.name).filter(Boolean)
+        : [act.activity_name || "Unknown"];
+      const fronters = act.fronting_alter_ids || [];
+      fronters.forEach(alterId => {
+        if (!alterMap[alterId]) return;
+        catNames.forEach(name => {
+          alterMap[alterId].countsByKey[name] = (alterMap[alterId].countsByKey[name] || 0) + 1;
+          alterMap[alterId].total += 1;
+        });
+        alterMap[alterId].totalDuration += act.duration_minutes || 0;
+      });
     });
-  } else {
-    allNames.add(act.activity_name || "Unknown");
-  }
-  const fronters = act.fronting_alter_ids || [];
-  fronters.forEach(alterId => {
-    if (!alterMap[alterId]) return;
-    allNames.forEach(name => {
-      alterMap[alterId].countsByKey[name] = (alterMap[alterId].countsByKey[name] || 0) + 1;
-    });
-    // Only increment total once per activity not once per category
-    alterMap[alterId].total += 1;
-    alterMap[alterId].totalDuration += act.duration_minutes || 0;
-  });
-});
 
     // Aggregate counts by category key across all alters (for column visibility)
     const countsByCatKey = {};

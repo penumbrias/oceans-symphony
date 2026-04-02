@@ -2,9 +2,8 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import MentionTextarea from "@/components/shared/MentionTextarea";
 
-export default function CheckInStep3({ data, onChange, alters = [] }) {
+export default function CheckInStep3({ data, onChange }) {
   const step = data?.step3_greet || {};
 
   return (
@@ -26,13 +25,17 @@ export default function CheckInStep3({ data, onChange, alters = [] }) {
               <Label htmlFor="step3-notes" className="text-sm mb-2 block">
                 Notes
               </Label>
-             <MentionTextarea
-  value={step.notes || ""}
-  onChange={(val) => onChange({ step3_greet: { ...step, notes: val } })}
-  alters={alters}
-  placeholder="Any reflections from the greeting?"
-  className="resize-none h-20"
-/>
+              <Textarea
+                id="step3-notes"
+                placeholder="Any reflections from the greeting?"
+                value={step.notes || ""}
+                onChange={(e) =>
+                  onChange({
+                    step3_greet: { ...step, notes: e.target.value }
+                  })
+                }
+                className="resize-none h-20"
+              />
             </div>
           </div>
         </CardContent>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,10 +13,7 @@ import AlterSelector from "@/components/diary/AlterSelector";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import ExistingCardDialog from "@/components/diary/ExistingCardDialog";
 import DiaryCardView from "@/components/diary/DiaryCardView";
-import MentionTextarea from "@/components/shared/MentionTextarea";
-import { saveMentions } from "@/lib/mentionUtils";
 import { getActiveTemplate, getSectionSummary, getCompletion } from "@/lib/diaryCardTemplate";
-import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
@@ -30,23 +27,11 @@ export default function DiaryCards() {
   const [editingEntry, setEditingEntry] = useState(null);
   const [showExistingCardDialog, setShowExistingCardDialog] = useState(false);
   const [existingCardToday, setExistingCardToday] = useState(null);
-  const [mentionNote, setMentionNote] = useState("");
-  const [searchParams] = useSearchParams();
-const pendingId = searchParams.get('id');
-const highlightId = searchParams.get('id');
 
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
     queryFn: () => base44.entities.DiaryCard.list("-created_date"),
   });
-
-  // Auto-open card from URL ?id= param
-  useEffect(() => {
-    if (pendingId && cards.length > 0) {
-      const card = cards.find(c => c.id === pendingId);
-      if (card) { setViewingEntry(card); setView("entry"); }
-    }
-  }, [pendingId, cards.length]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -103,7 +88,6 @@ const highlightId = searchParams.get('id');
     setFrontingAlterIds(currentIds);
     setDraftData({});
     setEntryName("");
-    setMentionNote("");
     setActiveSection(null);
     setEditingEntry(null);
     setView("new");
@@ -117,7 +101,6 @@ const highlightId = searchParams.get('id');
     setFrontingAlterIds(currentIds);
     setDraftData({});
     setEntryName("");
-    setMentionNote("");
     setActiveSection(null);
     setEditingEntry(null);
     setShowExistingCardDialog(false);
@@ -138,7 +121,6 @@ const highlightId = searchParams.get('id');
     setDraftData(card);
     setEntryName(card.name || "");
     setFrontingAlterIds(card.fronting_alter_ids || []);
-    setMentionNote("");
     setActiveSection(null);
     setView("edit");
   };
@@ -149,63 +131,31 @@ const highlightId = searchParams.get('id');
 
   const handleSave = async () => {
     setSaving(true);
-    let savedId;
     if (editingEntry) {
       await base44.entities.DiaryCard.update(editingEntry.id, {
         name: entryName.trim() || editingEntry.name,
         fronting_alter_ids: frontingAlterIds,
         ...draftData,
       });
-      savedId = editingEntry.id;
       toast.success("Diary card updated!");
       setEditingEntry(null);
     } else {
-      const saved = await base44.entities.DiaryCard.create({
+      await base44.entities.DiaryCard.create({
         card_type: "daily",
         date: format(new Date(), "yyyy-MM-dd"),
         name: entryName.trim() || `Daily — ${format(new Date(), "MMM d, yyyy")}`,
         fronting_alter_ids: frontingAlterIds,
         ...draftData,
       });
-      savedId = saved.id;
       toast.success("Diary card saved!");
     }
-
-    if (mentionNote.trim() && alters.length > 0) {
-      await saveMentions({
-        content: mentionNote,
-        alters,
-        sourceType: "checkin",
-        sourceId: savedId,
-        sourceLabel: "Diary Card",
-        navigatePath: `/diary?id=${savedId}`,
-        authorAlterId: frontingAlterIds[0] || null,
-      });
-    }
-
     queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
     queryClient.invalidateQueries({ queryKey: ["diaryCardsToday"] });
-    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
     setSaving(false);
-    setMentionNote("");
     setView("list");
   };
 
   const completion = getCompletion(activeSections, draftData);
-
-  const MentionField = () => (
-    <div>
-      <label className="text-sm font-medium">Mention alters</label>
-      <p className="text-xs text-muted-foreground mb-1">Tag alters who appear in this entry</p>
-      <MentionTextarea
-        value={mentionNote}
-        onChange={setMentionNote}
-        alters={alters}
-        placeholder="Use @ to mention alters..."
-        className="h-16"
-      />
-    </div>
-  );
 
   const SectionsList = ({ onSectionClick }) => (
     <div className="space-y-2">
@@ -274,16 +224,8 @@ const highlightId = searchParams.get('id');
                   {dateCards.map((card) => {
                     const comp = getCompletion(activeSections, card);
                     const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
-                    const isHighlighted = highlightId === card.id;
                     return (
-                      <div
-                        key={card.id}
-                        className={`text-left bg-card border rounded-xl p-4 hover:shadow-md transition-all space-y-2 ${
-                          isHighlighted
-                            ? "border-yellow-400 ring-2 ring-yellow-400/60 shadow-md"
-                            : "border-border/50"
-                        }`}
-                      >
+                      <div key={card.id} className="text-left bg-card border border-border/50 rounded-xl p-4 hover:shadow-md transition-all space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <button onClick={() => { setViewingEntry(card); setView("entry"); }} className="flex-1 text-left">
                             <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>
@@ -415,12 +357,9 @@ const highlightId = searchParams.get('id');
           )}
         </AnimatePresence>
         {!activeSection && (
-          <>
-            <MentionField />
-            <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          </>
+          <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
         )}
       </motion.div>
     );
@@ -463,12 +402,9 @@ const highlightId = searchParams.get('id');
         )}
       </AnimatePresence>
       {!activeSection && (
-        <>
-          <MentionField />
-          <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-            {saving ? "Saving..." : "Save Diary Card"}
-          </Button>
-        </>
+        <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
+          {saving ? "Saving..." : "Save Diary Card"}
+        </Button>
       )}
       <ExistingCardDialog
         isOpen={showExistingCardDialog}

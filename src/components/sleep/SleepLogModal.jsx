@@ -25,74 +25,62 @@ export default function SleepLogModal({
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-React.useEffect(() => {
-  if (isOpen && selectedDate) {
-    // Bedtime defaults to the PREVIOUS day at 11 PM
-    const prevDay = new Date(selectedDate);
-    prevDay.setDate(prevDay.getDate() - 1);
-    const prevDayStr = format(prevDay, "yyyy-MM-dd");
-    const currentDayStr = format(selectedDate, "yyyy-MM-dd");
-    setBedtime(`${prevDayStr}T23:00`);
-    setWakeTime(`${currentDayStr}T07:00`);
-  }
-}, [isOpen, selectedDate]);
+  React.useEffect(() => {
+    if (isOpen && selectedDate) {
+      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      // Wake time defaults to 7 AM the NEXT day
+      const nextDay = new Date(selectedDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayStr = format(nextDay, "yyyy-MM-dd");
+      setBedtime(`${dateStr}T23:00`);
+      setWakeTime(`${nextDayStr}T07:00`);
+    }
+  }, [isOpen, selectedDate]);
 
-const handleSave = async () => {
-  if (!bedtime || !wakeTime) {
-    toast.error("Bedtime and wake time are required");
-    return;
-  }
-
-  setIsLoading(true);
-  try {
-    const dateStr = format(selectedDate || new Date(), "yyyy-MM-dd");
-    const bedtimeISO = new Date(bedtime).toISOString();
-    const wakeTimeISO = new Date(wakeTime).toISOString();
-    const durationMinutes = Math.round(
-      (new Date(wakeTimeISO) - new Date(bedtimeISO)) / 60000
-    );
-
-    // Find sleep category if it exists
-    const categories = await base44.entities.ActivityCategory.list();
-    let sleepCat = categories.find(c => c.name?.toLowerCase() === "sleep");
-    
-    // Create it if it doesn't exist
-    if (!sleepCat) {
-      sleepCat = await base44.entities.ActivityCategory.create({
-        name: "sleep",
-        color: "#6366f1",
-      });
+  const handleSave = async () => {
+    if (!bedtime || !wakeTime) {
+      toast.error("Bedtime and wake time are required");
+      return;
     }
 
-    await base44.entities.Sleep.create({
-      date: dateStr,
-      bedtime: bedtimeISO,
-      wake_time: wakeTimeISO,
-      quality: quality || null,
-      notes: notes || null,
-    });
+    setIsLoading(true);
+    try {
+      const dateStr = format(selectedDate || new Date(), "yyyy-MM-dd");
+      
+      const bedtimeISO = new Date(bedtime).toISOString();
+      const wakeTimeISO = new Date(wakeTime).toISOString();
+      const durationMinutes = Math.round((new Date(wakeTimeISO) - new Date(bedtimeISO)) / 60000);
 
-    await base44.entities.Activity.create({
-      timestamp: bedtimeISO,
-      activity_name: "Sleep",
-      duration_minutes: durationMinutes,
-      color: "#6366f1",
-      notes: notes || null,
-      activity_category_ids: [sleepCat.id],
-    });
+      await base44.entities.Sleep.create({
+        date: dateStr,
+        bedtime: bedtimeISO,
+        wake_time: wakeTimeISO,
+        quality: quality || null,
+        notes: notes || null,
+      });
 
-    setBedtime("");
-    setWakeTime("");
-    setQuality(5);
-    setNotes("");
-    onSave?.();
-    onClose();
-  } catch (err) {
-    toast.error(err.message || "Failed to log sleep");
-  } finally {
-    setIsLoading(false);
-  }
-};
+      // Create matching Activity so it appears in the Activity Tracker
+      await base44.entities.Activity.create({
+        timestamp: bedtimeISO,
+        activity_name: "Sleep",
+        duration_minutes: durationMinutes,
+        color: "#6366f1",
+        notes: notes || null,
+        activity_category_ids: [],
+      });
+
+      setBedtime("");
+      setWakeTime("");
+      setQuality(5);
+      setNotes("");
+      onSave?.();
+      onClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to log sleep");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

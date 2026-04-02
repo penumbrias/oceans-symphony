@@ -11,29 +11,8 @@ const ENTITY_NAMES = [
   "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
   "Symptom", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
   "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
-  "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate"
+  "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
 ];
-
-const IMPORT_ORDER = [
-  "Alter", "Group", "ActivityCategory", "CustomField", "CustomEmotion",
-  "SystemSettings", "DailyTaskTemplate", "Symptom",
-  "FrontingSession", "Bulletin", "JournalEntry", "DiaryCard",
-  "BulletinComment", "AlterNote", "AlterMessage", "MentionLog",
-  "EmotionCheckIn", "SystemCheckIn", "Activity", "Sleep",
-  "Task", "DailyProgress", "ActivityGoal"
-];
-
-// Top-level fields containing IDs to remap
-const ID_REF_FIELDS = [
-  "primary_alter_id", "alter_id", "author_alter_id", "mentioned_alter_id",
-  "co_fronter_ids", "fronting_alter_ids", "author_alter_ids",
-  "allowed_alter_ids", "member_ids", "bulletin_id", "parent_comment_id",
-  "parent_task_id", "read_by_alter_ids", "mentioned_alter_ids",
-  "dismissed_by_alter_ids", "completed_task_ids",
-];
-
-// Entities that require the original id to be sent on create
-const ENTITIES_REQUIRING_ID = ["Symptom", "DailyTaskTemplate"];
 
 function downloadJson(data, filename) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -43,43 +22,16 @@ function downloadJson(data, filename) {
   URL.revokeObjectURL(url);
 }
 
-async function fetchAllRecords(entityName) {
-  try {
-    const records = await base44.entities[entityName].list(null, 2000);
-    if (records && records.length > 0) return records;
-  } catch {}
-  try {
-    return await base44.entities[entityName].list() || [];
-  } catch {
-    return [];
-  }
-}
-
-async function deleteAllRecords(entityName, onProgress) {
-  let safety = 0;
-  while (safety < 20) {
-    const records = await base44.entities[entityName].list(null, 500).catch(() => []);
-    if (!records || records.length === 0) break;
-    for (const r of records) {
-      await base44.entities[entityName].delete(r.id).catch(() => {});
-      await new Promise(res => setTimeout(res, 120));
-    }
-    safety++;
-    await new Promise(res => setTimeout(res, 300));
-  }
-}
-
 export default function DataBackupRestore() {
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [importMode, setImportMode] = useState('add');
-  const [importProgress, setImportProgress] = useState(null);
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
-    setTimeout(() => setStatus(null), 6000);
+    setTimeout(() => setStatus(null), 4000);
   };
 
   const handleExportFull = async () => {
@@ -91,20 +43,23 @@ export default function DataBackupRestore() {
       } else {
         dump = {};
         for (const name of ENTITY_NAMES) {
-          const records = await fetchAllRecords(name);
-          dump[name] = Object.fromEntries(records.map(r => [r.id, r]));
+          try { dump[name] = await base44.entities[name].list(); } catch {}
+        }
+        for (const name of ENTITY_NAMES) {
+          if (Array.isArray(dump[name])) {
+            dump[name] = Object.fromEntries(dump[name].map(r => [r.id, r]));
+          }
         }
       }
       const exportData = {
         __format: "symphony_backup",
-        __version: 2,
+        __version: 1,
         __exported_at: new Date().toISOString(),
-        data: dump
+        data: dump,
       };
       const date = new Date().toISOString().slice(0, 10);
       downloadJson(exportData, `symphony-backup-${date}.json`);
-      const totalRecords = Object.values(dump).reduce((sum, v) => sum + Object.keys(v).length, 0);
-      showStatus("success", `Exported ${totalRecords} records successfully.`);
+      showStatus("success", "Full backup exported successfully.");
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
     } finally {
@@ -116,107 +71,54 @@ export default function DataBackupRestore() {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportLoading(true);
-    setImportProgress("Reading file...");
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
 
-      if (parsed.__format !== "symphony_backup" || !parsed.data) {
-        showStatus("error", "Unknown file format. Expected Symphony backup.");
+      if (parsed.__format === "symphony_backup" && parsed.data) {
+        if (isLocalMode()) {
+          await loadDbDump(parsed.data);
+          showStatus("success", "Data restored! The app will reload.");
+          setTimeout(() => window.location.reload(), 1200);
+        } else {
+          // Cloud mode
+          if (importMode === 'replace') {
+            for (const entityName of ENTITY_NAMES) {
+              try {
+                let hasMore = true;
+                while (hasMore) {
+                  const records = await base44.entities[entityName].list();
+                  if (records.length === 0) {
+                    hasMore = false;
+                  } else {
+                    for (const record of records) {
+                      await base44.entities[entityName].delete(record.id);
+                    }
+                  }
+                }
+              } catch {}
+            }
+          }
+          
+          let count = 0;
+          for (const [entityName, recordsMap] of Object.entries(parsed.data)) {
+            if (!ENTITY_NAMES.includes(entityName)) continue;
+            const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap || {});
+            for (const record of records) {
+              const { id, ...data } = record;
+              try { await base44.entities[entityName].create(data); count++; } catch {}
+            }
+          }
+          showStatus("success", `${importMode === 'replace' ? 'Replaced' : 'Imported'} ${count} records.`);
+        }
         return;
       }
 
-      if (isLocalMode()) {
-        await loadDbDump(parsed.data);
-        showStatus("success", "Data restored! The app will reload.");
-        setTimeout(() => window.location.reload(), 1200);
-        return;
-      }
-
-      // Cloud mode — delete first if replace mode
-      if (importMode === 'replace') {
-        for (const entityName of ENTITY_NAMES) {
-          setImportProgress(`Deleting ${entityName}...`);
-          await deleteAllRecords(entityName);
-        }
-      }
-
-      const idMap = {};
-
-      const remapValue = (val) => {
-        if (!val) return val;
-        if (Array.isArray(val)) return val.map(v => idMap[v] || v).filter(Boolean);
-        if (typeof val === 'string') return idMap[val] || val;
-        return val;
-      };
-
-      const remapIds = (data) => {
-        const result = { ...data };
-        // Remap top-level ID reference fields
-        for (const field of ID_REF_FIELDS) {
-          if (result[field] != null) result[field] = remapValue(result[field]);
-        }
-        // Remap nested alters_present inside step2_notice (SystemCheckIn)
-        if (result.step2_notice?.alters_present) {
-          result.step2_notice = {
-            ...result.step2_notice,
-            alters_present: result.step2_notice.alters_present.map(id => idMap[id] || id)
-          };
-        }
-        // Remap group parent — but only if it's in idMap (skip orphaned SP/old IDs)
-        if (result.parent && result.parent !== 'root' && result.parent !== '') {
-          result.parent = idMap[result.parent] || '';
-        }
-        return result;
-      };
-
-      let count = 0;
-      let failed = 0;
-
-      for (const entityName of IMPORT_ORDER) {
-        const recordsMap = parsed.data[entityName];
-        if (!recordsMap) continue;
-        const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap);
-        if (records.length === 0) continue;
-
-        setImportProgress(`Importing ${entityName} (${records.length})...`);
-
-        for (const record of records) {
-          const { created_by_id, is_sample, updated_date, created_date, ...rawData } = record;
-          
-          // Some entities need their original ID preserved
-          const needsId = ENTITIES_REQUIRING_ID.includes(entityName);
-          const { id, ...dataWithoutId } = rawData;
-          const baseData = needsId ? rawData : dataWithoutId;
-          
-          // Normalize created_date so records show correct dates
-          if (created_date) {
-            baseData.created_date = created_date.slice(0, 23).replace(' ', 'T') + 'Z';
-          }
-
-          const data = remapIds(baseData);
-
-          try {
-            const created = await base44.entities[entityName].create(data);
-            // Map old ID to new ID (even for entities with forced IDs, in case other records ref them)
-            if (id && created?.id) idMap[id] = created.id;
-            count++;
-          } catch (err) {
-            console.warn(`Failed ${entityName}:`, err.message, data);
-            failed++;
-          }
-          await new Promise(res => setTimeout(res, 120));
-        }
-      }
-
-      setImportProgress(null);
-      showStatus("success", `Imported ${count} records${failed > 0 ? ` — ${failed} failed (check console)` : ""}.`);
-
+      showStatus("error", "Unknown file format. Expected Symphony backup or Simply Plural export.");
     } catch (e) {
       showStatus("error", `Import failed: ${e.message}`);
     } finally {
       setImportLoading(false);
-      setImportProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -236,22 +138,9 @@ export default function DataBackupRestore() {
       </CardHeader>
       <CardContent className="space-y-3">
         {status && (
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${
-            status.type === 'success'
-              ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400'
-              : 'bg-destructive/5 text-destructive'
-          }`}>
-            {status.type === 'success'
-              ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${status.type === 'success' ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400' : 'bg-destructive/5 text-destructive'}`}>
+            {status.type === 'success' ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
             {status.message}
-          </div>
-        )}
-
-        {importProgress && (
-          <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm bg-primary/5 text-primary border border-primary/20">
-            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-            {importProgress}
           </div>
         )}
 
@@ -261,38 +150,53 @@ export default function DataBackupRestore() {
             {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Full Symphony Backup</p>
-              <p className="text-xs text-muted-foreground font-normal">All data as JSON — re-importable into any Symphony account</p>
+              <p className="text-xs text-muted-foreground font-normal">All data as JSON — can be re-imported into Symphony</p>
             </div>
           </Button>
         </div>
 
         <div className="space-y-2 pt-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Import</p>
-          <div className="flex gap-2">
-            <label className="flex items-center gap-2 flex-1 cursor-pointer">
-              <input type="radio" name="importMode" value="add" checked={importMode === 'add'}
-                onChange={(e) => setImportMode(e.target.value)} className="w-4 h-4" />
-              <span className="text-xs font-medium">Add New</span>
-            </label>
-            <label className="flex items-center gap-2 flex-1 cursor-pointer">
-              <input type="radio" name="importMode" value="replace" checked={importMode === 'replace'}
-                onChange={(e) => setImportMode(e.target.value)} className="w-4 h-4" />
-              <span className="text-xs font-medium">Replace All</span>
-            </label>
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="importMode"
+                  value="add"
+                  checked={importMode === 'add'}
+                  onChange={(e) => setImportMode(e.target.value)}
+                  className="w-4 h-4"
+                />
+                <span className="text-xs font-medium">Add New</span>
+              </label>
+              <label className="flex items-center gap-2 flex-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="importMode"
+                  value="replace"
+                  checked={importMode === 'replace'}
+                  onChange={(e) => setImportMode(e.target.value)}
+                  className="w-4 h-4"
+                />
+                <span className="text-xs font-medium">Replace All</span>
+              </label>
+            </div>
           </div>
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importLoading}
+            className="w-full gap-2 justify-start"
+          >
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Import from File</p>
               <p className="text-xs text-muted-foreground font-normal">Symphony backup JSON</p>
             </div>
           </Button>
-          <p className="text-xs text-muted-foreground">
-            {importMode === 'replace'
-              ? '⚠️ Replace All deletes existing data first, then imports. Takes several minutes for large datasets.'
-              : '⚠️ Add New imports records without touching existing data.'}
-          </p>
+          <p className="text-xs text-muted-foreground">{importMode === 'replace' ? '⚠️ Replace All will delete existing data and import from backup.' : '⚠️ Add New imports records — it does not replace existing data.'}</p>
         </div>
       </CardContent>
     </Card>

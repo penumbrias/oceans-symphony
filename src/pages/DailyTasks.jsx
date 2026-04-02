@@ -9,9 +9,7 @@ import {
   totalPossiblePoints,
   getLevelFromTotalXP,
   DEFAULT_TASK_TEMPLATES,
-  applyTerms,
 } from "@/lib/dailyTaskSystem";
-import { useTerms } from "@/lib/useTerms";
 import LevelBar from "@/components/tasks/LevelBar";
 import TaskCard from "@/components/tasks/TaskCard";
 import TaskTemplateManager from "@/components/tasks/TaskTemplateManager";
@@ -21,7 +19,6 @@ import { toast } from "sonner";
 
 export default function DailyTasks() {
   const queryClient = useQueryClient();
-  const terms = useTerms();
   const TODAY = getTodayString();
   const [showManager, setShowManager] = useState(false);
 
@@ -33,9 +30,8 @@ export default function DailyTasks() {
   });
 
   // Seed defaults for new users (once templates have loaded and are empty)
- useEffect(() => {
-  if (templatesLoading) return;
-  if (templates.length === 0) {
+  useEffect(() => {
+    if (templatesLoading || templates.length > 0) return;
     const seed = async () => {
       for (const def of DEFAULT_TASK_TEMPLATES) {
         await base44.entities.DailyTaskTemplate.create({ ...def });
@@ -43,27 +39,7 @@ export default function DailyTasks() {
       queryClient.invalidateQueries({ queryKey: ["dailyTaskTemplates"] });
     };
     seed();
-  } else {
-    // Migrate any old hardcoded titles to use terminology tokens
-    const migrations = {
-      "Parts check-in": "{{System}} check-in",
-      "parts check-in": "{{System}} check-in",
-      " check-in": "{{System}} check-in",
-    };
-    const toMigrate = templates.filter(t => migrations[t.title]);
-    if (toMigrate.length > 0) {
-      const migrate = async () => {
-        for (const t of toMigrate) {
-          await base44.entities.DailyTaskTemplate.update(t.id, {
-            title: migrations[t.title],
-          });
-        }
-        queryClient.invalidateQueries({ queryKey: ["dailyTaskTemplates"] });
-      };
-      migrate();
-    }
-  }
-}, [templatesLoading, templates.length]);
+  }, [templatesLoading, templates.length]);
 
   // Daily progress records
   const { data: allProgress = [], isLoading: progressLoading } = useQuery({
@@ -241,17 +217,13 @@ export default function DailyTasks() {
 
       <div className="space-y-3">
         {activeTasks.map((task) => (
-  <TaskCard
-    key={task.id}
-    task={{
-      ...task,
-      title: applyTerms(task.title, terms),
-      description: applyTerms(task.description, terms),
-    }}
-    completed={isTaskCompleted(task, manualCompletedIds, autoTriggers)}
-    onToggle={toggleManual}
-  />
-))}
+          <TaskCard
+            key={task.id}
+            task={task}
+            completed={isTaskCompleted(task, manualCompletedIds, autoTriggers)}
+            onToggle={toggleManual}
+          />
+        ))}
       </div>
     </motion.div>
   );

@@ -97,23 +97,14 @@ function StatusNoteBadge({ note, topPx }) {
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary }) {
+function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap }) {
   const sz = 26;
   const tap = useDoubleTap(onTap, onDoubleTap);
   return (
-    <div className="absolute flex flex-col items-center cursor-pointer"
-      style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
+    <div className="absolute flex flex-col items-center cursor-pointer" style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
       onClick={tap}>
-      <div
-        className="rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
-        style={{
-          width: sz,
-          height: sz,
-          backgroundColor: color,
-          border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
-          boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
-        }}
-        title={alter?.name + (isPrimary ? " (primary)" : "")}>
+      <div className="rounded-full flex-shrink-0 border-2 border-background overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
+        style={{ width: sz, height: sz, backgroundColor: color }} title={alter?.name}>
         {alter?.avatar_url
           ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
           : <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
@@ -121,9 +112,7 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
       {heightPx > sz + 4 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
           height: Math.max(heightPx - sz - 2, 4),
-          background: isPrimary
-            ? `linear-gradient(to bottom, #f59e0b, #f59e0b40)`
-            : `linear-gradient(to bottom, ${color}, ${color}40)`,
+          background: `linear-gradient(to bottom, ${color}, ${color}40)`,
         }} />
       )}
     </div>
@@ -663,15 +652,14 @@ export default function InfiniteTimeline({
                     const topPx = getTopPx(entry.startMins);
                     const heightPx = getRangePx(entry.startMins, entry.endMins);
                     // Find the actual session for this entry
-                   const entrySession = sessions.find(s => {
+                    const entrySession = sessions.find(s => {
                       const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
                       return ids.includes(entry.alterId);
                     });
-                    const isPrimary = entrySession?.primary_alter_id === entry.alterId;
                     return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx}
-                      isPrimary={isPrimary}
                       onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
-                      onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })} />;                  })}
+                      onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })} />;
+                  })}
                 </div>
               ))}
 

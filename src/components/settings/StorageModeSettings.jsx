@@ -197,7 +197,7 @@ export default function StorageModeSettings() {
 
           <>
             <div className="text-sm text-muted-foreground bg-muted/40 rounded-xl p-3">
-              Your data is synced to the cloud and accessible only through your account, from any device.
+              Your data is synced to the cloud and accessible from any device.
             </div>
             <Button variant="outline" onClick={() => promptSwitch('local')} className="w-full gap-2">
               <HardDrive className="w-4 h-4" /> Switch to Local Only
@@ -217,9 +217,9 @@ export default function StorageModeSettings() {
          </DialogHeader>
          <DialogDescription className="space-y-2">
            <p>You're about to switch from <strong>{mode === 'local' ? 'Local' : 'Cloud'}</strong> to <strong>{switchTarget === 'local' ? 'Local' : 'Cloud'}</strong>.</p>
-           <p className="font-bold">Local stores all data offline on your device** itself rather than uploading data to a server/"the cloud". ⚠️ Please backup your data before switching — use "Backup & Export" below to save a full copy.                            
-**Because this is still just a webapp, CLEARING YOUR BROWSER HISTORY WILL CLEAR YOUR LOCAL DATA!! until the app is installable, make FREQUENT backups of your data if you store locally!!
-            </p>
+           <p>Local stores all data offline on your device itself rather than uploading data to a server/"the cloud".
+
+⚠️ Please backup your data before switching — use "Backup & Export" below to save a full copy.</p>
            <p className="text-xs text-muted-foreground">After switching, you can import your data if needed.</p>
          </DialogDescription>
          <DialogFooter className="flex gap-2">

@@ -65,12 +65,12 @@ export default function Dashboard() {
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
-    queryFn: () => base44.entities.Alter.list()
+    queryFn: () => base44.entities.Alter.list(),
   });
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 
   const activeSession = sessions.find((s) => s.is_active);
@@ -78,63 +78,66 @@ export default function Dashboard() {
 
   const { data: settings = [] } = useQuery({
     queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list()
+    queryFn: () => base44.entities.SystemSettings.list(),
   });
   const systemName = settings[0]?.system_name || "Your System";
 
   const { data: mentionLogs = [] } = useQuery({
     queryKey: ["mentionLogs"],
-    queryFn: () => base44.entities.MentionLog.list("-created_date", 200)
+    queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
   });
 
-  const frontingAlterIds = activeSession ?
-  [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean) :
-  [];
+  const frontingAlterIds = activeSession
+    ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+    : [];
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      
-      
-      <div className="mb-3 flex items-start justify-between">
+      <NotificationPopups
+        mentionLogs={mentionLogs}
+        alters={alters}
+        frontingAlterIds={frontingAlterIds}
+        onNotifClick={handleNotifClick}
+      />
+      <div className="mb-5 flex items-start justify-between">
         <div>
           <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
-          <p className="text-muted-foreground mt-0.5 text-sm text-center">Welcome home 💜</p>
+          <p className="text-muted-foreground text-sm mt-0.5">Welcome home 💜</p>
         </div>
         <div className="flex items-center gap-1">
         <button
-            onClick={() => setShowTour(true)}
-            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
-            title="Open guide">
-            
+          onClick={() => setShowTour(true)}
+          className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+          title="Open guide"
+        >
           Guide
         </button>
         <button
-            onClick={() => setShowNotifHistory(true)}
-            aria-label="Notifications"
-            className="relative mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-            
+          onClick={() => setShowNotifHistory(true)}
+          aria-label="Notifications"
+          className="relative mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+        >
           <Bell className="w-5 h-5" />
-          {mentionLogs.length > 0 &&
+          {mentionLogs.length > 0 && (
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />
-            }
+          )}
         </button>
         </div>
       </div>
 
       <CurrentFronters alters={alters} />
       <NotificationHistoryModal
-  open={showNotifHistory}
-  onClose={() => setShowNotifHistory(false)}
-  alters={alters}
-  frontingAlterIds={frontingAlterIds}
-  onNotifClick={handleNotifClick} />
-      
+        open={showNotifHistory}
+        onClose={() => setShowNotifHistory(false)}
+        alters={alters}
+        onNotifClick={handleNotifClick}
+      />
       
       <button
         onClick={() => setShowEmotionModal(true)}
-        aria-label="Quick emotional check-in" className="bg-destructive/10 text-destructive mb-2 px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors">
-        
-        
+        aria-label="Quick emotional check-in"
+        className="inline-flex items-center gap-2 px-4 min-h-[44px] bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors font-medium text-sm mb-4"
+      >
         <Heart className="w-4 h-4" />
         Quick Check-In
       </button>
@@ -146,15 +149,15 @@ export default function Dashboard() {
       <TermsSetupModal
         open={showTermsSetup}
         onClose={handleTermsDone}
-        existingSettingsId={settings[0]?.id || null} />
-      
+        existingSettingsId={settings[0]?.id || null}
+      />
       <TourModal open={showTour} onClose={handleTourClose} />
-      <QuickCheckInModal
-        isOpen={showEmotionModal}
-        onClose={() => setShowEmotionModal(false)}
+      <QuickCheckInModal 
+        isOpen={showEmotionModal} 
+        onClose={() => setShowEmotionModal(false)} 
         alters={alters}
-        currentFronterIds={activeSession ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])] : []} />
-      
-    </motion.div>);
-
+        currentFronterIds={activeSession ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])] : []}
+      />
+    </motion.div>
+  );
 }

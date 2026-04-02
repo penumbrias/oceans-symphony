@@ -1,50 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
-import { HexColorPicker } from "react-colorful";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
-
-function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose }) {
-  const [hex, setHex] = React.useState(color);
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-sm mx-4 w-full">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">{label}</h3>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <HexColorPicker color={hex} onChange={setHex} style={{ width: "100%" }} />
-        <input
-          type="text"
-          value={hex}
-          onChange={(e) => { if (/^#?[0-9A-F]{0,6}$/i.test(e.target.value)) setHex(e.target.value); }}
-          placeholder="#000000"
-          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-mono"
-        />
-        <div className="w-full h-12 rounded-lg border-2 border-border" style={{ backgroundColor: hex }} />
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 font-medium text-sm cursor-pointer">
-            Cancel
-          </button>
-          <button type="button" onClick={() => { onSave(hex); onClose(); }}
-            disabled={!/^#[0-9A-F]{6}$/i.test(hex)}
-            className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm cursor-pointer disabled:opacity-50">
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -57,20 +19,8 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-const QUILL_MODULES = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ["bold", "italic", "underline", "strike"],
-    [{ color: [] }, { background: [] }],
-    [{ list: "ordered" }, { list: "bullet" }],
-    ["blockquote", "code-block"],
-    ["link", "image"],
-    ["clean"],
-  ],
-};
-
-export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [] }) {  const queryClient = useQueryClient();
-  const [showColorPicker, setShowColorPicker] = useState(false);
+export default function ProfileTab({ alter }) {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: "",
     alias: "",
@@ -85,25 +35,6 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef(null);
-const quillRef = useRef(null);
-const [showImportModal, setShowImportModal] = useState(false);
-const [bioMode, setBioMode] = useState("rich"); // "rich" | "html"
-
-const convertSPToHTML = (text) => {
-  let html = text
-    // Convert ![alt](url) to <img> tags
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;display:inline-block;" />')
-    // Convert [text](url) to <a> tags
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-    // Convert **text** to bold
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    // Convert *text* to italic
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    // Convert line breaks to <br>
-    .replace(/\n/g, '<br />');
-  return html;
-};
-const [importText, setImportText] = useState("");
 
   useEffect(() => {
     setForm({
@@ -118,14 +49,16 @@ const [importText, setImportText] = useState("");
   }, [alter]);
 
   const handleSave = async () => {
-    if (!form.name.trim()) { toast.error("Name is required"); return; }
+    if (!form.name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
     setSaving(true);
     try {
       await base44.entities.Alter.update(alter.id, form);
       toast.success("Saved!");
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
-      onEditModeChange(false);
     } catch (e) {
       toast.error(e.message || "Failed to save");
     } finally {
@@ -178,134 +111,14 @@ const [importText, setImportText] = useState("");
     }
   };
 
-  // ── VIEW MODE ──
-  if (!editMode) {
-    return (
-      <div className="space-y-6">
-        {/* Avatar + basic info */}
-        <div className="flex gap-4 items-start">
-          <div
-            className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
-            style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}
-          >
-            {alter.avatar_url ? (
-              <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-10 h-10" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }} />
-            )}
-          </div>
-          <div className="flex-1 min-w-0 space-y-1">
-            <h2 className="font-display text-2xl font-semibold text-foreground">{alter.name}</h2>
-            {alter.alias && <p className="text-sm text-muted-foreground">aka {alter.alias}</p>}
-            {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
-            {alter.role && (
-              <span
-                className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
-                style={{
-                  backgroundColor: alter.color ? `${alter.color}20` : "hsl(var(--muted))",
-                  color: alter.color || "hsl(var(--muted-foreground))",
-                }}
-              >
-                {alter.role}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Rich text bio */}
-        {alter.description ? (
-          <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
-            <div
-              className="ql-editor"
-              style={{ padding: 0, whiteSpace: "normal" }}
-              dangerouslySetInnerHTML={{ __html: alter.description }}
-            />
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
-            No bio yet. Tap <strong>Edit</strong> to add one.
-          </div>
-        )}
-
-        {/* Groups */}
-        {alter.groups && alter.groups.length > 0 && (
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
-            <div className="flex flex-wrap gap-1.5">
-              {alter.groups.map((g) => (
-                <span
-                  key={g.id}
-                  className="px-2.5 py-1 rounded-full text-xs font-medium border"
-                  style={{
-                    backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
-                    borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
-                    color: g.color || "hsl(var(--foreground))",
-                  }}
-                >
-                  {g.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tags */}
-        {alter.tags && alter.tags.length > 0 && (
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tags</p>
-            <div className="flex flex-wrap gap-1.5">
-              {alter.tags.map((tag) => (
-                <span key={tag} className="px-2.5 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Custom fields — visible and filled */}
-        {(() => {
-          const customFieldValues = alter.custom_fields || {};
-          const visibleFilled = systemFields.filter(
-            f => f.is_visible !== false && customFieldValues[f.id]
-          );
-          const alterSpecific = (alter.alter_custom_fields || []).filter(f => f.value);
-          if (visibleFilled.length === 0 && alterSpecific.length === 0) return null;
-          return (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
-              <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden">
-                {visibleFilled.map((field, i) => (
-                  <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
-                    <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
-                    <span className="text-xs text-foreground flex-1 leading-relaxed">
-                      {field.field_type === "boolean"
-                        ? (customFieldValues[field.id] === "true" ? "Yes" : "No")
-                        : customFieldValues[field.id]}
-                    </span>
-                  </div>
-                ))}
-                {alterSpecific.map((field, idx) => (
-                  <div key={idx} className={`flex gap-3 px-3 py-2.5 ${idx < alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
-                    <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
-                    <span className="text-xs text-foreground flex-1 leading-relaxed">{field.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
-      </div>
-    );
-  }
-
-  // ── EDIT MODE ──
   return (
     <div className="space-y-6">
+      {/* Color preview strip */}
       {form.color && (
         <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />
       )}
 
+      {/* Avatar */}
       <div className="flex justify-center">
         <div
           className="w-32 h-32 rounded-2xl border-4 border-border overflow-hidden shadow-xl"
@@ -321,6 +134,7 @@ const [importText, setImportText] = useState("");
         </div>
       </div>
 
+      {/* Editable Fields */}
       <div className="space-y-4">
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Name *</label>
@@ -346,11 +160,11 @@ const [importText, setImportText] = useState("");
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Color</label>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowColorPicker(true)}
-              className="w-10 h-10 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
-              style={{ backgroundColor: form.color || "#8b5cf6" }}
+            <input
+              type="color"
+              value={form.color || "#8b5cf6"}
+              onChange={(e) => set("color", e.target.value)}
+              className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
             />
             <Input
               value={form.color}
@@ -365,10 +179,21 @@ const [importText, setImportText] = useState("");
           <label className="text-xs text-muted-foreground font-medium">Avatar</label>
           <div className="flex gap-2">
             <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
-            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+            >
               {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             </Button>
-            <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleAvatarUpload}
+            />
           </div>
           {form.avatar_url && (
             <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />
@@ -376,102 +201,42 @@ const [importText, setImportText] = useState("");
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
-           
-          </div>
-          <p className="text-xs text-muted-foreground">Supports rich text, images, headers, and more</p>
-          <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setBioMode(bioMode === "rich" ? "html" : "rich")}
-                className="text-xs text-muted-foreground hover:text-foreground font-medium border border-border/50 rounded px-2 py-0.5"
-              >
-                {bioMode === "rich" ? "</> HTML" : "Rich Text"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowImportModal(true)}
-                className="text-xs text-primary hover:text-primary/80 font-medium"
-              >
-                Import SP Template
-              </button>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {bioMode === "rich" ? "Supports rich text, images, headers, and more" : "Edit raw HTML directly"}
-          </p>
-          <div className="rounded-lg border border-input overflow-hidden bg-background">
-            {bioMode === "rich" ? (
-              <ReactQuill
-                ref={quillRef}
-                value={form.description}
-                onChange={(val) => set("description", val)}
-                modules={QUILL_MODULES}
-                theme="snow"
-                placeholder="Write a bio… add images, headers, styling…"
-                onFocus={() => {
-                  const quill = quillRef.current?.getEditor();
-                  if (!quill) return;
-                  const toolbar = quill.getModule("toolbar");
-                  toolbar.addHandler("image", () => {
-                    const input = document.createElement("input");
-                    input.setAttribute("type", "file");
-                    input.setAttribute("accept", "image/*");
-                    input.click();
-                    input.onchange = async () => {
-                      const file = input.files[0];
-                      if (!file) return;
-                      try {
-                        toast.loading("Uploading image...");
-                        const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                        toast.dismiss();
-                        toast.success("Image uploaded!");
-                        const range = quill.getSelection() || { index: 0 };
-                        quill.insertEmbed(range.index, "image", file_url);
-                        quill.setSelection(range.index + 1);
-                      } catch {
-                        toast.dismiss();
-                        toast.error("Failed to upload image");
-                      }
-                    };
-                  });
-                }}
-              />
-            ) : (
-              <textarea
-                value={form.description}
-                onChange={(e) => set("description", e.target.value)}
-                placeholder="<p>Write raw HTML here...</p>"
-                className="w-full min-h-[200px] px-3 py-2 text-sm font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-              />
-            )}
-          </div>
-        </div>
+          <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
+          <Textarea
+            value={form.description}
+            onChange={(e) => set("description", e.target.value)}
+            placeholder="Write a description..."
+            className="min-h-[100px] resize-none"
+          />
         </div>
       </div>
 
+      {/* Groups */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-primary flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" /> Groups
           </label>
-          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">
+          <button
+            type="button"
+            onClick={() => setShowGroupPicker(true)}
+            className="text-xs text-primary hover:text-primary/80 font-medium"
+          >
             Edit groups →
           </button>
         </div>
         {alter.groups && alter.groups.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {alter.groups.map((g) => (
-              <span key={g.id} className="px-2 py-0.5 rounded-full text-xs font-medium border"
+              <span
+                key={g.id}
+                className="px-2 py-0.5 rounded-full text-xs font-medium border"
                 style={{
                   backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
                   borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
                   color: g.color || "hsl(var(--foreground))",
-                }}>
+                }}
+              >
                 {g.name}
               </span>
             ))}
@@ -481,6 +246,7 @@ const [importText, setImportText] = useState("");
         )}
       </div>
 
+      {/* Tags */}
       {alter.tags && alter.tags.length > 0 && (
         <div>
           <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-3">
@@ -496,75 +262,43 @@ const [importText, setImportText] = useState("");
         </div>
       )}
 
+      {/* Action Buttons */}
       <div className="flex flex-col gap-2 pt-2">
         <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
           {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           Save Changes
         </Button>
+
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
-            {alter?.is_archived ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</> : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
+          <Button
+            variant="outline"
+            onClick={handleArchive}
+            disabled={saving}
+            className="flex-1"
+          >
+            {alter?.is_archived ? (
+              <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
+            ) : (
+              <><Archive className="w-4 h-4 mr-2" /> Archive</>
+            )}
           </Button>
-          <Button variant="outline" onClick={handleDelete} disabled={deleting} className="flex-1 text-destructive hover:text-destructive border-destructive/30">
+          <Button
+            variant="outline"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex-1 text-destructive hover:text-destructive border-destructive/30"
+          >
             {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
             Delete
           </Button>
         </div>
       </div>
 
-      <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
-
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-lg mx-4 w-full">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Import Simply Plural Template</h3>
-              <button type="button" onClick={() => { setShowImportModal(false); setImportText(""); }}>
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">Paste your SP template below. Images, links, and formatting will be converted automatically.</p>
-            <textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              placeholder="Paste SP template here..."
-              className="w-full h-48 px-3 py-2 rounded-md border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { setShowImportModal(false); setImportText(""); }}
-                className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm">
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const html = convertSPToHTML(importText);
-                  set("description", (form.description || "") + html);
-                  setShowImportModal(false);
-                  setImportText("");
-                  toast.success("Template imported!");
-                }}
-                disabled={!importText.trim()}
-                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">
-                Import
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-  
-      {showColorPicker && (
-        <ColorPickerModal
-          color={form.color || "#8b5cf6"}
-          label="Alter Color"
-          onSave={(hex) => set("color", hex)}
-          onClose={() => setShowColorPicker(false)}
-        />
-      )}
+      <GroupPickerModal
+        alter={alter}
+        open={showGroupPicker}
+        onClose={() => setShowGroupPicker(false)}
+      />
     </div>
   );
 }

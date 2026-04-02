@@ -9,7 +9,7 @@ export default function SystemMapPage() {
       <div className="h-full flex flex-col gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">{terms.System} Structure Map</h1>
-          <p className="text-muted-foreground mt-1">Interactive visualization of your {terms.system}'s {terms.alters} and groups. Automatically tracks co-{terms.front} patterns. Click on an {terms.alters}' icon, and others who frequently co-{terms.front} will appear closer within the circle.</p>
+          <p className="text-muted-foreground mt-1">Interactive visualization of your {terms.system}'s {terms.alters} and groups</p>
         </div>
         <div className="flex-1 min-h-0">
           <SystemMap />

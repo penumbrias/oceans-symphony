@@ -16,17 +16,17 @@ export default function Home() {
 
   const { data: alters = [], isLoading: altersLoading } = useQuery({
     queryKey: ["alters"],
-    queryFn: () => base44.entities.Alter.list()
+    queryFn: () => base44.entities.Alter.list(),
   });
 
   const { data: settings = [] } = useQuery({
     queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list()
+    queryFn: () => base44.entities.SystemSettings.list(),
   });
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 
   const systemSettings = settings[0] || null;
@@ -40,8 +40,8 @@ export default function Home() {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      </div>);
-
+      </div>
+    );
   }
 
   if (!isConnected && activeAlters.length === 0) {
@@ -49,8 +49,8 @@ export default function Home() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-24 text-center">
-        
+        className="flex flex-col items-center justify-center py-24 text-center"
+      >
         <div className="w-20 h-20 rounded-3xl bg-primary/5 flex items-center justify-center mb-6">
           <Sparkles className="w-9 h-9 text-primary/40" />
         </div>
@@ -72,17 +72,17 @@ export default function Home() {
           </Button>
         </div>
         <AlterEditModal open={showAddAlter} onClose={() => setShowAddAlter(false)} mode="create" />
-      </motion.div>);
-
+      </motion.div>
+    );
   }
 
   return (
     <div>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }} className="mb-3 flex items-start justify-between">
-
-        
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6 flex items-start justify-between"
+      >
         <div>
           <h1 className="font-display text-3xl font-semibold text-foreground">
             {systemSettings?.system_name || "Your System"}
@@ -90,16 +90,16 @@ export default function Home() {
           <p className="text-muted-foreground mt-1 flex items-center gap-2">
             <Users className="w-4 h-4" />
             {activeAlters.length} active {activeAlters.length !== 1 ? terms.alters : terms.alter}
-            {archivedAlters.length > 0 &&
-            <span className="text-muted-foreground/60">· {archivedAlters.length} archived</span>
-            }
+            {archivedAlters.length > 0 && (
+              <span className="text-muted-foreground/60">· {archivedAlters.length} archived</span>
+            )}
           </p>
         </div>
         <Button
           size="sm"
           onClick={() => setShowAddAlter(true)}
-          className="bg-primary hover:bg-primary/90 gap-1.5">
-          
+          className="bg-primary hover:bg-primary/90 gap-1.5"
+        >
           <Plus className="w-4 h-4" />
           Add {terms.Alter}
         </Button>
@@ -111,8 +111,8 @@ export default function Home() {
       <AlterEditModal
         open={showAddAlter}
         onClose={() => setShowAddAlter(false)}
-        mode="create" />
-      
-    </div>);
-
+        mode="create"
+      />
+    </div>
+  );
 }

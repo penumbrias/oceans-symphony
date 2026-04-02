@@ -22,7 +22,7 @@ function formatDuration(start, end) {
 export default function HistoryTab({ alterId }) {
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 20000),
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 200),
   });
 
   const alterSessions = sessions.filter(
