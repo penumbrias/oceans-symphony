@@ -20,7 +20,7 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function MemberRow({ alter, onDoubleClick, onLongPress }) {
+function MemberRow({ alter, onClick, onLongPress }) {
   const hasColor = alter.color && alter.color.length > 3;
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
@@ -44,7 +44,7 @@ function MemberRow({ alter, onDoubleClick, onLongPress }) {
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      onDoubleClick={onDoubleClick}
+      onClick={onClick}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
@@ -202,7 +202,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", currentSe
         <MemberRow
           key={alter.id}
           alter={alter}
-          onDoubleClick={() => {
+          onClick={() => {
             navigate(`/alter/${alter.id}`);
           }}
           onLongPress={() => {
