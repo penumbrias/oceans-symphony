@@ -99,50 +99,47 @@ export default function ActivityCustomizationMenu({ onClose }) {
 
   const createRootMutation = useMutation({
     mutationFn: async (data) => {
-      // Check if a category with this name already exists (including archived/deleted ones)
       const existing = categories.find(
         c => c.name.toLowerCase() === data.name.toLowerCase()
       );
+      
+      let category;
       if (existing) {
-        // Just update color if needed and return existing
         await base44.entities.ActivityCategory.update(existing.id, { color: data.color });
-        return existing;
+        category = existing;
+      } else {
+        category = await base44.entities.ActivityCategory.create({
+          name: data.name,
+          color: data.color,
+          parent_category_id: null,
+          order: rootCategories.length,
+        });
       }
-      return base44.entities.ActivityCategory.create({
-        name: data.name,
-        color: data.color,
-        parent_category_id: null,
-        order: rootCategories.length,
-      });
+
+      // Find any activity records with matching name that don't have this category ID
+      const allActivities = await base44.entities.Activity.list();
+      const orphaned = allActivities.filter(a =>
+        a.activity_name?.toLowerCase() === data.name.toLowerCase() &&
+        !(a.activity_category_ids || []).includes(category.id)
+      );
+      for (const act of orphaned) {
+        await base44.entities.Activity.update(act.id, {
+          activity_category_ids: [category.id],
+        });
+      }
+
+      return { category, restored: orphaned.length };
     },
-    
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["activityCategories"] });
+      qc.invalidateQueries({ queryKey: ["activities"] });
       setIsCreatingRoot(false);
       setNewRootName("");
       setNewRootColor("#8b5cf6");
-      toast.success("Activity created!");
-    },
-    onError: (e) => toast.error(e.message),
-  });
-
-  const createSubMutation = useMutation({
-    mutationFn: ({ parentId, name }) => {
-      const siblings = categories.filter((c) => c.parent_category_id === parentId);
-      const parent = categories.find((c) => c.id === parentId);
-      return base44.entities.ActivityCategory.create({
-        name,
-        color: parent?.color || "#8b5cf6",
-        parent_category_id: parentId,
-        order: siblings.length,
-      });
-    },
-    onSuccess: (_, variables) => {
-      qc.invalidateQueries({ queryKey: ["activityCategories"] });
-      setExpandedIds((prev) => new Set([...prev, variables.parentId]));
-      setCreatingSubFor(null);
-      setNewSubName("");
-      toast.success("Sub-activity created!");
+      toast.success(result.restored > 0
+        ? `Activity restored! Linked ${result.restored} existing records.`
+        : "Activity created!"
+      );
     },
     onError: (e) => toast.error(e.message),
   });
