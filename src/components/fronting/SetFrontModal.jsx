@@ -129,14 +129,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   try {
     const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
 
-    if (isUnsure) {
-      for (const s of activeSessions) {
-        await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
-      }
-      toast.success("Front cleared");
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      onClose();
+    r (const s of activeSessions)
     } else {
       const coIds = coFronterIds.filter((id) => id !== primaryId);
       let sessionId = null;
