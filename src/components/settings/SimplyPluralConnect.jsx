@@ -3,40 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Link2, RefreshCw, Unlink, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Loader2, CheckCircle2, Link2, Unlink, ArrowDownLeft } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { getSystemId, getSystemUser, getMembers, getGroups, mapMemberToAlter } from "@/lib/simplyPlural";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { isLocalMode } from "@/lib/storageMode";
+import { createLocalDbEntities } from "@/lib/localDb";
 
-// --- Local mode storage helpers ---
-const LOCAL_SP_KEY = "oceans_sp_settings";
-
-function getLocalSpSettings() {
-  try {
-    const raw = localStorage.getItem(LOCAL_SP_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveLocalSpSettings(data) {
-  const existing = getLocalSpSettings() || {};
-  localStorage.setItem(LOCAL_SP_KEY, JSON.stringify({ ...existing, ...data }));
-}
-
-function clearLocalSpSettings() {
-  localStorage.removeItem(LOCAL_SP_KEY);
+// Lazily get the local entities proxy so it only runs in local mode
+function getLocalEntities() {
+  return createLocalDbEntities();
 }
 
 export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const localMode = isLocalMode();
-
-  // In local mode, read from localStorage instead of the settings prop
-  const localSettings = localMode ? getLocalSpSettings() : null;
-  const effectiveSettings = localMode ? localSettings : settings;
 
   const [token, setToken] = useState("");
   const [connecting, setConnecting] = useState(false);
@@ -44,6 +25,10 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const [importMode, setImportMode] = useState("standard");
   const queryClient = useQueryClient();
 
+  // In local mode, settings come from the localDb SystemSettings entity,
+  // which is passed in via the same props as cloud mode — no change needed
+  // as long as Settings.jsx loads SystemSettings through the unified entities layer.
+  const effectiveSettings = settings;
   const isConnected = !!effectiveSettings?.sp_token;
 
   const handleConnect = async () => {
@@ -62,19 +47,16 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         system_description: systemDescription,
       };
 
-      if (localMode) {
-        saveLocalSpSettings(spData);
-        onSettingsChange();
+      // Both cloud and local mode use the same entities API —
+      // in local mode, base44.entities is already swapped to localDb entities
+      if (effectiveSettings?.id) {
+        await base44.entities.SystemSettings.update(effectiveSettings.id, spData);
       } else {
-        if (settings?.id) {
-          await base44.entities.SystemSettings.update(settings.id, spData);
-        } else {
-          await base44.entities.SystemSettings.create(spData);
-        }
-        onSettingsChange();
+        await base44.entities.SystemSettings.create(spData);
       }
 
       setToken("");
+      onSettingsChange();
       toast.success("Connected to Simply Plural");
     } catch (e) {
       toast.error(e.message || "Connection failed");
@@ -88,51 +70,56 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     setSyncing(true);
     try {
       if (localMode) {
-        // In local mode, import directly without base44 functions
+        // Call Simply Plural API directly — no base44 function needed
         const members = await getMembers(effectiveSettings.sp_token, effectiveSettings.sp_system_id);
-        const groups = await getGroups(effectiveSettings.sp_token, effectiveSettings.sp_system_id);
-
-        // Load existing local alters
-        const existingRaw = localStorage.getItem("oceans_alters");
-        const existingAlters = existingRaw ? JSON.parse(existingRaw) : [];
-
         const mapped = members.map((m) => mapMemberToAlter(m));
+
+        const entities = getLocalEntities();
+        const existingAlters = await entities.Alter.list();
+
         let created = 0;
         let updated = 0;
 
         if (importMode === "replace_all") {
-          localStorage.setItem("oceans_alters", JSON.stringify(mapped));
+          for (const a of existingAlters) {
+            await entities.Alter.delete(a.id);
+          }
+          await entities.Alter.bulkCreate(mapped);
           created = mapped.length;
         } else {
-          const merged = [...existingAlters];
           for (const incoming of mapped) {
-            const existingIdx = merged.findIndex((a) => a.sp_id === incoming.sp_id);
-            if (existingIdx !== -1) {
+            const existing = existingAlters.find((a) => a.sp_id === incoming.sp_id);
+            if (existing) {
               if (importMode !== "new_only") {
-                merged[existingIdx] = { ...merged[existingIdx], ...incoming };
+                await entities.Alter.update(existing.id, incoming);
                 updated++;
               }
             } else {
-              merged.push({ ...incoming, id: `local_${Date.now()}_${Math.random()}` });
+              await entities.Alter.create(incoming);
               created++;
             }
           }
-          localStorage.setItem("oceans_alters", JSON.stringify(merged));
         }
 
-        saveLocalSpSettings({ last_sync: new Date().toISOString() });
+        // Update last_sync on SystemSettings
+        if (effectiveSettings?.id) {
+          await entities.SystemSettings.update(effectiveSettings.id, {
+            last_sync: new Date().toISOString(),
+          });
+        }
+
         onSettingsChange();
         queryClient.invalidateQueries({ queryKey: ["alters"] });
         queryClient.invalidateQueries({ queryKey: ["groups"] });
         toast.success(`Imported: ${created} new, ${updated} updated alters`);
       } else {
-        // Cloud mode — use base44 function as before
+        // Cloud mode — use base44 serverless function as before
         const res = await base44.functions.invoke("importFromSimplyPlural", {
           sp_token: effectiveSettings.sp_token,
           sp_system_id: effectiveSettings.sp_system_id,
           mode: importMode,
         });
-        await base44.entities.SystemSettings.update(settings.id, {
+        await base44.entities.SystemSettings.update(effectiveSettings.id, {
           last_sync: new Date().toISOString(),
         });
         onSettingsChange();
@@ -149,17 +136,13 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
   const handleDisconnect = async () => {
     try {
-      if (localMode) {
-        clearLocalSpSettings();
-        onSettingsChange();
-      } else {
-        if (!settings?.id) return;
-        await base44.entities.SystemSettings.update(settings.id, {
+      if (effectiveSettings?.id) {
+        await base44.entities.SystemSettings.update(effectiveSettings.id, {
           sp_token: "",
           sp_system_id: "",
         });
-        onSettingsChange();
       }
+      onSettingsChange();
       toast.success("Disconnected from Simply Plural");
     } catch (e) {
       toast.error(e.message || "Disconnect failed");
@@ -243,13 +226,13 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               </div>
             </div>
 
-            {/* Disconnect Button */}
-            <div className="border-t pt-4 flex gap-2">
+            {/* Disconnect */}
+            <div className="border-t pt-4">
               <Button
                 onClick={handleDisconnect}
                 variant="outline"
                 size="sm"
-                className="text-destructive hover:text-destructive flex-1"
+                className="text-destructive hover:text-destructive w-full"
               >
                 <Unlink className="w-4 h-4 mr-2" />
                 Disconnect
