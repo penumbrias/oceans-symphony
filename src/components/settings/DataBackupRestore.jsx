@@ -16,20 +16,24 @@ const ENTITY_NAMES = [
 
 const IMPORT_ORDER = [
   "Alter", "Group", "ActivityCategory", "CustomField", "CustomEmotion",
-  "SystemSettings", "DailyTaskTemplate",
+  "SystemSettings", "DailyTaskTemplate", "Symptom",
   "FrontingSession", "Bulletin", "JournalEntry", "DiaryCard",
   "BulletinComment", "AlterNote", "AlterMessage", "MentionLog",
   "EmotionCheckIn", "SystemCheckIn", "Activity", "Sleep",
-  "Task", "DailyProgress", "ActivityGoal", "Symptom"
+  "Task", "DailyProgress", "ActivityGoal"
 ];
 
+// Top-level fields containing IDs to remap
 const ID_REF_FIELDS = [
   "primary_alter_id", "alter_id", "author_alter_id", "mentioned_alter_id",
   "co_fronter_ids", "fronting_alter_ids", "author_alter_ids",
   "allowed_alter_ids", "member_ids", "bulletin_id", "parent_comment_id",
   "parent_task_id", "read_by_alter_ids", "mentioned_alter_ids",
-  "dismissed_by_alter_ids",
+  "dismissed_by_alter_ids", "completed_task_ids",
 ];
+
+// Entities that require the original id to be sent on create
+const ENTITIES_REQUIRING_ID = ["Symptom", "DailyTaskTemplate"];
 
 function downloadJson(data, filename) {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -40,12 +44,10 @@ function downloadJson(data, filename) {
 }
 
 async function fetchAllRecords(entityName) {
-  // Try with high limit first — base44 list(orderBy, limit)
   try {
     const records = await base44.entities[entityName].list(null, 2000);
     if (records && records.length > 0) return records;
   } catch {}
-  // Fallback to default
   try {
     return await base44.entities[entityName].list() || [];
   } catch {
@@ -53,18 +55,17 @@ async function fetchAllRecords(entityName) {
   }
 }
 
-async function deleteAllRecords(entityName) {
+async function deleteAllRecords(entityName, onProgress) {
   let safety = 0;
   while (safety < 20) {
     const records = await base44.entities[entityName].list(null, 500).catch(() => []);
     if (!records || records.length === 0) break;
-    // Sequential deletes with delay — parallel causes 429s
     for (const r of records) {
       await base44.entities[entityName].delete(r.id).catch(() => {});
-      await new Promise(res => setTimeout(res, 120)); // ~8 requests/sec
+      await new Promise(res => setTimeout(res, 120));
     }
     safety++;
-    await new Promise(res => setTimeout(res, 500));
+    await new Promise(res => setTimeout(res, 300));
   }
 }
 
@@ -132,7 +133,7 @@ export default function DataBackupRestore() {
         return;
       }
 
-      // Cloud mode
+      // Cloud mode — delete first if replace mode
       if (importMode === 'replace') {
         for (const entityName of ENTITY_NAMES) {
           setImportProgress(`Deleting ${entityName}...`);
@@ -140,18 +141,31 @@ export default function DataBackupRestore() {
         }
       }
 
-      // Build old->new ID map — process ALL records sequentially so map is complete
       const idMap = {};
+
+      const remapValue = (val) => {
+        if (!val) return val;
+        if (Array.isArray(val)) return val.map(v => idMap[v] || v).filter(Boolean);
+        if (typeof val === 'string') return idMap[val] || val;
+        return val;
+      };
 
       const remapIds = (data) => {
         const result = { ...data };
+        // Remap top-level ID reference fields
         for (const field of ID_REF_FIELDS) {
-          if (result[field] == null) continue;
-          if (Array.isArray(result[field])) {
-            result[field] = result[field].map(id => idMap[id] || id).filter(Boolean);
-          } else if (typeof result[field] === 'string') {
-            result[field] = idMap[result[field]] || result[field];
-          }
+          if (result[field] != null) result[field] = remapValue(result[field]);
+        }
+        // Remap nested alters_present inside step2_notice (SystemCheckIn)
+        if (result.step2_notice?.alters_present) {
+          result.step2_notice = {
+            ...result.step2_notice,
+            alters_present: result.step2_notice.alters_present.map(id => idMap[id] || id)
+          };
+        }
+        // Remap group parent — but only if it's in idMap (skip orphaned SP/old IDs)
+        if (result.parent && result.parent !== 'root' && result.parent !== '') {
+          result.parent = idMap[result.parent] || '';
         }
         return result;
       };
@@ -162,27 +176,35 @@ export default function DataBackupRestore() {
       for (const entityName of IMPORT_ORDER) {
         const recordsMap = parsed.data[entityName];
         if (!recordsMap) continue;
-        const records = Array.isArray(recordsMap)
-          ? recordsMap
-          : Object.values(recordsMap);
+        const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap);
         if (records.length === 0) continue;
 
-        setImportProgress(`Importing ${entityName} (${records.length} records)...`);
+        setImportProgress(`Importing ${entityName} (${records.length})...`);
 
-        // SEQUENTIAL — not parallel, so idMap is always up to date
         for (const record of records) {
-          const { id, created_by_id, is_sample, updated_date, created_date, ...rawData } = record;
-          const data = remapIds(rawData);
+          const { created_by_id, is_sample, updated_date, created_date, ...rawData } = record;
+          
+          // Some entities need their original ID preserved
+          const needsId = ENTITIES_REQUIRING_ID.includes(entityName);
+          const { id, ...dataWithoutId } = rawData;
+          const baseData = needsId ? rawData : dataWithoutId;
+          
+          // Normalize created_date so records show correct dates
+          if (created_date) {
+            baseData.created_date = created_date.slice(0, 23).replace(' ', 'T') + 'Z';
+          }
+
+          const data = remapIds(baseData);
+
           try {
             const created = await base44.entities[entityName].create(data);
+            // Map old ID to new ID (even for entities with forced IDs, in case other records ref them)
             if (id && created?.id) idMap[id] = created.id;
             count++;
           } catch (err) {
             console.warn(`Failed ${entityName}:`, err.message, data);
             failed++;
           }
-          // Small delay every 10 records to avoid rate limits
-          // Rate limit: delay after every record
           await new Promise(res => setTimeout(res, 120));
         }
       }
@@ -268,7 +290,7 @@ export default function DataBackupRestore() {
           </Button>
           <p className="text-xs text-muted-foreground">
             {importMode === 'replace'
-              ? '⚠️ Replace All deletes existing data first, then imports. Will take a few minutes.'
+              ? '⚠️ Replace All deletes existing data first, then imports. Takes several minutes for large datasets.'
               : '⚠️ Add New imports records without touching existing data.'}
           </p>
         </div>
