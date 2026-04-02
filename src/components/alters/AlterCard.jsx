@@ -157,8 +157,9 @@ export default function AlterCard({ alter, index, currentSession = null }) {
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}>
-      <Link to={`/alter/${alter.id}`}>
+      transition={{ duration: 0.3, delay: index * 0.03 }}
+      className="flex items-center gap-2">
+      <Link to={`/alter/${alter.id}`} className="flex-1 min-w-0">
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
           style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
           <div
@@ -183,9 +184,9 @@ export default function AlterCard({ alter, index, currentSession = null }) {
               {alter.role}
             </span>
           )}
-          <FrontingToggleButton alter={alter} currentSession={currentSession} />
         </div>
       </Link>
+      <FrontingToggleButton alter={alter} currentSession={currentSession} />
     </motion.div>
   );
 }
