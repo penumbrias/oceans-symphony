@@ -80,22 +80,19 @@ function FolderRow({ group, onClick }) {
     <motion.button
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      onClick={() => onClick(group)} className="bg-card pr-3 pl-3 text-left rounded-xl w-full flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
-
+      onClick={() => onClick(group)}
+      className="bg-card pr-3 pl-3 text-left rounded-xl w-full flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
       style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}>
-      
       <div className="rounded-xl w-9 h-9 flex items-center justify-center flex-shrink-0"
-
-      style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}>
-        
+        style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}>
         <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
       </div>
       <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-<FrontingToggleButton alter={alter} currentSession={currentSession} />
-
+    </motion.button>
+  );
 }
 
 export default function FolderGroupsSection({ alters, sortDir = "asc", currentSession = null }) {
