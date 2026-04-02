@@ -116,7 +116,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>Oceans-Symphony is built on the Base44 platform. Your data is stored on Base44's servers with row-level security — meaning other users cannot access your data.</p>
-            <p><strong className="text-foreground">Unencrypted and Nonlocal data is currently stored without end-to-end encryption. <strong>Please be mindful of what you enter</strong> if this concerns you.</p>
+            <p><strong className="text-foreground">Unencrypted and Nonlocal data is currently stored without end-to-end encryption.</strong> Please be mindful of what you enter if this concerns you.</p>
             <p className="text-amber-600 dark:text-amber-400 font-medium">🔒 Higher-level security and end-to-end encryption is planned and is a top development priority. This includes migrating to a more privacy-forward infrastructure.</p>
             <p>This app is free and shared in good faith with the community. I made it to fill a void and my personal needs, and see no reason to gatekeep it.</p>
           </CardContent>
