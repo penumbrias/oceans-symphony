@@ -19,7 +19,7 @@ const SystemMap = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [cofronterCount, setCofronterCount] = useState(10);
   const [cofronters, setCofronters] = useState([]);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
