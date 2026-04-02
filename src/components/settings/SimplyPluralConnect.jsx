@@ -29,11 +29,23 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       const systemName = systemUser?.username || systemUser?.name || "";
       const systemDescription = systemUser?.desc || systemUser?.description || "";
       const spData = { sp_token: token.trim(), sp_system_id: systemId, system_name: systemName, system_description: systemDescription };
-      if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, spData);
+
+      if (isLocalMode()) {
+        const localEntities = createLocalDbEntities();
+        const existing = await localEntities.SystemSettings.list();
+        if (existing.length > 0) {
+          await localEntities.SystemSettings.update(existing[0].id, spData);
+        } else {
+          await localEntities.SystemSettings.create(spData);
+        }
       } else {
-        await base44.entities.SystemSettings.create(spData);
+        if (settings?.id) {
+          await base44.entities.SystemSettings.update(settings.id, spData);
+        } else {
+          await base44.entities.SystemSettings.create(spData);
+        }
       }
+
       setToken("");
       onSettingsChange();
       toast.success("Connected to Simply Plural");
@@ -41,6 +53,22 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       toast.error(e.message || "Connection failed");
     } finally {
       setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!settings?.id) return;
+    try {
+      if (isLocalMode()) {
+        const localEntities = createLocalDbEntities();
+        await localEntities.SystemSettings.update(settings.id, { sp_token: "", sp_system_id: "" });
+      } else {
+        await base44.entities.SystemSettings.update(settings.id, { sp_token: "", sp_system_id: "" });
+      }
+      onSettingsChange();
+      toast.success("Disconnected from Simply Plural");
+    } catch (e) {
+      toast.error(e.message || "Disconnect failed");
     }
   };
 
