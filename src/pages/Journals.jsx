@@ -105,6 +105,10 @@ export default function Journals() {
 
   // Open specific entry from URL ?id= param (e.g. from timeline double-click)
 
+  const [searchParams] = useSearchParams();
+  const pendingId = searchParams.get('id');
+  const [highlightId, setHighlightId] = useState(() => searchParams.get('id'));
+
   useEffect(() => {
     if (pendingId && entries.length > 0) {
       const entry = entries.find(e => e.id === pendingId);
@@ -112,16 +116,12 @@ export default function Journals() {
     }
   }, [pendingId, entries.length]);
 
-const [searchParams] = useSearchParams();
-const pendingId = searchParams.get('id');
-const [highlightId, setHighlightId] = useState(() => searchParams.get('id'));
-
-useEffect(() => {
-  if (highlightId) {
-    const timer = setTimeout(() => setHighlightId(null), 5000);
-    return () => clearTimeout(timer);
-  }
-}, [highlightId]);
+  useEffect(() => {
+    if (highlightId) {
+      const timer = setTimeout(() => setHighlightId(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId]);
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
