@@ -195,18 +195,13 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", currentSe
         <FolderRow key={g.id} group={g} onClick={navigateTo} />
         )}
 
-        {memberAlters.map((alter) =>
-        <MemberRow
-          key={alter.id}
-          alter={alter}
-          onClick={() => {
-            navigate(`/alter/${alter.id}`);
-          }}
-          onLongPress={() => {
-            setSelectedAlter(alter);
-            setEditModalOpen(true);
-          }} />
-
+           {memberAlters.map((alter) =>
+          <MemberRow
+            key={alter.id}
+            alter={alter}
+            currentSession={currentSession}
+            onClick={() => navigate(`/alter/${alter.id}`)}
+          />
         )}
 
         {childGroups.length === 0 && memberAlters.length === 0 && navStack.length > 0 &&
