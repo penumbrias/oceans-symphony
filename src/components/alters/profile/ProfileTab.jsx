@@ -364,10 +364,20 @@ const quillRef = useRef(null);
           <p className="text-xs text-muted-foreground">Supports rich text, images, headers, and more</p>
           <div className="rounded-lg border border-input overflow-hidden bg-background">
             <ReactQuill
-               ref={quillRef}
+ref={quillRef}
               value={form.description}
-              onChange={(val) => set("description", val)}
-              modules={{
+              onChange={(val) => {
+                set("description", val);
+                setTimeout(() => {
+                  const quill = quillRef.current?.getEditor();
+                  if (quill) {
+                    const selection = quill.getSelection();
+                    quill.blur();
+                    quill.focus();
+                    if (selection) quill.setSelection(selection);
+                  }
+                }, 0);
+              }}              modules={{
                 ...QUILL_MODULES,
                 toolbar: {
                   ...QUILL_MODULES.toolbar,
