@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, CheckCircle2, Link2, Unlink, ArrowDownLeft } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
 import {
   getSystemId,
   getSystemUser,
@@ -18,7 +18,6 @@ import {
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { isLocalMode } from "@/lib/storageMode";
-import { localEntities } from "@/api/base44Client";
 
 export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const localMode = isLocalMode();
@@ -49,7 +48,6 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         system_description: systemDescription,
       };
 
-      // base44.entities proxy routes to localDb automatically in local mode
       if (effectiveSettings?.id) {
         await base44.entities.SystemSettings.update(effectiveSettings.id, spData);
       } else {
@@ -67,6 +65,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   };
 
   const handleImport = async () => {
+    console.log("handleImport fired, localMode:", localMode, "settings:", effectiveSettings);
     if (!effectiveSettings?.sp_token || !effectiveSettings?.sp_system_id) return;
     setSyncing(true);
     setImportProgress("");
@@ -74,7 +73,6 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     try {
       if (localMode) {
         const { sp_token: tok, sp_system_id: sysId } = effectiveSettings;
-        const entities = localEntities();
 
         // --- Step 1: Fetch everything from SP ---
         setImportProgress("Fetching members...");
@@ -98,40 +96,36 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
         // --- Step 2: Import alters ---
         setImportProgress("Importing alters...");
-        const existingAlters = await entities.Alter.list();
+        const existingAlters = await localEntities.Alter.list();
         let altersCreated = 0;
         let altersUpdated = 0;
-
-        // Track sp_id -> local id for notes/groups resolution
         const alterIdBySpId = {};
 
         if (importMode === "replace_all") {
-          for (const a of existingAlters) await entities.Alter.delete(a.id);
+          for (const a of existingAlters) await localEntities.Alter.delete(a.id);
           for (const a of mappedAlters) {
-            const created = await entities.Alter.create(a);
+            const created = await localEntities.Alter.create(a);
             alterIdBySpId[a.sp_id] = created.id;
             altersCreated++;
           }
         } else {
-          // Index existing by sp_id for fast lookup
           const existingBySpId = {};
           for (const a of existingAlters) {
             if (a.sp_id) existingBySpId[a.sp_id] = a;
             alterIdBySpId[a.sp_id] = a.id;
           }
-
           for (const incoming of mappedAlters) {
             const existing = existingBySpId[incoming.sp_id];
             if (existing) {
               if (importMode !== "new_only") {
-                await entities.Alter.update(existing.id, incoming);
+                await localEntities.Alter.update(existing.id, incoming);
                 alterIdBySpId[incoming.sp_id] = existing.id;
                 altersUpdated++;
               } else {
                 alterIdBySpId[incoming.sp_id] = existing.id;
               }
             } else {
-              const created = await entities.Alter.create(incoming);
+              const created = await localEntities.Alter.create(incoming);
               alterIdBySpId[incoming.sp_id] = created.id;
               altersCreated++;
             }
@@ -140,75 +134,63 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
         // --- Step 3: Import groups ---
         setImportProgress("Importing groups...");
-        const existingGroups = await entities.Group.list();
+        const existingGroups = await localEntities.Group.list();
         let groupsCreated = 0;
         let groupsUpdated = 0;
-
         const existingGroupsBySpId = {};
         for (const g of existingGroups) {
           if (g.sp_id) existingGroupsBySpId[g.sp_id] = g;
         }
-
         for (const spGroup of groups) {
           const mapped = mapGroupToLocalGroup(spGroup);
-
-          // Resolve SP member IDs -> local alter IDs
           mapped.alter_ids = mapped.sp_member_ids
             .map((spId) => alterIdBySpId[spId])
             .filter(Boolean);
-
           const existing = existingGroupsBySpId[mapped.sp_id];
-
           if (importMode === "replace_all" || !existing) {
             if (importMode === "replace_all" && existing) {
-              await entities.Group.update(existing.id, mapped);
+              await localEntities.Group.update(existing.id, mapped);
               groupsUpdated++;
             } else {
-              await entities.Group.create(mapped);
+              await localEntities.Group.create(mapped);
               groupsCreated++;
             }
           } else if (importMode !== "new_only") {
-            await entities.Group.update(existing.id, mapped);
+            await localEntities.Group.update(existing.id, mapped);
             groupsUpdated++;
           }
         }
 
         // --- Step 4: Import notes ---
         setImportProgress("Importing notes...");
-        const existingNotes = await entities.AlterNote.list();
+        const existingNotes = await localEntities.AlterNote.list();
         let notesCreated = 0;
         let notesUpdated = 0;
-
         const existingNotesBySpId = {};
         for (const n of existingNotes) {
           if (n.sp_id) existingNotesBySpId[n.sp_id] = n;
         }
-
         for (const spNote of notes) {
           const mapped = mapNoteToAlterNote(spNote, alterIdBySpId);
-
-          // Skip notes that couldn't be linked to a local alter
           if (!mapped.alter_id) continue;
-
           const existing = existingNotesBySpId[mapped.sp_id];
-
           if (importMode === "replace_all" || !existing) {
             if (importMode === "replace_all" && existing) {
-              await entities.AlterNote.update(existing.id, mapped);
+              await localEntities.AlterNote.update(existing.id, mapped);
               notesUpdated++;
             } else {
-              await entities.AlterNote.create(mapped);
+              await localEntities.AlterNote.create(mapped);
               notesCreated++;
             }
           } else if (importMode !== "new_only") {
-            await entities.AlterNote.update(existing.id, mapped);
+            await localEntities.AlterNote.update(existing.id, mapped);
             notesUpdated++;
           }
         }
 
         // --- Step 5: Update last_sync ---
         if (effectiveSettings?.id) {
-          await entities.SystemSettings.update(effectiveSettings.id, {
+          await localEntities.SystemSettings.update(effectiveSettings.id, {
             last_sync: new Date().toISOString(),
           });
         }
@@ -217,7 +199,6 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         queryClient.invalidateQueries({ queryKey: ["alters"] });
         queryClient.invalidateQueries({ queryKey: ["groups"] });
         queryClient.invalidateQueries({ queryKey: ["alterNotes"] });
-
         setImportProgress("");
         toast.success(
           `Import complete! Alters: ${altersCreated} new, ${altersUpdated} updated · Groups: ${groupsCreated} new, ${groupsUpdated} updated · Notes: ${notesCreated} new, ${notesUpdated} updated`
@@ -303,7 +284,6 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               )}
             </div>
 
-            {/* Import Section */}
             <div className="border-t pt-4">
               <div className="flex items-center gap-2 mb-3">
                 <ArrowDownLeft className="w-4 h-4 text-blue-500" />
@@ -350,7 +330,6 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               </div>
             </div>
 
-            {/* Disconnect */}
             <div className="border-t pt-4">
               <Button
                 onClick={handleDisconnect}
