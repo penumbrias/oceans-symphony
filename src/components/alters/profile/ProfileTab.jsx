@@ -486,6 +486,51 @@ const [importText, setImportText] = useState("");
 
       <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
 
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-lg mx-4 w-full">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Import Simply Plural Template</h3>
+              <button type="button" onClick={() => { setShowImportModal(false); setImportText(""); }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">Paste your SP template below. Images, links, and formatting will be converted automatically.</p>
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="Paste SP template here..."
+              className="w-full h-48 px-3 py-2 rounded-md border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowImportModal(false); setImportText(""); }}
+                className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const html = convertSPToHTML(importText);
+                  set("description", (form.description || "") + html);
+                  setShowImportModal(false);
+                  setImportText("");
+                  toast.success("Template imported!");
+                }}
+                disabled={!importText.trim()}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showColorPicker && (
+        <ColorPickerModal
+
       {showColorPicker && (
         <ColorPickerModal
           color={form.color || "#8b5cf6"}
