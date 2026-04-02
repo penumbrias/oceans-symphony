@@ -1,10 +1,9 @@
 import React from "react";
 import { format } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
-import { BookOpen, Shuffle, Tag, Folder, Lock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { BookOpen, Shuffle, Folder, Lock } from "lucide-react";
 
-export default function JournalEntryCard({ entry, altersById, onClick }) {
+export default function JournalEntryCard({ entry, altersById, onClick, highlight }) {
   const isSwitch = entry.entry_type === "switch_log";
   const isRestricted = entry.allowed_alter_ids?.length > 0;
   const author = altersById?.[entry.author_alter_id];
@@ -12,7 +11,11 @@ export default function JournalEntryCard({ entry, altersById, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="bg-card border border-border/50 rounded-xl p-4 cursor-pointer hover:border-border hover:shadow-sm transition-all group"
+      className={`bg-card border rounded-xl p-4 cursor-pointer hover:shadow-sm transition-all group ${
+        highlight
+          ? "border-yellow-400 ring-2 ring-yellow-400/60 shadow-md"
+          : "border-border/50 hover:border-border"
+      }`}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-2 min-w-0">
@@ -35,12 +38,10 @@ export default function JournalEntryCard({ entry, altersById, onClick }) {
           )}
         </div>
       </div>
-
       <p className="text-xs text-muted-foreground mb-2">
         {format(parseDate(entry.created_date), "MMM d, yyyy · h:mm a")}
         {author && <span className="ml-1.5">· by {author.name}</span>}
       </p>
-
       {entry.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {entry.tags.map((tag) => (

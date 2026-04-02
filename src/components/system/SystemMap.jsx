@@ -19,7 +19,8 @@ const SystemMap = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [cofronterCount, setCofronterCount] = useState(10);
   const [cofronters, setCofronters] = useState([]);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -68,7 +69,32 @@ const SystemMap = () => {
     return map;
   }, [frontingSessions]);
 
-  // Calculate node positions based on selected alter or fronting time
+
+
+  // Filter alters based on search and selection
+  const filteredAlters = useMemo(() => {
+    let result = alters.filter(a => showArchived ? true : !a.is_archived);
+
+    if (selectedGroup) {
+      const group = groups.find((g) => g.id === selectedGroup);
+      if (group && group.member_sp_ids) {
+        result = result.filter((a) => group.member_sp_ids.includes(a.sp_id));
+      }
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (a) =>
+          a.name.toLowerCase().includes(query) ||
+          (a.alias && a.alias.toLowerCase().includes(query))
+      );
+    }
+
+    return result;
+  }, [alters, groups, selectedGroup, searchQuery]);
+
+    // Calculate node positions based on selected alter or fronting time
   const nodePositions = useMemo(() => {
     const positions = {};
     const centerX = 600;
@@ -76,8 +102,8 @@ const SystemMap = () => {
 
     if (!selectedAlter) {
       // Default layout: sorted by fronting time
-      const altersSorted = [...alters].sort((a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0));
-      
+
+      const altersSorted = [...filteredAlters].sort((a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0));
       altersSorted.forEach((alter, idx) => {
         if (idx === 0) {
           positions[alter.id] = { x: centerX, y: centerY };
@@ -98,7 +124,7 @@ const SystemMap = () => {
     // Radial layout when alter is selected
     positions[selectedAlter.id] = { x: centerX, y: centerY };
 
-    const otherAlters = alters.filter((a) => a.id !== selectedAlter.id);
+const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
     const maxCofrontWithSelected = Math.max(
       ...otherAlters.map((a) => cofrontingMap[selectedAlter.id]?.[a.id] || 0),
       1
@@ -140,30 +166,7 @@ const SystemMap = () => {
     });
 
     return positions;
-  }, [alters, selectedAlter, frontingTime, cofrontingMap]);
-
-  // Filter alters based on search and selection
-  const filteredAlters = useMemo(() => {
-    let result = alters;
-
-    if (selectedGroup) {
-      const group = groups.find((g) => g.id === selectedGroup);
-      if (group && group.member_sp_ids) {
-        result = result.filter((a) => group.member_sp_ids.includes(a.sp_id));
-      }
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(
-        (a) =>
-          a.name.toLowerCase().includes(query) ||
-          (a.alias && a.alias.toLowerCase().includes(query))
-      );
-    }
-
-    return result;
-  }, [alters, groups, selectedGroup, searchQuery]);
+}, [filteredAlters, selectedAlter, frontingTime, cofrontingMap]);
 
   // Get co-fronters for selected alter
   useEffect(() => {
@@ -467,6 +470,17 @@ const SystemMap = () => {
         {panelOpen && (
           <div className="p-4 space-y-3 border-t border-border max-h-[70vh] overflow-y-auto">
             <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Show Archived
+              </label>
+              <button
+                onClick={() => setShowArchived(v => !v)}
+                className={`w-10 h-5 rounded-full transition-colors ${showArchived ? "bg-primary" : "bg-muted"} relative`}
+              >
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${showArchived ? "left-5" : "left-0.5"}`} />
+              </button>
+            </div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
                 Search Alters
               </label>

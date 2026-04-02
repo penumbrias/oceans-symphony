@@ -149,13 +149,13 @@ export default function ActivityTracker() {
         }}
       />
 
-      <ActivityDetailsModal
+       <ActivityDetailsModal
         isOpen={isDetailsOpen}
         onClose={handleDetailsClose}
         activity={selectedActivity}
         alters={alters}
         onSave={handleActivitySave}
-      />
+      /> 
     </div>
   );
 }

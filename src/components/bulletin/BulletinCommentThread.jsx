@@ -30,35 +30,58 @@ function parseSignposts(content, alters) {
 function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, onRefresh }) {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
-  const [showSignpostMenu, setShowSignpostMenu] = useState(false);
-  const [signpostQuery, setSignpostQuery] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuMode, setMenuMode] = useState("signpost"); // "signpost" | "mention"
+  const [query, setQuery] = useState("");
 
   const filteredAlters = alters.filter(a =>
     !a.is_archived &&
-    (a.name.toLowerCase().includes(signpostQuery.toLowerCase()) ||
-     (a.alias && a.alias.toLowerCase().includes(signpostQuery.toLowerCase())))
+    (a.name.toLowerCase().includes(query.toLowerCase()) ||
+     (a.alias && a.alias.toLowerCase().includes(query.toLowerCase())))
   );
 
   const handleChange = (e) => {
     const val = e.target.value;
     setText(val);
+
+    // Check for @ mention
+    const lastAt = val.lastIndexOf("@");
+    if (lastAt !== -1 && !val.slice(lastAt + 1).includes(" ")) {
+      setShowMenu(true);
+      setMenuMode("mention");
+      setQuery(val.slice(lastAt + 1));
+      return;
+    }
+
+    // Check for - signpost
     const lastDash = val.lastIndexOf("-");
     if (lastDash !== -1 && !val.slice(lastDash + 1).includes(" ") && val.slice(lastDash + 1).length > 0) {
-      setShowSignpostMenu(true);
-      setSignpostQuery(val.slice(lastDash + 1));
-    } else if (val.endsWith("-")) {
-      setShowSignpostMenu(true);
-      setSignpostQuery("");
-    } else {
-      setShowSignpostMenu(false);
+      setShowMenu(true);
+      setMenuMode("signpost");
+      setQuery(val.slice(lastDash + 1));
+      return;
     }
+
+    setShowMenu(false);
+  };
+
+  const insertMention = (alter) => {
+    const lastAt = text.lastIndexOf("@");
+    const before = lastAt !== -1 ? text.slice(0, lastAt) : text;
+    setText(before + `@${alter.alias || alter.name} `);
+    setShowMenu(false);
   };
 
   const insertSignpost = (alter) => {
     const lastDash = text.lastIndexOf("-");
     const before = lastDash !== -1 ? text.slice(0, lastDash) : text;
     setText(before + `-${alter.alias || alter.name} `);
-    setShowSignpostMenu(false);
+    setShowMenu(false);
+  };
+
+  const handleSelect = (alter) => {
+    if (menuMode === "mention") insertMention(alter);
+    else insertSignpost(alter);
   };
 
   const handleSubmit = async () => {
@@ -108,7 +131,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       <div className="flex gap-2">
         <input
           className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-          placeholder={parentCommentId ? "Reply… use -name to sign (Cmd+Enter)" : "Add a comment… use -name to sign (Cmd+Enter)"}
+          placeholder={parentCommentId ? "Reply… use @ to mention, -name to sign (Cmd+Enter)" : "Add a comment… use @ to mention, -name to sign (Cmd+Enter)"}
           value={text}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
@@ -121,10 +144,13 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
           {saving ? "..." : parentCommentId ? "Reply" : "Post"}
         </button>
       </div>
-      {showSignpostMenu && filteredAlters.length > 0 && (
+      {showMenu && filteredAlters.length > 0 && (
         <div className="absolute z-50 left-0 right-16 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto">
+          <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">
+            {menuMode === "mention" ? "Mention alter…" : "Sign as author…"}
+          </div>
           {filteredAlters.slice(0, 6).map(a => (
-            <button key={a.id} onClick={() => insertSignpost(a)}
+            <button key={a.id} onClick={() => handleSelect(a)}
               className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-muted/50 text-left text-xs">
               <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }} />
               <span>{a.name}</span>
@@ -148,7 +174,8 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const hasMoreDepth = hasChildren && maxDepth !== null && depth >= maxDepth;
   const shouldRenderChildren = maxDepth === null || depth < maxDepth;
   const reactions = comment.reactions || {};
-  const timeAgo = formatDistanceToNow(new Date(comment.created_date), { addSuffix: true });
+const rawDate = comment.created_date;
+const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
   const authorIds = comment.author_alter_ids?.length > 0 ? comment.author_alter_ids : (comment.author_alter_id ? [comment.author_alter_id] : frontingAlterIds);
   const canDelete = currentAlterId === comment.author_alter_id || authorIds.includes(currentAlterId);
   const pending = pendingDeletes[comment.id];

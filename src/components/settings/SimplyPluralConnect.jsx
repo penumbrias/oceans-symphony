@@ -8,8 +8,6 @@ import { base44 } from "@/api/base44Client";
 import { getSystemId, getSystemUser, getMembers, getGroups, mapMemberToAlter } from "@/lib/simplyPlural";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { isLocalMode } from "@/lib/storageMode";
-import { createLocalDbEntities } from "@/lib/localDb";
 
 export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const [token, setToken] = useState("");
@@ -29,23 +27,11 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       const systemName = systemUser?.username || systemUser?.name || "";
       const systemDescription = systemUser?.desc || systemUser?.description || "";
       const spData = { sp_token: token.trim(), sp_system_id: systemId, system_name: systemName, system_description: systemDescription };
-
-      if (isLocalMode()) {
-        const localEntities = createLocalDbEntities();
-        const existing = await localEntities.SystemSettings.list();
-        if (existing.length > 0) {
-          await localEntities.SystemSettings.update(existing[0].id, spData);
-        } else {
-          await localEntities.SystemSettings.create(spData);
-        }
+      if (settings?.id) {
+        await base44.entities.SystemSettings.update(settings.id, spData);
       } else {
-        if (settings?.id) {
-          await base44.entities.SystemSettings.update(settings.id, spData);
-        } else {
-          await base44.entities.SystemSettings.create(spData);
-        }
+        await base44.entities.SystemSettings.create(spData);
       }
-
       setToken("");
       onSettingsChange();
       toast.success("Connected to Simply Plural");
@@ -56,31 +42,24 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!settings?.id) return;
-    try {
-      if (isLocalMode()) {
-        const localEntities = createLocalDbEntities();
-        await localEntities.SystemSettings.update(settings.id, { sp_token: "", sp_system_id: "" });
-      } else {
-        await base44.entities.SystemSettings.update(settings.id, { sp_token: "", sp_system_id: "" });
-      }
-      onSettingsChange();
-      toast.success("Disconnected from Simply Plural");
-    } catch (e) {
-      toast.error(e.message || "Disconnect failed");
-    }
-  };
-
   const handleImport = async () => {
     if (!settings?.sp_token || !settings?.sp_system_id) return;
     setSyncing(true);
     try {
-      if (isLocalMode()) {
-        await handleLocalImport();
-      } else {
-        await handleCloudImport();
-      }
+      const res = await base44.functions.invoke('importFromSimplyPlural', {
+        sp_token: settings.sp_token,
+        sp_system_id: settings.sp_system_id,
+        mode: importMode,
+      });
+      await base44.entities.SystemSettings.update(settings.id, {
+        last_sync: new Date().toISOString(),
+      });
+      onSettingsChange();
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(
+        `Imported: ${res.alters.created} new, ${res.alters.updated} updated alters`
+      );
     } catch (e) {
       toast.error(e.message || "Import failed");
     } finally {
@@ -88,121 +67,19 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     }
   };
 
-  const handleCloudImport = async () => {
-    const res = await base44.functions.invoke('importFromSimplyPlural', {
-      sp_token: settings.sp_token,
-      sp_system_id: settings.sp_system_id,
-      mode: importMode,
-    });
-    await base44.entities.SystemSettings.update(settings.id, {
-      last_sync: new Date().toISOString(),
-    });
-    onSettingsChange();
-    queryClient.invalidateQueries({ queryKey: ["alters"] });
-    queryClient.invalidateQueries({ queryKey: ["groups"] });
-    toast.success(`Imported: ${res.alters.created} new, ${res.alters.updated} updated alters`);
-  };
-
-  const handleLocalImport = async () => {
-    const localEntities = createLocalDbEntities();
-
-    // Fetch from SP directly in browser
-    const [members, groupsRaw] = await Promise.all([
-      getMembers(settings.sp_token, settings.sp_system_id),
-      getGroups(settings.sp_token, settings.sp_system_id),
-    ]);
-
-    if (!members || members.length === 0) {
-      throw new Error("No members returned from Simply Plural. Check your token.");
-    }
-
-    // Build groups lookup
-    const groupsById = {};
-    groupsRaw.forEach((g) => {
-      const gid = g.id || g._id;
-      const gc = g.content || g;
-      groupsById[gid] = {
-        id: gid,
-        name: gc.name || "",
-        color: gc.color ? (gc.color.startsWith("#") ? gc.color : `#${gc.color}`) : "",
-        parent: gc.parent || null,
-        members: gc.members || [],
-      };
-    });
-
-    // Load existing local records
-    const existingGroups = await localEntities.Group.list();
-    const existingAlters = await localEntities.Alter.list();
-    const existingGroupsBySpId = Object.fromEntries(existingGroups.filter(g => g.sp_id).map(g => [g.sp_id, g]));
-    const existingBySpId = Object.fromEntries(existingAlters.filter(a => a.sp_id).map(a => [a.sp_id, a]));
-
-    // Replace all — delete existing first
-    if (importMode === "replace_all") {
-      for (const g of existingGroups) await localEntities.Group.delete(g.id);
-      for (const a of existingAlters) await localEntities.Alter.delete(a.id);
-    }
-
-    // Sync groups
-    let groupsCreated = 0;
-    let groupsUpdated = 0;
-    for (const g of Object.values(groupsById)) {
-      const groupData = {
-        sp_id: g.id,
-        name: g.name,
-        color: g.color,
-        parent: g.parent || "",
-        member_sp_ids: g.members,
-      };
-      const existing = existingGroupsBySpId[g.id];
-      if (existing) {
-        if (importMode !== "new_only") {
-          await localEntities.Group.update(existing.id, groupData);
-          groupsUpdated++;
-        }
-      } else {
-        await localEntities.Group.create(groupData);
-        groupsCreated++;
-      }
-    }
-
-    // Sync members
-    let altersCreated = 0;
-    let altersUpdated = 0;
-    for (const member of members) {
-      const alterData = mapMemberToAlter(member, groupsById);
-      if (!alterData.sp_id) continue;
-      const existing = existingBySpId[alterData.sp_id];
-      if (existing) {
-        if (importMode !== "new_only") {
-          // Protect rich text description from being overwritten by plain text
-          const updateData = { ...alterData };
-          if (existing.description && existing.description.includes('<')) {
-            delete updateData.description;
-          }
-          await localEntities.Alter.update(existing.id, updateData);
-          altersUpdated++;
-        }
-      } else {
-        await localEntities.Alter.create(alterData);
-        altersCreated++;
-      }
-    }
-
-    // Update last sync in SystemSettings
-    const settingsList = await localEntities.SystemSettings.list();
-    if (settingsList.length > 0) {
-      await localEntities.SystemSettings.update(settingsList[0].id, {
-        last_sync: new Date().toISOString(),
+  const handleDisconnect = async () => {
+    if (!settings?.id) return;
+    try {
+      await base44.entities.SystemSettings.update(settings.id, {
+        sp_token: "",
+        sp_system_id: "",
       });
+      onSettingsChange();
+      toast.success("Disconnected from Simply Plural");
+    } catch (e) {
+      toast.error(e.message || "Disconnect failed");
     }
-
-    onSettingsChange();
-    queryClient.invalidateQueries({ queryKey: ["alters"] });
-    queryClient.invalidateQueries({ queryKey: ["groups"] });
-    toast.success(`Imported: ${altersCreated} new, ${altersUpdated} updated alters · ${groupsCreated} new, ${groupsUpdated} updated groups`);
   };
-
-  
 
   return (
     <Card className="border-border/50">

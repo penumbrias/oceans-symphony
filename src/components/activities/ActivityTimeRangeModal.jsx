@@ -233,7 +233,7 @@ export default function ActivityTimeRangeModal({
               value={notes}
               onChange={setNotes}
               alters={alters || []}
-              placeholder="Any additional notes... use @ to mention an alter"
+              placeholder="Any additional notes..."
               className="mt-1 h-20"
             />
           </div>

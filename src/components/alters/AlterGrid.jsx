@@ -49,41 +49,41 @@ export default function AlterGrid({ alters, currentSession = null }) {
   return (
     <div>
       {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="my-1 flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder={`Search ${terms.alters}...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)} className="bg-transparent text-foreground pl-10 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-border/50" />
-
+          
           
         </div>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
-          className="rounded-xl h-9 px-3 text-xs gap-1.5 border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground"
+          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+
           title={sortDir === "asc" ? "A → Z" : "Z → A"}>
           
           {sortDir === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
-          {sortDir === "asc" ? "A–Z" : "Z–A"}
+          {sortDir === "asc" ? "" : ""}
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setShowFolders(!showFolders)}
-          className="rounded-xl h-9 px-3 text-xs gap-1.5 border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground"
+          onClick={() => setShowFolders(!showFolders)} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+
           title={showFolders ? "Hide groups" : "Show groups"}>
           
           {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          {showFolders ? "Groups" : "No groups"}
+          {showFolders ? "groups" : "groups"}
         </Button>
         <Button
           variant={viewMode === "list" ? "default" : "outline"}
           size="sm"
-          onClick={() => setViewMode("list")}
-          className="rounded-xl h-9 px-3 text-xs gap-1.5"
+          onClick={() => setViewMode("list")} className="bg-primary text-primary-foreground px-1 text-xs font-medium rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-primary/90 h-9 gap-1.5"
+
           title="List view">
           
           <List className="w-4 h-4" />
@@ -91,8 +91,8 @@ export default function AlterGrid({ alters, currentSession = null }) {
         <Button
           variant={viewMode === "grid" ? "default" : "outline"}
           size="sm"
-          onClick={() => setViewMode("grid")}
-          className="rounded-xl h-9 px-3 text-xs gap-1.5"
+          onClick={() => setViewMode("grid")} className="bg-background px-1 text-xs font-medium rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-9 gap-1.5"
+
           title="Grid view">
           
           <Grid3X3 className="w-4 h-4" />
@@ -100,12 +100,12 @@ export default function AlterGrid({ alters, currentSession = null }) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/groups")}
-          className="rounded-xl h-9 px-3 text-xs gap-1.5 border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground"
+          onClick={() => navigate("/groups")} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+
           title="Manage groups">
           
           <Settings className="w-4 h-4" />
-          Manage Groups
+          Groups
         </Button>
       </div>
 
@@ -119,14 +119,14 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {/* Alters list/grid */}
         <div>
           {showFolders && rootGroups.length > 0 &&
-          <h3 className="text-xs font-medium text-muted-foreground mb-3 px-1">{terms.Alters}</h3>
+          <h3 className="text-muted-foreground mb-3 px-1 text-xs font-medium">{terms.Alters}</h3>
           }
           {filtered.length > 0 ?
           viewMode === "list" ?
-          <div className="flex flex-col gap-2">
-                {filtered.map((alter, i) =>
-            <AlterCard key={alter.id} alter={alter} index={i} />
-            )}
+          <div className="mx-auto flex flex-col gap-2">
+          {filtered.map((alter, i) =>
+  <AlterCard key={alter.id} alter={alter} index={i} currentSession={activeFront} />
+)}
               </div> :
 
           <AlterGridView alters={filtered} currentSession={activeFront} allAlters={alters} /> :

@@ -35,16 +35,16 @@ export const DEFAULT_TASK_TEMPLATES = [
     auto_trigger: "card_entry",
     nav_path: "/diary",
   },
-  {
-    title: "Parts check-in",
-    description: "Gently notice any parts that want attention and what your body is feeling. No fixing, just noticing.",
-    points: 4,
-    mode: "AUTO",
-    is_active: true,
-    sort_order: 3,
-    auto_trigger: "parts_checkin",
-    nav_path: "/system-checkin",
-  },
+{
+  title: "{{system}} check-in",
+  description: "Gently notice any parts that want attention and what your body is feeling. No fixing, just noticing.",
+  points: 4,
+  mode: "AUTO",
+  is_active: true,
+  sort_order: 3,
+  auto_trigger: "parts_checkin",
+  nav_path: "/system-checkin",
+},
   {
     title: "Took meds",
     description: "Take your prescribed meds.",
@@ -105,7 +105,7 @@ export const AUTO_TRIGGER_LABELS = {
   check_in: "App opened (daily check-in)",
   journal_entry: "Journal entry created",
   card_entry: "Diary card created",
-  parts_checkin: "Parts check-in completed",
+  parts_checkin: "{{System}} check-in completed",
 };
 
 export const AUTO_TRIGGER_OPTIONS = Object.entries(AUTO_TRIGGER_LABELS).map(([value, label]) => ({
@@ -163,4 +163,19 @@ export function getTodayString() {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * Replace terminology tokens in task titles/descriptions.
+ * Call this wherever task titles are rendered.
+ */
+export function applyTerms(text, terms) {
+  if (!text || !terms) return text;
+  return text
+    .replace(/\{\{system\}\}/g, terms.system)
+    .replace(/\{\{System\}\}/g, terms.System)
+    .replace(/\{\{alter\}\}/g, terms.alter)
+    .replace(/\{\{Alter\}\}/g, terms.Alter)
+    .replace(/\{\{front\}\}/g, terms.front)
+    .replace(/\{\{Front\}\}/g, terms.Front);
 }

@@ -15,6 +15,7 @@ import CheckInStep2 from "@/components/system-checkin/CheckInStep2";
 import CheckInStep3 from "@/components/system-checkin/CheckInStep3";
 import CheckInStep4 from "@/components/system-checkin/CheckInStep4";
 import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
+import { saveMentions } from "@/lib/mentionUtils";
 
 export default function SystemCheckInPage() {
   const navigate = useNavigate();
@@ -87,33 +88,65 @@ export default function SystemCheckInPage() {
     } else {
       createMutation.mutate(dataToSave);
     }
+// Save mentions from check-in step notes
+const allStepContent = [
+  formData.step3_greet?.notes,
+  formData.step4_share?.notes,
+  formData.step5_closing?.notes,
+].filter(Boolean).join(" ");
 
+if (allStepContent && alters.length > 0) {
+  const checkInId = currentCheckIn?.id || "new";
+  await saveMentions({
+    content: allStepContent,
+    alters,
+    sourceType: "checkin",
+    sourceId: checkInId,
+    sourceLabel: "System Check-In",
+    navigatePath: `/system-checkin?id=${checkInId}`,
+    authorAlterId: null,
+  });
+}
     // If step2 has alters_present, update the active fronting session
     const altersPresent = formData.step2_notice?.alters_present || [];
     const alterIds = altersPresent.filter((id) => alters.some((a) => a.id === id));
-    if (alterIds.length > 0) {
-      try {
-        const now = new Date().toISOString();
-        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-        // End old session at this moment, then start fresh
-        if (activeSessions.length > 0) {
-          await base44.entities.FrontingSession.update(activeSessions[0].id, {
-            is_active: false,
-            end_time: now,
-          });
-        }
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: alterIds[0],
-          co_fronter_ids: alterIds.slice(1),
-          start_time: now,
-          is_active: true,
+   if (alterIds.length > 0) {
+  try {
+    const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+    if (activeSessions.length > 0) {
+      // Additive — merge noticed alters into existing session without ending it
+      const session = activeSessions[0];
+      const existing = [
+        session.primary_alter_id, 
+        ...(session.co_fronter_ids || [])
+      ].filter(Boolean);
+      const merged = [...new Set([...existing, ...alterIds])];
+      await base44.entities.FrontingSession.update(session.id, {
+        primary_alter_id: merged[0],
+        co_fronter_ids: merged.slice(1),
+      });
+      // End any duplicate active sessions
+      for (const s of activeSessions.slice(1)) {
+        await base44.entities.FrontingSession.update(s.id, {
+          is_active: false,
+          end_time: new Date().toISOString(),
         });
-        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      } catch (err) {
-        console.error("Failed to update front from check-in", err);
       }
+    } else {
+      // No active session — create one
+      await base44.entities.FrontingSession.create({
+        primary_alter_id: alterIds[0],
+        co_fronter_ids: alterIds.slice(1),
+        start_time: new Date().toISOString(),
+        is_active: true,
+      });
     }
+    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+  } catch (err) {
+    console.error("Failed to update front from check-in", err);
+  }
+}
 
     if (shouldCreateDiary) {
       setTimeout(() => { navigate("/diary?create=true"); }, 500);
@@ -167,7 +200,12 @@ export default function SystemCheckInPage() {
           <div className="mb-6">
             <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Check-In</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {new Date(currentCheckIn.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+{(() => {
+  const [y, m, d] = currentCheckIn.date.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric"
+  });
+})()}
             </p>
           </div>
           <div className="space-y-4 max-w-2xl">
@@ -281,10 +319,11 @@ export default function SystemCheckInPage() {
           ) : (
             <div className="grid gap-3">
               {checkIns.map((checkIn) => {
-                const date = new Date(checkIn.date);
-                const formatted = date.toLocaleDateString("en-US", {
-                  weekday: "short", month: "short", day: "numeric", year: "numeric",
-                });
+                const [y, m, d] = checkIn.date.split("-").map(Number);
+const date = new Date(y, m - 1, d);
+const formatted = date.toLocaleDateString("en-US", {
+  weekday: "short", month: "short", day: "numeric", year: "numeric",
+});
                 return (
                   <Card key={checkIn.id} className="hover:bg-card/80 transition-colors">
                     <CardContent className="py-4 px-4 flex items-center justify-between">
@@ -346,9 +385,9 @@ export default function SystemCheckInPage() {
             {/* Steps */}
              <CheckInStep1 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
              <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} groups={groups} />
-             <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-             <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-             <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
+            <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+<CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
+<CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
 
             {/* Next Steps */}
             <Card>

@@ -32,7 +32,7 @@ function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
   };
 
   return (
-    <div className="flex items-center gap-2 bg-muted/40 border border-border/40 rounded-xl px-3 py-2 mb-3">
+    <div className="bg-muted/40 mb-3 px-3 py-1 rounded-xl flex items-center gap-2 border border-border/40">
       <CheckSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
       <input
         className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
@@ -91,9 +91,9 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-foreground text-base">Bulletin Board</h2>
+          <h2 className="text-foreground px-3 text-sm font-semibold uppercase">Bulletin Board</h2>
           {unreadCount > 0 &&
           <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">{unreadCount}</span>
           }
@@ -121,9 +121,9 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
 
       {/* Inline compose trigger */}
       {!composing &&
-      <input className="bg-transparent text-foreground mb-3 px-3 text-sm rounded-xl w-full h-9 border border-border/50 placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
+      <input className="bg-transparent text-foreground mb-2 px-3 text-sm rounded-xl w-full h-9 border border-border/50 placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
 
-      placeholder="Write something…"
+      placeholder="type here… use @ to mention, -name to sign as author"
       onChange={handleInlineType} />
 
       }
@@ -152,7 +152,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
       {/* Pinned */}
       {pinned.length > 0 &&
       <div className="mb-4">
-          <div className="flex items-center gap-1.5 mb-2">
+          <div className="mr-2 mb-2 px-2 flex items-center gap-1.5">
             <Pin className="w-3.5 h-3.5 text-primary" />
             <p className="text-xs font-semibold text-primary uppercase tracking-wider">Pinned</p>
           </div>
@@ -160,7 +160,13 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
             {pinned.map((b) =>
           <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
                 {b.content?.match(/^\[task:/) ?
-            <TaskBulletinCard bulletin={b} alters={alters} frontingAlterIds={frontingAlterIds} highlight={highlightBulletinId === b.id} /> :
+            <TaskBulletinCard 
+  bulletin={b} 
+  alters={alters} 
+  currentAlterId={currentAlterId}  // add this
+  frontingAlterIds={frontingAlterIds} 
+  highlight={highlightBulletinId === b.id} 
+/> :
 
             <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
             }
@@ -173,12 +179,18 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
       {/* Recent */}
       {filteredRecent.length > 0 &&
       <div>
-          {pinned.length > 0 && <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent</p>}
+          {pinned.length > 0 && <p className="text-muted-foreground mb-2 px-2 text-xs font-semibold uppercase tracking-wider">RECENT</p>}
           <div className="space-y-3">
             {filteredRecent.slice(0, visibleCount).map((b) =>
           <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
                 {b.content?.match(/^\[task:/) ?
-            <TaskBulletinCard bulletin={b} alters={alters} frontingAlterIds={frontingAlterIds} highlight={highlightBulletinId === b.id} /> :
+            <TaskBulletinCard 
+  bulletin={b} 
+  alters={alters} 
+  currentAlterId={currentAlterId}  // add this
+  frontingAlterIds={frontingAlterIds} 
+  highlight={highlightBulletinId === b.id} 
+/> :
 
             <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
             }

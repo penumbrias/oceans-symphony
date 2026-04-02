@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import JournalEntryCard from "@/components/journal/JournalEntryCard";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import JournalViewModal from "@/components/journal/JournalViewModal";
 import FolderGrid from "@/components/journal/FolderGrid";
+
 
 const TABS = [
   { id: "all", label: "All", icon: BookOpen },
@@ -102,13 +104,24 @@ export default function Journals() {
   const openEdit = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
 
   // Open specific entry from URL ?id= param (e.g. from timeline double-click)
-  const [pendingId] = useState(() => new URLSearchParams(window.location.search).get('id'));
+
+  const [searchParams] = useSearchParams();
+  const pendingId = searchParams.get('id');
+  const [highlightId, setHighlightId] = useState(() => searchParams.get('id'));
+
   useEffect(() => {
     if (pendingId && entries.length > 0) {
       const entry = entries.find(e => e.id === pendingId);
       if (entry) setViewingEntry(entry);
     }
   }, [pendingId, entries.length]);
+
+  useEffect(() => {
+    if (highlightId) {
+      const timer = setTimeout(() => setHighlightId(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightId]);
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
@@ -252,7 +265,13 @@ export default function Journals() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {filtered.map((entry) => (
-              <JournalEntryCard key={entry.id} entry={entry} altersById={altersById} onClick={() => openEntry(entry)} />
+<JournalEntryCard 
+  key={entry.id} 
+  entry={entry} 
+  altersById={altersById} 
+  onClick={() => openEntry(entry)}
+  highlight={highlightId === entry.id}
+/>
             ))}
           </div>
         )
@@ -274,8 +293,13 @@ export default function Journals() {
               )}
               <div className="grid gap-3 sm:grid-cols-2">
                 {unfolderedEntries.map((entry) => (
-                  <JournalEntryCard key={entry.id} entry={entry} altersById={altersById} onClick={() => openEntry(entry)} />
-                ))}
+<JournalEntryCard 
+  key={entry.id} 
+  entry={entry} 
+  altersById={altersById} 
+  onClick={() => openEntry(entry)}
+  highlight={highlightId === entry.id}
+/>                ))}
               </div>
             </>
           ) : null}

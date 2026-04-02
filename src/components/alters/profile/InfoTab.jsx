@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2, X, Check } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus, Trash2, X, Check, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,13 +11,32 @@ export default function InfoTab({ alter, systemFields }) {
   const [editingFieldId, setEditingFieldId] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [editingAlterIdx, setEditingAlterIdx] = useState(null);
-  const [newAlterField, setNewAlterField] = useState(null); // {name, value}
+  const [newAlterField, setNewAlterField] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const systemSettings = settingsList[0] || null;
+  const hiddenFieldIds = systemSettings?.hidden_field_ids || [];
 
   const customFieldValues = alter.custom_fields || {};
   const alterSpecificFields = alter.alter_custom_fields || [];
 
-  // -- System-wide field editing --
+  const isVisible = (fieldId) => !hiddenFieldIds.includes(fieldId);
+
+  const toggleFieldVisibility = async (fieldId) => {
+    if (!systemSettings) return;
+    const updated = isVisible(fieldId)
+      ? [...hiddenFieldIds, fieldId]
+      : hiddenFieldIds.filter(id => id !== fieldId);
+    await base44.entities.SystemSettings.update(systemSettings.id, {
+      hidden_field_ids: updated,
+    });
+    queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
+
   const startEditSystem = (field) => {
     setEditingFieldId(field.id);
     setEditValue(customFieldValues[field.id] || "");
@@ -33,7 +52,6 @@ export default function InfoTab({ alter, systemFields }) {
     setSaving(false);
   };
 
-  // -- Alter-specific field editing --
   const startEditAlter = (idx) => {
     setEditingAlterIdx(idx);
     setEditValue(alterSpecificFields[idx]?.value || "");
@@ -71,67 +89,80 @@ export default function InfoTab({ alter, systemFields }) {
 
   return (
     <div className="space-y-6">
-      {/* System-wide custom fields */}
       {systemFields.length > 0 && (
         <div className="space-y-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">System Fields</p>
-          {systemFields.map((field) => (
-            <div key={field.id} className="rounded-xl border border-border/50 bg-muted/10 p-3">
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-muted-foreground">{field.name}</p>
-                {editingFieldId !== field.id && (
-                  <button onClick={() => startEditSystem(field)} className="text-muted-foreground hover:text-foreground">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-              {editingFieldId === field.id ? (
-                <div className="flex gap-2 mt-1">
-                  {field.field_type === "text" ? (
-                    <Textarea
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="flex-1 text-sm min-h-[60px]"
-                      autoFocus
-                    />
-                  ) : field.field_type === "boolean" ? (
-                    <select
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                      autoFocus
+          {systemFields.map((field) => {
+            const visible = isVisible(field.id);
+            return (
+              <div key={field.id} className={`rounded-xl border p-3 transition-all ${visible ? "border-border/50 bg-muted/10" : "border-border/30 bg-muted/5 opacity-60"}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-muted-foreground">{field.name}</p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleFieldVisibility(field.id)}
+                      className="text-muted-foreground hover:text-foreground p-0.5"
+                      title={visible ? "Hide from profile" : "Show on profile"}
                     >
-                      <option value="">Select...</option>
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  ) : (
-                    <Input
-                      type="number"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="flex-1 text-sm"
-                      autoFocus
-                    />
-                  )}
-                  <div className="flex flex-col gap-1">
-                    <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90" onClick={() => saveSystemField(field.id)} disabled={saving}>
-                      <Check className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingFieldId(null)}>
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
+                      {visible
+                        ? <Eye className="w-3.5 h-3.5 text-primary/70" />
+                        : <EyeOff className="w-3.5 h-3.5" />}
+                    </button>
+                    {editingFieldId !== field.id && (
+                      <button onClick={() => startEditSystem(field)} className="text-muted-foreground hover:text-foreground p-0.5">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <p className="text-sm text-foreground min-h-[1.25rem]">
-                  {field.field_type === "boolean" && customFieldValues[field.id]
-                    ? (customFieldValues[field.id] === "true" || customFieldValues[field.id] === true ? "Yes" : "No")
-                    : (customFieldValues[field.id] || <span className="text-muted-foreground/50 italic">Not filled</span>)}
-                </p>
-              )}
-            </div>
-          ))}
+                {editingFieldId === field.id ? (
+                  <div className="flex gap-2 mt-1">
+                    {field.field_type === "text" ? (
+                      <Textarea
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="flex-1 text-sm min-h-[60px]"
+                        autoFocus
+                      />
+                    ) : field.field_type === "boolean" ? (
+                      <select
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                        autoFocus
+                      >
+                        <option value="">Select...</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    ) : (
+                      <Input
+                        type="number"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="flex-1 text-sm"
+                        autoFocus
+                      />
+                    )}
+                    <div className="flex flex-col gap-1">
+                      <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90" onClick={() => saveSystemField(field.id)} disabled={saving}>
+                        <Check className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingFieldId(null)}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-foreground min-h-[1.25rem]">
+                    {field.field_type === "boolean" && customFieldValues[field.id]
+                      ? (customFieldValues[field.id] === "true" || customFieldValues[field.id] === true ? "Yes" : "No")
+                      : (customFieldValues[field.id] || <span className="text-muted-foreground/50 italic">Not filled</span>)}
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -183,7 +214,6 @@ export default function InfoTab({ alter, systemFields }) {
           </div>
         ))}
 
-        {/* New alter-specific field form */}
         {newAlterField ? (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
             <Input
@@ -207,12 +237,7 @@ export default function InfoTab({ alter, systemFields }) {
             </div>
           </div>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 w-full"
-            onClick={() => setNewAlterField({ name: "", value: "" })}
-          >
+          <Button variant="outline" size="sm" className="gap-1.5 w-full" onClick={() => setNewAlterField({ name: "", value: "" })}>
             <Plus className="w-4 h-4" />
             Add alter-specific field
           </Button>
