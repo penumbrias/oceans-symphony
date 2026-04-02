@@ -88,10 +88,17 @@ export default function DataBackupRestore() {
             setImportProgress("Deleting existing data...");
             for (const entityName of ENTITY_NAMES) {
               try {
-                const records = await base44.entities[entityName].list();
-                await Promise.all(records.map(r =>
-                  base44.entities[entityName].delete(r.id).catch(() => {})
-                ));
+                // Keep deleting until nothing left — handles pagination
+                let safety = 0;
+                while (safety < 20) {
+                  const records = await base44.entities[entityName].list();
+                  if (records.length === 0) break;
+                  await Promise.all(records.map(r =>
+                    base44.entities[entityName].delete(r.id).catch(() => {})
+                  ));
+                  safety++;
+                  await new Promise(res => setTimeout(res, 100));
+                }
               } catch {}
             }
           }
