@@ -384,10 +384,10 @@ const quillRef = useRef(null);
                           const { file_url } = await base44.integrations.Core.UploadFile({ file });
                           toast.dismiss();
                           toast.success("Image uploaded!");
-                          const quill = this.quill;
-                          const range = quill.getSelection();
+const quill = quillRef.current?.getEditor();
+                          const range = quill.getSelection() || { index: 0 };
                           quill.insertEmbed(range.index, "image", file_url);
-                        } catch {
+                          quill.setSelection(range.index + 1);                        } catch {
                           toast.dismiss();
                           toast.error("Failed to upload image");
                         }
