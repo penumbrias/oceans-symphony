@@ -15,7 +15,7 @@ const cloudClient = createClient({
 });
 
 // Smart proxy: routes to local or cloud depending on storage mode
-const localEntities = createLocalDbEntities();
+export const localEntities = createLocalDbEntities();
 const localAuth = createLocalAuth();
 
 export const base44 = new Proxy(cloudClient, {
