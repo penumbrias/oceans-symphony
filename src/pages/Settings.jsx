@@ -52,9 +52,15 @@ export default function Settings() {
     setDeleted(true);
   };
 
-  const { data: settingsList = [], isLoading, refetch } = useQuery({
+ const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list(),
+    queryFn: async () => {
+      if (isLocalMode()) {
+        const { createLocalDbEntities } = await import("@/lib/localDb");
+        return createLocalDbEntities().SystemSettings.list();
+      }
+      return base44.entities.SystemSettings.list();
+    },
   });
 
   const settings = settingsList[0] || null;
