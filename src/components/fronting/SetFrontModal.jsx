@@ -130,26 +130,10 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
     const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
 
     if (isUnsure) {
-      if (activeSessions.length > 0) {
-        const active = activeSessions[0];
-        await base44.entities.FrontingSession.update(active.id, {
-          primary_alter_id: null,
-          co_fronter_ids: [],
-        });
-        // End any extra duplicate sessions
-        for (const s of activeSessions.slice(1)) {
-          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
-        }
-      } else {
-        // No active session — create a blank one to hold the unsure state
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: null,
-          co_fronter_ids: [],
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
+      for (const s of activeSessions) {
+        await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
       }
-      toast.success("Front set to unsure");
+      toast.success("Front cleared");
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       onClose();
