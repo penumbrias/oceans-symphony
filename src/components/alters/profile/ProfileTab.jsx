@@ -86,6 +86,8 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef(null);
 const quillRef = useRef(null);
+const [showImportModal, setShowImportModal] = useState(false);
+const [importText, setImportText] = useState("");
 
   useEffect(() => {
     setForm({
