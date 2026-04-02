@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pin, Search, X, CheckSquare } from "lucide-react";
+import { Pin, Search, X, CheckSquare, MessageCircle } from "lucide-react";
 import TaskBulletinCard from "./TaskBulletinCard";
 import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
@@ -40,10 +40,10 @@ function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
-        disabled={saving} />
-      
-    </div>);
-
+        disabled={saving}
+      />
+    </div>
+  );
 }
 
 export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds = [], highlightBulletinId }) {
@@ -52,6 +52,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(10);
+  const [sortByActivity, setSortByActivity] = useState(false);
   const bulletinRefs = useRef({});
   const observerTarget = useRef(null);
 
@@ -70,13 +71,24 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
   }, [highlightBulletinId, bulletins.length]);
 
   const filteredBulletins = bulletins.filter((b) =>
-  !searchQuery || b.content?.toLowerCase().includes(searchQuery.toLowerCase())
+    !searchQuery || b.content?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Pinned always stays at top, unaffected by sort
   const pinned = filteredBulletins.filter((b) => b.is_pinned);
   const filteredRecent = filteredBulletins.filter((b) => !b.is_pinned);
 
+  // Sort recent by activity (last comment) or default (created_date desc)
+  const sortedRecent = sortByActivity
+    ? [...filteredRecent].sort((a, b) => {
+        const aTime = new Date(a.last_activity_at || a.created_date);
+        const bTime = new Date(b.last_activity_at || b.created_date);
+        return bTime - aTime;
+      })
+    : filteredRecent;
+
   const unreadCount = bulletins.filter((b) =>
-  currentAlterId && b.mentioned_alter_ids?.includes(currentAlterId) && !b.read_by_alter_ids?.includes(currentAlterId)
+    currentAlterId && b.mentioned_alter_ids?.includes(currentAlterId) && !b.read_by_alter_ids?.includes(currentAlterId)
   ).length;
 
   const handleInlineType = (e) => {
@@ -95,49 +107,48 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
         <div className="flex items-center gap-2">
           <h2 className="text-foreground px-3 text-sm font-semibold uppercase">Bulletin Board</h2>
           {unreadCount > 0 &&
-          <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">{unreadCount}</span>
+            <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">{unreadCount}</span>
           }
         </div>
         <button
-          onClick={() => {setSearchOpen((p) => !p);if (searchOpen) setSearchQuery("");}}
+          onClick={() => { setSearchOpen((p) => !p); if (searchOpen) setSearchQuery(""); }}
           className={`p-1.5 rounded-lg transition-colors ${searchOpen ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
-          
           {searchOpen ? <X className="w-4 h-4" /> : <Search className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* Search (toggle) */}
+      {/* Search */}
       {searchOpen &&
-      <div className="mb-3">
+        <div className="mb-3">
           <Input
-          autoFocus
-          placeholder="Search bulletins..."
-          value={searchQuery}
-          onChange={(e) => {setSearchQuery(e.target.value);setVisibleCount(10);}}
-          className="h-8 text-sm" />
-        
+            autoFocus
+            placeholder="Search bulletins..."
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(10); }}
+            className="h-8 text-sm"
+          />
         </div>
       }
 
       {/* Inline compose trigger */}
       {!composing &&
-      <input className="bg-transparent text-foreground mb-2 px-3 text-sm rounded-xl w-full h-9 border border-border/50 placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
-
-      placeholder="type here… use @ to mention, -name to sign as author"
-      onChange={handleInlineType} />
-
+        <input
+          className="bg-transparent text-foreground mb-2 px-3 text-sm rounded-xl w-full h-9 border border-border/50 placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
+          placeholder="type here… use @ to mention, -name to sign as author"
+          onChange={handleInlineType}
+        />
       }
 
       {/* Full composer */}
       {composing &&
-      <div className="mb-3">
+        <div className="mb-3">
           <BulletinComposer
-          alters={alters}
-          authorAlterId={currentAlterId}
-          frontingAlterIds={frontingAlterIds}
-          initialContent={composeInitial}
-          onClose={() => {setComposing(false);setComposeInitial("");}} />
-        
+            alters={alters}
+            authorAlterId={currentAlterId}
+            frontingAlterIds={frontingAlterIds}
+            initialContent={composeInitial}
+            onClose={() => { setComposing(false); setComposeInitial(""); }}
+          />
         </div>
       }
 
@@ -146,71 +157,87 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
 
       {/* Mention alerts */}
       {currentAlterId &&
-      <MentionAlertBanner bulletins={bulletins} currentAlterId={currentAlterId} alters={alters} />
+        <MentionAlertBanner bulletins={bulletins} currentAlterId={currentAlterId} alters={alters} />
       }
 
-      {/* Pinned */}
+      {/* Pinned — always on top, never reordered */}
       {pinned.length > 0 &&
-      <div className="mb-4">
+        <div className="mb-4">
           <div className="mr-2 mb-2 px-2 flex items-center gap-1.5">
             <Pin className="w-3.5 h-3.5 text-primary" />
             <p className="text-xs font-semibold text-primary uppercase tracking-wider">Pinned</p>
           </div>
           <div className="space-y-3">
             {pinned.map((b) =>
-          <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
+              <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
                 {b.content?.match(/^\[task:/) ?
-            <TaskBulletinCard 
-  bulletin={b} 
-  alters={alters} 
-  currentAlterId={currentAlterId}  // add this
-  frontingAlterIds={frontingAlterIds} 
-  highlight={highlightBulletinId === b.id} 
-/> :
-
-            <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
-            }
+                  <TaskBulletinCard
+                    bulletin={b}
+                    alters={alters}
+                    currentAlterId={currentAlterId}
+                    frontingAlterIds={frontingAlterIds}
+                    highlight={highlightBulletinId === b.id}
+                  /> :
+                  <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+                }
               </div>
-          )}
+            )}
           </div>
         </div>
       }
 
       {/* Recent */}
       {filteredRecent.length > 0 &&
-      <div>
-          {pinned.length > 0 && <p className="text-muted-foreground mb-2 px-2 text-xs font-semibold uppercase tracking-wider">RECENT</p>}
-          <div className="space-y-3">
-            {filteredRecent.slice(0, visibleCount).map((b) =>
-          <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
-                {b.content?.match(/^\[task:/) ?
-            <TaskBulletinCard 
-  bulletin={b} 
-  alters={alters} 
-  currentAlterId={currentAlterId}  // add this
-  frontingAlterIds={frontingAlterIds} 
-  highlight={highlightBulletinId === b.id} 
-/> :
-
-            <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+        <div>
+          {/* RECENT header with activity sort toggle */}
+          <div className="flex items-center justify-between mb-2 px-2">
+            {pinned.length > 0 &&
+              <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Recent</p>
             }
-              </div>
-          )}
+            <button
+              onClick={() => { setSortByActivity(p => !p); setVisibleCount(10); }}
+              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors ml-auto ${
+                sortByActivity
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/40 text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              <MessageCircle className="w-3 h-3" />
+              Recent activity
+            </button>
           </div>
-          {visibleCount < filteredRecent.length &&
-        <div ref={observerTarget} className="py-4 text-center">
+
+          <div className="space-y-3">
+            {sortedRecent.slice(0, visibleCount).map((b) =>
+              <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
+                {b.content?.match(/^\[task:/) ?
+                  <TaskBulletinCard
+                    bulletin={b}
+                    alters={alters}
+                    currentAlterId={currentAlterId}
+                    frontingAlterIds={frontingAlterIds}
+                    highlight={highlightBulletinId === b.id}
+                  /> :
+                  <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+                }
+              </div>
+            )}
+          </div>
+
+          {visibleCount < sortedRecent.length &&
+            <div ref={observerTarget} className="py-4 text-center">
               <button onClick={() => setVisibleCount((v) => v + 10)} className="text-xs text-muted-foreground hover:text-foreground">Load more</button>
             </div>
-        }
+          }
         </div>
       }
 
       {filteredBulletins.length === 0 && searchQuery &&
-      <div className="text-center py-10"><p className="text-muted-foreground text-sm">No bulletins match your search</p></div>
+        <div className="text-center py-10"><p className="text-muted-foreground text-sm">No bulletins match your search</p></div>
       }
       {bulletins.length === 0 && !composing &&
-      <div className="text-center py-10"><p className="text-muted-foreground text-sm">No bulletins yet. Start writing above!</p></div>
+        <div className="text-center py-10"><p className="text-muted-foreground text-sm">No bulletins yet. Start writing above!</p></div>
       }
-    </div>);
-
+    </div>
+  );
 }
