@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, addHours, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 
@@ -44,6 +45,12 @@ export default function ActivityTimeRangeModal({
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch categories so we can resolve names for direct entity saves
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
 
   // Reset times when modal opens with new props
   useMemo(() => {
@@ -104,21 +111,32 @@ export default function ActivityTimeRangeModal({
 
     setIsLoading(true);
     const timestamp = parseTimeToDate(startDate, startTime);
-    try {
-      await base44.functions.invoke("createActivityWithCategories", {
-        activity_category_ids: selectedActivityCategories,
-        duration_minutes: durationMinutes,
-        fronting_alter_ids: selectedAlters,
-        notes: notes || null,
-        timestamp: timestamp.toISOString(),
-      });
+    const endDt = parseTimeToDate(startDate, endTime);
 
+    try {
+      // Build a category name lookup
+      const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+
+      // Create one Activity record per selected category — same approach as QuickCheckInModal
+      for (const catId of selectedActivityCategories) {
+        const cat = catById[catId];
+        await base44.entities.Activity.create({
+          timestamp: timestamp.toISOString(),
+          activity_name: cat?.name || catId,
+          activity_category_ids: [catId],
+          duration_minutes: durationMinutes,
+          fronting_alter_ids: selectedAlters,
+          notes: notes || null,
+        });
+      }
+
+      // Handle fronting session update if alters selected
       if (selectedAlters.length > 0) {
         const now = new Date();
-        const endDt = parseTimeToDate(startDate, endTime);
         const diffMins = (now - timestamp) / 60000;
         const isCurrentTime = diffMins < 10;
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+
         if (isCurrentTime && activeSessions.length > 0) {
           const session = activeSessions[0];
           const existing = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
@@ -143,6 +161,7 @@ export default function ActivityTimeRangeModal({
       setNotes("");
       onSave?.();
       onClose();
+      toast.success("Activity saved!");
     } catch (err) {
       toast.error(err.message || "Failed to log activity");
     } finally {
