@@ -78,6 +78,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
         setImportProgress("Fetching groups...");
         const groups = await getGroups(tok, sysId);
+        console.log("SP groups raw:", JSON.stringify(groups[0], null, 2));
 
         // Build groupsById map keyed by SP group ID
         const groupsById = {};
