@@ -39,8 +39,6 @@ const { data: alters = [] } = useQuery({
 const { data: sessions = [] } = useQuery({
   queryKey: ["frontHistory"],
   queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
-  refetchInterval: 10000,
-  refetchIntervalInBackground: false,
 });
 
 const { data: mentionLogs = [] } = useQuery({
