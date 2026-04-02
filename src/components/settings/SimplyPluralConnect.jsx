@@ -10,10 +10,8 @@ import {
   getSystemUser,
   getMembers,
   getGroups,
-  getNotes,
   mapMemberToAlter,
   mapGroupToLocalGroup,
-  mapNoteToAlterNote,
 } from "@/lib/simplyPlural";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -74,17 +72,14 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       if (localMode) {
         const { sp_token: tok, sp_system_id: sysId } = effectiveSettings;
 
-        // --- Step 1: Fetch everything from SP ---
+        // --- Step 1: Fetch members and groups from SP ---
         setImportProgress("Fetching members...");
         const members = await getMembers(tok, sysId);
 
         setImportProgress("Fetching groups...");
         const groups = await getGroups(tok, sysId);
 
-        setImportProgress("Fetching notes...");
-        const notes = await getNotes(tok, sysId);
-
-        // Build a groupsById map keyed by SP group ID for mapMemberToAlter
+        // Build groupsById map keyed by SP group ID
         const groupsById = {};
         for (const g of groups) {
           const gid = g.id || g._id || "";
@@ -137,58 +132,45 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         const existingGroups = await localEntities.Group.list();
         let groupsCreated = 0;
         let groupsUpdated = 0;
-        const existingGroupsBySpId = {};
-        for (const g of existingGroups) {
-          if (g.sp_id) existingGroupsBySpId[g.sp_id] = g;
+
+        // Delete all existing groups if replace_all
+        if (importMode === "replace_all") {
+          for (const g of existingGroups) await localEntities.Group.delete(g.id);
         }
+
+        const existingGroupsBySpId = {};
+        if (importMode !== "replace_all") {
+          for (const g of existingGroups) {
+            if (g.sp_id) existingGroupsBySpId[g.sp_id] = g;
+          }
+        }
+
         for (const spGroup of groups) {
           const mapped = mapGroupToLocalGroup(spGroup);
-          mapped.alter_ids = mapped.sp_member_ids
+
+          // Resolve SP member IDs -> local alter IDs
+          mapped.alter_ids = (mapped.sp_member_ids || [])
             .map((spId) => alterIdBySpId[spId])
             .filter(Boolean);
-          const existing = existingGroupsBySpId[mapped.sp_id];
-          if (importMode === "replace_all" || !existing) {
-            if (importMode === "replace_all" && existing) {
-              await localEntities.Group.update(existing.id, mapped);
-              groupsUpdated++;
+
+          if (importMode === "replace_all") {
+            await localEntities.Group.create(mapped);
+            groupsCreated++;
+          } else {
+            const existing = existingGroupsBySpId[mapped.sp_id];
+            if (existing) {
+              if (importMode !== "new_only") {
+                await localEntities.Group.update(existing.id, mapped);
+                groupsUpdated++;
+              }
             } else {
               await localEntities.Group.create(mapped);
               groupsCreated++;
             }
-          } else if (importMode !== "new_only") {
-            await localEntities.Group.update(existing.id, mapped);
-            groupsUpdated++;
           }
         }
 
-        // --- Step 4: Import notes ---
-        setImportProgress("Importing notes...");
-        const existingNotes = await localEntities.AlterNote.list();
-        let notesCreated = 0;
-        let notesUpdated = 0;
-        const existingNotesBySpId = {};
-        for (const n of existingNotes) {
-          if (n.sp_id) existingNotesBySpId[n.sp_id] = n;
-        }
-        for (const spNote of notes) {
-          const mapped = mapNoteToAlterNote(spNote, alterIdBySpId);
-          if (!mapped.alter_id) continue;
-          const existing = existingNotesBySpId[mapped.sp_id];
-          if (importMode === "replace_all" || !existing) {
-            if (importMode === "replace_all" && existing) {
-              await localEntities.AlterNote.update(existing.id, mapped);
-              notesUpdated++;
-            } else {
-              await localEntities.AlterNote.create(mapped);
-              notesCreated++;
-            }
-          } else if (importMode !== "new_only") {
-            await localEntities.AlterNote.update(existing.id, mapped);
-            notesUpdated++;
-          }
-        }
-
-        // --- Step 5: Update last_sync ---
+        // --- Step 4: Update last_sync ---
         if (effectiveSettings?.id) {
           await localEntities.SystemSettings.update(effectiveSettings.id, {
             last_sync: new Date().toISOString(),
@@ -198,10 +180,9 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         onSettingsChange();
         queryClient.invalidateQueries({ queryKey: ["alters"] });
         queryClient.invalidateQueries({ queryKey: ["groups"] });
-        queryClient.invalidateQueries({ queryKey: ["alterNotes"] });
         setImportProgress("");
         toast.success(
-          `Import complete! Alters: ${altersCreated} new, ${altersUpdated} updated · Groups: ${groupsCreated} new, ${groupsUpdated} updated · Notes: ${notesCreated} new, ${notesUpdated} updated`
+          `Import complete! Alters: ${altersCreated} new, ${altersUpdated} updated · Groups: ${groupsCreated} new, ${groupsUpdated} updated`
         );
       } else {
         // Cloud mode — use base44 serverless function
@@ -291,7 +272,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               </div>
               {localMode && (
                 <p className="text-xs text-muted-foreground mb-3">
-                  Imports alters, groups, and notes directly from Simply Plural.
+                  Imports alters and groups directly from Simply Plural.
                 </p>
               )}
               <div className="space-y-3">
