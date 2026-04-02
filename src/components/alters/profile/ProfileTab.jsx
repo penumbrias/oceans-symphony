@@ -87,6 +87,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const fileInputRef = useRef(null);
 const quillRef = useRef(null);
 const [showImportModal, setShowImportModal] = useState(false);
+const [bioMode, setBioMode] = useState("rich"); // "rich" | "html"
 
 const convertSPToHTML = (text) => {
   let html = text
@@ -386,43 +387,76 @@ const [importText, setImportText] = useState("");
             </button>
           </div>
           <p className="text-xs text-muted-foreground">Supports rich text, images, headers, and more</p>
-          <div className="rounded-lg border border-input overflow-hidden bg-background">
-            <ReactQuill
-              ref={quillRef}
-              value={form.description}
-              onChange={(val) => set("description", val)}
-              modules={QUILL_MODULES}
-              theme="snow"
-              placeholder="Write a bio… add images, headers, styling…"
-              onFocus={() => {
-                const quill = quillRef.current?.getEditor();
-                if (!quill) return;
-                const toolbar = quill.getModule("toolbar");
-                toolbar.addHandler("image", () => {
-                  const input = document.createElement("input");
-                  input.setAttribute("type", "file");
-                  input.setAttribute("accept", "image/*");
-                  input.click();
-                  input.onchange = async () => {
-                    const file = input.files[0];
-                    if (!file) return;
-                    try {
-                      toast.loading("Uploading image...");
-                      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                      toast.dismiss();
-                      toast.success("Image uploaded!");
-                      const range = quill.getSelection() || { index: 0 };
-                      quill.insertEmbed(range.index, "image", file_url);
-                      quill.setSelection(range.index + 1);
-                    } catch {
-                      toast.dismiss();
-                      toast.error("Failed to upload image");
-                    }
-                  };
-                });
-              }}
-            />
+          <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setBioMode(bioMode === "rich" ? "html" : "rich")}
+                className="text-xs text-muted-foreground hover:text-foreground font-medium border border-border/50 rounded px-2 py-0.5"
+              >
+                {bioMode === "rich" ? "</> HTML" : "Rich Text"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowImportModal(true)}
+                className="text-xs text-primary hover:text-primary/80 font-medium"
+              >
+                Import SP Template
+              </button>
+            </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            {bioMode === "rich" ? "Supports rich text, images, headers, and more" : "Edit raw HTML directly"}
+          </p>
+          <div className="rounded-lg border border-input overflow-hidden bg-background">
+            {bioMode === "rich" ? (
+              <ReactQuill
+                ref={quillRef}
+                value={form.description}
+                onChange={(val) => set("description", val)}
+                modules={QUILL_MODULES}
+                theme="snow"
+                placeholder="Write a bio… add images, headers, styling…"
+                onFocus={() => {
+                  const quill = quillRef.current?.getEditor();
+                  if (!quill) return;
+                  const toolbar = quill.getModule("toolbar");
+                  toolbar.addHandler("image", () => {
+                    const input = document.createElement("input");
+                    input.setAttribute("type", "file");
+                    input.setAttribute("accept", "image/*");
+                    input.click();
+                    input.onchange = async () => {
+                      const file = input.files[0];
+                      if (!file) return;
+                      try {
+                        toast.loading("Uploading image...");
+                        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                        toast.dismiss();
+                        toast.success("Image uploaded!");
+                        const range = quill.getSelection() || { index: 0 };
+                        quill.insertEmbed(range.index, "image", file_url);
+                        quill.setSelection(range.index + 1);
+                      } catch {
+                        toast.dismiss();
+                        toast.error("Failed to upload image");
+                      }
+                    };
+                  });
+                }}
+              />
+            ) : (
+              <textarea
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder="<p>Write raw HTML here...</p>"
+                className="w-full min-h-[200px] px-3 py-2 text-sm font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+              />
+            )}
+          </div>
+        </div>
         </div>
       </div>
 
