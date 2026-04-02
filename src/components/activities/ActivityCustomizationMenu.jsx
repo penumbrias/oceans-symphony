@@ -115,12 +115,12 @@ export default function ActivityCustomizationMenu({ onClose }) {
         order: rootCategories.length,
       });
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["activityCategories"] });
       setIsCreatingRoot(false);
       setNewRootName("");
       setNewRootColor("#8b5cf6");
-      toast.success(result.order !== undefined ? "Activity restored! Your old data is linked back." : "Activity created!");
+      toast.success("Activity created!");
     },
     onError: (e) => toast.error(e.message),
   });
