@@ -378,13 +378,7 @@ const [importText, setImportText] = useState("");
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
-            <button
-              type="button"
-              onClick={() => setShowImportModal(true)}
-              className="text-xs text-primary hover:text-primary/80 font-medium"
-            >
-              Import SP Template
-            </button>
+           
           </div>
           <p className="text-xs text-muted-foreground">Supports rich text, images, headers, and more</p>
           <div className="space-y-2">
