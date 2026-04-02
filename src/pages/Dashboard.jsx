@@ -80,7 +80,7 @@ export default function Dashboard() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list()
   });
-const terms = useTerms();
+
 const systemName = settings[0]?.system_name || `Your ${terms.system}`;
 
   const { data: mentionLogs = [] } = useQuery({
