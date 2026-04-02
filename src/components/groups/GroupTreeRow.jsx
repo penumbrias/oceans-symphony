@@ -12,6 +12,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import GroupMembersModal from "./GroupMembersModal";
+import { HexColorPicker } from "react-colorful";
+import { X } from "lucide-react";
 
 export default function GroupTreeRow({
   group,
