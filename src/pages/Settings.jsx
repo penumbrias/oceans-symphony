@@ -118,7 +118,7 @@ export default function Settings() {
             <p>Oceans Symphony is built on the Base44 platform. Your data is stored on Base44's servers with row-level security — meaning other users cannot access your data.
 
 </p><p><strong>Please use local mode!!! It does not save your data on the servers!!! </strong></p>
-            <p><strong className="text-foreground">Unencrypted and Nonlocal data is currently stored without end-to-end encryption.</strong> Meaning I, as developer, technically could access it. I am commited to never doing so. Please be mindful of what you enter if this concerns you.</p>
+            <p>Unencrypted and Nonlocal data is currently stored without end-to-end encryption.<strong className="text-foreground">Meaning I, as developer, technically could access it. I am commited to never doing so.</strong> Please be mindful of what you enter if this concerns you.</p>
             <p className="text-amber-600 dark:text-amber-400 font-medium">🔒 I plan to transition this app to being fully offline and local - please avoid using cloud save because it is not secure, although no other user can access your data, and data cannot be accessed without being logged in. All local data is cleared when you clear your browser history, so make frequent backups.</p>
             <p>This app is free and shared in good faith with the community by a DID system. I made it to fill a void and my personal needs, and see no reason to gatekeep it. This app was "vibe-coded". There's plenty of great apps out there - if you are a developer please feel free to copy this apps features.</p>
           </CardContent>
