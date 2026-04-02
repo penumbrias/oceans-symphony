@@ -70,8 +70,7 @@ function MemberRow({ alter, onClick, currentSession }) {
         <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>
         }
       </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-    </motion.div>);
+<FrontingToggleButton alter={alter} currentSession={currentSession} />    </motion.div>);
 
 }
 
@@ -95,7 +94,7 @@ function FolderRow({ group, onClick }) {
         <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
       </div>
       <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-    </motion.button>);
+<FrontingToggleButton alter={alter} currentSession={currentSession} />
 
 }
 
