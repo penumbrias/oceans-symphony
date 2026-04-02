@@ -124,9 +124,9 @@ export default function AlterGrid({ alters, currentSession = null }) {
           {filtered.length > 0 ?
           viewMode === "list" ?
           <div className="mx-auto flex flex-col gap-2">
-                {filtered.map((alter, i) =>
-            <AlterCard key={alter.id} alter={alter} index={i} />
-            )}
+          {filtered.map((alter, i) =>
+  <AlterCard key={alter.id} alter={alter} index={i} currentSession={activeFront} />
+)}
               </div> :
 
           <AlterGridView alters={filtered} currentSession={activeFront} allAlters={alters} /> :
