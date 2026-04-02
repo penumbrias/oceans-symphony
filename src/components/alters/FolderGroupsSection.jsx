@@ -9,6 +9,7 @@ import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
+import { FrontingToggleButton } from "@/components/alters/AlterCard";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
