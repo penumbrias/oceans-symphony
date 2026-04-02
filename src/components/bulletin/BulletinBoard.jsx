@@ -177,7 +177,6 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
       }
 
       {/* Recent */}
-      const [sortByActivity, setSortByActivity] = useState(false);
       {filteredRecent.length > 0 &&
       <div>
           {pinned.length > 0 && <p className="text-muted-foreground mb-2 px-2 text-xs font-semibold uppercase tracking-wider">RECENT</p>}
