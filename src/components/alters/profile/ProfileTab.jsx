@@ -86,6 +86,18 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef(null);
 const quillRef = useRef(null);
+const [bioMode, setBioMode] = useState("rich"); // "rich" | "html"
+const [showImportModal, setShowImportModal] = useState(false);
+const [importText, setImportText] = useState("");
+
+const convertSPToHTML = (text) => {
+  return text
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;display:inline-block;" />')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br />');
+};
 
   useEffect(() => {
     setForm({
@@ -357,10 +369,38 @@ const quillRef = useRef(null);
           )}
         </div>
 
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
-          <p className="text-xs text-muted-foreground">Supports rich text, images, headers, and more</p>
+       <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setBioMode(bioMode === "rich" ? "html" : "rich")}
+                className="text-xs text-muted-foreground hover:text-foreground font-medium border border-border/50 rounded px-2 py-0.5"
+              >
+                {bioMode === "rich" ? "</> HTML" : "Rich Text"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowImportModal(true)}
+                className="text-xs text-primary hover:text-primary/80 font-medium"
+              >
+                Import SP Template
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {bioMode === "rich" ? "Supports rich text, images, headers, and more" : "Edit raw HTML directly"}
+          </p>
           <div className="rounded-lg border border-input overflow-hidden bg-background">
+            {bioMode === "html" ? (
+              <textarea
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+                placeholder="<p>Write raw HTML here...</p>"
+                className="w-full min-h-[200px] px-3 py-2 text-sm font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+              />
+            ) : (
             <ReactQuill
               ref={quillRef}
               value={form.description}
