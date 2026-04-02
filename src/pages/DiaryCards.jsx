@@ -16,6 +16,7 @@ import DiaryCardView from "@/components/diary/DiaryCardView";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { getActiveTemplate, getSectionSummary, getCompletion } from "@/lib/diaryCardTemplate";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
