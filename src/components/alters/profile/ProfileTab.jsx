@@ -365,7 +365,36 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
             <ReactQuill
               value={form.description}
               onChange={(val) => set("description", val)}
-              modules={QUILL_MODULES}
+              modules={{
+                ...QUILL_MODULES,
+                toolbar: {
+                  ...QUILL_MODULES.toolbar,
+                  handlers: {
+                    image: function() {
+                      const input = document.createElement("input");
+                      input.setAttribute("type", "file");
+                      input.setAttribute("accept", "image/*");
+                      input.click();
+                      input.onchange = async () => {
+                        const file = input.files[0];
+                        if (!file) return;
+                        try {
+                          toast.loading("Uploading image...");
+                          const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                          toast.dismiss();
+                          toast.success("Image uploaded!");
+                          const quill = this.quill;
+                          const range = quill.getSelection();
+                          quill.insertEmbed(range.index, "image", file_url);
+                        } catch {
+                          toast.dismiss();
+                          toast.error("Failed to upload image");
+                        }
+                      };
+                    }
+                  }
+                }
+              }}
               theme="snow"
               placeholder="Write a bio… add images, headers, styling…"
             />
