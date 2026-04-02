@@ -53,24 +53,19 @@ async function fetchAllRecords(entityName) {
   }
 }
 
-async function deleteAllRecords(entityName, onProgress) {
-  let totalDeleted = 0;
+async function deleteAllRecords(entityName) {
   let safety = 0;
-  while (safety < 15) {
+  while (safety < 20) {
     const records = await base44.entities[entityName].list(null, 500).catch(() => []);
     if (!records || records.length === 0) break;
-    // Delete in parallel batches of 10
-    for (let i = 0; i < records.length; i += 10) {
-      const chunk = records.slice(i, i + 10);
-      await Promise.all(chunk.map(r =>
-        base44.entities[entityName].delete(r.id).catch(() => {})
-      ));
+    // Sequential deletes with delay — parallel causes 429s
+    for (const r of records) {
+      await base44.entities[entityName].delete(r.id).catch(() => {});
+      await new Promise(res => setTimeout(res, 120)); // ~8 requests/sec
     }
-    totalDeleted += records.length;
     safety++;
-    await new Promise(res => setTimeout(res, 200));
+    await new Promise(res => setTimeout(res, 500));
   }
-  return totalDeleted;
 }
 
 export default function DataBackupRestore() {
