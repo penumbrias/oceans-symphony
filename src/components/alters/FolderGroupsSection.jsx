@@ -25,39 +25,35 @@ function MemberRow({ alter, onClick, currentSession }) {
   const hasColor = alter.color && alter.color.length > 3;
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
-  
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      onClick={(e) => {
-        if (e.target.closest('button')) return;
-        onClick();
-      }}
-      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
-      style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
-      
-      <div
-        className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
-        style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
-        
-        {alter.avatar_url ?
-        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" /> :
-
-        <User className="w-5 h-5" style={{ color: textColor || "hsl(var(--muted-foreground))" }} />
-        }
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
-          {alter.name}
-        </p>
-        {alter.pronouns &&
-        <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>
-        }
-      </div>
-<FrontingToggleButton alter={alter} currentSession={currentSession} />    </motion.div>);
-
+    <div className="flex items-center gap-2">
+      <motion.div
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        onClick={onClick}
+        className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
+        style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
+        <div
+          className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
+          style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
+          {alter.avatar_url ?
+            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" /> :
+            <User className="w-5 h-5" style={{ color: textColor || "hsl(var(--muted-foreground))" }} />
+          }
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
+            {alter.name}
+          </p>
+          {alter.pronouns &&
+            <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>
+          }
+        </div>
+      </motion.div>
+      <FrontingToggleButton alter={alter} currentSession={currentSession} />
+    </div>
+  );
 }
 
 function FolderRow({ group, onClick }) {
