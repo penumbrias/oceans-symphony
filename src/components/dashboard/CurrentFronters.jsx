@@ -128,15 +128,20 @@ export default function CurrentFronters({ alters }) {
   };
 
 const handleSaveStatus = async () => {
-    if (!active) return;
+    if (!active || !tempStatus.trim()) return;
     try {
-      const existing = JSON.parse(active.note || "[]").catch?.() ?? 
-        (active.note ? (active.note.startsWith("[") ? JSON.parse(active.note) : [{ text: active.note, timestamp: active.start_time }]) : []);
-      const updated = [...existing, { text: tempStatus, timestamp: new Date().toISOString() }];
+      let existing = [];
+      try {
+        const parsed = JSON.parse(active.note || "[]");
+        existing = Array.isArray(parsed) ? parsed : [{ text: active.note, timestamp: active.start_time }];
+      } catch {
+        existing = active.note ? [{ text: active.note, timestamp: active.start_time }] : [];
+      }
+      const updated = [...existing, { text: tempStatus.trim(), timestamp: new Date().toISOString() }];
       await base44.entities.FrontingSession.update(active.id, {
         note: JSON.stringify(updated),
       });
-      setStatusText(tempStatus);
+      setStatusText(tempStatus.trim());
       setEditingStatus(false);
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       toast.success("Status updated!");
