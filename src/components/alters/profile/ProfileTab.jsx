@@ -528,9 +528,7 @@ const [importText, setImportText] = useState("");
         </div>
       )}
 
-      {showColorPicker && (
-        <ColorPickerModal
-
+  
       {showColorPicker && (
         <ColorPickerModal
           color={form.color || "#8b5cf6"}
