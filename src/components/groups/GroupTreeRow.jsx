@@ -144,13 +144,40 @@ const [pendingColor, setPendingColor] = useState(group.color || "#9333ea");
         {/* Color dot + name */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {isSelected && (
-            <input
-              type="color"
-              value={group.color || "#9333ea"}
-              onChange={(e) => onChangeColor(group.id, e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              className="w-6 h-6 rounded cursor-pointer flex-shrink-0 border-0"
-            />
+            <>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowColorPicker(true); }}
+                className="w-6 h-6 rounded cursor-pointer flex-shrink-0 border-2 border-border hover:ring-2 hover:ring-primary transition-all"
+                style={{ backgroundColor: group.color || "#9333ea" }}
+              />
+              {showColorPicker && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowColorPicker(false)}>
+                  <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-sm mx-4 w-full" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold">Group Color</h3>
+                      <button onClick={() => setShowColorPicker(false)}><X className="w-4 h-4" /></button>
+                    </div>
+                    <HexColorPicker color={pendingColor} onChange={setPendingColor} style={{ width: "100%" }} />
+                    <input
+                      type="text"
+                      value={pendingColor}
+                      onChange={(e) => { if (/^#?[0-9A-F]{0,6}$/i.test(e.target.value)) setPendingColor(e.target.value); }}
+                      className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-mono"
+                    />
+                    <div className="w-full h-12 rounded-lg border-2 border-border" style={{ backgroundColor: pendingColor }} />
+                    <div className="flex gap-2">
+                      <button onClick={() => setShowColorPicker(false)}
+                        className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm">Cancel</button>
+                      <button
+                        onClick={() => { onChangeColor(group.id, pendingColor); setShowColorPicker(false); }}
+                        disabled={!/^#[0-9A-F]{6}$/i.test(pendingColor)}
+                        className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">Save</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
           {!isSelected && group.color && (
             <div
