@@ -31,7 +31,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [menuMode, setMenuMode] = useState("signpost"); // "signpost" | "mention"
+  const [menuMode, setMenuMode] = useState("signpost");
   const [query, setQuery] = useState("");
 
   const filteredAlters = alters.filter(a =>
@@ -44,7 +44,6 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     const val = e.target.value;
     setText(val);
 
-    // Check for @ mention
     const lastAt = val.lastIndexOf("@");
     if (lastAt !== -1 && !val.slice(lastAt + 1).includes(" ")) {
       setShowMenu(true);
@@ -53,7 +52,6 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       return;
     }
 
-    // Check for - signpost
     const lastDash = val.lastIndexOf("-");
     if (lastDash !== -1 && !val.slice(lastDash + 1).includes(" ") && val.slice(lastDash + 1).length > 0) {
       setShowMenu(true);
@@ -97,6 +95,12 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       content: cleanContent,
       reactions: {},
     });
+
+    // Update last_activity_at on the parent bulletin for sort-by-activity
+    await base44.entities.Bulletin.update(bulletinId, {
+      last_activity_at: new Date().toISOString(),
+    });
+
     const sourceType = parentCommentId ? "reply" : "comment";
     for (const authorId of finalAuthorIds) {
       await saveAuthoredLog({
@@ -174,8 +178,8 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const hasMoreDepth = hasChildren && maxDepth !== null && depth >= maxDepth;
   const shouldRenderChildren = maxDepth === null || depth < maxDepth;
   const reactions = comment.reactions || {};
-const rawDate = comment.created_date;
-const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
+  const rawDate = comment.created_date;
+  const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
   const authorIds = comment.author_alter_ids?.length > 0 ? comment.author_alter_ids : (comment.author_alter_id ? [comment.author_alter_id] : frontingAlterIds);
   const canDelete = currentAlterId === comment.author_alter_id || authorIds.includes(currentAlterId);
   const pending = pendingDeletes[comment.id];
@@ -305,7 +309,6 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
   const [pendingDeletes, setPendingDeletes] = useState({});
   const [deleteTapCounts, setDeleteTapCounts] = useState({});
 
-  // Countdown ticker for pending deletes
   useEffect(() => {
     if (Object.keys(pendingDeletes).length === 0) return;
     const interval = setInterval(() => {
@@ -333,17 +336,14 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
     const tapInfo = deleteTapCounts[comment.id] || { count: 0, lastTime: 0 };
 
     if (!pendingDeletes[comment.id]) {
-      // First tap: start pending
       setPendingDeletes(p => ({ ...p, [comment.id]: { countdown: 10 } }));
       setDeleteTapCounts(p => ({ ...p, [comment.id]: { count: 1, lastTime: now } }));
       return;
     }
 
-    // Already pending: check triple-tap
     if (now - tapInfo.lastTime < 600) {
       const newCount = tapInfo.count + 1;
       if (newCount >= 3) {
-        // Force immediate delete
         setPendingDeletes(p => { const n = { ...p }; delete n[comment.id]; return n; });
         setDeleteTapCounts(p => { const n = { ...p }; delete n[comment.id]; return n; });
         base44.entities.BulletinComment.delete(comment.id).then(() => onRefresh());
@@ -369,7 +369,6 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
 
   return (
     <div className="space-y-2">
-      {/* New comment input at TOP */}
       <CommentInput
         bulletinId={bulletinId}
         parentCommentId={null}
@@ -378,7 +377,6 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
         onRefresh={onRefresh}
       />
 
-      {/* Sort toggle */}
       {rootComments.length > 1 && (
         <div className="flex justify-end">
           <button
@@ -391,7 +389,6 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
         </div>
       )}
 
-      {/* Comment list */}
       {rootComments.map(comment => (
         <CommentNode
           key={comment.id}
