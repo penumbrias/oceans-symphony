@@ -87,6 +87,21 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const fileInputRef = useRef(null);
 const quillRef = useRef(null);
 const [showImportModal, setShowImportModal] = useState(false);
+
+const convertSPToHTML = (text) => {
+  let html = text
+    // Convert ![alt](url) to <img> tags
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;display:inline-block;" />')
+    // Convert [text](url) to <a> tags
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    // Convert **text** to bold
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    // Convert *text* to italic
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    // Convert line breaks to <br>
+    .replace(/\n/g, '<br />');
+  return html;
+};
 const [importText, setImportText] = useState("");
 
   useEffect(() => {
@@ -360,7 +375,16 @@ const [importText, setImportText] = useState("");
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
+            <button
+              type="button"
+              onClick={() => setShowImportModal(true)}
+              className="text-xs text-primary hover:text-primary/80 font-medium"
+            >
+              Import SP Template
+            </button>
+          </div>
           <p className="text-xs text-muted-foreground">Supports rich text, images, headers, and more</p>
           <div className="rounded-lg border border-input overflow-hidden bg-background">
             <ReactQuill
