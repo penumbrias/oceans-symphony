@@ -74,7 +74,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     try {
       if (localMode) {
         const { sp_token: tok, sp_system_id: sysId } = effectiveSettings;
-        const entities = getLocalEntities();
+        const entities = localEntities();
 
         // --- Step 1: Fetch everything from SP ---
         setImportProgress("Fetching members...");
