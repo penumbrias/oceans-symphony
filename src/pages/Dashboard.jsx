@@ -13,6 +13,7 @@ import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import TourModal from "@/components/onboarding/TourModal";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
+import { useTerms } from "@/lib/useTerms";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -80,7 +81,7 @@ export default function Dashboard() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list()
   });
-
+const terms = useTerms();
 const systemName = settings[0]?.system_name || `Your ${terms.system}`;
 
   const { data: mentionLogs = [] } = useQuery({
