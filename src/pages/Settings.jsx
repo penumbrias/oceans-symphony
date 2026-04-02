@@ -219,20 +219,16 @@ export default function Settings() {
         </div>
 
         {/* Integrations */}
-        {!isLocalMode() && (
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
-            </div>
-            <SimplyPluralConnect
-              settings={settings}
-              onSettingsChange={() => {
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-              }}
-            />
-          </div>
-        )}
+        <div className="space-y-4">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Integrations</p>
+          <SimplyPluralConnect
+            settings={settings}
+            onSettingsChange={() => {
+              refetch();
+              queryClient.invalidateQueries({ queryKey: ["alters"] });
+            }}
+          />
+        </div>
 
         {/* Diary Template */}
         <DiaryTemplateManager settings={settings} />
