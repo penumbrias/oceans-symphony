@@ -254,11 +254,7 @@ export default function DataBackupRestore() {
               onClick={() => setShowEmailInput(true)}
               className="w-full gap-2 justify-start"
             >
-              <Mail className="w-4 h-4" />
-              <div className="text-left">
-                <p className="font-medium">Email Backup</p>
-                <p className="text-xs text-muted-foreground font-normal">Send backup to your email</p>
-              </div>
+              
             </Button>
           ) : (
             <div className="space-y-2 rounded-xl border border-border/50 p-3">
