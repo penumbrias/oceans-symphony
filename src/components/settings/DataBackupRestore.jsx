@@ -21,10 +21,23 @@ const ENTITY_NAMES = [
 
 async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
+
+  // Try sharing as text first (best WebView support)
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "Symphony Backup",
+        text: json,
+      });
+      return;
+    } catch (e) {
+      if (e.name === "AbortError") return;
+    }
+  }
+
+  // Try file share (desktop/some mobile)
   const blob = new Blob([json], { type: "application/json" });
   const file = new File([blob], filename, { type: "application/json" });
-
-  // Try Web Share API first
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: "Symphony Backup" });
@@ -34,21 +47,12 @@ async function downloadJson(data, filename) {
     }
   }
 
-  // Try opening in new tab (works in some WebViews)
-  try {
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-    return;
-  } catch (e) {}
-
-  // Final fallback — regular download
+  // Desktop fallback
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
-  document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
