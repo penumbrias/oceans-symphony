@@ -24,24 +24,21 @@ async function downloadJson(data, filename) {
   const blob = new Blob([json], { type: "application/json" });
   const file = new File([blob], filename, { type: "application/json" });
 
-  // Try Web Share API first (works in APK/mobile)
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: "Symphony Backup" });
-      return true;
+      return;
     } catch (e) {
-      if (e.name === "AbortError") return true;
+      if (e.name === "AbortError") return;
     }
   }
 
-  // Fallback for desktop browsers
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-  return true;
 }
 
 async function sendBackupEmail(toEmail, data, date) {
