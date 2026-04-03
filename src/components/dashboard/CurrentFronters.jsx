@@ -47,7 +47,7 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onClick={handleClick}
-      className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-3 py-2.5 hover:border-border transition-all min-w-0 cursor-pointer"
+      className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2. hover:border-border transition-all min-w-0 cursor-pointer"
     >
       <div className="relative flex-shrink-0">
         <div
