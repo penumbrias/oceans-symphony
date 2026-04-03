@@ -59,40 +59,7 @@ async function downloadJson(data, filename) {
   URL.revokeObjectURL(url);
 }
 
-async function sendBackupEmail(toEmail, data, date) {
-  if (!window.emailjs) {
-    await new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  }
-  
-  // Init every time to be safe
-  window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
-  const json = JSON.stringify(data, null, 2);
-  const maxChars = 40000;
-  const truncated = json.length > maxChars
-    ? json.slice(0, maxChars) + "\n\n... [TRUNCATED]"
-    : json;
-
-  const result = await window.emailjs.send(
-    EMAILJS_SERVICE_ID,
-    EMAILJS_TEMPLATE_ID,
-    {
-      email: toEmail,
-      backup_data: truncated,
-      date: date,
-    }
-  );
-  
-  if (result.status !== 200) {
-    throw new Error(`EmailJS returned status ${result.status}: ${result.text}`);
-  }
-}
 
 export default function DataBackupRestore() {
   const fileInputRef = useRef(null);
