@@ -1,18 +1,23 @@
 import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Mail } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { getFullDbDump, loadDbDump } from "@/lib/localDb";
 
-const ENTITY_NAMES = [
-"Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
-"DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
-"Symptom", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
-"Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
-"MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate"];
+const EMAILJS_SERVICE_ID = "service_j1nb40i";
+const EMAILJS_TEMPLATE_ID = "template_63zdij6";
+const EMAILJS_PUBLIC_KEY = "WFh9c50YLCtFt1Rly";
 
+const ENTITY_NAMES = [
+  "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
+  "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
+  "Symptom", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
+  "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
+  "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
+];
 
 async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
@@ -22,14 +27,10 @@ async function downloadJson(data, filename) {
   // Try Web Share API first (works in APK/mobile)
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({
-        files: [file],
-        title: "Symphony Backup",
-      });
-      return;
+      await navigator.share({ files: [file], title: "Symphony Backup" });
+      return true;
     } catch (e) {
-      // User cancelled or share failed, fall through to download
-      if (e.name === "AbortError") return;
+      if (e.name === "AbortError") return true;
     }
   }
 
@@ -40,50 +41,101 @@ async function downloadJson(data, filename) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+  return true;
+}
+
+async function sendBackupEmail(toEmail, data, date) {
+  // Load EmailJS dynamically
+  const emailjs = await import("https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js");
+  
+  const json = JSON.stringify(data, null, 2);
+  // EmailJS has a size limit so we chunk if needed
+  const maxChars = 40000;
+  const truncated = json.length > maxChars
+    ? json.slice(0, maxChars) + "\n\n... [TRUNCATED - data too large for email, use download instead]"
+    : json;
+
+  await emailjs.default.send(
+    EMAILJS_SERVICE_ID,
+    EMAILJS_TEMPLATE_ID,
+    {
+      to_email: toEmail,
+      backup_data: truncated,
+      date: date,
+    },
+    EMAILJS_PUBLIC_KEY
+  );
 }
 
 export default function DataBackupRestore() {
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [emailLoading, setEmailLoading] = useState(false);
   const [status, setStatus] = useState(null);
-  const [importMode, setImportMode] = useState('add');
+  const [importMode, setImportMode] = useState("add");
+  const [email, setEmail] = useState("");
+  const [showEmailInput, setShowEmailInput] = useState(false);
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
-    setTimeout(() => setStatus(null), 4000);
+    setTimeout(() => setStatus(null), 5000);
+  };
+
+  const buildExportData = async () => {
+    let dump;
+    if (isLocalMode()) {
+      dump = getFullDbDump();
+    } else {
+      dump = {};
+      for (const name of ENTITY_NAMES) {
+        try { dump[name] = await base44.entities[name].list(); } catch {}
+      }
+      for (const name of ENTITY_NAMES) {
+        if (Array.isArray(dump[name])) {
+          dump[name] = Object.fromEntries(dump[name].map((r) => [r.id, r]));
+        }
+      }
+    }
+    return {
+      __format: "symphony_backup",
+      __version: 1,
+      __exported_at: new Date().toISOString(),
+      data: dump,
+    };
   };
 
   const handleExportFull = async () => {
     setExportLoading(true);
     try {
-      let dump;
-      if (isLocalMode()) {
-        dump = getFullDbDump();
-      } else {
-        dump = {};
-        for (const name of ENTITY_NAMES) {
-          try {dump[name] = await base44.entities[name].list();} catch {}
-        }
-        for (const name of ENTITY_NAMES) {
-          if (Array.isArray(dump[name])) {
-            dump[name] = Object.fromEntries(dump[name].map((r) => [r.id, r]));
-          }
-        }
-      }
-      const exportData = {
-        __format: "symphony_backup",
-        __version: 1,
-        __exported_at: new Date().toISOString(),
-        data: dump
-      };
+      const exportData = await buildExportData();
       const date = new Date().toISOString().slice(0, 10);
-      downloadJson(exportData, `symphony-backup-${date}.json`);
-      showStatus("success", "Full backup exported successfully.");
+      await downloadJson(exportData, `symphony-backup-${date}.json`);
+      showStatus("success", "Backup exported successfully!");
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
     } finally {
       setExportLoading(false);
+    }
+  };
+
+  const handleEmailBackup = async () => {
+    if (!email.trim() || !email.includes("@")) {
+      showStatus("error", "Please enter a valid email address.");
+      return;
+    }
+    setEmailLoading(true);
+    try {
+      const exportData = await buildExportData();
+      const date = new Date().toISOString().slice(0, 10);
+      await sendBackupEmail(email.trim(), exportData, date);
+      showStatus("success", `Backup sent to ${email}!`);
+      setShowEmailInput(false);
+      setEmail("");
+    } catch (e) {
+      showStatus("error", `Email failed: ${e.message}`);
+    } finally {
+      setEmailLoading(false);
     }
   };
 
@@ -101,8 +153,7 @@ export default function DataBackupRestore() {
           showStatus("success", "Data restored! The app will reload.");
           setTimeout(() => window.location.reload(), 1200);
         } else {
-          // Cloud mode
-          if (importMode === 'replace') {
+          if (importMode === "replace") {
             for (const entityName of ENTITY_NAMES) {
               try {
                 let hasMore = true;
@@ -126,15 +177,15 @@ export default function DataBackupRestore() {
             const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap || {});
             for (const record of records) {
               const { id, ...data } = record;
-              try {await base44.entities[entityName].create(data);count++;} catch {}
+              try { await base44.entities[entityName].create(data); count++; } catch {}
             }
           }
-          showStatus("success", `${importMode === 'replace' ? 'Replaced' : 'Imported'} ${count} records.`);
+          showStatus("success", `${importMode === "replace" ? "Replaced" : "Imported"} ${count} records.`);
         }
         return;
       }
 
-      showStatus("error", "Unknown file format. Expected Symphony backup or Simply Plural export.");
+      showStatus("error", "Unknown file format. Expected Symphony backup.");
     } catch (e) {
       showStatus("error", `Import failed: ${e.message}`);
     } finally {
@@ -157,69 +208,128 @@ export default function DataBackupRestore() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {status &&
-        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${status.type === 'success' ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400' : 'bg-destructive/5 text-destructive'}`}>
-            {status.type === 'success' ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+        {status && (
+          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${
+            status.type === "success"
+              ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400"
+              : "bg-destructive/5 text-destructive"
+          }`}>
+            {status.type === "success"
+              ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
             {status.message}
           </div>
-        }
+        )}
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
-          <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="bg-background px-4 py-2 text-sm font-medium rounded-md inline-flex items-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-full gap-2 justify-start">
+
+          {/* Download button */}
+          <Button
+            variant="outline"
+            onClick={handleExportFull}
+            disabled={exportLoading}
+            className="w-full gap-2 justify-start"
+          >
             {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <div className="text-left">
-              <p className="font-medium">Full Symphony Backup</p>
-              <p className="text-xs text-muted-foreground font-normal">All data as JSON — can be re-imported into Symphony</p>
+              <p className="font-medium">Download Backup</p>
+              <p className="text-xs text-muted-foreground font-normal">Save as JSON file</p>
             </div>
           </Button>
+
+          {/* Email button */}
+          {!showEmailInput ? (
+            <Button
+              variant="outline"
+              onClick={() => setShowEmailInput(true)}
+              className="w-full gap-2 justify-start"
+            >
+              <Mail className="w-4 h-4" />
+              <div className="text-left">
+                <p className="font-medium">Email Backup</p>
+                <p className="text-xs text-muted-foreground font-normal">Send backup to your email</p>
+              </div>
+            </Button>
+          ) : (
+            <div className="space-y-2 rounded-xl border border-border/50 p-3">
+              <p className="text-sm font-medium">Send backup to email</p>
+              <Input
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setShowEmailInput(false); setEmail(""); }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleEmailBackup}
+                  disabled={emailLoading || !email.trim()}
+                  className="flex-1"
+                >
+                  {emailLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                  {emailLoading ? "Sending..." : "Send"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 pt-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Import</p>
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <label className="flex items-center gap-2 flex-1 cursor-pointer">
-                <input
-                  type="radio"
-                  name="importMode"
-                  value="add"
-                  checked={importMode === 'add'}
-                  onChange={(e) => setImportMode(e.target.value)}
-                  className="w-4 h-4" />
-                
-                <span className="text-xs font-medium">Add New</span>
-              </label>
-              <label className="flex items-center gap-2 flex-1 cursor-pointer">
-                <input
-                  type="radio"
-                  name="importMode"
-                  value="replace"
-                  checked={importMode === 'replace'}
-                  onChange={(e) => setImportMode(e.target.value)}
-                  className="w-4 h-4" />
-                
-                <span className="text-xs font-medium">Replace All</span>
-              </label>
-            </div>
+          <div className="flex gap-2">
+            <label className="flex items-center gap-2 flex-1 cursor-pointer">
+              <input
+                type="radio"
+                name="importMode"
+                value="add"
+                checked={importMode === "add"}
+                onChange={(e) => setImportMode(e.target.value)}
+                className="w-4 h-4"
+              />
+              <span className="text-xs font-medium">Add New</span>
+            </label>
+            <label className="flex items-center gap-2 flex-1 cursor-pointer">
+              <input
+                type="radio"
+                name="importMode"
+                value="replace"
+                checked={importMode === "replace"}
+                onChange={(e) => setImportMode(e.target.value)}
+                className="w-4 h-4"
+              />
+              <span className="text-xs font-medium">Replace All</span>
+            </label>
           </div>
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
           <Button
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={importLoading}
-            className="w-full gap-2 justify-start">
-            
+            className="w-full gap-2 justify-start"
+          >
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Import from File</p>
               <p className="text-xs text-muted-foreground font-normal">Symphony backup JSON</p>
             </div>
           </Button>
-          <p className="text-xs text-muted-foreground">{importMode === 'replace' ? '⚠️ Replace All will delete existing data and import from backup.' : '⚠️ Add New imports records — it does not replace existing data.'}</p>
-          <p className="text-xs text-muted-foreground">{importMode === 'replace' ? '⚠️ importing backup data to another account in the cloud is glitching. Data is being backed up/exported properly, and fully imports into local' : '⚠️ importing backup data to another account in the cloud is glitching. Data is being backed up/exported properly, and fully imports into local'}</p>
+          <p className="text-xs text-muted-foreground">
+            {importMode === "replace"
+              ? "⚠️ Replace All will delete existing data and import from backup."
+              : "⚠️ Add New imports records — it does not replace existing data."}
+          </p>
         </div>
       </CardContent>
-    </Card>);
-
+    </Card>
+  );
 }
