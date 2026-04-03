@@ -33,7 +33,7 @@ async function downloadJson(data, filename) {
     } catch (e) {
       if (e.name === "AbortError") return;
     }
-  }
+  } 
 
   // Try file share (desktop/some mobile)
   const blob = new Blob([json], { type: "application/json" });
