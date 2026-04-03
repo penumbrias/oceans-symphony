@@ -247,47 +247,6 @@ export default function DataBackupRestore() {
               <p className="text-xs text-muted-foreground font-normal">Save as JSON file</p>
             </div>
           </Button>
-
-          {/* Email button */}
-          {!showEmailInput ? (
-            <Button
-              variant="outline"
-              onClick={() => setShowEmailInput(false)}
-              className="w-full gap-2 justify-start"
-            >
-              
-            </Button>
-          ) : (
-            <div className="space-y-2 rounded-xl border border-border/50 p-3">
-              <p className="text-sm font-medium">Send backup to email</p>
-              <Input
-                type="email"
-                placeholder="your@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-8 text-sm"
-              />
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => { setShowEmailInput(false); setEmail(""); }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleEmailBackup}
-                  disabled={emailLoading || !email.trim()}
-                  className="flex-1"
-                >
-                  {emailLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                  {emailLoading ? "Sending..." : "Send"}
-                </Button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="space-y-2 pt-1">
