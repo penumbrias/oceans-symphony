@@ -77,8 +77,8 @@ const handleNotifClick = (mentionLog) => {
         <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Symphony home">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <img src="/oceans-symphony-logo.png" className="w-7 h-7 object-contain rounded-full" alt="logo" />
-            </div>
+                <img src="https://i.imgur.com/P79YnqQ.png" className="w-7 h-7 object-contain rounded-full" alt="logo" />            
+                </div>
             <span className="font-display text-lg font-semibold tracking-tight text-foreground">Symphony</span>
           </Link>
 
