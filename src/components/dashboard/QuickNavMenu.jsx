@@ -124,7 +124,7 @@ export default function QuickNavMenu() {
             const Icon = item.icon;
             return (
               <Link key={item.path} to={item.path}>
-                    <div className="flex flex-col items-center gap-2 p-3 rounded-2xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer group">
+                    <div className="bg-card px-3 py-1 rounded-2xl flex flex-col items-center gap-2 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
                         <Icon className="w-5 h-5" />
                       </div>
