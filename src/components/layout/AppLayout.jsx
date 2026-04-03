@@ -132,7 +132,7 @@ const handleNotifClick = (mentionLog) => {
 
         <Link to="/" className="flex items-center gap-2 select-none min-h-[44px] px-2" aria-label="Symphony home">
             <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <img src="https://i.imgur.com/P79YnqQ.png" className="w-7 h-7 object-contain rounded-full" alt="logo" />
             </div>
             <span className="font-display text-base font-semibold text-foreground">Symphony</span>
           </Link>
