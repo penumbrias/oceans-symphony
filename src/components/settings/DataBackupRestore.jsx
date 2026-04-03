@@ -14,11 +14,31 @@ const ENTITY_NAMES = [
 "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate"];
 
 
-function downloadJson(data, filename) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+async function downloadJson(data, filename) {
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const file = new File([blob], filename, { type: "application/json" });
+
+  // Try Web Share API first (works in APK/mobile)
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: "Symphony Backup",
+      });
+      return;
+    } catch (e) {
+      // User cancelled or share failed, fall through to download
+      if (e.name === "AbortError") return;
+    }
+  }
+
+  // Fallback for desktop browsers
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;a.download = filename;a.click();
+  a.href = url;
+  a.download = filename;
+  a.click();
   URL.revokeObjectURL(url);
 }
 
