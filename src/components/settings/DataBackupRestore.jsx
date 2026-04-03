@@ -251,7 +251,7 @@ export default function DataBackupRestore() {
           {!showEmailInput ? (
             <Button
               variant="outline"
-              onClick={() => setShowEmailInput(true)}
+              onClick={() => setShowEmailInput(false)}
               className="w-full gap-2 justify-start"
             >
               
