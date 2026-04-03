@@ -45,25 +45,32 @@ async function downloadJson(data, filename) {
 }
 
 async function sendBackupEmail(toEmail, data, date) {
-  // Load EmailJS dynamically
-  const emailjs = await import("https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js");
-  
+  // Load EmailJS via script tag if not already loaded
+  if (!window.emailjs) {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    window.emailjs.init(EMAILJS_PUBLIC_KEY);
+  }
+
   const json = JSON.stringify(data, null, 2);
-  // EmailJS has a size limit so we chunk if needed
   const maxChars = 40000;
   const truncated = json.length > maxChars
-    ? json.slice(0, maxChars) + "\n\n... [TRUNCATED - data too large for email, use download instead]"
+    ? json.slice(0, maxChars) + "\n\n... [TRUNCATED - too large for email, use download instead]"
     : json;
 
-  await emailjs.default.send(
+  await window.emailjs.send(
     EMAILJS_SERVICE_ID,
     EMAILJS_TEMPLATE_ID,
     {
-      to_email: toEmail,
+      email: toEmail,
       backup_data: truncated,
       date: date,
-    },
-    EMAILJS_PUBLIC_KEY
+    }
   );
 }
 
