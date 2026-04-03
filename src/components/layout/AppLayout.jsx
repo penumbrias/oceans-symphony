@@ -118,7 +118,8 @@ const handleNotifClick = (mentionLog) => {
       </header>
 
       {/* ── Mobile top bar (shown only on mobile) ── */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex items-center justify-between px-2 h-14">
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex items-center justify-between px-2 h-14"
+  style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
         {/* Left: back button or logo */}
         {canGoBack ?
         <button
