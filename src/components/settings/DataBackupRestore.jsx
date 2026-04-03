@@ -21,22 +21,25 @@ const ENTITY_NAMES = [
 
 async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
 
-  // Try sharing as text first (best WebView support)
-  if (navigator.share) {
+  // Try File System Access API (Android Chrome/WebView)
+  if (window.showSaveFilePicker) {
     try {
-      await navigator.share({
-        title: "Symphony Backup",
-        text: json,
+      const fileHandle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
       });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
       return;
     } catch (e) {
       if (e.name === "AbortError") return;
     }
-  } 
+  }
 
-  // Try file share (desktop/some mobile)
-  const blob = new Blob([json], { type: "application/json" });
+  // Try file share
   const file = new File([blob], filename, { type: "application/json" });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
