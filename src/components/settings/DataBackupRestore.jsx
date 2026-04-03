@@ -23,7 +23,7 @@ async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: "application/json" });
 
-  // Try File System Access API (Android Chrome/WebView)
+  // Try File System Access API
   if (window.showSaveFilePicker) {
     try {
       const fileHandle = await window.showSaveFilePicker({
@@ -39,7 +39,23 @@ async function downloadJson(data, filename) {
     }
   }
 
-  // Try file share
+  // Try data URI download (works in some WebViews)
+  try {
+    const reader = new FileReader();
+    reader.onload = function() {
+      const a = document.createElement("a");
+      a.href = reader.result;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => document.body.removeChild(a), 100);
+    };
+    reader.readAsDataURL(blob);
+    return;
+  } catch (e) {}
+
+  // File share fallback
   const file = new File([blob], filename, { type: "application/json" });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
