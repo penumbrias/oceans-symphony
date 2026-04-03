@@ -24,6 +24,7 @@ async function downloadJson(data, filename) {
   const blob = new Blob([json], { type: "application/json" });
   const file = new File([blob], filename, { type: "application/json" });
 
+  // Try Web Share API first
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: "Symphony Backup" });
@@ -33,11 +34,21 @@ async function downloadJson(data, filename) {
     }
   }
 
+  // Try opening in new tab (works in some WebViews)
+  try {
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    return;
+  } catch (e) {}
+
+  // Final fallback — regular download
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
