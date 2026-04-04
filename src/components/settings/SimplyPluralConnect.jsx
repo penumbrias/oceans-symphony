@@ -11,8 +11,8 @@ import {
   getMembers,
   getGroups,
   mapMemberToAlter,
-  mapGroupToLocalGroup,
-} from "@/lib/simplyPlural";
+  mapGroupToLocalGroup } from
+"@/lib/simplyPlural";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { isLocalMode } from "@/lib/storageMode";
@@ -43,7 +43,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         sp_token: token.trim(),
         sp_system_id: systemId,
         system_name: systemName,
-        system_description: systemDescription,
+        system_description: systemDescription
       };
 
       if (effectiveSettings?.id) {
@@ -176,7 +176,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           if (!localGroupId) continue;
 
           // Only set parent if there's a valid SP parent that we also imported
-          const localParentId = spParentId ? (groupIdBySpId[spParentId] || "") : "";
+          const localParentId = spParentId ? groupIdBySpId[spParentId] || "" : "";
           if (localParentId !== undefined) {
             await localEntities.Group.update(localGroupId, { parent: localParentId });
           }
@@ -185,7 +185,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         // --- Step 5: Update last_sync ---
         if (effectiveSettings?.id) {
           await localEntities.SystemSettings.update(effectiveSettings.id, {
-            last_sync: new Date().toISOString(),
+            last_sync: new Date().toISOString()
           });
         }
 
@@ -201,10 +201,10 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         const res = await base44.functions.invoke("importFromSimplyPlural", {
           sp_token: effectiveSettings.sp_token,
           sp_system_id: effectiveSettings.sp_system_id,
-          mode: importMode,
+          mode: importMode
         });
         await base44.entities.SystemSettings.update(effectiveSettings.id, {
-          last_sync: new Date().toISOString(),
+          last_sync: new Date().toISOString()
         });
         onSettingsChange();
         queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -226,7 +226,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       if (effectiveSettings?.id) {
         await base44.entities.SystemSettings.update(effectiveSettings.id, {
           sp_token: "",
-          sp_system_id: "",
+          sp_system_id: ""
         });
       }
       onSettingsChange();
@@ -252,29 +252,29 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         </div>
       </CardHeader>
       <CardContent>
-        {isConnected ? (
-          <div className="space-y-6">
+        {isConnected ?
+        <div className="space-y-6">
             <div>
               <div className="flex items-center gap-2 text-sm flex-wrap mb-4">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
                 <span className="text-foreground font-medium">Connected</span>
-                {effectiveSettings.system_name && (
-                  <span className="text-muted-foreground">· {effectiveSettings.system_name}</span>
-                )}
+                {effectiveSettings.system_name &&
+              <span className="text-muted-foreground">· {effectiveSettings.system_name}</span>
+              }
                 <span className="text-muted-foreground/60 text-xs font-mono">
                   {effectiveSettings.sp_system_id?.slice(0, 8)}...
                 </span>
               </div>
-              {effectiveSettings.last_sync && (
-                <p className="text-xs text-muted-foreground">
+              {effectiveSettings.last_sync &&
+            <p className="text-xs text-muted-foreground">
                   Last synced: {new Date(effectiveSettings.last_sync).toLocaleString()}
                 </p>
-              )}
-              {localMode && (
-                <p className="text-xs text-amber-500 mt-1">
+            }
+              {localMode &&
+            <p className="text-xs text-amber-500 mt-1">
                   🔒 Token stored locally on this device only
                 </p>
-              )}
+            }
             </div>
 
             <div className="border-t pt-4">
@@ -282,42 +282,42 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                 <ArrowDownLeft className="w-4 h-4 text-blue-500" />
                 <h4 className="font-medium text-sm">Import from Simply Plural</h4>
               </div>
-              {localMode && (
-                <p className="text-xs text-muted-foreground mb-3">
+              {localMode &&
+            <p className="text-xs text-muted-foreground mb-3">
                   Imports alters and groups directly from Simply Plural.
                 </p>
-              )}
+            }
               <div className="space-y-3">
                 <div>
                   <Label htmlFor="import-mode" className="text-xs">Import Mode</Label>
                   <select
-                    id="import-mode"
-                    value={importMode}
-                    onChange={(e) => setImportMode(e.target.value)}
-                    className="w-full text-sm border rounded-md px-2 py-2 bg-card mt-1"
-                  >
+                  id="import-mode"
+                  value={importMode}
+                  onChange={(e) => setImportMode(e.target.value)}
+                  className="w-full text-sm border rounded-md px-2 py-2 bg-card mt-1">
+                  
                     <option value="standard">Standard (Update & Add New)</option>
                     <option value="new_only">New Only</option>
                     <option value="replace_all">Replace All (⚠️ Destructive)</option>
                   </select>
                 </div>
-                {importProgress && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {importProgress &&
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     {importProgress}
                   </div>
-                )}
+              }
                 <Button
-                  onClick={handleImport}
-                  disabled={syncing}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 w-full"
-                >
-                  {syncing ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <ArrowDownLeft className="w-4 h-4 mr-2" />
-                  )}
+                onClick={handleImport}
+                disabled={syncing}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 w-full">
+                
+                  {syncing ?
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> :
+
+                <ArrowDownLeft className="w-4 h-4 mr-2" />
+                }
                   {syncing ? "Importing..." : "Import Now"}
                 </Button>
               </div>
@@ -325,18 +325,18 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
             <div className="border-t pt-4">
               <Button
-                onClick={handleDisconnect}
-                variant="outline"
-                size="sm"
-                className="text-destructive hover:text-destructive w-full"
-              >
+              onClick={handleDisconnect}
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive w-full">
+              
                 <Unlink className="w-4 h-4 mr-2" />
                 Disconnect
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
+          </div> :
+
+        <div className="space-y-4">
             <div>
               <Label htmlFor="sp-token" className="text-sm font-medium">
                 API Token
@@ -344,35 +344,35 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               <p className="text-xs text-muted-foreground mt-1 mb-2">
                 Find your token in Simply Plural → Settings → Tokens
               </p>
-              {localMode && (
-                <p className="text-xs text-amber-500 mb-2">
+              {localMode &&
+            <p className="text-xs text-amber-500 mb-2">
                   🔒 In local mode, your token is stored only on this device
                 </p>
-              )}
+            }
               <Input
-                id="sp-token"
-                type="password"
-                placeholder="Paste your Simply Plural token..."
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                className="bg-card/50"
-              />
+              id="sp-token"
+              type="password"
+              placeholder="Paste your Simply Plural token..."
+              value={token}
+              onChange={(e) => setToken(e.target.value)} className="bg-transparent text-foreground px-3 py-1 text-base rounded-md flex h-9 w-full border border-input shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm" />
+
+            
             </div>
             <Button
-              onClick={handleConnect}
-              disabled={connecting || !token.trim()}
-              className="bg-primary hover:bg-primary/90"
-            >
-              {connecting ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Link2 className="w-4 h-4 mr-2" />
-              )}
+            onClick={handleConnect}
+            disabled={connecting || !token.trim()}
+            className="bg-primary hover:bg-primary/90">
+            
+              {connecting ?
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" /> :
+
+            <Link2 className="w-4 h-4 mr-2" />
+            }
               {connecting ? "Connecting..." : "Connect"}
             </Button>
           </div>
-        )}
+        }
       </CardContent>
-    </Card>
-  );
+    </Card>);
+
 }
