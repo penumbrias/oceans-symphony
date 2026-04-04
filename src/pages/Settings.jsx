@@ -35,12 +35,12 @@ export default function Settings() {
   const handleDeleteAccount = async () => {
     if (deleteInput.trim().toLowerCase() !== "delete my account") return;
     const entities = [
-    "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
-    "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
-    "Symptom", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
-    "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
-    "MentionLog", "ActivityGoal", "Group"];
-
+      "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
+      "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
+      "Symptom", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
+      "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
+      "MentionLog", "ActivityGoal", "Group",
+    ];
     for (const name of entities) {
       try {
         const records = await base44.entities[name].list();
@@ -54,7 +54,7 @@ export default function Settings() {
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list()
+    queryFn: () => base44.entities.SystemSettings.list(),
   });
 
   const settings = settingsList[0] || null;
@@ -84,24 +84,18 @@ export default function Settings() {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      </div>);
-
+      </div>
+    );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}>
-      
-      <h1 className="font-display text-3xl font-semibold text-foreground mb-2">
-        Settings
-      </h1>
-      <p className="text-muted-foreground mb-8">
-        Customize {terms.system} and manage your account
-      </p>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+      <h1 className="font-display text-3xl font-semibold text-foreground mb-2">Settings</h1>
+      <p className="text-muted-foreground mb-8">Customize {terms.system} and manage your account</p>
 
       <div className="space-y-6 max-w-2xl">
-      {/* Privacy & Security Notice */}
+
+        {/* Privacy & Security Notice */}
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -115,14 +109,49 @@ export default function Settings() {
             </div>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Oceans Symphony is built on the Base44 platform. Your data is stored on Base44's servers with row-level security — meaning other users cannot access your data.
 
-</p><p><strong>Please use local mode!!! It does not save your data on the servers!!! </strong></p>
-            <p><strong className="text-foreground">Cloud data is currently stored without end-to-end encryption. Meaning I, as developer, technically could access it. I am commited to never doing so.</strong> Please be mindful of what you enter if this concerns you, or simply <strong className="text-foreground">use local storage mode which completely negates this.</strong></p>
-            <p className="text-amber-600 dark:text-amber-400 font-medium">🔒 I plan to transition this app to being fully offline and local - please avoid using cloud save because it is not secure, although no other user can access your data, and data cannot be accessed without being logged in. All local data is cleared when you clear your browser history, so make frequent backups.</p>
-            <p>This app is free and shared in good faith with the community by a DID system. I made it to fill a void and my personal needs, and see no reason to gatekeep it. This app was "vibe-coded". There's plenty of great apps out there - if you are a developer please feel free to copy this apps features.</p>
+            <div className="space-y-1">
+              <p className="font-semibold text-foreground">☁️ Cloud Mode</p>
+              <p>
+                Oceans Symphony is built on the Base44 platform. Your data is stored on Base44's servers
+                with row-level security — no other user can access your data, and data cannot be accessed
+                without being logged into your account. However, cloud data is{" "}
+                <strong className="text-foreground">not end-to-end encrypted</strong>, meaning I as the
+                developer technically have server access. I am committed to never accessing your data, but
+                please be mindful of what you enter if this concerns you.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="font-semibold text-foreground">🔒 Local Mode (Recommended)</p>
+              <p>
+                Local mode stores all data exclusively on your device. When encryption is enabled, your
+                data is protected with <strong className="text-foreground">AES-256-GCM encryption</strong> —
+                the same standard used by banks and governments. Your password never leaves your device.
+                Even I cannot access your encrypted local data. This is the recommended mode for sensitive
+                information.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="font-semibold text-foreground">💾 Backups</p>
+              <p>
+                Use Settings → Backup & Export to save your data as a JSON file. Keep backups somewhere
+                safe — local data is tied to this device and will be lost if you clear app data or
+                uninstall without a backup.
+              </p>
+            </div>
+
+            <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
+              🌊 Oceans Symphony is free and shared in good faith with the plural community by a DID system.
+              It was built to fill a void and has no intention of being gatekept. If you're a developer,
+              feel free to learn from or build on it. This app is a work in progress — thank you for your
+              patience and trust. 💜
+            </p>
+
           </CardContent>
         </Card>
+
         {/* System Name */}
         <Card className="border-border/50">
           <CardHeader>
@@ -132,47 +161,34 @@ export default function Settings() {
               </div>
               <div>
                 <CardTitle className="text-lg">{terms.System} Info</CardTitle>
-                <CardDescription>
-                  Set your {terms.system} name and details
-                </CardDescription>
+                <CardDescription>Set your {terms.system} name and details</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="system-name" className="text-sm font-medium">
-                  {terms.System} Name
-                </Label>
-                <Input id="system-name" placeholder={`Enter your ${terms.system} name...`}
+                <Label htmlFor="system-name" className="text-sm font-medium">{terms.System} Name</Label>
+                <Input
+                  id="system-name"
+                  placeholder={`Enter your ${terms.system} name...`}
                   value={systemName}
                   onChange={(e) => setSystemName(e.target.value)}
-                  className="mt-2" />
-                
+                  className="mt-2"
+                />
               </div>
               <div>
-                <Label htmlFor="system-description" className="text-sm font-medium">
-                  {terms.System} Description
-                </Label>
+                <Label htmlFor="system-description" className="text-sm font-medium">{terms.System} Description</Label>
                 <Textarea
                   id="system-description"
                   placeholder={`Describe your ${terms.system}...`}
                   value={systemDescription}
                   onChange={(e) => setSystemDescription(e.target.value)}
-                  className="mt-2 min-h-[100px]" />
-                
+                  className="mt-2 min-h-[100px]"
+                />
               </div>
-              <Button
-                onClick={handleSaveName}
-                disabled={saving}
-                size="sm"
-                className="bg-primary hover:bg-primary/90">
-                
-                {saving ?
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> :
-
-                <Save className="w-4 h-4 mr-2" />
-                }
+              <Button onClick={handleSaveName} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
+                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 Save
               </Button>
             </div>
@@ -185,9 +201,9 @@ export default function Settings() {
         {/* Terminology */}
         <TermsSettings />
 
-        {/* Account */}
-        {!isLocalMode() &&
-        <Card className="border-border/50">
+        {/* Account (cloud only) */}
+        {!isLocalMode() && (
+          <Card className="border-border/50">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
@@ -203,33 +219,49 @@ export default function Settings() {
               <Button onClick={handleSignOut} variant="outline" className="w-full gap-2">
                 <LogOut className="w-4 h-4" /> Sign Out
               </Button>
-              {!showDeleteConfirm && !deleted &&
-            <Button onClick={() => setShowDeleteConfirm(true)} variant="ghost" className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
+              {!showDeleteConfirm && !deleted && (
+                <Button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  variant="ghost"
+                  className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
+                >
                   <Trash2 className="w-4 h-4" /> Delete My Account
                 </Button>
-            }
-              {showDeleteConfirm && !deleted &&
-            <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+              )}
+              {showDeleteConfirm && !deleted && (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
                   <p className="text-sm font-semibold text-destructive">⚠️ This is permanent</p>
                   <p className="text-xs text-muted-foreground">All your system data will be permanently deleted. This cannot be undone.</p>
                   <p className="text-xs font-medium">Type <span className="font-mono bg-muted px-1 rounded">delete my account</span> to confirm:</p>
-                  <Input value={deleteInput} onChange={(e) => setDeleteInput(e.target.value)} placeholder="delete my account" className="h-8 text-sm border-destructive/40" />
+                  <Input
+                    value={deleteInput}
+                    onChange={(e) => setDeleteInput(e.target.value)}
+                    placeholder="delete my account"
+                    className="h-8 text-sm border-destructive/40"
+                  />
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => {setShowDeleteConfirm(false);setDeleteInput("");}} className="flex-1">Cancel</Button>
-                    <Button size="sm" onClick={handleDeleteAccount} disabled={deleteInput.trim().toLowerCase() !== "delete my account"} className="flex-1 bg-destructive hover:bg-destructive/90 text-white">Delete Everything</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }} className="flex-1">Cancel</Button>
+                    <Button
+                      size="sm"
+                      onClick={handleDeleteAccount}
+                      disabled={deleteInput.trim().toLowerCase() !== "delete my account"}
+                      className="flex-1 bg-destructive hover:bg-destructive/90 text-white"
+                    >
+                      Delete Everything
+                    </Button>
                   </div>
                 </div>
-            }
-              {deleted &&
-            <div className="rounded-xl border border-green-500/40 bg-green-500/5 p-4 text-center space-y-2">
+              )}
+              {deleted && (
+                <div className="rounded-xl border border-green-500/40 bg-green-500/5 p-4 text-center space-y-2">
                   <p className="text-sm font-semibold text-green-600">✅ Account data deleted</p>
                   <p className="text-xs text-muted-foreground">All your data has been removed. You can close the app or sign out.</p>
                   <Button size="sm" onClick={handleSignOut} variant="outline" className="w-full">Sign Out Now</Button>
                 </div>
-            }
+              )}
             </CardContent>
           </Card>
-        }
+        )}
 
         {/* Data Management */}
         <div className="space-y-3">
@@ -239,20 +271,16 @@ export default function Settings() {
         </div>
 
         {/* Integrations */}
-        
         <div className="space-y-4">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
-            </div>
-            <SimplyPluralConnect
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
+          <SimplyPluralConnect
             settings={settings}
             onSettingsChange={() => {
               refetch();
               queryClient.invalidateQueries({ queryKey: ["alters"] });
-            }} />
-          
-          </div>
-        
+            }}
+          />
+        </div>
 
         {/* Diary Template */}
         <DiaryTemplateManager settings={settings} />
@@ -262,7 +290,8 @@ export default function Settings() {
 
         {/* Archived Alters */}
         <ArchivedAltersManager />
-      </div>
-    </motion.div>);
 
+      </div>
+    </motion.div>
+  );
 }
