@@ -20,6 +20,7 @@ import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import { isLocalMode } from "@/lib/storageMode";
+import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown } from "lucide-react";
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -27,6 +28,7 @@ export default function Settings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
   const [deleted, setDeleted] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
   const handleSignOut = () => {
     base44.auth.logout("/");
@@ -97,60 +99,61 @@ export default function Settings() {
 
         {/* Privacy & Security Notice */}
         <Card className="border-amber-500/30 bg-amber-500/5">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <span className="text-lg">🔐</span>
-              </div>
-              <div>
-                <CardTitle className="text-lg">Privacy & Data Notice</CardTitle>
-                <CardDescription>Please read before entering sensitive information</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-
-            <div className="space-y-1">
-              <p className="font-semibold text-foreground">☁️ Cloud Mode</p>
-              <p>
-                Oceans Symphony is built on the Base44 platform. Your data is stored on Base44's servers
-                with row-level security — no other user can access your data, and data cannot be accessed
-                without being logged into your account. However, cloud data is{" "}
-                <strong className="text-foreground">not end-to-end encrypted</strong>, meaning I as the
-                developer technically have server access. I am committed to never accessing your data, but
-                please be mindful of what you enter if this concerns you.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <p className="font-semibold text-foreground">🔒 Local Mode (Recommended)</p>
-              <p>
-                Local mode stores all data exclusively on your device. When encryption is enabled, your
-                data is protected with <strong className="text-foreground">AES-256-GCM encryption</strong> —
-                the same standard used by banks and governments. Your password never leaves your device.
-                Even I cannot access your encrypted local data. This is the recommended mode for sensitive
-                information.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <p className="font-semibold text-foreground">💾 Backups</p>
-              <p>
-                Use Settings → Backup & Export to save your data as a JSON file. Keep backups somewhere
-                safe — local data is tied to this device and will be lost if you clear app data or
-                uninstall without a backup.
-              </p>
-            </div>
-
-            <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
-              🌊 Oceans Symphony is free and shared in good faith with the plural community by a DID system.
-              It was built to fill a void and has no intention of being gatekept. If you're a developer,
-              feel free to learn from or build on it. This app is a work in progress — thank you for your
-              patience and trust. 💜
-            </p>
-
-          </CardContent>
-        </Card>
+  <CardHeader
+    className="cursor-pointer select-none"
+    onClick={() => setNoticeOpen(p => !p)}
+  >
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+        <span className="text-lg">🔐</span>
+      </div>
+      <div className="flex-1">
+        <CardTitle className="text-lg">Privacy & Data Notice</CardTitle>
+        <CardDescription>Please read before entering sensitive information</CardDescription>
+      </div>
+      <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${noticeOpen ? "rotate-180" : ""}`} />
+    </div>
+  </CardHeader>
+  {noticeOpen && (
+    <CardContent className="space-y-3 text-sm text-muted-foreground">
+      <div className="space-y-1">
+        <p className="font-semibold text-foreground">☁️ Cloud Mode</p>
+        <p>
+          Oceans Symphony is built on the Base44 platform. Your data is stored on Base44's servers
+          with row-level security — no other user can access your data, and data cannot be accessed
+          without being logged into your account. However, cloud data is{" "}
+          <strong className="text-foreground">not end-to-end encrypted</strong>, meaning I as the
+          developer technically have server access. I am committed to never accessing your data, but
+          please be mindful of what you enter if this concerns you.
+        </p>
+      </div>
+      <div className="space-y-1">
+        <p className="font-semibold text-foreground">🔒 Local Mode (Recommended)</p>
+        <p>
+          Local mode stores all data exclusively on your device. When encryption is enabled, your
+          data is protected with <strong className="text-foreground">AES-256-GCM encryption</strong> —
+          the same standard used by banks and governments. Your password never leaves your device.
+          Even I cannot access your encrypted local data. This is the recommended mode for sensitive
+          information.
+        </p>
+      </div>
+      <div className="space-y-1">
+        <p className="font-semibold text-foreground">💾 Backups</p>
+        <p>
+          Use Settings → Backup & Export to save your data as a JSON file. Keep backups somewhere
+          safe — local data is tied to this device and will be lost if you clear app data or
+          uninstall without a backup.
+        </p>
+      </div>
+      <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
+        🌊 Oceans Symphony is free and shared in good faith with the plural community by a DID system.
+        It was built to fill a void and has no intention of being gatekept. If you're a developer,
+        feel free to learn from or build on it. This app is a work in progress — thank you for your
+        patience and trust. 💜
+      </p>
+    </CardContent>
+  )}
+</Card>
 
         {/* System Name */}
         <Card className="border-border/50">
