@@ -2,7 +2,10 @@
 
 export async function generateSalt() {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  return btoa(String.fromCharCode(...salt));
+  // Fix: use loop instead of spread
+  let binary = "";
+  salt.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
 }
 
 export async function deriveKey(password, saltBase64) {
@@ -30,7 +33,10 @@ export async function encryptData(data, key) {
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(encrypted), iv.length);
-  return btoa(String.fromCharCode(...combined));
+  // Fix: use loop instead of spread
+  let binary = "";
+  combined.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
 }
 
 export async function decryptData(base64, key) {
