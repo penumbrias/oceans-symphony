@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare, Home, Settings, ChevronLeft } from "lucide-react";
+import { Users, Sparkles, BookOpen, CheckSquare, Home, Settings, ChevronLeft } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -85,11 +85,9 @@ export default function AppLayout() {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive =
-                item.path === "/"
-                  ? location.pathname === "/"
-                  : item.path === "/Home"
-                  ? location.pathname === "/Home" || location.pathname.startsWith("/alter")
-                  : location.pathname.startsWith(item.path);
+                item.path === "/" ? location.pathname === "/" :
+                item.path === "/Home" ? location.pathname === "/Home" || location.pathname.startsWith("/alter") :
+                location.pathname.startsWith(item.path);
               return (
                 <Link
                   key={item.path}
@@ -117,37 +115,45 @@ export default function AppLayout() {
       </header>
 
       {/* ── Mobile top bar (shown only on mobile) ── */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex items-center justify-between px-2 h-14">
-        {/* Left: back button or logo */}
-        {canGoBack ? (
-          <button
-            onClick={() => navigate(-1)}
-            aria-label="Go back"
-            className="flex items-center gap-1 text-primary min-w-[44px] min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Back</span>
-          </button>
-        ) : (
-          <Link to="/" className="flex items-center gap-2 select-none min-h-[44px] px-2" aria-label="Symphony home">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <img src="https://i.imgur.com/P79YnqQ.png" className="w-7 h-7 object-contain rounded-full" alt="logo" />
-            </div>
-            <span className="font-display text-base font-semibold text-foreground">Symphony</span>
-          </Link>
-        )}
-
-        {/* Right: settings icon */}
-        <Link
-          to="/settings"
-          aria-label="Settings"
-          className={cn(
-            "flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
-            location.pathname.startsWith("/settings") ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
+      <header
+        className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col justify-end px-2"
+        style={{
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          height: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+        }}
+      >
+        <div className="flex items-center justify-between w-full h-14">
+          {/* Left: back button or logo */}
+          {canGoBack ? (
+            <button
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              className="flex items-center gap-1 text-primary min-w-[44px] min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Back</span>
+            </button>
+          ) : (
+            <Link to="/" className="flex items-center gap-2 select-none min-h-[44px] px-2" aria-label="Symphony home">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                <img src="https://i.imgur.com/P79YnqQ.png" className="w-7 h-7 object-contain rounded-full" alt="logo" />
+              </div>
+              <span className="font-display text-base font-semibold text-foreground">Symphony</span>
+            </Link>
           )}
-        >
-          <Settings className="w-5 h-5" />
-        </Link>
+
+          {/* Right: settings icon */}
+          <Link
+            to="/settings"
+            aria-label="Settings"
+            className={cn(
+              "flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
+              location.pathname.startsWith("/settings") ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
+            )}
+          >
+            <Settings className="w-5 h-5" />
+          </Link>
+        </div>
       </header>
 
       {/* ── Page content ── */}
@@ -168,11 +174,9 @@ export default function AppLayout() {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
-              item.path === "/"
-                ? location.pathname === "/"
-                : item.path === "/Home"
-                ? location.pathname === "/Home" || location.pathname.startsWith("/alter")
-                : location.pathname.startsWith(item.path);
+              item.path === "/" ? location.pathname === "/" :
+              item.path === "/Home" ? location.pathname === "/Home" || location.pathname.startsWith("/alter") :
+              location.pathname.startsWith(item.path);
             return (
               <Link
                 key={item.path}
