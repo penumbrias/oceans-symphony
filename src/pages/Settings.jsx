@@ -146,10 +146,10 @@ export default function Settings() {
         </p>
       </div>
       <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
-        🌊 Oceans Symphony is free and shared in good faith with the plural community by a DID system.
+        🌊 Oceans Symphony is free and shared in good faith with the community by a DID system.
         It was built to fill a void and has no intention of being gatekept. If you're a developer,
         feel free to learn from or build on it. This app is a work in progress — thank you for your
-        patience and trust. 💜
+        patience and trust. 
       </p>
     </CardContent>
   )}
