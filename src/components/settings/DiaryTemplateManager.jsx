@@ -76,73 +76,7 @@ export default function DiaryTemplateManager({ settings }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {sections.map((section, idx) => (
-          <div key={section.id} className="rounded-xl border border-border/60 p-3 space-y-2 bg-card">
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col gap-0.5">
-                <button
-                  onClick={() => moveSection(section.id, -1)}
-                  disabled={idx === 0}
-                  className="p-0.5 hover:bg-muted rounded disabled:opacity-30"
-                >
-                  <ChevronUp className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => moveSection(section.id, 1)}
-                  disabled={idx === sections.length - 1}
-                  className="p-0.5 hover:bg-muted rounded disabled:opacity-30"
-                >
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <span className="text-lg">{section.emoji}</span>
-              <div className="flex-1 min-w-0">
-                <Input
-                  value={section.label}
-                  onChange={(e) => updateSection(section.id, { label: e.target.value })}
-                  className="h-7 text-sm font-medium"
-                />
-              </div>
-              <Switch
-                checked={section.enabled}
-                onCheckedChange={(v) => updateSection(section.id, { enabled: v })}
-              />
-            </div>
-            {section.fields && section.fields.length > 0 && (
-              <div className="ml-9 space-y-1.5 pt-1 border-t border-border/40">
-                {section.fields.map((field) => (
-                  <div key={field.id} className="flex items-center gap-2">
-                    <span className="text-sm flex-shrink-0">{field.emoji}</span>
-                    <Input
-                      value={field.label}
-                      onChange={(e) => {
-                        const updated = section.fields.map((f) =>
-                          f.id === field.id ? { ...f, label: e.target.value } : f
-                        );
-                        updateSection(section.id, { fields: updated });
-                      }}
-                      className="h-6 text-xs flex-1"
-                    />
-                    <Switch
-                      checked={field.enabled !== false}
-                      onCheckedChange={(v) => {
-                        const updated = section.fields.map((f) =>
-                          f.id === field.id ? { ...f, enabled: v } : f
-                        );
-                        updateSection(section.id, { fields: updated });
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-        <Button onClick={handleSave} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90 mt-2">
-          {saving ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Template</>}
-        </Button>
-      </CardContent>
+
     </Card>
   );
 }
