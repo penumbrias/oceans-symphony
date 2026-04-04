@@ -133,22 +133,22 @@ export default function Settings() {
           Local mode stores all data exclusively on your device. When encryption is enabled, your
           data is protected with <strong className="text-foreground">AES-256-GCM encryption</strong> —
           the same standard used by banks and governments. Your password never leaves your device.
-          Even I cannot access your encrypted local data. This is the recommended mode for sensitive
-          information.
+          Even I cannot access your encrypted local data. <strong>This is the recommended mode for sensitive
+          information.</strong>
         </p>
       </div>
       <div className="space-y-1">
         <p className="font-semibold text-foreground">💾 Backups</p>
         <p>
-          Use Settings → Backup & Export to save your data as a JSON file. Keep backups somewhere
+          Use Settings → Backup & Export to save your data as a JSON file. Copy/paste exists as an alternative if download fails. Keep backups somewhere
           safe — local data is tied to this device and will be lost if you clear app data or
-          uninstall without a backup.
+          uninstall without a backup. Copy/paste exists as an alternative if download fails.
         </p>
       </div>
       <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
         🌊 Oceans Symphony is free and shared in good faith with the community by a DID system.
         It was built to fill a void and has no intention of being gatekept. If you're a developer,
-        feel free to learn from or build on it. This app is a work in progress — thank you for your
+        feel free to copy it. This app is a work in progress — thank you for your
         patience and trust. 
       </p>
     </CardContent>
