@@ -149,7 +149,7 @@ export default function Settings() {
         🌊 Oceans Symphony is free and shared in good faith with the community by a DID system.
         It was built to fill a void and has no intention of being gatekept. If you're a developer,
         feel free to copy it. This app is a work in progress — thank you for your
-        patience and trust. 
+        patience and trust. contact me @ pesturedrawing@gmail.com
       </p>
     </CardContent>
   )}
