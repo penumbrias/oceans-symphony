@@ -275,7 +275,7 @@ export default function Settings() {
 
         {/* Integrations */}
         <div className="space-y-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Integrations</p>
+
           <SimplyPluralConnect
             settings={settings}
             onSettingsChange={() => {
