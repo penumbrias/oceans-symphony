@@ -119,7 +119,7 @@ export default function Settings() {
       <div className="space-y-1">
         <p className="font-semibold text-foreground">☁️ Cloud Mode</p>
         <p>
-          Oceans Symphony is built on the Base44 platform. Your data is stored on Base44's servers
+          Oceans Symphony is built on and "vibe-coded" with the Base44 platform. Your data is stored on Base44's servers
           with row-level security — no other user can access your data, and data cannot be accessed
           without being logged into your account. However, cloud data is{" "}
           <strong className="text-foreground">not end-to-end encrypted</strong>, meaning I as the
