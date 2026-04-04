@@ -274,7 +274,7 @@ export default function Settings() {
         </div>
 
         {/* Integrations */}
-        <div className="space-y-4">
+        <div className="space-y-2">
 
           <SimplyPluralConnect
             settings={settings}
