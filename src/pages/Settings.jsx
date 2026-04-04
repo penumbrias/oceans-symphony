@@ -140,9 +140,9 @@ export default function Settings() {
       <div className="space-y-1">
         <p className="font-semibold text-foreground">💾 Backups</p>
         <p>
-          Use Settings → Backup & Export to save your data as a JSON file. Copy/paste exists as an alternative if download fails. Keep backups somewhere
+          Use Settings → Backup & Export to save your data as a JSON file. Keep backups somewhere
           safe — local data is tied to this device and will be lost if you clear app data or
-          uninstall without a backup. Copy/paste exists as an alternative if download fails.
+          uninstall without a backup. C
         </p>
       </div>
       <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
