@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Palette, Save, Loader2, LogOut, Trash2 } from "lucide-react";
+
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/lib/ThemeContext";
 import { useTerms } from "@/lib/useTerms";
