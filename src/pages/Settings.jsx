@@ -147,14 +147,14 @@ export default function Settings() {
                   safe — local data is tied to this device and will be lost if you clear app data or
                   uninstall without a backup (or clear browser history on webapp).
                 </p>
-                <p>
+                <p><strong className="text-foreground">
                   Looking for the latest version?{" "}
                   <span
                     onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
                     className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
                   >
                     Check releases on GitHub
-                  </span>.
+                  </span>.</strong>
                 </p>
               </div>
               <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
