@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Eye, Code2, Bold, Italic, Strikethrough, Link, Image, AlignLeft, AlignRight, LayoutGrid, Heading1, Heading2, Heading3 } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { HexColorPicker } from "react-colorful";
+import BioEditor from "@/components/alters/BioEditor";
 
 function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose }) {
   const [hex, setHex] = React.useState(color);
@@ -53,401 +54,6 @@ function getContrastColor(hex) {
   const b = parseInt(clean.substring(4, 6), 16);
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
-}
-
-const convertSPToHTML = (text) => {
-  let html = text;
-
-  // Headings
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-  // Horizontal rule
-  html = html.replace(/^---+$/gm, '<hr />');
-
-  // Blockquote
-  html = html.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">$1</blockquote>');
-
-  // 4-space indent = scrollable code block
-  html = html.replace(/^    (.+)$/gm, '<pre style="overflow-x:auto;white-space:nowrap;background:hsl(var(--muted));padding:8px 12px;border-radius:6px;font-size:0.85em;">$1</pre>');
-
-  // Tables
-  html = html.replace(/^\|(.+)\|\s*\n\|[-| :]+\|\s*\n((?:\|.+\|\s*\n?)*)/gm, (match, header, body) => {
-    const headers = header.split('|').map(h => h.trim()).filter(Boolean);
-    const headerHTML = headers.map(h => `<th style="padding:6px 12px;border:1px solid hsl(var(--border));background:hsl(var(--muted));font-weight:600;">${h}</th>`).join('');
-    const rows = body.trim().split('\n').map(row => {
-      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
-      return '<tr>' + cells.map(c => `<td style="padding:6px 12px;border:1px solid hsl(var(--border));">${c}</td>`).join('') + '</tr>';
-    }).join('');
-    return `<table style="border-collapse:collapse;width:100%;margin:8px 0;"><thead><tr>${headerHTML}</tr></thead><tbody>${rows}</tbody></table>`;
-  });
-
-  // Bold + italic combined
-  html = html.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-  html = html.replace(/~~([^~]+)~~/g, '<s>$1</s>');
-  html = html.replace(/__([^_]+)__/g, '<u>$1</u>');
-  html = html.replace(/`([^`]+)`/g, '<code style="background:hsl(var(--muted));padding:1px 4px;border-radius:3px;font-size:0.9em;">$1</code>');
-
-  // Unordered lists
-  html = html.replace(/(^[-*] .+$(\n[-*] .+$)*)/gm, (match) => {
-    const items = match.split('\n').map(line =>
-      `<li>${line.replace(/^[-*] /, '')}</li>`
-    ).join('');
-    return `<ul style="padding-left:1.5em;margin:4px 0;">${items}</ul>`;
-  });
-
-  // Ordered lists
-  html = html.replace(/(^\d+\. .+$(\n\d+\. .+$)*)/gm, (match) => {
-    const items = match.split('\n').map(line =>
-      `<li>${line.replace(/^\d+\. /, '')}</li>`
-    ).join('');
-    return `<ol style="padding-left:1.5em;margin:4px 0;">${items}</ol>`;
-  });
-
-  // Links (before images)
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:hsl(var(--primary));text-decoration:underline;">$1</a>');
-
-  // Images with optional #WxH suffix — inline-block so text flows beside them
-  html = html.replace(/!\[([^\]]*)\]\(([^)#)]+)(?:#(\d+)x(\d+))?\)/g, (match, alt, src, w, h) => {
-    const width = w ? `${w}px` : 'auto';
-    const height = h ? `${h}px` : 'auto';
-    const maxWidth = w ? `${w}px` : '100%';
-    return `<img src="${src}" alt="${alt}" style="display:inline-block;vertical-align:middle;width:${width};height:${height};max-width:${maxWidth};border-radius:4px;margin:2px 4px;" />`;
-  });
-
-  // Newlines
-  html = html.replace(/\n/g, '<br />');
-
-  return html;
-};
-
-// ── Image size picker modal ──
-function ImageSizeModal({ onInsert, onClose }) {
-  const [size, setSize] = useState("medium");
-  const sizes = [
-    { id: "small", label: "Small", w: 80, h: 80 },
-    { id: "medium", label: "Medium", w: 150, h: 150 },
-    { id: "large", label: "Large", w: 300, h: "auto" },
-    { id: "full", label: "Full width", w: null, h: null },
-  ];
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-xs mx-4 w-full">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm">Image size</h3>
-          <button type="button" onClick={onClose}><X className="w-4 h-4" /></button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {sizes.map(s => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setSize(s.id)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all ${size === s.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2 pt-1">
-          <button type="button" onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm">Cancel</button>
-          <button type="button" onClick={() => onInsert(sizes.find(s => s.id === size))}
-            className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Insert</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── The main bio editor component ──
-function BioEditor({ value, onChange }) {
-  const textareaRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const [mobileTab, setMobileTab] = useState("edit"); // "edit" | "preview"
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [importText, setImportText] = useState("");
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [pendingSizeModal, setPendingSizeModal] = useState(null); // holds { url } when waiting for size pick
-
-  // Insert text at cursor in textarea
-  const insertAtCursor = useCallback((before, after = "") => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const selected = value.slice(start, end);
-    const newVal = value.slice(0, start) + before + selected + after + value.slice(end);
-    onChange(newVal);
-    // Restore cursor after React re-render
-    requestAnimationFrame(() => {
-      ta.focus();
-      const cursor = start + before.length + selected.length + after.length;
-      ta.setSelectionRange(
-        selected ? start + before.length : cursor,
-        selected ? start + before.length + selected.length : cursor
-      );
-    });
-  }, [value, onChange]);
-
-  const insertBlock = useCallback((html) => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    const pos = ta.selectionStart;
-    const newVal = value.slice(0, pos) + "\n" + html + "\n" + value.slice(pos);
-    onChange(newVal);
-    requestAnimationFrame(() => {
-      ta.focus();
-      const cursor = pos + html.length + 2;
-      ta.setSelectionRange(cursor, cursor);
-    });
-  }, [value, onChange]);
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingImage(true);
-    try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      toast.success("Image uploaded!");
-      setPendingSizeModal({ url: file_url });
-    } catch {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploadingImage(false);
-      e.target.value = "";
-    }
-  };
-
-  const handleSizeChosen = (sizeObj) => {
-    const { url } = pendingSizeModal;
-    setPendingSizeModal(null);
-    let tag;
-    if (!sizeObj.w) {
-      tag = `<img src="${url}" alt="" style="display:block;width:100%;border-radius:6px;margin:4px 0;" />`;
-    } else {
-      const h = sizeObj.h === "auto" ? "auto" : `${sizeObj.h}px`;
-      tag = `<img src="${url}" alt="" style="display:inline-block;vertical-align:middle;width:${sizeObj.w}px;height:${h};border-radius:6px;margin:2px 4px;" />`;
-    }
-    insertAtCursor(tag);
-  };
-
-  const toolbarBtn = (onClick, icon, title, active = false) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors flex-shrink-0
-        ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
-    >
-      {icon}
-    </button>
-  );
-
-  const snippetBtn = (onClick, label, title) => (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className="px-2 py-0.5 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 border border-border/40"
-    >
-      {label}
-    </button>
-  );
-
-  const preview = (
-    <div
-      className="w-full h-full min-h-[260px] px-3 py-3 text-sm leading-relaxed overflow-y-auto"
-      dangerouslySetInnerHTML={{ __html: value || '<span style="color:hsl(var(--muted-foreground))">Nothing to preview yet.</span>' }}
-    />
-  );
-
-  const editor = (
-    <textarea
-      ref={textareaRef}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={"<p>Write HTML directly, or use the toolbar above.</p>\n\nTip: Use the layout snippets to place images beside text."}
-      className="w-full min-h-[260px] px-3 py-3 text-sm font-mono bg-transparent focus:outline-none resize-y leading-relaxed"
-      spellCheck={false}
-    />
-  );
-
-  return (
-    <div className="space-y-2">
-      {/* Label row */}
-      <div className="flex items-center justify-between">
-        <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
-        <button
-          type="button"
-          onClick={() => setShowImportModal(true)}
-          className="text-xs text-primary hover:text-primary/80 font-medium"
-        >
-          Import SP Template
-        </button>
-      </div>
-
-      {/* Editor card */}
-      <div className="rounded-xl border border-input bg-background overflow-hidden">
-
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border/50 bg-muted/20">
-          {/* Formatting */}
-          {toolbarBtn(() => insertAtCursor("<strong>", "</strong>"), <Bold className="w-3.5 h-3.5" />, "Bold")}
-          {toolbarBtn(() => insertAtCursor("<em>", "</em>"), <Italic className="w-3.5 h-3.5" />, "Italic")}
-          {toolbarBtn(() => insertAtCursor("<s>", "</s>"), <Strikethrough className="w-3.5 h-3.5" />, "Strikethrough")}
-
-          <div className="w-px h-4 bg-border/50 mx-0.5 flex-shrink-0" />
-
-          {/* Headings */}
-          {toolbarBtn(() => insertAtCursor("<h1>", "</h1>"), <Heading1 className="w-3.5 h-3.5" />, "Heading 1")}
-          {toolbarBtn(() => insertAtCursor("<h2>", "</h2>"), <Heading2 className="w-3.5 h-3.5" />, "Heading 2")}
-          {toolbarBtn(() => insertAtCursor("<h3>", "</h3>"), <Heading3 className="w-3.5 h-3.5" />, "Heading 3")}
-
-          <div className="w-px h-4 bg-border/50 mx-0.5 flex-shrink-0" />
-
-          {/* Link */}
-          {toolbarBtn(
-            () => insertAtCursor('<a href="https://" style="color:hsl(var(--primary));text-decoration:underline;">', "</a>"),
-            <Link className="w-3.5 h-3.5" />, "Link"
-          )}
-
-          {/* Image upload */}
-          <button
-            type="button"
-            title="Upload image"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingImage}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0"
-          >
-            {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Image className="w-3.5 h-3.5" />}
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleImageUpload} />
-
-          <div className="w-px h-4 bg-border/50 mx-0.5 flex-shrink-0" />
-
-          {/* Layout snippets */}
-          {snippetBtn(
-            () => insertBlock(
-              `<div style="display:flex;gap:12px;align-items:flex-start;margin:8px 0;">\n  <img src="" alt="" style="width:120px;height:auto;border-radius:6px;flex-shrink:0;" />\n  <p>Text to the right of the image goes here.</p>\n</div>`
-            ),
-            "⬛ Img left",
-            "Image left, text right"
-          )}
-          {snippetBtn(
-            () => insertBlock(
-              `<div style="display:flex;gap:12px;align-items:flex-start;margin:8px 0;">\n  <p>Text to the left of the image goes here.</p>\n  <img src="" alt="" style="width:120px;height:auto;border-radius:6px;flex-shrink:0;" />\n</div>`
-            ),
-            "Img right ⬛",
-            "Text left, image right"
-          )}
-          {snippetBtn(
-            () => insertBlock(
-              `<div style="display:flex;gap:8px;align-items:flex-start;margin:8px 0;">\n  <img src="" alt="" style="flex:1;min-width:0;max-width:100%;border-radius:6px;" />\n  <img src="" alt="" style="flex:1;min-width:0;max-width:100%;border-radius:6px;" />\n  <img src="" alt="" style="flex:1;min-width:0;max-width:100%;border-radius:6px;" />\n</div>`
-            ),
-            "⬛⬛⬛ Gallery",
-            "Three images side by side"
-          )}
-        </div>
-
-        {/* Mobile tab switcher */}
-        <div className="flex border-b border-border/40 md:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileTab("edit")}
-            className={`flex-1 py-1.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors
-              ${mobileTab === "edit" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
-          >
-            <Code2 className="w-3 h-3" /> Edit
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab("preview")}
-            className={`flex-1 py-1.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors
-              ${mobileTab === "preview" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
-          >
-            <Eye className="w-3 h-3" /> Preview
-          </button>
-        </div>
-
-        {/* Mobile: single panel */}
-        <div className="md:hidden">
-          {mobileTab === "edit" ? editor : preview}
-        </div>
-
-        {/* Desktop: side by side */}
-        <div className="hidden md:grid md:grid-cols-2 md:divide-x md:divide-border/40">
-          {editor}
-          <div className="bg-muted/10">
-            <div className="px-2 py-1 border-b border-border/30 flex items-center gap-1.5">
-              <Eye className="w-3 h-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Preview</span>
-            </div>
-            {preview}
-          </div>
-        </div>
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        HTML editor — use toolbar buttons or layout snippets. Import SP templates with the button above.
-      </p>
-
-      {/* Import SP modal */}
-      {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-lg mx-4 w-full">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Import Simply Plural Template</h3>
-              <button type="button" onClick={() => { setShowImportModal(false); setImportText(""); }}>
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Paste your SP template below. Markdown, images, links, tables, and formatting will all be converted automatically.
-            </p>
-            <textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              placeholder="Paste SP template here..."
-              className="w-full h-48 px-3 py-2 rounded-md border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button type="button"
-                onClick={() => { setShowImportModal(false); setImportText(""); }}
-                className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm">
-                Cancel
-              </button>
-              <button type="button"
-                onClick={() => {
-                  const html = convertSPToHTML(importText);
-                  onChange((value || "") + html);
-                  setShowImportModal(false);
-                  setImportText("");
-                  toast.success("Template imported!");
-                }}
-                disabled={!importText.trim()}
-                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">
-                Import
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Image size picker */}
-      {pendingSizeModal && (
-        <ImageSizeModal
-          onInsert={handleSizeChosen}
-          onClose={() => setPendingSizeModal(null)}
-        />
-      )}
-    </div>
-  );
 }
 
 export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [] }) {
@@ -593,15 +199,12 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
             <div className="flex flex-wrap gap-1.5">
               {alter.groups.map((g) => (
-                <span
-                  key={g.id}
-                  className="px-2.5 py-1 rounded-full text-xs font-medium border"
+                <span key={g.id} className="px-2.5 py-1 rounded-full text-xs font-medium border"
                   style={{
                     backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
                     borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
                     color: g.color || "hsl(var(--foreground))",
-                  }}
-                >
+                  }}>
                   {g.name}
                 </span>
               ))}
@@ -624,9 +227,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
 
         {(() => {
           const customFieldValues = alter.custom_fields || {};
-          const visibleFilled = systemFields.filter(
-            f => f.is_visible !== false && customFieldValues[f.id]
-          );
+          const visibleFilled = systemFields.filter(f => f.is_visible !== false && customFieldValues[f.id]);
           const alterSpecific = (alter.alter_custom_fields || []).filter(f => f.value);
           if (visibleFilled.length === 0 && alterSpecific.length === 0) return null;
           return (
@@ -637,9 +238,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
                   <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
                     <span className="text-xs text-foreground flex-1 leading-relaxed">
-                      {field.field_type === "boolean"
-                        ? (customFieldValues[field.id] === "true" ? "Yes" : "No")
-                        : customFieldValues[field.id]}
+                      {field.field_type === "boolean" ? (customFieldValues[field.id] === "true" ? "Yes" : "No") : customFieldValues[field.id]}
                     </span>
                   </div>
                 ))}
@@ -665,10 +264,8 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       )}
 
       <div className="flex justify-center">
-        <div
-          className="w-32 h-32 rounded-2xl border-4 border-border overflow-hidden shadow-xl"
-          style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
-        >
+        <div className="w-32 h-32 rounded-2xl border-4 border-border overflow-hidden shadow-xl"
+          style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
           {form.avatar_url ? (
             <img src={form.avatar_url} alt={form.name} className="w-full h-full object-cover" />
           ) : (
@@ -704,18 +301,11 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Color</label>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowColorPicker(true)}
+            <button type="button" onClick={() => setShowColorPicker(true)}
               className="w-10 h-10 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
-              style={{ backgroundColor: form.color || "#8b5cf6" }}
-            />
-            <Input
-              value={form.color}
-              onChange={(e) => set("color", e.target.value)}
-              placeholder="#8b5cf6"
-              className="font-mono text-sm"
-            />
+              style={{ backgroundColor: form.color || "#8b5cf6" }} />
+            <Input value={form.color} onChange={(e) => set("color", e.target.value)}
+              placeholder="#8b5cf6" className="font-mono text-sm" />
           </div>
         </div>
 
@@ -733,7 +323,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
           )}
         </div>
 
-        {/* Bio editor — replaces the old Quill/HTML toggle */}
+        {/* Block-based bio editor */}
         <BioEditor
           value={form.description}
           onChange={(val) => set("description", val)}
@@ -745,7 +335,8 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
           <label className="text-xs font-medium text-primary flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" /> Groups
           </label>
-          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">
+          <button type="button" onClick={() => setShowGroupPicker(true)}
+            className="text-xs text-primary hover:text-primary/80 font-medium">
             Edit groups →
           </button>
         </div>
@@ -789,9 +380,12 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
         </Button>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
-            {alter?.is_archived ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</> : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
+            {alter?.is_archived
+              ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
+              : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
           </Button>
-          <Button variant="outline" onClick={handleDelete} disabled={deleting} className="flex-1 text-destructive hover:text-destructive border-destructive/30">
+          <Button variant="outline" onClick={handleDelete} disabled={deleting}
+            className="flex-1 text-destructive hover:text-destructive border-destructive/30">
             {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
             Delete
           </Button>
