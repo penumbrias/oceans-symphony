@@ -134,7 +134,8 @@ export default function Settings() {
           data is protected with <strong className="text-foreground">AES-256-GCM encryption</strong> —
           the same standard used by banks and governments. Your password never leaves your device.
           Even I cannot access your encrypted local data. <strong>This is the recommended mode for sensitive
-          information. If you lose your password, data cannot be retrieved; make frequent backups.</strong>
+          information. </strong></p>
+          <p><strong>If you lose your encyrption password, data cannot be retrieved; make frequent backups and save your password securely.</strong>
         </p>
       </div>
       <div className="space-y-1">
