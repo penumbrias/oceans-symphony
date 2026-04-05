@@ -425,29 +425,40 @@ function AddBlockMenu({ onAdd, onClose }) {
     { type: "divider", icon: <Minus className="w-4 h-4" />, label: "Divider", desc: "Horizontal rule" },
   ];
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-background border-2 border-border rounded-t-2xl sm:rounded-2xl p-4 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold">Add a block</p>
-          
-          <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
-        </div>
-        <div className="space-y-1">
-          {options.map(opt => (
-            <button key={opt.type} type="button" onClick={() => { onAdd(opt.type); onClose(); }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors text-left group">
-              <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors flex-shrink-0">
-                {opt.icon}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">{opt.label}</p>
-                <p className="text-xs text-muted-foreground">{opt.desc}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+<div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4" onClick={onClose}>
+  <div 
+    className="bg-background border-2 border-border rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]" 
+    onClick={e => e.stopPropagation()}
+  >
+    {/* Header: Fixed at the top */}
+    <div className="flex items-center justify-between p-4 border-b border-border/50">
+      <p className="text-sm font-semibold">Add a block</p>
+      <button type="button" onClick={onClose}>
+        <X className="w-4 h-4 text-muted-foreground" />
+      </button>
     </div>
+
+    {/* Content: Scrollable area */}
+    <div className="p-2 space-y-1 overflow-y-auto overscroll-contain">
+      {options.map(opt => (
+        <button 
+          key={opt.type} 
+          type="button" 
+          onClick={() => { onAdd(opt.type); onClose(); }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors text-left group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors flex-shrink-0">
+            {opt.icon}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">{opt.label}</p>
+            <p className="text-xs text-muted-foreground">{opt.desc}</p>
+          </div>
+        </button>
+      ))}
+    </div>
+  </div>
+</div>
   );
 }
 
