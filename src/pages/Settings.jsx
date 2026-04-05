@@ -117,7 +117,7 @@ export default function Settings() {
   {noticeOpen && (
     <CardContent className="space-y-3 text-sm text-muted-foreground">
       <div className="space-y-1">
-        <p className="font-semibold text-foreground">☁️ Cloud Mode <strong>(not recommended<)/strong></p> 
+        <p className="font-semibold text-foreground">☁️ Cloud Mode <strong>(not recommended)</strong></p> 
         <p>
           Oceans Symphony is built on and "vibe-coded" with the Base44 platform. Your data is stored on Base44's servers
           with row-level security — no other user can access your data, and data cannot be accessed
