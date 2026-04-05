@@ -834,6 +834,7 @@ export default function BioEditor({ value, onChange }) {
           <BlockShell key={block.id} index={i} total={blocks.length} label={blockLabel(block.type)}
             onMoveUp={() => moveBlock(block.id, -1)} onMoveDown={() => moveBlock(block.id, 1)} onDelete={() => deleteBlock(block.id)}>
             {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
+            {block.type === "img-solo" && <ImgSoloBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {(block.type === "img-left" || block.type === "img-right") && <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {block.type === "gallery" && <GalleryBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {block.type === "divider" && <DividerBlock />}
