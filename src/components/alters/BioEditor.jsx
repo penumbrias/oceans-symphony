@@ -425,28 +425,25 @@ function AddBlockMenu({ onAdd, onClose }) {
     { type: "divider", icon: <Minus className="w-4 h-4" />, label: "Divider", desc: "Horizontal rule" },
   ];
   return (
-<div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4" onClick={onClose}>
+<div 
+  className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4 pb-[80px] sm:pb-4" 
+  onClick={onClose}
+>
   <div 
-    className="bg-background border-2 border-border rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]" 
+    className="bg-background border-2 border-border rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-full overflow-hidden" 
     onClick={e => e.stopPropagation()}
   >
-    {/* Header: Fixed at the top */}
-    <div className="flex items-center justify-between p-4 border-b border-border/50">
+    {/* Header */}
+    <div className="flex items-center justify-between p-4 border-b border-border/50 flex-shrink-0">
       <p className="text-sm font-semibold">Add a block</p>
-      <button type="button" onClick={onClose}>
-        <X className="w-4 h-4 text-muted-foreground" />
-      </button>
+      <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
     </div>
 
-    {/* Content: Scrollable area */}
-    <div className="p-2 space-y-1 overflow-y-auto overscroll-contain">
+    {/* Scrollable Area: The 'min-h-0' is a flexbox trick to allow internal scrolling */}
+    <div className="p-2 space-y-1 overflow-y-auto min-h-0">
       {options.map(opt => (
-        <button 
-          key={opt.type} 
-          type="button" 
-          onClick={() => { onAdd(opt.type); onClose(); }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors text-left group"
-        >
+        <button key={opt.type} type="button" onClick={() => { onAdd(opt.type); onClose(); }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors text-left group">
           <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors flex-shrink-0">
             {opt.icon}
           </div>
