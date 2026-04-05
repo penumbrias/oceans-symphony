@@ -159,13 +159,41 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     finally { setUploadingAvatar(false); }
   };
 
-  const handleBgUpload = async (e) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setUploadingBg(true);
-    try { const { file_url } = await base44.integrations.Core.UploadFile({ file }); setBgField(BG_IMAGE_KEY, file_url); toast.success("Background uploaded!"); }
-    catch { toast.error("Failed to upload background"); }
-    finally { setUploadingBg(false); e.target.value = ""; }
-  };
+const handleBgUpload = async (e) => {
+  const file = e.target.files?.[0]; if (!file) return;
+  setUploadingBg(true);
+  try {
+    let localMode = false;
+    try { const { isLocalMode } = await import("@/lib/storageMode"); localMode = !!isLocalMode(); } catch {}
+    if (localMode) {
+      const sizeMB = file.size / (1024 * 1024);
+      const compressImage = (file, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+      if (sizeMB > 1) toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
+      const dataUrl = await compressImage(file);
+      setBgField(BG_IMAGE_KEY, dataUrl);
+      toast.success("Background image saved locally!");
+    } else {
+      toast.error("Background upload requires cloud mode. Paste a URL instead.");
+    }
+  } catch (err) {
+    console.error("Background upload error:", err);
+    toast.error("Failed to process background image");
+  } finally { setUploadingBg(false); e.target.value = ""; }
+};
 
   // View mode values
   const viewBgColor = alter.custom_fields?.[BG_COLOR_KEY] || "";
