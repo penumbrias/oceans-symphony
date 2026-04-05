@@ -259,12 +259,26 @@ function htmlToBlocks(html) {
         cropped: trimmed.includes('object-fit:cover'),
         text: textMatch?.[1] || "",
       });
-    } else if (trimmed.startsWith('<div class="bio-text">')) {
-      const content = trimmed.replace(/^<div class="bio-text">/, "").replace(/<\/div>$/, "");
-      blocks.push({ id: uid(), type: "text", content });
-    } else {
-      blocks.push({ id: uid(), type: "raw", content: trimmed });
-    }
+    } else if (trimmed.startsWith('<div style="margin:8px 0;text-align:')) {
+  const alignMatch = trimmed.match(/text-align:(\w+)/);
+  const srcMatch = trimmed.match(/img src="([^"]*)"/);
+  const altMatch = trimmed.match(/img src="[^"]*" alt="([^"]*)"/);
+  const sizeMatch = trimmed.match(/width:(\d+)px/);
+  const cropped = trimmed.includes('object-fit:cover');
+  blocks.push({
+    id: uid(), type: "img-solo",
+    src: srcMatch?.[1] || "",
+    alt: altMatch?.[1] || "",
+    size: sizeMatch ? parseInt(sizeMatch[1]) : 240,
+    align: alignMatch?.[1] || "left",
+    cropped,
+  });
+} else if (trimmed.startsWith('<div class="bio-text">')) {
+  const content = trimmed.replace(/^<div class="bio-text">/, "").replace(/<\/div>$/, "");
+  blocks.push({ id: uid(), type: "text", content });
+} else {
+  blocks.push({ id: uid(), type: "raw", content: trimmed });
+}
   }
   return blocks.length ? blocks : [{ id: uid(), type: "text", content: html }];
 }
