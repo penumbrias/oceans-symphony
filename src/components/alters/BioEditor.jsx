@@ -429,7 +429,7 @@ function AddBlockMenu({ onAdd, onClose }) {
       <div className="bg-background border-2 border-border rounded-t-2xl sm:rounded-2xl p-4 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold">Add a block</p>
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          
           <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <div className="space-y-1">
