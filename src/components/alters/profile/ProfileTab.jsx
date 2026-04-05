@@ -9,10 +9,10 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { HexColorPicker } from "react-colorful";
 import BioEditor from "@/components/alters/BioEditor";
 
-// ── Background field keys (stored in custom_fields) ──
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
+const HEADER_TEXT_KEY = "_header_text_color";
 
 function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose }) {
   const [hex, setHex] = React.useState(color);
@@ -52,36 +52,15 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-// ── Background style builder ──
-function buildBgStyle(bgColor, bgImage, bgOpacity) {
-  const opacity = bgOpacity !== undefined ? bgOpacity : 0.15;
-  if (!bgColor && !bgImage) return {};
-  const parts = [];
-  if (bgImage) parts.push(`url("${bgImage}")`);
-  if (bgColor) parts.push(bgColor);
-  return {
-    background: parts.join(', '),
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
-    ...(bgImage && bgColor ? { backgroundColor: bgColor } : {}),
-    ...(bgImage ? { opacity: undefined } : {}), // image handles itself
-  };
-}
-
-// ── Background preview swatch ──
-function BgPreview({ bgColor, bgImage, bgOpacity }) {
+function BgPreview({ bgColor, bgImage, bgOpacity, headerTextColor }) {
   const opacity = bgOpacity !== undefined ? bgOpacity : 0.15;
   return (
     <div className="relative w-full h-16 rounded-xl overflow-hidden border border-border/40 bg-muted/20">
-      {bgColor && (
-        <div className="absolute inset-0 rounded-xl" style={{ backgroundColor: bgColor, opacity }} />
-      )}
-      {bgImage && (
-        <div className="absolute inset-0 rounded-xl" style={{ backgroundImage: `url("${bgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity }} />
-      )}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xs text-foreground/60 font-medium">Preview</span>
+      {bgColor && <div className="absolute inset-0 rounded-xl" style={{ backgroundColor: bgColor, opacity }} />}
+      {bgImage && <div className="absolute inset-0 rounded-xl" style={{ backgroundImage: `url("${bgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity }} />}
+      <div className="absolute inset-0 flex items-center justify-center gap-3">
+        <span className="text-sm font-semibold" style={{ color: headerTextColor || "hsl(var(--foreground)/0.6)" }}>Name</span>
+        <span className="text-xs" style={{ color: headerTextColor ? `${headerTextColor}cc` : "hsl(var(--muted-foreground))" }}>they/them</span>
       </div>
     </div>
   );
@@ -91,6 +70,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const queryClient = useQueryClient();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
+  const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "",
@@ -117,10 +97,10 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     });
   }, [alter]);
 
-  // Background field helpers
   const bgColor = form.custom_fields?.[BG_COLOR_KEY] || "";
   const bgImage = form.custom_fields?.[BG_IMAGE_KEY] || "";
   const bgOpacity = form.custom_fields?.[BG_OPACITY_KEY] !== undefined ? form.custom_fields[BG_OPACITY_KEY] : 0.15;
+  const headerTextColor = form.custom_fields?.[HEADER_TEXT_KEY] || "";
 
   const setBgField = (key, val) => setForm(f => ({
     ...f,
@@ -129,7 +109,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
 
   const clearBg = () => setForm(f => {
     const cf = { ...f.custom_fields };
-    delete cf[BG_COLOR_KEY]; delete cf[BG_IMAGE_KEY]; delete cf[BG_OPACITY_KEY];
+    delete cf[BG_COLOR_KEY]; delete cf[BG_IMAGE_KEY]; delete cf[BG_OPACITY_KEY]; delete cf[HEADER_TEXT_KEY];
     return { ...f, custom_fields: cf };
   });
 
@@ -187,10 +167,11 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     finally { setUploadingBg(false); e.target.value = ""; }
   };
 
-  // ── Background style for view mode ──
+  // View mode values
   const viewBgColor = alter.custom_fields?.[BG_COLOR_KEY] || "";
   const viewBgImage = alter.custom_fields?.[BG_IMAGE_KEY] || "";
   const viewBgOpacity = alter.custom_fields?.[BG_OPACITY_KEY] !== undefined ? alter.custom_fields[BG_OPACITY_KEY] : 0.15;
+  const viewHeaderText = alter.custom_fields?.[HEADER_TEXT_KEY] || null;
   const hasBg = viewBgColor || viewBgImage;
   const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
 
@@ -198,9 +179,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   if (!editMode) {
     return (
       <div className="space-y-6">
-        {/* Header with background */}
         <div className="relative rounded-2xl overflow-hidden">
-          {/* Background layers */}
           {hasBg && (
             <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
               {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
@@ -208,20 +187,33 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
             </div>
           )}
           <div className={`relative flex gap-4 items-start ${hasBg ? "p-4" : ""}`}>
-            <div
-              className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
+            <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
               style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
               {alter.avatar_url
                 ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
                 : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
             </div>
             <div className="flex-1 min-w-0 space-y-1">
-              <h2 className="font-display text-2xl font-semibold text-foreground">{alter.name}</h2>
-              {alter.alias && <p className="text-sm text-muted-foreground">aka {alter.alias}</p>}
-              {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
+              <h2 className="font-display text-2xl font-semibold"
+                style={{ color: viewHeaderText || undefined }}>
+                {alter.name}
+              </h2>
+              {alter.alias && (
+                <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>
+                  aka {alter.alias}
+                </p>
+              )}
+              {alter.pronouns && (
+                <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>
+                  {alter.pronouns}
+                </p>
+              )}
               {alter.role && (
                 <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
-                  style={{ backgroundColor: alter.color ? `${alter.color}20` : "hsl(var(--muted))", color: alter.color || "hsl(var(--muted-foreground))" }}>
+                  style={{
+                    backgroundColor: viewHeaderText ? `${viewHeaderText}20` : (alter.color ? `${alter.color}20` : "hsl(var(--muted))"),
+                    color: viewHeaderText || alter.color || "hsl(var(--muted-foreground))",
+                  }}>
                   {alter.role}
                 </span>
               )}
@@ -330,7 +322,6 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
           </div>
         </div>
 
-        {/* Alter color */}
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Color</label>
           <div className="flex items-center gap-3">
@@ -341,7 +332,6 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
           </div>
         </div>
 
-        {/* Avatar */}
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Avatar</label>
           <div className="flex gap-2">
@@ -354,20 +344,19 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
           {form.avatar_url && <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />}
         </div>
 
-        {/* ── Profile Background ── */}
+        {/* ── Profile Background & Style ── */}
         <div className="space-y-3 rounded-xl border border-border/40 bg-muted/10 p-4">
           <div className="flex items-center justify-between">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
               <Image className="w-3.5 h-3.5 text-primary" /> Profile Background
             </label>
-            {(bgColor || bgImage) && (
-              <button type="button" onClick={clearBg} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Clear</button>
+            {(bgColor || bgImage || headerTextColor) && (
+              <button type="button" onClick={clearBg} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Clear all</button>
             )}
           </div>
 
-          <BgPreview bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+          <BgPreview bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} headerTextColor={headerTextColor} />
 
-          {/* Background color */}
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground font-medium">Background color</label>
             <div className="flex items-center gap-3">
@@ -378,14 +367,10 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
               </button>
               <Input value={bgColor} onChange={e => setBgField(BG_COLOR_KEY, e.target.value)}
                 placeholder="#1a0a2e" className="font-mono text-sm flex-1" />
-              {bgColor && (
-                <button type="button" onClick={() => setBgField(BG_COLOR_KEY, "")}
-                  className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
-              )}
+              {bgColor && <button type="button" onClick={() => setBgField(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3.5 h-3.5" /></button>}
             </div>
           </div>
 
-          {/* Background image */}
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground font-medium">Background image</label>
             <div className="flex gap-2">
@@ -407,32 +392,40 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
             )}
           </div>
 
-          {/* Opacity */}
           {(bgColor || bgImage) && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs text-muted-foreground font-medium">Opacity</label>
                 <span className="text-xs text-muted-foreground">{Math.round(bgOpacity * 100)}%</span>
               </div>
-              <input type="range" min={0.02} max={1} step={0.01}
-                value={bgOpacity}
+              <input type="range" min={0.02} max={1} step={0.01} value={bgOpacity}
                 onChange={e => setBgField(BG_OPACITY_KEY, parseFloat(e.target.value))}
                 className="w-full h-1 accent-primary" />
-              <p className="text-xs text-muted-foreground/60">Lower opacity keeps the background subtle behind profile content.</p>
+              <p className="text-xs text-muted-foreground/60">Lower opacity keeps the background subtle.</p>
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground font-medium">Header text color</label>
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => setShowHeaderTextPicker(true)}
+                className="w-8 h-8 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 flex items-center justify-center"
+                style={{ backgroundColor: headerTextColor || "transparent" }}>
+                {!headerTextColor && <span className="text-muted-foreground text-xs font-bold">A</span>}
+              </button>
+              <Input value={headerTextColor} onChange={e => setBgField(HEADER_TEXT_KEY, e.target.value)}
+                placeholder="Default" className="font-mono text-sm flex-1" />
+              {headerTextColor && <button type="button" onClick={() => setBgField(HEADER_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3.5 h-3.5" /></button>}
+            </div>
+          </div>
         </div>
 
-        {/* Bio editor */}
         <BioEditor value={form.description} onChange={(val) => set("description", val)} />
       </div>
 
-      {/* Groups */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-primary flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5" /> Groups
-          </label>
+          <label className="text-xs font-medium text-primary flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups</label>
           <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit groups →</button>
         </div>
         {alter.groups && alter.groups.length > 0 ? (
@@ -483,6 +476,10 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       {showBgColorPicker && (
         <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color"
           onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />
+      )}
+      {showHeaderTextPicker && (
+        <ColorPickerModal color={headerTextColor || "#ffffff"} label="Header Text Color"
+          onSave={(hex) => setBgField(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />
       )}
     </div>
   );
