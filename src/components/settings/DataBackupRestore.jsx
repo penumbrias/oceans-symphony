@@ -201,7 +201,7 @@ export default function DataBackupRestore() {
           </div>
           <div>
             <CardTitle className="text-lg">Backup & Export</CardTitle>
-            <CardDescription>Export your data or import from a backup. Copy/paste exists as an alternative if download fails.</CardDescription>
+            <CardDescription>Export your data or import from a backup. Copy/paste exists as an alternative if download fails. Copied data must not be reformatted or changed <strong>in any way</strong> in order to import.</CardDescription>
           </div>
         </div>
       </CardHeader>
