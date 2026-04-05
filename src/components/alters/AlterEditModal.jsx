@@ -39,17 +39,22 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
     }
   }, [alter, open, isNew]);
 
-  const handleAvatarUpload = async (e) => {
+const handleAvatarUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   setUploadingAvatar(true);
   try {
-    const { isLocalMode } = await import("@/lib/storageMode");
-    if (isLocalMode()) {
-      // Warn if file is large
+    let localMode = false;
+    try {
+      const { isLocalMode } = await import("@/lib/storageMode");
+      localMode = !!isLocalMode();
+    } catch {
+      localMode = false;
+    }
+
+    if (localMode) {
       const sizeMB = file.size / (1024 * 1024);
-      
-      // Compress image using canvas
+
       const compressImage = (file, maxWidth = 400, quality = 0.75) => {
         return new Promise((resolve, reject) => {
           const img = new Image();
@@ -85,15 +90,13 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
       }
 
       setForm(f => ({ ...f, avatar_url: dataUrl }));
-      toast.success(`Avatar saved! (${compressedSizeKB}KB)`);
+      toast.success(`Avatar saved locally! (${compressedSizeKB}KB)`);
     } else {
-      // Cloud mode: upload to Base44
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setForm(f => ({ ...f, avatar_url: file_url }));
-      toast.success("Avatar uploaded!");
+      toast.error("Avatar upload requires cloud mode. Switch to cloud mode or paste an image URL instead.");
     }
-  } catch {
-    toast.error("Failed to upload avatar");
+  } catch (err) {
+    console.error("Avatar upload error:", err);
+    toast.error("Failed to process avatar");
   } finally {
     setUploadingAvatar(false);
     e.target.value = "";
