@@ -104,48 +104,62 @@ const convertSPToHTML = (text) => {
   // Blockquote
   html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
 
+  // 4-space indent = scrollable code block
+  html = html.replace(/^    (.+)$/gm, '<pre style="overflow-x:auto;white-space:nowrap;background:hsl(var(--muted));padding:8px 12px;border-radius:6px;font-size:0.85em;">$1</pre>');
+
+  // Tables
+  html = html.replace(/^\|(.+)\|\s*\n\|[-| :]+\|\s*\n((?:\|.+\|\s*\n?)*)/gm, (match, header, body) => {
+    const headers = header.split('|').map(h => h.trim()).filter(Boolean);
+    const headerHTML = headers.map(h => `<th style="padding:6px 12px;border:1px solid hsl(var(--border));background:hsl(var(--muted));">${h}</th>`).join('');
+    const rows = body.trim().split('\n').map(row => {
+      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+      return '<tr>' + cells.map(c => `<td style="padding:6px 12px;border:1px solid hsl(var(--border));">${c}</td>`).join('') + '</tr>';
+    }).join('');
+    return `<table style="border-collapse:collapse;width:100%;margin:8px 0;"><thead><tr>${headerHTML}</tr></thead><tbody>${rows}</tbody></table>`;
+  });
+
   // Bold + italic combined
   html = html.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+  // Bold
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Italic
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+  // Strikethrough
   html = html.replace(/~~([^~]+)~~/g, '<s>$1</s>');
+  // Underline
   html = html.replace(/__([^_]+)__/g, '<u>$1</u>');
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code style="background:hsl(var(--muted));padding:1px 4px;border-radius:3px;">$1</code>');
 
-  // Lists
+  // Unordered lists
   html = html.replace(/(^[-*] .+$(\n[-*] .+$)*)/gm, (match) => {
     const items = match.split('\n').map(line =>
       `<li>${line.replace(/^[-*] /, '')}</li>`
     ).join('');
-    return `<ul>${items}</ul>`;
+    return `<ul style="padding-left:1.5em;margin:4px 0;">${items}</ul>`;
   });
+
+  // Ordered lists
   html = html.replace(/(^\d+\. .+$(\n\d+\. .+$)*)/gm, (match) => {
     const items = match.split('\n').map(line =>
       `<li>${line.replace(/^\d+\. /, '')}</li>`
     ).join('');
-    return `<ol>${items}</ol>`;
+    return `<ol style="padding-left:1.5em;margin:4px 0;">${items}</ol>`;
   });
 
-  // Links (before images so they don't conflict)
+  // Links (before images)
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
-  // ── IMAGE HANDLING ──
-  // Lines that are ONLY images (one or more) → flex row
-  html = html.replace(/^(!\[[^\]]*\]\([^)]+\)(\s+!\[[^\]]*\]\([^)]+\))*)\s*$/gm, (match) => {
-    const imgs = [...match.matchAll(/!\[([^\]]*)\]\(([^)]+)\)/g)]
-      .map(([, alt, src]) =>
-        `<img src="${src}" alt="${alt}" style="flex:1;min-width:0;max-width:100%;object-fit:cover;border-radius:6px;" />`
-      ).join('');
-    return `<div style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;">${imgs}</div>`;
+  // Images — parse optional #WxH suffix, render inline so text flows beside them
+  html = html.replace(/!\[([^\]]*)\]\(([^)#)]+)(?:#(\d+)x(\d+))?\)/g, (match, alt, src, w, h) => {
+    const width = w ? `${w}px` : 'auto';
+    const height = h ? `${h}px` : 'auto';
+    const maxWidth = w ? `${w}px` : '100%';
+    return `<img src="${src}" alt="${alt}" style="display:inline-block;vertical-align:middle;width:${width};height:${height};max-width:${maxWidth};border-radius:4px;margin:2px 4px;" />`;
   });
 
-  // Inline images mixed with text → float left with text wrap
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
-    `<img src="$2" alt="$1" style="max-width:45%;float:left;margin:0 12px 8px 0;border-radius:6px;" />`
-  );
-
-  // Newlines
+  // Newlines → <br>
   html = html.replace(/\n/g, '<br />');
 
   return html;
