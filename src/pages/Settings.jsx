@@ -143,7 +143,7 @@ export default function Settings() {
         <p>
           Use Settings → Backup & Export to save your data as a JSON file. Keep backups somewhere
           safe — local data is tied to this device and will be lost if you clear app data or
-          uninstall without a backup. (unless you have the .apk installed, then data is stored in localStorage on your device. contact for info on the .apk)
+          uninstall without a backup. 
         </p>
       </div>
       <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
