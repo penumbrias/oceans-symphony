@@ -134,7 +134,7 @@ const handleNotifClick = (mentionLog) => {
             <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
               <img src="https://i.imgur.com/P79YnqQ.png" className="w-7 h-7 object-contain rounded-full" alt="logo" />
             </div>
-            <span className="font-display text-base font-semibold text-foreground">Symphony</span>
+            <span className="font-display text-base font-semibold text-foreground">Oceans Symphony</span>
           </Link>
         }
 
