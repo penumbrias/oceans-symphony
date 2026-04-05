@@ -112,7 +112,7 @@ export default function DataBackupRestore() {
       const exportData = await buildExportData();
       const json = JSON.stringify(exportData);
       await navigator.clipboard.writeText(json);
-      showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. <strong>Copied data must not be reformatted or changed in any way in order to import.</strong>");
+      showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.   Copied data must not be reformatted or changed in any way in order to import.");
     } catch (e) {
       showStatus("error", `Copy failed: ${e.message}`);
     } finally {
