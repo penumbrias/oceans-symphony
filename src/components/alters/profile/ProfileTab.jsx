@@ -91,12 +91,64 @@ const [showImportModal, setShowImportModal] = useState(false);
 const [importText, setImportText] = useState("");
 
 const convertSPToHTML = (text) => {
-  return text
-    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;display:inline-block;" />')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br />');
+  let html = text;
+
+  // Headings
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+  // Horizontal rule
+  html = html.replace(/^---+$/gm, '<hr />');
+
+  // Blockquote
+  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+
+  // Bold + italic combined
+  html = html.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+  html = html.replace(/~~([^~]+)~~/g, '<s>$1</s>');
+  html = html.replace(/__([^_]+)__/g, '<u>$1</u>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Lists
+  html = html.replace(/(^[-*] .+$(\n[-*] .+$)*)/gm, (match) => {
+    const items = match.split('\n').map(line =>
+      `<li>${line.replace(/^[-*] /, '')}</li>`
+    ).join('');
+    return `<ul>${items}</ul>`;
+  });
+  html = html.replace(/(^\d+\. .+$(\n\d+\. .+$)*)/gm, (match) => {
+    const items = match.split('\n').map(line =>
+      `<li>${line.replace(/^\d+\. /, '')}</li>`
+    ).join('');
+    return `<ol>${items}</ol>`;
+  });
+
+  // Links (before images so they don't conflict)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // ── IMAGE HANDLING ──
+  // Lines that are ONLY images (one or more) → flex row
+  html = html.replace(/^(!\[[^\]]*\]\([^)]+\)(\s+!\[[^\]]*\]\([^)]+\))*)\s*$/gm, (match) => {
+    const imgs = [...match.matchAll(/!\[([^\]]*)\]\(([^)]+)\)/g)]
+      .map(([, alt, src]) =>
+        `<img src="${src}" alt="${alt}" style="flex:1;min-width:0;max-width:100%;object-fit:cover;border-radius:6px;" />`
+      ).join('');
+    return `<div style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;">${imgs}</div>`;
+  });
+
+  // Inline images mixed with text → float left with text wrap
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g,
+    `<img src="$2" alt="$1" style="max-width:45%;float:left;margin:0 12px 8px 0;border-radius:6px;" />`
+  );
+
+  // Newlines
+  html = html.replace(/\n/g, '<br />');
+
+  return html;
 };
 
   useEffect(() => {
