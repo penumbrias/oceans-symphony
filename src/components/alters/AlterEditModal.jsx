@@ -40,20 +40,65 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
   }, [alter, open, isNew]);
 
   const handleAvatarUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingAvatar(true);
-    try {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  setUploadingAvatar(true);
+  try {
+    const { isLocalMode } = await import("@/lib/storageMode");
+    if (isLocalMode()) {
+      // Warn if file is large
+      const sizeMB = file.size / (1024 * 1024);
+      
+      // Compress image using canvas
+      const compressImage = (file, maxWidth = 400, quality = 0.75) => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let { width, height } = img;
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, width, height);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.onerror = reject;
+          img.src = url;
+        });
+      };
+
+      if (sizeMB > 0.5) {
+        toast.info(`Image is ${sizeMB.toFixed(1)}MB — compressing for local storage...`);
+      }
+
+      const dataUrl = await compressImage(file);
+      const compressedSizeKB = Math.round((dataUrl.length * 0.75) / 1024);
+
+      if (compressedSizeKB > 500) {
+        toast.warning(`Compressed to ${compressedSizeKB}KB — very large images may slow the app. Consider using a smaller image.`);
+      }
+
+      setForm(f => ({ ...f, avatar_url: dataUrl }));
+      toast.success(`Avatar saved! (${compressedSizeKB}KB)`);
+    } else {
+      // Cloud mode: upload to Base44
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       setForm(f => ({ ...f, avatar_url: file_url }));
       toast.success("Avatar uploaded!");
-    } catch {
-      toast.error("Failed to upload avatar");
-    } finally {
-      setUploadingAvatar(false);
-      e.target.value = "";
     }
-  };
+  } catch {
+    toast.error("Failed to upload avatar");
+  } finally {
+    setUploadingAvatar(false);
+    e.target.value = "";
+  }
+};
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
