@@ -23,6 +23,10 @@ const TABS = [
   { id: "options", label: "Options", icon: SlidersHorizontal },
 ];
 
+const BG_COLOR_KEY = "_bg_color";
+const BG_IMAGE_KEY = "_bg_image";
+const BG_OPACITY_KEY = "_bg_opacity";
+
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
   const clean = hex.replace("#", "");
@@ -77,8 +81,15 @@ export default function AlterProfile() {
   }
 
   const hasColor = alter.color && alter.color.length > 3;
-  const bgColor = hasColor ? alter.color : null;
+  const alterColor = hasColor ? alter.color : null;
   const textOnColor = hasColor ? getContrastColor(alter.color) : null;
+
+  // ── Page background from custom_fields ──
+  const cf = alter.custom_fields || {};
+  const pageBgColor = cf[BG_COLOR_KEY] || "";
+  const pageBgImage = cf[BG_IMAGE_KEY] || "";
+  const pageBgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
+  const hasPageBg = pageBgColor || pageBgImage;
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   const currentIndex = sortedAlters.findIndex(a => a.id === alter.id);
@@ -86,104 +97,132 @@ export default function AlterProfile() {
   const nextAlter = currentIndex >= 0 && currentIndex < sortedAlters.length - 1 ? sortedAlters[currentIndex + 1] : null;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      {/* Navigation */}
-      <div className="flex items-center justify-between mb-4">
-        <Link to="/Home">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </Link>
-        <div className="flex items-center gap-2">
-          {prevAlter && (
-            <Link to={`/alter/${prevAlter.id}`}>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Prev
-              </Button>
-            </Link>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="relative min-h-screen"
+    >
+      {/* ── Full-page background layers ── */}
+      {hasPageBg && (
+        <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
+          {pageBgColor && (
+            <div className="absolute inset-0" style={{ backgroundColor: pageBgColor, opacity: pageBgOpacity }} />
           )}
-          {nextAlter && (
-            <Link to={`/alter/${nextAlter.id}`}>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                Next
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+          {pageBgImage && (
+            <div className="absolute inset-0" style={{
+              backgroundImage: `url("${pageBgImage}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              opacity: pageBgOpacity,
+            }} />
           )}
-          {/* Edit/View toggle — only on profile tab */}
-          {tab === "profile" && (
-            <Button
-              variant={editMode ? "default" : "outline"}
-              size="sm"
-              onClick={() => setEditMode(e => !e)}
-              className="gap-1.5"
-            >
-              {editMode ? <><Eye className="w-3.5 h-3.5" /> View</> : <><Pencil className="w-3.5 h-3.5" /> Edit</>}
+        </div>
+      )}
+
+      {/* ── All content sits above the bg ── */}
+      <div className="relative z-10">
+        {/* Navigation */}
+        <div className="flex items-center justify-between mb-4">
+          <Link to="/Home">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
             </Button>
-          )}
+          </Link>
+          <div className="flex items-center gap-2">
+            {prevAlter && (
+              <Link to={`/alter/${prevAlter.id}`}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Prev
+                </Button>
+              </Link>
+            )}
+            {nextAlter && (
+              <Link to={`/alter/${nextAlter.id}`}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  Next
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            )}
+            {tab === "profile" && (
+              <Button
+                variant={editMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => setEditMode(e => !e)}
+                className="gap-1.5"
+              >
+                {editMode ? <><Eye className="w-3.5 h-3.5" /> View</> : <><Pencil className="w-3.5 h-3.5" /> Edit</>}
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Header strip */}
-      <div
-        className="rounded-2xl p-4 mb-5 flex items-center gap-4"
-        style={{
-          background: bgColor
-            ? `linear-gradient(135deg, ${bgColor}22, ${bgColor}08)`
-            : "hsl(var(--muted)/0.3)",
-          borderLeft: bgColor ? `4px solid ${bgColor}` : "4px solid hsl(var(--primary))",
-        }}
-      >
-        <div
-          className="w-14 h-14 rounded-xl border-2 border-border/60 overflow-hidden flex-shrink-0"
-          style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
-        >
-          {alter.avatar_url ? (
-            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}>
-              <User className="w-7 h-7" />
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
-          {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
-          {alter.role && <p className="text-xs text-muted-foreground/70 mt-0.5">{alter.role}</p>}
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.id}
-              onClick={() => { setTab(t.id); if (t.id !== "profile") setEditMode(false); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0",
-                tab === t.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
+        {/* Header strip — hidden on profile tab (ProfileTab shows its own header) */}
+        {tab !== "profile" && (
+          <div
+            className="rounded-2xl p-4 mb-5 flex items-center gap-4"
+            style={{
+              background: alterColor
+                ? `linear-gradient(135deg, ${alterColor}22, ${alterColor}08)`
+                : "hsl(var(--muted)/0.3)",
+              borderLeft: alterColor ? `4px solid ${alterColor}` : "4px solid hsl(var(--primary))",
+            }}
+          >
+            <div
+              className="w-14 h-14 rounded-xl border-2 border-border/60 overflow-hidden flex-shrink-0"
+              style={{ backgroundColor: alterColor || "hsl(var(--muted))" }}
             >
-              <Icon className="w-4 h-4" />
-              <span>{t.label}</span>
-            </button>
-          );
-        })}
-      </div>
+              {alter.avatar_url ? (
+                <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}>
+                  <User className="w-7 h-7" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
+              {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
+              {alter.role && <p className="text-xs text-muted-foreground/70 mt-0.5">{alter.role}</p>}
+            </div>
+          </div>
+        )}
 
-      {/* Tab content */}
-      <div>
-{tab === "profile" && <ProfileTab alter={alter} editMode={editMode} onEditModeChange={setEditMode} systemFields={systemFields} />}        {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
-        {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
-        {tab === "history" && <HistoryTab alterId={alter.id} />}
-        {tab === "notes" && <NotesTab alterId={alter.id} />}
-        {tab === "options" && <OptionsTab alter={alter} />}
+        {/* Tab bar */}
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.id}
+                onClick={() => { setTab(t.id); if (t.id !== "profile") setEditMode(false); }}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0",
+                  tab === t.id
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab content */}
+        <div>
+          {tab === "profile" && <ProfileTab alter={alter} editMode={editMode} onEditModeChange={setEditMode} systemFields={systemFields} />}
+          {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
+          {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
+          {tab === "history" && <HistoryTab alterId={alter.id} />}
+          {tab === "notes" && <NotesTab alterId={alter.id} />}
+          {tab === "options" && <OptionsTab alter={alter} />}
+        </div>
       </div>
     </motion.div>
   );
