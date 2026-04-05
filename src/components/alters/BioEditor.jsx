@@ -153,7 +153,7 @@ function MiniToolbar({ onInsert }) {
         {/* Highlight */}
         <button type="button" title="Highlight color"
           onMouseDown={e => e.preventDefault()}
-          onClick={() => openColorModal("hl")}
+          onClick={() => openColorModal("fg")}
           className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
           <span className="text-xs font-bold px-0.5 rounded" style={{ background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)", lineHeight: 1.6 }}>A</span>
         </button>
