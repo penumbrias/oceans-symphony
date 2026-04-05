@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Eye, Code2, Bold, Italic, Strikethrough, Link, Image, AlignLeft, AlignRight, LayoutGrid, Heading1, Heading2, Heading3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { HexColorPicker } from "react-colorful";
-import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
 
 function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose }) {
   const [hex, setHex] = React.useState(color);
@@ -57,39 +55,6 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-const QUILL_MODULES = {
-  toolbar: [
-    [{ header: [1, 2, 3, false] }],
-    ["bold", "italic", "underline", "strike"],
-    [{ color: [] }, { background: [] }],
-    [{ list: "ordered" }, { list: "bullet" }],
-    ["blockquote", "code-block"],
-    ["link", "image"],
-    ["clean"],
-  ],
-};
-
-export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [] }) {  const queryClient = useQueryClient();
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    alias: "",
-    pronouns: "",
-    role: "",
-    description: "",
-    color: "",
-    avatar_url: "",
-  });
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showGroupPicker, setShowGroupPicker] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const fileInputRef = useRef(null);
-const quillRef = useRef(null);
-const [bioMode, setBioMode] = useState("rich"); // "rich" | "html"
-const [showImportModal, setShowImportModal] = useState(false);
-const [importText, setImportText] = useState("");
-
 const convertSPToHTML = (text) => {
   let html = text;
 
@@ -102,7 +67,7 @@ const convertSPToHTML = (text) => {
   html = html.replace(/^---+$/gm, '<hr />');
 
   // Blockquote
-  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  html = html.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">$1</blockquote>');
 
   // 4-space indent = scrollable code block
   html = html.replace(/^    (.+)$/gm, '<pre style="overflow-x:auto;white-space:nowrap;background:hsl(var(--muted));padding:8px 12px;border-radius:6px;font-size:0.85em;">$1</pre>');
@@ -110,7 +75,7 @@ const convertSPToHTML = (text) => {
   // Tables
   html = html.replace(/^\|(.+)\|\s*\n\|[-| :]+\|\s*\n((?:\|.+\|\s*\n?)*)/gm, (match, header, body) => {
     const headers = header.split('|').map(h => h.trim()).filter(Boolean);
-    const headerHTML = headers.map(h => `<th style="padding:6px 12px;border:1px solid hsl(var(--border));background:hsl(var(--muted));">${h}</th>`).join('');
+    const headerHTML = headers.map(h => `<th style="padding:6px 12px;border:1px solid hsl(var(--border));background:hsl(var(--muted));font-weight:600;">${h}</th>`).join('');
     const rows = body.trim().split('\n').map(row => {
       const cells = row.split('|').map(c => c.trim()).filter(Boolean);
       return '<tr>' + cells.map(c => `<td style="padding:6px 12px;border:1px solid hsl(var(--border));">${c}</td>`).join('') + '</tr>';
@@ -120,17 +85,12 @@ const convertSPToHTML = (text) => {
 
   // Bold + italic combined
   html = html.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  // Bold
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  // Italic
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-  // Strikethrough
   html = html.replace(/~~([^~]+)~~/g, '<s>$1</s>');
-  // Underline
   html = html.replace(/__([^_]+)__/g, '<u>$1</u>');
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code style="background:hsl(var(--muted));padding:1px 4px;border-radius:3px;">$1</code>');
+  html = html.replace(/`([^`]+)`/g, '<code style="background:hsl(var(--muted));padding:1px 4px;border-radius:3px;font-size:0.9em;">$1</code>');
 
   // Unordered lists
   html = html.replace(/(^[-*] .+$(\n[-*] .+$)*)/gm, (match) => {
@@ -149,9 +109,9 @@ const convertSPToHTML = (text) => {
   });
 
   // Links (before images)
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:hsl(var(--primary));text-decoration:underline;">$1</a>');
 
-  // Images — parse optional #WxH suffix, render inline so text flows beside them
+  // Images with optional #WxH suffix — inline-block so text flows beside them
   html = html.replace(/!\[([^\]]*)\]\(([^)#)]+)(?:#(\d+)x(\d+))?\)/g, (match, alt, src, w, h) => {
     const width = w ? `${w}px` : 'auto';
     const height = h ? `${h}px` : 'auto';
@@ -159,11 +119,354 @@ const convertSPToHTML = (text) => {
     return `<img src="${src}" alt="${alt}" style="display:inline-block;vertical-align:middle;width:${width};height:${height};max-width:${maxWidth};border-radius:4px;margin:2px 4px;" />`;
   });
 
-  // Newlines → <br>
+  // Newlines
   html = html.replace(/\n/g, '<br />');
 
   return html;
 };
+
+// ── Image size picker modal ──
+function ImageSizeModal({ onInsert, onClose }) {
+  const [size, setSize] = useState("medium");
+  const sizes = [
+    { id: "small", label: "Small", w: 80, h: 80 },
+    { id: "medium", label: "Medium", w: 150, h: 150 },
+    { id: "large", label: "Large", w: 300, h: "auto" },
+    { id: "full", label: "Full width", w: null, h: null },
+  ];
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-xs mx-4 w-full">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm">Image size</h3>
+          <button type="button" onClick={onClose}><X className="w-4 h-4" /></button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {sizes.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSize(s.id)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all ${size === s.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button type="button" onClick={onClose}
+            className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm">Cancel</button>
+          <button type="button" onClick={() => onInsert(sizes.find(s => s.id === size))}
+            className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">Insert</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── The main bio editor component ──
+function BioEditor({ value, onChange }) {
+  const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [mobileTab, setMobileTab] = useState("edit"); // "edit" | "preview"
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [pendingSizeModal, setPendingSizeModal] = useState(null); // holds { url } when waiting for size pick
+
+  // Insert text at cursor in textarea
+  const insertAtCursor = useCallback((before, after = "") => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = value.slice(start, end);
+    const newVal = value.slice(0, start) + before + selected + after + value.slice(end);
+    onChange(newVal);
+    // Restore cursor after React re-render
+    requestAnimationFrame(() => {
+      ta.focus();
+      const cursor = start + before.length + selected.length + after.length;
+      ta.setSelectionRange(
+        selected ? start + before.length : cursor,
+        selected ? start + before.length + selected.length : cursor
+      );
+    });
+  }, [value, onChange]);
+
+  const insertBlock = useCallback((html) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const pos = ta.selectionStart;
+    const newVal = value.slice(0, pos) + "\n" + html + "\n" + value.slice(pos);
+    onChange(newVal);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const cursor = pos + html.length + 2;
+      ta.setSelectionRange(cursor, cursor);
+    });
+  }, [value, onChange]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      toast.success("Image uploaded!");
+      setPendingSizeModal({ url: file_url });
+    } catch {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleSizeChosen = (sizeObj) => {
+    const { url } = pendingSizeModal;
+    setPendingSizeModal(null);
+    let tag;
+    if (!sizeObj.w) {
+      tag = `<img src="${url}" alt="" style="display:block;width:100%;border-radius:6px;margin:4px 0;" />`;
+    } else {
+      const h = sizeObj.h === "auto" ? "auto" : `${sizeObj.h}px`;
+      tag = `<img src="${url}" alt="" style="display:inline-block;vertical-align:middle;width:${sizeObj.w}px;height:${h};border-radius:6px;margin:2px 4px;" />`;
+    }
+    insertAtCursor(tag);
+  };
+
+  const toolbarBtn = (onClick, icon, title, active = false) => (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors flex-shrink-0
+        ${active ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+    >
+      {icon}
+    </button>
+  );
+
+  const snippetBtn = (onClick, label, title) => (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="px-2 py-0.5 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 border border-border/40"
+    >
+      {label}
+    </button>
+  );
+
+  const preview = (
+    <div
+      className="w-full h-full min-h-[260px] px-3 py-3 text-sm leading-relaxed overflow-y-auto"
+      dangerouslySetInnerHTML={{ __html: value || '<span style="color:hsl(var(--muted-foreground))">Nothing to preview yet.</span>' }}
+    />
+  );
+
+  const editor = (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={"<p>Write HTML directly, or use the toolbar above.</p>\n\nTip: Use the layout snippets to place images beside text."}
+      className="w-full min-h-[260px] px-3 py-3 text-sm font-mono bg-transparent focus:outline-none resize-y leading-relaxed"
+      spellCheck={false}
+    />
+  );
+
+  return (
+    <div className="space-y-2">
+      {/* Label row */}
+      <div className="flex items-center justify-between">
+        <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
+        <button
+          type="button"
+          onClick={() => setShowImportModal(true)}
+          className="text-xs text-primary hover:text-primary/80 font-medium"
+        >
+          Import SP Template
+        </button>
+      </div>
+
+      {/* Editor card */}
+      <div className="rounded-xl border border-input bg-background overflow-hidden">
+
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border/50 bg-muted/20">
+          {/* Formatting */}
+          {toolbarBtn(() => insertAtCursor("<strong>", "</strong>"), <Bold className="w-3.5 h-3.5" />, "Bold")}
+          {toolbarBtn(() => insertAtCursor("<em>", "</em>"), <Italic className="w-3.5 h-3.5" />, "Italic")}
+          {toolbarBtn(() => insertAtCursor("<s>", "</s>"), <Strikethrough className="w-3.5 h-3.5" />, "Strikethrough")}
+
+          <div className="w-px h-4 bg-border/50 mx-0.5 flex-shrink-0" />
+
+          {/* Headings */}
+          {toolbarBtn(() => insertAtCursor("<h1>", "</h1>"), <Heading1 className="w-3.5 h-3.5" />, "Heading 1")}
+          {toolbarBtn(() => insertAtCursor("<h2>", "</h2>"), <Heading2 className="w-3.5 h-3.5" />, "Heading 2")}
+          {toolbarBtn(() => insertAtCursor("<h3>", "</h3>"), <Heading3 className="w-3.5 h-3.5" />, "Heading 3")}
+
+          <div className="w-px h-4 bg-border/50 mx-0.5 flex-shrink-0" />
+
+          {/* Link */}
+          {toolbarBtn(
+            () => insertAtCursor('<a href="https://" style="color:hsl(var(--primary));text-decoration:underline;">', "</a>"),
+            <Link className="w-3.5 h-3.5" />, "Link"
+          )}
+
+          {/* Image upload */}
+          <button
+            type="button"
+            title="Upload image"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0"
+          >
+            {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Image className="w-3.5 h-3.5" />}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleImageUpload} />
+
+          <div className="w-px h-4 bg-border/50 mx-0.5 flex-shrink-0" />
+
+          {/* Layout snippets */}
+          {snippetBtn(
+            () => insertBlock(
+              `<div style="display:flex;gap:12px;align-items:flex-start;margin:8px 0;">\n  <img src="" alt="" style="width:120px;height:auto;border-radius:6px;flex-shrink:0;" />\n  <p>Text to the right of the image goes here.</p>\n</div>`
+            ),
+            "⬛ Img left",
+            "Image left, text right"
+          )}
+          {snippetBtn(
+            () => insertBlock(
+              `<div style="display:flex;gap:12px;align-items:flex-start;margin:8px 0;">\n  <p>Text to the left of the image goes here.</p>\n  <img src="" alt="" style="width:120px;height:auto;border-radius:6px;flex-shrink:0;" />\n</div>`
+            ),
+            "Img right ⬛",
+            "Text left, image right"
+          )}
+          {snippetBtn(
+            () => insertBlock(
+              `<div style="display:flex;gap:8px;align-items:flex-start;margin:8px 0;">\n  <img src="" alt="" style="flex:1;min-width:0;max-width:100%;border-radius:6px;" />\n  <img src="" alt="" style="flex:1;min-width:0;max-width:100%;border-radius:6px;" />\n  <img src="" alt="" style="flex:1;min-width:0;max-width:100%;border-radius:6px;" />\n</div>`
+            ),
+            "⬛⬛⬛ Gallery",
+            "Three images side by side"
+          )}
+        </div>
+
+        {/* Mobile tab switcher */}
+        <div className="flex border-b border-border/40 md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileTab("edit")}
+            className={`flex-1 py-1.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors
+              ${mobileTab === "edit" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+          >
+            <Code2 className="w-3 h-3" /> Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("preview")}
+            className={`flex-1 py-1.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors
+              ${mobileTab === "preview" ? "text-primary border-b-2 border-primary" : "text-muted-foreground"}`}
+          >
+            <Eye className="w-3 h-3" /> Preview
+          </button>
+        </div>
+
+        {/* Mobile: single panel */}
+        <div className="md:hidden">
+          {mobileTab === "edit" ? editor : preview}
+        </div>
+
+        {/* Desktop: side by side */}
+        <div className="hidden md:grid md:grid-cols-2 md:divide-x md:divide-border/40">
+          {editor}
+          <div className="bg-muted/10">
+            <div className="px-2 py-1 border-b border-border/30 flex items-center gap-1.5">
+              <Eye className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Preview</span>
+            </div>
+            {preview}
+          </div>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        HTML editor — use toolbar buttons or layout snippets. Import SP templates with the button above.
+      </p>
+
+      {/* Import SP modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-lg mx-4 w-full">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Import Simply Plural Template</h3>
+              <button type="button" onClick={() => { setShowImportModal(false); setImportText(""); }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Paste your SP template below. Markdown, images, links, tables, and formatting will all be converted automatically.
+            </p>
+            <textarea
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder="Paste SP template here..."
+              className="w-full h-48 px-3 py-2 rounded-md border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button type="button"
+                onClick={() => { setShowImportModal(false); setImportText(""); }}
+                className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm">
+                Cancel
+              </button>
+              <button type="button"
+                onClick={() => {
+                  const html = convertSPToHTML(importText);
+                  onChange((value || "") + html);
+                  setShowImportModal(false);
+                  setImportText("");
+                  toast.success("Template imported!");
+                }}
+                disabled={!importText.trim()}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">
+                Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image size picker */}
+      {pendingSizeModal && (
+        <ImageSizeModal
+          onInsert={handleSizeChosen}
+          onClose={() => setPendingSizeModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [] }) {
+  const queryClient = useQueryClient();
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    alias: "",
+    pronouns: "",
+    role: "",
+    description: "",
+    color: "",
+    avatar_url: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     setForm({
@@ -242,7 +545,6 @@ const convertSPToHTML = (text) => {
   if (!editMode) {
     return (
       <div className="space-y-6">
-        {/* Avatar + basic info */}
         <div className="flex gap-4 items-start">
           <div
             className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
@@ -272,12 +574,11 @@ const convertSPToHTML = (text) => {
           </div>
         </div>
 
-        {/* Rich text bio */}
         {alter.description ? (
           <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
             <div
-              className="ql-editor"
-              style={{ padding: 0, whiteSpace: "normal" }}
+              className="text-sm leading-relaxed"
+              style={{ wordBreak: "break-word" }}
               dangerouslySetInnerHTML={{ __html: alter.description }}
             />
           </div>
@@ -287,7 +588,6 @@ const convertSPToHTML = (text) => {
           </div>
         )}
 
-        {/* Groups */}
         {alter.groups && alter.groups.length > 0 && (
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
@@ -309,7 +609,6 @@ const convertSPToHTML = (text) => {
           </div>
         )}
 
-        {/* Tags */}
         {alter.tags && alter.tags.length > 0 && (
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tags</p>
@@ -323,7 +622,6 @@ const convertSPToHTML = (text) => {
           </div>
         )}
 
-        {/* Custom fields — visible and filled */}
         {(() => {
           const customFieldValues = alter.custom_fields || {};
           const visibleFilled = systemFields.filter(
@@ -435,78 +733,12 @@ const convertSPToHTML = (text) => {
           )}
         </div>
 
-       <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setBioMode(bioMode === "rich" ? "html" : "rich")}
-                className="text-xs text-muted-foreground hover:text-foreground font-medium border border-border/50 rounded px-2 py-0.5"
-              >
-                {bioMode === "rich" ? "</> HTML" : "Rich Text"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowImportModal(true)}
-                className="text-xs text-primary hover:text-primary/80 font-medium"
-              >
-                Import SP Template
-              </button>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {bioMode === "rich" ? "Supports rich text, images, headers, and more" : "Edit raw HTML directly"}
-          </p>
-          <div className="rounded-lg border border-input overflow-hidden bg-background">
-            {bioMode === "html" ? (
-              <textarea
-                value={form.description}
-                onChange={(e) => set("description", e.target.value)}
-                placeholder="<p>Write raw HTML here...</p>"
-                className="w-full min-h-[200px] px-3 py-2 text-sm font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-y"
-              />
-            ) : (
-            <ReactQuill
-              ref={quillRef}
-              value={form.description}
-              onChange={(val) => set("description", val)}
-              modules={QUILL_MODULES}
-              theme="snow"
-              placeholder="Write a bio… add images, headers, styling…"
-              onFocus={() => {
-                const quill = quillRef.current?.getEditor();
-                if (!quill) return;
-                const toolbar = quill.getModule("toolbar");
-                toolbar.addHandler("image", () => {
-                  const input = document.createElement("input");
-                  input.setAttribute("type", "file");
-                  input.setAttribute("accept", "image/*");
-                  input.click();
-                  input.onchange = async () => {
-                    const file = input.files[0];
-                    if (!file) return;
-                    try {
-                      toast.loading("Uploading image...");
-                      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                      toast.dismiss();
-                      toast.success("Image uploaded!");
-                      const range = quill.getSelection() || { index: 0 };
-                      quill.insertEmbed(range.index, "image", file_url);
-                      quill.setSelection(range.index + 1);
-                    } catch {
-                      toast.dismiss();
-                      toast.error("Failed to upload image");
-                    }
-                  };
-                });
-              }}
-            />
-            )}
-          </div>
-        </div>
+        {/* Bio editor — replaces the old Quill/HTML toggle */}
+        <BioEditor
+          value={form.description}
+          onChange={(val) => set("description", val)}
+        />
       </div>
-    
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -567,48 +799,8 @@ const convertSPToHTML = (text) => {
       </div>
 
       <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
-{showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-lg mx-4 w-full">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Import Simply Plural Template</h3>
-              <button type="button" onClick={() => { setShowImportModal(false); setImportText(""); }}>
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">Paste your SP template below. Images, links, and formatting will be converted automatically.</p>
-            <textarea
-              value={importText}
-              onChange={(e) => setImportText(e.target.value)}
-              placeholder="Paste SP template here..."
-              className="w-full h-48 px-3 py-2 rounded-md border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-              autoFocus
-            />
-            <div className="flex gap-2">
-              <button type="button"
-                onClick={() => { setShowImportModal(false); setImportText(""); }}
-                className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm">
-                Cancel
-              </button>
-              <button type="button"
-                onClick={() => {
-                  const html = convertSPToHTML(importText);
-                  set("description", (form.description || "") + html);
-                  setShowImportModal(false);
-                  setImportText("");
-                  toast.success("Template imported!");
-                }}
-                disabled={!importText.trim()}
-                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm disabled:opacity-50">
-                Import
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showColorPicker && (
-   
         <ColorPickerModal
           color={form.color || "#8b5cf6"}
           label="Alter Color"
