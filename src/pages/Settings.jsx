@@ -122,7 +122,7 @@ export default function Settings() {
           <strong className="text-foreground">Oceans Symphony is built on and "vibe-coded" with the Base44 platform.</strong> Your data is stored on Base44's servers
           with row-level security — no other user can access your data, and data cannot be accessed
           without being logged into your account. However, cloud data is{" "}
-          <strong className="text-foreground">not end-to-end encrypted</strong>, meaning <strong>I as the
+          <strong>not end-to-end encrypted</strong>, meaning <strong className="text-foreground">I as the
           developer technically have server access</strong>. I am committed to never accessing your data, but
           please be mindful of what you enter if this concerns you.
         </p>
