@@ -150,6 +150,9 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
           <div className="space-y-2">
             <Label>Avatar URL</Label>
             <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
+                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+              {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            </Button>
             {form.avatar_url && (
               <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />
             )}
