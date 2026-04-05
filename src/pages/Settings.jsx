@@ -109,7 +109,7 @@ export default function Settings() {
       </div>
       <div className="flex-1">
         <CardTitle className="text-lg">Privacy & Data Notice</CardTitle>
-        <CardDescription>!!Please read!!</CardDescription>
+        <CardDescription><strong className="text-foreground">!!Please read!!</strong></CardDescription>
       </div>
       <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${noticeOpen ? "rotate-180" : ""}`} />
     </div>
