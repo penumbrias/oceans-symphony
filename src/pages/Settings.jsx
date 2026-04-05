@@ -141,9 +141,20 @@ export default function Settings() {
       <div className="space-y-1">
         <p className="font-semibold text-foreground">💾 Backups</p>
         <p>
-          Use Settings → Backup & Export to save your data as a JSON file. Keep backups somewhere
+          Use Settings → Backup &amp; Export to save your data as a JSON file. Keep backups somewhere
           safe — local data is tied to this device and will be lost if you clear app data or
-          uninstall without a backup (or clear browser history on webapp). 
+          uninstall without a backup (or clear browser history on webapp).
+        </p>
+        <p>
+          Looking for the latest version?{" "}
+          
+            href="https://github.com/penumbrias/oceans-symphony/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline hover:text-primary/80 transition-colors"
+          >
+            Check releases on GitHub
+          </a>
         </p>
       </div>
       <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
