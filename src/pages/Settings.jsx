@@ -135,7 +135,7 @@ export default function Settings() {
           the same standard used by banks and governments. Your password never leaves your device.
           Even I cannot access your encrypted local data. <strong>This is the recommended mode for sensitive
           information. </strong></p>
-          <p><strong>If you lose your encyrption password, data cannot be retrieved; make frequent backups and save your password securely.</strong>
+          <p><strong className="text-foreground">If you lose your encyrption password, data cannot be retrieved; make frequent backups and save your password securely.</strong>
         </p>
       </div>
       <div className="space-y-1">
