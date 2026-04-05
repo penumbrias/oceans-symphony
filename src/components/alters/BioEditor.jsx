@@ -2,8 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Image, AlignLeft, AlignRight,
-  LayoutGrid, Minus, Type, Code2, Eye, X, Upload, Loader2, GripVertical,
-  Bold, Italic, Strikethrough, Link, Heading1, Heading2, Heading3
+  LayoutGrid, Minus, Type, Eye, X, Upload, Loader2, GripVertical, Crop
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,28 +16,38 @@ function blocksToHTML(blocks) {
     switch (block.type) {
       case "text":
         return `<div class="bio-text">${block.content || ""}</div>`;
+
       case "img-left":
         return `<div style="display:flex;gap:14px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
-  <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 120}px;height:auto;border-radius:8px;flex-shrink:0;object-fit:cover;max-width:100%;" />
+  <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 120}px;${block.cropped ? `height:${block.size || 120}px;object-fit:cover;` : "height:auto;"}border-radius:8px;flex-shrink:0;max-width:100%;" />
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
 </div>`;
+
       case "img-right":
         return `<div style="display:flex;gap:14px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
-  <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 120}px;height:auto;border-radius:8px;flex-shrink:0;object-fit:cover;max-width:100%;" />
+  <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 120}px;${block.cropped ? `height:${block.size || 120}px;object-fit:cover;` : "height:auto;"}border-radius:8px;flex-shrink:0;max-width:100%;" />
 </div>`;
+
       case "gallery": {
-        const imgs = (block.images || []).filter(i => i.src).map(i =>
-          `<img src="${i.src}" alt="${i.alt || ""}" style="flex:1;min-width:0;max-width:100%;height:${block.height || 120}px;object-fit:cover;border-radius:8px;" />`
-        ).join("\n  ");
-        return `<div style="display:flex;gap:8px;align-items:stretch;margin:8px 0;flex-wrap:wrap;">
+        const imgs = (block.images || []).filter(i => i.src).map(i => {
+          const maxH = block.maxHeight || 160;
+          if (i.cropped) {
+            return `<img src="${i.src}" alt="${i.alt || ""}" style="height:${maxH}px;width:${maxH}px;object-fit:cover;border-radius:8px;flex-shrink:0;" />`;
+          }
+          return `<img src="${i.src}" alt="${i.alt || ""}" style="max-height:${maxH}px;width:auto;height:auto;border-radius:8px;flex-shrink:0;" />`;
+        }).join("\n  ");
+        return `<div style="display:flex;gap:8px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
   ${imgs}
 </div>`;
       }
+
       case "divider":
         return `<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />`;
+
       case "raw":
         return block.content || "";
+
       default:
         return "";
     }
@@ -49,60 +58,202 @@ function blocksToHTML(blocks) {
 function htmlToBlocks(html) {
   if (!html || !html.trim()) return [];
   const blocks = [];
-
-  // Split on our known block patterns
   const lines = html.split(/\n(?=<(?:div|hr))/);
   for (const chunk of lines) {
     const trimmed = chunk.trim();
     if (!trimmed) continue;
-
     if (trimmed.startsWith('<hr')) {
       blocks.push({ id: uid(), type: "divider" });
-    } else if (trimmed.includes('display:flex') && trimmed.includes('<img') && trimmed.includes('flex:1;min-width:0')) {
+    } else if (trimmed.includes('display:flex') && trimmed.includes('<img') && trimmed.includes('flex-shrink:0') && !trimmed.includes('min-width:160px')) {
       // Gallery
-      const srcs = [...trimmed.matchAll(/src="([^"]+)"/g)].map(m => m[1]);
-      const alts = [...trimmed.matchAll(/alt="([^"]*)"/g)].map(m => m[1]);
-      const heightMatch = trimmed.match(/height:(\d+)px;object-fit/);
+      const imgMatches = [...trimmed.matchAll(/<img src="([^"]*)" alt="([^"]*)" style="([^"]*)"/g)];
+      const maxHMatch = trimmed.match(/max-height:(\d+)px/) || trimmed.match(/height:(\d+)px/);
       blocks.push({
         id: uid(), type: "gallery",
-        images: srcs.map((src, i) => ({ src, alt: alts[i] || "" })),
-        height: heightMatch ? parseInt(heightMatch[1]) : 120,
+        maxHeight: maxHMatch ? parseInt(maxHMatch[1]) : 160,
+        images: imgMatches.map(m => ({
+          src: m[1], alt: m[2],
+          cropped: m[3].includes('object-fit:cover'),
+        })),
       });
-    } else if (trimmed.includes('display:flex') && trimmed.includes('<img') && trimmed.includes('flex-shrink:0')) {
-      // img-left or img-right
-      const srcMatch = trimmed.match(/src="([^"]+)"/);
-      const altMatch = trimmed.match(/alt="([^"]*)"/);
-      const sizeMatch = trimmed.match(/width:(\d+)px;height:auto/);
-      // Text content — grab from the div that's not the img
+    } else if (trimmed.includes('display:flex') && trimmed.includes('min-width:160px')) {
+      const srcMatch = trimmed.match(/img src="([^"]*)"/);
+      const altMatch = trimmed.match(/img src="[^"]*" alt="([^"]*)"/);
+      const sizeMatch = trimmed.match(/width:(\d+)px/);
+      const croppedMatch = trimmed.includes('object-fit:cover');
       const textMatch = trimmed.match(/<div style="flex:1[^"]*">([\s\S]*?)<\/div>/);
-      const isRight = trimmed.indexOf('<img') > trimmed.indexOf('<div style="flex:1');
+      const isRight = trimmed.indexOf('<img') > trimmed.indexOf('min-width:160px');
       blocks.push({
         id: uid(),
         type: isRight ? "img-right" : "img-left",
         src: srcMatch?.[1] || "",
         alt: altMatch?.[1] || "",
         size: sizeMatch ? parseInt(sizeMatch[1]) : 120,
+        cropped: croppedMatch,
         text: textMatch?.[1] || "",
       });
     } else if (trimmed.startsWith('<div class="bio-text">')) {
       const content = trimmed.replace(/^<div class="bio-text">/, "").replace(/<\/div>$/, "");
       blocks.push({ id: uid(), type: "text", content });
     } else {
-      // Fallback: raw HTML block
       blocks.push({ id: uid(), type: "raw", content: trimmed });
     }
   }
-
   return blocks.length ? blocks : [{ id: uid(), type: "text", content: html }];
 }
 
-// ── Simple inline text toolbar for text/side-text fields ──
+// ── SP inline markdown → HTML ──
+function spInlineToHTML(text) {
+  let h = text;
+  h = h.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+  h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  h = h.replace(/~~([^~]+)~~/g, '<s>$1</s>');
+  h = h.replace(/`([^`]+)`/g, '<code style="background:hsl(var(--muted));padding:1px 4px;border-radius:3px;">$1</code>');
+  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:hsl(var(--primary));text-decoration:underline;">$1</a>');
+  return h;
+}
+
+// ── SP block markdown → HTML ──
+function spBlockToHTML(text) {
+  let h = text;
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  h = h.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  h = h.replace(/^---+$/gm, '<hr />');
+  h = h.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">$1</blockquote>');
+  h = h.replace(/^    (.+)$/gm, '<pre style="overflow-x:auto;white-space:nowrap;background:hsl(var(--muted));padding:8px 12px;border-radius:6px;font-size:0.85em;">$1</pre>');
+  h = h.replace(/^\|(.+)\|\s*\n\|[-| :]+\|\s*\n((?:\|.+\|\s*\n?)*)/gm, (match, header, body) => {
+    const headers = header.split('|').map(hh => hh.trim()).filter(Boolean);
+    const headerHTML = headers.map(hh => `<th style="padding:6px 12px;border:1px solid hsl(var(--border));background:hsl(var(--muted));font-weight:600;">${hh}</th>`).join('');
+    const rows = body.trim().split('\n').map(row => {
+      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+      return '<tr>' + cells.map(c => `<td style="padding:6px 12px;border:1px solid hsl(var(--border));">${c}</td>`).join('') + '</tr>';
+    }).join('');
+    return `<table style="border-collapse:collapse;width:100%;margin:8px 0;"><thead><tr>${headerHTML}</tr></thead><tbody>${rows}</tbody></table>`;
+  });
+  h = spInlineToHTML(h);
+  h = h.replace(/(^[-*] .+$(\n[-*] .+$)*)/gm, match => {
+    const items = match.split('\n').map(line => `<li>${line.replace(/^[-*] /, '')}</li>`).join('');
+    return `<ul style="padding-left:1.5em;margin:4px 0;">${items}</ul>`;
+  });
+  h = h.replace(/(^\d+\. .+$(\n\d+\. .+$)*)/gm, match => {
+    const items = match.split('\n').map(line => `<li>${line.replace(/^\d+\. /, '')}</li>`).join('');
+    return `<ol style="padding-left:1.5em;margin:4px 0;">${items}</ol>`;
+  });
+  h = h.replace(/\n/g, '<br />');
+  return h;
+}
+
+// ── SP → blocks: line-by-line parser ──
+function convertSPToBlocks(rawText) {
+  const blocks = [];
+  const lines = rawText.split('\n');
+
+  const IMG_RE = /!\[([^\]]*)\]\(([^)#)]+)(?:#(\d+)x(\d+))?\)/g;
+
+  const extractImages = (line) => {
+    const imgs = [];
+    let m;
+    IMG_RE.lastIndex = 0;
+    while ((m = IMG_RE.exec(line)) !== null) {
+      imgs.push({ index: m.index, end: m.index + m[0].length, alt: m[1], src: m[2], w: m[3] ? parseInt(m[3]) : null, h: m[4] ? parseInt(m[4]) : null });
+    }
+    return imgs;
+  };
+
+  const stripImages = (line) => line.replace(/!\[[^\]]*\]\([^)]+\)/g, '').trim();
+
+  // SP uses lots of unicode whitespace — treat these as blank lines
+  const isBlankish = (line) => /^[\s\u3000\u00a0\u200b-\u200f\u202f\u2060\ufeff\u115f\u1160\u3164]*$/.test(line);
+
+  const flushText = (textLines) => {
+    const joined = textLines.join('\n').trim();
+    if (joined && !isBlankish(joined)) {
+      blocks.push({ id: uid(), type: "text", content: spBlockToHTML(joined) });
+    }
+  };
+
+  let pendingText = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const images = extractImages(line);
+
+    if (images.length === 0) {
+      pendingText.push(line);
+      continue;
+    }
+
+    const textPart = stripImages(line);
+    const hasText = textPart.length > 0 && !isBlankish(textPart);
+
+    if (images.length === 1 && hasText) {
+      // Single image + text → img-left or img-right
+      flushText(pendingText);
+      pendingText = [];
+      const img = images[0];
+      const beforeImg = line.slice(0, img.index);
+      const afterImg = line.slice(img.end);
+      const beforeText = stripImages(beforeImg);
+      const afterText = stripImages(afterImg);
+      const isRight = beforeText.length > 0 && !isBlankish(beforeText);
+      blocks.push({
+        id: uid(),
+        type: isRight ? "img-right" : "img-left",
+        src: img.src, alt: img.alt,
+        size: img.w || 120,
+        cropped: false,
+        text: spInlineToHTML(isRight ? beforeText : afterText),
+      });
+      continue;
+    }
+
+    // Multiple images OR single image with no text
+    flushText(pendingText);
+    pendingText = [];
+
+    const galleryImages = images.map(img => ({ src: img.src, alt: img.alt, cropped: false }));
+
+    // Absorb following consecutive image-only lines into same gallery
+    while (i + 1 < lines.length) {
+      const next = lines[i + 1];
+      const nextImgs = extractImages(next);
+      const nextText = stripImages(next);
+      if (nextImgs.length > 0 && isBlankish(nextText)) {
+        i++;
+        galleryImages.push(...nextImgs.map(img => ({ src: img.src, alt: img.alt, cropped: false })));
+      } else {
+        break;
+      }
+    }
+
+    if (galleryImages.length === 1) {
+      // Single standalone image → raw block (preserves natural display)
+      const img = images[0];
+      const w = img.w ? `${img.w}px` : '100%';
+      const hStyle = img.h ? `height:${img.h}px;object-fit:cover;` : 'height:auto;';
+      blocks.push({
+        id: uid(), type: "raw",
+        content: `<img src="${img.src}" alt="${img.alt}" style="display:block;width:${w};${hStyle}border-radius:8px;margin:4px 0;" />`,
+      });
+    } else {
+      blocks.push({ id: uid(), type: "gallery", maxHeight: 160, images: galleryImages });
+    }
+  }
+
+  flushText(pendingText);
+  return blocks.length ? blocks : [{ id: uid(), type: "text", content: "" }];
+}
+
+// ── MiniToolbar ──
 function MiniToolbar({ onInsert }) {
   const btn = (label, before, after, title) => (
     <button type="button" title={title}
       onClick={() => onInsert(before, after)}
-      className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold"
-    >{label}</button>
+      className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold">
+      {label}
+    </button>
   );
   return (
     <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-border/30 bg-muted/10">
@@ -118,7 +269,7 @@ function MiniToolbar({ onInsert }) {
 }
 
 function useTextareaInsert(ref, value, onChange) {
-  const insert = useCallback((before, after = "") => {
+  return useCallback((before, after = "") => {
     const ta = ref.current;
     if (!ta) return;
     const start = ta.selectionStart;
@@ -135,10 +286,9 @@ function useTextareaInsert(ref, value, onChange) {
       );
     });
   }, [ref, value, onChange]);
-  return insert;
 }
 
-// ── Image picker sub-modal ──
+// ── Image picker modal ──
 function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "Insert Image" }) {
   const [src, setSrc] = useState(initial.src || "");
   const [alt, setAlt] = useState(initial.alt || "");
@@ -170,17 +320,12 @@ function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "Insert Im
             <X className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Upload or URL */}
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Image</label>
           <div className="flex gap-2">
-            <input
-              value={src}
-              onChange={e => setSrc(e.target.value)}
+            <input value={src} onChange={e => setSrc(e.target.value)}
               placeholder="Paste URL or upload →"
-              className="flex-1 h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+              className="flex-1 h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
             <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
               className="h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-muted-foreground" />}
@@ -188,53 +333,41 @@ function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "Insert Im
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleUpload} />
           </div>
         </div>
-
-        {/* Preview */}
         {src && (
-          <div className="rounded-xl border border-border/40 overflow-hidden bg-muted/20 flex items-center justify-center" style={{ minHeight: 80 }}>
-            <img src={src} alt={alt} className="max-h-32 max-w-full object-contain rounded" onError={e => e.target.style.display = "none"} />
+          <div className="rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center overflow-hidden" style={{ minHeight: 80 }}>
+            <img src={src} alt={alt} className="max-h-32 max-w-full object-contain rounded"
+              onError={e => e.target.style.display = "none"} />
           </div>
         )}
-
-        {/* Alt text */}
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Alt text <span className="opacity-50">(optional)</span></label>
-          <input
-            value={alt}
-            onChange={e => setAlt(e.target.value)}
+          <input value={alt} onChange={e => setAlt(e.target.value)}
             placeholder="Description of image"
-            className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-          />
+            className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
-
         <div className="flex gap-2 pt-1">
           <button type="button" onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80">
-            Cancel
-          </button>
+            className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80">Cancel</button>
           <button type="button" onClick={() => { onConfirm({ src, alt }); onClose(); }} disabled={!src.trim()}
-            className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">
-            Confirm
-          </button>
+            className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">Confirm</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Add block picker ──
+// ── Add block menu ──
 function AddBlockMenu({ onAdd, onClose }) {
   const options = [
     { type: "text", icon: <Type className="w-4 h-4" />, label: "Text", desc: "Paragraph with formatting" },
     { type: "img-left", icon: <AlignLeft className="w-4 h-4" />, label: "Image · Text", desc: "Image left, text right" },
     { type: "img-right", icon: <AlignRight className="w-4 h-4" />, label: "Text · Image", desc: "Text left, image right" },
-    { type: "gallery", icon: <LayoutGrid className="w-4 h-4" />, label: "Gallery", desc: "2–4 images in a row" },
+    { type: "gallery", icon: <LayoutGrid className="w-4 h-4" />, label: "Gallery", desc: "Multiple images in a row, wrap naturally" },
     { type: "divider", icon: <Minus className="w-4 h-4" />, label: "Divider", desc: "Horizontal rule" },
   ];
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50"
-      onClick={onClose}>
-      <div className="bg-background border-2 border-border rounded-t-2xl sm:rounded-2xl p-4 w-full max-w-sm mx-0 sm:mx-4 shadow-2xl"
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-background border-2 border-border rounded-t-2xl sm:rounded-2xl p-4 w-full max-w-sm shadow-2xl"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold">Add a block</p>
@@ -260,11 +393,10 @@ function AddBlockMenu({ onAdd, onClose }) {
   );
 }
 
-// ── Block wrapper (move up/down, delete) ──
+// ── Block shell ──
 function BlockShell({ index, total, onMoveUp, onMoveDown, onDelete, label, children }) {
   return (
     <div className="group relative rounded-xl border border-border/40 bg-background overflow-hidden hover:border-border transition-colors">
-      {/* Block header */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20 border-b border-border/30">
         <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
           <GripVertical className="w-3 h-3 opacity-40" />
@@ -297,75 +429,79 @@ function TextBlock({ block, onChange }) {
   return (
     <div>
       <MiniToolbar onInsert={insert} />
-      <textarea
-        ref={taRef}
+      <textarea ref={taRef}
         value={block.content || ""}
         onChange={e => onChange({ ...block, content: e.target.value })}
-        placeholder="Write something… bold with <strong>text</strong>, headings with <h2>Title</h2>"
+        placeholder="Write something… use toolbar for bold, headings, links…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
-        spellCheck={false}
-      />
+        spellCheck={false} />
     </div>
   );
 }
 
-// ── Image + Text block (left or right) ──
+// ── Image+Text block ──
 function ImgTextBlock({ block, onChange }) {
   const [imgModal, setImgModal] = useState(false);
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, block.text || "", v => onChange({ ...block, text: v }));
   const isLeft = block.type === "img-left";
-  const sizes = [80, 120, 160, 200, 260];
 
   const imgSlot = (
-    <div className="flex flex-col gap-2 p-3 flex-shrink-0" style={{ width: 160 }}>
+    <div className="flex flex-col gap-2 p-3 flex-shrink-0" style={{ width: 164 }}>
       <button type="button" onClick={() => setImgModal(true)}
         className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
-        style={{ height: block.size || 120 }}>
+        style={{ minHeight: 80 }}>
         {block.src ? (
-          <img src={block.src} alt={block.alt || ""} className="w-full h-full object-cover rounded-xl" onError={e => e.target.style.display="none"} />
+          <img src={block.src} alt={block.alt || ""}
+            style={block.cropped
+              ? { width: "100%", height: block.size || 120, objectFit: "cover" }
+              : { width: "100%", height: "auto" }}
+            onError={e => e.target.style.display = "none"} />
         ) : (
-          <div className="flex flex-col items-center gap-1 text-muted-foreground">
+          <div className="flex flex-col items-center gap-1 text-muted-foreground py-4">
             <Image className="w-5 h-5" />
             <span className="text-xs">Add image</span>
           </div>
         )}
       </button>
-      {/* Size slider */}
       <div className="space-y-1">
-        <span className="text-xs text-muted-foreground">Size: {block.size || 120}px</span>
+        <span className="text-xs text-muted-foreground">Width: {block.size || 120}px</span>
         <input type="range" min={60} max={280} step={10}
           value={block.size || 120}
           onChange={e => onChange({ ...block, size: parseInt(e.target.value) })}
           className="w-full h-1 accent-primary" />
       </div>
+      <button type="button"
+        onClick={() => onChange({ ...block, cropped: !block.cropped })}
+        className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border transition-colors ${block.cropped ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+        <Crop className="w-3 h-3" />
+        {block.cropped ? "Cropped" : "Natural size"}
+      </button>
     </div>
   );
 
   const textSlot = (
     <div className="flex-1 min-w-0 border-l border-border/30">
       <MiniToolbar onInsert={insert} />
-      <textarea
-        ref={taRef}
+      <textarea ref={taRef}
         value={block.text || ""}
         onChange={e => onChange({ ...block, text: e.target.value })}
-        placeholder="Text that appears beside the image…"
+        placeholder="Text beside the image…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
-        spellCheck={false}
-      />
+        spellCheck={false} />
     </div>
   );
 
   return (
     <>
-      <div className={`flex ${isLeft ? "" : "flex-row-reverse"} min-h-[120px]`}>
+      <div className={`flex ${isLeft ? "" : "flex-row-reverse"} min-h-[100px]`}>
         {imgSlot}
         {textSlot}
       </div>
       {imgModal && (
         <ImagePickerModal
           initial={{ src: block.src, alt: block.alt }}
-          title={isLeft ? "Image (left side)" : "Image (right side)"}
+          title={isLeft ? "Image (left)" : "Image (right)"}
           onConfirm={({ src, alt }) => onChange({ ...block, src, alt })}
           onClose={() => setImgModal(false)}
         />
@@ -375,64 +511,78 @@ function ImgTextBlock({ block, onChange }) {
 }
 
 // ── Gallery block ──
+// Natural sizing: images display at their own proportions, capped by maxHeight.
+// flex-wrap means they flow to next line on small screens just like SP does.
 function GalleryBlock({ block, onChange }) {
   const [activeIdx, setActiveIdx] = useState(null);
-  const images = block.images || [{ src: "", alt: "" }, { src: "", alt: "" }];
+  const images = block.images || [{ src: "", alt: "", cropped: false }, { src: "", alt: "", cropped: false }];
+  const maxHeight = block.maxHeight || 160;
 
   const updateImage = (i, patch) => {
-    const next = images.map((img, idx) => idx === i ? { ...img, ...patch } : img);
-    onChange({ ...block, images: next });
+    onChange({ ...block, images: images.map((img, idx) => idx === i ? { ...img, ...patch } : img) });
   };
-
   const addImage = () => {
-    if (images.length >= 4) return;
-    onChange({ ...block, images: [...images, { src: "", alt: "" }] });
+    if (images.length >= 6) return;
+    onChange({ ...block, images: [...images, { src: "", alt: "", cropped: false }] });
   };
-
   const removeImage = (i) => {
-    if (images.length <= 2) return;
+    if (images.length <= 1) return;
     onChange({ ...block, images: images.filter((_, idx) => idx !== i) });
   };
 
   return (
     <div className="p-3 space-y-3">
-      {/* Height control */}
       <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground flex-shrink-0">Row height: {block.height || 120}px</span>
-        <input type="range" min={60} max={240} step={10}
-          value={block.height || 120}
-          onChange={e => onChange({ ...block, height: parseInt(e.target.value) })}
+        <span className="text-xs text-muted-foreground flex-shrink-0">Max height: {maxHeight}px</span>
+        <input type="range" min={40} max={320} step={10}
+          value={maxHeight}
+          onChange={e => onChange({ ...block, maxHeight: parseInt(e.target.value) })}
           className="flex-1 h-1 accent-primary" />
+        <span className="text-xs text-muted-foreground/60 flex-shrink-0 hidden sm:block">wraps naturally on small screens</span>
       </div>
 
-      {/* Image slots */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {images.map((img, i) => (
-          <div key={i} className="relative flex-1 min-w-0 group/img">
+          <div key={i} className="flex flex-col gap-1 flex-shrink-0">
             <button type="button" onClick={() => setActiveIdx(i)}
-              className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
-              style={{ height: block.height || 120 }}>
+              className="rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
+              style={img.src
+                ? (img.cropped ? { width: maxHeight, height: maxHeight } : { maxWidth: 200, minWidth: 40 })
+                : { width: 72, height: 72 }}>
               {img.src ? (
-                <img src={img.src} alt={img.alt || ""} className="w-full h-full object-cover rounded-xl" onError={e => e.target.style.display="none"} />
+                <img src={img.src} alt={img.alt || ""}
+                  style={img.cropped
+                    ? { width: maxHeight, height: maxHeight, objectFit: "cover" }
+                    : { maxHeight: maxHeight, width: "auto", height: "auto", maxWidth: 200 }}
+                  onError={e => e.target.style.display = "none"} />
               ) : (
-                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                <div className="flex flex-col items-center gap-1 text-muted-foreground p-3">
                   <Image className="w-4 h-4" />
                   <span className="text-xs">{i + 1}</span>
                 </div>
               )}
             </button>
-            {images.length > 2 && (
-              <button type="button" onClick={() => removeImage(i)}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
-                <X className="w-3 h-3" />
+            <div className="flex items-center gap-1">
+              <button type="button"
+                onClick={() => updateImage(i, { cropped: !img.cropped })}
+                title={img.cropped ? "Natural size" : "Square crop"}
+                className={`flex-1 flex items-center justify-center gap-1 text-xs py-0.5 rounded-md border transition-colors ${img.cropped ? "border-primary/40 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-primary/30"}`}>
+                <Crop className="w-2.5 h-2.5" />
+                {img.cropped ? "Crop" : "Natural"}
               </button>
-            )}
+              {images.length > 1 && (
+                <button type="button" onClick={() => removeImage(i)}
+                  className="w-5 h-5 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
         ))}
-        {images.length < 4 && (
+        {images.length < 6 && (
           <button type="button" onClick={addImage}
-            className="flex-shrink-0 w-10 rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-muted/10 flex items-center justify-center text-muted-foreground hover:text-primary"
-            style={{ height: block.height || 120 }}>
+            className="rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-muted/10 flex items-center justify-center text-muted-foreground hover:text-primary flex-shrink-0"
+            style={{ width: 48, height: 72 }}>
             <Plus className="w-4 h-4" />
           </button>
         )}
@@ -461,132 +611,20 @@ function DividerBlock() {
   );
 }
 
-// ── Raw HTML block (from SP import fallback) ──
+// ── Raw HTML block ──
 function RawBlock({ block, onChange }) {
   return (
     <div>
       <div className="px-3 py-1 bg-amber-500/10 border-b border-amber-500/20">
-        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Raw HTML — imported from SP template</span>
+        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Raw HTML</span>
       </div>
       <textarea
         value={block.content || ""}
         onChange={e => onChange({ ...block, content: e.target.value })}
-        className="w-full min-h-[80px] px-3 py-2.5 text-xs font-mono bg-transparent focus:outline-none resize-y leading-relaxed text-muted-foreground"
-        spellCheck={false}
-      />
+        className="w-full min-h-[60px] px-3 py-2.5 text-xs font-mono bg-transparent focus:outline-none resize-y leading-relaxed text-muted-foreground"
+        spellCheck={false} />
     </div>
   );
-}
-
-// ── SP Markdown → blocks converter ──
-function convertSPToBlocks(text) {
-  // First convert to HTML using our converter, then wrap as a raw block
-  // For well-structured SP templates, we attempt to split into sensible blocks
-
-  const blocks = [];
-  const sections = text.split(/\n{2,}/);
-
-  for (const section of sections) {
-    const trimmed = section.trim();
-    if (!trimmed) continue;
-
-    // Detect image-only lines (gallery)
-    const imgOnlyLine = /^(!\[[^\]]*\]\([^)]+\)\s*)+$/.test(trimmed);
-    if (imgOnlyLine) {
-      const matches = [...trimmed.matchAll(/!\[([^\]]*)\]\(([^)#)]+)(?:#\d+x\d+)?\)/g)];
-      if (matches.length >= 2) {
-        blocks.push({
-          id: uid(), type: "gallery", height: 120,
-          images: matches.map(m => ({ src: m[2], alt: m[1] }))
-        });
-        continue;
-      }
-    }
-
-    // Detect inline image + text (img-left pattern)
-    const inlineImg = trimmed.match(/^!\[([^\]]*)\]\(([^)#)]+)(?:#(\d+)x(\d+))?\)\s+(.+)$/s);
-    if (inlineImg) {
-      blocks.push({
-        id: uid(), type: "img-left",
-        src: inlineImg[2], alt: inlineImg[1],
-        size: inlineImg[3] ? parseInt(inlineImg[3]) : 120,
-        text: convertSPInlineToHTML(inlineImg[5]),
-      });
-      continue;
-    }
-
-    // Detect text + inline image (img-right pattern)
-    const inlineImgRight = trimmed.match(/^(.+?)\s+!\[([^\]]*)\]\(([^)#)]+)(?:#(\d+)x(\d+))?\)$/s);
-    if (inlineImgRight) {
-      blocks.push({
-        id: uid(), type: "img-right",
-        src: inlineImgRight[3], alt: inlineImgRight[2],
-        size: inlineImgRight[4] ? parseInt(inlineImgRight[4]) : 120,
-        text: convertSPInlineToHTML(inlineImgRight[1]),
-      });
-      continue;
-    }
-
-    // Everything else → text block with inline HTML conversion
-    blocks.push({
-      id: uid(), type: "text",
-      content: convertSPSectionToHTML(trimmed),
-    });
-  }
-
-  return blocks.length ? blocks : [{ id: uid(), type: "text", content: "" }];
-}
-
-function convertSPInlineToHTML(text) {
-  let h = text;
-  h = h.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  h = h.replace(/~~([^~]+)~~/g, '<s>$1</s>');
-  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:hsl(var(--primary));text-decoration:underline;">$1</a>');
-  return h;
-}
-
-function convertSPSectionToHTML(text) {
-  let h = text;
-  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  h = h.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-  h = h.replace(/^---+$/gm, '<hr />');
-  h = h.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">$1</blockquote>');
-  h = h.replace(/^    (.+)$/gm, '<pre style="overflow-x:auto;white-space:nowrap;background:hsl(var(--muted));padding:8px 12px;border-radius:6px;font-size:0.85em;">$1</pre>');
-  h = h.replace(/^\|(.+)\|\s*\n\|[-| :]+\|\s*\n((?:\|.+\|\s*\n?)*)/gm, (match, header, body) => {
-    const headers = header.split('|').map(hh => hh.trim()).filter(Boolean);
-    const headerHTML = headers.map(hh => `<th style="padding:6px 12px;border:1px solid hsl(var(--border));background:hsl(var(--muted));font-weight:600;">${hh}</th>`).join('');
-    const rows = body.trim().split('\n').map(row => {
-      const cells = row.split('|').map(c => c.trim()).filter(Boolean);
-      return '<tr>' + cells.map(c => `<td style="padding:6px 12px;border:1px solid hsl(var(--border));">${c}</td>`).join('') + '</tr>';
-    }).join('');
-    return `<table style="border-collapse:collapse;width:100%;margin:8px 0;"><thead><tr>${headerHTML}</tr></thead><tbody>${rows}</tbody></table>`;
-  });
-  h = h.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-  h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  h = h.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  h = h.replace(/_([^_]+)_/g, '<em>$1</em>');
-  h = h.replace(/~~([^~]+)~~/g, '<s>$1</s>');
-  h = h.replace(/__([^_]+)__/g, '<u>$1</u>');
-  h = h.replace(/`([^`]+)`/g, '<code style="background:hsl(var(--muted));padding:1px 4px;border-radius:3px;font-size:0.9em;">$1</code>');
-  h = h.replace(/(^[-*] .+$(\n[-*] .+$)*)/gm, (match) => {
-    const items = match.split('\n').map(line => `<li>${line.replace(/^[-*] /, '')}</li>`).join('');
-    return `<ul style="padding-left:1.5em;margin:4px 0;">${items}</ul>`;
-  });
-  h = h.replace(/(^\d+\. .+$(\n\d+\. .+$)*)/gm, (match) => {
-    const items = match.split('\n').map(line => `<li>${line.replace(/^\d+\. /, '')}</li>`).join('');
-    return `<ol style="padding-left:1.5em;margin:4px 0;">${items}</ol>`;
-  });
-  h = h.replace(/!\[([^\]]*)\]\(([^)#)]+)(?:#(\d+)x(\d+))?\)/g, (match, alt, src, w, hh) => {
-    const width = w ? `${w}px` : 'auto';
-    const height = hh ? `${hh}px` : 'auto';
-    return `<img src="${src}" alt="${alt}" style="display:inline-block;vertical-align:middle;width:${width};height:${height};max-width:100%;border-radius:4px;margin:2px 4px;" />`;
-  });
-  h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:hsl(var(--primary));text-decoration:underline;">$1</a>');
-  h = h.replace(/\n/g, '<br />');
-  return h;
 }
 
 // ── Import SP modal ──
@@ -600,15 +638,14 @@ function ImportSPModal({ onImport, onClose }) {
           <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Paste your SP markdown template. Images, layouts, tables, and formatting will be converted into blocks automatically.
+          Paste your SP markdown template. Images, galleries, image+text layouts, tables, and formatting all convert automatically.
         </p>
         <textarea
           value={text}
           onChange={e => setText(e.target.value)}
           placeholder="Paste SP template here..."
           className="w-full h-52 px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-          autoFocus
-        />
+          autoFocus />
         <div className="flex gap-2">
           <button type="button" onClick={onClose}
             className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
@@ -640,18 +677,17 @@ function HTMLPreviewModal({ html, onClose }) {
           <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
-          {tab === "preview" ? (
-            <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
-          ) : (
-            <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>
-          )}
+          {tab === "preview"
+            ? <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
+            : <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>
+          }
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main BioEditor export ──
+// ── Main BioEditor ──
 export default function BioEditor({ value, onChange }) {
   const [blocks, setBlocks] = useState(() => {
     const parsed = htmlToBlocks(value || "");
@@ -661,7 +697,6 @@ export default function BioEditor({ value, onChange }) {
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
 
-  // Sync blocks → parent HTML value
   useEffect(() => {
     onChange(blocksToHTML(blocks));
   }, [blocks]);
@@ -692,11 +727,10 @@ export default function BioEditor({ value, onChange }) {
   const addBlock = useCallback((type) => {
     const defaults = {
       text: { content: "" },
-      "img-left": { src: "", alt: "", size: 120, text: "" },
-      "img-right": { src: "", alt: "", size: 120, text: "" },
-      gallery: { images: [{ src: "", alt: "" }, { src: "", alt: "" }], height: 120 },
+      "img-left": { src: "", alt: "", size: 120, cropped: false, text: "" },
+      "img-right": { src: "", alt: "", size: 120, cropped: false, text: "" },
+      gallery: { images: [{ src: "", alt: "", cropped: false }, { src: "", alt: "", cropped: false }], maxHeight: 160 },
       divider: {},
-      raw: { content: "" },
     };
     setBlocks(bs => [...bs, { id: uid(), type, ...defaults[type] }]);
   }, []);
@@ -708,19 +742,14 @@ export default function BioEditor({ value, onChange }) {
   }, []);
 
   const blockLabel = (type) => ({
-    text: "Text",
-    "img-left": "Image · Text",
-    "img-right": "Text · Image",
-    gallery: "Gallery",
-    divider: "Divider",
-    raw: "Raw HTML",
+    text: "Text", "img-left": "Image · Text", "img-right": "Text · Image",
+    gallery: "Gallery", divider: "Divider", raw: "Raw HTML",
   }[type] || type);
 
   const currentHTML = blocksToHTML(blocks);
 
   return (
     <div className="space-y-2">
-      {/* Label row */}
       <div className="flex items-center justify-between">
         <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
         <div className="flex items-center gap-2">
@@ -735,15 +764,13 @@ export default function BioEditor({ value, onChange }) {
         </div>
       </div>
 
-      {/* Block list */}
       <div className="space-y-2">
         {blocks.map((block, i) => (
           <BlockShell key={block.id} index={i} total={blocks.length}
             label={blockLabel(block.type)}
             onMoveUp={() => moveBlock(block.id, -1)}
             onMoveDown={() => moveBlock(block.id, 1)}
-            onDelete={() => deleteBlock(block.id)}
-          >
+            onDelete={() => deleteBlock(block.id)}>
             {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {(block.type === "img-left" || block.type === "img-right") && (
               <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} />
@@ -755,13 +782,11 @@ export default function BioEditor({ value, onChange }) {
         ))}
       </div>
 
-      {/* Add block button */}
       <button type="button" onClick={() => setShowAddMenu(true)}
         className="w-full py-2 rounded-xl border-2 border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-sm font-medium">
         <Plus className="w-4 h-4" /> Add block
       </button>
 
-      {/* Modals */}
       {showAddMenu && <AddBlockMenu onAdd={addBlock} onClose={() => setShowAddMenu(false)} />}
       {showImport && <ImportSPModal onImport={handleImport} onClose={() => setShowImport(false)} />}
       {showHTMLPreview && <HTMLPreviewModal html={currentHTML} onClose={() => setShowHTMLPreview(false)} />}
