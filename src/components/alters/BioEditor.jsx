@@ -370,12 +370,38 @@ function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "Insert Im
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
   const handleUpload = async (e) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setUploading(true);
-    try { const { file_url } = await base44.integrations.Core.UploadFile({ file }); setSrc(file_url); toast.success("Image uploaded!"); }
-    catch { toast.error("Failed to upload image"); }
-    finally { setUploading(false); e.target.value = ""; }
-  };
+  const file = e.target.files?.[0]; if (!file) return;
+  setUploading(true);
+  try {
+    let localMode = false;
+    try { const { isLocalMode } = await import("@/lib/storageMode"); localMode = !!isLocalMode(); } catch {}
+    if (localMode) {
+      const compressImage = (file, maxWidth = 800, quality = 0.8) => new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+      const dataUrl = await compressImage(file);
+      setSrc(dataUrl);
+      toast.success("Image ready!");
+    } else {
+      toast.error("Image upload requires cloud mode. Paste a URL instead.");
+    }
+  } catch (err) {
+    console.error("Image upload error:", err);
+    toast.error("Failed to process image");
+  } finally { setUploading(false); e.target.value = ""; }
+};
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]">
       <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 max-w-sm mx-4 w-full shadow-2xl">
