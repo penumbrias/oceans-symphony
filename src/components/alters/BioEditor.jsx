@@ -761,7 +761,7 @@ export default function BioEditor({ value, onChange }) {
     toast.success(`Imported ${newBlocks.length} block${newBlocks.length !== 1 ? "s" : ""}!`);
   }, []);
 
-  const blockLabel = (type) => ({ text: "Text", "img-left": "Image · Text", "img-right": "Text · Image", gallery: "Gallery", divider: "Divider", raw: "Raw HTML" }[type] || type);
+  const blockLabel = (type) => ({ text: "Text", "img-left": "Image · Text", "img-solo": "Image", "img-right": "Text · Image", gallery: "Gallery", divider: "Divider", raw: "Raw HTML" }[type] || type);
   const currentHTML = blocksToHTML(blocks);
 
   return (
