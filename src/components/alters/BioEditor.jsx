@@ -201,6 +201,10 @@ function blocksToHTML(blocks) {
   <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 120}px;${block.cropped ? `height:${block.size || 120}px;object-fit:cover;` : "height:auto;"}border-radius:8px;flex-shrink:0;max-width:100%;" />
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
 </div>`;
+case "img-solo":
+  return `<div style="margin:8px 0;text-align:${block.align || "left"};">
+  <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 240}px;${block.cropped ? `height:${block.size || 240}px;object-fit:cover;` : "height:auto;"}border-radius:8px;max-width:100%;" />
+</div>`;
       case "img-right":
         return `<div style="display:flex;gap:14px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
@@ -444,6 +448,7 @@ function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "Insert Im
 // ── Add block menu ──
 function AddBlockMenu({ onAdd, onClose }) {
   const options = [
+    { type: "img-solo", icon: <Image className="w-4 h-4" />, label: "Image", desc: "Standalone image, no text" },
     { type: "text", icon: <Type className="w-4 h-4" />, label: "Text", desc: "Paragraph with formatting & colors" },
     { type: "img-left", icon: <AlignLeft className="w-4 h-4" />, label: "Image · Text", desc: "Image left, text right" },
     { type: "img-right", icon: <AlignRight className="w-4 h-4" />, label: "Text · Image", desc: "Text left, image right" },
@@ -747,7 +752,7 @@ export default function BioEditor({ value, onChange }) {
     [next[idx], next[swap]] = [next[swap], next[idx]]; return next;
   }), []);
   const addBlock = useCallback((type) => {
-    const defaults = { text: { content: "" }, "img-left": { src: "", alt: "", size: 120, cropped: false, text: "" }, "img-right": { src: "", alt: "", size: 120, cropped: false, text: "" }, gallery: { images: [{ src: "", alt: "", cropped: false }, { src: "", alt: "", cropped: false }], maxHeight: 160 }, divider: {} };
+    const defaults = { text: { content: "" }, "img-left": { src: "", alt: "", size: 120, cropped: false, text: "" }, "img-solo": { src: "", alt: "", size: 240, cropped: false, align: "left" }, "img-right": { src: "", alt: "", size: 120, cropped: false, text: "" }, gallery: { images: [{ src: "", alt: "", cropped: false }, { src: "", alt: "", cropped: false }], maxHeight: 160 }, divider: {} };
     setBlocks(bs => [...bs, { id: uid(), type, ...defaults[type] }]);
   }, []);
   const handleImport = useCallback((spText) => {
