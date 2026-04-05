@@ -10,51 +10,194 @@ import { toast } from "sonner";
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
 
-// ── Convert blocks → HTML string (saved to description) ──
+// ── Preset color palette ──
+const PRESET_COLORS = [
+  // Reds / pinks
+  "#ff4d4d", "#ff85a1", "#ff1493", "#c0392b",
+  // Oranges / yellows
+  "#ff8c00", "#ffd700", "#f39c12", "#ffe066",
+  // Greens
+  "#2ecc71", "#00fa9a", "#7fff00", "#27ae60",
+  // Blues / purples
+  "#00bfff", "#4169e1", "#9b59b6", "#c39bd3",
+  // Neutrals / whites
+  "#ffffff", "#cccccc", "#888888", "#333333",
+];
+
+const PRESET_HIGHLIGHTS = [
+  "#ff4d4d40", "#ff85a140", "#ffd70060", "#2ecc7140",
+  "#00bfff40", "#9b59b640", "#ff8c0060", "#ffffff20",
+  "#ff149350", "#7fff0040", "#4169e140", "#f39c1240",
+  "#ffe06680", "#c0392b40", "#27ae6040", "#c39bd340",
+];
+
+// ── Color picker popover ──
+function ColorPopover({ mode, onApply, onClose, anchorRef }) {
+  const [hex, setHex] = useState(mode === "fg" ? "#ff4d4d" : "#ffd70060");
+  const presets = mode === "fg" ? PRESET_COLORS : PRESET_HIGHLIGHTS;
+
+  return (
+    <div className="absolute z-50 top-full left-0 mt-1 bg-background border-2 border-border rounded-xl shadow-2xl p-3 space-y-2"
+      style={{ minWidth: 220 }}
+      onMouseDown={e => e.preventDefault()} // don't lose textarea selection
+    >
+      <p className="text-xs font-medium text-muted-foreground">
+        {mode === "fg" ? "Text color" : "Highlight color"}
+      </p>
+      <div className="grid grid-cols-8 gap-1">
+        {presets.map(c => (
+          <button key={c} type="button"
+            onClick={() => { onApply(c); onClose(); }}
+            className="w-5 h-5 rounded-md border border-border/40 hover:scale-110 transition-transform flex-shrink-0"
+            style={{ backgroundColor: c }}
+            title={c} />
+        ))}
+      </div>
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          value={hex}
+          onChange={e => setHex(e.target.value)}
+          placeholder={mode === "fg" ? "#ff0000" : "#ff000040"}
+          className="flex-1 h-7 px-2 rounded-md border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <div className="w-7 h-7 rounded-md border border-border flex-shrink-0" style={{ backgroundColor: hex }} />
+        <button type="button"
+          onClick={() => { onApply(hex); onClose(); }}
+          className="px-2 h-7 rounded-md bg-primary text-primary-foreground text-xs font-medium">
+          Apply
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── MiniToolbar with color support ──
+function MiniToolbar({ onInsert }) {
+  const [colorPopover, setColorPopover] = useState(null); // "fg" | "hl" | null
+
+  const btn = (label, before, after, title, extraClass = "") => (
+    <button type="button" title={title}
+      onClick={() => onInsert(before, after)}
+      className={`w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold ${extraClass}`}>
+      {label}
+    </button>
+  );
+
+  const applyFg = (color) => {
+    onInsert(`<span style="color:${color};">`, `</span>`);
+  };
+  const applyHl = (color) => {
+    onInsert(`<span style="background:${color};border-radius:3px;padding:0 2px;">`, `</span>`);
+  };
+
+  return (
+    <div className="relative flex items-center gap-0.5 px-1.5 py-1 border-b border-border/30 bg-muted/10 flex-wrap">
+      {btn("B", "<strong>", "</strong>", "Bold")}
+      {btn("I", "<em>", "</em>", "Italic")}
+      {btn("S̶", "<s>", "</s>", "Strikethrough")}
+      {btn("U", "<u>", "</u>", "Underline")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5 flex-shrink-0" />
+
+      {btn("H1", "<h1>", "</h1>", "Heading 1")}
+      {btn("H2", "<h2>", "</h2>", "Heading 2")}
+      {btn("H3", "<h3>", "</h3>", "Heading 3")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5 flex-shrink-0" />
+
+      {btn("🔗", '<a href="https://">', "</a>", "Link")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5 flex-shrink-0" />
+
+      {/* Foreground color */}
+      <div className="relative">
+        <button type="button" title="Text color"
+          onClick={() => setColorPopover(colorPopover === "fg" ? null : "fg")}
+          className={`w-6 h-6 flex flex-col items-center justify-center rounded transition-colors text-xs font-bold gap-0
+            ${colorPopover === "fg" ? "bg-muted/60 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+          <span style={{ lineHeight: 1 }}>A</span>
+          <span className="w-4 h-1 rounded-full mt-0.5" style={{ background: "linear-gradient(90deg,#ff4d4d,#ffd700,#2ecc71,#00bfff,#9b59b6)" }} />
+        </button>
+        {colorPopover === "fg" && (
+          <ColorPopover mode="fg" onApply={applyFg} onClose={() => setColorPopover(null)} />
+        )}
+      </div>
+
+      {/* Highlight color */}
+      <div className="relative">
+        <button type="button" title="Highlight / background color"
+          onClick={() => setColorPopover(colorPopover === "hl" ? null : "hl")}
+          className={`w-6 h-6 flex items-center justify-center rounded transition-colors text-xs font-bold
+            ${colorPopover === "hl" ? "bg-muted/60 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+          <span style={{
+            background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)",
+            borderRadius: 3, padding: "1px 3px", fontSize: 10, lineHeight: 1.4,
+          }}>A</span>
+        </button>
+        {colorPopover === "hl" && (
+          <ColorPopover mode="hl" onApply={applyHl} onClose={() => setColorPopover(null)} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function useTextareaInsert(ref, value, onChange) {
+  return useCallback((before, after = "") => {
+    const ta = ref.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = value.slice(start, end);
+    const newVal = value.slice(0, start) + before + selected + after + value.slice(end);
+    onChange(newVal);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const cursor = start + before.length + selected.length + after.length;
+      ta.setSelectionRange(
+        selected ? start + before.length : cursor,
+        selected ? start + before.length + selected.length : cursor
+      );
+    });
+  }, [ref, value, onChange]);
+}
+
+// ── Convert blocks → HTML ──
 function blocksToHTML(blocks) {
   return blocks.map(block => {
     switch (block.type) {
       case "text":
         return `<div class="bio-text">${block.content || ""}</div>`;
-
       case "img-left":
         return `<div style="display:flex;gap:14px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
   <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 120}px;${block.cropped ? `height:${block.size || 120}px;object-fit:cover;` : "height:auto;"}border-radius:8px;flex-shrink:0;max-width:100%;" />
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
 </div>`;
-
       case "img-right":
         return `<div style="display:flex;gap:14px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
   <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 120}px;${block.cropped ? `height:${block.size || 120}px;object-fit:cover;` : "height:auto;"}border-radius:8px;flex-shrink:0;max-width:100%;" />
 </div>`;
-
       case "gallery": {
         const imgs = (block.images || []).filter(i => i.src).map(i => {
           const maxH = block.maxHeight || 160;
-          if (i.cropped) {
-            return `<img src="${i.src}" alt="${i.alt || ""}" style="height:${maxH}px;width:${maxH}px;object-fit:cover;border-radius:8px;flex-shrink:0;" />`;
-          }
+          if (i.cropped) return `<img src="${i.src}" alt="${i.alt || ""}" style="height:${maxH}px;width:${maxH}px;object-fit:cover;border-radius:8px;flex-shrink:0;" />`;
           return `<img src="${i.src}" alt="${i.alt || ""}" style="max-height:${maxH}px;width:auto;height:auto;border-radius:8px;flex-shrink:0;" />`;
         }).join("\n  ");
-        return `<div style="display:flex;gap:8px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
-  ${imgs}
-</div>`;
+        return `<div style="display:flex;gap:8px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">\n  ${imgs}\n</div>`;
       }
-
       case "divider":
         return `<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />`;
-
       case "raw":
         return block.content || "";
-
       default:
         return "";
     }
   }).join("\n");
 }
 
-// ── Parse saved HTML back into blocks (best-effort) ──
+// ── Parse HTML → blocks ──
 function htmlToBlocks(html) {
   if (!html || !html.trim()) return [];
   const blocks = [];
@@ -65,31 +208,24 @@ function htmlToBlocks(html) {
     if (trimmed.startsWith('<hr')) {
       blocks.push({ id: uid(), type: "divider" });
     } else if (trimmed.includes('display:flex') && trimmed.includes('<img') && trimmed.includes('flex-shrink:0') && !trimmed.includes('min-width:160px')) {
-      // Gallery
       const imgMatches = [...trimmed.matchAll(/<img src="([^"]*)" alt="([^"]*)" style="([^"]*)"/g)];
       const maxHMatch = trimmed.match(/max-height:(\d+)px/) || trimmed.match(/height:(\d+)px/);
       blocks.push({
         id: uid(), type: "gallery",
         maxHeight: maxHMatch ? parseInt(maxHMatch[1]) : 160,
-        images: imgMatches.map(m => ({
-          src: m[1], alt: m[2],
-          cropped: m[3].includes('object-fit:cover'),
-        })),
+        images: imgMatches.map(m => ({ src: m[1], alt: m[2], cropped: m[3].includes('object-fit:cover') })),
       });
     } else if (trimmed.includes('display:flex') && trimmed.includes('min-width:160px')) {
       const srcMatch = trimmed.match(/img src="([^"]*)"/);
       const altMatch = trimmed.match(/img src="[^"]*" alt="([^"]*)"/);
       const sizeMatch = trimmed.match(/width:(\d+)px/);
-      const croppedMatch = trimmed.includes('object-fit:cover');
       const textMatch = trimmed.match(/<div style="flex:1[^"]*">([\s\S]*?)<\/div>/);
       const isRight = trimmed.indexOf('<img') > trimmed.indexOf('min-width:160px');
       blocks.push({
-        id: uid(),
-        type: isRight ? "img-right" : "img-left",
-        src: srcMatch?.[1] || "",
-        alt: altMatch?.[1] || "",
+        id: uid(), type: isRight ? "img-right" : "img-left",
+        src: srcMatch?.[1] || "", alt: altMatch?.[1] || "",
         size: sizeMatch ? parseInt(sizeMatch[1]) : 120,
-        cropped: croppedMatch,
+        cropped: trimmed.includes('object-fit:cover'),
         text: textMatch?.[1] || "",
       });
     } else if (trimmed.startsWith('<div class="bio-text">')) {
@@ -102,7 +238,7 @@ function htmlToBlocks(html) {
   return blocks.length ? blocks : [{ id: uid(), type: "text", content: html }];
 }
 
-// ── SP inline markdown → HTML ──
+// ── SP inline → HTML ──
 function spInlineToHTML(text) {
   let h = text;
   h = h.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
@@ -114,7 +250,7 @@ function spInlineToHTML(text) {
   return h;
 }
 
-// ── SP block markdown → HTML ──
+// ── SP block → HTML ──
 function spBlockToHTML(text) {
   let h = text;
   h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
@@ -145,147 +281,59 @@ function spBlockToHTML(text) {
   return h;
 }
 
-// ── SP → blocks: line-by-line parser ──
+// ── SP → blocks parser ──
 function convertSPToBlocks(rawText) {
   const blocks = [];
   const lines = rawText.split('\n');
-
   const IMG_RE = /!\[([^\]]*)\]\(([^)#)]+)(?:#(\d+)x(\d+))?\)/g;
-
   const extractImages = (line) => {
-    const imgs = [];
-    let m;
-    IMG_RE.lastIndex = 0;
-    while ((m = IMG_RE.exec(line)) !== null) {
+    const imgs = []; let m; IMG_RE.lastIndex = 0;
+    while ((m = IMG_RE.exec(line)) !== null)
       imgs.push({ index: m.index, end: m.index + m[0].length, alt: m[1], src: m[2], w: m[3] ? parseInt(m[3]) : null, h: m[4] ? parseInt(m[4]) : null });
-    }
     return imgs;
   };
-
   const stripImages = (line) => line.replace(/!\[[^\]]*\]\([^)]+\)/g, '').trim();
-
-  // SP uses lots of unicode whitespace — treat these as blank lines
   const isBlankish = (line) => /^[\s\u3000\u00a0\u200b-\u200f\u202f\u2060\ufeff\u115f\u1160\u3164]*$/.test(line);
-
   const flushText = (textLines) => {
     const joined = textLines.join('\n').trim();
-    if (joined && !isBlankish(joined)) {
+    if (joined && !isBlankish(joined))
       blocks.push({ id: uid(), type: "text", content: spBlockToHTML(joined) });
-    }
   };
-
   let pendingText = [];
-
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const images = extractImages(line);
-
-    if (images.length === 0) {
-      pendingText.push(line);
-      continue;
-    }
-
+    if (images.length === 0) { pendingText.push(line); continue; }
     const textPart = stripImages(line);
     const hasText = textPart.length > 0 && !isBlankish(textPart);
-
     if (images.length === 1 && hasText) {
-      // Single image + text → img-left or img-right
-      flushText(pendingText);
-      pendingText = [];
+      flushText(pendingText); pendingText = [];
       const img = images[0];
-      const beforeImg = line.slice(0, img.index);
-      const afterImg = line.slice(img.end);
-      const beforeText = stripImages(beforeImg);
-      const afterText = stripImages(afterImg);
+      const beforeText = stripImages(line.slice(0, img.index));
+      const afterText = stripImages(line.slice(img.end));
       const isRight = beforeText.length > 0 && !isBlankish(beforeText);
-      blocks.push({
-        id: uid(),
-        type: isRight ? "img-right" : "img-left",
-        src: img.src, alt: img.alt,
-        size: img.w || 120,
-        cropped: false,
-        text: spInlineToHTML(isRight ? beforeText : afterText),
-      });
+      blocks.push({ id: uid(), type: isRight ? "img-right" : "img-left", src: img.src, alt: img.alt, size: img.w || 120, cropped: false, text: spInlineToHTML(isRight ? beforeText : afterText) });
       continue;
     }
-
-    // Multiple images OR single image with no text
-    flushText(pendingText);
-    pendingText = [];
-
+    flushText(pendingText); pendingText = [];
     const galleryImages = images.map(img => ({ src: img.src, alt: img.alt, cropped: false }));
-
-    // Absorb following consecutive image-only lines into same gallery
     while (i + 1 < lines.length) {
       const next = lines[i + 1];
       const nextImgs = extractImages(next);
-      const nextText = stripImages(next);
-      if (nextImgs.length > 0 && isBlankish(nextText)) {
-        i++;
-        galleryImages.push(...nextImgs.map(img => ({ src: img.src, alt: img.alt, cropped: false })));
-      } else {
-        break;
-      }
+      if (nextImgs.length > 0 && isBlankish(stripImages(next))) { i++; galleryImages.push(...nextImgs.map(img => ({ src: img.src, alt: img.alt, cropped: false }))); }
+      else break;
     }
-
     if (galleryImages.length === 1) {
-      // Single standalone image → raw block (preserves natural display)
       const img = images[0];
       const w = img.w ? `${img.w}px` : '100%';
       const hStyle = img.h ? `height:${img.h}px;object-fit:cover;` : 'height:auto;';
-      blocks.push({
-        id: uid(), type: "raw",
-        content: `<img src="${img.src}" alt="${img.alt}" style="display:block;width:${w};${hStyle}border-radius:8px;margin:4px 0;" />`,
-      });
+      blocks.push({ id: uid(), type: "raw", content: `<img src="${img.src}" alt="${img.alt}" style="display:block;width:${w};${hStyle}border-radius:8px;margin:4px 0;" />` });
     } else {
       blocks.push({ id: uid(), type: "gallery", maxHeight: 160, images: galleryImages });
     }
   }
-
   flushText(pendingText);
   return blocks.length ? blocks : [{ id: uid(), type: "text", content: "" }];
-}
-
-// ── MiniToolbar ──
-function MiniToolbar({ onInsert }) {
-  const btn = (label, before, after, title) => (
-    <button type="button" title={title}
-      onClick={() => onInsert(before, after)}
-      className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold">
-      {label}
-    </button>
-  );
-  return (
-    <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-border/30 bg-muted/10">
-      {btn("B", "<strong>", "</strong>", "Bold")}
-      {btn("I", "<em>", "</em>", "Italic")}
-      {btn("S̶", "<s>", "</s>", "Strikethrough")}
-      {btn("H1", "<h1>", "</h1>", "Heading 1")}
-      {btn("H2", "<h2>", "</h2>", "Heading 2")}
-      {btn("H3", "<h3>", "</h3>", "Heading 3")}
-      {btn("🔗", '<a href="https://">', "</a>", "Link")}
-    </div>
-  );
-}
-
-function useTextareaInsert(ref, value, onChange) {
-  return useCallback((before, after = "") => {
-    const ta = ref.current;
-    if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const selected = value.slice(start, end);
-    const newVal = value.slice(0, start) + before + selected + after + value.slice(end);
-    onChange(newVal);
-    requestAnimationFrame(() => {
-      ta.focus();
-      const cursor = start + before.length + selected.length + after.length;
-      ta.setSelectionRange(
-        selected ? start + before.length : cursor,
-        selected ? start + before.length + selected.length : cursor
-      );
-    });
-  }, [ref, value, onChange]);
 }
 
 // ── Image picker modal ──
@@ -294,37 +342,24 @@ function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "Insert Im
   const [alt, setAlt] = useState(initial.alt || "");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
-
   const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
-    try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setSrc(file_url);
-      toast.success("Image uploaded!");
-    } catch {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
+    try { const { file_url } = await base44.integrations.Core.UploadFile({ file }); setSrc(file_url); toast.success("Image uploaded!"); }
+    catch { toast.error("Failed to upload image"); }
+    finally { setUploading(false); e.target.value = ""; }
   };
-
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]">
       <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 max-w-sm mx-4 w-full shadow-2xl">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-sm">{title}</h3>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
-          </button>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground font-medium">Image</label>
           <div className="flex gap-2">
-            <input value={src} onChange={e => setSrc(e.target.value)}
-              placeholder="Paste URL or upload →"
+            <input value={src} onChange={e => setSrc(e.target.value)} placeholder="Paste URL or upload →"
               className="flex-1 h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
             <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
               className="h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
@@ -335,19 +370,16 @@ function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "Insert Im
         </div>
         {src && (
           <div className="rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center overflow-hidden" style={{ minHeight: 80 }}>
-            <img src={src} alt={alt} className="max-h-32 max-w-full object-contain rounded"
-              onError={e => e.target.style.display = "none"} />
+            <img src={src} alt={alt} className="max-h-32 max-w-full object-contain rounded" onError={e => e.target.style.display = "none"} />
           </div>
         )}
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Alt text <span className="opacity-50">(optional)</span></label>
-          <input value={alt} onChange={e => setAlt(e.target.value)}
-            placeholder="Description of image"
+          <input value={alt} onChange={e => setAlt(e.target.value)} placeholder="Description of image"
             className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
         <div className="flex gap-2 pt-1">
-          <button type="button" onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80">Cancel</button>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80">Cancel</button>
           <button type="button" onClick={() => { onConfirm({ src, alt }); onClose(); }} disabled={!src.trim()}
             className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">Confirm</button>
         </div>
@@ -359,24 +391,22 @@ function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "Insert Im
 // ── Add block menu ──
 function AddBlockMenu({ onAdd, onClose }) {
   const options = [
-    { type: "text", icon: <Type className="w-4 h-4" />, label: "Text", desc: "Paragraph with formatting" },
+    { type: "text", icon: <Type className="w-4 h-4" />, label: "Text", desc: "Paragraph with formatting & colors" },
     { type: "img-left", icon: <AlignLeft className="w-4 h-4" />, label: "Image · Text", desc: "Image left, text right" },
     { type: "img-right", icon: <AlignRight className="w-4 h-4" />, label: "Text · Image", desc: "Text left, image right" },
-    { type: "gallery", icon: <LayoutGrid className="w-4 h-4" />, label: "Gallery", desc: "Multiple images in a row, wrap naturally" },
+    { type: "gallery", icon: <LayoutGrid className="w-4 h-4" />, label: "Gallery", desc: "Multiple images in a row" },
     { type: "divider", icon: <Minus className="w-4 h-4" />, label: "Divider", desc: "Horizontal rule" },
   ];
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-background border-2 border-border rounded-t-2xl sm:rounded-2xl p-4 w-full max-w-sm shadow-2xl"
-        onClick={e => e.stopPropagation()}>
+      <div className="bg-background border-2 border-border rounded-t-2xl sm:rounded-2xl p-4 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold">Add a block</p>
           <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <div className="space-y-1">
           {options.map(opt => (
-            <button key={opt.type} type="button"
-              onClick={() => { onAdd(opt.type); onClose(); }}
+            <button key={opt.type} type="button" onClick={() => { onAdd(opt.type); onClose(); }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors text-left group">
               <div className="w-8 h-8 rounded-lg bg-muted/60 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors flex-shrink-0">
                 {opt.icon}
@@ -399,8 +429,7 @@ function BlockShell({ index, total, onMoveUp, onMoveDown, onDelete, label, child
     <div className="group relative rounded-xl border border-border/40 bg-background overflow-hidden hover:border-border transition-colors">
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20 border-b border-border/30">
         <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-          <GripVertical className="w-3 h-3 opacity-40" />
-          {label}
+          <GripVertical className="w-3 h-3 opacity-40" />{label}
         </span>
         <div className="flex items-center gap-0.5">
           <button type="button" onClick={onMoveUp} disabled={index === 0}
@@ -429,10 +458,9 @@ function TextBlock({ block, onChange }) {
   return (
     <div>
       <MiniToolbar onInsert={insert} />
-      <textarea ref={taRef}
-        value={block.content || ""}
+      <textarea ref={taRef} value={block.content || ""}
         onChange={e => onChange({ ...block, content: e.target.value })}
-        placeholder="Write something… use toolbar for bold, headings, links…"
+        placeholder="Write something… select text then use toolbar for colors, bold, headings…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
         spellCheck={false} />
     </div>
@@ -445,7 +473,6 @@ function ImgTextBlock({ block, onChange }) {
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, block.text || "", v => onChange({ ...block, text: v }));
   const isLeft = block.type === "img-left";
-
   const imgSlot = (
     <div className="flex flex-col gap-2 p-3 flex-shrink-0" style={{ width: 164 }}>
       <button type="button" onClick={() => setImgModal(true)}
@@ -453,122 +480,83 @@ function ImgTextBlock({ block, onChange }) {
         style={{ minHeight: 80 }}>
         {block.src ? (
           <img src={block.src} alt={block.alt || ""}
-            style={block.cropped
-              ? { width: "100%", height: block.size || 120, objectFit: "cover" }
-              : { width: "100%", height: "auto" }}
+            style={block.cropped ? { width: "100%", height: block.size || 120, objectFit: "cover" } : { width: "100%", height: "auto" }}
             onError={e => e.target.style.display = "none"} />
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground py-4">
-            <Image className="w-5 h-5" />
-            <span className="text-xs">Add image</span>
+            <Image className="w-5 h-5" /><span className="text-xs">Add image</span>
           </div>
         )}
       </button>
       <div className="space-y-1">
         <span className="text-xs text-muted-foreground">Width: {block.size || 120}px</span>
-        <input type="range" min={60} max={280} step={10}
-          value={block.size || 120}
+        <input type="range" min={60} max={280} step={10} value={block.size || 120}
           onChange={e => onChange({ ...block, size: parseInt(e.target.value) })}
           className="w-full h-1 accent-primary" />
       </div>
-      <button type="button"
-        onClick={() => onChange({ ...block, cropped: !block.cropped })}
+      <button type="button" onClick={() => onChange({ ...block, cropped: !block.cropped })}
         className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border transition-colors ${block.cropped ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-        <Crop className="w-3 h-3" />
-        {block.cropped ? "Cropped" : "Natural size"}
+        <Crop className="w-3 h-3" />{block.cropped ? "Cropped" : "Natural size"}
       </button>
     </div>
   );
-
   const textSlot = (
     <div className="flex-1 min-w-0 border-l border-border/30">
       <MiniToolbar onInsert={insert} />
-      <textarea ref={taRef}
-        value={block.text || ""}
+      <textarea ref={taRef} value={block.text || ""}
         onChange={e => onChange({ ...block, text: e.target.value })}
         placeholder="Text beside the image…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
         spellCheck={false} />
     </div>
   );
-
   return (
     <>
-      <div className={`flex ${isLeft ? "" : "flex-row-reverse"} min-h-[100px]`}>
-        {imgSlot}
-        {textSlot}
-      </div>
-      {imgModal && (
-        <ImagePickerModal
-          initial={{ src: block.src, alt: block.alt }}
-          title={isLeft ? "Image (left)" : "Image (right)"}
-          onConfirm={({ src, alt }) => onChange({ ...block, src, alt })}
-          onClose={() => setImgModal(false)}
-        />
-      )}
+      <div className={`flex ${isLeft ? "" : "flex-row-reverse"} min-h-[100px]`}>{imgSlot}{textSlot}</div>
+      {imgModal && <ImagePickerModal initial={{ src: block.src, alt: block.alt }}
+        title={isLeft ? "Image (left)" : "Image (right)"}
+        onConfirm={({ src, alt }) => onChange({ ...block, src, alt })}
+        onClose={() => setImgModal(false)} />}
     </>
   );
 }
 
 // ── Gallery block ──
-// Natural sizing: images display at their own proportions, capped by maxHeight.
-// flex-wrap means they flow to next line on small screens just like SP does.
 function GalleryBlock({ block, onChange }) {
   const [activeIdx, setActiveIdx] = useState(null);
   const images = block.images || [{ src: "", alt: "", cropped: false }, { src: "", alt: "", cropped: false }];
   const maxHeight = block.maxHeight || 160;
-
-  const updateImage = (i, patch) => {
-    onChange({ ...block, images: images.map((img, idx) => idx === i ? { ...img, ...patch } : img) });
-  };
-  const addImage = () => {
-    if (images.length >= 6) return;
-    onChange({ ...block, images: [...images, { src: "", alt: "", cropped: false }] });
-  };
-  const removeImage = (i) => {
-    if (images.length <= 1) return;
-    onChange({ ...block, images: images.filter((_, idx) => idx !== i) });
-  };
-
+  const updateImage = (i, patch) => onChange({ ...block, images: images.map((img, idx) => idx === i ? { ...img, ...patch } : img) });
+  const addImage = () => { if (images.length >= 6) return; onChange({ ...block, images: [...images, { src: "", alt: "", cropped: false }] }); };
+  const removeImage = (i) => { if (images.length <= 1) return; onChange({ ...block, images: images.filter((_, idx) => idx !== i) }); };
   return (
     <div className="p-3 space-y-3">
       <div className="flex items-center gap-3">
         <span className="text-xs text-muted-foreground flex-shrink-0">Max height: {maxHeight}px</span>
-        <input type="range" min={40} max={320} step={10}
-          value={maxHeight}
+        <input type="range" min={40} max={320} step={10} value={maxHeight}
           onChange={e => onChange({ ...block, maxHeight: parseInt(e.target.value) })}
           className="flex-1 h-1 accent-primary" />
-        <span className="text-xs text-muted-foreground/60 flex-shrink-0 hidden sm:block">wraps naturally on small screens</span>
       </div>
-
       <div className="flex flex-wrap gap-2">
         {images.map((img, i) => (
           <div key={i} className="flex flex-col gap-1 flex-shrink-0">
             <button type="button" onClick={() => setActiveIdx(i)}
               className="rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
-              style={img.src
-                ? (img.cropped ? { width: maxHeight, height: maxHeight } : { maxWidth: 200, minWidth: 40 })
-                : { width: 72, height: 72 }}>
+              style={img.src ? (img.cropped ? { width: maxHeight, height: maxHeight } : { maxWidth: 200, minWidth: 40 }) : { width: 72, height: 72 }}>
               {img.src ? (
                 <img src={img.src} alt={img.alt || ""}
-                  style={img.cropped
-                    ? { width: maxHeight, height: maxHeight, objectFit: "cover" }
-                    : { maxHeight: maxHeight, width: "auto", height: "auto", maxWidth: 200 }}
+                  style={img.cropped ? { width: maxHeight, height: maxHeight, objectFit: "cover" } : { maxHeight, width: "auto", height: "auto", maxWidth: 200 }}
                   onError={e => e.target.style.display = "none"} />
               ) : (
                 <div className="flex flex-col items-center gap-1 text-muted-foreground p-3">
-                  <Image className="w-4 h-4" />
-                  <span className="text-xs">{i + 1}</span>
+                  <Image className="w-4 h-4" /><span className="text-xs">{i + 1}</span>
                 </div>
               )}
             </button>
             <div className="flex items-center gap-1">
-              <button type="button"
-                onClick={() => updateImage(i, { cropped: !img.cropped })}
-                title={img.cropped ? "Natural size" : "Square crop"}
+              <button type="button" onClick={() => updateImage(i, { cropped: !img.cropped })}
                 className={`flex-1 flex items-center justify-center gap-1 text-xs py-0.5 rounded-md border transition-colors ${img.cropped ? "border-primary/40 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-primary/30"}`}>
-                <Crop className="w-2.5 h-2.5" />
-                {img.cropped ? "Crop" : "Natural"}
+                <Crop className="w-2.5 h-2.5" />{img.cropped ? "Crop" : "Natural"}
               </button>
               {images.length > 1 && (
                 <button type="button" onClick={() => removeImage(i)}
@@ -587,14 +575,10 @@ function GalleryBlock({ block, onChange }) {
           </button>
         )}
       </div>
-
       {activeIdx !== null && (
-        <ImagePickerModal
-          initial={images[activeIdx]}
-          title={`Gallery image ${activeIdx + 1}`}
+        <ImagePickerModal initial={images[activeIdx]} title={`Gallery image ${activeIdx + 1}`}
           onConfirm={({ src, alt }) => { updateImage(activeIdx, { src, alt }); setActiveIdx(null); }}
-          onClose={() => setActiveIdx(null)}
-        />
+          onClose={() => setActiveIdx(null)} />
       )}
     </div>
   );
@@ -618,9 +602,7 @@ function RawBlock({ block, onChange }) {
       <div className="px-3 py-1 bg-amber-500/10 border-b border-amber-500/20">
         <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Raw HTML</span>
       </div>
-      <textarea
-        value={block.content || ""}
-        onChange={e => onChange({ ...block, content: e.target.value })}
+      <textarea value={block.content || ""} onChange={e => onChange({ ...block, content: e.target.value })}
         className="w-full min-h-[60px] px-3 py-2.5 text-xs font-mono bg-transparent focus:outline-none resize-y leading-relaxed text-muted-foreground"
         spellCheck={false} />
     </div>
@@ -638,17 +620,13 @@ function ImportSPModal({ onImport, onClose }) {
           <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Paste your SP markdown template. Images, galleries, image+text layouts, tables, and formatting all convert automatically.
+          Paste your SP markdown template. Images, galleries, layouts, tables, and formatting all convert automatically.
         </p>
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="Paste SP template here..."
+        <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Paste SP template here..."
           className="w-full h-52 px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring"
           autoFocus />
         <div className="flex gap-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
           <button type="button" onClick={() => { onImport(text); onClose(); }} disabled={!text.trim()}
             className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">
             Import as blocks
@@ -679,15 +657,14 @@ function HTMLPreviewModal({ html, onClose }) {
         <div className="flex-1 overflow-y-auto p-5">
           {tab === "preview"
             ? <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
-            : <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>
-          }
+            : <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main BioEditor ──
+// ── Main BioEditor export ──
 export default function BioEditor({ value, onChange }) {
   const [blocks, setBlocks] = useState(() => {
     const parsed = htmlToBlocks(value || "");
@@ -697,55 +674,27 @@ export default function BioEditor({ value, onChange }) {
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
 
-  useEffect(() => {
-    onChange(blocksToHTML(blocks));
-  }, [blocks]);
+  useEffect(() => { onChange(blocksToHTML(blocks)); }, [blocks]);
 
-  const updateBlock = useCallback((id, patch) => {
-    setBlocks(bs => bs.map(b => b.id === id ? { ...b, ...patch } : b));
-  }, []);
-
-  const deleteBlock = useCallback((id) => {
-    setBlocks(bs => {
-      const next = bs.filter(b => b.id !== id);
-      return next.length ? next : [{ id: uid(), type: "text", content: "" }];
-    });
-  }, []);
-
-  const moveBlock = useCallback((id, dir) => {
-    setBlocks(bs => {
-      const idx = bs.findIndex(b => b.id === id);
-      if (idx < 0) return bs;
-      const next = [...bs];
-      const swap = idx + dir;
-      if (swap < 0 || swap >= next.length) return bs;
-      [next[idx], next[swap]] = [next[swap], next[idx]];
-      return next;
-    });
-  }, []);
-
+  const updateBlock = useCallback((id, patch) => setBlocks(bs => bs.map(b => b.id === id ? { ...b, ...patch } : b)), []);
+  const deleteBlock = useCallback((id) => setBlocks(bs => { const next = bs.filter(b => b.id !== id); return next.length ? next : [{ id: uid(), type: "text", content: "" }]; }), []);
+  const moveBlock = useCallback((id, dir) => setBlocks(bs => {
+    const idx = bs.findIndex(b => b.id === id); if (idx < 0) return bs;
+    const next = [...bs]; const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return bs;
+    [next[idx], next[swap]] = [next[swap], next[idx]]; return next;
+  }), []);
   const addBlock = useCallback((type) => {
-    const defaults = {
-      text: { content: "" },
-      "img-left": { src: "", alt: "", size: 120, cropped: false, text: "" },
-      "img-right": { src: "", alt: "", size: 120, cropped: false, text: "" },
-      gallery: { images: [{ src: "", alt: "", cropped: false }, { src: "", alt: "", cropped: false }], maxHeight: 160 },
-      divider: {},
-    };
+    const defaults = { text: { content: "" }, "img-left": { src: "", alt: "", size: 120, cropped: false, text: "" }, "img-right": { src: "", alt: "", size: 120, cropped: false, text: "" }, gallery: { images: [{ src: "", alt: "", cropped: false }, { src: "", alt: "", cropped: false }], maxHeight: 160 }, divider: {} };
     setBlocks(bs => [...bs, { id: uid(), type, ...defaults[type] }]);
   }, []);
-
   const handleImport = useCallback((spText) => {
     const newBlocks = convertSPToBlocks(spText);
     setBlocks(bs => [...bs, ...newBlocks]);
     toast.success(`Imported ${newBlocks.length} block${newBlocks.length !== 1 ? "s" : ""}!`);
   }, []);
 
-  const blockLabel = (type) => ({
-    text: "Text", "img-left": "Image · Text", "img-right": "Text · Image",
-    gallery: "Gallery", divider: "Divider", raw: "Raw HTML",
-  }[type] || type);
-
+  const blockLabel = (type) => ({ text: "Text", "img-left": "Image · Text", "img-right": "Text · Image", gallery: "Gallery", divider: "Divider", raw: "Raw HTML" }[type] || type);
   const currentHTML = blocksToHTML(blocks);
 
   return (
@@ -763,30 +712,22 @@ export default function BioEditor({ value, onChange }) {
           </button>
         </div>
       </div>
-
       <div className="space-y-2">
         {blocks.map((block, i) => (
-          <BlockShell key={block.id} index={i} total={blocks.length}
-            label={blockLabel(block.type)}
-            onMoveUp={() => moveBlock(block.id, -1)}
-            onMoveDown={() => moveBlock(block.id, 1)}
-            onDelete={() => deleteBlock(block.id)}>
+          <BlockShell key={block.id} index={i} total={blocks.length} label={blockLabel(block.type)}
+            onMoveUp={() => moveBlock(block.id, -1)} onMoveDown={() => moveBlock(block.id, 1)} onDelete={() => deleteBlock(block.id)}>
             {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-            {(block.type === "img-left" || block.type === "img-right") && (
-              <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} />
-            )}
+            {(block.type === "img-left" || block.type === "img-right") && <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {block.type === "gallery" && <GalleryBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {block.type === "divider" && <DividerBlock />}
             {block.type === "raw" && <RawBlock block={block} onChange={b => updateBlock(block.id, b)} />}
           </BlockShell>
         ))}
       </div>
-
       <button type="button" onClick={() => setShowAddMenu(true)}
         className="w-full py-2 rounded-xl border-2 border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-sm font-medium">
         <Plus className="w-4 h-4" /> Add block
       </button>
-
       {showAddMenu && <AddBlockMenu onAdd={addBlock} onClose={() => setShowAddMenu(false)} />}
       {showImport && <ImportSPModal onImport={handleImport} onClose={() => setShowImport(false)} />}
       {showHTMLPreview && <HTMLPreviewModal html={currentHTML} onClose={() => setShowHTMLPreview(false)} />}
