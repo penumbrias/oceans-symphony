@@ -271,7 +271,7 @@ const handleExportFull = async () => {
             {copyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Copy Backup to Clipboard</p>
-              <p className="text-xs text-muted-foreground font-normal">Paste into notes, email, etc.</p>
+              <p className="text-xs text-muted-foreground font-normal">Paste into notes, or drive and save as a .txt file to import</p>
             </div>
           </Button>
         </div>
