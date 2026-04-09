@@ -17,22 +17,46 @@ const ENTITY_NAMES = [
 // Outside component — no state needed here
 async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: "application/json" });
-  const file = new File([blob], filename, { type: "application/json" });
-
   const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 
-  if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: "Symphony Backup" });
-      return;
-    } catch (e) {
-      if (e.name === "AbortError") return;
+  // Mobile: try share with file first, then text, then open in new tab
+  if (isMobile) {
+    const blob = new Blob([json], { type: "application/json" });
+    const file = new File([blob], filename, { type: "application/json" });
+
+    // 1. Try file share
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: "Symphony Backup" });
+        return;
+      } catch (e) {
+        if (e.name === "AbortError") return;
+      }
     }
+
+    // 2. Try text share (share sheet opens, can save to Drive/Notes/etc)
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: filename, text: json });
+        return;
+      } catch (e) {
+        if (e.name === "AbortError") return;
+      }
+    }
+
+    // 3. Open raw JSON in new tab — user can "Save page" or copy from there
+    const base64 = btoa(unescape(encodeURIComponent(json)));
+    const w = window.open(`data:application/json;base64,${base64}`, "_blank");
+    if (w) return;
+
+    // 4. Nothing worked — tell caller to fall back to clipboard
+    throw new Error("__clipboard_fallback__");
   }
 
+  // Desktop: File System Access API
   if (window.showSaveFilePicker) {
     try {
+      const blob = new Blob([json], { type: "application/json" });
       const fileHandle = await window.showSaveFilePicker({
         suggestedName: filename,
         types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
@@ -46,15 +70,8 @@ async function downloadJson(data, filename) {
     }
   }
 
-  if (!isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: "Symphony Backup" });
-      return;
-    } catch (e) {
-      if (e.name === "AbortError") return;
-    }
-  }
-
+  // Desktop fallback: anchor download
+  const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
