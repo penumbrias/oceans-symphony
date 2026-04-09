@@ -63,6 +63,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   };
 
   const handleImport = async () => {
+    console.log("effectiveSettings:", effectiveSettings)
     console.log("handleImport fired, localMode:", localMode, "settings:", effectiveSettings);
     if (!effectiveSettings?.sp_token || !effectiveSettings?.sp_system_id) return;
     setSyncing(true);
