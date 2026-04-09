@@ -14,6 +14,20 @@ const ENTITY_NAMES = [
   "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
 ];
 
+const handleExportFull = async () => {
+  setExportLoading(true);
+  try {
+    const exportData = await buildExportData();
+    const date = new Date().toISOString().slice(0, 10);
+    await downloadJson(exportData, `symphony-backup-${date}.json`);
+    showStatus("success", "Backup exported! If no file appeared, use Copy to Clipboard instead.");
+  } catch (e) {
+    showStatus("error", `Export failed: ${e.message}. Try Copy to Clipboard instead.`);
+  } finally {
+    setExportLoading(false);
+  }
+};
+
 async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: "application/json" });
