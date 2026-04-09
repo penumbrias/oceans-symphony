@@ -67,7 +67,7 @@ function FirstRunSetup({ onComplete }) {
             <div>
               <p className="font-semibold text-foreground">Cloud Sync</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Data synced to the cloud. Requires an account. Access from any device. Saves data on base44 servers - please do not use this!
+                Data synced to the cloud. Requires an account. Access from any device. Saves data on base44 servers - please do not use this! I really just use it for testing/app development. The app is most stable and secure in local.
               </p>
             </div>
           </button>
