@@ -246,10 +246,10 @@ export default function ActivityWeeklyGrid({
           Alters
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowSettings(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
-          <Settings className="w-3 h-3" /> View
+          <Settings className="w-3 h-3" /> Display
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowCustomMenu(true)} className="h-7 px-2 text-xs">
-          Activities
+          Manage Activities
         </Button>
       </div>
 
