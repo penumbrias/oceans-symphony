@@ -304,7 +304,7 @@ export default function ActivityWeeklyGrid({
           {slots.map(({ hour, minute, label }) => (
             <div
               key={label}
-              className="px-1.5 text-right border-b border-border/40 flex items-center justify-end flex-shrink-0 whitespace-nowrap"
+              className="px-1.5 text-right border-b border-border/30 flex items-center justify-end flex-shrink-0 whitespace-nowrap"
               style={{ height: rowH, minHeight: rowH, fontSize: 10, color: "hsl(var(--muted-foreground))" }}
             >
               {/* Only show label at top of hour or for fine intervals */}
