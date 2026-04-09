@@ -62,165 +62,212 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
     }
   };
 
-  const handleImport = async () => {
-    console.log("effectiveSettings:", effectiveSettings)
-    console.log("handleImport fired, localMode:", localMode, "settings:", effectiveSettings);
-    if (!effectiveSettings?.sp_token || !effectiveSettings?.sp_system_id) return;
-    setSyncing(true);
-    setImportProgress("");
+const handleImport = async () => {
+  console.log("handleImport fired, localMode:", localMode, "settings:", effectiveSettings);
+  if (!effectiveSettings?.sp_token || !effectiveSettings?.sp_system_id) return;
+  setSyncing(true);
+  setImportProgress("");
 
-    try {
-      if (localMode) {
-        const { sp_token: tok, sp_system_id: sysId } = effectiveSettings;
+  try {
+    if (localMode) {
+      const { sp_token: tok, sp_system_id: sysId } = effectiveSettings;
 
-        // --- Step 1: Fetch from SP ---
-        setImportProgress("Fetching members...");
-        const members = await getMembers(tok, sysId);
+      // --- Step 1: Fetch from SP ---
+      setImportProgress("Fetching members...");
+      const members = await getMembers(tok, sysId);
 
-        setImportProgress("Fetching groups...");
-        const groups = await getGroups(tok, sysId);
+      setImportProgress("Fetching groups...");
+      const groups = await getGroups(tok, sysId);
 
-        // Build groupsById for member->group embedding
-        const groupsById = {};
-        for (const g of groups) {
-          const gid = g.id || g._id || "";
-          if (gid) groupsById[gid] = g;
-        }
+      setImportProgress("Fetching custom fields...");
+      const spFields = await getCustomFields(tok, sysId);
 
-        const mappedAlters = members.map((m) => mapMemberToAlter(m, groupsById));
+      // Build groupsById for member->group embedding
+      const groupsById = {};
+      for (const g of groups) {
+        const gid = g.id || g._id || "";
+        if (gid) groupsById[gid] = g;
+      }
 
-        // --- Step 2: Import alters ---
-        setImportProgress("Importing alters...");
-        const existingAlters = await localEntities.Alter.list();
-        let altersCreated = 0;
-        let altersUpdated = 0;
-        const alterIdBySpId = {};
+      // --- Step 2: Import custom field definitions ---
+      setImportProgress("Importing custom fields...");
+      const existingFields = await localEntities.CustomField.list();
+      const existingFieldsBySpId = {};
+      for (const f of existingFields) {
+        if (f.sp_id) existingFieldsBySpId[f.sp_id] = f;
+      }
+
+      const fieldIdMap = {}; // { spFieldId -> localFieldId }
+      let fieldsCreated = 0;
+
+      if (importMode === "replace_all") {
+        for (const f of existingFields) await localEntities.CustomField.delete(f.id);
+      }
+
+      for (const spField of spFields) {
+        const spFieldId = spField.id || spField._id || "";
+        const fc = spField.content || spField;
+        if (!spFieldId) continue;
+
+        const fieldData = {
+          sp_id: spFieldId,
+          name: fc.name || "Unnamed Field",
+          field_type: spFieldType(fc.valueType || fc.type),
+          order: fieldsCreated,
+        };
 
         if (importMode === "replace_all") {
-          for (const a of existingAlters) await localEntities.Alter.delete(a.id);
-          for (const a of mappedAlters) {
-            const created = await localEntities.Alter.create(a);
-            alterIdBySpId[a.sp_id] = created.id;
+          const created = await localEntities.CustomField.create(fieldData);
+          fieldIdMap[spFieldId] = created.id;
+          fieldsCreated++;
+        } else {
+          const existing = existingFieldsBySpId[spFieldId];
+          if (existing) {
+            fieldIdMap[spFieldId] = existing.id;
+            if (importMode !== "new_only") {
+              await localEntities.CustomField.update(existing.id, fieldData);
+            }
+          } else {
+            const created = await localEntities.CustomField.create(fieldData);
+            fieldIdMap[spFieldId] = created.id;
+            fieldsCreated++;
+          }
+        }
+      }
+
+      // Now map alters with the resolved field ID map
+      const mappedAlters = members.map((m) => mapMemberToAlter(m, groupsById, fieldIdMap));
+
+      // --- Step 3: Import alters ---
+      setImportProgress("Importing alters...");
+      const existingAlters = await localEntities.Alter.list();
+      let altersCreated = 0;
+      let altersUpdated = 0;
+      const alterIdBySpId = {};
+
+      if (importMode === "replace_all") {
+        for (const a of existingAlters) await localEntities.Alter.delete(a.id);
+        for (const a of mappedAlters) {
+          const created = await localEntities.Alter.create(a);
+          alterIdBySpId[a.sp_id] = created.id;
+          altersCreated++;
+        }
+      } else {
+        const existingBySpId = {};
+        for (const a of existingAlters) {
+          if (a.sp_id) existingBySpId[a.sp_id] = a;
+          alterIdBySpId[a.sp_id] = a.id;
+        }
+        for (const incoming of mappedAlters) {
+          const existing = existingBySpId[incoming.sp_id];
+          if (existing) {
+            if (importMode !== "new_only") {
+              await localEntities.Alter.update(existing.id, incoming);
+              alterIdBySpId[incoming.sp_id] = existing.id;
+              altersUpdated++;
+            } else {
+              alterIdBySpId[incoming.sp_id] = existing.id;
+            }
+          } else {
+            const created = await localEntities.Alter.create(incoming);
+            alterIdBySpId[incoming.sp_id] = created.id;
             altersCreated++;
           }
+        }
+      }
+
+      // --- Step 4: Import groups (pass 1 — create without parent) ---
+      setImportProgress("Importing groups...");
+      const existingGroups = await localEntities.Group.list();
+      let groupsCreated = 0;
+      let groupsUpdated = 0;
+
+      if (importMode === "replace_all") {
+        for (const g of existingGroups) await localEntities.Group.delete(g.id);
+      }
+
+      const existingGroupsBySpId = {};
+      if (importMode !== "replace_all") {
+        for (const g of existingGroups) {
+          if (g.sp_id) existingGroupsBySpId[g.sp_id] = g;
+        }
+      }
+
+      const groupIdBySpId = {};
+
+      for (const spGroup of groups) {
+        const mapped = mapGroupToLocalGroup(spGroup);
+        mapped.parent = "";
+
+        const existing = existingGroupsBySpId[mapped.sp_id];
+        if (importMode === "replace_all" || !existing) {
+          const created = await localEntities.Group.create(mapped);
+          groupIdBySpId[mapped.sp_id] = created.id;
+          groupsCreated++;
+        } else if (importMode !== "new_only") {
+          await localEntities.Group.update(existing.id, { ...mapped, parent: existing.parent });
+          groupIdBySpId[mapped.sp_id] = existing.id;
+          groupsUpdated++;
         } else {
-          const existingBySpId = {};
-          for (const a of existingAlters) {
-            if (a.sp_id) existingBySpId[a.sp_id] = a;
-            alterIdBySpId[a.sp_id] = a.id;
-          }
-          for (const incoming of mappedAlters) {
-            const existing = existingBySpId[incoming.sp_id];
-            if (existing) {
-              if (importMode !== "new_only") {
-                await localEntities.Alter.update(existing.id, incoming);
-                alterIdBySpId[incoming.sp_id] = existing.id;
-                altersUpdated++;
-              } else {
-                alterIdBySpId[incoming.sp_id] = existing.id;
-              }
-            } else {
-              const created = await localEntities.Alter.create(incoming);
-              alterIdBySpId[incoming.sp_id] = created.id;
-              altersCreated++;
-            }
-          }
+          groupIdBySpId[mapped.sp_id] = existing.id;
         }
+      }
 
-        // --- Step 3: Import groups (pass 1 — create without parent) ---
-        setImportProgress("Importing groups...");
-        const existingGroups = await localEntities.Group.list();
-        let groupsCreated = 0;
-        let groupsUpdated = 0;
+      // --- Step 5: Resolve parent IDs (pass 2) ---
+      setImportProgress("Resolving group nesting...");
+      for (const spGroup of groups) {
+        const spId = spGroup.id || spGroup._id || "";
+        const c = spGroup.content || spGroup;
+        const spParentId = c.parent || "";
 
-        if (importMode === "replace_all") {
-          for (const g of existingGroups) await localEntities.Group.delete(g.id);
+        const localGroupId = groupIdBySpId[spId];
+        if (!localGroupId) continue;
+
+        const localParentId = spParentId ? groupIdBySpId[spParentId] || "" : "";
+        if (localParentId !== undefined) {
+          await localEntities.Group.update(localGroupId, { parent: localParentId });
         }
+      }
 
-        const existingGroupsBySpId = {};
-        if (importMode !== "replace_all") {
-          for (const g of existingGroups) {
-            if (g.sp_id) existingGroupsBySpId[g.sp_id] = g;
-          }
-        }
-
-        // Track sp_id -> local group id for parent resolution
-        const groupIdBySpId = {};
-
-        for (const spGroup of groups) {
-          const mapped = mapGroupToLocalGroup(spGroup);
-          // Don't set parent yet — resolve in pass 2
-          mapped.parent = "";
-
-          const existing = existingGroupsBySpId[mapped.sp_id];
-          if (importMode === "replace_all" || !existing) {
-            const created = await localEntities.Group.create(mapped);
-            groupIdBySpId[mapped.sp_id] = created.id;
-            groupsCreated++;
-          } else if (importMode !== "new_only") {
-            await localEntities.Group.update(existing.id, { ...mapped, parent: existing.parent });
-            groupIdBySpId[mapped.sp_id] = existing.id;
-            groupsUpdated++;
-          } else {
-            groupIdBySpId[mapped.sp_id] = existing.id;
-          }
-        }
-
-        // --- Step 4: Resolve parent IDs (pass 2) ---
-        setImportProgress("Resolving group nesting...");
-        for (const spGroup of groups) {
-          const spId = spGroup.id || spGroup._id || "";
-          const c = spGroup.content || spGroup;
-          const spParentId = c.parent || "";
-
-          const localGroupId = groupIdBySpId[spId];
-          if (!localGroupId) continue;
-
-          // Only set parent if there's a valid SP parent that we also imported
-          const localParentId = spParentId ? groupIdBySpId[spParentId] || "" : "";
-          if (localParentId !== undefined) {
-            await localEntities.Group.update(localGroupId, { parent: localParentId });
-          }
-        }
-
-        // --- Step 5: Update last_sync ---
-        if (effectiveSettings?.id) {
-          await localEntities.SystemSettings.update(effectiveSettings.id, {
-            last_sync: new Date().toISOString()
-          });
-        }
-
-        onSettingsChange();
-        queryClient.invalidateQueries({ queryKey: ["alters"] });
-        queryClient.invalidateQueries({ queryKey: ["groups"] });
-        setImportProgress("");
-        toast.success(
-          `Import complete! Alters: ${altersCreated} new, ${altersUpdated} updated · Groups: ${groupsCreated} new, ${groupsUpdated} updated`
-        );
-      } else {
-        // Cloud mode
-        const res = await base44.functions.invoke("importFromSimplyPlural", {
-          sp_token: effectiveSettings.sp_token,
-          sp_system_id: effectiveSettings.sp_system_id,
-          mode: importMode
-        });
-        await base44.entities.SystemSettings.update(effectiveSettings.id, {
+      // --- Step 6: Update last_sync ---
+      if (effectiveSettings?.id) {
+        await localEntities.SystemSettings.update(effectiveSettings.id, {
           last_sync: new Date().toISOString()
         });
-        onSettingsChange();
-        queryClient.invalidateQueries({ queryKey: ["alters"] });
-        queryClient.invalidateQueries({ queryKey: ["groups"] });
-        toast.success(
-          `Imported: ${res.alters.created} new, ${res.alters.updated} updated alters`
-        );
       }
-    } catch (e) {
+
+      onSettingsChange();
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["customFields"] });
       setImportProgress("");
-      toast.error(e.message || "Import failed");
-    } finally {
-      setSyncing(false);
+      toast.success(
+        `Import complete! Alters: ${altersCreated} new, ${altersUpdated} updated · Groups: ${groupsCreated} new, ${groupsUpdated} updated · Fields: ${fieldsCreated} new`
+      );
+    } else {
+      // Cloud mode — unchanged
+      const res = await base44.functions.invoke("importFromSimplyPlural", {
+        sp_token: effectiveSettings.sp_token,
+        sp_system_id: effectiveSettings.sp_system_id,
+        mode: importMode
+      });
+      await base44.entities.SystemSettings.update(effectiveSettings.id, {
+        last_sync: new Date().toISOString()
+      });
+      onSettingsChange();
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(
+        `Imported: ${res.alters.created} new, ${res.alters.updated} updated alters`
+      );
     }
-  };
+  } catch (e) {
+    setImportProgress("");
+    toast.error(e.message || "Import failed");
+  } finally {
+    setSyncing(false);
+  }
+};
 
   const handleDisconnect = async () => {
     try {
