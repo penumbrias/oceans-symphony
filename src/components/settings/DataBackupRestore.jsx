@@ -121,19 +121,29 @@ export default function DataBackupRestore() {
   };
 
   // Inside component — needs setExportLoading, buildExportData, showStatus
-  const handleExportFull = async () => {
-    setExportLoading(true);
-    try {
-      const exportData = await buildExportData();
-      const date = new Date().toISOString().slice(0, 10);
-      await downloadJson(exportData, `symphony-backup-${date}.json`);
-      showStatus("success", "Backup exported! If no file appeared, use Copy to Clipboard instead.");
-    } catch (e) {
-      showStatus("error", `Export failed: ${e.message}. Try Copy to Clipboard instead.`);
-    } finally {
-      setExportLoading(false);
+const handleExportFull = async () => {
+  setExportLoading(true);
+  try {
+    const exportData = await buildExportData();
+    const date = new Date().toISOString().slice(0, 10);
+    await downloadJson(exportData, `symphony-backup-${date}.json`);
+    showStatus("success", "Backup exported!");
+  } catch (e) {
+    if (e.message === "__clipboard_fallback__") {
+      // Auto-copy to clipboard as last resort
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
+        showStatus("success", "Couldn't open share dialog — backup copied to clipboard. Use Import from File on another device, or paste into a plain text file (.txt) and import that.");
+      } catch {
+        showStatus("error", "Export failed. Please use a desktop browser to download your backup.");
+      }
+    } else {
+      showStatus("error", `Export failed: ${e.message}`);
     }
-  };
+  } finally {
+    setExportLoading(false);
+  }
+};
 
   const handleCopyToClipboard = async () => {
     setCopyLoading(true);
