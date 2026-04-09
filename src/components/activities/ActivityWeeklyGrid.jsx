@@ -249,7 +249,7 @@ export default function ActivityWeeklyGrid({
           <Settings className="w-3 h-3" /> View
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowCustomMenu(true)} className="h-7 px-2 text-xs">
-          Customize
+          Activities
         </Button>
       </div>
 
