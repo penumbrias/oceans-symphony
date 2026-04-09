@@ -266,7 +266,7 @@ export default function ActivityWeeklyGrid({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium">Col width</span>
-              <input type="range" min={20} max={200} step={10} value={colW}
+              <input type="range" min={30} max={200} step={5} value={colW}
                 onChange={e => setColW(Number(e.target.value))}
                 className="w-24 accent-primary" />
               <span className="text-muted-foreground w-10">{colW}px</span>
