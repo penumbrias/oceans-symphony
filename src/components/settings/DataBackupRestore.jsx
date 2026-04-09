@@ -240,7 +240,7 @@ const handleExportFull = async () => {
           </div>
           <div>
             <CardTitle className="text-lg">Backup & Export</CardTitle>
-            <CardDescription>Export your data or import from a backup. Copy/paste exists as an alternative if download fails. Copied data must not be reformatted or changed <strong>in any way</strong> in order to import.</CardDescription>
+            <CardDescription>Export your data or import from a backup. Copy/paste exists as an alternative if download fails. Copied data must not be reformatted or changed <strong>in any way</strong> in order to paste. <p>I suggest pasting copied backup data into google Drive or similar, then share/export as a .txt to reimport the backup data</p></CardDescription>
           </div>
         </div>
       </CardHeader>
