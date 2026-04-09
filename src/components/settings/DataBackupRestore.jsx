@@ -288,7 +288,7 @@ const handleExportFull = async () => {
               <span className="text-xs font-medium">Replace All</span>
             </label>
           </div>
-          <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFromFile} className="hidden" />
+          <input ref={fileInputRef} type="file" accept=".json,.txt" onChange={handleImportFromFile} className="hidden" />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
