@@ -2,13 +2,12 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2 } from "lucide-react";
-import { setMode, setEncryptionEnabled, isEncryptionEnabled } from "@/lib/storageMode";
+import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown } from "lucide-react";
+import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
 import { initLocalDb } from "@/lib/localDb";
 
-// Shown on first run (mode === null)
 function FirstRunSetup({ onComplete }) {
-  const [step, setStep] = useState("choose"); // choose | local_password
+  const [step, setStep] = useState("choose");
   const [useEncryption, setUseEncryption] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -16,24 +15,12 @@ function FirstRunSetup({ onComplete }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChooseCloud = () => {
-    setMode("cloud");
-    onComplete();
-  };
-
-  const handleChooseLocal = () => {
-    setStep("local_password");
-  };
+  const handleChooseCloud = () => { setMode("cloud"); onComplete(); };
+  const handleChooseLocal = () => { setStep("local_password"); };
 
   const handleLocalConfirm = async () => {
-    if (useEncryption && password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (useEncryption && password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
+    if (useEncryption && password !== confirmPassword) { setError("Passwords do not match."); return; }
+    if (useEncryption && password.length < 6) { setError("Password must be at least 6 characters."); return; }
     setLoading(true);
     try {
       setMode("local");
@@ -55,9 +42,6 @@ function FirstRunSetup({ onComplete }) {
   if (step === "choose") {
     return (
       <div className="space-y-4">
-        <p className="text-muted-foreground text-sm text-center">
-          Choose how Symphony stores your data. You can change this later in Settings.
-        </p>
         <div className="grid gap-3">
           <button
             onClick={handleChooseLocal}
@@ -69,7 +53,7 @@ function FirstRunSetup({ onComplete }) {
             <div>
               <p className="font-semibold text-foreground">Local Only</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                All data stays on this device. No account required. Optional high-security password encryption. Backup/export your data frequently - but<strong> use this method! much more secure!</strong>
+                All data stays on this device. No account required. Optional high-security password encryption. Backup/export your data frequently - but <strong>use this method! much more secure!</strong>
               </p>
             </div>
           </button>
@@ -152,7 +136,6 @@ function FirstRunSetup({ onComplete }) {
   );
 }
 
-// Shown on returning visits when db is encrypted (locked)
 function UnlockScreen({ onUnlock }) {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -175,11 +158,6 @@ function UnlockScreen({ onUnlock }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-center mb-2">
-        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <Lock className="w-7 h-7 text-primary" />
-        </div>
-      </div>
       <p className="text-sm text-muted-foreground text-center">
         Your Symphony data is encrypted. Enter your password to unlock.
       </p>
@@ -206,19 +184,20 @@ function UnlockScreen({ onUnlock }) {
   );
 }
 
-import React, { useState } from "react";
-import { Lock, ChevronDown } from "lucide-react";
-
 export default function StorageModeSetup({ mode, onComplete }) {
   const [noticeOpen, setNoticeOpen] = useState(false);
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
       <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+
+        {/* Header */}
         <div className="flex flex-col items-center mb-6">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3">
             {mode === "unlock"
-              ? <Lock className="w-6 h-6 text-primary" />
+              ? <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Lock className="w-6 h-6 text-primary" />
+                </div>
               : <img
                   src="/oceans-symphony-logo.png"
                   className="w-12 h-12 object-contain rounded-full"
@@ -230,7 +209,6 @@ export default function StorageModeSetup({ mode, onComplete }) {
           <h2 className="font-display text-2xl font-semibold text-foreground text-center">
             {mode === "unlock" ? "Unlock Symphony" : "Welcome to Oceans Symphony"}
           </h2>
-
           {mode !== "unlock" && (
             <p className="text-sm text-muted-foreground text-center mt-1">
               Choose how Symphony stores your data. You can change this later in Settings.
@@ -238,7 +216,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
           )}
         </div>
 
-        {/* GitHub releases link — static, always visible */}
+        {/* GitHub link — first run only */}
         {mode !== "unlock" && (
           <p className="text-sm text-center mb-4">
             <strong className="text-foreground">
@@ -253,7 +231,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
           </p>
         )}
 
-        {/* Collapsible privacy notice */}
+        {/* Collapsible privacy notice — first run only */}
         {mode !== "unlock" && (
           <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
             <button
@@ -267,15 +245,14 @@ export default function StorageModeSetup({ mode, onComplete }) {
               </div>
               <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${noticeOpen ? "rotate-180" : ""}`} />
             </button>
-
             {noticeOpen && (
               <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground border-t border-amber-500/20 pt-3">
                 <div className="space-y-1">
                   <p className="font-semibold text-foreground">☁️ Cloud Mode <strong>(not recommended)</strong></p>
                   <p>
                     <strong className="text-foreground">Oceans Symphony is built on and "vibe-coded" with the Base44 platform.</strong>{" "}
-                    Your data is stored on Base44's servers with row-level security — no other user can access
-                    your data. However, cloud data is <strong>not end-to-end encrypted</strong>, meaning{" "}
+                    Your data is stored on Base44's servers with row-level security — no other user can access your data.
+                    However, cloud data is <strong>not end-to-end encrypted</strong>, meaning{" "}
                     <strong className="text-foreground">I as the developer technically have server access</strong>.
                     I am committed to never accessing your data, but please be mindful of what you enter if this concerns you.
                   </p>
@@ -283,25 +260,22 @@ export default function StorageModeSetup({ mode, onComplete }) {
                 <div className="space-y-1">
                   <p className="font-semibold text-foreground">🔒 Local Mode <strong>(recommended)</strong></p>
                   <p>
-                    Local mode stores all data exclusively on your device. When encryption is enabled, your
-                    data is protected with <strong className="text-foreground">AES-256-GCM encryption</strong> —
-                    the same standard used by banks and governments. Your password never leaves your device.
-                    Even I cannot access your encrypted local data.{" "}
+                    Local mode stores all data exclusively on your device. When encryption is enabled, your data is protected
+                    with <strong className="text-foreground">AES-256-GCM encryption</strong> — the same standard used by banks
+                    and governments. Your password never leaves your device. Even I cannot access your encrypted local data.{" "}
                     <strong>This is the recommended mode for sensitive information.</strong>
                   </p>
                   <p>
                     <strong className="text-foreground">
-                      If you lose your encryption password, data cannot be retrieved — make frequent backups
-                      and save your password securely.
+                      If you lose your encryption password, data cannot be retrieved — make frequent backups and save your password securely.
                     </strong>
                   </p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-semibold text-foreground">💾 Backups</p>
                   <p>
-                    Use Settings → Backup &amp; Export to save your data as a JSON file. Keep backups somewhere
-                    safe — local data is tied to this device and will be lost if you clear app data or
-                    uninstall without a backup.
+                    Use Settings → Backup &amp; Export to save your data as a JSON file. Keep backups somewhere safe —
+                    local data is tied to this device and will be lost if you clear app data or uninstall without a backup.
                   </p>
                 </div>
                 <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
@@ -315,6 +289,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
           </div>
         )}
 
+        {/* Main content */}
         {mode === "unlock"
           ? <UnlockScreen onUnlock={onComplete} />
           : <FirstRunSetup onComplete={onComplete} />
