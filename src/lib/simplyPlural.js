@@ -88,7 +88,34 @@ function normalizeColor(raw) {
   return s.startsWith("#") ? s : `#${s}`;
 }
 
-export function mapMemberToAlter(member, groupsById = {}) {
+// Maps SP valueType strings to our field_type enum
+const SP_TYPE_MAP = {
+  text: "text",
+  string: "text",
+  longText: "text",
+  number: "number",
+  boolean: "boolean",
+  bool: "boolean",
+};
+
+export function spFieldType(spType) {
+  return SP_TYPE_MAP[spType] || "text";
+}
+
+function remapCustomFields(spInfo, fieldIdMap) {
+  // spInfo: { [spFieldId]: value }
+  // fieldIdMap: { [spFieldId]: localFieldId }
+  // returns: { [localFieldId]: value }
+  if (!spInfo || typeof spInfo !== "object") return {};
+  const result = {};
+  for (const [spFieldId, value] of Object.entries(spInfo)) {
+    const localId = fieldIdMap[spFieldId];
+    if (localId !== undefined) result[localId] = value;
+  }
+  return result;
+}
+
+export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}) {
   const spId = member.id || member._id || "";
   const c = member.content || member;
 
@@ -115,7 +142,7 @@ export function mapMemberToAlter(member, groupsById = {}) {
     avatar_url: c.avatarUrl || c.avatar_url || "",
     banner_url: c.bannerUrl || c.banner_url || "",
     role: c.role || "",
-    custom_fields: c.info || {},
+    custom_fields: remapCustomFields(c.info || {}, fieldIdMap),
     tags: Array.isArray(c.tags) ? c.tags : [],
     groups: memberGroups,
     is_archived: !!c.archived,
@@ -124,7 +151,6 @@ export function mapMemberToAlter(member, groupsById = {}) {
   };
 }
 
-// SP group shape: { exists, id, content: { name, color, members: [...spMemberIds], parent, desc, emoji } }
 export function mapGroupToLocalGroup(group) {
   const spId = group.id || group._id || "";
   const c = group.content || group;
@@ -135,13 +161,10 @@ export function mapGroupToLocalGroup(group) {
     color: normalizeColor(c.color),
     description: c.desc || c.description || "",
     emoji: c.emoji || "",
-    // member_sp_ids: raw SP member IDs — FolderGroupsSection reads this directly
     member_sp_ids: Array.isArray(c.members) ? c.members : [],
-    // sp_parent_id: resolved to local group ID (parent field) in the import step
     sp_parent_id: c.parent || "",
     tags: Array.isArray(c.tags) ? c.tags : [],
     is_hidden: !!c.private,
-    // parent: set after all groups created, resolved from sp_parent_id -> local id
     parent: "",
   };
 }
