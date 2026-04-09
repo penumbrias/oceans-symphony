@@ -17,8 +17,22 @@ const ENTITY_NAMES = [
 async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: "application/json" });
+  const file = new File([blob], filename, { type: "application/json" });
 
-  // Try File System Access API
+  // On Android/mobile, share API is the most reliable — try it first
+  const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: "Symphony Backup" });
+      return;
+    } catch (e) {
+      if (e.name === "AbortError") return;
+      // fall through to other methods
+    }
+  }
+
+  // Desktop: try File System Access API
   if (window.showSaveFilePicker) {
     try {
       const fileHandle = await window.showSaveFilePicker({
@@ -34,9 +48,8 @@ async function downloadJson(data, filename) {
     }
   }
 
-  // Try file share
-  const file = new File([blob], filename, { type: "application/json" });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+  // Non-mobile share fallback
+  if (!isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: "Symphony Backup" });
       return;
@@ -45,13 +58,15 @@ async function downloadJson(data, filename) {
     }
   }
 
-  // Desktop fallback
+  // Last resort: anchor download (works on desktop, unreliable on Android WebView)
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export default function DataBackupRestore() {
