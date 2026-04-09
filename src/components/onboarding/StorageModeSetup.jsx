@@ -69,7 +69,7 @@ function FirstRunSetup({ onComplete }) {
             <div>
               <p className="font-semibold text-foreground">Local Only</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                All data stays on this device. No account required. Optional password encryption (currently bugged). Backup/export your data frequently - but<strong> use this method! much more secure!</strong>
+                All data stays on this device. No account required. Optional high-security password encryption. Backup/export your data frequently - but<strong> use this method! much more secure!</strong>
               </p>
             </div>
           </button>
