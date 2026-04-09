@@ -14,14 +14,12 @@ const ENTITY_NAMES = [
   "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
 ];
 
-
-
+// Outside component — no state needed here
 async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const file = new File([blob], filename, { type: "application/json" });
 
-  // On Android/mobile, share API is the most reliable — try it first
   const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 
   if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -30,11 +28,9 @@ async function downloadJson(data, filename) {
       return;
     } catch (e) {
       if (e.name === "AbortError") return;
-      // fall through to other methods
     }
   }
 
-  // Desktop: try File System Access API
   if (window.showSaveFilePicker) {
     try {
       const fileHandle = await window.showSaveFilePicker({
@@ -50,7 +46,6 @@ async function downloadJson(data, filename) {
     }
   }
 
-  // Non-mobile share fallback
   if (!isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: "Symphony Backup" });
@@ -60,7 +55,6 @@ async function downloadJson(data, filename) {
     }
   }
 
-  // Last resort: anchor download (works on desktop, unreliable on Android WebView)
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -109,29 +103,16 @@ export default function DataBackupRestore() {
     };
   };
 
-  const handleExportFull = async () => {
-  setExportLoading(true);
-  try {
-    const exportData = await buildExportData();
-    const date = new Date().toISOString().slice(0, 10);
-    await downloadJson(exportData, `symphony-backup-${date}.json`);
-    showStatus("success", "Backup exported! If no file appeared, use Copy to Clipboard instead.");
-  } catch (e) {
-    showStatus("error", `Export failed: ${e.message}. Try Copy to Clipboard instead.`);
-  } finally {
-    setExportLoading(false);
-  }
-};
-
+  // Inside component — needs setExportLoading, buildExportData, showStatus
   const handleExportFull = async () => {
     setExportLoading(true);
     try {
       const exportData = await buildExportData();
       const date = new Date().toISOString().slice(0, 10);
       await downloadJson(exportData, `symphony-backup-${date}.json`);
-      showStatus("success", "Backup exported successfully!");
+      showStatus("success", "Backup exported! If no file appeared, use Copy to Clipboard instead.");
     } catch (e) {
-      showStatus("error", `Export failed: ${e.message}`);
+      showStatus("error", `Export failed: ${e.message}. Try Copy to Clipboard instead.`);
     } finally {
       setExportLoading(false);
     }
@@ -143,7 +124,7 @@ export default function DataBackupRestore() {
       const exportData = await buildExportData();
       const json = JSON.stringify(exportData);
       await navigator.clipboard.writeText(json);
-      showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.   Copied data must not be reformatted or changed in any way in order to import.");
+      showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. Copied data must not be reformatted or changed in any way in order to import.");
     } catch (e) {
       showStatus("error", `Copy failed: ${e.message}`);
     } finally {
@@ -250,29 +231,16 @@ export default function DataBackupRestore() {
           </div>
         )}
 
-        {/* Export */}
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
-
-          <Button
-            variant="outline"
-            onClick={handleExportFull}
-            disabled={exportLoading}
-            className="w-full gap-2 justify-start"
-          >
+          <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start">
             {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Download Backup</p>
               <p className="text-xs text-muted-foreground font-normal">Save as JSON file</p>
             </div>
           </Button>
-
-          <Button
-            variant="outline"
-            onClick={handleCopyToClipboard}
-            disabled={copyLoading}
-            className="w-full gap-2 justify-start"
-          >
+          <Button variant="outline" onClick={handleCopyToClipboard} disabled={copyLoading} className="w-full gap-2 justify-start">
             {copyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Copy Backup to Clipboard</p>
@@ -281,10 +249,8 @@ export default function DataBackupRestore() {
           </Button>
         </div>
 
-        {/* Import */}
         <div className="space-y-2 pt-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Import</p>
-
           <div className="flex gap-2">
             <label className="flex items-center gap-2 flex-1 cursor-pointer">
               <input type="radio" name="importMode" value="add" checked={importMode === "add"} onChange={(e) => setImportMode(e.target.value)} className="w-4 h-4" />
@@ -295,29 +261,16 @@ export default function DataBackupRestore() {
               <span className="text-xs font-medium">Replace All</span>
             </label>
           </div>
-
-          {/* File import */}
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFromFile} className="hidden" />
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importLoading}
-            className="w-full gap-2 justify-start"
-          >
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Import from File</p>
               <p className="text-xs text-muted-foreground font-normal">Symphony backup JSON</p>
             </div>
           </Button>
-
-          {/* Paste import */}
           {!showPasteInput ? (
-            <Button
-              variant="outline"
-              onClick={() => setShowPasteInput(true)}
-              className="w-full gap-2 justify-start"
-            >
+            <Button variant="outline" onClick={() => setShowPasteInput(true)} className="w-full gap-2 justify-start">
               <ClipboardPaste className="w-4 h-4" />
               <div className="text-left">
                 <p className="font-medium">Paste Backup from Clipboard</p>
@@ -334,22 +287,14 @@ export default function DataBackupRestore() {
                 onChange={(e) => setPasteText(e.target.value)}
               />
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setShowPasteInput(false); setPasteText(""); }} className="flex-1">
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleImportFromText}
-                  disabled={importLoading || !pasteText.trim()}
-                  className="flex-1"
-                >
+                <Button variant="outline" size="sm" onClick={() => { setShowPasteInput(false); setPasteText(""); }} className="flex-1">Cancel</Button>
+                <Button size="sm" onClick={handleImportFromText} disabled={importLoading || !pasteText.trim()} className="flex-1">
                   {importLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
                   {importLoading ? "Importing..." : "Import"}
                 </Button>
               </div>
             </div>
           )}
-
           <p className="text-xs text-muted-foreground">
             {importMode === "replace"
               ? "⚠️ Replace All will delete existing data and import from backup."
