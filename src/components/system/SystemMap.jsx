@@ -99,76 +99,69 @@ const SystemMap = () => {
     return result;
   }, [alters, groups, selectedGroup, searchQuery, showArchived]);
 
-  const nodePositions = useMemo(() => {
-    const positions = {};
-    const centerX = 600;
-    const centerY = 400;
-    const maxRadius = 320;
-    const minRadius = 80;
+const nodePositions = useMemo(() => {
+  const positions = {};
+  const centerX = 600;
+  const centerY = 400;
+  const maxRadius = 320;
+  const minRadius = 80;
 
-    if (!selectedAlter) {
-      // Default: alter with most total front time in center,
-      // others arranged by their own total front time relative to the max
-      const altersSorted = [...filteredAlters].sort(
-        (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
-      );
+  if (!selectedAlter) {
+    const altersSorted = [...filteredAlters].sort(
+      (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
+    );
+    const maxTime = altersSorted.length > 0 ? (frontingTime[altersSorted[0].id] || 1) : 1;
 
-      const maxTime = altersSorted.length > 0 ? (frontingTime[altersSorted[0].id] || 1) : 1;
-
-      altersSorted.forEach((alter, idx) => {
-        if (idx === 0) {
-          positions[alter.id] = { x: centerX, y: centerY };
-          return;
-        }
-        // Radius: more front time = closer to center
-        const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
-        const radius = minRadius + (1 - timeRatio) * (maxRadius - minRadius);
-        const angle = ((idx - 1) / (altersSorted.length - 1)) * Math.PI * 2;
-        positions[alter.id] = {
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
-        };
-      });
-
-      return positions;
-    }
-
-    // Selected alter in center
-    positions[selectedAlter.id] = { x: centerX, y: centerY };
-
-    const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
-
-    // For each other alter, radius is determined by what % of THEIR OWN
-    // total front time was spent co-fronting with the selected alter.
-    // 100% overlap → radius = minRadius (right beside center)
-    // 0% overlap   → radius = maxRadius (on the perimeter)
-    const withRatios = otherAlters.map((alter) => {
-      const sharedTime = cofrontingTime[selectedAlter.id]?.[alter.id] || 0;
-      const alterTotalTime = frontingTime[alter.id] || 1;
-      // Use the higher of "% of alter's time" or "% of selected's time"
-      // so the relationship is reflected from both perspectives
-      const selectedTotalTime = frontingTime[selectedAlter.id] || 1;
-      const ratioFromAlter = sharedTime / alterTotalTime;
-      const ratioFromSelected = sharedTime / selectedTotalTime;
-      const cofrontRatio = Math.max(ratioFromAlter, ratioFromSelected);
-
-      return { alter, cofrontRatio };
-    });
-
-    // Sort by ratio descending so angular spacing groups close relationships together
-    withRatios.sort((a, b) => b.cofrontRatio - a.cofrontRatio);
-
-    withRatios.forEach((item, idx) => {
-      const radius = minRadius + (1 - item.cofrontRatio) * (maxRadius - minRadius);
-      const angle = (idx / withRatios.length) * Math.PI * 2;
-      positions[item.alter.id] = {
+    altersSorted.forEach((alter, idx) => {
+      if (idx === 0) {
+        positions[alter.id] = { x: centerX, y: centerY };
+        return;
+      }
+      const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
+      const radius = minRadius + (1 - timeRatio) * (maxRadius - minRadius);
+      const angle = ((idx - 1) / (altersSorted.length - 1)) * Math.PI * 2;
+      positions[alter.id] = {
         x: centerX + Math.cos(angle) * radius,
         y: centerY + Math.sin(angle) * radius,
       };
     });
 
     return positions;
-  }, [filteredAlters, selectedAlter, frontingTime, cofrontingTime]);
+  }
+
+  // Selected alter in center
+  positions[selectedAlter.id] = { x: centerX, y: centerY };
+
+  const selectedTotalTime = frontingTime[selectedAlter.id] || 1;
+  const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
+
+  const withRatios = otherAlters.map((alter) => {
+    const sharedTime = cofrontingTime[selectedAlter.id]?.[alter.id] || 0;
+
+    // ALWAYS from selected alter's perspective:
+    // "What % of Kane's total front time did Kane spend with this alter?"
+    // 100% → right next to center (minRadius)
+    // 0%   → on the perimeter (maxRadius)
+    const cofrontRatio = sharedTime / selectedTotalTime;
+
+    return { alter, cofrontRatio };
+  });
+
+  // Sort descending so alters with highest ratio get lower angles
+  // (clusters frequent co-fronters together angularly too)
+  withRatios.sort((a, b) => b.cofrontRatio - a.cofrontRatio);
+
+  withRatios.forEach((item, idx) => {
+    const radius = minRadius + (1 - item.cofrontRatio) * (maxRadius - minRadius);
+    const angle = (idx / withRatios.length) * Math.PI * 2;
+    positions[item.alter.id] = {
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+    };
+  });
+
+  return positions;
+}, [filteredAlters, selectedAlter, frontingTime, cofrontingTime]);
 
   // Co-fronters panel list for selected alter
   useEffect(() => {
