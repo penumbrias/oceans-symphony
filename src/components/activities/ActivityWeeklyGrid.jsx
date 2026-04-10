@@ -534,72 +534,83 @@ export default function ActivityWeeklyGrid({
                         )}
 
                         {loggedToShow.length > 0 && (
-  <div className={`flex w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"} ${isExpanded ? "flex-col gap-1" : ""}`}
-    style={!isExpanded ? { height: rowH, overflow: "hidden" } : {}}>
-    {(() => {
-      const count = loggedToShow.length;
-      const pillH = isExpanded ? "auto" : Math.floor(rowH / count);
-      const useCircles = !isExpanded && pillH < 14;
+                          <div className={`flex w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"} ${isExpanded ? "flex-col gap-1" : ""}`}
+                            style={!isExpanded ? { height: rowH, overflow: "hidden" } : {}}>
+                            {(() => {
+                              const count = loggedToShow.length;
+                              const pillH = isExpanded ? "auto" : Math.floor(rowH / count);
+                              const useCircles = !isExpanded && pillH < 14;
+                              if (useCircles) {
+                                return (
+                                  <div className="flex flex-row items-center gap-0.5 flex-wrap px-0.5 h-full">
+                                    {loggedToShow.map(pill => {
+                                      const color = getActivityColor(pill);
+                                      const size = Math.max(6, Math.min(rowH - 2, Math.floor((colW - 8) / count) - 2));
+                                      const chars = Math.floor(size / 5.5);
+                                      const label = chars >= 2 ? pill.activity_name?.slice(0, chars) : "";
+                                      return (
+                                        <div key={pill.id}
+                                          className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden"
+                                          style={{ backgroundColor: color, height: size, minWidth: size, fontSize: Math.max(5, size * 0.5), paddingLeft: label ? 2 : 0, paddingRight: label ? 2 : 0 }}
+                                          title={pill.activity_name}>
+                                          {label}
+                                          {pill.notes && <span style={{ fontSize: Math.max(4, size * 0.4), marginLeft: 1, opacity: 0.85 }}>💭</span>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              }
+                              return loggedToShow.map(pill => {
+                                const color = getActivityColor(pill);
+                                const pillAlters = (pill.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
+                                const pillEmotions = pill.emotions || [];
+                                const h = isExpanded ? undefined : Math.max(10, pillH);
+                                const fs = isExpanded ? 9 : Math.max(7, Math.min(9, pillH * 0.6));
+                                return (
+                                  <div key={pill.id}
+                                    className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden w-full"
+                                    style={{ backgroundColor: color, fontSize: fs, height: h, maxWidth: "100%", marginTop: 0 }}
+                                    title={pill.activity_name}>
+                                    <span className={isExpanded ? "" : "truncate"}>
+                                      {isExpanded ? pill.activity_name : truncate(pill.activity_name, colW / 7)}
+                                    </span>
+                                    {pill.notes && <span style={{ fontSize: Math.max(6, fs * 0.85), marginLeft: 1 }}>💭</span>}
+                                    {isExpanded && pill.notes && (
+                                      <p className="text-white/80 italic text-xs ml-1">{pill.notes}</p>
+                                    )}
+                                    {showAlters && pillAlters.slice(0, isExpanded ? 6 : 2).map(a => (
+                                      <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
+                                        style={{ backgroundColor: a.color || "#fff" }}>
+                                        {a.avatar_url
+                                          ? <img src={a.avatar_url} className="w-full h-full object-cover" />
+                                          : <span style={{ fontSize: 5 }} className="flex items-center justify-center h-full font-bold">{a.name?.charAt(0)}</span>
+                                        }
+                                      </div>
+                                    ))}
+                                    {showEmotions && pillEmotions.slice(0, isExpanded ? 6 : 1).map((em, i) => (
+                                      <span key={i} className="w-2 h-2 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: emotionColor(em) }} title={em} />
+                                    ))}
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        )}
 
-      if (useCircles) {
-        // Horizontal circles
-        return (
-          <div className="flex flex-row items-center gap-0.5 flex-wrap px-0.5 h-full">
-            {loggedToShow.map(pill => {
-              const color = getActivityColor(pill);
-              const size = Math.max(6, Math.min(rowH - 2, Math.floor((colW - 8) / count) - 2));
-              const chars = Math.floor(size / 5.5);
-              const label = chars >= 2 ? pill.activity_name?.slice(0, chars) : "";
-              return (
-                <div key={pill.id}
-                  className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden"
-                  style={{ backgroundColor: color, height: size, minWidth: size, fontSize: Math.max(5, size * 0.5), paddingLeft: label ? 2 : 0, paddingRight: label ? 2 : 0 }}
-                  title={pill.activity_name}>
-                  {label}
-                  {pill.notes && <span style={{ fontSize: Math.max(4, size * 0.4), marginLeft: 1, opacity: 0.85 }}>💭</span>}
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
-
-      // Vertical stacked pills
-      return loggedToShow.map(pill => {
-        const color = getActivityColor(pill);
-        const pillAlters = (pill.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
-        const pillEmotions = pill.emotions || [];
-        const h = isExpanded ? undefined : Math.max(10, pillH);
-        const fs = isExpanded ? 9 : Math.max(7, Math.min(9, pillH * 0.6));
-        return (
-          <div key={pill.id}
-            className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden w-full"
-            style={{ backgroundColor: color, fontSize: fs, height: h, maxWidth: "100%", marginTop: 0 }}
-            title={pill.activity_name}>
-            <span className={isExpanded ? "" : "truncate"}>
-              {isExpanded ? pill.activity_name : truncate(pill.activity_name, colW / 7)}
-            </span>
-            {pill.notes && <span style={{ fontSize: Math.max(6, fs * 0.85), marginLeft: 1 }}>💭</span>}
-            {isExpanded && pill.notes && (
-              <p className="text-white/80 italic text-xs ml-1">{pill.notes}</p>
-            )}
-            {showAlters && pillAlters.slice(0, isExpanded ? 6 : 2).map(a => (
-              <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
-                style={{ backgroundColor: a.color || "#fff" }}>
-                {a.avatar_url
-                  ? <img src={a.avatar_url} className="w-full h-full object-cover" />
-                  : <span style={{ fontSize: 5 }} className="flex items-center justify-center h-full font-bold">{a.name?.charAt(0)}</span>
-                }
+                        {addMode && !hasContent && (
+                          <Plus className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity m-auto text-primary" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             ))}
-            {showEmotions && pillEmotions.slice(0, isExpanded ? 6 : 1).map((em, i) => (
-              <span key={i} className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: emotionColor(em) }} title={em} />
-            ))}
           </div>
-        );
-      });
-    })()}
-  </div>
-)}
-})()}
+        </div>
+      </div>
+    </div>
+  );
+}
