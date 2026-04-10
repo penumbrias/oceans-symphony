@@ -53,7 +53,7 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
     // Collect raw segments per alter
     const byAlter = {};
     sessions.forEach((session) => {
-      const ids = session.alter_id ? [session.alter_id] : [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
       ids.forEach((alterId) => {
         const startMins = minutesFromHourStart(new Date(session.start_time), firstHour, dayStart);
         const endTime = session.end_time ? new Date(session.end_time) : null;

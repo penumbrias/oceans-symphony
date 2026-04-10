@@ -92,7 +92,7 @@ export default function TimeOfDayFronters({ sessions, alters }) {
       const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
       const duration = Math.max(end - start, 0);
 
-      const ids = s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
       for (const id of ids) {
         durations[id] = (durations[id] || 0) + duration;
       }

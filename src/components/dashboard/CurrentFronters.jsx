@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useTerms } from "@/lib/useTerms";
-import { normalizeSessions } from "@/lib/frontingUtils";
+import { saveMentions } from "@/lib/mentionUtils";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -47,7 +47,7 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onClick={handleClick}
-      className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2 hover:border-border transition-all min-w-0 cursor-pointer"
+      className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2. hover:border-border transition-all min-w-0 cursor-pointer"
     >
       <div className="relative flex-shrink-0">
         <div
@@ -90,63 +90,55 @@ export default function CurrentFronters({ alters }) {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 
-  const altersById = useMemo(() =>
-    Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
-
-  // Normalize to handle both legacy grouped and new individual sessions
-  const activeSessions = useMemo(() =>
-    sessions.filter(s => s.is_active), [sessions]);
-
-  const normalized = useMemo(() =>
-    normalizeSessions(activeSessions), [activeSessions]);
-
-  const activeAlterIds = useMemo(() =>
-    [...new Set(normalized.map(s => s.alterId))], [normalized]);
-
-  // For status note editing, use the earliest active session's note
-  const earliestSession = useMemo(() =>
-    activeSessions.sort((a, b) => new Date(a.start_time) - new Date(b.start_time))[0],
-    [activeSessions]);
-
-  // For passing to SetFrontModal — pass the first active session for compatibility
-  const activeSessionForModal = useMemo(() =>
-    activeSessions[0] || null, [activeSessions]);
+  const active = sessions.find((s) => s.is_active);
+  const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
 
   useEffect(() => {
-    if (earliestSession) {
+    if (active) {
       let latest = "";
       try {
-        const parsed = JSON.parse(earliestSession.note || "[]");
+        const parsed = JSON.parse(active.note || "[]");
         if (Array.isArray(parsed) && parsed.length > 0) {
           latest = parsed[parsed.length - 1].text;
-        } else if (earliestSession.note && !earliestSession.note.startsWith("[")) {
-          latest = earliestSession.note;
+        } else if (active.note && !active.note.startsWith("[")) {
+          latest = active.note;
         }
       } catch {
-        latest = earliestSession.note || "";
+        latest = active.note || "";
       }
       setStatusText(latest);
       setTempStatus(latest);
     }
-  }, [earliestSession?.id]);
+  }, [active?.id]);
 
   const handleSetPrimaryFromHold = async (alter) => {
-    // With individual sessions, "primary" is just visual — no-op for now
-    toast.success(`${alter.name} noted as primary`);
+    if (!active) return;
+    try {
+      const newCoFronters = [active.primary_alter_id, ...(active.co_fronter_ids || [])]
+        .filter((id) => id !== alter.id);
+      await base44.entities.FrontingSession.update(active.id, {
+        primary_alter_id: alter.id,
+        co_fronter_ids: newCoFronters,
+      });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      toast.success(`${alter.name} is now primary!`);
+    } catch (e) {
+      toast.error("Failed to update primary fronter");
+    }
   };
 
-  const handleSaveStatus = async () => {
-    if (!earliestSession || !tempStatus.trim()) return;
+const handleSaveStatus = async () => {
+    if (!active || !tempStatus.trim()) return;
     try {
       let existing = [];
       try {
-        const parsed = JSON.parse(earliestSession.note || "[]");
-        existing = Array.isArray(parsed) ? parsed : [{ text: earliestSession.note, timestamp: earliestSession.start_time }];
+        const parsed = JSON.parse(active.note || "[]");
+        existing = Array.isArray(parsed) ? parsed : [{ text: active.note, timestamp: active.start_time }];
       } catch {
-        existing = earliestSession.note ? [{ text: earliestSession.note, timestamp: earliestSession.start_time }] : [];
+        existing = active.note ? [{ text: active.note, timestamp: active.start_time }] : [];
       }
       const updated = [...existing, { text: tempStatus.trim(), timestamp: new Date().toISOString() }];
-      await base44.entities.FrontingSession.update(earliestSession.id, {
+      await base44.entities.FrontingSession.update(active.id, {
         note: JSON.stringify(updated),
       });
       setStatusText(tempStatus.trim());
@@ -158,7 +150,7 @@ export default function CurrentFronters({ alters }) {
     }
   };
 
-  if (activeAlterIds.length === 0) {
+  if (!active) {
     return (
       <>
         <div className="bg-muted/40 border border-border/40 rounded-2xl px-4 py-4 mb-5 flex items-center justify-between gap-3">
@@ -171,19 +163,14 @@ export default function CurrentFronters({ alters }) {
             Set {terms.Front}
           </Button>
         </div>
-// Replace SetFrontModal call at the bottom with:
-<SetFrontModal 
-  open={showModal} 
-  onClose={() => setShowModal(false)} 
-  alters={alters} 
-  currentSession={null}
-  currentAlterIds={activeAlterIds}  // ← pass all active alter IDs
-/>
+        <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={null} />
       </>
     );
   }
 
-  const startTime = earliestSession?.start_time || new Date().toISOString();
+  const primary = altersById[active.primary_alter_id];
+  const coFronters = (active.co_fronter_ids || []).map((id) => altersById[id]).filter(Boolean);
+  const all = [primary, ...coFronters].filter(Boolean);
 
   return (
     <>
@@ -200,20 +187,16 @@ export default function CurrentFronters({ alters }) {
         </div>
 
         <div className="mb-2 grid grid-cols-2 gap-2">
-          {activeAlterIds.map((alterId, i) => {
-            const alter = altersById[alterId];
-            if (!alter) return null;
-            return (
-              <FronterChip
-                key={alterId}
-                alter={alter}
-                isPrimary={i === 0}
-                startTime={startTime}
-                onHold={handleSetPrimaryFromHold}
-                coFronterLabel={`Co-${terms.fronting}`}
-              />
-            );
-          })}
+          {all.map((alter, i) => (
+            <FronterChip
+              key={alter.id}
+              alter={alter}
+              isPrimary={i === 0}
+              startTime={active.start_time}
+              onHold={handleSetPrimaryFromHold}
+              coFronterLabel={`Co-${terms.fronting}`}
+            />
+          ))}
         </div>
 
         {/* Custom Status */}
@@ -253,7 +236,7 @@ export default function CurrentFronters({ alters }) {
           </button>
         )}
       </div>
-      <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={activeSessionForModal} />
+      <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={active} />
     </>
   );
 }

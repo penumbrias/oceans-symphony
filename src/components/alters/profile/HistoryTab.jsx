@@ -25,11 +25,9 @@ export default function HistoryTab({ alterId }) {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 20000),
   });
 
-const alterSessions = sessions.filter(s =>
-  s.alter_id === alterId ||
-  s.primary_alter_id === alterId ||
-  (s.co_fronter_ids || []).includes(alterId)
-);
+  const alterSessions = sessions.filter(
+    (s) => s.primary_alter_id === alterId || (s.co_fronter_ids || []).includes(alterId)
+  );
 
   if (isLoading) return (
     <div className="flex justify-center py-16">
@@ -49,7 +47,7 @@ const alterSessions = sessions.filter(s =>
       {alterSessions.map((session) => {
         const start = new Date(session.start_time);
         const end = session.end_time ? new Date(session.end_time) : null;
-        const isPrimary = s.alter_id ? true : s.primary_alter_id === alterId;
+        const isPrimary = session.primary_alter_id === alterId;
         return (
           <div key={session.id} className="rounded-xl border border-border/50 bg-muted/10 p-4">
             <div className="flex justify-between text-xs text-muted-foreground mb-1">

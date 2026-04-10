@@ -16,7 +16,6 @@ import CheckInStep3 from "@/components/system-checkin/CheckInStep3";
 import CheckInStep4 from "@/components/system-checkin/CheckInStep4";
 import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
 import { saveMentions } from "@/lib/mentionUtils";
-import { createIndividualSession } from "@/lib/frontingUtils";
 
 export default function SystemCheckInPage() {
   const navigate = useNavigate();
@@ -114,16 +113,32 @@ if (allStepContent && alters.length > 0) {
    if (alterIds.length > 0) {
   try {
     const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-    // End existing sessions
-    for (const s of activeSessions) {
-      await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
-    }
-    // Create individual sessions per alter
-    for (const alterId of alterIds) {
-      await createIndividualSession(base44.entities, {
-        alterId,
-        startTime: new Date().toISOString(),
-        isActive: true,
+    if (activeSessions.length > 0) {
+      // Additive — merge noticed alters into existing session without ending it
+      const session = activeSessions[0];
+      const existing = [
+        session.primary_alter_id, 
+        ...(session.co_fronter_ids || [])
+      ].filter(Boolean);
+      const merged = [...new Set([...existing, ...alterIds])];
+      await base44.entities.FrontingSession.update(session.id, {
+        primary_alter_id: merged[0],
+        co_fronter_ids: merged.slice(1),
+      });
+      // End any duplicate active sessions
+      for (const s of activeSessions.slice(1)) {
+        await base44.entities.FrontingSession.update(s.id, {
+          is_active: false,
+          end_time: new Date().toISOString(),
+        });
+      }
+    } else {
+      // No active session — create one
+      await base44.entities.FrontingSession.create({
+        primary_alter_id: alterIds[0],
+        co_fronter_ids: alterIds.slice(1),
+        start_time: new Date().toISOString(),
+        is_active: true,
       });
     }
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });

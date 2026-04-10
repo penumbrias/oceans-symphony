@@ -46,7 +46,7 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
       
       if (sessionStart < sessionEnd) {
         const mins = Math.round((sessionEnd - sessionStart) / 60000);
-        const ids = s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+        const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
         ids.forEach((id) => {
           if (!tally[id]) tally[id] = 0;
           tally[id] += mins;

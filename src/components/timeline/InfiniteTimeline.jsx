@@ -309,9 +309,7 @@ export default function InfiniteTimeline({
   const alterEntries = useMemo(() => {
     const byAlter = {};
     sessions.forEach((session) => {
-      const ids = session.alter_id
-  ? [session.alter_id]
-  : [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
       ids.forEach((alterId) => {
         const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
         const endTime = session.end_time
@@ -666,13 +664,10 @@ export default function InfiniteTimeline({
                     const heightPx = getRangePx(entry.startMins, entry.endMins);
                     // Find the actual session for this entry
                    const entrySession = sessions.find(s => {
-  if (s.alter_id) return s.alter_id === entry.alterId;
-  const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-  return ids.includes(entry.alterId);
-});
-                    const isPrimary = entrySession?.alter_id
-  ? true  // individual sessions are always their own "primary"
-  : entrySession?.primary_alter_id === entry.alterId;
+                      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+                      return ids.includes(entry.alterId);
+                    });
+                    const isPrimary = entrySession?.primary_alter_id === entry.alterId;
                     return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx}
                       isPrimary={isPrimary}
                       onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}

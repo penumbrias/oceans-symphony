@@ -57,11 +57,9 @@ export default function BulletinPage() {
   const bulletin = bulletins.find(b => b.id === id);
   const activeSession = sessions.find(s => s.is_active);
   const currentAlterId = activeSession?.primary_alter_id || null;
-const frontingAlterIds = activeSession
-  ? activeSession.alter_id
-    ? [activeSession.alter_id]
-    : [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
-  : [];
+  const frontingAlterIds = activeSession
+    ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+    : [];
 
   if (!bulletin) {
     return (

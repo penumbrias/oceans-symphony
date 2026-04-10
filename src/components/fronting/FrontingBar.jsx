@@ -6,7 +6,6 @@ import { User, Star, Plus, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
 import SetFrontModal from "./SetFrontModal";
 import { useTerms } from "@/lib/useTerms";
-import { normalizeSessions } from "@/lib/frontingUtils";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -60,12 +59,8 @@ export default function FrontingBar({ alters }) {
 
   const session = activeSessions[0] || null;
   const allAltersById = Object.fromEntries((alters || []).map((a) => [a.id, a]));
-
-const activeSessionsList = activeSessions; // already filtered by is_active in the query
-const normalized = normalizeSessions(activeSessionsList);
-const activeAlterIds = [...new Set(normalized.map(s => s.alterId))];
-const primaryAlter = activeAlterIds[0] ? allAltersById[activeAlterIds[0]] : null;
-const coFronters = activeAlterIds.slice(1).map(id => allAltersById[id]).filter(Boolean);
+  const primaryAlter = session ? allAltersById[session.primary_alter_id] : null;
+  const coFronters = (session?.co_fronter_ids || []).map((id) => allAltersById[id]).filter(Boolean);
 
   const startedAt = session?.start_time ? new Date(session.start_time) : null;
   const duration = startedAt ?

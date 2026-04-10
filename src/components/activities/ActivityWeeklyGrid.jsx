@@ -166,14 +166,10 @@ export default function ActivityWeeklyGrid({
       const start = parseDate(s.start_time);
       const end = s.end_time ? parseDate(s.end_time) : new Date();
       if (start < slotEnd && end > slotStart) {
- if (s.alter_id) {
-      ids.add(s.alter_id);
-    } else {
-      if (s.primary_alter_id) ids.add(s.primary_alter_id);
-      (s.co_fronter_ids || []).forEach(id => ids.add(id));
-    }
-  }
-});
+        if (s.primary_alter_id) ids.add(s.primary_alter_id);
+        (s.co_fronter_ids || []).forEach(id => ids.add(id));
+      }
+    });
     return [...ids];
   }, [frontingHistory, interval]);
 
