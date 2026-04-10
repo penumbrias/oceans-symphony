@@ -84,47 +84,62 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [saving, setSaving] = useState(false);
   const [asPrimary, setAsPrimary] = useState(session?.primary_alter_id === alter?.id);
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
-      const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
+const handleSave = async () => {
+  setSaving(true);
+  try {
+    const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
+    const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
 
-      const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-      const remainingIds = allIds.filter(id => id !== alter.id);
+    const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+    const remainingIds = allIds.filter(id => id !== alter.id);
 
-      if (remainingIds.length === 0) {
-        // Only alter in session — just update in place
-        await base44.entities.FrontingSession.update(session.id, {
+    if (remainingIds.length === 0) {
+      // Only alter in session — update in place, asPrimary doesn't matter
+      await base44.entities.FrontingSession.update(session.id, {
+        start_time: newStart,
+        end_time: newEnd,
+        note: note || null,
+      });
+    } else {
+      // Remove this alter from the original session — remaining alters keep their session
+      await base44.entities.FrontingSession.update(session.id, {
+        primary_alter_id: remainingIds[0],
+        co_fronter_ids: remainingIds.slice(1),
+        start_time: session.start_time, // keep original times for remaining alters
+        end_time: session.end_time,
+      });
+
+      // Create a new individual session for this alter
+      if (asPrimary) {
+        // Primary — they front alone in their own session
+        await base44.entities.FrontingSession.create({
+          primary_alter_id: alter.id,
+          co_fronter_ids: [],
           start_time: newStart,
           end_time: newEnd,
+          is_active: !newEnd,
           note: note || null,
         });
       } else {
-        // Remove this alter from the original session
+        // Co-present — add them as co-fronter on the remaining session
         await base44.entities.FrontingSession.update(session.id, {
           primary_alter_id: remainingIds[0],
-          co_fronter_ids: remainingIds.slice(1),
-        });
-        // Create a new session for this alter
-        // If asPrimary, they're the primary; otherwise they're a co-fronter on their own record
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: asPrimary ? alter.id : remainingIds[0],
-          co_fronter_ids: asPrimary ? [] : [alter.id],
+          co_fronter_ids: [...remainingIds.slice(1), alter.id],
           start_time: newStart,
           end_time: newEnd,
           is_active: !newEnd,
           note: note || null,
         });
       }
-
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      onClose();
-    } finally {
-      setSaving(false);
     }
-  };
+
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    onClose();
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <Dialog open onOpenChange={onClose}>
