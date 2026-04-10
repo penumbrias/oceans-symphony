@@ -217,7 +217,7 @@ export default function Settings() {
         {/* Terminology */}
         <TermsSettings />
 
-        <CustomEmotionsManager />
+        
 
         {/* Account (cloud only) */}
         {!isLocalMode() && (
@@ -304,9 +304,10 @@ export default function Settings() {
 
         {/* Custom Fields */}
         <CustomFieldsManager />
-        
-        
 
+        <CustomEmotionsManager />
+        
+      
         {/* Archived Alters */}
         <ArchivedAltersManager />
 
