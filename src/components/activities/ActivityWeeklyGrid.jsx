@@ -602,5 +602,4 @@ export default function ActivityWeeklyGrid({
     })()}
   </div>
 )}
-
-That's it — just delete everything between the end of the vertical stacked pills section and the final })()}, leaving only that closing line.
+})()}
