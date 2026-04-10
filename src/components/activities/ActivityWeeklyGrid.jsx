@@ -538,7 +538,7 @@ export default function ActivityWeeklyGrid({
                             style={!isExpanded ? { height: rowH, overflow: "hidden" } : {}}>
                             {(() => {
                               const count = loggedToShow.length;
-                              const pillH = isExpanded ? "auto" : Math.floor(rowH / count);
+                              const pillH = isExpanded ? "auto" : Math.min(Math.floor(rowH / count), 18);
                               const useCircles = !isExpanded && pillH < 14;
                               if (useCircles) {
                                 return (
@@ -565,7 +565,7 @@ export default function ActivityWeeklyGrid({
                                 const color = getActivityColor(pill);
                                 const pillAlters = (pill.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
                                 const pillEmotions = pill.emotions || [];
-                                const h = isExpanded ? undefined : Math.max(10, pillH);
+                                const h = isExpanded ? undefined : Math.min(Math.max(10, pillH), 18);
                                 const fs = isExpanded ? 9 : Math.max(7, Math.min(9, pillH * 0.6));
                                 return (
                                   <div key={pill.id}
