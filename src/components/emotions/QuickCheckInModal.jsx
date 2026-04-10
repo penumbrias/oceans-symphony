@@ -10,6 +10,7 @@ import { Loader2, Heart, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
+import { createIndividualSession, endActiveSessions } from "@/lib/frontingUtils";
 
 export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [] }) {
   const queryClient = useQueryClient();
@@ -46,20 +47,19 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     );
   }, [alterInput, activeAlters, selectedAlters]);
 
-  // Change 1: mutation expects { label, category }
-const addCustomEmotionMutation = useMutation({
-  mutationFn: async ({ label, category = "custom" }) => {
-    const existing = customEmotions.find(e => e.label.toLowerCase() === label.toLowerCase());
-    if (existing) return existing;
-    return base44.entities.CustomEmotion.create({ label, category });
-  },
-  onSuccess: (emotion) => {
-    setSelectedEmotions(prev =>
-      prev.includes(emotion.label) ? prev : [...prev, emotion.label]
-    );
-    queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
-  },
-});
+  const addCustomEmotionMutation = useMutation({
+    mutationFn: async ({ label, category = "custom" }) => {
+      const existing = customEmotions.find(e => e.label.toLowerCase() === label.toLowerCase());
+      if (existing) return existing;
+      return base44.entities.CustomEmotion.create({ label, category });
+    },
+    onSuccess: (emotion) => {
+      setSelectedEmotions(prev =>
+        prev.includes(emotion.label) ? prev : [...prev, emotion.label]
+      );
+      queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
+    },
+  });
 
   const toggleEmotion = (label) => {
     setSelectedEmotions(prev =>
@@ -113,17 +113,17 @@ const addCustomEmotionMutation = useMutation({
   };
 
   const handleCreateNewActivity = async () => {
-  if (!newActivityName.trim()) return;
-  const newCat = await base44.entities.ActivityCategory.create({
-    name: newActivityName.trim(),
-    color: "#8b5cf6",
-    parent_category_id: null,
-  });
-  queryClient.invalidateQueries({ queryKey: ["activityCategories"] });
-  setSelectedActivityCategories(prev => [...prev, newCat.id]);
-  setNewActivityName("");
-  setShowNewActivity(false);
-};
+    if (!newActivityName.trim()) return;
+    const newCat = await base44.entities.ActivityCategory.create({
+      name: newActivityName.trim(),
+      color: "#8b5cf6",
+      parent_category_id: null,
+    });
+    queryClient.invalidateQueries({ queryKey: ["activityCategories"] });
+    setSelectedActivityCategories(prev => [...prev, newCat.id]);
+    setNewActivityName("");
+    setShowNewActivity(false);
+  };
 
   const handleSaveActivity = async () => {
     if (selectedActivityCategories.length === 0) return;
@@ -131,13 +131,13 @@ const addCustomEmotionMutation = useMutation({
     for (const catId of selectedActivityCategories) {
       const cat = catById[catId];
       await base44.entities.Activity.create({
-  timestamp: new Date().toISOString(),
-  activity_name: cat?.name || catId,
-  activity_category_ids: [catId],
-  duration_minutes: activityDuration ? parseInt(activityDuration) : null,
-  fronting_alter_ids: selectedAlters,
-  emotions: selectedEmotions,
-});
+        timestamp: new Date().toISOString(),
+        activity_name: cat?.name || catId,
+        activity_category_ids: [catId],
+        duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+        fronting_alter_ids: selectedAlters,
+        emotions: selectedEmotions,
+      });
     }
   };
 
@@ -151,16 +151,14 @@ const addCustomEmotionMutation = useMutation({
       const selectedSorted = [...selectedAlters].sort();
       if (JSON.stringify(currentSorted) !== JSON.stringify(selectedSorted)) {
         const now = new Date().toISOString();
-        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-        for (const s of activeSessions) {
-          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-        }
-        if (selectedAlters.length > 0) {
-          await base44.entities.FrontingSession.create({
-            primary_alter_id: selectedAlters[0],
-            co_fronter_ids: selectedAlters.slice(1),
-            start_time: now,
-            is_active: true,
+        // End all active sessions
+        await endActiveSessions(base44.entities, now);
+        // Create one individual session per alter — new format
+        for (const alterId of selectedAlters) {
+          await createIndividualSession(base44.entities, {
+            alterId,
+            startTime: now,
+            isActive: true,
           });
         }
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
@@ -185,18 +183,16 @@ const addCustomEmotionMutation = useMutation({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* ── Emotions ── */}
           <div>
             <p className="text-sm font-medium mb-2">How are you feeling?</p>
-<EmotionWheelPicker
-  selectedEmotions={selectedEmotions}
-  onToggle={toggleEmotion}
-  customEmotions={customEmotions}
-  onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
-/>
+            <EmotionWheelPicker
+              selectedEmotions={selectedEmotions}
+              onToggle={toggleEmotion}
+              customEmotions={customEmotions}
+              onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
+            />
           </div>
 
-          {/* ── Alters ── */}
           <div>
             <p className="text-sm font-medium mb-2">
               Who's {terms.fronting}? <span className="text-muted-foreground font-normal">(optional)</span>
@@ -259,7 +255,6 @@ const addCustomEmotionMutation = useMutation({
             )}
           </div>
 
-          {/* ── Activities ── */}
           <ActivityPillSelector
             selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
@@ -267,27 +262,25 @@ const addCustomEmotionMutation = useMutation({
             onDurationChange={setActivityDuration}
           />
 
-          {/* Create new activity */}
-{showNewActivity ? (
-  <div className="space-y-2">
-    <Input placeholder="Activity name..." value={newActivityName}
-      onChange={e => setNewActivityName(e.target.value)} className="text-sm" autoFocus />
-    <div className="flex gap-2">
-      <Button size="sm" variant="outline"
-        onClick={() => { setShowNewActivity(false); setNewActivityName(""); }}
-        className="flex-1">Cancel</Button>
-      <Button size="sm" onClick={handleCreateNewActivity}
-        disabled={!newActivityName.trim()} className="flex-1">Add</Button>
-    </div>
-  </div>
-) : (
-  <button onClick={() => setShowNewActivity(true)}
-    className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1">
-    <Plus className="w-4 h-4" /> Create new activity
-  </button>
-)}
+          {showNewActivity ? (
+            <div className="space-y-2">
+              <Input placeholder="Activity name..." value={newActivityName}
+                onChange={e => setNewActivityName(e.target.value)} className="text-sm" autoFocus />
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline"
+                  onClick={() => { setShowNewActivity(false); setNewActivityName(""); }}
+                  className="flex-1">Cancel</Button>
+                <Button size="sm" onClick={handleCreateNewActivity}
+                  disabled={!newActivityName.trim()} className="flex-1">Add</Button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowNewActivity(true)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1">
+              <Plus className="w-4 h-4" /> Create new activity
+            </button>
+          )}
 
-          {/* ── Note ── */}
           <div>
             <p className="text-sm font-medium mb-2">
               Quick note <span className="text-muted-foreground font-normal">(optional — over 50 words becomes a journal)</span>
@@ -302,7 +295,6 @@ const addCustomEmotionMutation = useMutation({
             )}
           </div>
 
-          {/* ── Actions ── */}
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
             <Button onClick={handleSubmit} disabled={selectedEmotions.length === 0 || saving} className="flex-1">
