@@ -89,9 +89,11 @@ const systemName = settings[0]?.system_name || `Your ${terms.system}`;
     queryFn: () => base44.entities.MentionLog.list("-created_date", 200)
   });
 
-  const frontingAlterIds = activeSession ?
-  [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean) :
-  [];
+const frontingAlterIds = activeSession
+  ? activeSession.alter_id
+    ? [activeSession.alter_id]
+    : [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+  : [];
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
