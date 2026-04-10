@@ -173,7 +173,7 @@ export default function ActivityWeeklyGrid({
     return [...ids];
   }, [frontingHistory, interval]);
 
-  const getEmotionsForSlot = useCallback((date, hour, minute) => {
+const getEmotionsForSlot = useCallback((date, hour, minute) => {
     const slotStart = new Date(date);
     slotStart.setHours(hour, minute, 0, 0);
     const slotEnd = new Date(slotStart.getTime() + interval * 60 * 1000);
@@ -182,8 +182,14 @@ export default function ActivityWeeklyGrid({
       const t = parseDate(e.timestamp);
       if (t >= slotStart && t < slotEnd) all.push(...(e.emotions || []));
     });
+    activities.forEach(a => {
+      const t = parseDate(a.timestamp);
+      if (t >= slotStart && t < slotEnd && (a.emotions || []).length > 0) {
+        all.push(...(a.emotions || []));
+      }
+    });
     return [...new Set(all)];
-  }, [emotionCheckIns, interval]);
+  }, [emotionCheckIns, activities, interval]);
 
   const getDayStats = useCallback((date) => {
     const dateStr = format(date, "yyyy-MM-dd");
