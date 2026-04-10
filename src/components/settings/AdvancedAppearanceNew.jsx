@@ -168,26 +168,7 @@ export default function AdvancedAppearance() {
           </div>
         </div>
 
-        {/* Color Customization */}
-        <div className="space-y-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Custom Colors {customColors && '(Editing)'}
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {Object.entries(colorLabels).map(([key, label]) => (
-              <div key={key} className="space-y-1">
-                <label className="text-xs font-medium text-foreground">{label}</label>
-                <button
-                  type="button"
-                  onClick={() => handleStartEditColor(key)}
-                  className="w-full h-10 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all"
-                  style={{ backgroundColor: currentColors[key] }}
-                  title="Click to edit"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+        
 
         {/* Cancel for Custom Editing */}
         {customColors && pendingColors && (
