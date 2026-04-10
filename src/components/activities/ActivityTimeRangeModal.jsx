@@ -60,16 +60,22 @@ const [showNewActivity, setShowNewActivity] = useState(false);
   });
 
   // Reset times when modal opens with new props
-  useMemo(() => {
-    if (startDate && startHour !== undefined) {
-     setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour), startMinute));
-      setEndTime(endHour != null
-        ? toTimeString(startDate, Math.max(startHour, endHour ?? startHour) + 1, endMinute)
-        : ""); // no end time for point-in-time
-      setSelectedActivityCategories([]);
-      setNotes("");
+useMemo(() => {
+  if (startDate && startHour !== undefined) {
+    setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour), startMinute));
+    if (endHour != null) {
+      // Add one interval to the end slot to get the actual end time
+      const endTotalMinutes = (endHour * 60 + endMinute) + interval;
+      const endH = Math.floor(endTotalMinutes / 60) % 24;
+      const endM = endTotalMinutes % 60;
+      setEndTime(toTimeString(startDate, endH, endM));
+    } else {
+      setEndTime("");
     }
-  }, [startDate, startHour, endHour, startMinute, endMinute]);
+    setSelectedActivityCategories([]);
+    setNotes("");
+  }
+}, [startDate, startHour, endHour, startMinute, endMinute]);
 
   // Auto-populate alters from fronting history
   useMemo(() => {
