@@ -517,32 +517,22 @@ if (addMode) {
                           </div>
                         )}
 
-                        {timed.length === 0 && alterIds.length > 0 && (
+                        {timed.length === 0 && alterIds.length > 0 && showAlters && (
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-0.5">
-                            {showAlters
-                              ? alterIds.slice(0, 3).map(alterId => {
-                                  const alter = alters.find(a => a.id === alterId);
-                                  return (
-                                    <div key={alterId}
-                                      className="rounded-full border border-border/60 flex items-center justify-center overflow-hidden"
-                                      style={{ width: Math.min(rowH * 0.35, 18), height: Math.min(rowH * 0.35, 18), backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }}
-                                      title={alter?.name}>
-                                      {alter?.avatar_url
-                                        ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                                        : <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
-                                      }
-                                    </div>
-                                  );
-                                })
-                              : (
-                                <div className="flex gap-0.5 flex-wrap justify-center">
-                                  {alterIds.slice(0, 4).map(alterId => {
-                                    const alter = alters.find(a => a.id === alterId);
-                                    return <div key={alterId} className="w-1 h-1 rounded-full" style={{ backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }} />;
-                                  })}
+                            {alterIds.slice(0, 3).map(alterId => {
+                              const alter = alters.find(a => a.id === alterId);
+                              return (
+                                <div key={alterId}
+                                  className="rounded-full border border-border/60 flex items-center justify-center overflow-hidden"
+                                  style={{ width: Math.min(rowH * 0.35, 18), height: Math.min(rowH * 0.35, 18), backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }}
+                                  title={alter?.name}>
+                                  {alter?.avatar_url
+                                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                    : <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
+                                  }
                                 </div>
-                              )
-                            }
+                              );
+                            })}
                           </div>
                         )}
 
