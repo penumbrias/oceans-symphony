@@ -171,7 +171,14 @@ export default function CurrentFronters({ alters }) {
             Set {terms.Front}
           </Button>
         </div>
-        <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={null} />
+// Replace SetFrontModal call at the bottom with:
+<SetFrontModal 
+  open={showModal} 
+  onClose={() => setShowModal(false)} 
+  alters={alters} 
+  currentSession={null}
+  currentAlterIds={activeAlterIds}  // ← pass all active alter IDs
+/>
       </>
     );
   }
