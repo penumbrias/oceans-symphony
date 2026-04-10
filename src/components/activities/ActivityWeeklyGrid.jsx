@@ -1,16 +1,17 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
-import { Plus, Eye, EyeOff, Settings, X, ChevronDown } from "lucide-react";
+import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 
-// ── Persistence helpers ──────────────────────────────────────────────────────
-const LS_ROW_H    = "symphony_act_row_h";
-const LS_COL_W    = "symphony_act_col_w";
-const LS_INTERVAL = "symphony_act_interval";
+const LS_ROW_H      = "symphony_act_row_h";
+const LS_COL_W      = "symphony_act_col_w";
+const LS_INTERVAL   = "symphony_act_interval";
+const LS_WEEK_START = "symphony_act_week_start";
+const LS_TIME_FMT   = "symphony_act_time_fmt";
 
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -20,7 +21,6 @@ function lsSet(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
 const HEADER_H = 56;
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -34,13 +34,23 @@ function emotionColor(name) {
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
-
 function truncate(str, max) {
   if (!str) return "";
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
 }
+function formatSlotLabel(hour, minute, fmt) {
+  if (fmt === "24") {
+    return minute === 0
+      ? `${String(hour).padStart(2, "0")}:00`
+      : `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+  const period = hour < 12 ? "am" : "pm";
+  const h = hour % 12 || 12;
+  return minute === 0
+    ? `${h}${period}`
+    : `${h}:${String(minute).padStart(2, "0")}${period}`;
+}
 
-// ── Main component ───────────────────────────────────────────────────────────
 export default function ActivityWeeklyGrid({
   weekDays,
   activities,
@@ -51,11 +61,13 @@ export default function ActivityWeeklyGrid({
   addMode = false,
   onToggleAddMode,
   highlightActivityId = null,
+  onWeekStartChange,
 }) {
-  // Persisted display settings
-  const [rowH,      setRowH]      = useState(() => lsGet(LS_ROW_H,    40));
-  const [colW,      setColW]      = useState(() => lsGet(LS_COL_W,    110));
-  const [interval,  setInterval]  = useState(() => lsGet(LS_INTERVAL, 60));  // 15|30|60
+  const [rowH,        setRowH]        = useState(() => lsGet(LS_ROW_H,      40));
+  const [colW,        setColW]        = useState(() => lsGet(LS_COL_W,      110));
+  const [interval,    setInterval]    = useState(() => lsGet(LS_INTERVAL,   60));
+  const [weekStartsOn,setWeekStartsOn]= useState(() => lsGet(LS_WEEK_START, 0));
+  const [timeFmt,     setTimeFmt]     = useState(() => lsGet(LS_TIME_FMT,   "24"));
 
   const [showAlters,     setShowAlters]     = useState(false);
   const [showEmotions,   setShowEmotions]   = useState(false);
@@ -65,10 +77,11 @@ export default function ActivityWeeklyGrid({
   const [pendingStart,   setPendingStart]   = useState(null);
   const lastTapRef = useRef({ key: "", time: 0 });
 
-  // Persist on change
-  useEffect(() => { lsSet(LS_ROW_H,    rowH);     }, [rowH]);
-  useEffect(() => { lsSet(LS_COL_W,    colW);     }, [colW]);
-  useEffect(() => { lsSet(LS_INTERVAL, interval); }, [interval]);
+  useEffect(() => { lsSet(LS_ROW_H,      rowH);        }, [rowH]);
+  useEffect(() => { lsSet(LS_COL_W,      colW);        }, [colW]);
+  useEffect(() => { lsSet(LS_INTERVAL,   interval);    }, [interval]);
+  useEffect(() => { lsSet(LS_WEEK_START, weekStartsOn);}, [weekStartsOn]);
+  useEffect(() => { lsSet(LS_TIME_FMT,   timeFmt);     }, [timeFmt]);
 
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
@@ -84,21 +97,16 @@ export default function ActivityWeeklyGrid({
     return m;
   }, [categories]);
 
-  // ── Time slots based on interval ──────────────────────────────────────────
-  // Each slot: { hour, minute, slotIndex }
   const slots = useMemo(() => {
     const s = [];
     ALL_HOURS.forEach(h => {
       for (let m = 0; m < 60; m += interval) {
-        s.push({ hour: h, minute: m, label: `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}` });
+        s.push({ hour: h, minute: m });
       }
     });
     return s;
   }, [interval]);
 
-  const slotsPerHour = 60 / interval;
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
   const getActivityColor = useCallback((act) => {
     for (const id of (act.activity_category_ids || [])) {
       const cat = catById[id];
@@ -107,19 +115,11 @@ export default function ActivityWeeklyGrid({
     return act.color || "hsl(var(--primary))";
   }, [catById]);
 
-  const activityCatKeys = useCallback((act) => {
-    return (act.activity_category_ids || []).join(",") || act.activity_name || "";
-  }, []);
-
-  // For a given slot, return { timed: Activity[], logged: Activity[] }
   const getActivitiesForSlot = useCallback((date, hour, minute) => {
     const slotStart = new Date(date);
     slotStart.setHours(hour, minute, 0, 0);
     const slotEnd = new Date(slotStart.getTime() + interval * 60 * 1000);
-
-    const timed = [];
-    const logged = [];
-
+    const timed = [], logged = [];
     activities.forEach(a => {
       const actStart = parseDate(a.timestamp);
       if (a.duration_minutes) {
@@ -132,7 +132,6 @@ export default function ActivityWeeklyGrid({
     return { timed, logged };
   }, [activities, interval]);
 
-  // Is this the FIRST slot where a timed activity appears?
   const isFirstSlotForActivity = useCallback((act, date, hour, minute) => {
     const actStart = parseDate(act.timestamp);
     const slotStart = new Date(date);
@@ -141,10 +140,8 @@ export default function ActivityWeeklyGrid({
     return actStart >= slotStart && actStart < slotEnd;
   }, [interval]);
 
-  // Is this the LAST slot for a timed activity?
   const isLastSlotForActivity = useCallback((act, date, hour, minute) => {
-    const actStart = parseDate(act.timestamp);
-    const actEnd = new Date(actStart.getTime() + act.duration_minutes * 60 * 1000);
+    const actEnd = new Date(parseDate(act.timestamp).getTime() + act.duration_minutes * 60 * 1000);
     const slotEnd = new Date(date);
     slotEnd.setHours(hour, minute, 0, 0);
     slotEnd.setTime(slotEnd.getTime() + interval * 60 * 1000);
@@ -190,13 +187,11 @@ export default function ActivityWeeklyGrid({
 
   const slotKey = (date, hour, minute) => `${format(date, "yyyy-MM-dd")}-${hour}-${minute}`;
 
-  // ── Tap handler ────────────────────────────────────────────────────────────
   const handleCellTap = useCallback((date, hour, minute) => {
     const key = slotKey(date, hour, minute);
     const now = Date.now();
     const { timed, logged } = getActivitiesForSlot(date, hour, minute);
     const allActs = [...timed, ...logged];
-
     const isDouble = lastTapRef.current.key === key && now - lastTapRef.current.time < 350;
     lastTapRef.current = { key, time: now };
 
@@ -205,16 +200,13 @@ export default function ActivityWeeklyGrid({
       if (!addMode) { onToggleAddMode?.(); setPendingStart({ date, hour, minute }); }
       return;
     }
-
     if (addMode) {
       if (!pendingStart) {
         setPendingStart({ date, hour, minute });
       } else {
         const startH = pendingStart.hour + pendingStart.minute / 60;
-        const endH   = hour + minute / 60;
-        const [sH, eH] = startH <= endH
-          ? [pendingStart.hour, hour]
-          : [hour, pendingStart.hour];
+        const endH = hour + minute / 60;
+        const [sH, eH] = startH <= endH ? [pendingStart.hour, hour] : [hour, pendingStart.hour];
         onTimeRangeSelect(pendingStart.date, sH, eH);
         setPendingStart(null);
       }
@@ -229,21 +221,23 @@ export default function ActivityWeeklyGrid({
 
   const handleToggleAddMode = () => { setPendingStart(null); onToggleAddMode?.(); };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const handleSetWeekStart = (val) => {
+    setWeekStartsOn(val);
+    onWeekStartChange?.(val);
+  };
+
   return (
     <div className="space-y-2">
-      {/* Controls row */}
+      {/* Controls */}
       <div className="flex flex-wrap gap-1.5 justify-end items-center">
         <Button variant={addMode ? "default" : "outline"} size="sm" onClick={handleToggleAddMode} className="gap-1.5 h-7 px-2 text-xs">
           {addMode ? <><X className="w-3 h-3" />Cancel</> : <><Plus className="w-3 h-3" />Add</>}
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowEmotions(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
-          {showEmotions ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-          {showEmotions ? "Emotions" : "Emotions"}
+          {showEmotions ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />} Emotions
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowAlters(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
-          {showAlters ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-          Alters
+          {showAlters ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />} Alters
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowSettings(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
           <Settings className="w-3 h-3" /> Display
@@ -255,33 +249,61 @@ export default function ActivityWeeklyGrid({
 
       {/* Display settings panel */}
       {showSettings && (
-        <div className="rounded-lg border border-border bg-card p-3 space-y-3 text-xs">
-          <div className="flex items-center gap-4 flex-wrap">
+        <div className="rounded-lg border border-border bg-card p-3 text-xs">
+          <div className="flex flex-wrap gap-x-5 gap-y-2.5 items-center">
+
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground font-medium">Row height</span>
-              <input type="range" min={10} max={80} step={5} value={rowH}
+              <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
+              <input type="range" min={28} max={80} step={4} value={rowH}
                 onChange={e => setRowH(Number(e.target.value))}
-                className="w-24 accent-primary" />
-              <span className="text-muted-foreground w-6">{rowH}px</span>
+                className="w-20 accent-primary" />
+              <span className="text-muted-foreground w-7">{rowH}px</span>
             </div>
+
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground font-medium">Col width</span>
+              <span className="text-muted-foreground font-medium whitespace-nowrap">Col width</span>
               <input type="range" min={30} max={200} step={5} value={colW}
                 onChange={e => setColW(Number(e.target.value))}
-                className="w-24 accent-primary" />
-              <span className="text-muted-foreground w-10">{colW}px</span>
+                className="w-20 accent-primary" />
+              <span className="text-muted-foreground w-8">{colW}px</span>
             </div>
+
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground font-medium">Interval</span>
+              <span className="text-muted-foreground font-medium whitespace-nowrap">Interval</span>
               {[15, 30, 60].map(iv => (
                 <button key={iv} onClick={() => setInterval(iv)}
-                  className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                  className={`px-2 py-0.5 rounded font-medium transition-colors ${
                     interval === iv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
                   }`}>
                   {iv === 60 ? "1h" : `${iv}m`}
                 </button>
               ))}
             </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground font-medium whitespace-nowrap">Week starts</span>
+              {[{ label: "Sun", val: 0 }, { label: "Mon", val: 1 }].map(({ label, val }) => (
+                <button key={val} onClick={() => handleSetWeekStart(val)}
+                  className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                    weekStartsOn === val ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground font-medium whitespace-nowrap">Time format</span>
+              {[{ label: "24h", val: "24" }, { label: "AM/PM", val: "ampm" }].map(({ label, val }) => (
+                <button key={val} onClick={() => setTimeFmt(val)}
+                  className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                    timeFmt === val ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
           </div>
         </div>
       )}
@@ -289,7 +311,7 @@ export default function ActivityWeeklyGrid({
       {addMode && (
         <div className="px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-xs text-primary font-medium">
           {pendingStart
-            ? `Start: ${String(pendingStart.hour).padStart(2,"0")}:${String(pendingStart.minute).padStart(2,"0")} — tap end cell`
+            ? `Start: ${formatSlotLabel(pendingStart.hour, pendingStart.minute, timeFmt)} — tap end cell`
             : "Tap start cell, then end cell"}
         </div>
       )}
@@ -301,16 +323,17 @@ export default function ActivityWeeklyGrid({
         {/* Fixed time column */}
         <div className="flex-shrink-0 bg-muted border-r border-border flex flex-col z-10">
           <div style={{ height: HEADER_H, minHeight: HEADER_H }} className="border-b border-border" />
-          {slots.map(({ hour, minute, label }) => (
+          {slots.map(({ hour, minute }) => (
             <div
-              key={label}
+              key={`${hour}-${minute}`}
               className="px-1.5 text-right border-b border-border/40 flex items-center justify-end flex-shrink-0 whitespace-nowrap"
               style={{ height: rowH, minHeight: rowH, fontSize: 10, color: "hsl(var(--muted-foreground))" }}
             >
-              {/* Only show label at top of hour or for fine intervals */}
-              {(minute === 0 || interval <= 30)
-                ? <span className={minute === 0 ? "font-semibold" : "opacity-60"}>{label}</span>
-                : null}
+              {(minute === 0 || interval <= 30) && (
+                <span className={minute === 0 ? "font-semibold" : "opacity-60"}>
+                  {formatSlotLabel(hour, minute, timeFmt)}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -319,7 +342,7 @@ export default function ActivityWeeklyGrid({
         <div className="overflow-x-auto flex-1">
           <div style={{ minWidth: weekDays.length * colW }}>
             {/* Day headers */}
-            <div className="grid bg-card border-b border-border sticky top-0 z-10"
+            <div className="grid bg-card border-b border-border"
               style={{ gridTemplateColumns: `repeat(${weekDays.length}, ${colW}px)`, height: HEADER_H }}>
               {weekDays.map(date => {
                 const stats = getDayStats(date);
@@ -332,7 +355,7 @@ export default function ActivityWeeklyGrid({
                       {format(date, "d")}
                     </div>
                     {stats.count > 0 && (
-                      <div className="text-xs text-primary/80" style={{ fontSize: 9 }}>
+                      <div style={{ fontSize: 9 }} className="text-primary/80">
                         {stats.count}{stats.duration > 0 ? ` · ${Math.round(stats.duration / 60)}h` : ""}
                       </div>
                     )}
@@ -342,8 +365,8 @@ export default function ActivityWeeklyGrid({
             </div>
 
             {/* Slot rows */}
-            {slots.map(({ hour, minute, label }) => (
-              <div key={label} className="grid"
+            {slots.map(({ hour, minute }) => (
+              <div key={`${hour}-${minute}`} className="grid"
                 style={{ gridTemplateColumns: `repeat(${weekDays.length}, ${colW}px)`, minHeight: rowH }}>
                 {weekDays.map(date => {
                   const key = slotKey(date, hour, minute);
@@ -355,28 +378,19 @@ export default function ActivityWeeklyGrid({
                     pendingStart.date.toDateString() === date.toDateString() &&
                     pendingStart.hour === hour && pendingStart.minute === minute;
 
-                  // Determine border-bottom: hide if a timed activity continues into next slot
                   const timedContinues = timed.some(a => !isLastSlotForActivity(a, date, hour, minute));
 
-                  // Logged pills that are NOT same-category as any timed activity (those get merged visually)
                   const loggedToShow = logged.filter(pill => {
                     const pillCats = new Set(pill.activity_category_ids || []);
-                    return !timed.some(t =>
-                      (t.activity_category_ids || []).some(c => pillCats.has(c))
-                    );
+                    return !timed.some(t => (t.activity_category_ids || []).some(c => pillCats.has(c)));
                   });
-                  // Logged pills that ARE same-category as a timed block (merge: just show extra emotions/alters)
                   const loggedMerged = logged.filter(pill => {
                     const pillCats = new Set(pill.activity_category_ids || []);
-                    return timed.some(t =>
-                      (t.activity_category_ids || []).some(c => pillCats.has(c))
-                    );
+                    return timed.some(t => (t.activity_category_ids || []).some(c => pillCats.has(c)));
                   });
 
-                  // Merged emotions from merged pills
                   const mergedEmotions = [...new Set(loggedMerged.flatMap(p => p.emotions || []))];
                   const mergedAlterIds = [...new Set(loggedMerged.flatMap(p => p.fronting_alter_ids || []))];
-
                   const hasContent = timed.length > 0 || logged.length > 0;
                   const showLabel = timed.some(a => isFirstSlotForActivity(a, date, hour, minute));
 
@@ -390,13 +404,8 @@ export default function ActivityWeeklyGrid({
                         ${!hasContent && !addMode ? "hover:bg-muted/20" : ""}
                         ${isExpanded ? "z-10" : ""}
                       `}
-                      style={{
-                        minHeight: rowH,
-                        height: isExpanded ? "auto" : rowH,
-                        userSelect: "none",
-                      }}
+                      style={{ minHeight: rowH, height: isExpanded ? "auto" : rowH, userSelect: "none" }}
                     >
-                      {/* Highlight ring */}
                       {highlightActivityId && timed.some(a => a.id === highlightActivityId) && (
                         <div className="absolute inset-0 ring-2 ring-yellow-400 ring-inset pointer-events-none z-20 animate-pulse" />
                       )}
@@ -404,7 +413,6 @@ export default function ActivityWeeklyGrid({
                         <div className="absolute inset-0 ring-2 ring-primary ring-inset pointer-events-none z-20" />
                       )}
 
-                      {/* Timed activity background fills */}
                       {timed.length > 0 && (
                         <div className="absolute inset-0 flex">
                           {timed.map(a => (
@@ -413,9 +421,7 @@ export default function ActivityWeeklyGrid({
                         </div>
                       )}
 
-                      {/* Content layer */}
                       <div className="relative z-10 w-full h-full flex flex-col">
-                        {/* Timed activity label — only in first slot */}
                         {timed.length > 0 && showLabel && (
                           <div className={`px-1 pt-0.5 w-full ${isExpanded ? "" : "overflow-hidden"}`}
                             style={{ maxHeight: isExpanded ? "none" : rowH - 2 }}>
@@ -437,7 +443,6 @@ export default function ActivityWeeklyGrid({
                           </div>
                         )}
 
-                        {/* Emotions from timed slot */}
                         {timed.length > 0 && showEmotions && (emotions.length > 0 || mergedEmotions.length > 0) && (
                           <div className="flex flex-wrap gap-0.5 px-1 mt-0.5">
                             {[...new Set([...emotions, ...mergedEmotions])].slice(0, isExpanded ? 20 : 3).map((em, i) => (
@@ -449,7 +454,6 @@ export default function ActivityWeeklyGrid({
                           </div>
                         )}
 
-                        {/* Alter dots for timed slot */}
                         {timed.length > 0 && showAlters && (alterIds.length > 0 || mergedAlterIds.length > 0) && (
                           <div className="flex gap-0.5 flex-wrap px-1 mt-0.5">
                             {[...new Set([...alterIds, ...mergedAlterIds])].slice(0, isExpanded ? 12 : 4).map(alterId => {
@@ -457,11 +461,7 @@ export default function ActivityWeeklyGrid({
                               return (
                                 <div key={alterId}
                                   className="rounded-full border border-white/50 overflow-hidden flex items-center justify-center flex-shrink-0"
-                                  style={{
-                                    width: isExpanded ? 14 : 10,
-                                    height: isExpanded ? 14 : 10,
-                                    backgroundColor: alter?.color || "rgba(255,255,255,0.3)"
-                                  }}
+                                  style={{ width: isExpanded ? 14 : 10, height: isExpanded ? 14 : 10, backgroundColor: alter?.color || "rgba(255,255,255,0.3)" }}
                                   title={alter?.name}>
                                   {alter?.avatar_url
                                     ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
@@ -473,7 +473,6 @@ export default function ActivityWeeklyGrid({
                           </div>
                         )}
 
-                        {/* Empty cell: show alter dots from fronting history */}
                         {timed.length === 0 && alterIds.length > 0 && (
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 p-0.5">
                             {showAlters
@@ -503,35 +502,23 @@ export default function ActivityWeeklyGrid({
                           </div>
                         )}
 
-                        {/* Logged pills (no duration, not same-cat as timed) */}
                         {loggedToShow.length > 0 && (
                           <div className={`flex flex-col gap-0.5 w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"}`}>
                             {loggedToShow.map(pill => {
                               const color = getActivityColor(pill);
-                              const pillAlters = (pill.fronting_alter_ids || [])
-                                .map(id => alters.find(a => a.id === id)).filter(Boolean);
+                              const pillAlters = (pill.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
                               const pillEmotions = pill.emotions || [];
                               const pillTime = parseDate(pill.timestamp);
                               const minuteOffset = pillTime.getMinutes() % interval;
                               const pct = minuteOffset / interval;
-
                               return (
-                                <div
-                                  key={pill.id}
+                                <div key={pill.id}
                                   className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden"
-                                  style={{
-                                    backgroundColor: color,
-                                    fontSize: 8,
-                                    height: Math.max(10, rowH * 0.28),
-                                    marginTop: pct > 0 ? `${pct * rowH}px` : 0,
-                                    maxWidth: "100%",
-                                  }}
-                                  title={pill.activity_name}
-                                >
+                                  style={{ backgroundColor: color, fontSize: 8, height: Math.max(10, rowH * 0.28), marginTop: pct > 0 ? `${pct * rowH}px` : 0, maxWidth: "100%" }}
+                                  title={pill.activity_name}>
                                   <span className="truncate">{truncate(pill.activity_name, colW / 9)}</span>
                                   {showAlters && pillAlters.slice(0, 2).map(a => (
-                                    <div key={a.id}
-                                      className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
+                                    <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
                                       style={{ backgroundColor: a.color || "#fff" }}>
                                       {a.avatar_url
                                         ? <img src={a.avatar_url} className="w-full h-full object-cover" />
@@ -543,14 +530,12 @@ export default function ActivityWeeklyGrid({
                                     <span key={i} className="w-2 h-2 rounded-full flex-shrink-0"
                                       style={{ backgroundColor: emotionColor(em) }} title={em} />
                                   ))}
-                                  {/* Fallback dot if too small */}
                                 </div>
                               );
                             })}
                           </div>
                         )}
 
-                        {/* Add mode hint */}
                         {addMode && !hasContent && (
                           <Plus className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity m-auto text-primary" />
                         )}
