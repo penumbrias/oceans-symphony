@@ -666,9 +666,10 @@ export default function InfiniteTimeline({
                     const heightPx = getRangePx(entry.startMins, entry.endMins);
                     // Find the actual session for this entry
                    const entrySession = sessions.find(s => {
-                      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-                      return ids.includes(entry.alterId);
-                    });
+  if (s.alter_id) return s.alter_id === entry.alterId;
+  const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+  return ids.includes(entry.alterId);
+});
                     const isPrimary = entrySession?.primary_alter_id === entry.alterId;
                     return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx}
                       isPrimary={isPrimary}
