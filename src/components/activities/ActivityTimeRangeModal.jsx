@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 function toTimeString(date, hour, minute = 0) {
   const d = new Date(date);
