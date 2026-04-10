@@ -670,7 +670,9 @@ export default function InfiniteTimeline({
   const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
   return ids.includes(entry.alterId);
 });
-                    const isPrimary = entrySession?.primary_alter_id === entry.alterId;
+                    const isPrimary = entrySession?.alter_id
+  ? true  // individual sessions are always their own "primary"
+  : entrySession?.primary_alter_id === entry.alterId;
                     return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx}
                       isPrimary={isPrimary}
                       onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
