@@ -88,9 +88,13 @@ useMemo(() => {
       });
       const alterIds = new Set();
       relevantSessions.forEach((s) => {
-        if (s.primary_alter_id) alterIds.add(s.primary_alter_id);
-        (s.co_fronter_ids || []).forEach((id) => alterIds.add(id));
-      });
+  if (s.alter_id) {
+    alterIds.add(s.alter_id);
+  } else {
+    if (s.primary_alter_id) alterIds.add(s.primary_alter_id);
+    (s.co_fronter_ids || []).forEach((id) => alterIds.add(id));
+  }
+});
       setSelectedAlters(Array.from(alterIds));
     }
   }, [startDate, startHour, endHour, frontingHistory]);
