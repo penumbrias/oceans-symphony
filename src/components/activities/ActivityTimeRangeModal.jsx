@@ -87,7 +87,7 @@ export default function ActivityTimeRangeModal({
   }, [startDate, startHour, endHour, frontingHistory]);
 
   const durationMinutes = useMemo(() => {
-    if (!startDate || !startTime || !endTime) return 0;
+    if (!startDate || !startTime || !endTime) return 0; // 0 = no duration
     const s = parseTimeToDate(startDate, startTime);
     const e = parseTimeToDate(startDate, endTime);
     const diff = differenceInMinutes(e, s);
