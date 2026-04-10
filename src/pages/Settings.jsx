@@ -302,11 +302,10 @@ export default function Settings() {
         {/* Diary Template */}
         <DiaryTemplateManager settings={settings} />
 
-        {/* Custom Fields */}
-        <CustomFieldsManager />
+<CustomEmotionsManager />
 
-        <CustomEmotionsManager />
-        
+        {/* Custom Fields */}
+        <CustomFieldsManager />        
       
         {/* Archived Alters */}
         <ArchivedAltersManager />
