@@ -84,51 +84,54 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [saving, setSaving] = useState(false);
   const [asPrimary, setAsPrimary] = useState(session?.primary_alter_id === alter?.id);
 
-const handleSave = async () => {
-  setSaving(true);
-  try {
-    const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
-    const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
+      const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
 
-    const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      // Get all alters in this session
+      const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
 
-    let newPrimary;
-    let newCoFronters;
+      let newPrimaryId;
+      let newCoFronterIds;
 
-    if (asPrimary) {
-      // This alter becomes primary, everyone else becomes co-fronter
-      newPrimary = alter.id;
-      newCoFronters = allIds.filter(id => id !== alter.id);
-    } else {
-      // This alter becomes co-fronter, keep whoever was primary (or pick next if this alter WAS primary)
-      if (session.primary_alter_id === alter.id) {
-        // Was primary — promote first co-fronter to primary
-        const others = (session.co_fronter_ids || []).filter(Boolean);
-        newPrimary = others[0] || alter.id; // fallback to self if alone
-        newCoFronters = others.length > 0 ? [...others.slice(1), alter.id] : [];
+      if (asPrimary) {
+        // This alter is primary, everyone else is co-fronter
+        newPrimaryId = alter.id;
+        newCoFronterIds = allIds.filter(id => id !== alter.id);
       } else {
-        // Already a co-fronter — just update times/note
-        newPrimary = session.primary_alter_id;
-        newCoFronters = (session.co_fronter_ids || []).filter(Boolean);
+        // This alter is co-fronter
+        const others = allIds.filter(id => id !== alter.id);
+        if (others.length > 0) {
+          // Promote first other alter to primary if this was primary
+          newPrimaryId = session.primary_alter_id === alter.id ? others[0] : session.primary_alter_id;
+          newCoFronterIds = session.primary_alter_id === alter.id
+            ? [...others.slice(1), alter.id]
+            : [...(session.co_fronter_ids || []).filter(Boolean)];
+        } else {
+          // Alone in session — no primary
+          newPrimaryId = null;
+          newCoFronterIds = [alter.id];
+        }
       }
+
+      await base44.entities.FrontingSession.update(session.id, {
+        primary_alter_id: newPrimaryId,
+        co_fronter_ids: newCoFronterIds,
+        start_time: newStart,
+        end_time: newEnd,
+        is_active: !newEnd,
+        note: note || null,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      onClose();
+    } finally {
+      setSaving(false);
     }
-
-    await base44.entities.FrontingSession.update(session.id, {
-      primary_alter_id: newPrimary,
-      co_fronter_ids: newCoFronters,
-      start_time: newStart,
-      end_time: newEnd,
-      is_active: !newEnd,
-      note: note || null,
-    });
-
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    onClose();
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -156,7 +159,12 @@ const handleSave = async () => {
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Custom status note</p>
-            <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Feeling tired, taking a break..." className="text-sm h-16 resize-none" />
+            <Textarea
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="e.g. Feeling tired, taking a break..."
+              className="text-sm h-16 resize-none"
+            />
           </div>
           <div className="flex items-center gap-2 py-1 border-t border-border/40">
             <input
@@ -167,7 +175,7 @@ const handleSave = async () => {
               className="w-4 h-4 accent-primary"
             />
             <label htmlFor="as-primary" className="text-sm text-muted-foreground cursor-pointer select-none">
-              Mark as primary fronter in this session
+              Primary fronter during this session
             </label>
           </div>
           <div className="flex gap-2">
