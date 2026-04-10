@@ -302,6 +302,8 @@ export default function Settings() {
 
         {/* Custom Fields */}
         <CustomFieldsManager />
+        
+        <CustomEmotionsManager />
 
         {/* Archived Alters */}
         <ArchivedAltersManager />
