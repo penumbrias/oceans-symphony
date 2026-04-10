@@ -12,6 +12,7 @@ const LS_COL_W      = "symphony_act_col_w";
 const LS_INTERVAL   = "symphony_act_interval";
 const LS_WEEK_START = "symphony_act_week_start";
 const LS_TIME_FMT   = "symphony_act_time_fmt";
+const LS_TICK_MODE  = "symphony_act_tick_mode";
 
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -50,6 +51,12 @@ function formatSlotLabel(hour, minute, fmt) {
     ? `${h}${period}`
     : `${h}:${String(minute).padStart(2, "0")}${period}`;
 }
+function shouldUseTicks(rowH, tickMode, interval) {
+  if (interval === 60) return false;
+  if (tickMode === "always") return true;
+  if (tickMode === "never") return false;
+  return rowH <= 14;
+}
 
 export default function ActivityWeeklyGrid({
   weekDays,
@@ -63,11 +70,12 @@ export default function ActivityWeeklyGrid({
   highlightActivityId = null,
   onWeekStartChange,
 }) {
-  const [rowH,        setRowH]        = useState(() => lsGet(LS_ROW_H,      40));
-  const [colW,        setColW]        = useState(() => lsGet(LS_COL_W,      110));
-  const [interval,    setInterval]    = useState(() => lsGet(LS_INTERVAL,   60));
-  const [weekStartsOn,setWeekStartsOn]= useState(() => lsGet(LS_WEEK_START, 0));
-  const [timeFmt,     setTimeFmt]     = useState(() => lsGet(LS_TIME_FMT,   "24"));
+  const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
+  const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      110));
+  const [interval,     setInterval]     = useState(() => lsGet(LS_INTERVAL,   60));
+  const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet(LS_WEEK_START, 0));
+  const [timeFmt,      setTimeFmt]      = useState(() => lsGet(LS_TIME_FMT,   "24"));
+  const [tickMode,     setTickMode]     = useState(() => lsGet(LS_TICK_MODE,  "auto"));
 
   const [showAlters,     setShowAlters]     = useState(false);
   const [showEmotions,   setShowEmotions]   = useState(false);
@@ -77,11 +85,12 @@ export default function ActivityWeeklyGrid({
   const [pendingStart,   setPendingStart]   = useState(null);
   const lastTapRef = useRef({ key: "", time: 0 });
 
-  useEffect(() => { lsSet(LS_ROW_H,      rowH);        }, [rowH]);
-  useEffect(() => { lsSet(LS_COL_W,      colW);        }, [colW]);
-  useEffect(() => { lsSet(LS_INTERVAL,   interval);    }, [interval]);
-  useEffect(() => { lsSet(LS_WEEK_START, weekStartsOn);}, [weekStartsOn]);
-  useEffect(() => { lsSet(LS_TIME_FMT,   timeFmt);     }, [timeFmt]);
+  useEffect(() => { lsSet(LS_ROW_H,      rowH);         }, [rowH]);
+  useEffect(() => { lsSet(LS_COL_W,      colW);         }, [colW]);
+  useEffect(() => { lsSet(LS_INTERVAL,   interval);     }, [interval]);
+  useEffect(() => { lsSet(LS_WEEK_START, weekStartsOn); }, [weekStartsOn]);
+  useEffect(() => { lsSet(LS_TIME_FMT,   timeFmt);      }, [timeFmt]);
+  useEffect(() => { lsSet(LS_TICK_MODE,  tickMode);     }, [tickMode]);
 
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
@@ -220,11 +229,7 @@ export default function ActivityWeeklyGrid({
   }, [addMode, pendingStart, getActivitiesForSlot, onTimeRangeSelect, onActivityClick, onToggleAddMode]);
 
   const handleToggleAddMode = () => { setPendingStart(null); onToggleAddMode?.(); };
-
-  const handleSetWeekStart = (val) => {
-    setWeekStartsOn(val);
-    onWeekStartChange?.(val);
-  };
+  const handleSetWeekStart = (val) => { setWeekStartsOn(val); onWeekStartChange?.(val); };
 
   return (
     <div className="space-y-2">
@@ -254,7 +259,7 @@ export default function ActivityWeeklyGrid({
 
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
-              <input type="range" min={10} max={80} step={5} value={rowH}
+              <input type="range" min={10} max={80} step={2} value={rowH}
                 onChange={e => setRowH(Number(e.target.value))}
                 className="w-20 accent-primary" />
               <span className="text-muted-foreground w-7">{rowH}px</span>
@@ -276,6 +281,18 @@ export default function ActivityWeeklyGrid({
                     interval === iv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
                   }`}>
                   {iv === 60 ? "1h" : `${iv}m`}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground font-medium whitespace-nowrap">Sub-hour marks</span>
+              {[{ label: "Labels", val: "never" }, { label: "Auto", val: "auto" }, { label: "Ticks", val: "always" }].map(({ label, val }) => (
+                <button key={val} onClick={() => setTickMode(val)}
+                  className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                    tickMode === val ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
+                  }`}>
+                  {label}
                 </button>
               ))}
             </div>
@@ -323,19 +340,32 @@ export default function ActivityWeeklyGrid({
         {/* Fixed time column */}
         <div className="flex-shrink-0 bg-muted border-r border-border flex flex-col z-10">
           <div style={{ height: HEADER_H, minHeight: HEADER_H }} className="border-b border-border" />
-          {slots.map(({ hour, minute }) => (
-            <div
-              key={`${hour}-${minute}`}
-              className="px-1.5 text-right border-b border-border/40 flex items-center justify-end flex-shrink-0 whitespace-nowrap"
-              style={{ height: rowH, minHeight: rowH, fontSize: 10, color: "hsl(var(--muted-foreground))" }}
-            >
-              {(minute === 0 || interval <= 30) && (
-                <span className={minute === 0 ? "font-semibold" : "opacity-60"}>
-                  {formatSlotLabel(hour, minute, timeFmt)}
-                </span>
-              )}
-            </div>
-          ))}
+          {slots.map(({ hour, minute }) => {
+            const useTicks = shouldUseTicks(rowH, tickMode, interval);
+            return (
+              <div
+                key={`${hour}-${minute}`}
+                className="px-1.5 text-right border-b border-border/40 flex items-center justify-end flex-shrink-0 whitespace-nowrap"
+                style={{ height: rowH, minHeight: rowH, color: "hsl(var(--muted-foreground))" }}
+              >
+                {minute === 0 ? (
+                  <span className="font-semibold" style={{ fontSize: Math.max(8, Math.min(10, rowH * 0.7)) }}>
+                    {formatSlotLabel(hour, 0, timeFmt)}
+                  </span>
+                ) : useTicks ? (
+                  <span style={{ fontSize: rowH <= 10 ? 7 : 9, lineHeight: 1, opacity: 0.6 }}>
+                    {minute % 30 === 0 ? "·" : "−"}
+                  </span>
+                ) : (
+                  interval <= 30 && (
+                    <span className="opacity-50" style={{ fontSize: 8 }}>
+                      {formatSlotLabel(hour, minute, timeFmt)}
+                    </span>
+                  )
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Scrollable days */}
@@ -379,7 +409,6 @@ export default function ActivityWeeklyGrid({
                     pendingStart.hour === hour && pendingStart.minute === minute;
 
                   const timedContinues = timed.some(a => !isLastSlotForActivity(a, date, hour, minute));
-
                   const loggedToShow = logged.filter(pill => {
                     const pillCats = new Set(pill.activity_category_ids || []);
                     return !timed.some(t => (t.activity_category_ids || []).some(c => pillCats.has(c)));
@@ -388,7 +417,6 @@ export default function ActivityWeeklyGrid({
                     const pillCats = new Set(pill.activity_category_ids || []);
                     return timed.some(t => (t.activity_category_ids || []).some(c => pillCats.has(c)));
                   });
-
                   const mergedEmotions = [...new Set(loggedMerged.flatMap(p => p.emotions || []))];
                   const mergedAlterIds = [...new Set(loggedMerged.flatMap(p => p.fronting_alter_ids || []))];
                   const hasContent = timed.length > 0 || logged.length > 0;
