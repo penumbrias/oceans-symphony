@@ -426,7 +426,7 @@ export default function ActivityWeeklyGrid({
                     <button
                       key={key}
                       onClick={() => handleCellTap(date, hour, minute)}
-                      className={`border-r border-border/40 relative flex flex-col items-start justify-start overflow-hidden cursor-pointer transition-colors group
+                        className={`border-r border-border/40 relative flex flex-col items-start justify-start overflow-visible cursor-pointer transition-colors group
                         ${timedContinues ? "" : "border-b border-border/40"}
                         ${!hasContent && addMode ? "hover:bg-primary/10" : ""}
                         ${!hasContent && !addMode ? "hover:bg-muted/20" : ""}
@@ -535,7 +535,7 @@ export default function ActivityWeeklyGrid({
 
                         {loggedToShow.length > 0 && (
                           <div className={`flex w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"} ${isExpanded ? "flex-col gap-1" : ""}`}
-                            style={!isExpanded ? { height: rowH, overflow: "hidden" } : {}}>
+                            style={!isExpanded ? { height: rowH, overflow: "visible" } : {}}>
                             {(() => {
                               const count = loggedToShow.length;
                               const pillH = isExpanded ? "auto" : Math.min(Math.floor(rowH / count), 18);
