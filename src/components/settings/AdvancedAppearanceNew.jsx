@@ -118,7 +118,7 @@ export default function AdvancedAppearance() {
             <Palette className="w-5 h-5 text-accent-foreground" />
           </div>
           <div>
-            <CardTitle className="text-lg">Advanced Appearance</CardTitle>
+            <CardTitle className="text-lg">Theme</CardTitle>
             <CardDescription>Customize colors and theme</CardDescription>
           </div>
         </div>
