@@ -64,7 +64,7 @@ const SystemMap = () => {
     frontingSessions.forEach((session) => {
       const endTime = session.end_time ? new Date(session.end_time) : new Date();
       const duration = endTime - new Date(session.start_time);
-      const allFronters = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      const allFronters = s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
       allFronters.forEach((alter1) => {
         if (!map[alter1]) map[alter1] = {};
         allFronters.forEach((alter2) => {
