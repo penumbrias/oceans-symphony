@@ -11,6 +11,7 @@ import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { createIndividualSession, endActiveSessions } from "@/lib/frontingUtils";
 
 function toTimeString(date, hour, minute = 0) {
   const d = new Date(date);
