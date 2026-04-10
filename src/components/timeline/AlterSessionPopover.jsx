@@ -83,18 +83,46 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [note, setNote] = useState(session?.note || "");
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
-    setSaving(true);
-    await base44.entities.FrontingSession.update(session.id, {
-      start_time: startVal ? new Date(startVal).toISOString() : session.start_time,
-      end_time: endVal ? new Date(endVal).toISOString() : session.end_time || null,
-      note: note || null,
-    });
+const handleSave = async () => {
+  setSaving(true);
+  try {
+    const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
+    const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
+
+    const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+    const remainingIds = allIds.filter(id => id !== alter.id);
+
+    if (remainingIds.length === 0) {
+      // Only alter in session — just update in place
+      await base44.entities.FrontingSession.update(session.id, {
+        start_time: newStart,
+        end_time: newEnd,
+        note: note || null,
+      });
+    } else {
+      // Remove this alter from the original session
+      await base44.entities.FrontingSession.update(session.id, {
+        primary_alter_id: remainingIds[0],
+        co_fronter_ids: remainingIds.slice(1),
+      });
+      // Create a new session just for this alter with the edited times
+      await base44.entities.FrontingSession.create({
+        primary_alter_id: alter.id,
+        co_fronter_ids: [],
+        start_time: newStart,
+        end_time: newEnd,
+        is_active: !newEnd,
+        note: note || null,
+      });
+    }
+
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    setSaving(false);
     onClose();
-  };
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <Dialog open onOpenChange={onClose}>
