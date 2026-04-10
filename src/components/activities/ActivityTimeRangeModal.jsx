@@ -48,6 +48,9 @@ export default function ActivityTimeRangeModal({
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
+const [newActivityName, setNewActivityName] = useState("");
+const [showNewActivity, setShowNewActivity] = useState(false);
 
   // Fetch categories so we can resolve names for direct entity saves
   const { data: activityCategories = [] } = useQuery({
