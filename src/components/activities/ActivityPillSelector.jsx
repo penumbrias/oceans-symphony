@@ -35,10 +35,6 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
             )}
             {category.name}
           </span>
-          <button onClick={() => setShowNewActivity(true)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1">
-              <Plus className="w-4 h-4" /> Create new activity
-            </button>
         </button>
       </div>
       {hasChildren && isExpanded && (
