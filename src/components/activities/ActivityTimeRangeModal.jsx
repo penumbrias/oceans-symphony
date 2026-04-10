@@ -142,23 +142,27 @@ const handleSave = async () => {
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
 
         if (isCurrentTime && activeSessions.length > 0) {
-          const session = activeSessions[0];
-          const existing = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-          const merged = [...new Set([...existing, ...selectedAlters])];
-          await base44.entities.FrontingSession.update(session.id, {
-            primary_alter_id: merged[0],
-            co_fronter_ids: merged.slice(1),
-          });
-        } else {
-          const isStillActive = endDt >= now;
-          await base44.entities.FrontingSession.create({
-            primary_alter_id: selectedAlters[0],
-            co_fronter_ids: selectedAlters.slice(1),
-            start_time: timestamp.toISOString(),
-            end_time: isStillActive ? null : endDt.toISOString(),
-            is_active: isStillActive,
-          });
-        }
+  // For current-time entries, end existing sessions and create new individual ones
+  await endActiveSessions(base44.entities, now.toISOString());
+  for (const alterId of selectedAlters) {
+    await createIndividualSession(base44.entities, {
+      alterId,
+      startTime: timestamp.toISOString(),
+      isActive: true,
+    });
+  }
+} else {
+  // For past entries, create individual sessions per alter
+  const isStillActive = endDt >= now;
+  for (const alterId of selectedAlters) {
+    await createIndividualSession(base44.entities, {
+      alterId,
+      startTime: timestamp.toISOString(),
+      endTime: isStillActive ? null : endDt.toISOString(),
+      isActive: isStillActive,
+    });
+  }
+}
       }
 
       setSelectedActivityCategories([]);
