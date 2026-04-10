@@ -66,8 +66,10 @@ export default function ActivityTimeRangeModal({
   // Auto-populate alters from fronting history
   useMemo(() => {
     if (startDate && startHour !== undefined && endHour !== undefined) {
-      const startDt = addHours(startDate, Math.min(startHour, endHour));
-      const endDt = addHours(startDate, Math.max(startHour, endHour) + 1);
+      const startDt = new Date(startDate);
+      startDt.setHours(Math.min(startHour, endHour), startMinute, 0, 0);
+      const endDt = new Date(startDate);
+      endDt.setHours(Math.max(startHour, endHour) + 1, endMinute, 0, 0);
       const relevantSessions = frontingHistory.filter((s) => {
         const ss = new Date(s.start_time);
         const se = s.end_time ? new Date(s.end_time) : new Date();
