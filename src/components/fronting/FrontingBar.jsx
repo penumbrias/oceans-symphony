@@ -6,6 +6,7 @@ import { User, Star, Plus, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
 import SetFrontModal from "./SetFrontModal";
 import { useTerms } from "@/lib/useTerms";
+import { normalizeSessions } from "@/lib/frontingUtils";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -59,7 +60,7 @@ export default function FrontingBar({ alters }) {
 
   const session = activeSessions[0] || null;
   const allAltersById = Object.fromEntries((alters || []).map((a) => [a.id, a]));
-import { normalizeSessions } from "@/lib/frontingUtils";
+
 const activeSessionsList = activeSessions; // already filtered by is_active in the query
 const normalized = normalizeSessions(activeSessionsList);
 const activeAlterIds = [...new Set(normalized.map(s => s.alterId))];
