@@ -309,7 +309,9 @@ export default function InfiniteTimeline({
   const alterEntries = useMemo(() => {
     const byAlter = {};
     sessions.forEach((session) => {
-      const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      const ids = session.alter_id
+  ? [session.alter_id]
+  : [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
       ids.forEach((alterId) => {
         const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
         const endTime = session.end_time
