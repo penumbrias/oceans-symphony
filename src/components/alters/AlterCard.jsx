@@ -20,9 +20,11 @@ function getContrastColor(hex) {
 export function FrontingToggleButton({ alter, currentSession }) {
   const queryClient = useQueryClient();
   const longPressRef = useRef(null);
-  const isFronting = currentSession &&
-    (currentSession.primary_alter_id === alter.id ||
-     (currentSession.co_fronter_ids || []).includes(alter.id));
+const isFronting = currentSession && (
+  currentSession.alter_id === alter.id ||
+  currentSession.primary_alter_id === alter.id ||
+  (currentSession.co_fronter_ids || []).includes(alter.id)
+);
   const isPrimary = currentSession?.primary_alter_id === alter.id;
 
  const handleToggle = async (e) => {
