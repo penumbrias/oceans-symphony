@@ -29,6 +29,9 @@ export default function ActivityTracker() {
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [addMode, setAddMode] = useState(false);
   const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet("symphony_act_week_start", 0));
+  const [selectedStartMinute, setSelectedStartMinute] = useState(0);
+  const [selectedEndMinute, setSelectedEndMinute] = useState(0);
+  
 
   useEffect(() => {
     if (highlightId) {
@@ -60,10 +63,12 @@ export default function ActivityTracker() {
     return unsub;
   }, [qc]);
 
-  const handleTimeRangeSelect = (date, startHour, endHour) => {
+  const handleTimeRangeSelect = (date, startHour, endHour, startMinute = 0, endMinute = 0) => {
     setSelectedDate(date);
     setSelectedStartHour(startHour);
     setSelectedEndHour(endHour);
+    setSelectedStartMinute(startMinute);
+    setSelectedEndMinute(endMinute);
     setIsModalOpen(true);
   };
   const handleCloseModal = () => {
@@ -71,6 +76,8 @@ export default function ActivityTracker() {
     setSelectedDate(null);
     setSelectedStartHour(undefined);
     setSelectedEndHour(undefined);
+    setSelectedStartMinute(0);
+    setSelectedEndMinute(0);
   };
   const handleActivityClick = (activityOrActivities) => {
     setSelectedActivity(activityOrActivities);
