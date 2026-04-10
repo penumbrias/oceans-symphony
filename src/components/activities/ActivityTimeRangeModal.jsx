@@ -9,9 +9,9 @@ import { useQuery } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 
-function toTimeString(date, hour) {
+function toTimeString(date, hour, minute = 0) {
   const d = new Date(date);
-  d.setHours(hour, 0, 0, 0);
+  d.setHours(hour, minute, 0, 0);
   return format(d, "HH:mm");
 }
 
