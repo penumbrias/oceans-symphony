@@ -215,17 +215,24 @@ const getEmotionsForSlot = useCallback((date, hour, minute) => {
       if (!addMode) { onToggleAddMode?.(); setPendingStart({ date, hour, minute }); }
       return;
     }
-    if (addMode) {
-      if (!pendingStart) {
-        setPendingStart({ date, hour, minute });
-      } else {
-        const startH = pendingStart.hour + pendingStart.minute / 60;
-        const endH = hour + minute / 60;
-        const [sH, eH] = startH <= endH ? [pendingStart.hour, hour] : [hour, pendingStart.hour];
-        onTimeRangeSelect(pendingStart.date, sH, eH);
-        setPendingStart(null);
-      }
-    } else if (allActs.length > 0) {
+    // In handleCellTap, replace the onTimeRangeSelect call:
+if (addMode) {
+  if (!pendingStart) {
+    setPendingStart({ date, hour, minute });
+  } else {
+    const startH = pendingStart.hour + pendingStart.minute / 60;
+    const endH = hour + minute / 60;
+    const isForward = startH <= endH;
+    onTimeRangeSelect(
+      pendingStart.date,
+      isForward ? pendingStart.hour : hour,
+      isForward ? hour : pendingStart.hour,
+      isForward ? pendingStart.minute : minute,   // ← pass startMinute
+      isForward ? minute : pendingStart.minute     // ← pass endMinute
+    );
+    setPendingStart(null);
+  }
+} else if (allActs.length > 0) {
       setExpandedCells(prev => {
         const next = new Set(prev);
         next.has(key) ? next.delete(key) : next.add(key);
