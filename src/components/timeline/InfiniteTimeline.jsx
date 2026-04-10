@@ -296,44 +296,65 @@ export default function InfiniteTimeline({
   const eventColWidth = colWidths.eventCol;
   const emotionColWidth = colWidths.emotionCol;
 
-  const alterEntries = useMemo(() => {
-    const byAlter = {};
-    sessions.forEach((session) => {
-      const ids = [
-        session.primary_alter_id,
-        ...(session.co_fronter_ids || [])
-      ].filter(Boolean);
+const alterEntries = useMemo(() => {
+  const byAlter = {};
+  sessions.forEach((session) => {
+    const ids = [
+      session.primary_alter_id,
+      ...(session.co_fronter_ids || [])
+    ].filter(Boolean);
 
-      ids.forEach((alterId) => {
-        const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
-        const endTime = session.end_time
-          ? parseDate(session.end_time)
-          : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
-        const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
-        if (!byAlter[alterId]) byAlter[alterId] = [];
-        byAlter[alterId].push({
-          startMins,
-          endMins: Math.max(endMins, startMins + 8),
-          sessionId: session.id,
-          isPrimary: session.primary_alter_id === alterId,
-        });
+    ids.forEach((alterId) => {
+      const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+      const endTime = session.end_time
+        ? parseDate(session.end_time)
+        : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+      const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
+      if (!byAlter[alterId]) byAlter[alterId] = [];
+      byAlter[alterId].push({
+        startMins,
+        endMins: Math.max(endMins, startMins + 8),
+        sessionId: session.id,
+        isPrimary: session.primary_alter_id === alterId,
       });
     });
+  });
 
-    const merged = [];
-    Object.entries(byAlter).forEach(([alterId, segs]) => {
-      const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
-      sorted.forEach((seg, i) => merged.push({
-        alterId,
-        startMins: seg.startMins,
-        endMins: seg.endMins,
-        sessionId: seg.sessionId,
-        isPrimary: seg.isPrimary,
-        key: `alter-${alterId}-${i}`,
-      }));
+  const merged = [];
+  Object.entries(byAlter).forEach(([alterId, segs]) => {
+    const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
+    const mergedSegs = [];
+
+    sorted.forEach((seg) => {
+      if (mergedSegs.length === 0) {
+        mergedSegs.push({ ...seg });
+        return;
+      }
+      const last = mergedSegs[mergedSegs.length - 1];
+      const isConsecutive = seg.startMins <= last.endMins + 2;
+      const sameStatus = seg.isPrimary === last.isPrimary;
+
+      if (isConsecutive && sameStatus) {
+        // Merge — extend the bar, keep same sessionId for editing
+        last.endMins = Math.max(last.endMins, seg.endMins);
+      } else {
+        // Don't merge — different primary status or gap between sessions
+        mergedSegs.push({ ...seg });
+      }
     });
-    return merged;
-  }, [sessions, dayStart, isToday]);
+
+    mergedSegs.forEach((seg, i) => merged.push({
+      alterId,
+      startMins: seg.startMins,
+      endMins: seg.endMins,
+      sessionId: seg.sessionId,
+      isPrimary: seg.isPrimary,
+      key: `alter-${alterId}-${i}`,
+    }));
+  });
+
+  return merged;
+}, [sessions, dayStart, isToday]);
 
   const alterColumns = useMemo(() => {
     const cols = [];
