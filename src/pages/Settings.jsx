@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/lib/ThemeContext";
