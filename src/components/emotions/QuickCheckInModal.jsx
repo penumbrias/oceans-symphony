@@ -187,7 +187,6 @@ const addCustomEmotionMutation = useMutation({
           {/* ── Emotions ── */}
           <div>
             <p className="text-sm font-medium mb-2">How are you feeling?</p>
-            // Change 2: pass both label and category from the picker
 <EmotionWheelPicker
   selectedEmotions={selectedEmotions}
   onToggle={toggleEmotion}
