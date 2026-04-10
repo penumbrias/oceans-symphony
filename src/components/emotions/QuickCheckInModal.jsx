@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -9,48 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Heart, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
-import { HexColorPicker } from "react-colorful";
-
-function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose }) {
-  const [hex, setHex] = React.useState(color);
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-sm mx-4 w-full">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold">{label}</h3>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <HexColorPicker color={hex} onChange={setHex} style={{ width: "100%" }} />
-        <input
-          type="text"
-          value={hex}
-          onChange={(e) => { if (/^#?[0-9A-F]{0,6}$/i.test(e.target.value)) setHex(e.target.value); }}
-          placeholder="#000000"
-          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-mono"
-        />
-        <div className="w-full h-12 rounded-lg border-2 border-border" style={{ backgroundColor: hex }} />
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 font-medium text-sm cursor-pointer">
-            Cancel
-          </button>
-          <button type="button" onClick={() => { onSave(hex); onClose(); }}
-            disabled={!/^#[0-9A-F]{6}$/i.test(hex)}
-            className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm cursor-pointer disabled:opacity-50">
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const PRESET_EMOTIONS = [
-  "Happy", "Sad", "Angry", "Anxious", "Calm", "Excited",
-  "Confused", "Grateful", "Frustrated", "Hopeful", "Neutral", "Overwhelmed"
-];
+import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 
 export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [] }) {
   const queryClient = useQueryClient();
@@ -62,7 +21,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [activityDuration, setActivityDuration] = useState("");
-  const [newEmotionInput, setNewEmotionInput] = useState("");
   const [newActivityName, setNewActivityName] = useState("");
   const [showNewActivity, setShowNewActivity] = useState(false);
 
@@ -75,11 +33,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
-
-  const allEmotions = useMemo(() => {
-    const customLabels = customEmotions.map(ce => ce.label);
-    return [...PRESET_EMOTIONS, ...customLabels];
-  }, [customEmotions]);
 
   const activeAlters = useMemo(() => alters.filter(a => !a.is_archived), [alters]);
 
@@ -100,11 +53,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       return base44.entities.CustomEmotion.create({ label });
     },
     onSuccess: (emotion) => {
-      setSelectedEmotions([...selectedEmotions, emotion.label]);
-      setNewEmotionInput("");
+      setSelectedEmotions(prev =>
+        prev.includes(emotion.label) ? prev : [...prev, emotion.label]
+      );
       queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
-    }
+    },
   });
+
+  const toggleEmotion = (label) => {
+    setSelectedEmotions(prev =>
+      prev.includes(label) ? prev.filter(e => e !== label) : [...prev, label]
+    );
+  };
 
   React.useEffect(() => {
     if (isOpen && currentFronterIds.length > 0) {
@@ -121,7 +81,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           title: `Emotion Check-in - ${new Date().toLocaleDateString()}`,
           content: note,
           entry_type: "personal",
-          tags: ["emotion-checkin"]
+          tags: ["emotion-checkin"],
         });
         journalEntryId = entry.id;
       }
@@ -129,8 +89,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         timestamp: new Date().toISOString(),
         emotions: selectedEmotions,
         fronting_alter_ids: selectedAlters,
-        note: note.trim().split(/\s+/).filter(Boolean).length <= 50 ? note : note.substring(0, 300) + "...",
-        journal_entry_id: journalEntryId
+        note: wordCount <= 50 ? note : note.substring(0, 300) + "...",
+        journal_entry_id: journalEntryId,
       });
     },
     onSuccess: () => {
@@ -138,7 +98,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       resetForm();
       onClose();
-    }
+    },
   });
 
   const resetForm = () => {
@@ -166,7 +126,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
   const handleSaveActivity = async () => {
     if (selectedActivityCategories.length === 0) return;
-    const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+    const catById = Object.fromEntries(activityCategories.map(c => [c.id, c]));
     for (const catId of selectedActivityCategories) {
       const cat = catById[catId];
       await base44.entities.Activity.create({
@@ -205,7 +165,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       }
 
-      await createCheckInMutation.mutateAsync({});
+      await createCheckInMutation.mutateAsync();
     } finally {
       setSaving(false);
     }
@@ -223,80 +183,40 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Emotions */}
+          {/* ── Emotions ── */}
           <div>
-            <p className="text-sm font-medium mb-2">Select emotions</p>
-            <div className="grid grid-cols-3 gap-2">
-              {allEmotions.map((emotion) => (
-                <button
-                  key={emotion}
-                  onClick={() =>
-                    setSelectedEmotions(
-                      selectedEmotions.includes(emotion)
-                        ? selectedEmotions.filter(e => e !== emotion)
-                        : [...selectedEmotions, emotion]
-                    )
-                  }
-                  className={`px-3 py-2 text-xs rounded-lg font-medium transition-all ${
-                    selectedEmotions.includes(emotion)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-accent"
-                  }`}
-                >
-                  {emotion}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex gap-2 mt-3">
-              <Input
-                placeholder="Add custom emotion..."
-                value={newEmotionInput}
-                onChange={(e) => setNewEmotionInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newEmotionInput.trim()) {
-                    addCustomEmotionMutation.mutate(newEmotionInput.trim());
-                  }
-                }}
-                className="text-sm flex-1"
-              />
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => {
-                  if (newEmotionInput.trim()) addCustomEmotionMutation.mutate(newEmotionInput.trim());
-                }}
-                disabled={!newEmotionInput.trim()}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
+            <p className="text-sm font-medium mb-2">How are you feeling?</p>
+            <EmotionWheelPicker
+              selectedEmotions={selectedEmotions}
+              onToggle={toggleEmotion}
+              customEmotions={customEmotions}
+              onAddCustom={(label) => addCustomEmotionMutation.mutate(label)}
+            />
           </div>
 
-          {/* Alters */}
+          {/* ── Alters ── */}
           <div>
-            <p className="text-sm font-medium mb-2">Who's {terms.fronting}? (optional)</p>
-            <div className="relative mb-3">
+            <p className="text-sm font-medium mb-2">
+              Who's {terms.fronting}? <span className="text-muted-foreground font-normal">(optional)</span>
+            </p>
+            <div className="relative mb-2">
               <Input
                 placeholder={`Type ${terms.alter} name or alias...`}
                 value={alterInput}
-                onChange={(e) => setAlterInput(e.target.value)}
+                onChange={e => setAlterInput(e.target.value)}
                 className="text-sm"
               />
               {filteredAlters.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 max-h-32 overflow-y-auto">
-                  {filteredAlters.map((alter) => (
-                    <button
-                      key={alter.id}
-                      onClick={() => {
-                        setSelectedAlters([...selectedAlters, alter.id]);
-                        setAlterInput("");
-                      }}
-                      className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm transition-colors"
-                    >
-                      {alter.avatar_url && (
-                        <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
-                      )}
+                  {filteredAlters.map(alter => (
+                    <button key={alter.id}
+                      onClick={() => { setSelectedAlters(prev => [...prev, alter.id]); setAlterInput(""); }}
+                      className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm transition-colors">
+                      {alter.avatar_url
+                        ? <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
+                        : <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                            style={{ backgroundColor: alter.color || "#8b5cf6" }}>{alter.name?.charAt(0)}</div>
+                      }
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{alter.name}</p>
                         {alter.alias && <p className="text-xs text-muted-foreground truncate">{alter.alias}</p>}
@@ -306,27 +226,26 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                 </div>
               )}
             </div>
-
             {selectedAlters.length > 0 && (
               <div className="grid grid-cols-4 gap-2">
-                {selectedAlters.map((alterId) => {
+                {selectedAlters.map(alterId => {
                   const alter = activeAlters.find(a => a.id === alterId);
                   return (
                     <div key={alterId} className="relative group">
-                      <div className="aspect-square rounded-lg bg-muted flex flex-col items-center justify-center p-2 text-center">
-                        {alter?.avatar_url ? (
-                          <img src={alter.avatar_url} alt={alter.name} className="w-full h-full rounded-lg object-cover" />
-                        ) : (
-                          <div className="w-full h-full rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                            <span className="text-xs font-bold text-primary">{alter?.name.charAt(0)}</span>
-                          </div>
-                        )}
+                      <div className="aspect-square rounded-lg bg-muted overflow-hidden">
+                        {alter?.avatar_url
+                          ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center"
+                              style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
+                              <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>
+                                {alter?.name?.charAt(0)}
+                              </span>
+                            </div>
+                        }
                       </div>
                       <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                        <button
-                          onClick={() => setSelectedAlters(selectedAlters.filter(id => id !== alterId))}
-                          className="bg-destructive text-destructive-foreground rounded-full p-1"
-                        >
+                        <button onClick={() => setSelectedAlters(prev => prev.filter(id => id !== alterId))}
+                          className="bg-destructive text-destructive-foreground rounded-full p-1">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
@@ -338,7 +257,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             )}
           </div>
 
-          {/* Activities */}
+          {/* ── Activities ── */}
           <ActivityPillSelector
             selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
@@ -346,58 +265,42 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             onDurationChange={setActivityDuration}
           />
 
-          {/* New Activity */}
           {showNewActivity ? (
             <div className="space-y-2">
-              <Input
-                placeholder="Activity name..."
-                value={newActivityName}
-                onChange={(e) => setNewActivityName(e.target.value)}
-                className="text-sm"
-                autoFocus
-              />
+              <Input placeholder="Activity name..." value={newActivityName}
+                onChange={e => setNewActivityName(e.target.value)} className="text-sm" autoFocus />
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => { setShowNewActivity(false); setNewActivityName(""); }} className="flex-1">Cancel</Button>
                 <Button size="sm" onClick={handleCreateNewActivity} disabled={!newActivityName.trim()} className="flex-1">Add</Button>
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => setShowNewActivity(true)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1"
-            >
+            <button onClick={() => setShowNewActivity(true)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1">
               <Plus className="w-4 h-4" /> Create new activity
             </button>
           )}
 
-          {/* Note */}
+          {/* ── Note ── */}
           <div>
-            <p className="text-sm font-medium mb-2">Quick note (max 50 words — longer becomes a journal)</p>
-            <Textarea
-              placeholder="Optional note..."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="h-20 text-xs"
-            />
+            <p className="text-sm font-medium mb-2">
+              Quick note <span className="text-muted-foreground font-normal">(optional — over 50 words becomes a journal)</span>
+            </p>
+            <Textarea placeholder="Optional note..." value={note}
+              onChange={e => setNote(e.target.value)} className="h-20 text-xs" />
             {note && (
               <p className="text-xs text-muted-foreground mt-1">
                 {note.trim().split(/\s+/).filter(Boolean).length} / 50 words
-                {note.trim().split(/\s+/).filter(Boolean).length > 50 && " — will save as journal entry"}
+                {note.trim().split(/\s+/).filter(Boolean).length > 50 && " · will save as journal entry"}
               </p>
             )}
           </div>
 
-          {/* Actions */}
+          {/* ── Actions ── */}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={selectedEmotions.length === 0 || saving}
-              className="flex-1"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button onClick={handleSubmit} disabled={selectedEmotions.length === 0 || saving} className="flex-1">
+              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Save Check-In
             </Button>
           </div>
