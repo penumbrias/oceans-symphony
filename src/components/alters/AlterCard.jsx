@@ -5,6 +5,7 @@ import { User, ChevronRight, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { createIndividualSession, normalizeSessions } from "@/lib/frontingUtils";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -24,62 +25,57 @@ export function FrontingToggleButton({ alter, currentSession }) {
      (currentSession.co_fronter_ids || []).includes(alter.id));
   const isPrimary = currentSession?.primary_alter_id === alter.id;
 
-  const handleToggle = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      if (activeSessions.length === 0) {
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: alter.id,
-          co_fronter_ids: [],
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
-        toast.success(`${alter.name} is now fronting!`);
-      } else {
-        const session = activeSessions[0];
-        const allFronters = new Set([session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean));
-        if (allFronters.has(alter.id)) {
-            if (session.primary_alter_id === alter.id) {
-              // Demote primary to co-fronter instead of removing
-              const coIds = (session.co_fronter_ids || []).filter(Boolean);
-              if (coIds.length === 0) {
-                // No one to promote — just clear front entirely
-                await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: new Date().toISOString() });
-                toast.success(`${alter.name} removed from front`);
-              } else {
-                const newPrimary = coIds[0];
-                const newCoFronters = [...coIds.filter(id => id !== newPrimary), alter.id];
-                await base44.entities.FrontingSession.update(session.id, {
-                  primary_alter_id: newPrimary,
-                  co_fronter_ids: newCoFronters,
-                });
-                toast.success(`${alter.name} demoted to co-fronter`);
-              }
-            } else {
-              // Remove co-fronter entirely
-              allFronters.delete(alter.id);
-              const remaining = Array.from(allFronters).filter(Boolean);
-              await base44.entities.FrontingSession.update(session.id, {
-                primary_alter_id: session.primary_alter_id,
-                co_fronter_ids: remaining.filter(id => id !== session.primary_alter_id),
-              });
-              toast.success(`${alter.name} removed from front`);
-            }
+ const handleToggle = async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  try {
+    const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+    const normalized = normalizeSessions(activeSessions);
+    const activeFronterIds = normalized.filter(s => s.is_active).map(s => s.alterId);
+    const isAlreadyFronting = activeFronterIds.includes(alter.id);
+
+    if (activeSessions.length === 0 || !isAlreadyFronting) {
+      // Add this alter — create a new individual session
+      await createIndividualSession(base44.entities, {
+        alterId: alter.id,
+        startTime: new Date().toISOString(),
+        isActive: true,
+      });
+      toast.success(`${alter.name} is now fronting!`);
+    } else {
+      // Remove this alter — find and end their session
+      const alterSession = normalized.find(s => s.alterId === alter.id && s.is_active);
+      if (alterSession) {
+        if (alterSession.isLegacy) {
+          // Legacy record — remove from group
+          const raw = alterSession.raw;
+          const remaining = [raw.primary_alter_id, ...(raw.co_fronter_ids || [])]
+            .filter(id => id && id !== alter.id);
+          if (remaining.length === 0) {
+            await base44.entities.FrontingSession.update(raw.id, { is_active: false, end_time: new Date().toISOString() });
+          } else {
+            await base44.entities.FrontingSession.update(raw.id, {
+              primary_alter_id: remaining[0],
+              co_fronter_ids: remaining.slice(1),
+            });
+          }
         } else {
-          await base44.entities.FrontingSession.update(session.id, {
-            co_fronter_ids: [...(session.co_fronter_ids || []), alter.id],
+          // New individual record — just end it
+          await base44.entities.FrontingSession.update(alterSession.sessionId, {
+            is_active: false,
+            end_time: new Date().toISOString(),
           });
-          toast.success(`${alter.name} added to front!`);
         }
+        toast.success(`${alter.name} removed from front`);
       }
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch (err) {
-      toast.error(err.message || "Failed to update front");
     }
-  };
+    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+  } catch (err) {
+    toast.error(err.message || "Failed to update front");
+  }
+};
+
 
   const handleSetPrimary = async (e) => {
     e.preventDefault();
