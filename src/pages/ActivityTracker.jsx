@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { parseDate } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
@@ -11,6 +10,11 @@ import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 
+function lsGet(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+
 export default function ActivityTracker() {
   const qc = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
@@ -18,6 +22,13 @@ export default function ActivityTracker() {
   const [highlightId, setHighlightId] = useState(() => urlParams.get("highlight") || null);
   const [currentDate, setCurrentDate] = useState(() => jumpDate ? new Date(jumpDate + "T00:00:00") : new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedStartHour, setSelectedStartHour] = useState(undefined);
+  const [selectedEndHour, setSelectedEndHour] = useState(undefined);
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [addMode, setAddMode] = useState(false);
+  const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet("symphony_act_week_start", 0));
 
   useEffect(() => {
     if (highlightId) {
@@ -25,32 +36,23 @@ export default function ActivityTracker() {
       return () => clearTimeout(timer);
     }
   }, [highlightId]);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedStartHour, setSelectedStartHour] = useState(undefined);
-  const [selectedEndHour, setSelectedEndHour] = useState(undefined);
-  const [selectedActivity, setSelectedActivity] = useState(null);
-  const [addMode, setAddMode] = useState(false);
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
+  const weekStart = startOfWeek(currentDate, { weekStartsOn });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities", format(weekStart, "yyyy-MM-dd")],
     queryFn: () => base44.entities.Activity.list(),
   });
-
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
-
   const { data: frontingHistory = [] } = useQuery({
     queryKey: ["frontingHistory", format(weekStart, "yyyy-MM-dd")],
     queryFn: () => base44.entities.FrontingSession.list(),
   });
 
-  // Real-time refresh when activities change (e.g. sleep auto-sync)
   useEffect(() => {
     const unsub = base44.entities.Activity.subscribe(() => {
       qc.invalidateQueries({ queryKey: ["activities"] });
@@ -63,51 +65,38 @@ export default function ActivityTracker() {
     setSelectedStartHour(startHour);
     setSelectedEndHour(endHour);
     setIsModalOpen(true);
-    // addMode stays on — user must toggle it off manually
   };
-
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedDate(null);
     setSelectedStartHour(undefined);
     setSelectedEndHour(undefined);
   };
-
   const handleActivityClick = (activityOrActivities) => {
     setSelectedActivity(activityOrActivities);
     setIsDetailsOpen(true);
   };
-
   const handleDetailsClose = () => {
     setIsDetailsOpen(false);
     setSelectedActivity(null);
   };
-
   const handleActivitySave = () => {
     qc.invalidateQueries({ queryKey: ["activities"] });
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-full mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Activity Tracker</h1>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentDate(addDays(currentDate, -7))}
-            >
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-foreground">Activity Tracker</h1>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <span className="text-sm font-medium min-w-fit">
-              {format(weekStart, "MMM d")} - {format(addDays(weekStart, 6), "MMM d, yyyy")}
+              {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
             </span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setCurrentDate(addDays(currentDate, 7))}
-            >
+            <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -121,15 +110,15 @@ export default function ActivityTracker() {
           onTimeRangeSelect={handleTimeRangeSelect}
           onActivityClick={handleActivityClick}
           addMode={addMode}
-          onToggleAddMode={() => setAddMode((v) => !v)}
+          onToggleAddMode={() => setAddMode(v => !v)}
           highlightActivityId={highlightId}
+          onWeekStartChange={setWeekStartsOn}
         />
 
-        <div className="mt-8">
+        <div className="mt-6">
           <ActivityGoalsPanel weekStart={weekStart} />
         </div>
-
-        <div className="mt-8">
+        <div className="mt-6">
           <ActivityTallyTracker activities={activities} />
         </div>
       </div>
@@ -143,19 +132,15 @@ export default function ActivityTracker() {
         allActivities={activities}
         alters={alters}
         frontingHistory={frontingHistory}
-        onSave={() => {
-          handleCloseModal();
-          handleActivitySave();
-        }}
+        onSave={() => { handleCloseModal(); handleActivitySave(); }}
       />
-
-       <ActivityDetailsModal
+      <ActivityDetailsModal
         isOpen={isDetailsOpen}
         onClose={handleDetailsClose}
         activity={selectedActivity}
         alters={alters}
         onSave={handleActivitySave}
-      /> 
+      />
     </div>
   );
 }
