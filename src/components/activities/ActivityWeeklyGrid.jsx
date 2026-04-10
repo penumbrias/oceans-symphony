@@ -534,52 +534,56 @@ export default function ActivityWeeklyGrid({
                         )}
 
                         {loggedToShow.length > 0 && (
-                          <div className={`flex flex-col gap-0.5 w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"}`}>
-                            {(() => {
-  const compact = rowH < 22;
-  if (compact) {
-    // Condensed circle mode
-    return (
-      <div className="flex flex-row items-center gap-0.5 flex-wrap px-0.5"
-        style={{ maxHeight: rowH, overflow: "hidden" }}>
-        {loggedToShow.map(pill => {
-          const color = getActivityColor(pill);
-          const size = Math.max(7, Math.min(rowH - 2, 14));
-          const chars = Math.floor(colW / loggedToShow.length / 6);
-          const label = chars >= 2 ? pill.activity_name?.slice(0, chars) : "";
-          return (
-            <div key={pill.id}
-              className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden"
-              style={{ backgroundColor: color, height: size, minWidth: size, fontSize: Math.max(5, size * 0.55), paddingLeft: label ? 2 : 0, paddingRight: label ? 2 : 0 }}
-              title={pill.activity_name}>
-              {label || ""}
-              {pill.notes && (
-                <span style={{ fontSize: Math.max(4, size * 0.45), marginLeft: 1, opacity: 0.85 }}>💭</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-  // Normal pill mode
-  return (
-    <>
-      {loggedToShow.map(pill => {
+  <div className={`flex w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"} ${isExpanded ? "flex-col gap-1" : ""}`}
+    style={!isExpanded ? { height: rowH, overflow: "hidden" } : {}}>
+    {(() => {
+      const count = loggedToShow.length;
+      const pillH = isExpanded ? "auto" : Math.floor(rowH / count);
+      const useCircles = !isExpanded && pillH < 14;
+
+      if (useCircles) {
+        // Horizontal circles
+        return (
+          <div className="flex flex-row items-center gap-0.5 flex-wrap px-0.5 h-full">
+            {loggedToShow.map(pill => {
+              const color = getActivityColor(pill);
+              const size = Math.max(6, Math.min(rowH - 2, Math.floor((colW - 8) / count) - 2));
+              const chars = Math.floor(size / 5.5);
+              const label = chars >= 2 ? pill.activity_name?.slice(0, chars) : "";
+              return (
+                <div key={pill.id}
+                  className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden"
+                  style={{ backgroundColor: color, height: size, minWidth: size, fontSize: Math.max(5, size * 0.5), paddingLeft: label ? 2 : 0, paddingRight: label ? 2 : 0 }}
+                  title={pill.activity_name}>
+                  {label}
+                  {pill.notes && <span style={{ fontSize: Math.max(4, size * 0.4), marginLeft: 1, opacity: 0.85 }}>💭</span>}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      // Vertical stacked pills
+      return loggedToShow.map(pill => {
         const color = getActivityColor(pill);
         const pillAlters = (pill.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
         const pillEmotions = pill.emotions || [];
-        const pillTime = parseDate(pill.timestamp);
-        const minuteOffset = pillTime.getMinutes() % interval;
-        const pct = minuteOffset / interval;
+        const h = isExpanded ? undefined : Math.max(10, pillH);
+        const fs = isExpanded ? 9 : Math.max(7, Math.min(9, pillH * 0.6));
         return (
           <div key={pill.id}
-            className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden"
-            style={{ backgroundColor: color, fontSize: 8, height: Math.max(10, rowH * 0.28), height: Math.max(8, rowH * 0.7), maxWidth: "100%" }}
+            className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden w-full"
+            style={{ backgroundColor: color, fontSize: fs, height: h, maxWidth: "100%", marginTop: 0 }}
             title={pill.activity_name}>
-            <span className="truncate">{truncate(pill.activity_name, colW / 9)}</span>
-            {pill.notes && <span style={{ fontSize: 7, marginLeft: 1 }}>💭</span>}
-            {showAlters && pillAlters.slice(0, 2).map(a => (
+            <span className={isExpanded ? "" : "truncate"}>
+              {isExpanded ? pill.activity_name : truncate(pill.activity_name, colW / 7)}
+            </span>
+            {pill.notes && <span style={{ fontSize: Math.max(6, fs * 0.85), marginLeft: 1 }}>💭</span>}
+            {isExpanded && pill.notes && (
+              <p className="text-white/80 italic text-xs ml-1">{pill.notes}</p>
+            )}
+            {showAlters && pillAlters.slice(0, isExpanded ? 6 : 2).map(a => (
               <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
                 style={{ backgroundColor: a.color || "#fff" }}>
                 {a.avatar_url
@@ -588,31 +592,13 @@ export default function ActivityWeeklyGrid({
                 }
               </div>
             ))}
-            {showEmotions && pillEmotions.slice(0, 1).map((em, i) => (
+            {showEmotions && pillEmotions.slice(0, isExpanded ? 6 : 1).map((em, i) => (
               <span key={i} className="w-2 h-2 rounded-full flex-shrink-0"
                 style={{ backgroundColor: emotionColor(em) }} title={em} />
             ))}
           </div>
         );
-      })}
-    </>
-  );
-})()}
-                          </div>
-                        )}
-
-                        {addMode && !hasContent && (
-                          <Plus className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity m-auto text-primary" />
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+      });
+    })()}
+  </div>
+)}
