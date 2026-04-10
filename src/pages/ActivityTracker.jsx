@@ -136,6 +136,8 @@ export default function ActivityTracker() {
         startDate={selectedDate}
         startHour={selectedStartHour}
         endHour={selectedEndHour}
+       startMinute={selectedStartMinute}
+        endMinute={selectedEndMinute}
         allActivities={activities}
         alters={alters}
         frontingHistory={frontingHistory}
