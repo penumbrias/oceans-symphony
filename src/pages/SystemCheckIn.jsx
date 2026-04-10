@@ -16,6 +16,7 @@ import CheckInStep3 from "@/components/system-checkin/CheckInStep3";
 import CheckInStep4 from "@/components/system-checkin/CheckInStep4";
 import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
 import { saveMentions } from "@/lib/mentionUtils";
+import { createIndividualSession } from "@/lib/frontingUtils";
 
 export default function SystemCheckInPage() {
   const navigate = useNavigate();
