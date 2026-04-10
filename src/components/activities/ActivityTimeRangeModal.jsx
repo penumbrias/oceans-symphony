@@ -171,6 +171,19 @@ const handleSave = async () => {
     }
   };
 
+const handleCreateNewActivity = async () => {
+    if (!newActivityName.trim()) return;
+    const newCat = await base44.entities.ActivityCategory.create({
+      name: newActivityName.trim(),
+      color: "#8b5cf6",
+      parent_category_id: null,
+    });
+    queryClient.invalidateQueries({ queryKey: ["activityCategories"] });
+    setSelectedActivityCategories(prev => [...prev, newCat.id]);
+    setNewActivityName("");
+    setShowNewActivity(false);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -282,4 +295,6 @@ const handleSave = async () => {
       </DialogContent>
     </Dialog>
   );
+
+  
 }
