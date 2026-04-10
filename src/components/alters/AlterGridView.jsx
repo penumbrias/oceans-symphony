@@ -65,10 +65,7 @@ const isFronting = (alterId) => {
     currentSession.co_fronter_ids?.includes(alterId);
 };
 
-  const isFronting = (alterId) => {
-    if (!currentSession) return false;
-    return currentSession.primary_alter_id === alterId || currentSession.co_fronter_ids?.includes(alterId);
-  };
+
 
   const handleMouseDown = (alter) => {
     const timeoutId = setTimeout(() => {
