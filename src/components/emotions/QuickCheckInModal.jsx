@@ -131,12 +131,13 @@ const addCustomEmotionMutation = useMutation({
     for (const catId of selectedActivityCategories) {
       const cat = catById[catId];
       await base44.entities.Activity.create({
-        timestamp: new Date().toISOString(),
-        activity_name: cat?.name || catId,
-        activity_category_ids: [catId],
-        duration_minutes: activityDuration ? parseInt(activityDuration) : null,
-        fronting_alter_ids: selectedAlters,
-      });
+  timestamp: new Date().toISOString(),
+  activity_name: cat?.name || catId,
+  activity_category_ids: [catId],
+  duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+  fronting_alter_ids: selectedAlters,
+  emotions: selectedEmotions,
+});
     }
   };
 
