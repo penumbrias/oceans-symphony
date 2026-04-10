@@ -82,47 +82,49 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [endVal, setEndVal] = useState(toLocalDatetimeValue(session?.end_time));
   const [note, setNote] = useState(session?.note || "");
   const [saving, setSaving] = useState(false);
+  const [asPrimary, setAsPrimary] = useState(false);
 
-const handleSave = async () => {
-  setSaving(true);
-  try {
-    const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
-    const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
+      const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
 
-    const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-    const remainingIds = allIds.filter(id => id !== alter.id);
+      const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      const remainingIds = allIds.filter(id => id !== alter.id);
 
-    if (remainingIds.length === 0) {
-      // Only alter in session — just update in place
-      await base44.entities.FrontingSession.update(session.id, {
-        start_time: newStart,
-        end_time: newEnd,
-        note: note || null,
-      });
-    } else {
-      // Remove this alter from the original session
-      await base44.entities.FrontingSession.update(session.id, {
-        primary_alter_id: remainingIds[0],
-        co_fronter_ids: remainingIds.slice(1),
-      });
-      // Create a new session just for this alter with the edited times
-      await base44.entities.FrontingSession.create({
-        primary_alter_id: alter.id,
-        co_fronter_ids: [],
-        start_time: newStart,
-        end_time: newEnd,
-        is_active: !newEnd,
-        note: note || null,
-      });
+      if (remainingIds.length === 0) {
+        // Only alter in session — just update in place
+        await base44.entities.FrontingSession.update(session.id, {
+          start_time: newStart,
+          end_time: newEnd,
+          note: note || null,
+        });
+      } else {
+        // Remove this alter from the original session
+        await base44.entities.FrontingSession.update(session.id, {
+          primary_alter_id: remainingIds[0],
+          co_fronter_ids: remainingIds.slice(1),
+        });
+        // Create a new session for this alter
+        // If asPrimary, they're the primary; otherwise they're a co-fronter on their own record
+        await base44.entities.FrontingSession.create({
+          primary_alter_id: asPrimary ? alter.id : remainingIds[0],
+          co_fronter_ids: asPrimary ? [] : [alter.id],
+          start_time: newStart,
+          end_time: newEnd,
+          is_active: !newEnd,
+          note: note || null,
+        });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      onClose();
+    } finally {
+      setSaving(false);
     }
-
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    onClose();
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -151,6 +153,18 @@ const handleSave = async () => {
           <div>
             <p className="text-xs text-muted-foreground mb-1">Custom status note</p>
             <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Feeling tired, taking a break..." className="text-sm h-16 resize-none" />
+          </div>
+          <div className="flex items-center gap-2 py-1 border-t border-border/40">
+            <input
+              type="checkbox"
+              id="as-primary"
+              checked={asPrimary}
+              onChange={e => setAsPrimary(e.target.checked)}
+              className="w-4 h-4 accent-primary"
+            />
+            <label htmlFor="as-primary" className="text-sm text-muted-foreground cursor-pointer select-none">
+              Mark as primary fronter in this session
+            </label>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>Cancel</Button>
