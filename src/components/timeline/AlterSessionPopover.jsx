@@ -82,7 +82,7 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [endVal, setEndVal] = useState(toLocalDatetimeValue(session?.end_time));
   const [note, setNote] = useState(session?.note || "");
   const [saving, setSaving] = useState(false);
-  const [asPrimary, setAsPrimary] = useState(false);
+  const [asPrimary, setAsPrimary] = useState(session?.primary_alter_id === alter?.id);
 
   const handleSave = async () => {
     setSaving(true);
