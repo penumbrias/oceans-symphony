@@ -83,18 +83,55 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [note, setNote] = useState(session?.note || "");
   const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
-    setSaving(true);
-    await base44.entities.FrontingSession.update(session.id, {
-      start_time: startVal ? new Date(startVal).toISOString() : session.start_time,
-      end_time: endVal ? new Date(endVal).toISOString() : session.end_time || null,
-      note: note || null,
-    });
+const handleSave = async () => {
+  setSaving(true);
+  try {
+    if (session.alter_id) {
+      // New individual format — update directly
+      await base44.entities.FrontingSession.update(session.id, {
+        start_time: startVal ? new Date(startVal).toISOString() : session.start_time,
+        end_time: endVal ? new Date(endVal).toISOString() : session.end_time || null,
+        note: note || null,
+      });
+    } else {
+      // Legacy grouped format — split this alter out into its own new record
+      const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
+      const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
+
+      // Remove this alter from the legacy session
+      const remainingIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])]
+        .filter(id => id && id !== alter.id);
+
+      if (remainingIds.length === 0) {
+        // This was the only alter — just update in place
+        await base44.entities.FrontingSession.update(session.id, {
+          start_time: newStart,
+          end_time: newEnd,
+          note: note || null,
+        });
+      } else {
+        // Update legacy record to remove this alter
+        await base44.entities.FrontingSession.update(session.id, {
+          primary_alter_id: remainingIds[0],
+          co_fronter_ids: remainingIds.slice(1),
+        });
+        // Create a new individual record for this alter with the edited times
+        await base44.entities.FrontingSession.create({
+          alter_id: alter.id,
+          start_time: newStart,
+          end_time: newEnd,
+          is_active: !newEnd,
+          note: note || null,
+        });
+      }
+    }
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    setSaving(false);
     onClose();
-  };
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <Dialog open onOpenChange={onClose}>
