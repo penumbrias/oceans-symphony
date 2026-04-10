@@ -670,21 +670,26 @@ export default function InfiniteTimeline({
               {alterColumns.map((col, colIdx) => (
                 <div key={`col-${colIdx}`} className="absolute"
                   style={{ left: alterLeft + colIdx * colWidths.alter, top: 0, width: colWidths.alter, height: totalHeight }}>
-                  {col.map((entry) => {
-                    const alter = alters.find((a) => a.id === entry.alterId);
-                    const color = alter?.color || "#9333ea";
-                    const topPx = getTopPx(entry.startMins);
-                    const heightPx = getRangePx(entry.startMins, entry.endMins);
-                    // Find the actual session for this entry
-                   const entrySession = sessions.find(s => {
-                      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-                      return ids.includes(entry.alterId);
-                    });
-                    const isPrimary = entrySession?.primary_alter_id === entry.alterId;
-                    return <AlterBar key={entry.key} alter={alter} color={color} topPx={topPx} heightPx={heightPx}
-                      isPrimary={isPrimary}
-                      onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
-                      onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })} />;                  })}
+                  // Replace the entrySession/isPrimary lookup and AlterBar render inside alterColumns.map:
+{col.map((entry) => {
+  const alter = alters.find((a) => a.id === entry.alterId);
+  const color = alter?.color || "#9333ea";
+  const topPx = getTopPx(entry.startMins);
+  const heightPx = getRangePx(entry.startMins, entry.endMins);
+  const entrySession = sessions.find(s => s.id === entry.sessionId);
+  return (
+    <AlterBar
+      key={entry.key}
+      alter={alter}
+      color={color}
+      topPx={topPx}
+      heightPx={heightPx}
+      isPrimary={entry.isPrimary}
+      onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
+      onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
+    />
+  );
+})}
                 </div>
               ))}
 
