@@ -49,7 +49,7 @@ const alterSessions = sessions.filter(s =>
       {alterSessions.map((session) => {
         const start = new Date(session.start_time);
         const end = session.end_time ? new Date(session.end_time) : null;
-        const isPrimary = session.primary_alter_id === alterId;
+        const isPrimary = s.alter_id ? true : s.primary_alter_id === alterId;
         return (
           <div key={session.id} className="rounded-xl border border-border/50 bg-muted/10 p-4">
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
