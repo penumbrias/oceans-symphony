@@ -123,7 +123,7 @@ function MiniToolbar({ onInsert }) {
 
   return (
     <>
-      <div className="flex items-center gap-0.5 px-1.5 py-1 border-b border-border/30 bg-muted/10 flex-wrap">
+      <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/30 bg-muted/10 flex-wrap">
         {btn("B", "<strong>", "</strong>", "Bold")}
         {btn("I", "<em>", "</em>", "Italic")}
         {btn("S̶", "<s>", "</s>", "Strikethrough")}
@@ -543,7 +543,7 @@ function TextBlock({ block, onChange }) {
         placeholder="Write something… select text then use toolbar for colors, bold, headings…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
         spellCheck={false} />
-      <MiniToolbar onInsert={insert} />  
+      <MiniToolbar onInsert={insert} />
     </div>
   );
 }
@@ -582,16 +582,15 @@ function ImgTextBlock({ block, onChange }) {
     </div>
   );
   const textSlot = (
-    <div className="flex-1 min-w-0 border-l border-border/30">
-      
-      <textarea ref={taRef} value={block.text || ""}
-        onChange={e => onChange({ ...block, text: e.target.value })}
-        placeholder="Text beside the image…"
-        className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
-        spellCheck={false} />
-        <MiniToolbar onInsert={insert} />
-    </div>
-  );
+  <div className="flex-1 min-w-0 border-l border-border/30">
+    <textarea ref={taRef} value={block.text || ""}
+      onChange={e => onChange({ ...block, text: e.target.value })}
+      placeholder="Text beside the image…"
+      className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
+      spellCheck={false} />
+    <MiniToolbar onInsert={insert} />
+  </div>
+);
   return (
     <>
       <div className={`flex ${isLeft ? "" : "flex-row-reverse"} min-h-[100px]`}>{imgSlot}{textSlot}</div>
