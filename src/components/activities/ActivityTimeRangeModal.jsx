@@ -36,8 +36,8 @@ export default function ActivityTimeRangeModal({
   const defaultStart = startDate && startHour !== undefined
     ? toTimeString(startDate, Math.min(startHour, endHour ?? startHour))
     : "";
-  const defaultEnd = startDate && endHour !== undefined
-    ? toTimeString(startDate, Math.max(startHour, endHour) + 1)
+  const defaultEnd = startDate && endHour != null
+    ? toTimeString(startDate, Math.max(startHour, endHour) + 1, endMinute)
     : "";
 
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
@@ -56,12 +56,14 @@ export default function ActivityTimeRangeModal({
   // Reset times when modal opens with new props
   useMemo(() => {
     if (startDate && startHour !== undefined) {
-      // First useMemo:
-      setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour), startMinute));
-      setEndTime(toTimeString(startDate, Math.max(startHour, endHour ?? startHour) + 1, endMinute));      setSelectedActivityCategories([]);
+     setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour), startMinute));
+      setEndTime(endHour != null
+        ? toTimeString(startDate, Math.max(startHour, endHour ?? startHour) + 1, endMinute)
+        : ""); // no end time for point-in-time
+      setSelectedActivityCategories([]);
       setNotes("");
     }
-  }, [startDate, startHour, endHour]);
+  }, [startDate, startHour, endHour, startMinute, endMinute]);
 
   // Auto-populate alters from fronting history
   useMemo(() => {
