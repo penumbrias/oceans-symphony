@@ -50,7 +50,9 @@ const { data: mentionLogs = [] } = useQuery({
 
 const activeSession = sessions.find((s) => s.is_active);
 const frontingAlterIds = activeSession
-  ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+  ? activeSession.alter_id
+    ? [activeSession.alter_id]
+    : [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
   : [];
 
 const handleNotifClick = (mentionLog) => {
