@@ -49,7 +49,7 @@ const SystemMap = () => {
       const endTime = session.end_time ? new Date(session.end_time) : new Date();
       const startTime = new Date(session.start_time);
       const duration = endTime - startTime;
-      const allFronters = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      const allFronters = s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
       allFronters.forEach((id) => {
         time[id] = (time[id] || 0) + duration;
       });
