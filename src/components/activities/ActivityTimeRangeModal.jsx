@@ -100,40 +100,31 @@ export default function ActivityTimeRangeModal({
     );
   };
 
-  const handleSave = async () => {
-    if (selectedActivityCategories.length === 0) {
-      toast.error("Select an activity");
-      return;
-    }
-    if (!startTime || !endTime) {
-      toast.error("Set start and end times");
-      return;
-    }
-    if (durationMinutes <= 0) {
-      toast.error("End time must be after start time");
-      return;
-    }
+  // Update handleSave to allow no duration:
+const handleSave = async () => {
+  if (selectedActivityCategories.length === 0) { toast.error("Select an activity"); return; }
+  if (!startTime) { toast.error("Set start time"); return; }
+  // Only validate end time if one was provided
+  if (endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
 
-    setIsLoading(true);
-    const timestamp = parseTimeToDate(startDate, startTime);
-    const endDt = parseTimeToDate(startDate, endTime);
+  setIsLoading(true);
+  const timestamp = parseTimeToDate(startDate, startTime);
+  const endDt = endTime ? parseTimeToDate(startDate, endTime) : null;
 
-    try {
-      // Build a category name lookup
-      const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
-
-      // Create one Activity record per selected category — same approach as QuickCheckInModal
-      for (const catId of selectedActivityCategories) {
-        const cat = catById[catId];
-        await base44.entities.Activity.create({
-          timestamp: timestamp.toISOString(),
-          activity_name: cat?.name || catId,
-          activity_category_ids: [catId],
-          duration_minutes: durationMinutes,
-          fronting_alter_ids: selectedAlters,
-          notes: notes || null,
-        });
-      }
+  try {
+    const catById = Object.fromEntries(activityCategories.map(c => [c.id, c]));
+    for (const catId of selectedActivityCategories) {
+      const cat = catById[catId];
+      await base44.entities.Activity.create({
+        timestamp: timestamp.toISOString(),
+        activity_name: cat?.name || catId,
+        activity_category_ids: [catId],
+        duration_minutes: durationMinutes > 0 ? durationMinutes : null, // null = logged pill
+        fronting_alter_ids: selectedAlters,
+        notes: notes || null,
+      });
+    }
+    // ... rest of fronting session logic unchanged
 
       // Handle fronting session update if alters selected
       if (selectedAlters.length > 0) {
