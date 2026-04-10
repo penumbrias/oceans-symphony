@@ -181,32 +181,26 @@ const handleSave = async () => {
 
         <div className="space-y-4">
           {/* Start / End time */}
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">Start time</label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">End time</label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
-            {durationMinutes > 0 && (
-              <div className="text-xs text-muted-foreground pb-2 whitespace-nowrap">
-                {durationMinutes >= 60
-                  ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60 > 0 ? durationMinutes % 60 + "m" : ""}`
-                  : `${durationMinutes}m`}
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="text-sm font-medium block mb-1">Time</label>
+                <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
               </div>
-            )}
+              {endHour != null && (
+                <div className="flex-1">
+                  <label className="text-sm font-medium block mb-1">End time</label>
+                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
+                </div>
+              )}
+              {durationMinutes > 0 && (
+                <div className="text-xs text-muted-foreground pb-2 whitespace-nowrap">
+                  {durationMinutes >= 60
+                    ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60 > 0 ? durationMinutes % 60 + "m" : ""}`
+                    : `${durationMinutes}m`}
+                </div>
+              )}
           </div>
 
           {/* Activities */}
