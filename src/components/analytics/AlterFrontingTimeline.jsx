@@ -18,7 +18,7 @@ export default function AlterFrontingTimeline({ sessions = [], alters = [], from
     // Find top 5 alters by total fronting time
     const alterTotals = {};
     filtered.forEach(s => {
-      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+      const ids = s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
       const start = new Date(s.start_time);
       const end = s.end_time ? new Date(s.end_time) : new Date();
       const mins = Math.max(differenceInMinutes(end, start), 0);
