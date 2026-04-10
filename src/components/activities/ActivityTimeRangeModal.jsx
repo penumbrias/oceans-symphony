@@ -135,31 +135,24 @@ const handleSave = async () => {
     // ... rest of fronting session logic unchanged
 
       // Handle fronting session update if alters selected
-      if (selectedAlters.length > 0) {
-        const now = new Date();
-        const diffMins = (now - timestamp) / 60000;
-        const isCurrentTime = diffMins < 10;
-        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-
-        if (isCurrentTime && activeSessions.length > 0) {
-          const session = activeSessions[0];
-          const existing = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-          const merged = [...new Set([...existing, ...selectedAlters])];
-          await base44.entities.FrontingSession.update(session.id, {
-            primary_alter_id: merged[0],
-            co_fronter_ids: merged.slice(1),
-          });
-        } else {
-          const isStillActive = endDt >= now;
-          await base44.entities.FrontingSession.create({
-            primary_alter_id: selectedAlters[0],
-            co_fronter_ids: selectedAlters.slice(1),
-            start_time: timestamp.toISOString(),
-            end_time: isStillActive ? null : endDt.toISOString(),
-            is_active: isStillActive,
-          });
-        }
-      }
+      if (isCurrentTime && activeSessions.length > 0) {
+  const session = activeSessions[0];
+  const existing = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+  const merged = [...new Set([...existing, ...selectedAlters])];
+  await base44.entities.FrontingSession.update(session.id, {
+    primary_alter_id: merged[0],
+    co_fronter_ids: merged.slice(1),
+  });
+} else {
+  const isStillActive = endDt >= now;
+  await base44.entities.FrontingSession.create({
+    primary_alter_id: selectedAlters[0],
+    co_fronter_ids: selectedAlters.slice(1),
+    start_time: timestamp.toISOString(),
+    end_time: isStillActive ? null : endDt.toISOString(),
+    is_active: isStillActive,
+  });
+}
 
       setSelectedActivityCategories([]);
       setNotes("");
