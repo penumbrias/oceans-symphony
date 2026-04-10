@@ -2,16 +2,23 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate } from "@/lib/dateUtils";
-import { DAILY_TASKS } from "@/lib/dailyTasks";
-import { ChevronDown, ChevronUp, Layers, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
 
-const HOUR_HEIGHT = 56;
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, alter: 40 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
 const EXPANDED_EXTRA = 100;
+const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
+
+function lsGet(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -83,22 +90,17 @@ function ResizeHandle({ onDrag }) {
 
 function StatusNoteBadge({ note, topPx }) {
   return (
-    <div
-      className="absolute left-0 right-0 z-10 flex items-start"
-      style={{ top: topPx, userSelect: "none" }}
-    >
+    <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none" }}>
       <div className="mx-1 px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-muted-foreground leading-tight truncate w-full"
-        style={{ fontSize: 9 }}
-        title={note}
-      >
+        style={{ fontSize: 9 }} title={note}>
         💬 {note}
       </div>
     </div>
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary }) {
-  const sz = 26;
+function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH }) {
+  const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
@@ -107,8 +109,7 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
       <div
         className="rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
         style={{
-          width: sz,
-          height: sz,
+          width: sz, height: sz,
           backgroundColor: color,
           border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
           boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
@@ -116,7 +117,7 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
         title={alter?.name + (isPrimary ? " (primary)" : "")}>
         {alter?.avatar_url
           ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
-          : <span className="text-xs font-bold text-white">{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
+          : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
       </div>
       {heightPx > sz + 4 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
@@ -130,7 +131,6 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
   );
 }
 
-// Each bubble shows ONLY activity_name. Merged = same activity_name merged together.
 function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expanded, notes, onTap, onDoubleTap }) {
   const sz = 26;
   const tap = useDoubleTap(onTap, onDoubleTap);
@@ -167,20 +167,18 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expand
 }
 
 const TYPE_META = {
-  journal:      { icon: "📓", emoji: true },
-  checkin:      { icon: "✅", emoji: true },
-  bulletin:     { icon: "📌", emoji: true },
-  task:         { icon: "☑️", emoji: true },
-  task_done:    { icon: "✅", emoji: true },
-  mention:      { icon: "@",  emoji: false },
+  journal:   { icon: "📓", emoji: true },
+  checkin:   { icon: "✅", emoji: true },
+  bulletin:  { icon: "📌", emoji: true },
+  task:      { icon: "☑️", emoji: true },
+  task_done: { icon: "✅", emoji: true },
+  mention:   { icon: "@",  emoji: false },
 };
 
-// Emotion bubble — always visible as colored circle with first letter
 function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
-
   return (
     <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={onTap}>
       {expanded ? (
@@ -196,15 +194,11 @@ function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
         </div>
       ) : (
         <div className="relative">
-          {note && (
-            <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>
-          )}
+          {note && <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>}
           <div className="flex gap-0.5 flex-wrap justify-end">
             {emotions.slice(0, 4).map((em) => (
-              <div key={em}
-                className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
-                style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }}
-                title={em}>
+              <div key={em} className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
+                style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }} title={em}>
                 <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
               </div>
             ))}
@@ -221,20 +215,17 @@ function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
   );
 }
 
-// Non-emotion entry — icon button that hugs the left
 function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
   const meta = TYPE_META[entry.type] || { icon: "•", emoji: false };
   const isTaskDone = entry.type === "task_done";
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
   const showLabel = !expanded && colWidth >= EVENT_DETAIL_MIN_WIDTH;
-
   const shortLabel =
     entry.type === 'checkin' ? 'Check-In' :
     entry.type === 'journal' ? (entry.label || 'Journal') :
     entry.type === 'bulletin' ? 'Bulletin' :
     (entry.label || 'Task');
-
   return (
     <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
       {expanded ? (
@@ -247,17 +238,14 @@ function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
         </div>
       ) : showLabel ? (
         <div className="flex items-center gap-1 rounded-full border shadow-sm bg-card border-border/60 px-1.5 py-0.5 hover:scale-105 transition-transform"
-          style={{ maxWidth: colWidth - 8 }}
-          title={entry.label}>
+          style={{ maxWidth: colWidth - 8 }} title={entry.label}>
           <span style={{ fontSize: 11 }}>{meta.icon}</span>
           <span className="text-muted-foreground truncate" style={{ fontSize: 9, maxWidth: colWidth - 32 }}>{shortLabel}</span>
         </div>
       ) : (
         <div className={`flex items-center justify-center rounded-full border shadow-sm hover:scale-110 transition-transform ${
           isTaskDone ? "bg-green-500/10 border-green-500/40" : "bg-card border-border/60"
-        }`}
-          style={{ width: 22, height: 22 }}
-          title={entry.label}>
+        }`} style={{ width: 22, height: 22 }} title={entry.label}>
           <span style={{ fontSize: 12 }}>{meta.icon}</span>
         </div>
       )}
@@ -271,7 +259,6 @@ export default function InfiniteTimeline({
   showActivities = true, showCheckIns = true, showEmotions = true,
   categories = [],
 }) {
-  // Build category -> parent map for merge-by-category
   const catMap = useMemo(() => {
     const m = {};
     categories.forEach(c => { m[c.id] = c; });
@@ -281,11 +268,15 @@ export default function InfiniteTimeline({
   const [collapsed, setCollapsed] = useState(!hasData);
   const [expandedKeys, setExpandedKeys] = useState(new Set());
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
-
-  const [mergeByCategory, setMergeByCategory] = useState(false);
   const [showTally, setShowTally] = useState(false);
-  const [sessionPopover, setSessionPopover] = useState(null); // { session, alter }
-  const [editingSession, setEditingSession] = useState(null); // { session, alter }
+  const [showRowSlider, setShowRowSlider] = useState(false);
+  const [sessionPopover, setSessionPopover] = useState(null);
+  const [editingSession, setEditingSession] = useState(null);
+
+  // ── Row height — persisted ──
+  const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
+  useEffect(() => { lsSet(LS_TIMELINE_ROW_H, rowH); }, [rowH]);
+
   const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -305,47 +296,44 @@ export default function InfiniteTimeline({
   const eventColWidth = colWidths.eventCol;
   const emotionColWidth = colWidths.emotionCol;
 
-  // Alter segments
- const alterEntries = useMemo(() => {
-  const byAlter = {};
-  sessions.forEach((session) => {
-    // Handle both primary and co-fronter alters
-    const ids = [
-      session.primary_alter_id,
-      ...(session.co_fronter_ids || [])
-    ].filter(Boolean);
+  const alterEntries = useMemo(() => {
+    const byAlter = {};
+    sessions.forEach((session) => {
+      const ids = [
+        session.primary_alter_id,
+        ...(session.co_fronter_ids || [])
+      ].filter(Boolean);
 
-    ids.forEach((alterId) => {
-      const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
-const endTime = session.end_time
-  ? parseDate(session.end_time)
-  : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
-      const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
-      if (!byAlter[alterId]) byAlter[alterId] = [];
-      byAlter[alterId].push({
-        startMins,
-        endMins: Math.max(endMins, startMins + 8),
-        sessionId: session.id,
-        isPrimary: session.primary_alter_id === alterId,
+      ids.forEach((alterId) => {
+        const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+        const endTime = session.end_time
+          ? parseDate(session.end_time)
+          : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+        const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
+        if (!byAlter[alterId]) byAlter[alterId] = [];
+        byAlter[alterId].push({
+          startMins,
+          endMins: Math.max(endMins, startMins + 8),
+          sessionId: session.id,
+          isPrimary: session.primary_alter_id === alterId,
+        });
       });
     });
-  });
 
-  const merged = [];
-  Object.entries(byAlter).forEach(([alterId, segs]) => {
-    const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
-    // Don't merge segments — keep each session as its own bar so primary status is accurate
-    sorted.forEach((seg, i) => merged.push({
-      alterId,
-      startMins: seg.startMins,
-      endMins: seg.endMins,
-      sessionId: seg.sessionId,
-      isPrimary: seg.isPrimary,
-      key: `alter-${alterId}-${i}`,
-    }));
-  });
-  return merged;
-}, [sessions, dayStart, isToday]);
+    const merged = [];
+    Object.entries(byAlter).forEach(([alterId, segs]) => {
+      const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
+      sorted.forEach((seg, i) => merged.push({
+        alterId,
+        startMins: seg.startMins,
+        endMins: seg.endMins,
+        sessionId: seg.sessionId,
+        isPrimary: seg.isPrimary,
+        key: `alter-${alterId}-${i}`,
+      }));
+    });
+    return merged;
+  }, [sessions, dayStart, isToday]);
 
   const alterColumns = useMemo(() => {
     const cols = [];
@@ -359,35 +347,26 @@ const endTime = session.end_time
     return cols;
   }, [alterEntries]);
 
-  // Activity entries:
-  // - Each activity gets a bubble with its own activity_name
-  // - Merge same activity_name if overlapping/consecutive (always)
-  // - Optionally merge by parent category if mergeByCategory is on
   const activityEntries = useMemo(() => {
     const raw = [];
     activities.forEach((act) => {
       const startMins = Math.max(0, minutesInDay(parseDate(act.timestamp), dayStart));
       const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
-      // Create a separate entry for EACH category in this activity (deduplicated)
       const categoryIds = act.activity_category_ids && act.activity_category_ids.length > 0
-        ? [...new Set(act.activity_category_ids)]
-        : [null];
+        ? [...new Set(act.activity_category_ids)] : [null];
       categoryIds.forEach((catId) => {
         const cat = catId ? catMap[catId] : null;
-        const categoryName = cat?.name || act.activity_name;
         raw.push({
           startMins,
           endMins: Math.max(endMins, startMins + 5),
           activity: act,
           categoryId: catId,
-          displayName: categoryName,
+          displayName: cat?.name || act.activity_name,
           categoryColor: cat?.color || act.color,
         });
       });
     });
     raw.sort((a, b) => a.startMins - b.startMins);
-
-    // Group: merge overlapping/consecutive entries with the same category ID
     const merged = [];
     raw.forEach((entry) => {
       const last = merged[merged.length - 1];
@@ -398,14 +377,9 @@ const endTime = session.end_time
         merged.push({ ...entry, mergedCount: 1 });
       }
     });
-
-    return merged.map((m, i) => ({
-      ...m,
-      key: `act-${m.activity.id}-cat-${m.categoryId || i}`,
-    }));
+    return merged.map((m, i) => ({ ...m, key: `act-${m.activity.id}-cat-${m.categoryId || i}` }));
   }, [activities, dayStart, catMap]);
 
-  // Place each entry into side-by-side columns (overlapping entries = different columns)
   const activityColumns = useMemo(() => {
     const cols = [];
     [...activityEntries].sort((a, b) => a.startMins - b.startMins).forEach((entry) => {
@@ -418,12 +392,10 @@ const endTime = session.end_time
     return cols;
   }, [activityEntries]);
 
-  // Split check-in entries into emotions (right side) and events (left side)
   const emotionEntries = useMemo(() => {
     return emotions.map((e, i) => ({
       mins: Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart)),
-      type: "emotion", id: e.id, data: e,
-      key: `em-${i}-${e.id}`
+      type: "emotion", id: e.id, data: e, key: `em-${i}-${e.id}`
     })).sort((a, b) => a.mins - b.mins);
   }, [emotions, dayStart]);
 
@@ -441,10 +413,8 @@ const endTime = session.end_time
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
   }, [journals, checkIns, bulletins, tasks, dayStart]);
 
-  // Combined for expansion tracking
   const checkInEntries = useMemo(() => [...emotionEntries, ...eventEntries], [emotionEntries, eventEntries]);
 
-  // Height adjustment for expanded items
   const expandedPositions = useMemo(() => {
     const positions = [];
     [...activityEntries, ...checkInEntries].forEach((entry) => {
@@ -455,18 +425,18 @@ const endTime = session.end_time
     return positions.sort((a, b) => a.mins - b.mins);
   }, [expandedKeys, activityEntries, checkInEntries]);
 
+  // ── Use rowH instead of HOUR_HEIGHT constant ──
   const getTopPx = useCallback((mins) => {
     const extra = expandedPositions.filter((p) => p.mins < mins).reduce((s, p) => s + p.extraHeight, 0);
-    return (mins / 60) * HOUR_HEIGHT + extra;
-  }, [expandedPositions]);
+    return (mins / 60) * rowH + extra;
+  }, [expandedPositions, rowH]);
 
   const getRangePx = useCallback((startMins, endMins) => {
     return getTopPx(endMins) - getTopPx(startMins);
   }, [getTopPx]);
 
-  const totalHeight = 24 * HOUR_HEIGHT + expandedPositions.reduce((s, p) => s + p.extraHeight, 0);
+  const totalHeight = 24 * rowH + expandedPositions.reduce((s, p) => s + p.extraHeight, 0);
 
-  // Position entries with gap-based anti-overlap (respect expansion extra heights)
   const MIN_EMOTION_GAP = 22;
   const MIN_EVENT_GAP = 26;
 
@@ -476,8 +446,7 @@ const endTime = session.end_time
       const expanded = expandedKeys.has(entry.key);
       const raw = getTopPx(entry.mins);
       const top = Math.max(raw, minNext);
-      const height = expanded ? EXPANDED_EXTRA : MIN_EMOTION_GAP;
-      minNext = top + height;
+      minNext = top + (expanded ? EXPANDED_EXTRA : MIN_EMOTION_GAP);
       return { ...entry, adjustedTop: top };
     });
   }, [emotionEntries, getTopPx, expandedKeys]);
@@ -488,13 +457,11 @@ const endTime = session.end_time
       const expanded = expandedKeys.has(entry.key);
       const raw = getTopPx(entry.mins);
       const top = Math.max(raw, minNext);
-      const height = expanded ? EXPANDED_EXTRA : MIN_EVENT_GAP;
-      minNext = top + height;
+      minNext = top + (expanded ? EXPANDED_EXTRA : MIN_EVENT_GAP);
       return { ...entry, adjustedTop: top };
     });
   }, [eventEntries, getTopPx, expandedKeys]);
 
-  // Layout
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
   const activityAreaWidth = numActivityCols * colWidths.activity;
   const eventColWidth_actual = showCheckIns ? eventColWidth : 0;
@@ -511,6 +478,7 @@ const endTime = session.end_time
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
+      {/* ── Header row ── */}
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
@@ -530,14 +498,23 @@ const endTime = session.end_time
         </div>
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {!collapsed && (
-            <button
-              onClick={() => setShowTally(v => !v)}
-              title={showTally ? "Hide daily tally" : "Show daily tally"}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
-            >
-              <BarChart3 className="w-3 h-3" />
-              Tally
-            </button>
+            <>
+              <button
+                onClick={() => setShowRowSlider(v => !v)}
+                title="Adjust row height"
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showRowSlider ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
+              >
+                ↕ Zoom
+              </button>
+              <button
+                onClick={() => setShowTally(v => !v)}
+                title={showTally ? "Hide daily tally" : "Show daily tally"}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
+              >
+                <BarChart3 className="w-3 h-3" />
+                Tally
+              </button>
+            </>
           )}
           {collapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
         </div>
@@ -545,6 +522,21 @@ const endTime = session.end_time
 
       {!collapsed && (
         <div className="overflow-x-auto border-t border-border">
+
+          {/* ── Row height slider ── */}
+          {showRowSlider && (
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 bg-muted/10 text-xs">
+              <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
+              <input
+                type="range" min={20} max={120} step={4} value={rowH}
+                onChange={e => setRowH(Number(e.target.value))}
+                className="w-28 accent-primary"
+              />
+              <span className="text-muted-foreground w-8">{rowH}px</span>
+            </div>
+          )}
+
+          {/* ── Column headers ── */}
           <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
             {showActivities && (
               <div className="text-center py-1 relative flex-shrink-0" style={{ width: activityAreaWidth }}>
@@ -571,14 +563,15 @@ const endTime = session.end_time
             </div>
           </div>
 
-          <div className="overflow-y-auto max-h-[500px]">
+          {/* ── Grid ── */}
+          <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
             <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
 
               {HOURS.map((h) => {
                 const top = getTopPx(h * 60);
                 return (
                   <div key={h} className="absolute flex items-start"
-                    style={{ top, height: HOUR_HEIGHT, left: timeLeft, right: 0 }}>
+                    style={{ top, height: rowH, left: timeLeft, right: 0 }}>
                     <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-1 text-right" style={{ width: LABEL_WIDTH }}>
                       {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
                     </div>
@@ -587,7 +580,6 @@ const endTime = session.end_time
                 );
               })}
 
-              {/* Activity columns — each overlapping group of activities gets its own side-by-side column */}
               {showActivities && activityColumns.map((col, colIdx) => (
                 <div key={`acol-${colIdx}`} className="absolute"
                   style={{ left: colIdx * colWidths.activity, top: 0, width: colWidths.activity, height: totalHeight }}>
@@ -614,7 +606,6 @@ const endTime = session.end_time
                 </div>
               ))}
 
-              {/* Vertical dividers between columns */}
               {showCheckIns && (
                 <div className="absolute top-0 bottom-0 border-l border-border/30 pointer-events-none"
                   style={{ left: eventColLeft, height: totalHeight }} />
@@ -626,7 +617,6 @@ const endTime = session.end_time
               <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
                 style={{ left: timeLeft, height: totalHeight }} />
 
-              {/* Events column (left) */}
               {showCheckIns && (
                 <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth, height: totalHeight }}>
                   {eventPositioned.map((entry) => (
@@ -648,7 +638,6 @@ const endTime = session.end_time
                 </div>
               )}
 
-              {/* Emotions column (right of events) */}
               {showEmotions && (
                 <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth_actual, height: totalHeight }}>
                   {emotionPositioned.map((entry) => (
@@ -664,36 +653,32 @@ const endTime = session.end_time
                 </div>
               )}
 
-
-
-              {/* Alter columns */}
               {alterColumns.map((col, colIdx) => (
                 <div key={`col-${colIdx}`} className="absolute"
                   style={{ left: alterLeft + colIdx * colWidths.alter, top: 0, width: colWidths.alter, height: totalHeight }}>
-                  
-{col.map((entry) => {
-  const alter = alters.find((a) => a.id === entry.alterId);
-  const color = alter?.color || "#9333ea";
-  const topPx = getTopPx(entry.startMins);
-  const heightPx = getRangePx(entry.startMins, entry.endMins);
-  const entrySession = sessions.find(s => s.id === entry.sessionId);
-  return (
-    <AlterBar
-      key={entry.key}
-      alter={alter}
-      color={color}
-      topPx={topPx}
-      heightPx={heightPx}
-      isPrimary={entry.isPrimary}
-      onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
-      onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
-    />
-  );
-})}
+                  {col.map((entry) => {
+                    const alter = alters.find((a) => a.id === entry.alterId);
+                    const color = alter?.color || "#9333ea";
+                    const topPx = getTopPx(entry.startMins);
+                    const heightPx = getRangePx(entry.startMins, entry.endMins);
+                    const entrySession = sessions.find(s => s.id === entry.sessionId);
+                    return (
+                      <AlterBar
+                        key={entry.key}
+                        alter={alter}
+                        color={color}
+                        topPx={topPx}
+                        heightPx={heightPx}
+                        isPrimary={entry.isPrimary}
+                        rowH={rowH}
+                        onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
+                        onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
+                      />
+                    );
+                  })}
                 </div>
               ))}
 
-              {/* Session status notes — shown in the alters area */}
               {sessions.flatMap((session) => {
                 let notes = [];
                 if (!session.note) return [];
@@ -716,25 +701,23 @@ const endTime = session.end_time
               })}
 
             </div>
-            </div>
-            </div>
-            )}
+          </div>
+        </div>
+      )}
 
-            {/* Daily tally panel */}
-            {!collapsed && showTally && (
-              <DailyTallyPanel
-                day={day}
-                sessions={sessions}
-                activities={activities}
-                emotions={emotions}
-                journals={journals}
-                checkIns={checkIns}
-                tasks={tasks}
-                alters={alters}
-              />
-            )}
+      {!collapsed && showTally && (
+        <DailyTallyPanel
+          day={day}
+          sessions={sessions}
+          activities={activities}
+          emotions={emotions}
+          journals={journals}
+          checkIns={checkIns}
+          tasks={tasks}
+          alters={alters}
+        />
+      )}
 
-            {/* Alter session info popover (single tap) */}
       {sessionPopover && !editingSession && (
         <AlterSessionInfo
           session={sessionPopover.session}
@@ -744,7 +727,6 @@ const endTime = session.end_time
         />
       )}
 
-      {/* Alter session edit modal (double tap or via info) */}
       {editingSession && (
         <AlterSessionEdit
           session={editingSession.session}
