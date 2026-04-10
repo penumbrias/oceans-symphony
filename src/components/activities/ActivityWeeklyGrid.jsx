@@ -532,35 +532,69 @@ export default function ActivityWeeklyGrid({
 
                         {loggedToShow.length > 0 && (
                           <div className={`flex flex-col gap-0.5 w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"}`}>
-                            {loggedToShow.map(pill => {
-                              const color = getActivityColor(pill);
-                              const pillAlters = (pill.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
-                              const pillEmotions = pill.emotions || [];
-                              const pillTime = parseDate(pill.timestamp);
-                              const minuteOffset = pillTime.getMinutes() % interval;
-                              const pct = minuteOffset / interval;
-                              return (
-                                <div key={pill.id}
-                                  className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden"
-                                  style={{ backgroundColor: color, fontSize: 8, height: Math.max(10, rowH * 0.28), marginTop: pct > 0 ? `${pct * rowH}px` : 0, maxWidth: "100%" }}
-                                  title={pill.activity_name}>
-                                  <span className="truncate">{truncate(pill.activity_name, colW / 9)}</span>
-                                  {showAlters && pillAlters.slice(0, 2).map(a => (
-                                    <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
-                                      style={{ backgroundColor: a.color || "#fff" }}>
-                                      {a.avatar_url
-                                        ? <img src={a.avatar_url} className="w-full h-full object-cover" />
-                                        : <span style={{ fontSize: 5 }} className="flex items-center justify-center h-full font-bold">{a.name?.charAt(0)}</span>
-                                      }
-                                    </div>
-                                  ))}
-                                  {showEmotions && pillEmotions.slice(0, 1).map((em, i) => (
-                                    <span key={i} className="w-2 h-2 rounded-full flex-shrink-0"
-                                      style={{ backgroundColor: emotionColor(em) }} title={em} />
-                                  ))}
-                                </div>
-                              );
-                            })}
+                            {(() => {
+  const compact = rowH < 22;
+  if (compact) {
+    // Condensed circle mode
+    return (
+      <div className="flex flex-row items-center gap-0.5 flex-wrap px-0.5"
+        style={{ maxHeight: rowH, overflow: "hidden" }}>
+        {loggedToShow.map(pill => {
+          const color = getActivityColor(pill);
+          const size = Math.max(7, Math.min(rowH - 2, 14));
+          const chars = Math.floor(colW / loggedToShow.length / 6);
+          const label = chars >= 2 ? pill.activity_name?.slice(0, chars) : "";
+          return (
+            <div key={pill.id}
+              className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden"
+              style={{ backgroundColor: color, height: size, minWidth: size, fontSize: Math.max(5, size * 0.55), paddingLeft: label ? 2 : 0, paddingRight: label ? 2 : 0 }}
+              title={pill.activity_name}>
+              {label || ""}
+              {pill.notes && (
+                <span style={{ fontSize: Math.max(4, size * 0.45), marginLeft: 1, opacity: 0.85 }}>💭</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  // Normal pill mode
+  return (
+    <>
+      {loggedToShow.map(pill => {
+        const color = getActivityColor(pill);
+        const pillAlters = (pill.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
+        const pillEmotions = pill.emotions || [];
+        const pillTime = parseDate(pill.timestamp);
+        const minuteOffset = pillTime.getMinutes() % interval;
+        const pct = minuteOffset / interval;
+        return (
+          <div key={pill.id}
+            className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden"
+            style={{ backgroundColor: color, fontSize: 8, height: Math.max(10, rowH * 0.28), marginTop: pct > 0 ? `${pct * rowH}px` : 0, maxWidth: "100%" }}
+            title={pill.activity_name}>
+            <span className="truncate">{truncate(pill.activity_name, colW / 9)}</span>
+            {pill.notes && <span style={{ fontSize: 7, marginLeft: 1 }}>💭</span>}
+            {showAlters && pillAlters.slice(0, 2).map(a => (
+              <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
+                style={{ backgroundColor: a.color || "#fff" }}>
+                {a.avatar_url
+                  ? <img src={a.avatar_url} className="w-full h-full object-cover" />
+                  : <span style={{ fontSize: 5 }} className="flex items-center justify-center h-full font-bold">{a.name?.charAt(0)}</span>
+                }
+              </div>
+            ))}
+            {showEmotions && pillEmotions.slice(0, 1).map((em, i) => (
+              <span key={i} className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: emotionColor(em) }} title={em} />
+            ))}
+          </div>
+        );
+      })}
+    </>
+  );
+})()}
                           </div>
                         )}
 
