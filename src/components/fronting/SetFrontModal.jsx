@@ -75,23 +75,24 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   const [viewMode, setViewMode] = useState("list");
 
   // Sync state when modal opens or currentSession changes
-useEffect(() => {
-  if (open) {
-    // Handle both new (alter_id) and legacy (primary_alter_id + co_fronter_ids) formats
-    if (currentSession?.alter_id) {
-      // New format — we need to get ALL active sessions to build the full fronter list
-      // For now, seed with just this alter; CurrentFronters passes the first active session
-      setPrimaryId(currentSession.alter_id);
-      setCoFronterIds([]);
-    } else {
-      setPrimaryId(currentSession?.primary_alter_id || "");
-      setCoFronterIds(currentSession?.co_fronter_ids || []);
+ useEffect(() => {
+    if (open) {
+      if (currentAlterIds.length > 0) {
+        // New format — seed from active alter IDs
+        setPrimaryId(currentAlterIds[0]);
+        setCoFronterIds(currentAlterIds.slice(1));
+      } else if (currentSession?.alter_id) {
+        setPrimaryId(currentSession.alter_id);
+        setCoFronterIds([]);
+      } else {
+        setPrimaryId(currentSession?.primary_alter_id || "");
+        setCoFronterIds(currentSession?.co_fronter_ids || []);
+      }
+      setIsUnsure(false);
+      setJournalSwitch(false);
     }
-    setIsUnsure(false);
-    setJournalSwitch(false);
-  }
-}, [open, currentSession?.id, currentSession?.alter_id, currentSession?.primary_alter_id, currentSession?.co_fronter_ids]);
-
+  }, [open, currentSession?.id, currentAlterIds.join(",")]);
+  
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const filtered = activeAlters.filter((a) =>
   a.name?.toLowerCase().includes(search.toLowerCase())
