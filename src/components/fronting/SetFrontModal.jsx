@@ -61,7 +61,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
 
 }
 
-export default function SetFrontModal({ open, onClose, alters, currentSession }) {
+export default function SetFrontModal({ open, onClose, alters, currentSession, currentAlterIds = [] }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [search, setSearch] = useState("");
@@ -92,7 +92,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
       setJournalSwitch(false);
     }
   }, [open, currentSession?.id, currentAlterIds.join(",")]);
-  
+
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const filtered = activeAlters.filter((a) =>
   a.name?.toLowerCase().includes(search.toLowerCase())
