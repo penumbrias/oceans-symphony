@@ -575,7 +575,7 @@ export default function ActivityWeeklyGrid({
         return (
           <div key={pill.id}
             className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden"
-            style={{ backgroundColor: color, fontSize: 8, height: Math.max(10, rowH * 0.28), marginTop: pct > 0 ? `${pct * rowH}px` : 0, maxWidth: "100%" }}
+            style={{ backgroundColor: color, fontSize: 8, height: Math.max(10, rowH * 0.28), height: Math.max(8, rowH * 0.7), maxWidth: "100%" }}
             title={pill.activity_name}>
             <span className="truncate">{truncate(pill.activity_name, colW / 9)}</span>
             {pill.notes && <span style={{ fontSize: 7, marginLeft: 1 }}>💭</span>}
