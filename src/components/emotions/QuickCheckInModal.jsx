@@ -46,19 +46,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     );
   }, [alterInput, activeAlters, selectedAlters]);
 
-  const addCustomEmotionMutation = useMutation({
-    mutationFn: async (label) => {
-      const existing = customEmotions.find(e => e.label.toLowerCase() === label.toLowerCase());
-      if (existing) return existing;
-      return base44.entities.CustomEmotion.create({ label });
-    },
-    onSuccess: (emotion) => {
-      setSelectedEmotions(prev =>
-        prev.includes(emotion.label) ? prev : [...prev, emotion.label]
-      );
-      queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
-    },
-  });
+  // Change 1: mutation expects { label, category }
+const addCustomEmotionMutation = useMutation({
+  mutationFn: async ({ label, category = "custom" }) => {
+    const existing = customEmotions.find(e => e.label.toLowerCase() === label.toLowerCase());
+    if (existing) return existing;
+    return base44.entities.CustomEmotion.create({ label, category });
+  },
+  onSuccess: (emotion) => {
+    setSelectedEmotions(prev =>
+      prev.includes(emotion.label) ? prev : [...prev, emotion.label]
+    );
+    queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
+  },
+});
 
   const toggleEmotion = (label) => {
     setSelectedEmotions(prev =>
@@ -186,12 +187,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {/* ── Emotions ── */}
           <div>
             <p className="text-sm font-medium mb-2">How are you feeling?</p>
-            <EmotionWheelPicker
-              selectedEmotions={selectedEmotions}
-              onToggle={toggleEmotion}
-              customEmotions={customEmotions}
-              onAddCustom={(label) => addCustomEmotionMutation.mutate(label)}
-            />
+            // Change 2: pass both label and category from the picker
+<EmotionWheelPicker
+  selectedEmotions={selectedEmotions}
+  onToggle={toggleEmotion}
+  customEmotions={customEmotions}
+  onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
+/>
           </div>
 
           {/* ── Alters ── */}
