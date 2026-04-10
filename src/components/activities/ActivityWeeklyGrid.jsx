@@ -534,7 +534,7 @@ export default function ActivityWeeklyGrid({
                         )}
 
                         {loggedToShow.length > 0 && (
-                          <div className={`flex w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"} ${isExpanded ? "flex-col gap-1" : ""}`}
+                          <div className={`flex flex-col w-full ${timed.length > 0 ? "mt-0.5 px-0.5" : "p-0.5"} ${isExpanded ? "gap-1" : "gap-0.5"}`}
                             style={!isExpanded ? { height: rowH, overflow: "visible" } : {}}>
                             {(() => {
                               const count = loggedToShow.length;
