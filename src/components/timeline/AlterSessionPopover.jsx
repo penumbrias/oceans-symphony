@@ -91,47 +91,36 @@ const handleSave = async () => {
     const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
 
     const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-    const remainingIds = allIds.filter(id => id !== alter.id);
 
-    if (remainingIds.length === 0) {
-      // Only alter in session — update in place, asPrimary doesn't matter
-      await base44.entities.FrontingSession.update(session.id, {
-        start_time: newStart,
-        end_time: newEnd,
-        note: note || null,
-      });
+    let newPrimary;
+    let newCoFronters;
+
+    if (asPrimary) {
+      // This alter becomes primary, everyone else becomes co-fronter
+      newPrimary = alter.id;
+      newCoFronters = allIds.filter(id => id !== alter.id);
     } else {
-      // Remove this alter from the original session — remaining alters keep their session
-      await base44.entities.FrontingSession.update(session.id, {
-        primary_alter_id: remainingIds[0],
-        co_fronter_ids: remainingIds.slice(1),
-        start_time: session.start_time, // keep original times for remaining alters
-        end_time: session.end_time,
-      });
-
-      // Create a new individual session for this alter
-      if (asPrimary) {
-        // Primary — they front alone in their own session
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: alter.id,
-          co_fronter_ids: [],
-          start_time: newStart,
-          end_time: newEnd,
-          is_active: !newEnd,
-          note: note || null,
-        });
+      // This alter becomes co-fronter, keep whoever was primary (or pick next if this alter WAS primary)
+      if (session.primary_alter_id === alter.id) {
+        // Was primary — promote first co-fronter to primary
+        const others = (session.co_fronter_ids || []).filter(Boolean);
+        newPrimary = others[0] || alter.id; // fallback to self if alone
+        newCoFronters = others.length > 0 ? [...others.slice(1), alter.id] : [];
       } else {
-        // Co-present — add them as co-fronter on the remaining session
-        await base44.entities.FrontingSession.update(session.id, {
-          primary_alter_id: remainingIds[0],
-          co_fronter_ids: [...remainingIds.slice(1), alter.id],
-          start_time: newStart,
-          end_time: newEnd,
-          is_active: !newEnd,
-          note: note || null,
-        });
+        // Already a co-fronter — just update times/note
+        newPrimary = session.primary_alter_id;
+        newCoFronters = (session.co_fronter_ids || []).filter(Boolean);
       }
     }
+
+    await base44.entities.FrontingSession.update(session.id, {
+      primary_alter_id: newPrimary,
+      co_fronter_ids: newCoFronters,
+      start_time: newStart,
+      end_time: newEnd,
+      is_active: !newEnd,
+      note: note || null,
+    });
 
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
