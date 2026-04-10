@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, addHours, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
