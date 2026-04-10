@@ -453,10 +453,13 @@ export default function ActivityWeeklyGrid({
                         {timed.length > 0 && showLabel && (
                           <div className={`px-1 pt-0.5 w-full ${isExpanded ? "" : "overflow-hidden"}`}
                             style={{ maxHeight: isExpanded ? "none" : rowH - 2 }}>
-                            <div className="font-semibold text-white drop-shadow leading-tight"
-                              style={{ fontSize: Math.max(9, Math.min(11, rowH / 4)) }}>
-                              {truncate(timed.map(a => a.activity_name).join(" + "), colW / 7)}
-                            </div>
+<div className="font-semibold text-white drop-shadow leading-tight flex items-center gap-0.5"
+  style={{ fontSize: Math.max(9, Math.min(11, rowH / 4)) }}>
+  {truncate(timed.map(a => a.activity_name).join(" + "), colW / 7)}
+  {timed.some(a => a.notes) && (
+    <span style={{ fontSize: Math.max(7, rowH * 0.22), opacity: 0.85, lineHeight: 1 }}>💭</span>
+  )}
+</div>
                             {isExpanded && (
                               <div className="text-white/90 space-y-0.5 mt-0.5" style={{ fontSize: 9 }}>
                                 {timed.map(a => (
