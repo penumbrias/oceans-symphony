@@ -64,14 +64,10 @@ useMemo(() => {
   if (startDate && startHour !== undefined) {
     setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour), startMinute));
     if (endHour != null) {
-      // Add one interval to the end slot to get the actual end time
-      const endTotalMinutes = (endHour * 60 + endMinute) + interval;
-      const endH = Math.floor(endTotalMinutes / 60) % 24;
-      const endM = endTotalMinutes % 60;
-      setEndTime(toTimeString(startDate, endH, endM));
-    } else {
-      setEndTime("");
-    }
+  setEndTime(toTimeString(startDate, endHour, endMinute));
+} else {
+  setEndTime("");
+}
     setSelectedActivityCategories([]);
     setNotes("");
   }
