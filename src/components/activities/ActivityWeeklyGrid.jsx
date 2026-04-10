@@ -221,27 +221,26 @@ if (addMode) {
     setPendingStart({ date, hour, minute });
   } else {
     const isSameCell =
-      pendingStart.date.toDateString() === date.toDateString() &&
-      pendingStart.hour === hour &&
-      pendingStart.minute === minute;
+  pendingStart.date.toDateString() === date.toDateString() &&
+  pendingStart.hour === hour &&
+  pendingStart.minute === minute;
 
-    if (isSameCell) {
-      // Same cell tapped twice — log as point-in-time (no duration)
-      onTimeRangeSelect(date, hour, null, minute, null);
-      setPendingStart(null);
-    } else {
-      const startH = pendingStart.hour + pendingStart.minute / 60;
-      const endH = hour + minute / 60;
-      const isForward = startH <= endH;
-      onTimeRangeSelect(
-        pendingStart.date,
-        isForward ? pendingStart.hour : hour,
-        isForward ? hour : pendingStart.hour,
-        isForward ? pendingStart.minute : minute,
-        isForward ? minute : pendingStart.minute
-      );
-      setPendingStart(null);
-    }
+if (isSameCell) {
+  onTimeRangeSelect(date, hour, null, minute, null);
+  setPendingStart(null);
+} else {
+  const startH = pendingStart.hour + pendingStart.minute / 60;
+  const endH = hour + minute / 60;
+  const isForward = startH <= endH;
+  onTimeRangeSelect(
+    pendingStart.date,
+    isForward ? pendingStart.hour : hour,
+    isForward ? hour : pendingStart.hour,
+    isForward ? pendingStart.minute : minute,
+    isForward ? minute : pendingStart.minute
+  );
+  setPendingStart(null);
+}
   }
 } else if (allActs.length > 0) {
       setExpandedCells(prev => {
