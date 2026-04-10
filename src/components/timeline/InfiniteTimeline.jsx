@@ -317,9 +317,9 @@ export default function InfiniteTimeline({
 
     ids.forEach((alterId) => {
       const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
-      const endTime = session.end_time
-        ? parseDate(session.end_time)
-        : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 23 * 60 * 60000);
+const endTime = session.end_time
+  ? parseDate(session.end_time)
+  : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
       const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
       if (!byAlter[alterId]) byAlter[alterId] = [];
       byAlter[alterId].push({
