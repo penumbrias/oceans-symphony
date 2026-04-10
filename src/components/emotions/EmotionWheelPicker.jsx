@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { X, ChevronLeft, Plus, Search, ChevronDown, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { X, ChevronLeft, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const WHEEL = {
@@ -128,31 +128,6 @@ function InlineAddButton({ category, color, onAdd }) {
   );
 }
 
-// Collapsible section used in both guided and classic modes
-function CollapsibleSection({ label, color, defaultOpen = false, children }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div>
-      <button
-        onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 w-full text-left mb-1.5 group"
-      >
-        {open
-          ? <ChevronDown className="w-3 h-3 text-muted-foreground" />
-          : <ChevronRightIcon className="w-3 h-3 text-muted-foreground" />
-        }
-        <span
-          className="text-xs font-semibold uppercase tracking-wide transition-colors group-hover:opacity-80"
-          style={{ color: color || "hsl(var(--muted-foreground))" }}
-        >
-          {label}
-        </span>
-      </button>
-      {open && <div className="pl-4">{children}</div>}
-    </div>
-  );
-}
-
 export default function EmotionWheelPicker({
   selectedEmotions = [],
   onToggle,
@@ -176,10 +151,6 @@ export default function EmotionWheelPicker({
   const handleValence = (key) => {
     if (activeValence === key) { setActiveValence(null); setActiveCore(null); }
     else { setActiveValence(key); setActiveCore(null); }
-  };
-
-  const handleCore = (core) => {
-    setActiveCore(prev => prev === core ? null : core);
   };
 
   const searchResults = useMemo(() => {
@@ -302,7 +273,6 @@ export default function EmotionWheelPicker({
       {/* ── GUIDED MODE ── */}
       {pickerMode === "wheel" && !search && (
         <div className="space-y-3">
-          {/* Valence grid */}
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(WHEEL).map(([key, v]) => (
               <button key={key}
@@ -316,7 +286,6 @@ export default function EmotionWheelPicker({
             ))}
           </div>
 
-          {/* Core / sub level */}
           {activeValence && valenceData && (
             <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5 space-y-2">
               {activeCore && (
@@ -342,30 +311,27 @@ export default function EmotionWheelPicker({
                 </div>
               )}
 
-              {/* Core buttons — each collapsible */}
+              {/* Core buttons — flat, no collapsible */}
               {valenceData.cores && !activeCore && (
                 <div className="space-y-2">
-                  {Object.entries(valenceData.cores).map(([core, { color, subs }]) => (
-                    <CollapsibleSection key={core} label={core} color={color}>
-                      <div className="flex flex-wrap gap-1.5 mb-1">
-                        {/* Core itself selectable */}
-                        <EmotionPill label={core} selected={selectedEmotions.includes(core)}
-                          color={color} onToggle={onToggle} small />
-                        {subs.map(sub => (
-                          <EmotionPill key={sub} label={sub} selected={selectedEmotions.includes(sub)}
-                            color={color} onToggle={onToggle} small />
-                        ))}
-                        {(customByCategory[core] || []).map(c => (
-                          <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
-                            color={color} onToggle={onToggle} small />
-                        ))}
-                        <InlineAddButton category={core} color={color}
-                          onAdd={(label, cat) => onAddCustom?.(label, cat)} />
-                      </div>
-                    </CollapsibleSection>
-                  ))}
-
-                  {/* Custom emotions for this valence without a core */}
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(valenceData.cores).map(([core, { color }]) => (
+                      <button key={core}
+                        onClick={() => setActiveCore(core)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all ${
+                          selectedEmotions.includes(core)
+                            ? "text-white border-transparent"
+                            : "bg-muted/60 text-foreground border-border/50 hover:border-border"
+                        }`}
+                        style={
+                          selectedEmotions.includes(core)
+                            ? { backgroundColor: color }
+                            : { borderLeftColor: color, borderLeftWidth: 3 }
+                        }>
+                        {core}
+                      </button>
+                    ))}
+                  </div>
                   {(customByCategory[activeValence] || []).length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/30">
                       <span className="text-xs text-muted-foreground w-full">Custom:</span>
@@ -378,7 +344,7 @@ export default function EmotionWheelPicker({
                 </div>
               )}
 
-              {/* Sub-emotions when a core is active (kept for back-compat, now redundant but harmless) */}
+              {/* Sub-emotions — flat pills, no collapsible */}
               {activeCore && coreData && (
                 <div className="space-y-2">
                   <EmotionPill label={activeCore} selected={selectedEmotions.includes(activeCore)}
@@ -401,7 +367,6 @@ export default function EmotionWheelPicker({
             </div>
           )}
 
-          {/* Uncategorized custom emotions */}
           {(customByCategory["custom"] || []).length > 0 && (
             <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">My custom emotions</p>
@@ -419,7 +384,6 @@ export default function EmotionWheelPicker({
       {/* ── CLASSIC MODE ── */}
       {pickerMode === "classic" && !search && (
         <div className="space-y-3">
-          {/* Legacy quick picks — not collapsible, always visible */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Quick picks</p>
             <div className="flex flex-wrap gap-1.5">
@@ -430,57 +394,53 @@ export default function EmotionWheelPicker({
             </div>
           </div>
 
-          {/* Full wheel — each valence collapsible, each core collapsible within */}
           {Object.entries(WHEEL).map(([key, v]) => (
-            <CollapsibleSection key={key} label={v.label} color={v.color}>
-              <div className="space-y-2">
-                {v.flat && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {v.flat.map(e => (
+            <div key={key}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: v.color }}>
+                {v.label}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {v.flat
+                  ? v.flat.map(e => (
                       <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)}
                         color={v.color} onToggle={onToggle} small />
-                    ))}
-                    {(customByCategory["neutral"] || []).map(c => (
-                      <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
-                        color={v.color} onToggle={onToggle} small />
-                    ))}
-                  </div>
-                )}
-                {v.cores && Object.entries(v.cores).map(([core, { color, subs }]) => (
-                  <CollapsibleSection key={core} label={core} color={color}>
-                    <div className="flex flex-wrap gap-1.5">
-                      <EmotionPill label={core} selected={selectedEmotions.includes(core)}
-                        color={color} onToggle={onToggle} small />
-                      {subs.map(sub => (
-                        <EmotionPill key={sub} label={sub} selected={selectedEmotions.includes(sub)}
+                    ))
+                  : Object.entries(v.cores).flatMap(([core, { color, subs }]) =>
+                      [core, ...subs].map(e => (
+                        <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)}
                           color={color} onToggle={onToggle} small />
-                      ))}
-                      {(customByCategory[core] || []).map(c => (
-                        <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
-                          color={color} onToggle={onToggle} small />
-                      ))}
-                    </div>
-                  </CollapsibleSection>
+                      ))
+                    )
+                }
+                {(customByCategory[key] || []).map(c => (
+                  <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
+                    color={v.color} onToggle={onToggle} small />
                 ))}
+                {v.cores && Object.keys(v.cores).flatMap(core =>
+                  (customByCategory[core] || []).map(c => (
+                    <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
+                      color={v.cores[core].color} onToggle={onToggle} small />
+                  ))
+                )}
               </div>
-            </CollapsibleSection>
+            </div>
           ))}
 
-          {/* Uncategorized custom */}
           {(customByCategory["custom"] || []).length > 0 && (
-            <CollapsibleSection label="My custom emotions" color="hsl(var(--primary))">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">My custom emotions</p>
               <div className="flex flex-wrap gap-1.5">
                 {(customByCategory["custom"] || []).map(c => (
                   <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
                     color="hsl(var(--primary))" onToggle={onToggle} small />
                 ))}
               </div>
-            </CollapsibleSection>
+            </div>
           )}
         </div>
       )}
 
-      {/* Add custom emotion */}
+      {/* Add custom */}
       {!search && (
         <div className="flex gap-2 pt-1 border-t border-border/50">
           <Input
