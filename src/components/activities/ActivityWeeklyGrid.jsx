@@ -259,7 +259,7 @@ export default function ActivityWeeklyGrid({
 
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
-              <input type="range" min={10} max={80} step={2} value={rowH}
+              <input type="range" min={4} max={80} step={2} value={rowH}
                 onChange={e => setRowH(Number(e.target.value))}
                 className="w-20 accent-primary" />
               <span className="text-muted-foreground w-7">{rowH}px</span>
