@@ -538,12 +538,12 @@ function TextBlock({ block, onChange }) {
   const insert = useTextareaInsert(taRef, block.content || "", v => onChange({ ...block, content: v }));
   return (
     <div>
-      <MiniToolbar onInsert={insert} />
       <textarea ref={taRef} value={block.content || ""}
         onChange={e => onChange({ ...block, content: e.target.value })}
         placeholder="Write something… select text then use toolbar for colors, bold, headings…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
         spellCheck={false} />
+      <MiniToolbar onInsert={insert} />  
     </div>
   );
 }
@@ -583,12 +583,13 @@ function ImgTextBlock({ block, onChange }) {
   );
   const textSlot = (
     <div className="flex-1 min-w-0 border-l border-border/30">
-      <MiniToolbar onInsert={insert} />
+      
       <textarea ref={taRef} value={block.text || ""}
         onChange={e => onChange({ ...block, text: e.target.value })}
         placeholder="Text beside the image…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
         spellCheck={false} />
+        <MiniToolbar onInsert={insert} />
     </div>
   );
   return (
