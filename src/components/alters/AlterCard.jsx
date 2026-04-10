@@ -78,34 +78,27 @@ export function FrontingToggleButton({ alter, currentSession }) {
 
 
   const handleSetPrimary = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      if (activeSessions.length === 0) {
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: alter.id,
-          co_fronter_ids: [],
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
-      } else {
-        const session = activeSessions[0];
-        const allFronters = new Set([session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean));
-        allFronters.add(alter.id);
-        const coIds = Array.from(allFronters).filter(id => id !== alter.id);
-        await base44.entities.FrontingSession.update(session.id, {
-          primary_alter_id: alter.id,
-          co_fronter_ids: coIds,
-        });
-      }
-      toast.success(`${alter.name} is now primary!`);
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch (err) {
-      toast.error(err.message || "Failed to set primary");
+  e.preventDefault();
+  e.stopPropagation();
+  try {
+    const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+    const normalized = normalizeSessions(activeSessions);
+    const isAlreadyFronting = normalized.some(s => s.alterId === alter.id && s.is_active);
+
+    if (!isAlreadyFronting) {
+      await createIndividualSession(base44.entities, {
+        alterId: alter.id,
+        startTime: new Date().toISOString(),
+        isActive: true,
+      });
     }
-  };
+    toast.success(`${alter.name} is now fronting!`);
+    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+  } catch (err) {
+    toast.error(err.message || "Failed to set primary");
+  }
+};
 
   const onMouseDown = (e) => {
     e.preventDefault();
