@@ -214,6 +214,25 @@ const handleSave = async () => {
             onActivityChange={setSelectedActivityCategories}
           />
 
+          {showNewActivity ? (
+            <div className="space-y-2">
+              <Input placeholder="Activity name..." value={newActivityName}
+                onChange={e => setNewActivityName(e.target.value)} className="text-sm" autoFocus />
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline"
+                  onClick={() => { setShowNewActivity(false); setNewActivityName(""); }}
+                  className="flex-1">Cancel</Button>
+                <Button size="sm" onClick={handleCreateNewActivity}
+                  disabled={!newActivityName.trim()} className="flex-1">Add</Button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setShowNewActivity(true)}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1">
+              <Plus className="w-4 h-4" /> Create new activity
+            </button>
+          )}
+
           {/* Alters */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
