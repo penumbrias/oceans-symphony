@@ -1,9 +1,7 @@
-// src/components/emotions/EmotionWheelPicker.jsx
 import React, { useState, useMemo } from "react";
 import { X, ChevronLeft, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
-// ── Emotion data ─────────────────────────────────────────────────────────────
 const WHEEL = {
   good: {
     label: "Good",
@@ -32,7 +30,7 @@ const WHEEL = {
     color: "#6b7280",
     bgClass: "bg-gray-500/15 hover:bg-gray-500/25 border-gray-500/40",
     activeClass: "bg-gray-500 text-white border-gray-500",
-    cores: null, // flat list
+    cores: null,
     flat: ["Bored","Indifferent","Detached","Ambivalent","Confused","Uncertain","Restless","Apathetic","Melancholic","Nostalgic"],
   },
   body: {
@@ -41,16 +39,17 @@ const WHEEL = {
     bgClass: "bg-orange-500/15 hover:bg-orange-500/25 border-orange-500/40",
     activeClass: "bg-orange-500 text-white border-orange-500",
     cores: {
-      Calm:     { color: "#84cc16", subs: ["Content","Present","Grounded","Connected","Curious","Open","Steady breath","Relaxed muscles"] },
-      Flight:   { color: "#fbbf24", subs: ["Restless","Hypervigilant","Butterflies","Shallow breath","Jittery","On edge","Worried","Racing heart"] },
-      Fight:    { color: "#f97316", subs: ["Rage","Furious","Tight throat","Flushed","Chest pressure","Hyper-alert","Tense","Agitated"] },
-      Freeze:   { color: "#60a5fa", subs: ["Stuck","Dread","Confusion","Overwhelmed","Numb","Paralysed","Dissociated","Eyes glazed"] },
-      Collapse: { color: "#94a3b8", subs: ["Exhausted","Heavy limbs","Blank stare","Dissociation","Hopeless","Despair","Powerless","Shut down"] },
+      Calm:    { color: "#84cc16", subs: ["Content","Present","Grounded","Connected","Curious","Open","Steady breath","Relaxed muscles"] },
+      Flight:  { color: "#fbbf24", subs: ["Restless","Hypervigilant","Butterflies","Shallow breath","Jittery","On edge","Worried","Racing heart"] },
+      Fight:   { color: "#f97316", subs: ["Rage","Furious","Tight throat","Flushed","Chest pressure","Hyper-alert","Tense","Agitated"] },
+      Freeze:  { color: "#60a5fa", subs: ["Stuck","Dread","Confusion","Overwhelmed","Numb","Paralysed","Dissociated","Eyes glazed"] },
+      Collapse:{ color: "#94a3b8", subs: ["Exhausted","Heavy limbs","Blank stare","Dissociation","Hopeless","Despair","Powerless","Shut down"] },
     },
   },
 };
 
-// Flat list of all built-in emotions for search
+const LEGACY_PRESETS = ["Happy","Sad","Angry","Anxious","Calm","Excited","Confused","Grateful","Frustrated","Hopeful","Neutral","Overwhelmed"];
+
 const ALL_BUILTIN = (() => {
   const out = [];
   Object.values(WHEEL).forEach(v => {
@@ -72,12 +71,11 @@ function lsSet(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
-// ── Sub-component: a single emotion pill ────────────────────────────────────
 function EmotionPill({ label, selected, color, onToggle, small = false }) {
   return (
     <button
       onClick={() => onToggle(label)}
-      className={`rounded-full font-medium transition-all border text-left ${
+      className={`rounded-full font-medium transition-all border ${
         small ? "px-2 py-0.5 text-xs" : "px-3 py-1.5 text-xs"
       } ${selected
         ? "text-white border-transparent"
@@ -90,18 +88,58 @@ function EmotionPill({ label, selected, color, onToggle, small = false }) {
   );
 }
 
-// ── Main picker ──────────────────────────────────────────────────────────────
+// Inline + input that appears within a category
+function InlineAddButton({ category, color, onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState("");
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-full border border-dashed border-border/60 px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:border-border transition-colors flex items-center gap-0.5"
+      >
+        <Plus className="w-2.5 h-2.5" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        autoFocus
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        placeholder="New..."
+        className="h-6 px-2 rounded-full text-xs border border-border bg-background w-24 focus:outline-none focus:ring-1 focus:ring-primary"
+        onKeyDown={e => {
+          if (e.key === "Enter" && val.trim()) {
+            onAdd(val.trim(), category);
+            setVal("");
+            setOpen(false);
+          }
+          if (e.key === "Escape") { setVal(""); setOpen(false); }
+        }}
+      />
+      <button onClick={() => { setVal(""); setOpen(false); }}
+        className="text-muted-foreground hover:text-foreground">
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
 export default function EmotionWheelPicker({
   selectedEmotions = [],
   onToggle,
   customEmotions = [],
   onAddCustom,
 }) {
-  const [pickerMode, setPickerMode] = useState(() => lsGet(LS_PICKER_MODE, "wheel"));
-  const [activeValence, setActiveValence] = useState(null); // "good"|"bad"|"neutral"|"body"
-  const [activeCore, setActiveCore]     = useState(null);
-  const [search, setSearch]             = useState("");
-  const [customInput, setCustomInput]   = useState("");
+  const [pickerMode,    setPickerMode]    = useState(() => lsGet(LS_PICKER_MODE, "wheel"));
+  const [activeValence, setActiveValence] = useState(null);
+  const [activeCore,    setActiveCore]    = useState(null);
+  const [search,        setSearch]        = useState("");
+  const [customInput,   setCustomInput]   = useState("");
 
   const handleModeToggle = (mode) => {
     setPickerMode(mode);
@@ -117,11 +155,10 @@ export default function EmotionWheelPicker({
   };
 
   const handleCore = (core) => {
-    if (activeCore === core) setActiveCore(null);
-    else setActiveCore(core);
+    setActiveCore(prev => prev === core ? null : core);
   };
 
-  // Search results: builtin + custom, filtered
+  // Search across builtins + custom
   const searchResults = useMemo(() => {
     if (!search.trim()) return [];
     const q = search.toLowerCase();
@@ -130,10 +167,20 @@ export default function EmotionWheelPicker({
     return [...new Set([...builtin, ...custom])];
   }, [search, customEmotions]);
 
-  const valenceData = WHEEL[activeValence];
-  const coreData = activeValence && valenceData?.cores?.[activeCore];
+  // Group custom emotions by category
+  const customByCategory = useMemo(() => {
+    const map = {};
+    customEmotions.forEach(c => {
+      const cat = c.category || "custom";
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(c);
+    });
+    return map;
+  }, [customEmotions]);
 
-  // Color for a given emotion string (best-effort lookup)
+  // All categories that have custom emotions (for guided mode display)
+  const customCategories = useMemo(() => Object.keys(customByCategory), [customByCategory]);
+
   const colorFor = (label) => {
     for (const v of Object.values(WHEEL)) {
       if (v.flat?.includes(label)) return v.color;
@@ -143,12 +190,30 @@ export default function EmotionWheelPicker({
         }
       }
     }
+    // Check custom emotions for their category color
+    const ce = customEmotions.find(c => c.label === label);
+    if (ce?.category) {
+      for (const v of Object.values(WHEEL)) {
+        if (v.cores?.[ce.category]) return v.cores[ce.category].color;
+        if (ce.category === "neutral") return WHEEL.neutral.color;
+        if (ce.category === "body") return WHEEL.body.color;
+      }
+    }
     return "hsl(var(--primary))";
   };
 
+  const valenceData = WHEEL[activeValence];
+  const coreData    = activeValence && valenceData?.cores?.[activeCore];
+
+  // Custom emotions for the currently active core/valence
+  const customForActiveCore    = activeCore    ? (customByCategory[activeCore]    || []) : [];
+  const customForActiveValence = activeValence && !activeCore && valenceData?.flat
+    ? (customByCategory[activeValence] || [])
+    : [];
+
   const handleCustomSubmit = () => {
     if (!customInput.trim()) return;
-    onAddCustom?.(customInput.trim());
+    onAddCustom?.(customInput.trim(), "custom");
     setCustomInput("");
   };
 
@@ -179,7 +244,8 @@ export default function EmotionWheelPicker({
           className="pl-7 h-8 text-sm"
         />
         {search && (
-          <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+          <button onClick={() => setSearch("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
             <X className="w-3.5 h-3.5" />
           </button>
         )}
@@ -196,10 +262,10 @@ export default function EmotionWheelPicker({
               ))}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">No match — </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-muted-foreground">No match —</p>
               <button
-                onClick={() => { onAddCustom?.(search.trim()); setSearch(""); }}
+                onClick={() => { onAddCustom?.(search.trim(), "custom"); setSearch(""); }}
                 className="text-xs text-primary underline hover:no-underline">
                 add "{search.trim()}" as custom
               </button>
@@ -208,7 +274,7 @@ export default function EmotionWheelPicker({
         </div>
       )}
 
-      {/* Selected emotions chips */}
+      {/* Selected chips */}
       {selectedEmotions.length > 0 && !search && (
         <div className="flex flex-wrap gap-1.5">
           {selectedEmotions.map(e => (
@@ -221,10 +287,10 @@ export default function EmotionWheelPicker({
         </div>
       )}
 
-      {/* ── GUIDED / WHEEL MODE ── */}
+      {/* ── GUIDED MODE ── */}
       {pickerMode === "wheel" && !search && (
         <div className="space-y-3">
-          {/* Valence row */}
+          {/* Valence grid */}
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(WHEEL).map(([key, v]) => (
               <button key={key}
@@ -238,10 +304,9 @@ export default function EmotionWheelPicker({
             ))}
           </div>
 
-          {/* Core emotions */}
+          {/* Core / sub level */}
           {activeValence && valenceData && (
             <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5 space-y-2">
-              {/* Back button if core selected */}
               {activeCore && (
                 <button onClick={() => setActiveCore(null)}
                   className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1">
@@ -249,38 +314,62 @@ export default function EmotionWheelPicker({
                 </button>
               )}
 
-              {/* Neutral / flat list */}
+              {/* Flat (neutral) */}
               {valenceData.flat && !activeCore && (
-                <div className="flex flex-wrap gap-1.5">
-                  {valenceData.flat.map(e => (
-                    <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)}
-                      color={valenceData.color} onToggle={onToggle} />
-                  ))}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {valenceData.flat.map(e => (
+                      <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)}
+                        color={valenceData.color} onToggle={onToggle} />
+                    ))}
+                    {/* Custom emotions for neutral */}
+                    {(customByCategory["neutral"] || []).map(c => (
+                      <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
+                        color={valenceData.color} onToggle={onToggle} />
+                    ))}
+                    <InlineAddButton category="neutral" color={valenceData.color}
+                      onAdd={(label, cat) => onAddCustom?.(label, cat)} />
+                  </div>
                 </div>
               )}
 
-              {/* Core buttons (no sub selected yet) */}
+              {/* Core buttons */}
               {valenceData.cores && !activeCore && (
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(valenceData.cores).map(([core, { color, subs }]) => (
-                    <button key={core}
-                      onClick={() => handleCore(core)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all ${
-                        selectedEmotions.includes(core)
-                          ? "text-white border-transparent"
-                          : "bg-muted/60 text-foreground border-border/50 hover:border-border"
-                      }`}
-                      style={selectedEmotions.includes(core) ? { backgroundColor: color } : { borderLeftColor: color, borderLeftWidth: 3 }}>
-                      {core}
-                    </button>
-                  ))}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(valenceData.cores).map(([core, { color, subs }]) => (
+                      <button key={core}
+                        onClick={() => handleCore(core)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all ${
+                          selectedEmotions.includes(core)
+                            ? "text-white border-transparent"
+                            : "bg-muted/60 text-foreground border-border/50 hover:border-border"
+                        }`}
+                        style={
+                          selectedEmotions.includes(core)
+                            ? { backgroundColor: color }
+                            : { borderLeftColor: color, borderLeftWidth: 3 }
+                        }>
+                        {core}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Custom emotions for this valence that don't have a core */}
+                  {(customByCategory[activeValence] || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/30">
+                      <span className="text-xs text-muted-foreground w-full">Custom:</span>
+                      {(customByCategory[activeValence] || []).map(c => (
+                        <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
+                          color={WHEEL[activeValence]?.color || "hsl(var(--primary))"} onToggle={onToggle} small />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Sub-emotions */}
               {activeCore && coreData && (
                 <div className="space-y-2">
-                  {/* Core itself as selectable */}
                   <EmotionPill label={activeCore} selected={selectedEmotions.includes(activeCore)}
                     color={coreData.color} onToggle={onToggle} />
                   <p className="text-xs text-muted-foreground font-medium">More specific:</p>
@@ -289,37 +378,25 @@ export default function EmotionWheelPicker({
                       <EmotionPill key={sub} label={sub} selected={selectedEmotions.includes(sub)}
                         color={coreData.color} onToggle={onToggle} small />
                     ))}
+                    {/* Custom emotions added to this core */}
+                    {customForActiveCore.map(c => (
+                      <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
+                        color={coreData.color} onToggle={onToggle} small />
+                    ))}
+                    <InlineAddButton category={activeCore} color={coreData.color}
+                      onAdd={(label, cat) => onAddCustom?.(label, cat)} />
                   </div>
                 </div>
               )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* ── CLASSIC MODE ── */}
-      {pickerMode === "classic" && !search && (
-        <div className="space-y-3">
-          {Object.entries(WHEEL).map(([key, v]) => (
-            <div key={key}>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{v.label}</p>
+          {/* Custom emotions with no category — shown at bottom of guided mode */}
+          {(customByCategory["custom"] || []).length > 0 && (
+            <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">My custom emotions</p>
               <div className="flex flex-wrap gap-1.5">
-                {v.flat
-                  ? v.flat.map(e => <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)} color={v.color} onToggle={onToggle} small />)
-                  : Object.entries(v.cores).flatMap(([core, { color, subs }]) =>
-                      [core, ...subs].map(e => <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)} color={color} onToggle={onToggle} small />)
-                    )
-                }
-              </div>
-            </div>
-          ))}
-
-          {/* Custom emotions */}
-          {customEmotions.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Custom</p>
-              <div className="flex flex-wrap gap-1.5">
-                {customEmotions.map(c => (
+                {(customByCategory["custom"] || []).map(c => (
                   <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
                     color="hsl(var(--primary))" onToggle={onToggle} small />
                 ))}
@@ -329,7 +406,69 @@ export default function EmotionWheelPicker({
         </div>
       )}
 
-      {/* Add custom emotion */}
+      {/* ── CLASSIC MODE ── */}
+      {pickerMode === "classic" && !search && (
+        <div className="space-y-3">
+          {/* Legacy quick picks */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Quick picks</p>
+            <div className="flex flex-wrap gap-1.5">
+              {LEGACY_PRESETS.map(e => (
+                <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)}
+                  color="hsl(var(--primary))" onToggle={onToggle} small />
+              ))}
+            </div>
+          </div>
+
+          {/* Full wheel list by valence */}
+          {Object.entries(WHEEL).map(([key, v]) => (
+            <div key={key}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{v.label}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {v.flat
+                  ? v.flat.map(e => (
+                      <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)}
+                        color={v.color} onToggle={onToggle} small />
+                    ))
+                  : Object.entries(v.cores).flatMap(([core, { color, subs }]) =>
+                      [core, ...subs].map(e => (
+                        <EmotionPill key={e} label={e} selected={selectedEmotions.includes(e)}
+                          color={color} onToggle={onToggle} small />
+                      ))
+                    )
+                }
+                {/* Custom emotions for this category */}
+                {(customByCategory[key] || []).map(c => (
+                  <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
+                    color={v.color} onToggle={onToggle} small />
+                ))}
+                {/* Per-core custom in classic mode */}
+                {v.cores && Object.keys(v.cores).flatMap(core =>
+                  (customByCategory[core] || []).map(c => (
+                    <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
+                      color={v.cores[core].color} onToggle={onToggle} small />
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Uncategorized custom */}
+          {(customByCategory["custom"] || []).length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">My custom emotions</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(customByCategory["custom"] || []).map(c => (
+                  <EmotionPill key={c.id} label={c.label} selected={selectedEmotions.includes(c.label)}
+                    color="hsl(var(--primary))" onToggle={onToggle} small />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add custom emotion (uncategorized) */}
       {!search && (
         <div className="flex gap-2 pt-1 border-t border-border/50">
           <Input
