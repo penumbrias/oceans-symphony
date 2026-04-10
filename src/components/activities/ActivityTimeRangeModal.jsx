@@ -56,9 +56,9 @@ export default function ActivityTimeRangeModal({
   // Reset times when modal opens with new props
   useMemo(() => {
     if (startDate && startHour !== undefined) {
-      setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour)));
-      setEndTime(toTimeString(startDate, Math.max(startHour, endHour ?? startHour) + 1));
-      setSelectedActivityCategories([]);
+      // First useMemo:
+      setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour), startMinute));
+      setEndTime(toTimeString(startDate, Math.max(startHour, endHour ?? startHour) + 1, endMinute));      setSelectedActivityCategories([]);
       setNotes("");
     }
   }, [startDate, startHour, endHour]);
