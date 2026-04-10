@@ -480,8 +480,8 @@ const getEmotionsForSlot = useCallback((date, hour, minute) => {
                           </div>
                         )}
 
-                        {timed.length > 0 && showEmotions && (emotions.length > 0 || mergedEmotions.length > 0) && (
-                          <div className="flex flex-wrap gap-0.5 px-1 mt-0.5">
+                        {showEmotions && (emotions.length > 0 || mergedEmotions.length > 0) && (
+  <div className="flex flex-wrap gap-0.5 px-1 mt-0.5">
                             {[...new Set([...emotions, ...mergedEmotions])].slice(0, isExpanded ? 20 : 3).map((em, i) => (
                               <span key={i} className="px-0.5 rounded-full text-white font-medium"
                                 style={{ fontSize: 7, backgroundColor: emotionColor(em) }}>
