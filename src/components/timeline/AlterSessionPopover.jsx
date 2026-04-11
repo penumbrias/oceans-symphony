@@ -89,50 +89,55 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [saving, setSaving] = useState(false);
   const [asPrimary, setAsPrimary] = useState(session?.primary_alter_id === alter?.id);
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const newStart = localDatetimeToISO(startVal) || session.start_time;
-      const newEnd = localDatetimeToISO(endVal) || session.end_time || null;
+const handleSave = async () => {
+  setSaving(true);
+  try {
+    const newStart = localDatetimeToISO(startVal) || session.start_time;
+    const newEnd = localDatetimeToISO(endVal) || session.end_time || null;
 
-      const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-      if (!allIds.includes(alter.id)) allIds.push(alter.id);
+    const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+    if (!allIds.includes(alter.id)) allIds.push(alter.id);
+    const otherIds = allIds.filter(id => id !== alter.id);
 
-      let newPrimaryId;
-      let newCoFronterIds;
-
-      if (asPrimary) {
-        newPrimaryId = alter.id;
-        newCoFronterIds = allIds.filter(id => id !== alter.id);
-      } else {
-        const others = allIds.filter(id => id !== alter.id);
-        if (others.length > 0) {
-          newPrimaryId = session.primary_alter_id === alter.id ? others[0] : (session.primary_alter_id || null);
-          newCoFronterIds = session.primary_alter_id === alter.id
-            ? [...others.slice(1), alter.id]
-            : [...(session.co_fronter_ids || []).filter(Boolean)];
-        } else {
-          newPrimaryId = null;
-          newCoFronterIds = [alter.id];
-        }
-      }
-
+    if (otherIds.length === 0) {
+      // Only this alter in the session — update in place
       await base44.entities.FrontingSession.update(session.id, {
-        primary_alter_id: newPrimaryId,
-        co_fronter_ids: newCoFronterIds,
+        primary_alter_id: asPrimary ? alter.id : null,
+        co_fronter_ids: asPrimary ? [] : [alter.id],
         start_time: newStart,
         end_time: newEnd,
         is_active: !newEnd,
         note: note || null,
       });
-
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      onClose();
-    } finally {
-      setSaving(false);
+    } else {
+      // Multiple alters — keep others on original session, split this alter out
+      const otherPrimary = session.primary_alter_id === alter.id ? otherIds[0] : session.primary_alter_id;
+      await base44.entities.FrontingSession.update(session.id, {
+        primary_alter_id: otherPrimary,
+        co_fronter_ids: otherIds.filter(id => id !== otherPrimary),
+        // keep original times for others
+        start_time: session.start_time,
+        end_time: session.end_time,
+        is_active: session.is_active,
+      });
+      // Create a new session just for this alter with the edited times
+      await base44.entities.FrontingSession.create({
+        primary_alter_id: asPrimary ? alter.id : null,
+        co_fronter_ids: asPrimary ? [] : [alter.id],
+        start_time: newStart,
+        end_time: newEnd,
+        is_active: !newEnd,
+        note: note || null,
+      });
     }
-  };
+
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    onClose();
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <Dialog open onOpenChange={onClose}>
