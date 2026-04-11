@@ -296,56 +296,131 @@ export default function InfiniteTimeline({
   const eventColWidth = colWidths.eventCol;
   const emotionColWidth = colWidths.emotionCol;
 
-  const alterEntries = useMemo(() => {
-    const byAlter = {};
-    sessions.forEach((session) => {
-      const ids = [
-        session.primary_alter_id,
-        ...(session.co_fronter_ids || [])
-      ].filter(Boolean);
+const alterEntries = useMemo(() => {
+  const byAlter = {};
+  sessions.forEach((session) => {
+    const ids = [
+      session.primary_alter_id,
+      ...(session.co_fronter_ids || [])
+    ].filter(Boolean);
 
-      ids.forEach((alterId) => {
-        const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
-        const endTime = session.end_time
-          ? parseDate(session.end_time)
-          : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
-        const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
-        if (!byAlter[alterId]) byAlter[alterId] = [];
-        byAlter[alterId].push({
-          startMins,
-          endMins: Math.max(endMins, startMins + 8),
-          sessionId: session.id,
-          isPrimary: session.primary_alter_id === alterId,
-        });
+    ids.forEach((alterId) => {
+      const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+      const endTime = session.end_time
+        ? parseDate(session.end_time)
+        : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+      const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
+      if (!byAlter[alterId]) byAlter[alterId] = [];
+      byAlter[alterId].push({
+        startMins,
+        endMins: Math.max(endMins, startMins + 8),
+        sessionId: session.id,
+        isPrimary: session.primary_alter_id === alterId,
       });
     });
+  });
 
-    const merged = [];
-    Object.entries(byAlter).forEach(([alterId, segs]) => {
-      const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
-      sorted.forEach((seg, i) => merged.push({
-        alterId,
-        startMins: seg.startMins,
-        endMins: seg.endMins,
-        sessionId: seg.sessionId,
-        isPrimary: seg.isPrimary,
-        key: `alter-${alterId}-${i}`,
-      }));
+  const result = [];
+  Object.entries(byAlter).forEach(([alterId, segs]) => {
+    const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
+
+    // Resolve overlaps — if an alter appears in two overlapping sessions,
+    // primary wins, then split into non-overlapping segments
+    const resolved = [];
+    sorted.forEach((seg) => {
+      if (resolved.length === 0) { resolved.push({ ...seg }); return; }
+      const last = resolved[resolved.length - 1];
+
+      if (seg.startMins < last.endMins) {
+        // Overlap — primary wins
+        if (seg.isPrimary && !last.isPrimary) {
+          // New seg is primary — split: last ends at seg start, then primary takes over
+          last.endMins = seg.startMins;
+          resolved.push({ ...seg });
+        } else if (!seg.isPrimary && last.isPrimary) {
+          // Last is primary — new seg gets pushed to after last ends
+          if (seg.endMins > last.endMins) {
+            resolved.push({ ...seg, startMins: last.endMins });
+          }
+          // else completely contained — drop it
+        } else {
+          // Same status — just extend
+          last.endMins = Math.max(last.endMins, seg.endMins);
+        }
+      } else {
+        resolved.push({ ...seg });
+      }
     });
-    return merged;
-  }, [sessions, dayStart, isToday]);
+
+    // Now merge consecutive segments with same primary status
+    const merged = [];
+    resolved.forEach((seg) => {
+      if (merged.length === 0) { merged.push({ ...seg }); return; }
+      const last = merged[merged.length - 1];
+      const isConsecutive = seg.startMins <= last.endMins + 2;
+      const sameStatus = seg.isPrimary === last.isPrimary;
+      if (isConsecutive && sameStatus) {
+        last.endMins = Math.max(last.endMins, seg.endMins);
+      } else {
+        merged.push({ ...seg });
+      }
+    });
+
+    merged.forEach((seg, i) => result.push({
+      alterId,
+      startMins: seg.startMins,
+      endMins: seg.endMins,
+      sessionId: seg.sessionId,
+      isPrimary: seg.isPrimary,
+      key: `alter-${alterId}-${seg.startMins}`,
+    }));
+  });
+
+  return result;
+}, [sessions, dayStart, isToday]);
 
   const alterColumns = useMemo(() => {
-    const cols = [];
-    [...alterEntries].sort((a, b) => a.startMins - b.startMins).forEach((entry) => {
-      let placed = false;
-      for (const col of cols) {
-        if (col[col.length - 1].endMins <= entry.startMins + 2) { col.push(entry); placed = true; break; }
+  // Group all segments by alterId first — each alter gets exactly one column
+  const alterToCol = {};
+  const cols = [];
+
+  // Sort alters by their earliest startMins so column order is consistent
+  const alterIds = [...new Set(alterEntries.map(e => e.alterId))];
+  alterIds.sort((a, b) => {
+    const aFirst = Math.min(...alterEntries.filter(e => e.alterId === a).map(e => e.startMins));
+    const bFirst = Math.min(...alterEntries.filter(e => e.alterId === b).map(e => e.startMins));
+    return aFirst - bFirst;
+  });
+
+  alterIds.forEach((alterId) => {
+    const segs = alterEntries.filter(e => e.alterId === alterId);
+
+    // Find a column that doesn't conflict with any of this alter's segments
+    let placed = false;
+    for (let colIdx = 0; colIdx < cols.length; colIdx++) {
+      const col = cols[colIdx];
+      const conflicts = segs.some(seg =>
+        col.some(existing =>
+          existing.alterId !== alterId &&
+          seg.startMins < existing.endMins &&
+          seg.endMins > existing.startMins
+        )
+      );
+      if (!conflicts) {
+        segs.forEach(seg => col.push(seg));
+        alterToCol[alterId] = colIdx;
+        placed = true;
+        break;
       }
-      if (!placed) cols.push([entry]);
-    });
-    return cols;
-  }, [alterEntries]);
+    }
+    if (!placed) {
+      alterToCol[alterId] = cols.length;
+      cols.push([...segs]);
+    }
+  });
+
+  return cols;
+}, [alterEntries]);
 
   const activityEntries = useMemo(() => {
     const raw = [];
