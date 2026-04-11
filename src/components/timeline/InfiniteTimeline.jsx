@@ -480,16 +480,19 @@ const alterEntries = useMemo(() => {
     checkIns.forEach((c) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)), type: "checkin", id: c.id, label: "System Check-In", data: c }));
     bulletins.forEach((b) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)), type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b }));
     tasks.forEach((t) => {
-      entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
-      if (t.completed && t.completed_date) {
-  const completedDate = parseDate(t.completed_date);
-  const completedDay = startOfDay(completedDate);
-  // Only show the completion icon on the day it was actually completed
-  if (completedDay.getTime() === dayStart.getTime()) {
-    entries.push({ mins: Math.max(0, minutesInDay(completedDate, dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
+  const createdDate = parseDate(t.created_date);
+  const createdDay = startOfDay(createdDate);
+  if (createdDay.getTime() === dayStart.getTime()) {
+    entries.push({ mins: Math.max(0, minutesInDay(createdDate, dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
   }
-}
-    });
+  if (t.completed && t.completed_date) {
+    const completedDate = parseDate(t.completed_date);
+    const completedDay = startOfDay(completedDate);
+    if (completedDay.getTime() === dayStart.getTime()) {
+      entries.push({ mins: Math.max(0, minutesInDay(completedDate, dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
+    }
+  }
+});
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
   }, [journals, checkIns, bulletins, tasks, dayStart]);
 
