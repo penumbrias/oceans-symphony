@@ -141,35 +141,44 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     }
   };
 
-  const handleSubmit = async () => {
-    if (selectedEmotions.length === 0) return;
-    setSaving(true);
-    try {
-      await handleSaveActivity();
+const handleSubmit = async () => {
+  if (selectedEmotions.length === 0) return;
+  setSaving(true);
+  try {
+    await handleSaveActivity();
 
-      const currentSorted = [...currentFronterIds].sort();
-      const selectedSorted = [...selectedAlters].sort();
-      if (JSON.stringify(currentSorted) !== JSON.stringify(selectedSorted)) {
-        const now = new Date().toISOString();
-        // End all active sessions
-        await endActiveSessions(base44.entities, now);
-        // Create one individual session per alter — new format
-        for (const alterId of selectedAlters) {
-          await createIndividualSession(base44.entities, {
-            alterId,
-            startTime: now,
-            isActive: true,
-          });
-        }
-        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    const currentSorted = [...currentFronterIds].sort();
+    const selectedSorted = [...selectedAlters].sort();
+    if (JSON.stringify(currentSorted) !== JSON.stringify(selectedSorted) && selectedAlters.length > 0) {
+      const now = new Date().toISOString();
+
+      // End all active sessions
+      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+      for (const s of activeSessions) {
+        await base44.entities.FrontingSession.update(s.id, {
+          is_active: false,
+          end_time: now,
+        });
       }
 
-      await createCheckInMutation.mutateAsync();
-    } finally {
-      setSaving(false);
+      // Create one session with all selected alters — first one is primary
+      await base44.entities.FrontingSession.create({
+        primary_alter_id: selectedAlters[0],
+        co_fronter_ids: selectedAlters.slice(1),
+        start_time: now,
+        is_active: true,
+        end_time: null,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     }
-  };
+
+    await createCheckInMutation.mutateAsync();
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
