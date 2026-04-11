@@ -19,11 +19,17 @@ function formatDuration(minutes) {
 function toLocalDatetimeValue(isoString) {
   if (!isoString) return "";
   const d = parseDate(isoString);
-  // format as YYYY-MM-DDTHH:mm for <input type="datetime-local">
   return format(d, "yyyy-MM-dd'T'HH:mm");
 }
 
-// Info panel (single tap)
+function localDatetimeToISO(val) {
+  if (!val) return null;
+  const [datePart, timePart] = val.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute, 0, 0).toISOString();
+}
+
 export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   if (!session) return null;
   const start = parseDate(session.start_time);
@@ -75,7 +81,6 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   );
 }
 
-// Edit panel (double tap)
 export function AlterSessionEdit({ session, alter, onClose }) {
   const queryClient = useQueryClient();
   const [startVal, setStartVal] = useState(toLocalDatetimeValue(session?.start_time));
@@ -87,30 +92,26 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
-      const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
+      const newStart = localDatetimeToISO(startVal) || session.start_time;
+      const newEnd = localDatetimeToISO(endVal) || session.end_time || null;
 
-      // Get all alters in this session
       const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      if (!allIds.includes(alter.id)) allIds.push(alter.id);
 
       let newPrimaryId;
       let newCoFronterIds;
 
       if (asPrimary) {
-        // This alter is primary, everyone else is co-fronter
         newPrimaryId = alter.id;
         newCoFronterIds = allIds.filter(id => id !== alter.id);
       } else {
-        // This alter is co-fronter
         const others = allIds.filter(id => id !== alter.id);
         if (others.length > 0) {
-          // Promote first other alter to primary if this was primary
-          newPrimaryId = session.primary_alter_id === alter.id ? others[0] : session.primary_alter_id;
+          newPrimaryId = session.primary_alter_id === alter.id ? others[0] : (session.primary_alter_id || null);
           newCoFronterIds = session.primary_alter_id === alter.id
             ? [...others.slice(1), alter.id]
             : [...(session.co_fronter_ids || []).filter(Boolean)];
         } else {
-          // Alone in session — no primary
           newPrimaryId = null;
           newCoFronterIds = [alter.id];
         }
