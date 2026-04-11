@@ -229,20 +229,28 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
         onClick={e => e.stopPropagation()}>
         <p className="text-sm font-semibold">New Fronting Session</p>
 
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-1">Start time</p>
-            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-              className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-1">End time</p>
-            <input type="time" value={stillFronting ? "" : endTime}
-              onChange={e => setEndTime(e.target.value)}
-              disabled={stillFronting}
-              className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm disabled:opacity-40" />
-          </div>
-        </div>
+<div className="flex gap-2 items-end">
+  <div className="flex-1">
+    <p className="text-xs text-muted-foreground mb-1">Start time</p>
+    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+      className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm" />
+  </div>
+  <button
+    onClick={() => { if (!stillFronting && endTime) { const t = startTime; setStartTime(endTime); setEndTime(t); } }}
+    disabled={stillFronting || !endTime}
+    className="flex-shrink-0 h-8 px-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-30 text-sm"
+    title="Swap start and end times"
+  >
+    ⇄
+  </button>
+  <div className="flex-1">
+    <p className="text-xs text-muted-foreground mb-1">End time</p>
+    <input type="time" value={stillFronting ? "" : endTime}
+      onChange={e => setEndTime(e.target.value)}
+      disabled={stillFronting}
+      className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm disabled:opacity-40" />
+  </div>
+</div>
 
         <div className="flex items-center gap-2">
           <input type="checkbox" id="still-fronting" checked={stillFronting}
