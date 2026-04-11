@@ -113,10 +113,13 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
   const tap = useDoubleTap(onTap, onDoubleTap);
   const lpRef = useRef(null);
 
-  const startPress = () => {
-    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(); }, 500);
+  const startPress = (e) => {
+    e.stopPropagation();
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
   };
-  const cancelPress = () => {
+  const cancelPress = (e) => {
+    e?.stopPropagation();
     if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; }
   };
 
@@ -152,8 +155,21 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
 }
 
 function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
+  const [adjustedMins, setAdjustedMins] = useState(splitMins);
+  const allIds = [session?.primary_alter_id, ...(session?.co_fronter_ids || [])].filter(Boolean);
   const isPrimary = session?.primary_alter_id === alter?.id;
   const coIds = (session?.co_fronter_ids || []).filter(Boolean);
+
+  const minsToTime = (mins) => {
+    const h = Math.floor(Math.max(0, mins) / 60) % 24;
+    const m = Math.max(0, mins) % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+  const timeToMins = (t) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
@@ -166,33 +182,39 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
                 {alter?.name?.charAt(0)?.toUpperCase()}
               </div>
           }
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-semibold">{alter?.name}</p>
-            <p className="text-xs text-muted-foreground">at {formatMins(splitMins)}</p>
+            <p className="text-xs text-muted-foreground">Split session at:</p>
           </div>
         </div>
+        <input
+          type="time"
+          value={minsToTime(adjustedMins)}
+          onChange={e => setAdjustedMins(timeToMins(e.target.value))}
+          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium"
+        />
         <div className="space-y-2">
           {!isPrimary && (
-            <button onClick={() => onSave("promote")}
+            <button onClick={() => onSave("promote", adjustedMins)}
               className="w-full px-3 py-2 text-sm rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-500 hover:bg-amber-500/20 transition-colors text-left">
-              ⭐ Make primary from {formatMins(splitMins)}
+              ⭐ Make primary from {formatMins(adjustedMins)}
             </button>
           )}
           {isPrimary && coIds.length > 0 && (
-            <button onClick={() => onSave("demote")}
+            <button onClick={() => onSave("demote", adjustedMins)}
               className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Demote to co-fronter from {formatMins(splitMins)}
+              ↓ Demote to co-fronter from {formatMins(adjustedMins)}
             </button>
           )}
           {isPrimary && coIds.length === 0 && (
-            <button onClick={() => onSave("demote")}
+            <button onClick={() => onSave("demote", adjustedMins)}
               className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Remove primary status from {formatMins(splitMins)}
+              ↓ Remove primary status from {formatMins(adjustedMins)}
             </button>
           )}
-          <button onClick={() => onSave("end")}
+          <button onClick={() => onSave("end", adjustedMins)}
             className="w-full px-3 py-2 text-sm rounded-lg bg-destructive/10 border border-destructive/40 text-destructive hover:bg-destructive/20 transition-colors text-left">
-            ✕ Remove from front at {formatMins(splitMins)}
+            ✕ Remove from front at {formatMins(adjustedMins)}
           </button>
         </div>
         <button onClick={onClose} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-1">
@@ -227,12 +249,19 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
         onClick={e => e.stopPropagation()}>
         <p className="text-sm font-semibold">New Fronting Session</p>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-end">
           <div className="flex-1">
             <p className="text-xs text-muted-foreground mb-1">Start time</p>
             <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
               className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm" />
           </div>
+          <button
+            onClick={() => { if (!stillFronting && endTime) { const t = startTime; setStartTime(endTime); setEndTime(t); } }}
+            disabled={stillFronting || !endTime}
+            className="flex-shrink-0 h-8 px-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-30 text-sm"
+            title="Swap start and end times">
+            ⇄
+          </button>
           <div className="flex-1">
             <p className="text-xs text-muted-foreground mb-1">End time</p>
             <input type="time" value={stillFronting ? "" : endTime}
@@ -542,7 +571,7 @@ export default function InfiniteTimeline({
     alterIds.sort((a, b) => {
       const aFirst = Math.min(...alterEntries.filter(e => e.alterId === a).map(e => e.startMins));
       const bFirst = Math.min(...alterEntries.filter(e => e.alterId === b).map(e => e.startMins));
-      return aFirst - bFirst;
+      return aFirst !== bFirst ? aFirst - bFirst : a.localeCompare(b);
     });
     alterIds.forEach((alterId) => {
       const segs = alterEntries.filter(e => e.alterId === alterId);
@@ -701,44 +730,44 @@ export default function InfiniteTimeline({
   const totalWidth = timeLeft + LABEL_WIDTH + alterAreaWidth;
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
-  // ── Session split handler ──
-  const handleSplitSave = async (action) => {
+  const handleSplitSave = async (action, splitMins) => {
     if (!splitPopover) return;
-    const { alter, session, splitMins } = splitPopover;
+    const { alter, session } = splitPopover;
     const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
     const sessionEnd = session.end_time || null;
+    const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+    if (!allIds.includes(alter.id)) allIds.push(alter.id);
+    const remainingIds = allIds.filter(id => id !== alter.id);
+
     try {
       if (action === "end") {
-        const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-        const remaining = allIds.filter(id => id !== alter.id);
         await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-        if (remaining.length > 0) {
+        if (remainingIds.length > 0) {
+          const newPrimary = session.primary_alter_id !== alter.id ? session.primary_alter_id : remainingIds[0];
           await base44.entities.FrontingSession.create({
-            primary_alter_id: remaining[0],
-            co_fronter_ids: remaining.slice(1),
+            primary_alter_id: newPrimary,
+            co_fronter_ids: remainingIds.filter(id => id !== newPrimary),
             start_time: splitTime,
             end_time: sessionEnd,
             is_active: !sessionEnd,
           });
         }
       } else if (action === "promote") {
-        const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
         await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
         await base44.entities.FrontingSession.create({
           primary_alter_id: alter.id,
-          co_fronter_ids: allIds.filter(id => id !== alter.id),
+          co_fronter_ids: remainingIds,
           start_time: splitTime,
           end_time: sessionEnd,
           is_active: !sessionEnd,
         });
       } else if (action === "demote") {
-        const coIds = (session.co_fronter_ids || []).filter(Boolean);
-        const newPrimary = coIds[0] || null;
         await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
+        const newPrimary = remainingIds[0] || null;
         await base44.entities.FrontingSession.create({
           primary_alter_id: newPrimary,
           co_fronter_ids: newPrimary
-            ? [...coIds.filter(id => id !== newPrimary), alter.id]
+            ? [...remainingIds.slice(1), alter.id]
             : [alter.id],
           start_time: splitTime,
           end_time: sessionEnd,
@@ -753,7 +782,6 @@ export default function InfiniteTimeline({
     setSplitPopover(null);
   };
 
-  // ── New session handler ──
   const handleNewSessionSave = async ({ startTime, endTime, alterId, asPrimary }) => {
     try {
       const startDate = new Date(dayStart);
@@ -780,7 +808,6 @@ export default function InfiniteTimeline({
     setNewSessionPopover(null);
   };
 
-  // ── Empty area long press helpers ──
   const startAreaLongPress = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
@@ -818,16 +845,12 @@ export default function InfiniteTimeline({
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {!collapsed && (
             <>
-              <button
-                onClick={() => setShowRowSlider(v => !v)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showRowSlider ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
-              >
+              <button onClick={() => setShowRowSlider(v => !v)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showRowSlider ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
                 ↕ Zoom
               </button>
-              <button
-                onClick={() => setShowTally(v => !v)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
-              >
+              <button onClick={() => setShowTally(v => !v)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
                 <BarChart3 className="w-3 h-3" />
                 Tally
               </button>
@@ -965,7 +988,6 @@ export default function InfiniteTimeline({
                   </div>
                 )}
 
-                {/* Alter columns — long press empty area to create session */}
                 <div
                   className="absolute"
                   style={{ left: alterLeft, top: 0, width: alterAreaWidth, height: totalHeight }}
@@ -995,11 +1017,16 @@ export default function InfiniteTimeline({
                             rowH={rowH}
                             onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
                             onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
-                            onLongPress={() => entrySession && setSplitPopover({
-                              alter,
-                              session: entrySession,
-                              splitMins: entry.startMins + Math.round((entry.endMins - entry.startMins) / 2),
-                            })}
+                            onLongPress={(clientY) => {
+                              if (!entrySession) return;
+                              const gridEl = document.querySelector(".overflow-y-auto");
+                              const gridRect = gridEl?.getBoundingClientRect();
+                              const scrollTop = gridEl?.scrollTop || 0;
+                              const relY = clientY - (gridRect?.top || 0) + scrollTop;
+                              const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
+                              const clampedMins = Math.min(Math.max(pressedMins, entry.startMins), entry.endMins);
+                              setSplitPopover({ alter, session: entrySession, splitMins: clampedMins });
+                            }}
                           />
                         );
                       })}
@@ -1036,14 +1063,8 @@ export default function InfiniteTimeline({
 
       {!collapsed && showTally && (
         <DailyTallyPanel
-          day={day}
-          sessions={sessions}
-          activities={activities}
-          emotions={emotions}
-          journals={journals}
-          checkIns={checkIns}
-          tasks={tasks}
-          alters={alters}
+          day={day} sessions={sessions} activities={activities} emotions={emotions}
+          journals={journals} checkIns={checkIns} tasks={tasks} alters={alters}
         />
       )}
 
