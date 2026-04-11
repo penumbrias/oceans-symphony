@@ -731,9 +731,9 @@ export default function InfiniteTimeline({
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
   // ── Session split handler ──
-  const handleSplitSave = async (action) => {
-    if (!splitPopover) return;
-    const { alter, session, splitMins } = splitPopover;
+const handleSplitSave = async (action, splitMins) => {
+  if (!splitPopover) return;
+  const { alter, session } = splitPopover;
     const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
     const sessionEnd = session.end_time || null;
     try {
