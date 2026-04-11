@@ -810,17 +810,18 @@ const handleSplitSave = async (action, splitMins) => {
   };
 
   // ── Empty area long press helpers ──
-  const startAreaLongPress = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-    const y = clientY - rect.top;
-    const scrollTop = e.currentTarget.closest(".overflow-y-auto")?.scrollTop || 0;
-    const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
-    longPressTargetRef.current = setTimeout(() => {
-      longPressTargetRef.current = null;
-      setNewSessionPopover({ startMins: Math.min(Math.max(0, mins), 1439) });
-    }, 500);
-  };
+const startAreaLongPress = (e) => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+  const y = clientY - rect.top;
+  const scrollTop = e.currentTarget.closest(".overflow-y-auto")?.scrollTop || 0;
+  const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
+  const clampedMins = Math.min(Math.max(0, mins), 1439);
+  longPressTargetRef.current = setTimeout(() => {
+    longPressTargetRef.current = null;
+    setNewSessionPopover({ startMins: clampedMins });
+  }, 500);
+};
   const cancelAreaLongPress = () => {
     if (longPressTargetRef.current) { clearTimeout(longPressTargetRef.current); longPressTargetRef.current = null; }
   };
