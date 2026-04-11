@@ -717,6 +717,27 @@ const alterColumns = useMemo(() => {
   const alterLeft = timeLeft + LABEL_WIDTH;
   const totalWidth = timeLeft + LABEL_WIDTH + alterAreaWidth;
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
+  // Merge consecutive segments with same isPrimary
+const merged = [];
+resolved.forEach((seg) => {
+  if (merged.length === 0) { merged.push({ ...seg }); return; }
+  const last = merged[merged.length - 1];
+  if (seg.startMins <= last.endMins + 1 && seg.isPrimary === last.isPrimary) {
+    last.endMins = Math.max(last.endMins, seg.endMins);
+    last.sessionId = seg.sessionId; // use latest sessionId
+  } else {
+    merged.push({ ...seg });
+  }
+});
+
+merged.forEach((seg, i) => result.push({
+  alterId,
+  startMins: seg.startMins,
+  endMins: seg.endMins,
+  sessionId: seg.sessionId,
+  isPrimary: seg.isPrimary,
+  key: `alter-${alterId}-${seg.sessionId}-${i}`,
+}));
 
 const handleSplitSave = async (action, splitMins) => {
   if (!splitPopover) return;
@@ -759,8 +780,8 @@ const handleSplitSave = async (action, splitMins) => {
       await base44.entities.FrontingSession.create(newSession);
     }
 
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"], refetchType: 'all' });
+    queryClient.invalidateQueries({ queryKey: ["activeFront"], refetchType: 'all' });
   } catch (err) {
     console.error("Split session failed", err);
   }
