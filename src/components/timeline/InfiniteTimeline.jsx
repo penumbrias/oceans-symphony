@@ -320,40 +320,63 @@ const alterEntries = useMemo(() => {
     });
   });
 
-  const merged = [];
+  const result = [];
   Object.entries(byAlter).forEach(([alterId, segs]) => {
     const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
-    const mergedSegs = [];
 
+    // Resolve overlaps — if an alter appears in two overlapping sessions,
+    // primary wins, then split into non-overlapping segments
+    const resolved = [];
     sorted.forEach((seg) => {
-      if (mergedSegs.length === 0) {
-        mergedSegs.push({ ...seg });
-        return;
-      }
-      const last = mergedSegs[mergedSegs.length - 1];
-      const isConsecutive = seg.startMins <= last.endMins + 2;
-      const sameStatus = seg.isPrimary === last.isPrimary;
+      if (resolved.length === 0) { resolved.push({ ...seg }); return; }
+      const last = resolved[resolved.length - 1];
 
-      if (isConsecutive && sameStatus) {
-        // Merge — extend the bar, keep same sessionId for editing
-        last.endMins = Math.max(last.endMins, seg.endMins);
+      if (seg.startMins < last.endMins) {
+        // Overlap — primary wins
+        if (seg.isPrimary && !last.isPrimary) {
+          // New seg is primary — split: last ends at seg start, then primary takes over
+          last.endMins = seg.startMins;
+          resolved.push({ ...seg });
+        } else if (!seg.isPrimary && last.isPrimary) {
+          // Last is primary — new seg gets pushed to after last ends
+          if (seg.endMins > last.endMins) {
+            resolved.push({ ...seg, startMins: last.endMins });
+          }
+          // else completely contained — drop it
+        } else {
+          // Same status — just extend
+          last.endMins = Math.max(last.endMins, seg.endMins);
+        }
       } else {
-        // Don't merge — different primary status or gap between sessions
-        mergedSegs.push({ ...seg });
+        resolved.push({ ...seg });
       }
     });
 
-    mergedSegs.forEach((seg, i) => merged.push({
+    // Now merge consecutive segments with same primary status
+    const merged = [];
+    resolved.forEach((seg) => {
+      if (merged.length === 0) { merged.push({ ...seg }); return; }
+      const last = merged[merged.length - 1];
+      const isConsecutive = seg.startMins <= last.endMins + 2;
+      const sameStatus = seg.isPrimary === last.isPrimary;
+      if (isConsecutive && sameStatus) {
+        last.endMins = Math.max(last.endMins, seg.endMins);
+      } else {
+        merged.push({ ...seg });
+      }
+    });
+
+    merged.forEach((seg, i) => result.push({
       alterId,
       startMins: seg.startMins,
       endMins: seg.endMins,
       sessionId: seg.sessionId,
       isPrimary: seg.isPrimary,
-      key: `alter-${alterId}-${i}`,
+      key: `alter-${alterId}-${seg.startMins}`,
     }));
   });
 
-  return merged;
+  return result;
 }, [sessions, dayStart, isToday]);
 
   const alterColumns = useMemo(() => {
