@@ -16,11 +16,12 @@ function formatDuration(minutes) {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-function toLocalDatetimeValue(isoString) {
-  if (!isoString) return "";
-  const d = parseDate(isoString);
-  // format as YYYY-MM-DDTHH:mm for <input type="datetime-local">
-  return format(d, "yyyy-MM-dd'T'HH:mm");
+function localDatetimeToISO(val) {
+  if (!val) return null;
+  const [datePart, timePart] = val.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+  return new Date(year, month - 1, day, hour, minute, 0, 0).toISOString();
 }
 
 // Info panel (single tap)
