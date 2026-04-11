@@ -24,6 +24,12 @@ function localDatetimeToISO(val) {
   return new Date(year, month - 1, day, hour, minute, 0, 0).toISOString();
 }
 
+function toLocalDatetimeValue(isoString) {
+  if (!isoString) return "";
+  const d = parseDate(isoString);
+  return format(d, "yyyy-MM-dd'T'HH:mm");
+}
+
 // Info panel (single tap)
 export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   if (!session) return null;
