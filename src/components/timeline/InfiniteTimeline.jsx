@@ -734,73 +734,53 @@ export default function InfiniteTimeline({
 const handleSplitSave = async (action, splitMins) => {
   if (!splitPopover) return;
   const { alter, session } = splitPopover;
-  const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
-  const sessionEnd = session.end_time || null;
-
-  // Gather all alter IDs in this session regardless of primary/co format
-  const allIds = [
-    session.primary_alter_id,
-    ...(session.co_fronter_ids || [])
-  ].filter(Boolean);
-
-  // If alter isn't in allIds (edge case), add them
-  if (!allIds.includes(alter.id)) allIds.push(alter.id);
-
-  const remainingIds = allIds.filter(id => id !== alter.id);
-
-  try {
-    if (action === "end") {
-      await base44.entities.FrontingSession.update(session.id, {
-        end_time: splitTime,
-        is_active: false,
-      });
-      if (remainingIds.length > 0) {
+    const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
+    const sessionEnd = session.end_time || null;
+    try {
+      if (action === "end") {
+        const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+        const remaining = allIds.filter(id => id !== alter.id);
+        await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
+        if (remaining.length > 0) {
+          await base44.entities.FrontingSession.create({
+            primary_alter_id: remaining[0],
+            co_fronter_ids: remaining.slice(1),
+            start_time: splitTime,
+            end_time: sessionEnd,
+            is_active: !sessionEnd,
+          });
+        }
+      } else if (action === "promote") {
+        const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+        await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
         await base44.entities.FrontingSession.create({
-          primary_alter_id: session.primary_alter_id !== alter.id ? session.primary_alter_id : remainingIds[0],
-          co_fronter_ids: remainingIds.filter(id =>
-            id !== (session.primary_alter_id !== alter.id ? session.primary_alter_id : remainingIds[0])
-          ),
+          primary_alter_id: alter.id,
+          co_fronter_ids: allIds.filter(id => id !== alter.id),
+          start_time: splitTime,
+          end_time: sessionEnd,
+          is_active: !sessionEnd,
+        });
+      } else if (action === "demote") {
+        const coIds = (session.co_fronter_ids || []).filter(Boolean);
+        const newPrimary = coIds[0] || null;
+        await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
+        await base44.entities.FrontingSession.create({
+          primary_alter_id: newPrimary,
+          co_fronter_ids: newPrimary
+            ? [...coIds.filter(id => id !== newPrimary), alter.id]
+            : [alter.id],
           start_time: splitTime,
           end_time: sessionEnd,
           is_active: !sessionEnd,
         });
       }
-    } else if (action === "promote") {
-      await base44.entities.FrontingSession.update(session.id, {
-        end_time: splitTime,
-        is_active: false,
-      });
-      await base44.entities.FrontingSession.create({
-        primary_alter_id: alter.id,
-        co_fronter_ids: remainingIds,
-        start_time: splitTime,
-        end_time: sessionEnd,
-        is_active: !sessionEnd,
-      });
-    } else if (action === "demote") {
-      await base44.entities.FrontingSession.update(session.id, {
-        end_time: splitTime,
-        is_active: false,
-      });
-      const newPrimary = remainingIds[0] || null;
-      await base44.entities.FrontingSession.create({
-        primary_alter_id: newPrimary,
-        co_fronter_ids: newPrimary
-          ? [...remainingIds.slice(1), alter.id]
-          : [alter.id],
-        start_time: splitTime,
-        end_time: sessionEnd,
-        is_active: !sessionEnd,
-      });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    } catch (err) {
+      console.error("Split session failed", err);
     }
-
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-  } catch (err) {
-    console.error("Split session failed", err);
-  }
-  setSplitPopover(null);
-};
+    setSplitPopover(null);
+  };
 
   // ── New session handler ──
   const handleNewSessionSave = async ({ startTime, endTime, alterId, asPrimary }) => {
@@ -830,18 +810,17 @@ const handleSplitSave = async (action, splitMins) => {
   };
 
   // ── Empty area long press helpers ──
-const startAreaLongPress = (e) => {
-  const rect = e.currentTarget.getBoundingClientRect();
-  const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-  const y = clientY - rect.top;
-  const scrollTop = e.currentTarget.closest(".overflow-y-auto")?.scrollTop || 0;
-  const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
-  const clampedMins = Math.min(Math.max(0, mins), 1439);
-  longPressTargetRef.current = setTimeout(() => {
-    longPressTargetRef.current = null;
-    setNewSessionPopover({ startMins: clampedMins });
-  }, 500);
-};
+  const startAreaLongPress = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    const y = clientY - rect.top;
+    const scrollTop = e.currentTarget.closest(".overflow-y-auto")?.scrollTop || 0;
+    const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
+    longPressTargetRef.current = setTimeout(() => {
+      longPressTargetRef.current = null;
+      setNewSessionPopover({ startMins: Math.min(Math.max(0, mins), 1439) });
+    }, 500);
+  };
   const cancelAreaLongPress = () => {
     if (longPressTargetRef.current) { clearTimeout(longPressTargetRef.current); longPressTargetRef.current = null; }
   };
@@ -1045,16 +1024,11 @@ const startAreaLongPress = (e) => {
                             rowH={rowH}
                             onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
                             onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
-                            onLongPress={(clientY) => {
-  if (!entrySession) return;
-  const gridEl = document.querySelector(".overflow-y-auto");
-  const gridRect = gridEl?.getBoundingClientRect();
-  const scrollTop = gridEl?.scrollTop || 0;
-  const relY = clientY - (gridRect?.top || 0) + scrollTop;
-  const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
-  const clampedMins = Math.min(Math.max(pressedMins, entry.startMins), entry.endMins);
-  setSplitPopover({ alter, session: entrySession, splitMins: clampedMins });
-}}
+                            onLongPress={() => entrySession && setSplitPopover({
+                              alter,
+                              session: entrySession,
+                              splitMins: entry.startMins + Math.round((entry.endMins - entry.startMins) / 2),
+                            })}
                           />
                         );
                       })}
