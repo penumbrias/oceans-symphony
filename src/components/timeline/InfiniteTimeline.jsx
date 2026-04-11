@@ -553,14 +553,14 @@ export default function InfiniteTimeline({
         }
       });
 
-      merged.forEach((seg, i) => result.push({
-        alterId,
-        startMins: seg.startMins,
-        endMins: seg.endMins,
-        sessionId: seg.sessionId,
-        isPrimary: seg.isPrimary,
-        key: `alter-${alterId}-${seg.startMins}`,
-      }));
+merged.forEach((seg, i) => result.push({
+  alterId,
+  startMins: seg.startMins,
+  endMins: seg.endMins,
+  sessionId: seg.sessionId,
+  isPrimary: seg.isPrimary,
+  key: `alter-${alterId}-${seg.sessionId}-${i}`,  // ← add sessionId to make unique
+}));
     });
     return result;
   }, [sessions, dayStart, isToday]);
