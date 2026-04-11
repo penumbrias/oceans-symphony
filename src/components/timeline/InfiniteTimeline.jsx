@@ -482,8 +482,13 @@ const alterEntries = useMemo(() => {
     tasks.forEach((t) => {
       entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
       if (t.completed && t.completed_date) {
-        entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.completed_date), dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
-      }
+  const completedDate = parseDate(t.completed_date);
+  const completedDay = startOfDay(completedDate);
+  // Only show the completion icon on the day it was actually completed
+  if (completedDay.getTime() === dayStart.getTime()) {
+    entries.push({ mins: Math.max(0, minutesInDay(completedDate, dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
+  }
+}
     });
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
   }, [journals, checkIns, bulletins, tasks, dayStart]);
