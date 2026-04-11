@@ -380,16 +380,47 @@ const alterEntries = useMemo(() => {
 }, [sessions, dayStart, isToday]);
 
   const alterColumns = useMemo(() => {
-    const cols = [];
-    [...alterEntries].sort((a, b) => a.startMins - b.startMins).forEach((entry) => {
-      let placed = false;
-      for (const col of cols) {
-        if (col[col.length - 1].endMins <= entry.startMins + 2) { col.push(entry); placed = true; break; }
+  // Group all segments by alterId first — each alter gets exactly one column
+  const alterToCol = {};
+  const cols = [];
+
+  // Sort alters by their earliest startMins so column order is consistent
+  const alterIds = [...new Set(alterEntries.map(e => e.alterId))];
+  alterIds.sort((a, b) => {
+    const aFirst = Math.min(...alterEntries.filter(e => e.alterId === a).map(e => e.startMins));
+    const bFirst = Math.min(...alterEntries.filter(e => e.alterId === b).map(e => e.startMins));
+    return aFirst - bFirst;
+  });
+
+  alterIds.forEach((alterId) => {
+    const segs = alterEntries.filter(e => e.alterId === alterId);
+
+    // Find a column that doesn't conflict with any of this alter's segments
+    let placed = false;
+    for (let colIdx = 0; colIdx < cols.length; colIdx++) {
+      const col = cols[colIdx];
+      const conflicts = segs.some(seg =>
+        col.some(existing =>
+          existing.alterId !== alterId &&
+          seg.startMins < existing.endMins &&
+          seg.endMins > existing.startMins
+        )
+      );
+      if (!conflicts) {
+        segs.forEach(seg => col.push(seg));
+        alterToCol[alterId] = colIdx;
+        placed = true;
+        break;
       }
-      if (!placed) cols.push([entry]);
-    });
-    return cols;
-  }, [alterEntries]);
+    }
+    if (!placed) {
+      alterToCol[alterId] = cols.length;
+      cols.push([...segs]);
+    }
+  });
+
+  return cols;
+}, [alterEntries]);
 
   const activityEntries = useMemo(() => {
     const raw = [];
