@@ -1114,4 +1114,4 @@ const handleSplitSave = async (action, splitMins) => {
       )}
     </div>
   );
-}onLongPress={(clientY
+}
