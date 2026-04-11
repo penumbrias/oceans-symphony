@@ -498,61 +498,76 @@ export default function InfiniteTimeline({
   const eventColWidth = colWidths.eventCol;
   const emotionColWidth = colWidths.emotionCol;
 
-  const alterEntries = useMemo(() => {
-    const byAlter = {};
-    sessions.forEach((session) => {
-      const ids = [
-        session.primary_alter_id,
-        ...(session.co_fronter_ids || [])
-      ].filter(Boolean);
-      ids.forEach((alterId) => {
-        const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
-        const endTime = session.end_time
-          ? parseDate(session.end_time)
-          : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
-        const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
-        if (!byAlter[alterId]) byAlter[alterId] = [];
-        byAlter[alterId].push({
-          startMins,
-          endMins: Math.max(endMins, startMins + 8),
-          sessionId: session.id,
-          isPrimary: session.primary_alter_id === alterId,
-        });
+const alterEntries = useMemo(() => {
+  const byAlter = {};
+  sessions.forEach((session) => {
+    const ids = [
+      session.primary_alter_id,
+      ...(session.co_fronter_ids || [])
+    ].filter(Boolean);
+    ids.forEach((alterId) => {
+      const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+      const endTime = session.end_time
+        ? parseDate(session.end_time)
+        : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+      const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
+      if (!byAlter[alterId]) byAlter[alterId] = [];
+      byAlter[alterId].push({
+        startMins,
+        endMins: Math.max(endMins, startMins + 8),
+        sessionId: session.id,
+        isPrimary: session.primary_alter_id === alterId,
       });
     });
+  });
 
-    const result = [];
-    Object.entries(byAlter).forEach(([alterId, segs]) => {
-      const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
-      const resolved = [];
-      sorted.forEach((seg) => {
-        if (resolved.length === 0) { resolved.push({ ...seg }); return; }
-        const last = resolved[resolved.length - 1];
-        if (seg.startMins < last.endMins) {
-          if (seg.isPrimary && !last.isPrimary) {
-            last.endMins = seg.startMins;
-            resolved.push({ ...seg });
-          } else if (!seg.isPrimary && last.isPrimary) {
-            if (seg.endMins > last.endMins) resolved.push({ ...seg, startMins: last.endMins });
-          } else {
-            last.endMins = Math.max(last.endMins, seg.endMins);
-          }
-        } else {
+  const result = [];
+  Object.entries(byAlter).forEach(([alterId, segs]) => {
+    const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
+
+    // Resolve overlaps
+    const resolved = [];
+    sorted.forEach((seg) => {
+      if (resolved.length === 0) { resolved.push({ ...seg }); return; }
+      const last = resolved[resolved.length - 1];
+      if (seg.startMins < last.endMins) {
+        if (seg.isPrimary && !last.isPrimary) {
+          last.endMins = seg.startMins;
           resolved.push({ ...seg });
+        } else if (!seg.isPrimary && last.isPrimary) {
+          if (seg.endMins > last.endMins) resolved.push({ ...seg, startMins: last.endMins });
+        } else {
+          last.endMins = Math.max(last.endMins, seg.endMins);
         }
-      });
-
-resolved.forEach((seg, i) => result.push({
-  alterId,
-  startMins: seg.startMins,
-  endMins: seg.endMins,
-  sessionId: seg.sessionId,
-  isPrimary: seg.isPrimary,
-  key: `alter-${alterId}-${seg.sessionId}-${i}`,
-}));
+      } else {
+        resolved.push({ ...seg });
+      }
     });
-    return result;
-  }, [sessions, dayStart, isToday]);
+
+    // Merge consecutive same-status segments
+    const merged = [];
+    resolved.forEach((seg) => {
+      if (merged.length === 0) { merged.push({ ...seg }); return; }
+      const last = merged[merged.length - 1];
+      if (seg.startMins <= last.endMins + 1 && seg.isPrimary === last.isPrimary) {
+        last.endMins = Math.max(last.endMins, seg.endMins);
+        last.sessionId = seg.sessionId;
+      } else {
+        merged.push({ ...seg });
+      }
+    });
+
+    merged.forEach((seg, i) => result.push({
+      alterId,
+      startMins: seg.startMins,
+      endMins: seg.endMins,
+      sessionId: seg.sessionId,
+      isPrimary: seg.isPrimary,
+      key: `alter-${alterId}-${seg.sessionId}-${i}`,
+    }));
+  });
+  return result;
+}, [sessions, dayStart, isToday]);
 
 const alterColumns = useMemo(() => {
   const cols = [];
