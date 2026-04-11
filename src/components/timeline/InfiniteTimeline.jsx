@@ -1024,11 +1024,16 @@ const handleSplitSave = async (action, splitMins) => {
                             rowH={rowH}
                             onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
                             onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
-                            onLongPress={() => entrySession && setSplitPopover({
-                              alter,
-                              session: entrySession,
-                              splitMins: entry.startMins + Math.round((entry.endMins - entry.startMins) / 2),
-                            })}
+                            onLongPress={(clientY) => {
+  if (!entrySession) return;
+  const gridEl = document.querySelector(".overflow-y-auto");
+  const gridRect = gridEl?.getBoundingClientRect();
+  const scrollTop = gridEl?.scrollTop || 0;
+  const relY = clientY - (gridRect?.top || 0) + scrollTop;
+  const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
+  const clampedMins = Math.min(Math.max(pressedMins, entry.startMins), entry.endMins);
+  setSplitPopover({ alter, session: entrySession, splitMins: clampedMins });
+}}
                           />
                         );
                       })}
