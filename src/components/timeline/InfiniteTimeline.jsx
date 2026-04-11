@@ -736,11 +736,22 @@ export default function InfiniteTimeline({
 
     try {
       if (action === "end") {
-        await base44.entities.FrontingSession.update(session.id, {
-          end_time: splitTime,
-          is_active: false,
-        });
-      } else {
+  await base44.entities.FrontingSession.update(session.id, {
+    end_time: splitTime,
+    is_active: false,
+  });
+  const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
+  if (others.length > 0) {
+    await base44.entities.FrontingSession.create({
+      primary_alter_id: others[0],
+      co_fronter_ids: others.slice(1),
+      start_time: splitTime,
+      end_time: session.end_time || null,
+      is_active: !session.end_time,
+      note: session.note || null,
+    });
+  }
+} else {
         await base44.entities.FrontingSession.update(session.id, {
           end_time: splitTime,
           is_active: false,
