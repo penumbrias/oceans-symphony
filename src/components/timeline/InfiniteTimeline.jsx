@@ -156,7 +156,6 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
 
 function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
   const [adjustedMins, setAdjustedMins] = useState(splitMins);
-  const allIds = [session?.primary_alter_id, ...(session?.co_fronter_ids || [])].filter(Boolean);
   const isPrimary = session?.primary_alter_id === alter?.id;
   const coIds = (session?.co_fronter_ids || []).filter(Boolean);
 
@@ -498,106 +497,103 @@ export default function InfiniteTimeline({
   const eventColWidth = colWidths.eventCol;
   const emotionColWidth = colWidths.emotionCol;
 
-const alterEntries = useMemo(() => {
-  const byAlter = {};
-  sessions.forEach((session) => {
-    const ids = [
-      session.primary_alter_id,
-      ...(session.co_fronter_ids || [])
-    ].filter(Boolean);
-    ids.forEach((alterId) => {
-      const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
-      const endTime = session.end_time
-        ? parseDate(session.end_time)
-        : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
-      const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
-      if (!byAlter[alterId]) byAlter[alterId] = [];
-      byAlter[alterId].push({
-        startMins,
-        endMins: Math.max(endMins, startMins + 8),
-        sessionId: session.id,
-        isPrimary: session.primary_alter_id === alterId,
+  const alterEntries = useMemo(() => {
+    const byAlter = {};
+    sessions.forEach((session) => {
+      const ids = [
+        session.primary_alter_id,
+        ...(session.co_fronter_ids || [])
+      ].filter(Boolean);
+      ids.forEach((alterId) => {
+        const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+        const endTime = session.end_time
+          ? parseDate(session.end_time)
+          : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+        const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
+        if (!byAlter[alterId]) byAlter[alterId] = [];
+        byAlter[alterId].push({
+          startMins,
+          endMins: Math.max(endMins, startMins + 8),
+          sessionId: session.id,
+          isPrimary: session.primary_alter_id === alterId,
+        });
       });
     });
-  });
 
-  const result = [];
-  Object.entries(byAlter).forEach(([alterId, segs]) => {
-    const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
+    const result = [];
+    Object.entries(byAlter).forEach(([alterId, segs]) => {
+      const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
 
-    // Resolve overlaps
-    const resolved = [];
-    sorted.forEach((seg) => {
-      if (resolved.length === 0) { resolved.push({ ...seg }); return; }
-      const last = resolved[resolved.length - 1];
-      if (seg.startMins < last.endMins) {
-        if (seg.isPrimary && !last.isPrimary) {
-          last.endMins = seg.startMins;
-          resolved.push({ ...seg });
-        } else if (!seg.isPrimary && last.isPrimary) {
-          if (seg.endMins > last.endMins) resolved.push({ ...seg, startMins: last.endMins });
+      // Resolve overlaps
+      const resolved = [];
+      sorted.forEach((seg) => {
+        if (resolved.length === 0) { resolved.push({ ...seg }); return; }
+        const last = resolved[resolved.length - 1];
+        if (seg.startMins < last.endMins) {
+          if (seg.isPrimary && !last.isPrimary) {
+            last.endMins = seg.startMins;
+            resolved.push({ ...seg });
+          } else if (!seg.isPrimary && last.isPrimary) {
+            if (seg.endMins > last.endMins) resolved.push({ ...seg, startMins: last.endMins });
+          } else {
+            last.endMins = Math.max(last.endMins, seg.endMins);
+          }
         } else {
-          last.endMins = Math.max(last.endMins, seg.endMins);
+          resolved.push({ ...seg });
         }
-      } else {
-        resolved.push({ ...seg });
-      }
+      });
+
+      // Merge consecutive same-status segments
+      const merged = [];
+      resolved.forEach((seg) => {
+        if (merged.length === 0) { merged.push({ ...seg }); return; }
+        const last = merged[merged.length - 1];
+        if (seg.startMins <= last.endMins + 1 && seg.isPrimary === last.isPrimary) {
+          last.endMins = Math.max(last.endMins, seg.endMins);
+          last.sessionId = seg.sessionId;
+        } else {
+          merged.push({ ...seg });
+        }
+      });
+
+      merged.forEach((seg, i) => result.push({
+        alterId,
+        startMins: seg.startMins,
+        endMins: seg.endMins,
+        sessionId: seg.sessionId,
+        isPrimary: seg.isPrimary,
+        key: `alter-${alterId}-${seg.sessionId}-${i}`,
+      }));
     });
+    return result;
+  }, [sessions, dayStart, isToday]);
 
-    // Merge consecutive same-status segments
-    const merged = [];
-    resolved.forEach((seg) => {
-      if (merged.length === 0) { merged.push({ ...seg }); return; }
-      const last = merged[merged.length - 1];
-      if (seg.startMins <= last.endMins + 1 && seg.isPrimary === last.isPrimary) {
-        last.endMins = Math.max(last.endMins, seg.endMins);
-        last.sessionId = seg.sessionId;
-      } else {
-        merged.push({ ...seg });
+  const alterColumns = useMemo(() => {
+    const cols = [];
+    const alterIds = [...new Set(alterEntries.map(e => e.alterId))];
+    alterIds.sort((a, b) => a.localeCompare(b));
+    alterIds.forEach((alterId) => {
+      const segs = alterEntries.filter(e => e.alterId === alterId);
+      let placed = false;
+      for (let colIdx = 0; colIdx < cols.length; colIdx++) {
+        const col = cols[colIdx];
+        const conflicts = segs.some(seg =>
+          col.some(existing =>
+            existing.alterId !== alterId &&
+            seg.startMins < existing.endMins &&
+            seg.endMins > existing.startMins
+          )
+        );
+        if (!conflicts) {
+          segs.forEach(seg => col.push(seg));
+          placed = true;
+          break;
+        }
       }
+      if (!placed) cols.push([...segs]);
     });
-
-    merged.forEach((seg, i) => result.push({
-      alterId,
-      startMins: seg.startMins,
-      endMins: seg.endMins,
-      sessionId: seg.sessionId,
-      isPrimary: seg.isPrimary,
-      key: `alter-${alterId}-${seg.sessionId}-${i}`,
-    }));
-  });
-  return result;
-}, [sessions, dayStart, isToday]);
-
-const alterColumns = useMemo(() => {
-  const cols = [];
-  const alterIds = [...new Set(alterEntries.map(e => e.alterId))];
-  
-  // Sort by alter ID only — stable, never changes
-  alterIds.sort((a, b) => a.localeCompare(b));
-  
-  alterIds.forEach((alterId) => {
-    const segs = alterEntries.filter(e => e.alterId === alterId);
-    let placed = false;
-    for (let colIdx = 0; colIdx < cols.length; colIdx++) {
-      const col = cols[colIdx];
-      const conflicts = segs.some(seg =>
-        col.some(existing =>
-          existing.alterId !== alterId &&
-          seg.startMins < existing.endMins &&
-          seg.endMins > existing.startMins
-        )
-      );
-      if (!conflicts) {
-        segs.forEach(seg => col.push(seg));
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) cols.push([...segs]);
-  });
-  return cols;
-}, [alterEntries]);
+    return cols;
+  }, [alterEntries]);
 
   const activityEntries = useMemo(() => {
     const raw = [];
@@ -732,76 +728,55 @@ const alterColumns = useMemo(() => {
   const alterLeft = timeLeft + LABEL_WIDTH;
   const totalWidth = timeLeft + LABEL_WIDTH + alterAreaWidth;
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
-  // Merge consecutive segments with same isPrimary
-const merged = [];
-resolved.forEach((seg) => {
-  if (merged.length === 0) { merged.push({ ...seg }); return; }
-  const last = merged[merged.length - 1];
-  if (seg.startMins <= last.endMins + 1 && seg.isPrimary === last.isPrimary) {
-    last.endMins = Math.max(last.endMins, seg.endMins);
-    last.sessionId = seg.sessionId; // use latest sessionId
-  } else {
-    merged.push({ ...seg });
-  }
-});
 
-merged.forEach((seg, i) => result.push({
-  alterId,
-  startMins: seg.startMins,
-  endMins: seg.endMins,
-  sessionId: seg.sessionId,
-  isPrimary: seg.isPrimary,
-  key: `alter-${alterId}-${seg.sessionId}-${i}`,
-}));
+  const handleSplitSave = async (action, splitMins) => {
+    if (!splitPopover) return;
+    const { alter, session } = splitPopover;
+    const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
 
-const handleSplitSave = async (action, splitMins) => {
-  if (!splitPopover) return;
-  const { alter, session } = splitPopover;
-  const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
+    try {
+      if (action === "end") {
+        await base44.entities.FrontingSession.update(session.id, {
+          end_time: splitTime,
+          is_active: false,
+        });
+      } else {
+        await base44.entities.FrontingSession.update(session.id, {
+          end_time: splitTime,
+          is_active: false,
+        });
 
-  try {
-    if (action === "end") {
-      await base44.entities.FrontingSession.update(session.id, {
-        end_time: splitTime,
-        is_active: false,
-      });
-    } else {
-      await base44.entities.FrontingSession.update(session.id, {
-        end_time: splitTime,
-        is_active: false,
-      });
+        const newSession = {
+          primary_alter_id: session.primary_alter_id,
+          co_fronter_ids: session.co_fronter_ids || [],
+          start_time: splitTime,
+          end_time: session.end_time || null,
+          is_active: !session.end_time,
+          note: session.note || null,
+        };
 
-      const newSession = {
-        primary_alter_id: session.primary_alter_id,
-        co_fronter_ids: session.co_fronter_ids || [],
-        start_time: splitTime,
-        end_time: session.end_time || null,
-        is_active: !session.end_time,
-        note: session.note || null,
-      };
+        if (action === "promote") {
+          newSession.primary_alter_id = alter.id;
+          newSession.co_fronter_ids = [
+            session.primary_alter_id,
+            ...(session.co_fronter_ids || [])
+          ].filter(id => id && id !== alter.id);
+        } else if (action === "demote") {
+          const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
+          newSession.primary_alter_id = others[0] || null;
+          newSession.co_fronter_ids = [...others.slice(1), alter.id];
+        }
 
-      if (action === "promote") {
-        newSession.primary_alter_id = alter.id;
-        newSession.co_fronter_ids = [
-          session.primary_alter_id,
-          ...(session.co_fronter_ids || [])
-        ].filter(id => id && id !== alter.id);
-      } else if (action === "demote") {
-        const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
-        newSession.primary_alter_id = others[0] || null;
-        newSession.co_fronter_ids = [...others.slice(1), alter.id];
+        await base44.entities.FrontingSession.create(newSession);
       }
 
-      await base44.entities.FrontingSession.create(newSession);
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"], refetchType: 'all' });
+    } catch (err) {
+      console.error("Split session failed", err);
     }
-
-    queryClient.invalidateQueries({ queryKey: ["frontHistory"], refetchType: 'all' });
-    queryClient.invalidateQueries({ queryKey: ["activeFront"], refetchType: 'all' });
-  } catch (err) {
-    console.error("Split session failed", err);
-  }
-  setSplitPopover(null);
-};
+    setSplitPopover(null);
+  };
 
   const handleNewSessionSave = async ({ startTime, endTime, alterId, asPrimary }) => {
     try {
@@ -821,8 +796,8 @@ const handleSplitSave = async (action, splitMins) => {
         end_time: endDate?.toISOString() || null,
         is_active: !endDate,
       });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"], refetchType: 'all' });
     } catch (err) {
       console.error("Create session failed", err);
     }
