@@ -113,13 +113,10 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
   const tap = useDoubleTap(onTap, onDoubleTap);
   const lpRef = useRef(null);
 
-const startPress = (e) => {
-  e.stopPropagation();
-  const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-  lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
-};
-  const cancelPress = (e) => {
-      e.stopPropagation(); 
+  const startPress = () => {
+    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(); }, 500);
+  };
+  const cancelPress = () => {
     if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; }
   };
 
@@ -155,20 +152,8 @@ const startPress = (e) => {
 }
 
 function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
-  const [adjustedMins, setAdjustedMins] = useState(splitMins);
   const isPrimary = session?.primary_alter_id === alter?.id;
   const coIds = (session?.co_fronter_ids || []).filter(Boolean);
-
-  const minsToTime = (mins) => {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  };
-  const timeToMins = (t) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + m;
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
@@ -181,39 +166,33 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
                 {alter?.name?.charAt(0)?.toUpperCase()}
               </div>
           }
-          <div className="flex-1">
+          <div>
             <p className="text-sm font-semibold">{alter?.name}</p>
-            <p className="text-xs text-muted-foreground">Split session at:</p>
+            <p className="text-xs text-muted-foreground">at {formatMins(splitMins)}</p>
           </div>
         </div>
-        <input
-          type="time"
-          value={minsToTime(adjustedMins)}
-          onChange={e => setAdjustedMins(timeToMins(e.target.value))}
-          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium"
-        />
         <div className="space-y-2">
           {!isPrimary && (
-            <button onClick={() => onSave("promote", adjustedMins)}
+            <button onClick={() => onSave("promote")}
               className="w-full px-3 py-2 text-sm rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-500 hover:bg-amber-500/20 transition-colors text-left">
-              ⭐ Make primary from {formatMins(adjustedMins)}
+              ⭐ Make primary from {formatMins(splitMins)}
             </button>
           )}
           {isPrimary && coIds.length > 0 && (
-            <button onClick={() => onSave("demote", adjustedMins)}
+            <button onClick={() => onSave("demote")}
               className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Demote to co-fronter from {formatMins(adjustedMins)}
+              ↓ Demote to co-fronter from {formatMins(splitMins)}
             </button>
           )}
           {isPrimary && coIds.length === 0 && (
-            <button onClick={() => onSave("demote", adjustedMins)}
+            <button onClick={() => onSave("demote")}
               className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Remove primary status from {formatMins(adjustedMins)}
+              ↓ Remove primary status from {formatMins(splitMins)}
             </button>
           )}
-          <button onClick={() => onSave("end", adjustedMins)}
+          <button onClick={() => onSave("end")}
             className="w-full px-3 py-2 text-sm rounded-lg bg-destructive/10 border border-destructive/40 text-destructive hover:bg-destructive/20 transition-colors text-left">
-            ✕ Remove from front at {formatMins(adjustedMins)}
+            ✕ Remove from front at {formatMins(splitMins)}
           </button>
         </div>
         <button onClick={onClose} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-1">
@@ -248,28 +227,20 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
         onClick={e => e.stopPropagation()}>
         <p className="text-sm font-semibold">New Fronting Session</p>
 
-<div className="flex gap-2 items-end">
-  <div className="flex-1">
-    <p className="text-xs text-muted-foreground mb-1">Start time</p>
-    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-      className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm" />
-  </div>
-  <button
-    onClick={() => { if (!stillFronting && endTime) { const t = startTime; setStartTime(endTime); setEndTime(t); } }}
-    disabled={stillFronting || !endTime}
-    className="flex-shrink-0 h-8 px-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-30 text-sm"
-    title="Swap start and end times"
-  >
-    ⇄
-  </button>
-  <div className="flex-1">
-    <p className="text-xs text-muted-foreground mb-1">End time</p>
-    <input type="time" value={stillFronting ? "" : endTime}
-      onChange={e => setEndTime(e.target.value)}
-      disabled={stillFronting}
-      className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm disabled:opacity-40" />
-  </div>
-</div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground mb-1">Start time</p>
+            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+              className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground mb-1">End time</p>
+            <input type="time" value={stillFronting ? "" : endTime}
+              onChange={e => setEndTime(e.target.value)}
+              disabled={stillFronting}
+              className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm disabled:opacity-40" />
+          </div>
+        </div>
 
         <div className="flex items-center gap-2">
           <input type="checkbox" id="still-fronting" checked={stillFronting}
@@ -568,11 +539,11 @@ export default function InfiniteTimeline({
   const alterColumns = useMemo(() => {
     const cols = [];
     const alterIds = [...new Set(alterEntries.map(e => e.alterId))];
-alterIds.sort((a, b) => {
-  const aFirst = Math.min(...alterEntries.filter(e => e.alterId === a).map(e => e.startMins));
-  const bFirst = Math.min(...alterEntries.filter(e => e.alterId === b).map(e => e.startMins));
-  return aFirst !== bFirst ? aFirst - bFirst : a.localeCompare(b);
-});
+    alterIds.sort((a, b) => {
+      const aFirst = Math.min(...alterEntries.filter(e => e.alterId === a).map(e => e.startMins));
+      const bFirst = Math.min(...alterEntries.filter(e => e.alterId === b).map(e => e.startMins));
+      return aFirst - bFirst;
+    });
     alterIds.forEach((alterId) => {
       const segs = alterEntries.filter(e => e.alterId === alterId);
       let placed = false;
@@ -731,9 +702,9 @@ alterIds.sort((a, b) => {
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
   // ── Session split handler ──
-const handleSplitSave = async (action, splitMins) => {
-  if (!splitPopover) return;
-  const { alter, session } = splitPopover;
+  const handleSplitSave = async (action) => {
+    if (!splitPopover) return;
+    const { alter, session, splitMins } = splitPopover;
     const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
     const sessionEnd = session.end_time || null;
     try {
@@ -1024,16 +995,11 @@ const handleSplitSave = async (action, splitMins) => {
                             rowH={rowH}
                             onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
                             onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
-                            onLongPress={(clientY) => {
-  if (!entrySession) return;
-  const gridEl = document.querySelector(".overflow-y-auto");
-  const gridRect = gridEl?.getBoundingClientRect();
-  const scrollTop = gridEl?.scrollTop || 0;
-  const relY = clientY - (gridRect?.top || 0) + scrollTop;
-  const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
-  const clampedMins = Math.min(Math.max(pressedMins, entry.startMins), entry.endMins);
-  setSplitPopover({ alter, session: entrySession, splitMins: clampedMins });
-}}
+                            onLongPress={() => entrySession && setSplitPopover({
+                              alter,
+                              session: entrySession,
+                              splitMins: entry.startMins + Math.round((entry.endMins - entry.startMins) / 2),
+                            })}
                           />
                         );
                       })}
