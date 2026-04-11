@@ -568,11 +568,11 @@ export default function InfiniteTimeline({
   const alterColumns = useMemo(() => {
     const cols = [];
     const alterIds = [...new Set(alterEntries.map(e => e.alterId))];
-    alterIds.sort((a, b) => {
-      const aFirst = Math.min(...alterEntries.filter(e => e.alterId === a).map(e => e.startMins));
-      const bFirst = Math.min(...alterEntries.filter(e => e.alterId === b).map(e => e.startMins));
-      return aFirst - bFirst;
-    });
+alterIds.sort((a, b) => {
+  const aFirst = Math.min(...alterEntries.filter(e => e.alterId === a).map(e => e.startMins));
+  const bFirst = Math.min(...alterEntries.filter(e => e.alterId === b).map(e => e.startMins));
+  return aFirst !== bFirst ? aFirst - bFirst : a.localeCompare(b);
+});
     alterIds.forEach((alterId) => {
       const segs = alterEntries.filter(e => e.alterId === alterId);
       let placed = false;
