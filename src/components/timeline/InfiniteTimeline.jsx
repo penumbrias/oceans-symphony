@@ -114,9 +114,11 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
   const lpRef = useRef(null);
 
   const startPress = () => {
+      e.stopPropagation(); 
     lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(); }, 500);
   };
   const cancelPress = () => {
+      e.stopPropagation(); 
     if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; }
   };
 
