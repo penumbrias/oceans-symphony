@@ -88,8 +88,8 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const newStart = startVal ? new Date(startVal).toISOString() : session.start_time;
-      const newEnd = endVal ? new Date(endVal).toISOString() : session.end_time || null;
+const newStart = startVal ? localDatetimeToISO(startVal) : session.start_time;
+const newEnd = endVal ? localDatetimeToISO(endVal) : session.end_time || null;
 
       // Get all alters in this session
       const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
