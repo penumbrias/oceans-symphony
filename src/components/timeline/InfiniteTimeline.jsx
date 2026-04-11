@@ -735,46 +735,41 @@ const handleSplitSave = async (action, splitMins) => {
   const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
 
   try {
-    // End the original session at the split point
-    await base44.entities.FrontingSession.update(session.id, {
-      end_time: splitTime,
-      is_active: false,
-    });
+    if (action === "end") {
+      await base44.entities.FrontingSession.update(session.id, {
+        end_time: splitTime,
+        is_active: false,
+      });
+    } else {
+      await base44.entities.FrontingSession.update(session.id, {
+        end_time: splitTime,
+        is_active: false,
+      });
 
-    // Create the new second half — same alters, same structure
-    const newSession = {
-      primary_alter_id: session.primary_alter_id,
-      co_fronter_ids: session.co_fronter_ids || [],
-      start_time: splitTime,
-      end_time: session.end_time || null,
-      is_active: !session.end_time,
-      note: session.note || null,
-    };
+      const newSession = {
+        primary_alter_id: session.primary_alter_id,
+        co_fronter_ids: session.co_fronter_ids || [],
+        start_time: splitTime,
+        end_time: session.end_time || null,
+        is_active: !session.end_time,
+        note: session.note || null,
+      };
 
-    // Apply the change the user requested
-    if (action === "promote") {
-      newSession.primary_alter_id = alter.id;
-      newSession.co_fronter_ids = [
-        session.primary_alter_id,
-        ...(session.co_fronter_ids || [])
-      ].filter(id => id && id !== alter.id);
-    } else if (action === "demote") {
-      const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
-      newSession.primary_alter_id = others[0] || null;
-      newSession.co_fronter_ids = [...others.slice(1), alter.id];
-if (action === "end") {
-  await base44.entities.FrontingSession.update(session.id, {
-    end_time: splitTime,
-    is_active: false,
-  });
-  queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-  queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-  setSplitPopover(null);
-  return;
-}
+      if (action === "promote") {
+        newSession.primary_alter_id = alter.id;
+        newSession.co_fronter_ids = [
+          session.primary_alter_id,
+          ...(session.co_fronter_ids || [])
+        ].filter(id => id && id !== alter.id);
+      } else if (action === "demote") {
+        const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
+        newSession.primary_alter_id = others[0] || null;
+        newSession.co_fronter_ids = [...others.slice(1), alter.id];
+      }
+
+      await base44.entities.FrontingSession.create(newSession);
     }
 
-    await base44.entities.FrontingSession.create(newSession);
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
   } catch (err) {
