@@ -155,8 +155,20 @@ const startPress = (e) => {
 }
 
 function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
+  const [adjustedMins, setAdjustedMins] = useState(splitMins);
   const isPrimary = session?.primary_alter_id === alter?.id;
   const coIds = (session?.co_fronter_ids || []).filter(Boolean);
+
+  const minsToTime = (mins) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+  const timeToMins = (t) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
@@ -169,33 +181,39 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
                 {alter?.name?.charAt(0)?.toUpperCase()}
               </div>
           }
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-semibold">{alter?.name}</p>
-            <p className="text-xs text-muted-foreground">at {formatMins(splitMins)}</p>
+            <p className="text-xs text-muted-foreground">Split session at:</p>
           </div>
         </div>
+        <input
+          type="time"
+          value={minsToTime(adjustedMins)}
+          onChange={e => setAdjustedMins(timeToMins(e.target.value))}
+          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium"
+        />
         <div className="space-y-2">
           {!isPrimary && (
-            <button onClick={() => onSave("promote")}
+            <button onClick={() => onSave("promote", adjustedMins)}
               className="w-full px-3 py-2 text-sm rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-500 hover:bg-amber-500/20 transition-colors text-left">
-              ⭐ Make primary from {formatMins(splitMins)}
+              ⭐ Make primary from {formatMins(adjustedMins)}
             </button>
           )}
           {isPrimary && coIds.length > 0 && (
-            <button onClick={() => onSave("demote")}
+            <button onClick={() => onSave("demote", adjustedMins)}
               className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Demote to co-fronter from {formatMins(splitMins)}
+              ↓ Demote to co-fronter from {formatMins(adjustedMins)}
             </button>
           )}
           {isPrimary && coIds.length === 0 && (
-            <button onClick={() => onSave("demote")}
+            <button onClick={() => onSave("demote", adjustedMins)}
               className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Remove primary status from {formatMins(splitMins)}
+              ↓ Remove primary status from {formatMins(adjustedMins)}
             </button>
           )}
-          <button onClick={() => onSave("end")}
+          <button onClick={() => onSave("end", adjustedMins)}
             className="w-full px-3 py-2 text-sm rounded-lg bg-destructive/10 border border-destructive/40 text-destructive hover:bg-destructive/20 transition-colors text-left">
-            ✕ Remove from front at {formatMins(splitMins)}
+            ✕ Remove from front at {formatMins(adjustedMins)}
           </button>
         </div>
         <button onClick={onClose} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-1">
@@ -1096,4 +1114,4 @@ export default function InfiniteTimeline({
       )}
     </div>
   );
-}
+}onLongPress={(clientY
