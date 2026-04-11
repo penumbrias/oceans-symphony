@@ -34,6 +34,120 @@ function minutesInDay(date, dayStart) {
   return differenceInMinutes(date, dayStart);
 }
 
+function SessionSplitPopup({ alter, session, splitTime, onClose, onSave }) {
+  const formatTime = (mins) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    const period = h < 12 ? "am" : "pm";
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, "0")}${period}`;
+  };
+
+  const isPrimary = session?.primary_alter_id === alter?.id;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          {alter?.avatar_url
+            ? <img src={alter.avatar_url} alt={alter.name} className="w-7 h-7 rounded-full object-cover" />
+            : <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                style={{ backgroundColor: alter?.color || "#9333ea" }}>
+                {alter?.name?.charAt(0)?.toUpperCase()}
+              </div>
+          }
+          <div>
+            <p className="text-sm font-semibold">{alter?.name}</p>
+            <p className="text-xs text-muted-foreground">at {formatTime(splitTime)}</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {!isPrimary && (
+            <button onClick={() => onSave("promote")}
+              className="w-full px-3 py-2 text-sm rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors text-left">
+              ⭐ Make primary from {formatTime(splitTime)}
+            </button>
+          )}
+          {isPrimary && (
+            <button onClick={() => onSave("demote")}
+              className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
+              ↓ Demote to co-fronter from {formatTime(splitTime)}
+            </button>
+          )}
+          <button onClick={() => onSave("end")}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-destructive/10 border border-destructive/40 text-destructive hover:bg-destructive/20 transition-colors text-left">
+            ✕ Remove from front at {formatTime(splitTime)}
+          </button>
+        </div>
+
+        <button onClick={onClose} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SessionSplitPopup({ alter, session, splitTime, onClose, onSave }) {
+  const formatTime = (mins) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    const period = h < 12 ? "am" : "pm";
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, "0")}${period}`;
+  };
+
+  const isPrimary = session?.primary_alter_id === alter?.id;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          {alter?.avatar_url
+            ? <img src={alter.avatar_url} alt={alter.name} className="w-7 h-7 rounded-full object-cover" />
+            : <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                style={{ backgroundColor: alter?.color || "#9333ea" }}>
+                {alter?.name?.charAt(0)?.toUpperCase()}
+              </div>
+          }
+          <div>
+            <p className="text-sm font-semibold">{alter?.name}</p>
+            <p className="text-xs text-muted-foreground">at {formatTime(splitTime)}</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {!isPrimary && (
+            <button onClick={() => onSave("promote")}
+              className="w-full px-3 py-2 text-sm rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors text-left">
+              ⭐ Make primary from {formatTime(splitTime)}
+            </button>
+          )}
+          {isPrimary && (
+            <button onClick={() => onSave("demote")}
+              className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
+              ↓ Demote to co-fronter from {formatTime(splitTime)}
+            </button>
+          )}
+          <button onClick={() => onSave("end")}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-destructive/10 border border-destructive/40 text-destructive hover:bg-destructive/20 transition-colors text-left">
+            ✕ Remove from front at {formatTime(splitTime)}
+          </button>
+        </div>
+
+        <button onClick={onClose} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
   const lastRef = useRef({ time: 0 });
   return useCallback((e) => {
