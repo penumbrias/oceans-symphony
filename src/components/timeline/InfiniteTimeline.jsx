@@ -480,7 +480,23 @@ const alterEntries = useMemo(() => {
     checkIns.forEach((c) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)), type: "checkin", id: c.id, label: "System Check-In", data: c }));
     bulletins.forEach((b) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)), type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b }));
     tasks.forEach((t) => {
-  const createdDate = parseDate(t.created_date);
+ <div className="overflow-x-auto border-t border-border">
+  {showRowSlider && (
+    // ... slider stays outside
+  )}
+  <div style={{ minWidth: totalWidth }}>  {/* ← wrap everything in this */}
+    {/* column headers */}
+    <div className="flex border-b ..." style={{ minWidth: totalWidth }}>
+      ...
+    </div>
+    {/* grid */}
+    <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+      <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
+        ...
+      </div>
+    </div>
+  </div>
+</div>
   const createdDay = startOfDay(createdDate);
   if (createdDay.getTime() === dayStart.getTime()) {
     entries.push({ mins: Math.max(0, minutesInDay(createdDate, dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
