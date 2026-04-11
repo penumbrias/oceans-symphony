@@ -548,6 +548,7 @@ export default function InfiniteTimeline({
         const last = merged[merged.length - 1];
         if (seg.startMins <= last.endMins + 2 && seg.isPrimary === last.isPrimary) {
           last.endMins = Math.max(last.endMins, seg.endMins);
+          last.sessionId = seg.sessionId; // ← keep the LATEST sessionId, not the first
         } else {
           merged.push({ ...seg });
         }
