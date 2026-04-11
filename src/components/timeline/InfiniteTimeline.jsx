@@ -618,7 +618,7 @@ const alterEntries = useMemo(() => {
               <span className="text-muted-foreground w-8">{rowH}px</span>
             </div>
           )}
-
+  <div style={{ minWidth: totalWidth }}>  {
           {/* ── Column headers ── */}
           <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
             {showActivities && (
@@ -645,10 +645,10 @@ const alterEntries = useMemo(() => {
               <ResizeHandle onDrag={(d) => dragCol("alter", d / numAlterCols)} />
             </div>
           </div>
-
+ <div className="flex border-b ..." style={{ minWidth: totalWidth }}>
           {/* ── Grid ── */}
           <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-            <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
+      <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
 
               {HOURS.map((h) => {
                 const top = getTopPx(h * 60);
@@ -782,10 +782,10 @@ const alterEntries = useMemo(() => {
                   );
                 });
               })}
-
-            </div>
-          </div>
-        </div>
+ </div>
+    </div>
+  </div>
+</div>
       )}
 
       {!collapsed && showTally && (
