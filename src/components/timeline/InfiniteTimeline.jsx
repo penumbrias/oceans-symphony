@@ -606,19 +606,20 @@ const alterEntries = useMemo(() => {
       {!collapsed && (
         <div className="overflow-x-auto border-t border-border">
 
-          {/* ── Row height slider ── */}
-          {showRowSlider && (
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 bg-muted/10 text-xs">
-              <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
-              <input
-                type="range" min={20} max={120} step={4} value={rowH}
-                onChange={e => setRowH(Number(e.target.value))}
-                className="w-28 accent-primary"
-              />
-              <span className="text-muted-foreground w-8">{rowH}px</span>
-            </div>
-          )}
-  <div style={{ minWidth: totalWidth }}>  {
+{/* ── Row height slider ── */}
+        {showRowSlider && (
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 bg-muted/10 text-xs">
+            <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
+            <input
+              type="range" min={20} max={120} step={4} value={rowH}
+              onChange={e => setRowH(Number(e.target.value))}
+              className="w-28 accent-primary"
+            />
+            <span className="text-muted-foreground w-8">{rowH}px</span>
+          </div>
+        )}
+
+        <div style={{ minWidth: totalWidth }}>
           {/* ── Column headers ── */}
           <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
             {showActivities && (
@@ -645,7 +646,8 @@ const alterEntries = useMemo(() => {
               <ResizeHandle onDrag={(d) => dragCol("alter", d / numAlterCols)} />
             </div>
           </div>
- <div className="flex border-b ..." style={{ minWidth: totalWidth }}>
+
+         
           {/* ── Grid ── */}
           <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
       <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
