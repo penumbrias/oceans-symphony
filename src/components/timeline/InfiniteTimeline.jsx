@@ -542,25 +542,13 @@ export default function InfiniteTimeline({
         }
       });
 
-      const merged = [];
-      resolved.forEach((seg) => {
-        if (merged.length === 0) { merged.push({ ...seg }); return; }
-        const last = merged[merged.length - 1];
-        if (seg.startMins <= last.endMins + 2 && seg.isPrimary === last.isPrimary) {
-          last.endMins = Math.max(last.endMins, seg.endMins);
-          last.sessionId = seg.sessionId; // ← keep the LATEST sessionId, not the first
-        } else {
-          merged.push({ ...seg });
-        }
-      });
-
-merged.forEach((seg, i) => result.push({
+resolved.forEach((seg, i) => result.push({
   alterId,
   startMins: seg.startMins,
   endMins: seg.endMins,
   sessionId: seg.sessionId,
   isPrimary: seg.isPrimary,
-  key: `alter-${alterId}-${seg.sessionId}-${i}`,  // ← add sessionId to make unique
+  key: `alter-${alterId}-${seg.sessionId}-${i}`,
 }));
     });
     return result;
