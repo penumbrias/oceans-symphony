@@ -10,7 +10,7 @@ import { Loader2, Heart, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
-import { createIndividualSession, endActiveSessions } from "@/lib/frontingUtils";
+
 
 export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [] }) {
   const queryClient = useQueryClient();
