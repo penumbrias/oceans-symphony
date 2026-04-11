@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
-import { useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
@@ -34,13 +32,6 @@ function emotionColor(name) {
 }
 function minutesInDay(date, dayStart) {
   return differenceInMinutes(date, dayStart);
-}
-function formatMins(mins) {
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  const period = h < 12 ? "am" : "pm";
-  const h12 = h % 12 || 12;
-  return `${h12}:${String(m).padStart(2, "0")}${period}`;
 }
 
 function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
@@ -108,27 +99,13 @@ function StatusNoteBadge({ note, topPx }) {
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress }) {
+function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH }) {
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
-  const lpRef = useRef(null);
-
-  const startPress = (e) => {
-    e.stopPropagation();
-    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
-  };
-  const cancelPress = (e) => {
-    e?.stopPropagation();
-    if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; }
-  };
-
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
-      onClick={tap}
-      onMouseDown={startPress} onMouseUp={cancelPress} onMouseLeave={cancelPress}
-      onTouchStart={startPress} onTouchEnd={cancelPress}>
+      onClick={tap}>
       <div
         className="rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
         style={{
@@ -150,181 +127,6 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
             : `linear-gradient(to bottom, ${color}, ${color}40)`,
         }} />
       )}
-    </div>
-  );
-}
-
-function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
-  const [adjustedMins, setAdjustedMins] = useState(splitMins);
-  const allIds = [session?.primary_alter_id, ...(session?.co_fronter_ids || [])].filter(Boolean);
-  const isPrimary = session?.primary_alter_id === alter?.id;
-  const coIds = (session?.co_fronter_ids || []).filter(Boolean);
-
-  const minsToTime = (mins) => {
-    const h = Math.floor(Math.max(0, mins) / 60) % 24;
-    const m = Math.max(0, mins) % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  };
-  const timeToMins = (t) => {
-    const [h, m] = t.split(":").map(Number);
-    return h * 60 + m;
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
-        onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-2">
-          {alter?.avatar_url
-            ? <img src={alter.avatar_url} alt={alter.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-            : <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                style={{ backgroundColor: alter?.color || "#9333ea" }}>
-                {alter?.name?.charAt(0)?.toUpperCase()}
-              </div>
-          }
-          <div className="flex-1">
-            <p className="text-sm font-semibold">{alter?.name}</p>
-            <p className="text-xs text-muted-foreground">Split session at:</p>
-          </div>
-        </div>
-        <input
-          type="time"
-          value={minsToTime(adjustedMins)}
-          onChange={e => setAdjustedMins(timeToMins(e.target.value))}
-          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium"
-        />
-        <div className="space-y-2">
-          {!isPrimary && (
-            <button onClick={() => onSave("promote", adjustedMins)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-500 hover:bg-amber-500/20 transition-colors text-left">
-              ⭐ Make primary from {formatMins(adjustedMins)}
-            </button>
-          )}
-          {isPrimary && coIds.length > 0 && (
-            <button onClick={() => onSave("demote", adjustedMins)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Demote to co-fronter from {formatMins(adjustedMins)}
-            </button>
-          )}
-          {isPrimary && coIds.length === 0 && (
-            <button onClick={() => onSave("demote", adjustedMins)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Remove primary status from {formatMins(adjustedMins)}
-            </button>
-          )}
-          <button onClick={() => onSave("end", adjustedMins)}
-            className="w-full px-3 py-2 text-sm rounded-lg bg-destructive/10 border border-destructive/40 text-destructive hover:bg-destructive/20 transition-colors text-left">
-            ✕ Remove from front at {formatMins(adjustedMins)}
-          </button>
-        </div>
-        <button onClick={onClose} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-1">
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
-  const minsToTime = (mins) => {
-    const h = Math.floor(Math.max(0, Math.min(1439, mins)) / 60);
-    const m = Math.max(0, Math.min(1439, mins)) % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  };
-
-  const [startTime, setStartTime] = useState(minsToTime(startMins));
-  const [endTime, setEndTime] = useState("");
-  const [stillFronting, setStillFronting] = useState(false);
-  const [selectedAlterId, setSelectedAlterId] = useState("");
-  const [asPrimary, setAsPrimary] = useState(true);
-  const [search, setSearch] = useState("");
-
-  const filtered = alters
-    .filter(a => !a.is_archived)
-    .filter(a => a.name.toLowerCase().includes(search.toLowerCase()));
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
-        onClick={e => e.stopPropagation()}>
-        <p className="text-sm font-semibold">New Fronting Session</p>
-
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-1">Start time</p>
-            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-              className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm" />
-          </div>
-          <button
-            onClick={() => { if (!stillFronting && endTime) { const t = startTime; setStartTime(endTime); setEndTime(t); } }}
-            disabled={stillFronting || !endTime}
-            className="flex-shrink-0 h-8 px-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-30 text-sm"
-            title="Swap start and end times">
-            ⇄
-          </button>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-1">End time</p>
-            <input type="time" value={stillFronting ? "" : endTime}
-              onChange={e => setEndTime(e.target.value)}
-              disabled={stillFronting}
-              className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm disabled:opacity-40" />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input type="checkbox" id="still-fronting" checked={stillFronting}
-            onChange={e => setStillFronting(e.target.checked)}
-            className="w-4 h-4 accent-primary" />
-          <label htmlFor="still-fronting" className="text-xs text-muted-foreground cursor-pointer select-none">
-            Still fronting (no end time)
-          </label>
-        </div>
-
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Who was fronting?</p>
-          <input placeholder="Search alters..." value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm mb-1.5" />
-          <div className="max-h-32 overflow-y-auto space-y-1 border border-border rounded-lg p-1.5 bg-muted/20">
-            {filtered.map(a => (
-              <button key={a.id} onClick={() => setSelectedAlterId(a.id)}
-                className={`w-full text-left px-2 py-1.5 rounded-md text-sm flex items-center gap-2 transition-colors ${
-                  selectedAlterId === a.id ? "bg-primary/15 text-primary" : "hover:bg-muted/50"
-                }`}>
-                {a.avatar_url
-                  ? <img src={a.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
-                  : <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: a.color || "#9333ea", fontSize: 9 }}>
-                      {a.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                }
-                <span className="truncate">{a.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <input type="checkbox" id="new-as-primary" checked={asPrimary}
-            onChange={e => setAsPrimary(e.target.checked)}
-            className="w-4 h-4 accent-primary" />
-          <label htmlFor="new-as-primary" className="text-xs text-muted-foreground cursor-pointer select-none">
-            Mark as primary fronter
-          </label>
-        </div>
-
-        <div className="flex gap-2">
-          <button onClick={onClose}
-            className="flex-1 px-3 py-2 text-sm rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors">
-            Cancel
-          </button>
-          <button disabled={!selectedAlterId}
-            onClick={() => onSave({ startTime, endTime: stillFronting ? null : endTime, alterId: selectedAlterId, asPrimary })}
-            className="flex-1 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
-            Save
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -365,15 +167,15 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expand
 }
 
 const TYPE_META = {
-  journal:   { icon: "📓" },
-  checkin:   { icon: "✅" },
-  bulletin:  { icon: "📌" },
-  task:      { icon: "☑️" },
-  task_done: { icon: "✅" },
-  mention:   { icon: "@" },
+  journal:   { icon: "📓", emoji: true },
+  checkin:   { icon: "✅", emoji: true },
+  bulletin:  { icon: "📌", emoji: true },
+  task:      { icon: "☑️", emoji: true },
+  task_done: { icon: "✅", emoji: true },
+  mention:   { icon: "@",  emoji: false },
 };
 
-function EmotionBubble({ entry, topPx, expanded, onTap }) {
+function EmotionBubble({ entry, topPx, expanded, onTap, colWidth }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
@@ -415,7 +217,7 @@ function EmotionBubble({ entry, topPx, expanded, onTap }) {
 
 function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
-  const meta = TYPE_META[entry.type] || { icon: "•" };
+  const meta = TYPE_META[entry.type] || { icon: "•", emoji: false };
   const isTaskDone = entry.type === "task_done";
   const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
   const showLabel = !expanded && colWidth >= EVENT_DETAIL_MIN_WIDTH;
@@ -457,8 +259,6 @@ export default function InfiniteTimeline({
   showActivities = true, showCheckIns = true, showEmotions = true,
   categories = [],
 }) {
-  const queryClient = useQueryClient();
-
   const catMap = useMemo(() => {
     const m = {};
     categories.forEach(c => { m[c.id] = c; });
@@ -472,10 +272,8 @@ export default function InfiniteTimeline({
   const [showRowSlider, setShowRowSlider] = useState(false);
   const [sessionPopover, setSessionPopover] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
-  const [splitPopover, setSplitPopover] = useState(null);
-  const [newSessionPopover, setNewSessionPopover] = useState(null);
-  const longPressTargetRef = useRef(null);
 
+  // ── Row height — persisted ──
   const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
   useEffect(() => { lsSet(LS_TIMELINE_ROW_H, rowH); }, [rowH]);
 
@@ -505,6 +303,7 @@ export default function InfiniteTimeline({
         session.primary_alter_id,
         ...(session.co_fronter_ids || [])
       ].filter(Boolean);
+
       ids.forEach((alterId) => {
         const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
         const endTime = session.end_time
@@ -521,77 +320,29 @@ export default function InfiniteTimeline({
       });
     });
 
-    const result = [];
+    const merged = [];
     Object.entries(byAlter).forEach(([alterId, segs]) => {
       const sorted = [...segs].sort((a, b) => a.startMins - b.startMins);
-      const resolved = [];
-      sorted.forEach((seg) => {
-        if (resolved.length === 0) { resolved.push({ ...seg }); return; }
-        const last = resolved[resolved.length - 1];
-        if (seg.startMins < last.endMins) {
-          if (seg.isPrimary && !last.isPrimary) {
-            last.endMins = seg.startMins;
-            resolved.push({ ...seg });
-          } else if (!seg.isPrimary && last.isPrimary) {
-            if (seg.endMins > last.endMins) resolved.push({ ...seg, startMins: last.endMins });
-          } else {
-            last.endMins = Math.max(last.endMins, seg.endMins);
-          }
-        } else {
-          resolved.push({ ...seg });
-        }
-      });
-
-      const merged = [];
-      resolved.forEach((seg) => {
-        if (merged.length === 0) { merged.push({ ...seg }); return; }
-        const last = merged[merged.length - 1];
-        if (seg.startMins <= last.endMins + 2 && seg.isPrimary === last.isPrimary) {
-          last.endMins = Math.max(last.endMins, seg.endMins);
-        } else {
-          merged.push({ ...seg });
-        }
-      });
-
-      merged.forEach((seg, i) => result.push({
+      sorted.forEach((seg, i) => merged.push({
         alterId,
         startMins: seg.startMins,
         endMins: seg.endMins,
         sessionId: seg.sessionId,
         isPrimary: seg.isPrimary,
-        key: `alter-${alterId}-${seg.startMins}`,
+        key: `alter-${alterId}-${i}`,
       }));
     });
-    return result;
+    return merged;
   }, [sessions, dayStart, isToday]);
 
   const alterColumns = useMemo(() => {
     const cols = [];
-    const alterIds = [...new Set(alterEntries.map(e => e.alterId))];
-    alterIds.sort((a, b) => {
-      const aFirst = Math.min(...alterEntries.filter(e => e.alterId === a).map(e => e.startMins));
-      const bFirst = Math.min(...alterEntries.filter(e => e.alterId === b).map(e => e.startMins));
-      return aFirst !== bFirst ? aFirst - bFirst : a.localeCompare(b);
-    });
-    alterIds.forEach((alterId) => {
-      const segs = alterEntries.filter(e => e.alterId === alterId);
+    [...alterEntries].sort((a, b) => a.startMins - b.startMins).forEach((entry) => {
       let placed = false;
-      for (let colIdx = 0; colIdx < cols.length; colIdx++) {
-        const col = cols[colIdx];
-        const conflicts = segs.some(seg =>
-          col.some(existing =>
-            existing.alterId !== alterId &&
-            seg.startMins < existing.endMins &&
-            seg.endMins > existing.startMins
-          )
-        );
-        if (!conflicts) {
-          segs.forEach(seg => col.push(seg));
-          placed = true;
-          break;
-        }
+      for (const col of cols) {
+        if (col[col.length - 1].endMins <= entry.startMins + 2) { col.push(entry); placed = true; break; }
       }
-      if (!placed) cols.push([...segs]);
+      if (!placed) cols.push([entry]);
     });
     return cols;
   }, [alterEntries]);
@@ -654,15 +405,9 @@ export default function InfiniteTimeline({
     checkIns.forEach((c) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)), type: "checkin", id: c.id, label: "System Check-In", data: c }));
     bulletins.forEach((b) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)), type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b }));
     tasks.forEach((t) => {
-      const createdDate = parseDate(t.created_date);
-      if (startOfDay(createdDate).getTime() === dayStart.getTime()) {
-        entries.push({ mins: Math.max(0, minutesInDay(createdDate, dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
-      }
+      entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.created_date), dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
       if (t.completed && t.completed_date) {
-        const completedDate = parseDate(t.completed_date);
-        if (startOfDay(completedDate).getTime() === dayStart.getTime()) {
-          entries.push({ mins: Math.max(0, minutesInDay(completedDate, dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
-        }
+        entries.push({ mins: Math.max(0, minutesInDay(parseDate(t.completed_date), dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
       }
     });
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
@@ -680,6 +425,7 @@ export default function InfiniteTimeline({
     return positions.sort((a, b) => a.mins - b.mins);
   }, [expandedKeys, activityEntries, checkInEntries]);
 
+  // ── Use rowH instead of HOUR_HEIGHT constant ──
   const getTopPx = useCallback((mins) => {
     const extra = expandedPositions.filter((p) => p.mins < mins).reduce((s, p) => s + p.extraHeight, 0);
     return (mins / 60) * rowH + extra;
@@ -730,101 +476,9 @@ export default function InfiniteTimeline({
   const totalWidth = timeLeft + LABEL_WIDTH + alterAreaWidth;
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
-  const handleSplitSave = async (action, splitMins) => {
-    if (!splitPopover) return;
-    const { alter, session } = splitPopover;
-    const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
-    const sessionEnd = session.end_time || null;
-    const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-    if (!allIds.includes(alter.id)) allIds.push(alter.id);
-    const remainingIds = allIds.filter(id => id !== alter.id);
-
-    try {
-      if (action === "end") {
-        await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-        if (remainingIds.length > 0) {
-          const newPrimary = session.primary_alter_id !== alter.id ? session.primary_alter_id : remainingIds[0];
-          await base44.entities.FrontingSession.create({
-            primary_alter_id: newPrimary,
-            co_fronter_ids: remainingIds.filter(id => id !== newPrimary),
-            start_time: splitTime,
-            end_time: sessionEnd,
-            is_active: !sessionEnd,
-          });
-        }
-      } else if (action === "promote") {
-        await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: alter.id,
-          co_fronter_ids: remainingIds,
-          start_time: splitTime,
-          end_time: sessionEnd,
-          is_active: !sessionEnd,
-        });
-      } else if (action === "demote") {
-        await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-        const newPrimary = remainingIds[0] || null;
-        await base44.entities.FrontingSession.create({
-          primary_alter_id: newPrimary,
-          co_fronter_ids: newPrimary
-            ? [...remainingIds.slice(1), alter.id]
-            : [alter.id],
-          start_time: splitTime,
-          end_time: sessionEnd,
-          is_active: !sessionEnd,
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    } catch (err) {
-      console.error("Split session failed", err);
-    }
-    setSplitPopover(null);
-  };
-
-  const handleNewSessionSave = async ({ startTime, endTime, alterId, asPrimary }) => {
-    try {
-      const startDate = new Date(dayStart);
-      const [sh, sm] = startTime.split(":").map(Number);
-      startDate.setHours(sh, sm, 0, 0);
-      let endDate = null;
-      if (endTime) {
-        endDate = new Date(dayStart);
-        const [eh, em] = endTime.split(":").map(Number);
-        endDate.setHours(eh, em, 0, 0);
-      }
-      await base44.entities.FrontingSession.create({
-        primary_alter_id: asPrimary ? alterId : null,
-        co_fronter_ids: asPrimary ? [] : [alterId],
-        start_time: startDate.toISOString(),
-        end_time: endDate?.toISOString() || null,
-        is_active: !endDate,
-      });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    } catch (err) {
-      console.error("Create session failed", err);
-    }
-    setNewSessionPopover(null);
-  };
-
-  const startAreaLongPress = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-    const y = clientY - rect.top;
-    const scrollTop = e.currentTarget.closest(".overflow-y-auto")?.scrollTop || 0;
-    const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
-    longPressTargetRef.current = setTimeout(() => {
-      longPressTargetRef.current = null;
-      setNewSessionPopover({ startMins: Math.min(Math.max(0, mins), 1439) });
-    }, 500);
-  };
-  const cancelAreaLongPress = () => {
-    if (longPressTargetRef.current) { clearTimeout(longPressTargetRef.current); longPressTargetRef.current = null; }
-  };
-
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
+      {/* ── Header row ── */}
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
@@ -845,12 +499,18 @@ export default function InfiniteTimeline({
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {!collapsed && (
             <>
-              <button onClick={() => setShowRowSlider(v => !v)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showRowSlider ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
+              <button
+                onClick={() => setShowRowSlider(v => !v)}
+                title="Adjust row height"
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showRowSlider ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
+              >
                 ↕ Zoom
               </button>
-              <button onClick={() => setShowTally(v => !v)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
+              <button
+                onClick={() => setShowTally(v => !v)}
+                title={showTally ? "Hide daily tally" : "Show daily tally"}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}
+              >
                 <BarChart3 className="w-3 h-3" />
                 Tally
               </button>
@@ -862,200 +522,184 @@ export default function InfiniteTimeline({
 
       {!collapsed && (
         <div className="overflow-x-auto border-t border-border">
+
+          {/* ── Row height slider ── */}
           {showRowSlider && (
             <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 bg-muted/10 text-xs">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
-              <input type="range" min={20} max={120} step={4} value={rowH}
+              <input
+                type="range" min={20} max={120} step={4} value={rowH}
                 onChange={e => setRowH(Number(e.target.value))}
-                className="w-28 accent-primary" />
+                className="w-28 accent-primary"
+              />
               <span className="text-muted-foreground w-8">{rowH}px</span>
             </div>
           )}
 
-          <div style={{ minWidth: totalWidth }}>
-            <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
-              {showActivities && (
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: activityAreaWidth }}>
-                  <Activity className="w-3.5 h-3.5 inline" />
-                  <ResizeHandle onDrag={(d) => dragCol("activity", d / numActivityCols)} />
+          {/* ── Column headers ── */}
+          <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
+            {showActivities && (
+              <div className="text-center py-1 relative flex-shrink-0" style={{ width: activityAreaWidth }}>
+                <Activity className="w-3.5 h-3.5 inline" />
+                <ResizeHandle onDrag={(d) => dragCol("activity", d / numActivityCols)} />
+              </div>
+            )}
+            {showCheckIns && (
+              <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
+                <BookOpen className="w-3.5 h-3.5 inline" />
+                <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
+              </div>
+            )}
+            {showEmotions && (
+              <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
+                <Heart className="w-3.5 h-3.5 inline" />
+                <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
+              </div>
+            )}
+            <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
+            <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
+              <Users className="w-3.5 h-3.5 inline" />
+              <ResizeHandle onDrag={(d) => dragCol("alter", d / numAlterCols)} />
+            </div>
+          </div>
+
+          {/* ── Grid ── */}
+          <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+            <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
+
+              {HOURS.map((h) => {
+                const top = getTopPx(h * 60);
+                return (
+                  <div key={h} className="absolute flex items-start"
+                    style={{ top, height: rowH, left: timeLeft, right: 0 }}>
+                    <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-1 text-right" style={{ width: LABEL_WIDTH }}>
+                      {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
+                    </div>
+                    <div className="flex-1 border-t border-border/30 mt-2" />
+                  </div>
+                );
+              })}
+
+              {showActivities && activityColumns.map((col, colIdx) => (
+                <div key={`acol-${colIdx}`} className="absolute"
+                  style={{ left: colIdx * colWidths.activity, top: 0, width: colWidths.activity, height: totalHeight }}>
+                  {col.map((entry) => {
+                    const topPx = getTopPx(entry.startMins);
+                    const heightPx = getRangePx(entry.startMins, entry.endMins);
+                    const isExpanded = expandedKeys.has(entry.key);
+                    const dateStr = format(day, "yyyy-MM-dd");
+                    return (
+                      <ActivityBar
+                        key={entry.key}
+                        activityName={entry.displayName}
+                        color={entry.categoryColor || "hsl(var(--primary))"}
+                        mergedCount={entry.mergedCount}
+                        topPx={topPx}
+                        heightPx={heightPx}
+                        expanded={isExpanded}
+                        notes={entry.activity.notes}
+                        onTap={() => toggleExpand(entry.key)}
+                        onDoubleTap={() => navigate(`/activities?date=${dateStr}&highlight=${entry.activity.id}`)}
+                      />
+                    );
+                  })}
                 </div>
-              )}
+              ))}
+
               {showCheckIns && (
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
-                  <BookOpen className="w-3.5 h-3.5 inline" />
-                  <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
-                </div>
+                <div className="absolute top-0 bottom-0 border-l border-border/30 pointer-events-none"
+                  style={{ left: eventColLeft, height: totalHeight }} />
               )}
               {showEmotions && (
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
-                  <Heart className="w-3.5 h-3.5 inline" />
-                  <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
-                </div>
+                <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
+                  style={{ left: emotionColLeft, height: totalHeight }} />
               )}
-              <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
-              <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
-                <Users className="w-3.5 h-3.5 inline" />
-                <ResizeHandle onDrag={(d) => dragCol("alter", d / numAlterCols)} />
-              </div>
-            </div>
+              <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
+                style={{ left: timeLeft, height: totalHeight }} />
 
-            <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-              <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
-
-                {HOURS.map((h) => {
-                  const top = getTopPx(h * 60);
-                  return (
-                    <div key={h} className="absolute flex items-start"
-                      style={{ top, height: rowH, left: timeLeft, right: 0 }}>
-                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-1 text-right" style={{ width: LABEL_WIDTH }}>
-                        {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
-                      </div>
-                      <div className="flex-1 border-t border-border/30 mt-2" />
-                    </div>
-                  );
-                })}
-
-                {showActivities && activityColumns.map((col, colIdx) => (
-                  <div key={`acol-${colIdx}`} className="absolute"
-                    style={{ left: colIdx * colWidths.activity, top: 0, width: colWidths.activity, height: totalHeight }}>
-                    {col.map((entry) => {
-                      const topPx = getTopPx(entry.startMins);
-                      const heightPx = getRangePx(entry.startMins, entry.endMins);
-                      const isExpanded = expandedKeys.has(entry.key);
-                      const dateStr = format(day, "yyyy-MM-dd");
-                      return (
-                        <ActivityBar
-                          key={entry.key}
-                          activityName={entry.displayName}
-                          color={entry.categoryColor || "hsl(var(--primary))"}
-                          mergedCount={entry.mergedCount}
-                          topPx={topPx}
-                          heightPx={heightPx}
-                          expanded={isExpanded}
-                          notes={entry.activity.notes}
-                          onTap={() => toggleExpand(entry.key)}
-                          onDoubleTap={() => navigate(`/activities?date=${dateStr}&highlight=${entry.activity.id}`)}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
-
-                {showCheckIns && (
-                  <div className="absolute top-0 bottom-0 border-l border-border/30 pointer-events-none"
-                    style={{ left: eventColLeft, height: totalHeight }} />
-                )}
-                {showEmotions && (
-                  <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
-                    style={{ left: emotionColLeft, height: totalHeight }} />
-                )}
-                <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
-                  style={{ left: timeLeft, height: totalHeight }} />
-
-                {showCheckIns && (
-                  <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth, height: totalHeight }}>
-                    {eventPositioned.map((entry) => (
-                      <EventEntry
-                        key={entry.key}
-                        entry={entry}
-                        topPx={entry.adjustedTop}
-                        expanded={expandedKeys.has(entry.key)}
-                        colWidth={eventColWidth}
-                        onTap={() => toggleExpand(entry.key)}
-                        onDoubleTap={() => {
-                          if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
-                          else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
-                          else if (entry.type === "bulletin") navigate(`/`);
-                          else if (entry.type === "task") navigate(`/todo`);
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {showEmotions && (
-                  <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth_actual, height: totalHeight }}>
-                    {emotionPositioned.map((entry) => (
-                      <EmotionBubble
-                        key={entry.key}
-                        entry={entry}
-                        topPx={entry.adjustedTop}
-                        expanded={expandedKeys.has(entry.key)}
-                        colWidth={emotionColWidth}
-                        onTap={() => toggleExpand(entry.key)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                <div
-                  className="absolute"
-                  style={{ left: alterLeft, top: 0, width: alterAreaWidth, height: totalHeight }}
-                  onMouseDown={startAreaLongPress}
-                  onMouseUp={cancelAreaLongPress}
-                  onMouseLeave={cancelAreaLongPress}
-                  onTouchStart={startAreaLongPress}
-                  onTouchEnd={cancelAreaLongPress}
-                >
-                  {alterColumns.map((col, colIdx) => (
-                    <div key={`col-${colIdx}`} className="absolute"
-                      style={{ left: colIdx * colWidths.alter, top: 0, width: colWidths.alter, height: totalHeight }}>
-                      {col.map((entry) => {
-                        const alter = alters.find((a) => a.id === entry.alterId);
-                        const color = alter?.color || "#9333ea";
-                        const topPx = getTopPx(entry.startMins);
-                        const heightPx = getRangePx(entry.startMins, entry.endMins);
-                        const entrySession = sessions.find(s => s.id === entry.sessionId);
-                        return (
-                          <AlterBar
-                            key={entry.key}
-                            alter={alter}
-                            color={color}
-                            topPx={topPx}
-                            heightPx={heightPx}
-                            isPrimary={entry.isPrimary}
-                            rowH={rowH}
-                            onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
-                            onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
-                            onLongPress={(clientY) => {
-                              if (!entrySession) return;
-                              const gridEl = document.querySelector(".overflow-y-auto");
-                              const gridRect = gridEl?.getBoundingClientRect();
-                              const scrollTop = gridEl?.scrollTop || 0;
-                              const relY = clientY - (gridRect?.top || 0) + scrollTop;
-                              const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
-                              const clampedMins = Math.min(Math.max(pressedMins, entry.startMins), entry.endMins);
-                              setSplitPopover({ alter, session: entrySession, splitMins: clampedMins });
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
+              {showCheckIns && (
+                <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth, height: totalHeight }}>
+                  {eventPositioned.map((entry) => (
+                    <EventEntry
+                      key={entry.key}
+                      entry={entry}
+                      topPx={entry.adjustedTop}
+                      expanded={expandedKeys.has(entry.key)}
+                      colWidth={eventColWidth}
+                      onTap={() => toggleExpand(entry.key)}
+                      onDoubleTap={() => {
+                        if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
+                        else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
+                        else if (entry.type === "bulletin") navigate(`/`);
+                        else if (entry.type === "task") navigate(`/todo`);
+                      }}
+                    />
                   ))}
                 </div>
+              )}
 
-                {sessions.flatMap((session) => {
-                  let notes = [];
-                  if (!session.note) return [];
-                  try {
-                    const parsed = JSON.parse(session.note);
-                    notes = Array.isArray(parsed) ? parsed : [{ text: session.note, timestamp: session.start_time }];
-                  } catch {
-                    notes = [{ text: session.note, timestamp: session.start_time }];
-                  }
-                  return notes.map((sn, i) => {
-                    const mins = Math.max(0, minutesInDay(parseDate(sn.timestamp), dayStart));
-                    const topPx = getTopPx(mins);
+              {showEmotions && (
+                <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth_actual, height: totalHeight }}>
+                  {emotionPositioned.map((entry) => (
+                    <EmotionBubble
+                      key={entry.key}
+                      entry={entry}
+                      topPx={entry.adjustedTop}
+                      expanded={expandedKeys.has(entry.key)}
+                      colWidth={emotionColWidth}
+                      onTap={() => toggleExpand(entry.key)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {alterColumns.map((col, colIdx) => (
+                <div key={`col-${colIdx}`} className="absolute"
+                  style={{ left: alterLeft + colIdx * colWidths.alter, top: 0, width: colWidths.alter, height: totalHeight }}>
+                  {col.map((entry) => {
+                    const alter = alters.find((a) => a.id === entry.alterId);
+                    const color = alter?.color || "#9333ea";
+                    const topPx = getTopPx(entry.startMins);
+                    const heightPx = getRangePx(entry.startMins, entry.endMins);
+                    const entrySession = sessions.find(s => s.id === entry.sessionId);
                     return (
-                      <div key={`note-${session.id}-${i}`} className="absolute"
-                        style={{ left: alterLeft, right: 0, top: 0, height: totalHeight, pointerEvents: "none" }}>
-                        <StatusNoteBadge note={sn.text} topPx={topPx} />
-                      </div>
+                      <AlterBar
+                        key={entry.key}
+                        alter={alter}
+                        color={color}
+                        topPx={topPx}
+                        heightPx={heightPx}
+                        isPrimary={entry.isPrimary}
+                        rowH={rowH}
+                        onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
+                        onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
+                      />
                     );
-                  });
-                })}
+                  })}
+                </div>
+              ))}
 
-              </div>
+              {sessions.flatMap((session) => {
+                let notes = [];
+                if (!session.note) return [];
+                try {
+                  const parsed = JSON.parse(session.note);
+                  notes = Array.isArray(parsed) ? parsed : [{ text: session.note, timestamp: session.start_time }];
+                } catch {
+                  notes = [{ text: session.note, timestamp: session.start_time }];
+                }
+                return notes.map((sn, i) => {
+                  const mins = Math.max(0, minutesInDay(parseDate(sn.timestamp), dayStart));
+                  const topPx = getTopPx(mins);
+                  return (
+                    <div key={`note-${session.id}-${i}`} className="absolute"
+                      style={{ left: alterLeft, right: 0, top: 0, height: totalHeight, pointerEvents: "none" }}>
+                      <StatusNoteBadge note={sn.text} topPx={topPx} />
+                    </div>
+                  );
+                });
+              })}
+
             </div>
           </div>
         </div>
@@ -1063,8 +707,14 @@ export default function InfiniteTimeline({
 
       {!collapsed && showTally && (
         <DailyTallyPanel
-          day={day} sessions={sessions} activities={activities} emotions={emotions}
-          journals={journals} checkIns={checkIns} tasks={tasks} alters={alters}
+          day={day}
+          sessions={sessions}
+          activities={activities}
+          emotions={emotions}
+          journals={journals}
+          checkIns={checkIns}
+          tasks={tasks}
+          alters={alters}
         />
       )}
 
@@ -1082,26 +732,6 @@ export default function InfiniteTimeline({
           session={editingSession.session}
           alter={editingSession.alter}
           onClose={() => setEditingSession(null)}
-        />
-      )}
-
-      {splitPopover && (
-        <SessionSplitPopup
-          alter={splitPopover.alter}
-          session={splitPopover.session}
-          splitMins={splitPopover.splitMins}
-          onClose={() => setSplitPopover(null)}
-          onSave={handleSplitSave}
-        />
-      )}
-
-      {newSessionPopover && (
-        <NewSessionPopup
-          startMins={newSessionPopover.startMins}
-          dayStart={dayStart}
-          alters={alters}
-          onClose={() => setNewSessionPopover(null)}
-          onSave={handleNewSessionSave}
         />
       )}
     </div>
