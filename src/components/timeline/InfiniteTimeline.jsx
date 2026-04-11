@@ -762,18 +762,16 @@ const handleSplitSave = async (action, splitMins) => {
       const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
       newSession.primary_alter_id = others[0] || null;
       newSession.co_fronter_ids = [...others.slice(1), alter.id];
-    } else if (action === "end") {
-      // Remove this alter from the second half
-      const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
-      newSession.primary_alter_id = others[0] || null;
-      newSession.co_fronter_ids = others.slice(1);
-      // If no one left, don't create a second session
-      if (others.length === 0) {
-        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-        setSplitPopover(null);
-        return;
-      }
+if (action === "end") {
+  await base44.entities.FrontingSession.update(session.id, {
+    end_time: splitTime,
+    is_active: false,
+  });
+  queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+  queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+  setSplitPopover(null);
+  return;
+}
     }
 
     await base44.entities.FrontingSession.create(newSession);
