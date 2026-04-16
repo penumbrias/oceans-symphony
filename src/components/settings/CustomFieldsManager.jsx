@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, GripVertical, Hash, Type, ToggleLeft, MoreVertical } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, GripVertical, Hash, Type, ToggleLeft, MoreVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -30,6 +30,18 @@ export default function CustomFieldsManager() {
     queryKey: ["customFields"],
     queryFn: () => base44.entities.CustomField.list("order"),
   });
+
+  const moveField = async (index, dir) => {
+    const swapIndex = index + dir;
+    if (swapIndex < 0 || swapIndex >= fields.length) return;
+    const a = fields[index];
+    const b = fields[swapIndex];
+    await Promise.all([
+      base44.entities.CustomField.update(a.id, { order: b.order ?? swapIndex }),
+      base44.entities.CustomField.update(b.id, { order: a.order ?? index }),
+    ]);
+    queryClient.invalidateQueries({ queryKey: ["customFields"] });
+  };
 
   const addField = async () => {
     if (!newName.trim()) return;
@@ -71,11 +83,20 @@ export default function CustomFieldsManager() {
           <p className="text-sm text-muted-foreground italic py-2">No custom fields defined yet.</p>
         )}
 
-        {fields.map((field) => {
+        {fields.map((field, index) => {
           const Icon = TYPE_ICONS[field.field_type] || Type;
           return (
             <div key={field.id} className="flex items-center gap-3 px-3 py-3 rounded-xl border border-border/50 bg-muted/10">
-              <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
+              <div className="flex flex-col gap-0.5 flex-shrink-0">
+                <button type="button" onClick={() => moveField(index, -1)} disabled={index === 0}
+                  className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 hover:bg-muted/60 transition-colors">
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" onClick={() => moveField(index, 1)} disabled={index === fields.length - 1}
+                  className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 hover:bg-muted/60 transition-colors">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{field.name}</p>
                 <div className="flex items-center gap-2 mt-1">
@@ -115,15 +136,10 @@ export default function CustomFieldsManager() {
               {["text", "number", "boolean"].map((t) => {
                 const Icon = TYPE_ICONS[t];
                 return (
-                  <button
-                    key={t}
-                    onClick={() => setNewType(t)}
+                  <button key={t} onClick={() => setNewType(t)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                      newType === t
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/50 text-muted-foreground hover:border-border"
-                    }`}
-                  >
+                      newType === t ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"
+                    }`}>
                     <Icon className="w-3.5 h-3.5" />
                     {TYPE_LABELS[t]}
                   </button>
