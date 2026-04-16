@@ -44,7 +44,18 @@ export function blocksToHTML(blocks) {
         return "";
     }
   }).join("\n");
-  const json = encodeURIComponent(JSON.stringify(blocks));
+  const blocksForJSON = blocks.map(b => {
+    const strip = (src) => src?.startsWith("data:") ? "__local_img__" : src;
+    if (b.type === "img-left" || b.type === "img-right" || b.type === "img-solo") {
+      return { ...b, src: strip(b.src) };
+    }
+    if (b.type === "gallery") {
+      return { ...b, images: (b.images || []).map(i => ({ ...i, src: strip(i.src) })) };
+    }
+    return b;
+  });
+
+  const json = encodeURIComponent(JSON.stringify(blocksForJSON));
   return `<div data-blocks="${json}">${inner}</div>`;
 }
 
