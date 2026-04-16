@@ -65,7 +65,22 @@ export function htmlToBlocks(html) {
   if (match) {
     try {
       const blocks = JSON.parse(decodeURIComponent(match[1]));
-      if (Array.isArray(blocks) && blocks.length) return blocks.map(b => ({ ...b, id: uid() }));
+      if (Array.isArray(blocks) && blocks.length) {
+        // Re-extract base64 srcs from rendered img tags
+        const imgSrcs = [...html.matchAll(/<img src="(data:[^"]+)"/g)].map(m => m[1]);
+        let imgIdx = 0;
+        const restore = (src) => src === "__local_img__" ? (imgSrcs[imgIdx++] || "") : src;
+        return blocks.map(b => {
+          const id = uid();
+          if (b.type === "img-left" || b.type === "img-right" || b.type === "img-solo") {
+            return { ...b, id, src: restore(b.src) };
+          }
+          if (b.type === "gallery") {
+            return { ...b, id, images: (b.images || []).map(i => ({ ...i, src: restore(i.src) })) };
+          }
+          return { ...b, id };
+        });
+      }
     } catch {}
   }
   const blocks = [];
