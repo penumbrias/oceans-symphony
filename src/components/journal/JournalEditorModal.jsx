@@ -119,7 +119,7 @@ function SimplePreview({ blocks, onBlockChange }) {
               autoFocus
               value={editValue}
               onChange={e => setEditValue(e.target.value)}
-              className="w-full min-h-[120px] px-3 py-2.5 rounded-xl border border-input bg-muted/20 text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-y leading-relaxed"
+              className="w-full min-h-[120px] px-3 py-2.5 rounded-xl border border-input bg-transparent text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-y leading-relaxed"
               spellCheck={true}
             />
             <div className="flex gap-2 justify-end">
