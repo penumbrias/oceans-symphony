@@ -110,11 +110,11 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
       finalContent = await encryptContent(content, encryptionPassword);
     }
     saveMutation.mutate({
-  title: title.trim() || new Date().toLocaleString(),
-  content: finalContent,
-  is_encrypted: isEncrypted,
-  folder: folder || null,
-});
+      title: title.trim() || new Date().toLocaleString(),
+      content: finalContent,
+      is_encrypted: isEncrypted,
+      folder: folder || null,
+    });
   };
 
   const allFolders = folders;
