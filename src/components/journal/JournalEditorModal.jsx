@@ -21,22 +21,52 @@ function SimplePreview({ blocks, onBlockChange }) {
   const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
 
-const stripHTML = (html) => {
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html || "";
-  // Remove style and script tags before extracting text
-  tmp.querySelectorAll("style, script").forEach(el => el.remove());
-  return tmp.textContent || tmp.innerText || "";
-};
+  const getDisplayText = (html) => {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html || "";
+    // Get only direct text content from text nodes, preserving what's visible
+    const walker = document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT);
+    const texts = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.parentElement?.tagName !== "STYLE" && node.parentElement?.tagName !== "SCRIPT") {
+        const t = node.textContent.trim();
+        if (t) texts.push(t);
+      }
+    }
+    return texts.join(" ");
+  };
+
+  const replaceDisplayText = (html, newText) => {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html || "";
+    const walker = document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.parentElement?.tagName !== "STYLE" && node.parentElement?.tagName !== "SCRIPT") {
+        if (node.textContent.trim()) textNodes.push(node);
+      }
+    }
+    // Replace all visible text nodes with the new text, putting it in the first and clearing the rest
+    if (textNodes.length > 0) {
+      textNodes[0].textContent = newText;
+      for (let i = 1; i < textNodes.length; i++) {
+        textNodes[i].textContent = "";
+      }
+    }
+    return tmp.innerHTML;
+  };
 
   const openEdit = (id, field, html) => {
-    setEditModal({ id, field });
-    setEditValue(stripHTML(html));
+    setEditModal({ id, field, html });
+    setEditValue(getDisplayText(html));
   };
 
   const commitEdit = () => {
     if (editModal) {
-      onBlockChange(editModal.id, { [editModal.field]: editValue });
+      const updated = replaceDisplayText(editModal.html, editValue);
+      onBlockChange(editModal.id, { [editModal.field]: updated });
       setEditModal(null);
     }
   };
