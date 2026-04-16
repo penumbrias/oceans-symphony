@@ -132,21 +132,37 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
         <div className="space-y-4">
           <Input placeholder="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Folder</label>
-            <div className="flex flex-wrap gap-1.5">
-              <button type="button" onClick={() => setFolder(null)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${!folder ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-                None
-              </button>
-              {folders.map(f => (
-                <button key={f} type="button" onClick={() => setFolder(f)}
-                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${folder === f ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
+{/* Folder selector */}
+<div className="space-y-1.5">
+  <label className="text-sm font-medium flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Folder</label>
+  <div className="flex flex-wrap gap-1.5">
+    <button type="button" onClick={() => setFolder(null)}
+      className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${!folder ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+      None
+    </button>
+    {/* Top-level folders */}
+    {folders.filter(f => !f.includes("/")).map(f => (
+      <button key={f} type="button" onClick={() => setFolder(f)}
+        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${folder === f || folder?.startsWith(`${f}/`) ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+        {f}
+      </button>
+    ))}
+  </div>
+  {/* Subfolders of selected parent */}
+  {folder && folders.some(f => f.startsWith(`${folder.split("/")[0]}/`)) && (
+    <div className="flex flex-wrap gap-1.5 pl-3 border-l-2 border-primary/20 ml-1">
+      {folders.filter(f => {
+        const parent = folder.split("/")[0];
+        return f.startsWith(`${parent}/`) && f.split("/").length === 2;
+      }).map(f => (
+        <button key={f} type="button" onClick={() => setFolder(f)}
+          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${folder === f ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+          {f.split("/").pop()}
+        </button>
+      ))}
+    </div>
+  )}
+</div>
 
           {!editingEntryFinal && (
             <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
