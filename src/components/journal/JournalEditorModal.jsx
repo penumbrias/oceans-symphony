@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye } from "lucid
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 
 const getSavedFolders = () => {
