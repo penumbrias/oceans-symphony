@@ -253,10 +253,7 @@ const handleBgUpload = async (e) => {
 
         {alter.description ? (
   <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
-    <SimplePreview
-      blocks={htmlToBlocks(alter.description)}
-      onBlockChange={() => {}}
-    />
+    <div style={{ width: "100%" }} dangerouslySetInnerHTML={{ __html: alter.description }} />
   </div>
 ) : (
           <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
