@@ -314,12 +314,11 @@ function ImgSoloBlock({ block, onChange }) {
     <>
       <div className="p-3 space-y-3">
         <button type="button" onClick={() => setImgModal(true)}
-          className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center" style={{ minHeight: 80 }}>
-          {block.src ? (
-            <img src={block.src} alt={block.alt || ""} style={block.cropped ? { width: "100%", maxWidth: block.size || 240, height: block.size || 240, objectFit: "cover" } : { maxWidth: "100%", height: "auto", maxHeight: 240 }} onError={e => e.target.style.display = "none"} />
-          ) : (
-            <div className="flex flex-col items-center gap-1 text-muted-foreground py-6"><Image className="w-5 h-5" /><span className="text-xs">Add image</span></div>
-          )}
+  className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
+  style={{
+    justifyContent: (block.align || "left") === "center" ? "center" : (block.align || "left") === "right" ? "flex-end" : "flex-start",
+    minHeight: 80
+  }}>
         </button>
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex-1 space-y-1 min-w-[120px]">
