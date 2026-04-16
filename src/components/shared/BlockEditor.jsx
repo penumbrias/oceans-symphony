@@ -313,17 +313,33 @@ function ImgSoloBlock({ block, onChange }) {
   return (
     <>
       <div className="p-3 space-y-3">
-        <button type="button" onClick={() => setImgModal(true)}
-  className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
-  style={{
-    justifyContent: (block.align || "left") === "center" ? "center" : (block.align || "left") === "right" ? "flex-end" : "flex-start",
-    minHeight: 80
-  }}>
-        </button>
+        <div
+          className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20"
+          style={{
+            minHeight: 80,
+            display: "flex",
+            justifyContent: (block.align || "left") === "center" ? "center" : (block.align || "left") === "right" ? "flex-end" : "flex-start"
+          }}>
+          <button type="button" onClick={() => setImgModal(true)} className="contents">
+            {block.src ? (
+              <img src={block.src} alt={block.alt || ""}
+                style={block.cropped
+                  ? { width: "100%", maxWidth: block.size || 240, height: block.size || 240, objectFit: "cover" }
+                  : { maxWidth: "100%", height: "auto", maxHeight: 240 }}
+                onError={e => e.target.style.display = "none"} />
+            ) : (
+              <div className="flex flex-col items-center gap-1 text-muted-foreground py-6">
+                <Image className="w-5 h-5" /><span className="text-xs">Add image</span>
+              </div>
+            )}
+          </button>
+        </div>
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex-1 space-y-1 min-w-[120px]">
             <span className="text-xs text-muted-foreground">Width: {block.size || 240}px</span>
-            <input type="range" min={60} max={600} step={10} value={block.size || 240} onChange={e => onChange({ ...block, size: parseInt(e.target.value) })} className="w-full h-1 accent-primary" />
+            <input type="range" min={60} max={600} step={10} value={block.size || 240}
+              onChange={e => onChange({ ...block, size: parseInt(e.target.value) })}
+              className="w-full h-1 accent-primary" />
           </div>
           <button type="button" onClick={() => onChange({ ...block, cropped: !block.cropped })}
             className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border transition-colors flex-shrink-0 ${block.cropped ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
