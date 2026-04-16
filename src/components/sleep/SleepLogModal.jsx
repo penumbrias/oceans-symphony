@@ -46,7 +46,7 @@ const handleSave = async () => {
 
   setIsLoading(true);
   try {
-    const dateStr = format(selectedDate || new Date(), "yyyy-MM-dd");
+    const dateStr = sleepDate || format(selectedDate || new Date(), "yyyy-MM-dd");
     const bedtimeISO = new Date(bedtime).toISOString();
     const wakeTimeISO = new Date(wakeTime).toISOString();
     const durationMinutes = Math.round(
@@ -86,6 +86,7 @@ const handleSave = async () => {
     setWakeTime("");
     setQuality(5);
     setNotes("");
+    setSleepDate("");
     onSave?.();
     onClose();
   } catch (err) {
@@ -105,6 +106,15 @@ const handleSave = async () => {
         </DialogHeader>
 
         <div className="space-y-4">
+        <div>
+  <label className="text-sm font-medium text-foreground">Date</label>
+  <Input
+    type="date"
+    value={sleepDate}
+    onChange={(e) => setSleepDate(e.target.value)}
+    className="mt-1"
+  />
+</div>
           {/* Bedtime */}
           <div>
             <label className="text-sm font-medium text-foreground">
