@@ -19,10 +19,13 @@ export function blocksToHTML(blocks) {
   <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 120}px;${block.cropped ? `height:${block.size || 120}px;object-fit:cover;` : "height:auto;"}border-radius:8px;flex-shrink:0;max-width:100%;" />
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
 </div>`;
-      case "img-solo":
-        return `<div style="margin:8px 0;text-align:${block.align || "left"};">
-  <img src="${block.src || ""}" alt="${block.alt || ""}" style="width:${block.size || 240}px;${block.cropped ? `height:${block.size || 240}px;object-fit:cover;` : "height:auto;"}border-radius:8px;max-width:100%;" />
+      case "img-solo": {
+  const align = block.align || "left";
+  const marginStyle = align === "center" ? "margin-left:auto;margin-right:auto;" : align === "right" ? "margin-left:auto;margin-right:0;" : "margin-left:0;margin-right:auto;";
+  return `<div style="margin:8px 0;">
+  <img src="${block.src || ""}" alt="${block.alt || ""}" style="display:block;width:${block.size || 240}px;${block.cropped ? `height:${block.size || 240}px;object-fit:cover;` : "height:auto;"}border-radius:8px;max-width:100%;${marginStyle}" />
 </div>`;
+}
       case "img-right":
         return `<div style="display:flex;gap:14px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
