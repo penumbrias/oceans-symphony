@@ -192,7 +192,7 @@ function useTextareaInsert(ref, value, onChange) {
 
 // ── Convert blocks → HTML ──
 function blocksToHTML(blocks) {
-  return blocks.map(block => {
+  const inner = blocks.map(block => {
     switch (block.type) {
       case "text":
         return `<div class="bio-text">${block.content || ""}</div>`;
@@ -226,6 +226,8 @@ case "img-solo":
         return "";
     }
   }).join("\n");
+  const json = encodeURIComponent(JSON.stringify(blocks));
+  return `<div data-blocks="${json}">${inner}</div>`;
 }
 
 // ── Parse HTML → blocks ──
