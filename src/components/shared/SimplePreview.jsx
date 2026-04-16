@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
+import { blocksToHTML } from "@/components/shared/BlockEditor";
 
-export default function SimplePreview({ blocks, onBlockChange }) {
+export default function SimplePreview({ blocks, onBlockChange, readOnly = false }) {
   const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
 
@@ -39,6 +39,7 @@ export default function SimplePreview({ blocks, onBlockChange }) {
   };
 
   const openEdit = (id, field, html) => {
+    if (readOnly) return;
     setEditModal({ id, field, html });
     setEditValue(getDisplayText(html));
   };
@@ -51,16 +52,20 @@ export default function SimplePreview({ blocks, onBlockChange }) {
     }
   };
 
+  const containerClass = readOnly
+    ? "space-y-2"
+    : "space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]";
+
   return (
     <>
-      <div className="space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]">
+      <div className={containerClass}>
         {blocks.map(block => {
           if (block.type === "text") {
             return (
               <div key={block.id}
                 onClick={() => openEdit(block.id, "content", block.content)}
-                className="px-2 py-1 rounded-lg hover:bg-muted/30 cursor-text transition-colors min-h-[24px]"
-                dangerouslySetInnerHTML={{ __html: block.content || '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit...</span>' }}
+                className={`px-2 py-1 rounded-lg transition-colors min-h-[24px] ${!readOnly ? "hover:bg-muted/30 cursor-text" : ""}`}
+                dangerouslySetInnerHTML={{ __html: block.content || (!readOnly ? '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit...</span>' : '') }}
               />
             );
           }
@@ -77,21 +82,44 @@ export default function SimplePreview({ blocks, onBlockChange }) {
                       : { width: block.size || 120, height: "auto", borderRadius: 8, flexShrink: 0 }} />
                 )}
                 <div onClick={() => openEdit(block.id, "text", block.text)}
-                  className="flex-1 px-2 py-1 rounded-lg hover:bg-muted/30 cursor-text transition-colors min-h-[40px]"
-                  dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit...</span>' }} />
+                  className={`flex-1 px-2 py-1 rounded-lg transition-colors min-h-[40px] ${!readOnly ? "hover:bg-muted/30 cursor-text" : ""}`}
+                  dangerouslySetInnerHTML={{ __html: block.text || (!readOnly ? '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit...</span>' : '') }} />
               </div>
             );
           }
 
-          const html = blocksToHTML([block]).replace(/^<div data-blocks="[^"]*">/, "").replace(/<\/div>$/, "");
-          return <div key={block.id} dangerouslySetInnerHTML={{ __html: html }} />;
+          if (block.type === "img-solo") {
+            const align = block.align || "left";
+            const marginStyle = align === "center"
+              ? { marginLeft: "auto", marginRight: "auto" }
+              : align === "right"
+              ? { marginLeft: "auto", marginRight: 0 }
+              : { marginLeft: 0, marginRight: "auto" };
+            return (
+              <div key={block.id} style={{ margin: "8px 0", width: "100%" }}>
+                <img src={block.src} alt={block.alt || ""}
+                  style={{
+                    display: "block",
+                    width: block.size || 240,
+                    height: block.cropped ? block.size || 240 : "auto",
+                    objectFit: block.cropped ? "cover" : undefined,
+                    borderRadius: 8,
+                    maxWidth: "100%",
+                    ...marginStyle
+                  }} />
+              </div>
+            );
+          }
+
+          const html = blocksToHTML([block]).replace(/^<div data-blocks="[^"]*" style="[^"]*">/, "").replace(/^<div data-blocks="[^"]*">/, "").replace(/<\/div>$/, "");
+          return <div key={block.id} style={{ width: "100%" }} dangerouslySetInnerHTML={{ __html: html }} />;
         })}
-        {blocks.length === 0 && (
+        {blocks.length === 0 && !readOnly && (
           <p className="text-muted-foreground text-sm italic px-1">No content yet. Switch to Blocks to add content.</p>
         )}
       </div>
 
-      {editModal && (
+      {!readOnly && editModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[80]">
           <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 w-full max-w-md mx-4 shadow-2xl">
             <p className="text-sm font-medium">Edit text</p>
