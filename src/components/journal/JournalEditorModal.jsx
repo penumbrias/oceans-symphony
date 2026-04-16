@@ -19,8 +19,8 @@ const getSavedFolders = () => {
 };
 
 function SimplePreview({ blocks, onBlockChange }) {
-  const [editingId, setEditingId] = useState(null);
-  const [editingValue, setEditingValue] = useState("");
+  const [editModal, setEditModal] = useState(null); // { id, field, value }
+  const [editValue, setEditValue] = useState("");
 
   const stripHTML = (html) => {
     const tmp = document.createElement("div");
@@ -28,85 +28,83 @@ function SimplePreview({ blocks, onBlockChange }) {
     return tmp.textContent || tmp.innerText || "";
   };
 
-  const startEdit = (id, currentValue) => {
-    setEditingId(id);
-    setEditingValue(stripHTML(currentValue));
+  const openEdit = (id, field, html) => {
+    setEditModal({ id, field });
+    setEditValue(stripHTML(html));
   };
 
-  const commitEdit = (id, field) => {
-    if (editingId === id) {
-      onBlockChange(id, { [field]: editingValue });
-      setEditingId(null);
-      setEditingValue("");
+  const commitEdit = () => {
+    if (editModal) {
+      onBlockChange(editModal.id, { [editModal.field]: editValue });
+      setEditModal(null);
     }
   };
 
   return (
-    <div className="space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]">
-      {blocks.map(block => {
-        if (block.type === "text") {
-          if (editingId === block.id) {
+    <>
+      <div className="space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]">
+        {blocks.map(block => {
+          if (block.type === "text") {
             return (
-              <textarea
-                key={block.id}
-                autoFocus
-                value={editingValue}
-                onChange={e => setEditingValue(e.target.value)}
-                onBlur={() => commitEdit(block.id, "content")}
-                className="w-full min-h-[80px] px-3 py-2 text-sm bg-transparent border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
-                spellCheck={true}
+              <div key={block.id}
+                onClick={() => openEdit(block.id, "content", block.content)}
+                className="px-2 py-1 rounded-lg hover:bg-muted/30 cursor-text transition-colors min-h-[24px]"
+                dangerouslySetInnerHTML={{ __html: block.content || '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit...</span>' }}
               />
             );
           }
-          return (
-            <div key={block.id}
-              onClick={() => startEdit(block.id, block.content)}
-              className="px-2 py-1 rounded-lg hover:bg-muted/30 cursor-text transition-colors min-h-[24px]"
-              dangerouslySetInnerHTML={{ __html: block.content || '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit text...</span>' }}
-            />
-          );
-        }
 
-        if (block.type === "img-left" || block.type === "img-right") {
-          const isLeft = block.type === "img-left";
-          const imgEl = block.src ? (
-            <img src={block.src} alt={block.alt || ""}
-              style={block.cropped
-                ? { width: block.size || 120, height: block.size || 120, objectFit: "cover", borderRadius: 8, flexShrink: 0 }
-                : { width: block.size || 120, height: "auto", borderRadius: 8, flexShrink: 0 }} />
-          ) : null;
+          if (block.type === "img-left" || block.type === "img-right") {
+            const isLeft = block.type === "img-left";
+            return (
+              <div key={block.id} className="flex gap-3 items-start"
+                style={{ flexDirection: isLeft ? "row" : "row-reverse" }}>
+                {block.src && (
+                  <img src={block.src} alt={block.alt || ""}
+                    style={block.cropped
+                      ? { width: block.size || 120, height: block.size || 120, objectFit: "cover", borderRadius: 8, flexShrink: 0 }
+                      : { width: block.size || 120, height: "auto", borderRadius: 8, flexShrink: 0 }} />
+                )}
+                <div onClick={() => openEdit(block.id, "text", block.text)}
+                  className="flex-1 px-2 py-1 rounded-lg hover:bg-muted/30 cursor-text transition-colors min-h-[40px]"
+                  dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit...</span>' }} />
+              </div>
+            );
+          }
 
-          const textEl = editingId === block.id ? (
+          const html = blocksToHTML([block]).replace(/^<div data-blocks="[^"]*">/, "").replace(/<\/div>$/, "");
+          return <div key={block.id} dangerouslySetInnerHTML={{ __html: html }} />;
+        })}
+        {blocks.length === 0 && (
+          <p className="text-muted-foreground text-sm italic px-1">No content yet. Switch to Blocks to add content.</p>
+        )}
+      </div>
+
+      {editModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[80]">
+          <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 w-full max-w-md mx-4 shadow-2xl">
+            <p className="text-sm font-medium">Edit text</p>
             <textarea
               autoFocus
-              value={editingValue}
-              onChange={e => setEditingValue(e.target.value)}
-              onBlur={() => commitEdit(block.id, "text")}
-              className="flex-1 min-h-[80px] px-3 py-2 text-sm bg-transparent border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              className="w-full min-h-[120px] px-3 py-2.5 rounded-xl border border-input bg-muted/20 text-sm focus:outline-none focus:ring-1 focus:ring-ring resize-y leading-relaxed"
               spellCheck={true}
             />
-          ) : (
-            <div onClick={() => startEdit(block.id, block.text)}
-              className="flex-1 px-2 py-1 rounded-lg hover:bg-muted/30 cursor-text transition-colors min-h-[40px]"
-              dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit text...</span>' }} />
-          );
-
-          return (
-            <div key={block.id} className="flex gap-3 items-start"
-              style={{ flexDirection: isLeft ? "row" : "row-reverse" }}>
-              {imgEl}
-              {textEl}
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setEditModal(null)}
+                className="px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium hover:bg-muted/80">
+                Cancel
+              </button>
+              <button type="button" onClick={commitEdit}
+                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium">
+                Done
+              </button>
             </div>
-          );
-        }
-
-        const html = blocksToHTML([block]).replace(/^<div data-blocks="[^"]*">/, "").replace(/<\/div>$/, "");
-        return <div key={block.id} dangerouslySetInnerHTML={{ __html: html }} />;
-      })}
-      {blocks.length === 0 && (
-        <p className="text-muted-foreground text-sm italic px-1">No content yet. Switch to Blocks to add content.</p>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
