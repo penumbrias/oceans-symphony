@@ -10,7 +10,6 @@ import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye } from "lucid
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 
 const getSavedFolders = () => {
@@ -19,16 +18,9 @@ const getSavedFolders = () => {
 };
 
 function SimplePreview({ blocks, onBlockChange }) {
-  const [editModal, setEditModal] = useState(null); // { id, field, value }
+  const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
-  const previewBlocks = useMemo(() => htmlToBlocks(content), [content]);
-<SimplePreview
-  blocks={previewBlocks}
-  onBlockChange={(id, patch) => {
-    const updated = previewBlocks.map(b => b.id === id ? { ...b, ...patch } : b);
-    setContent(blocksToHTML(updated));
-  }}
-/>
+
   const stripHTML = (html) => {
     const tmp = document.createElement("div");
     tmp.innerHTML = html || "";
@@ -122,7 +114,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [folder, setFolder] = useState(defaultFolder || null);
-  const [editorMode, setEditorMode] = useState("simple"); // "simple" | "blocks"
+  const [editorMode, setEditorMode] = useState("simple");
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [encryptionPassword, setEncryptionPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
@@ -133,6 +125,8 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, content, setContent);
   const folders = getSavedFolders();
+
+  const previewBlocks = useMemo(() => htmlToBlocks(content), [content]);
 
   useEffect(() => {
     if (editingEntryFinal) {
@@ -215,8 +209,6 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
     });
   };
 
-  const allFolders = folders;
-
   return (
     <Dialog open={isOpenFinal} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -227,7 +219,6 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
         <div className="space-y-4">
           <Input placeholder="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
-          {/* Folder selector */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Folder</label>
             <div className="flex flex-wrap gap-1.5">
@@ -235,7 +226,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
                 className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${!folder ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
                 None
               </button>
-              {allFolders.map(f => (
+              {folders.map(f => (
                 <button key={f} type="button" onClick={() => setFolder(f)}
                   className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${folder === f ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
                   {f}
@@ -244,7 +235,6 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
             </div>
           </div>
 
-          {/* Encryption toggle */}
           {!editingEntryFinal && (
             <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
               <Checkbox checked={isEncrypted} onCheckedChange={setIsEncrypted} id="encrypt-toggle" />
@@ -287,47 +277,46 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
             </div>
           )}
 
-          {/* Editor mode toggle + content */}
           {(!editingEntryFinal?.is_encrypted || !showPasswordField) && (
             <div className="space-y-2">
-  <div className="flex items-center justify-between">
-    <label className="text-sm font-medium">Content</label>
-    <div className="flex gap-1 bg-muted/40 p-1 rounded-lg">
-      <button type="button" onClick={() => setEditorMode("plain")}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-        <Type className="w-3 h-3" /> Plain
-      </button>
-      <button type="button" onClick={() => setEditorMode("simple")}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "simple" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-        <Eye className="w-3 h-3" /> Simple
-      </button>
-      <button type="button" onClick={() => setEditorMode("blocks")}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-        <LayoutGrid className="w-3 h-3" /> Blocks
-      </button>
-    </div>
-  </div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Content</label>
+                <div className="flex gap-1 bg-muted/40 p-1 rounded-lg">
+                  <button type="button" onClick={() => setEditorMode("plain")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    <Type className="w-3 h-3" /> Plain
+                  </button>
+                  <button type="button" onClick={() => setEditorMode("simple")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "simple" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    <Eye className="w-3 h-3" /> Simple
+                  </button>
+                  <button type="button" onClick={() => setEditorMode("blocks")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    <LayoutGrid className="w-3 h-3" /> Blocks
+                  </button>
+                </div>
+              </div>
 
-  {editorMode === "plain" ? (
-    <div className="rounded-xl border border-input bg-background">
-      <textarea ref={taRef} value={content} onChange={e => setContent(e.target.value)}
-        placeholder="Write your entry..."
-        className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
-        spellCheck={false} />
-      <MiniToolbar onInsert={insert} />
-    </div>
-  ) : editorMode === "simple" ? (
-    <SimplePreview
-      blocks={htmlToBlocks(content)}
-      onBlockChange={(id, patch) => {
-        const updated = htmlToBlocks(content).map(b => b.id === id ? { ...b, ...patch } : b);
-        setContent(blocksToHTML(updated));
-      }}
-    />
-  ) : (
-    <BlockEditor value={content} onChange={setContent} />
-  )}
-</div>
+              {editorMode === "plain" ? (
+                <div className="rounded-xl border border-input bg-background">
+                  <textarea ref={taRef} value={content} onChange={e => setContent(e.target.value)}
+                    placeholder="Write your entry..."
+                    className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
+                    spellCheck={false} />
+                  <MiniToolbar onInsert={insert} />
+                </div>
+              ) : editorMode === "simple" ? (
+                <SimplePreview
+                  blocks={previewBlocks}
+                  onBlockChange={(id, patch) => {
+                    const updated = previewBlocks.map(b => b.id === id ? { ...b, ...patch } : b);
+                    setContent(blocksToHTML(updated));
+                  }}
+                />
+              ) : (
+                <BlockEditor value={content} onChange={setContent} />
+              )}
+            </div>
           )}
 
           <div>
