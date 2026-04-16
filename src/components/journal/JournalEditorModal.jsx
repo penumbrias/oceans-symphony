@@ -103,11 +103,12 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
       finalContent = await encryptContent(content, encryptionPassword);
     }
 
-    saveMutation.mutate({
-      title,
-      content: finalContent,
-      is_encrypted: isEncrypted,
-    });
+saveMutation.mutate({
+  title,
+  content: finalContent,
+  is_encrypted: isEncrypted,
+  folder: editingEntryFinal?.folder ?? (defaultFolder || null),
+});
     
     if (mentionNote.trim() && alters?.length > 0) {
   const savedId = editingEntryFinal?.id || "pending";
