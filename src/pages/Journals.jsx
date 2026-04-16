@@ -25,19 +25,31 @@ const persistFolders = (folders) => {
   localStorage.setItem("os_journal_folders", JSON.stringify(folders));
 };
 
+// Given a path like "taiga/meadow", returns ["taiga", "taiga/meadow"]
+const getAncestors = (path) => {
+  const parts = path.split("/");
+  return parts.map((_, i) => parts.slice(0, i + 1).join("/"));
+};
+
+const getParent = (path) => {
+  const parts = path.split("/");
+  return parts.length > 1 ? parts.slice(0, -1).join("/") : null;
+};
+
+const getDepth = (path) => path.split("/").length - 1;
+
 export default function Journals() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState(null);
-  const [selectedFolder, setSelectedFolder] = useState(null);
   const [fronterOnly, setFronterOnly] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newEntryFolder, setNewEntryFolder] = useState(null);
-  const [viewingFolder, setViewingFolder] = useState(null);
+  const [viewingFolder, setViewingFolder] = useState(null); // full path e.g. "taiga/meadow"
   const [viewingEntry, setViewingEntry] = useState(null);
   const [savedFolders, setSavedFoldersState] = useState(getSavedFolders);
 
@@ -76,33 +88,49 @@ export default function Journals() {
     return [...tags];
   }, [entries]);
 
-  const allFolders = useMemo(() => {
-    const folderMap = {};
-    entries.forEach((e) => {
-      if (e.folder) folderMap[e.folder] = (folderMap[e.folder] || 0) + 1;
+  // All folder paths — merge saved + derived from entries
+  const allFolderPaths = useMemo(() => {
+    const fromEntries = new Set();
+    entries.forEach(e => {
+      if (e.folder) {
+        // also ensure ancestors exist
+        getAncestors(e.folder).forEach(a => fromEntries.add(a));
+      }
     });
-    const merged = { ...Object.fromEntries(savedFolders.map(n => [n, 0])), ...folderMap };
-    return Object.entries(merged).map(([name, count]) => ({ name, count }));
+    const merged = new Set([...savedFolders, ...fromEntries]);
+    return [...merged];
   }, [entries, savedFolders]);
 
+  // Folders visible at current level
+  const visibleFolders = useMemo(() => {
+    return allFolderPaths
+      .filter(path => {
+        const parent = getParent(path);
+        return parent === viewingFolder; // null === null for root
+      })
+      .map(path => {
+        const name = path.split("/").pop();
+        const count = entries.filter(e => e.folder === path).length;
+        const hasChildren = allFolderPaths.some(p => getParent(p) === path);
+        return { path, name, count, hasChildren };
+      });
+  }, [allFolderPaths, viewingFolder, entries]);
+
+  // Entries visible at current level — only direct children of viewingFolder
   const filtered = useMemo(() => {
     return entries.filter((e) => {
       if (tab !== "all" && e.entry_type !== tab) return false;
       if (search && !e.title?.toLowerCase().includes(search.toLowerCase()) &&
           !e.content?.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedTag && !(e.tags || []).includes(selectedTag)) return false;
-      if (viewingFolder !== null) {
-        if (e.folder !== viewingFolder) return false;
-      } else if (selectedFolder) {
-        if (e.folder !== selectedFolder) return false;
-      }
+      if (e.folder !== viewingFolder) return false;
       if (fronterOnly && currentAlterIds.length > 0) {
         const allowed = e.allowed_alter_ids || [];
         if (allowed.length > 0 && !allowed.some((id) => currentAlterIds.includes(id))) return false;
       }
       return true;
     });
-  }, [entries, tab, search, selectedTag, selectedFolder, viewingFolder, fronterOnly, currentAlterIds]);
+  }, [entries, tab, search, selectedTag, viewingFolder, fronterOnly, currentAlterIds]);
 
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
   const openEntry = (entry) => { setViewingEntry(entry); };
@@ -129,51 +157,69 @@ export default function Journals() {
   const handleCreateFolder = () => {
     if (!newFolderName.trim()) return;
     const name = newFolderName.trim();
-    if (!savedFolders.includes(name)) {
-      const updated = [...savedFolders, name];
+    // Build full path based on current location
+    const fullPath = viewingFolder ? `${viewingFolder}/${name}` : name;
+    if (!savedFolders.includes(fullPath)) {
+      const updated = [...savedFolders, fullPath];
       persistFolders(updated);
       setSavedFoldersState(updated);
     }
     setShowNewFolder(false);
     setNewFolderName("");
-    setViewingFolder(name);
+    setViewingFolder(fullPath);
   };
 
-  const handleDeleteFolder = (name) => {
-    const updated = savedFolders.filter(f => f !== name);
+  const handleDeleteFolder = (path) => {
+    // Remove folder and all its descendants
+    const updated = savedFolders.filter(f => f !== path && !f.startsWith(`${path}/`));
     persistFolders(updated);
     setSavedFoldersState(updated);
   };
 
-  const unfolderedEntries = useMemo(() =>
-    filtered.filter((e) => !e.folder), [filtered]);
+  // Breadcrumb path segments
+  const breadcrumbs = viewingFolder ? viewingFolder.split("/") : [];
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {viewingFolder && (
-            <Button variant="ghost" size="icon" onClick={() => setViewingFolder(null)} className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={() => setViewingFolder(getParent(viewingFolder))} className="h-8 w-8">
               <ChevronLeft className="w-4 h-4" />
             </Button>
           )}
           <div>
-            <h1 className="font-display text-3xl font-semibold text-foreground">
-              {viewingFolder || "Journals"}
-            </h1>
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1 flex-wrap">
+              <button onClick={() => setViewingFolder(null)}
+                className={`font-display text-2xl font-semibold transition-colors ${viewingFolder ? "text-muted-foreground hover:text-foreground" : "text-foreground"}`}>
+                Journals
+              </button>
+              {breadcrumbs.map((crumb, i) => {
+                const path = breadcrumbs.slice(0, i + 1).join("/");
+                const isLast = i === breadcrumbs.length - 1;
+                return (
+                  <React.Fragment key={path}>
+                    <span className="text-muted-foreground text-2xl font-light">/</span>
+                    <button onClick={() => setViewingFolder(path)}
+                      className={`font-display text-2xl font-semibold transition-colors ${isLast ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                      {crumb}
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+            </div>
             <p className="text-muted-foreground text-sm mt-0.5">
               {viewingFolder ? `${filtered.length} entries` : `${entries.length} entries`}
             </p>
           </div>
         </div>
         <div className="flex gap-2">
-          {!viewingFolder && (
-            <Button variant="outline" onClick={() => setShowNewFolder(true)} className="gap-1.5">
-              <FolderPlus className="w-4 h-4" />
-              New Folder
-            </Button>
-          )}
+          <Button variant="outline" onClick={() => setShowNewFolder(true)} className="gap-1.5">
+            <FolderPlus className="w-4 h-4" />
+            {viewingFolder ? "New Subfolder" : "New Folder"}
+          </Button>
           <Button onClick={() => openNew(viewingFolder)} className="bg-primary hover:bg-primary/90 gap-1.5">
             <Plus className="w-4 h-4" />
             New Entry
@@ -186,13 +232,10 @@ export default function Journals() {
         {TABS.map((t) => {
           const Icon = t.icon;
           return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
+              }`}>
               <Icon className="w-3.5 h-3.5" />
               {t.label}
             </button>
@@ -204,20 +247,12 @@ export default function Journals() {
       <div className="flex flex-wrap gap-2 mb-4">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search entries..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Search entries..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         {currentAlterIds.length > 0 && (
-          <Button
-            variant={fronterOnly ? "default" : "outline"}
-            size="sm"
+          <Button variant={fronterOnly ? "default" : "outline"} size="sm"
             onClick={() => setFronterOnly(!fronterOnly)}
-            className={`gap-1.5 ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}
-          >
+            className={`gap-1.5 ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}>
             <Eye className="w-3.5 h-3.5" />
             Fronter view
           </Button>
@@ -228,41 +263,41 @@ export default function Journals() {
       {allTags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-4">
           {allTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+            <button key={tag} onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
               className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                selectedTag === tag
-                  ? "border-primary/60 bg-primary/10 text-primary"
-                  : "border-border/50 text-muted-foreground hover:border-border"
-              }`}
-            >
+                selectedTag === tag ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"
+              }`}>
               #{tag}
             </button>
           ))}
         </div>
       )}
 
-      {/* Folder grid */}
-      {!viewingFolder && allFolders.length > 0 && (
+      {/* Subfolders */}
+      {visibleFolders.length > 0 && (
         <FolderGrid
-          folders={allFolders}
-          onSelect={setViewingFolder}
+          folders={visibleFolders}
+          onSelect={(path) => setViewingFolder(path)}
           onDelete={handleDeleteFolder}
         />
       )}
 
       {/* Entries */}
-      {viewingFolder ? (
-        filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground text-sm">No entries in this folder yet.</p>
-            <Button variant="link" onClick={() => openNew(viewingFolder)} className="mt-1 text-primary text-sm">
-              Add the first entry
-            </Button>
-          </div>
-        ) : (
+      {filtered.length === 0 && visibleFolders.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
+          <p className="text-muted-foreground text-sm">
+            {viewingFolder ? "No entries in this folder yet." : "No journal entries yet."}
+          </p>
+          <Button variant="link" onClick={() => openNew(viewingFolder)} className="mt-1 text-primary text-sm">
+            {viewingFolder ? "Add the first entry" : "Write your first entry"}
+          </Button>
+        </div>
+      ) : filtered.length > 0 ? (
+        <>
+          {visibleFolders.length > 0 && (
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Entries</p>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             {filtered.map((entry) => (
               <JournalEntryCard
@@ -274,37 +309,8 @@ export default function Journals() {
               />
             ))}
           </div>
-        )
-      ) : (
-        <>
-          {unfolderedEntries.length === 0 && allFolders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground text-sm">No journal entries yet.</p>
-              <Button variant="link" onClick={() => openNew()} className="mt-1 text-primary text-sm">
-                Write your first entry
-              </Button>
-            </div>
-          ) : unfolderedEntries.length > 0 ? (
-            <>
-              {allFolders.length > 0 && (
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">All entries</p>
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                {unfolderedEntries.map((entry) => (
-                  <JournalEntryCard
-                    key={entry.id}
-                    entry={entry}
-                    altersById={altersById}
-                    onClick={() => openEntry(entry)}
-                    highlight={highlightId === entry.id}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
         </>
-      )}
+      ) : null}
 
       <JournalViewModal
         open={!!viewingEntry}
@@ -330,14 +336,14 @@ export default function Journals() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FolderPlus className="w-4 h-4 text-primary" />
-              New Folder
+              {viewingFolder ? `New subfolder in "${viewingFolder.split("/").pop()}"` : "New Folder"}
             </DialogTitle>
           </DialogHeader>
           <Input
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-            placeholder="Folder name..."
+            placeholder={viewingFolder ? "Subfolder name..." : "Folder name..."}
             autoFocus
           />
           <DialogFooter className="mt-2">
