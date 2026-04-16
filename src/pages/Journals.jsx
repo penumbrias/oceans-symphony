@@ -315,6 +315,7 @@ export default function Journals() {
       />
 
       <JournalEditorModal
+        key={editEntry?.id || "new"}
         open={showEditor}
         onClose={() => { setShowEditor(false); setNewEntryFolder(null); }}
         entry={editEntry}
