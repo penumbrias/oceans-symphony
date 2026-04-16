@@ -202,17 +202,21 @@ saveMutation.mutate({
 
           {/* Content Editor - only show if not encrypted or successfully decrypted */}
           {(!editingEntryFinal?.is_encrypted || !showPasswordField) && (
-            <>
-              <label className="text-sm font-medium">Content</label>
-              <ReactQuill
-                value={content}
-                onChange={setContent}
-                theme="snow"
-                placeholder="Write your entry..."
-              />
-            </>
-          )}
-        </div>
+  <>
+    <label className="text-sm font-medium">Content</label>
+    <div className="rounded-xl border border-input bg-background">
+      <textarea
+        ref={taRef}
+        value={content}
+        onChange={e => setContent(e.target.value)}
+        placeholder="Write your entry..."
+        className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
+        spellCheck={false}
+      />
+      <MiniToolbar onInsert={insert} />
+    </div>
+  </>
+)}
 <div>
   <label className="text-sm font-medium">Mention alters</label>
   <p className="text-xs text-muted-foreground mb-1">Tag alters to notify them of this entry</p>
