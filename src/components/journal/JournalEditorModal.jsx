@@ -36,12 +36,11 @@ function SimplePreview({ blocks, onBlockChange }) {
               <textarea
                 key={block.id}
                 autoFocus
-                value={stripHTML(block.content)}
-                onChange={e => onBlockChange(block.id, { content: e.target.value })}
-                onBlur={() => setEditingId(null)}
-                className="w-full min-h-[80px] px-3 py-2 text-sm bg-muted/20 border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
+                defaultValue={stripHTML(block.content)}
+                onBlur={e => { onBlockChange(block.id, { content: e.target.value }); setEditingId(null); }}
+                className="w-full min-h-[80px] px-3 py-2 text-sm bg-transparent border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
                 spellCheck={true}
-              />
+            />
             );
           }
           return (
@@ -62,10 +61,9 @@ function SimplePreview({ blocks, onBlockChange }) {
           const textEl = editingId === block.id ? (
             <textarea
               autoFocus
-              value={stripHTML(block.text)}
-              onChange={e => onBlockChange(block.id, { text: e.target.value })}
-              onBlur={() => setEditingId(null)}
-              className="flex-1 min-h-[80px] px-3 py-2 text-sm bg-muted/20 border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
+              defaultValue={stripHTML(block.text)}
+              onBlur={e => { onBlockChange(block.id, { text: e.target.value }); setEditingId(null); }}
+             className="flex-1 min-h-[80px] px-3 py-2 text-sm bg-transparent border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
               spellCheck={true}
             />
           ) : (
