@@ -251,8 +251,8 @@ const handleBgUpload = async (e) => {
 
         {alter.description ? (
           <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
-            <div className="text-sm leading-relaxed" style={{ wordBreak: "break-word" }}
-              dangerouslySetInnerHTML={{ __html: alter.description }} />
+            <div className="text-sm leading-relaxed w-full" style={{ wordBreak: "break-word" }}
+  dangerouslySetInnerHTML={{ __html: alter.description }} />
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
