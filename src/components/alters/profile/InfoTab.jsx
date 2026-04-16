@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2, X, Check, Eye, EyeOff } from "lucide-react";
+import { Pencil, Plus, Trash2, X, Check, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+
+const FIELD_ORDER_KEY = "_field_order";
 
 export default function InfoTab({ alter, systemFields }) {
   const queryClient = useQueryClient();
@@ -24,6 +26,20 @@ export default function InfoTab({ alter, systemFields }) {
   const customFieldValues = alter.custom_fields || {};
   const alterSpecificFields = alter.alter_custom_fields || [];
 
+  // Per-alter system field order — falls back to global order
+  const perAlterFieldOrder = customFieldValues[FIELD_ORDER_KEY] || null;
+  const hasCustomOrder = !!perAlterFieldOrder;
+
+  const orderedSystemFields = useMemo(() => {
+    if (!perAlterFieldOrder) return systemFields;
+    const orderMap = Object.fromEntries(perAlterFieldOrder.map((id, i) => [id, i]));
+    return [...systemFields].sort((a, b) => {
+      const ai = orderMap[a.id] ?? 9999;
+      const bi = orderMap[b.id] ?? 9999;
+      return ai - bi;
+    });
+  }, [systemFields, perAlterFieldOrder]);
+
   const isVisible = (fieldId) => !hiddenFieldIds.includes(fieldId);
 
   const toggleFieldVisibility = async (fieldId) => {
@@ -31,10 +47,28 @@ export default function InfoTab({ alter, systemFields }) {
     const updated = isVisible(fieldId)
       ? [...hiddenFieldIds, fieldId]
       : hiddenFieldIds.filter(id => id !== fieldId);
-    await base44.entities.SystemSettings.update(systemSettings.id, {
-      hidden_field_ids: updated,
-    });
+    await base44.entities.SystemSettings.update(systemSettings.id, { hidden_field_ids: updated });
     queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
+
+  const moveSystemField = async (index, dir) => {
+    const swapIndex = index + dir;
+    if (swapIndex < 0 || swapIndex >= orderedSystemFields.length) return;
+    const newOrder = orderedSystemFields.map(f => f.id);
+    [newOrder[index], newOrder[swapIndex]] = [newOrder[swapIndex], newOrder[index]];
+    await base44.entities.Alter.update(alter.id, {
+      custom_fields: { ...customFieldValues, [FIELD_ORDER_KEY]: newOrder },
+    });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
+    queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+  };
+
+  const resetFieldOrder = async () => {
+    const cf = { ...customFieldValues };
+    delete cf[FIELD_ORDER_KEY];
+    await base44.entities.Alter.update(alter.id, { custom_fields: cf });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
+    queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
   };
 
   const startEditSystem = (field) => {
@@ -50,6 +84,15 @@ export default function InfoTab({ alter, systemFields }) {
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
     setEditingFieldId(null);
     setSaving(false);
+  };
+
+  const moveAlterField = async (index, dir) => {
+    const swapIndex = index + dir;
+    if (swapIndex < 0 || swapIndex >= alterSpecificFields.length) return;
+    const updated = [...alterSpecificFields];
+    [updated[index], updated[swapIndex]] = [updated[swapIndex], updated[index]];
+    await base44.entities.Alter.update(alter.id, { alter_custom_fields: updated });
+    queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
   };
 
   const startEditAlter = (idx) => {
@@ -83,30 +126,44 @@ export default function InfoTab({ alter, systemFields }) {
     setSaving(false);
   };
 
-  const hasAnyData =
-    systemFields.some((f) => customFieldValues[f.id]) ||
-    alterSpecificFields.length > 0;
+  const hasAnyData = systemFields.some((f) => customFieldValues[f.id]) || alterSpecificFields.length > 0;
 
   return (
     <div className="space-y-6">
       {systemFields.length > 0 && (
         <div className="space-y-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">System Fields</p>
-          {systemFields.map((field) => {
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">System Fields</p>
+            {hasCustomOrder && (
+              <button onClick={resetFieldOrder}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <RotateCcw className="w-3 h-3" /> Reset order
+              </button>
+            )}
+          </div>
+          {orderedSystemFields.map((field, index) => {
             const visible = isVisible(field.id);
             return (
               <div key={field.id} className={`rounded-xl border p-3 transition-all ${visible ? "border-border/50 bg-muted/10" : "border-border/30 bg-muted/5 opacity-60"}`}>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs text-muted-foreground">{field.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex flex-col gap-0.5">
+                      <button type="button" onClick={() => moveSystemField(index, -1)} disabled={index === 0}
+                        className="w-4 h-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors">
+                        <ChevronUp className="w-3 h-3" />
+                      </button>
+                      <button type="button" onClick={() => moveSystemField(index, 1)} disabled={index === orderedSystemFields.length - 1}
+                        className="w-4 h-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors">
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{field.name}</p>
+                  </div>
                   <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => toggleFieldVisibility(field.id)}
+                    <button onClick={() => toggleFieldVisibility(field.id)}
                       className="text-muted-foreground hover:text-foreground p-0.5"
-                      title={visible ? "Hide from profile" : "Show on profile"}
-                    >
-                      {visible
-                        ? <Eye className="w-3.5 h-3.5 text-primary/70" />
-                        : <EyeOff className="w-3.5 h-3.5" />}
+                      title={visible ? "Hide from profile" : "Show on profile"}>
+                      {visible ? <Eye className="w-3.5 h-3.5 text-primary/70" /> : <EyeOff className="w-3.5 h-3.5" />}
                     </button>
                     {editingFieldId !== field.id && (
                       <button onClick={() => startEditSystem(field)} className="text-muted-foreground hover:text-foreground p-0.5">
@@ -118,34 +175,22 @@ export default function InfoTab({ alter, systemFields }) {
                 {editingFieldId === field.id ? (
                   <div className="flex gap-2 mt-1">
                     {field.field_type === "text" ? (
-                      <Textarea
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 text-sm min-h-[60px]"
-                        autoFocus
-                      />
+                      <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                        className="flex-1 text-sm min-h-[60px]" autoFocus />
                     ) : field.field_type === "boolean" ? (
-                      <select
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                        autoFocus
-                      >
+                      <select value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                        className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm" autoFocus>
                         <option value="">Select...</option>
                         <option value="true">Yes</option>
                         <option value="false">No</option>
                       </select>
                     ) : (
-                      <Input
-                        type="number"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 text-sm"
-                        autoFocus
-                      />
+                      <Input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                        className="flex-1 text-sm" autoFocus />
                     )}
                     <div className="flex flex-col gap-1">
-                      <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90" onClick={() => saveSystemField(field.id)} disabled={saving}>
+                      <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90"
+                        onClick={() => saveSystemField(field.id)} disabled={saving}>
                         <Check className="w-3.5 h-3.5" />
                       </Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingFieldId(null)}>
@@ -166,7 +211,6 @@ export default function InfoTab({ alter, systemFields }) {
         </div>
       )}
 
-      {/* Alter-specific fields */}
       <div className="space-y-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Alter-Specific Fields</p>
         {alterSpecificFields.length === 0 && !newAlterField && (
@@ -175,7 +219,19 @@ export default function InfoTab({ alter, systemFields }) {
         {alterSpecificFields.map((field, idx) => (
           <div key={idx} className="rounded-xl border border-border/50 bg-muted/10 p-3">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-muted-foreground">{field.name}</p>
+              <div className="flex items-center gap-1.5">
+                <div className="flex flex-col gap-0.5">
+                  <button type="button" onClick={() => moveAlterField(idx, -1)} disabled={idx === 0}
+                    className="w-4 h-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors">
+                    <ChevronUp className="w-3 h-3" />
+                  </button>
+                  <button type="button" onClick={() => moveAlterField(idx, 1)} disabled={idx === alterSpecificFields.length - 1}
+                    className="w-4 h-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors">
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">{field.name}</p>
+              </div>
               <div className="flex gap-1">
                 {editingAlterIdx !== idx && (
                   <>
@@ -191,14 +247,11 @@ export default function InfoTab({ alter, systemFields }) {
             </div>
             {editingAlterIdx === idx ? (
               <div className="flex gap-2 mt-1">
-                <Textarea
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  className="flex-1 text-sm min-h-[60px]"
-                  autoFocus
-                />
+                <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                  className="flex-1 text-sm min-h-[60px]" autoFocus />
                 <div className="flex flex-col gap-1">
-                  <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90" onClick={() => saveAlterField(idx)} disabled={saving}>
+                  <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90"
+                    onClick={() => saveAlterField(idx)} disabled={saving}>
                     <Check className="w-3.5 h-3.5" />
                   </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingAlterIdx(null)}>
@@ -216,28 +269,23 @@ export default function InfoTab({ alter, systemFields }) {
 
         {newAlterField ? (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
-            <Input
-              placeholder="Field name..."
-              value={newAlterField.name}
+            <Input placeholder="Field name..." value={newAlterField.name}
               onChange={(e) => setNewAlterField({ ...newAlterField, name: e.target.value })}
-              className="text-sm"
-              autoFocus
-            />
-            <Textarea
-              placeholder="Value..."
-              value={newAlterField.value}
+              className="text-sm" autoFocus />
+            <Textarea placeholder="Value..." value={newAlterField.value}
               onChange={(e) => setNewAlterField({ ...newAlterField, value: e.target.value })}
-              className="text-sm min-h-[60px]"
-            />
+              className="text-sm min-h-[60px]" />
             <div className="flex gap-2 justify-end">
               <Button size="sm" variant="ghost" onClick={() => setNewAlterField(null)}>Cancel</Button>
-              <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={saveNewAlterField} disabled={saving || !newAlterField.name?.trim()}>
+              <Button size="sm" className="bg-primary hover:bg-primary/90"
+                onClick={saveNewAlterField} disabled={saving || !newAlterField.name?.trim()}>
                 Add Field
               </Button>
             </div>
           </div>
         ) : (
-          <Button variant="outline" size="sm" className="gap-1.5 w-full" onClick={() => setNewAlterField({ name: "", value: "" })}>
+          <Button variant="outline" size="sm" className="gap-1.5 w-full"
+            onClick={() => setNewAlterField({ name: "", value: "" })}>
             <Plus className="w-4 h-4" />
             Add alter-specific field
           </Button>
