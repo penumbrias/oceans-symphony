@@ -24,14 +24,15 @@ export default function SleepLogModal({
   const [quality, setQuality] = useState(5);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+const [sleepDate, setSleepDate] = useState("");
 
 React.useEffect(() => {
   if (isOpen && selectedDate) {
-    // Bedtime defaults to the PREVIOUS day at 11 PM
+    const currentDayStr = format(selectedDate, "yyyy-MM-dd");
     const prevDay = new Date(selectedDate);
     prevDay.setDate(prevDay.getDate() - 1);
     const prevDayStr = format(prevDay, "yyyy-MM-dd");
-    const currentDayStr = format(selectedDate, "yyyy-MM-dd");
+    setSleepDate(currentDayStr);  // add this
     setBedtime(`${prevDayStr}T23:00`);
     setWakeTime(`${currentDayStr}T07:00`);
   }
