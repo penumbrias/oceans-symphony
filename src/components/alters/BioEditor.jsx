@@ -1,8 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
-import { Eye, X } from "lucide-react";
+import React, { useState, useMemo, useCallback } from "react";
+import { Eye, X, Type, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-import BlockEditor, { blocksToHTML, htmlToBlocks, ImagePickerModal } from "@/components/shared/BlockEditor";
+import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
+import SimplePreview from "@/components/shared/SimplePreview";
+import { useRef } from "react";
 
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
@@ -144,9 +146,15 @@ function HTMLPreviewModal({ html, onClose }) {
 }
 
 export default function BioEditor({ value, onChange }) {
+  const hasBlocks = value?.includes('data-blocks=');
+  const [editorMode, setEditorMode] = useState(hasBlocks ? "simple" : "plain");
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
   const [currentHTML, setCurrentHTML] = useState(value || "");
+  const taRef = useRef(null);
+  const insert = useTextareaInsert(taRef, currentHTML, (v) => { setCurrentHTML(v); onChange(v); });
+
+  const previewBlocks = useMemo(() => htmlToBlocks(currentHTML), [currentHTML]);
 
   const handleChange = (html) => {
     setCurrentHTML(html);
@@ -154,8 +162,6 @@ export default function BioEditor({ value, onChange }) {
   };
 
   const handleImport = useCallback((spText) => {
-    // Convert SP text to blocks HTML and pass to BlockEditor via value
-    // We trigger by updating value through onChange
     const blocks = convertSPToBlocks(spText);
     const html = blocksToHTML(blocks);
     handleChange(html);
@@ -177,7 +183,43 @@ export default function BioEditor({ value, onChange }) {
           </button>
         </div>
       </div>
-      <BlockEditor value={value} onChange={handleChange} />
+
+      {/* Mode toggle */}
+      <div className="flex gap-1 bg-muted/40 p-1 rounded-lg w-fit">
+        <button type="button" onClick={() => setEditorMode("plain")}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Type className="w-3 h-3" /> Plain
+        </button>
+        <button type="button" onClick={() => setEditorMode("simple")}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "simple" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Eye className="w-3 h-3" /> Simple
+        </button>
+        <button type="button" onClick={() => setEditorMode("blocks")}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <LayoutGrid className="w-3 h-3" /> Blocks
+        </button>
+      </div>
+
+      {editorMode === "plain" ? (
+        <div className="rounded-xl border border-input bg-background">
+          <textarea ref={taRef} value={currentHTML} onChange={e => handleChange(e.target.value)}
+            placeholder="Write a bio..."
+            className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
+            spellCheck={false} />
+          <MiniToolbar onInsert={insert} />
+        </div>
+      ) : editorMode === "simple" ? (
+        <SimplePreview
+          blocks={previewBlocks}
+          onBlockChange={(id, patch) => {
+            const updated = previewBlocks.map(b => b.id === id ? { ...b, ...patch } : b);
+            handleChange(blocksToHTML(updated));
+          }}
+        />
+      ) : (
+        <BlockEditor value={currentHTML} onChange={handleChange} />
+      )}
+
       {showImport && <ImportSPModal onImport={handleImport} onClose={() => setShowImport(false)} />}
       {showHTMLPreview && <HTMLPreviewModal html={currentHTML} onClose={() => setShowHTMLPreview(false)} />}
     </div>
