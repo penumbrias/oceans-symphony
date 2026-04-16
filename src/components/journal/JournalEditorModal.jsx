@@ -21,11 +21,13 @@ function SimplePreview({ blocks, onBlockChange }) {
   const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
 
-  const stripHTML = (html) => {
-    const tmp = document.createElement("div");
-    tmp.innerHTML = html || "";
-    return tmp.textContent || tmp.innerText || "";
-  };
+const stripHTML = (html) => {
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html || "";
+  // Remove style and script tags before extracting text
+  tmp.querySelectorAll("style, script").forEach(el => el.remove());
+  return tmp.textContent || tmp.innerText || "";
+};
 
   const openEdit = (id, field, html) => {
     setEditModal({ id, field });
