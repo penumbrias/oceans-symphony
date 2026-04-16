@@ -12,11 +12,18 @@ import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import JournalViewModal from "@/components/journal/JournalViewModal";
 import FolderGrid from "@/components/journal/FolderGrid";
 
-
 const TABS = [
   { id: "all", label: "All", icon: BookOpen },
   { id: "switch_log", label: "Switch Logs", icon: Shuffle },
 ];
+
+const getSavedFolders = () => {
+  try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
+  catch { return []; }
+};
+const persistFolders = (folders) => {
+  localStorage.setItem("os_journal_folders", JSON.stringify(folders));
+};
 
 export default function Journals() {
   const queryClient = useQueryClient();
@@ -32,6 +39,7 @@ export default function Journals() {
   const [newEntryFolder, setNewEntryFolder] = useState(null);
   const [viewingFolder, setViewingFolder] = useState(null);
   const [viewingEntry, setViewingEntry] = useState(null);
+  const [savedFolders, setSavedFoldersState] = useState(getSavedFolders);
 
   const { data: entries = [] } = useQuery({
     queryKey: ["journalEntries"],
@@ -62,7 +70,6 @@ export default function Journals() {
   const altersById = useMemo(() =>
     Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
 
-  // Collect all tags and folders
   const allTags = useMemo(() => {
     const tags = new Set();
     entries.forEach((e) => (e.tags || []).forEach((t) => tags.add(t)));
@@ -72,12 +79,11 @@ export default function Journals() {
   const allFolders = useMemo(() => {
     const folderMap = {};
     entries.forEach((e) => {
-      if (e.folder) {
-        folderMap[e.folder] = (folderMap[e.folder] || 0) + 1;
-      }
+      if (e.folder) folderMap[e.folder] = (folderMap[e.folder] || 0) + 1;
     });
-    return Object.entries(folderMap).map(([name, count]) => ({ name, count }));
-  }, [entries]);
+    const merged = { ...Object.fromEntries(savedFolders.map(n => [n, 0])), ...folderMap };
+    return Object.entries(merged).map(([name, count]) => ({ name, count }));
+  }, [entries, savedFolders]);
 
   const filtered = useMemo(() => {
     return entries.filter((e) => {
@@ -85,7 +91,6 @@ export default function Journals() {
       if (search && !e.title?.toLowerCase().includes(search.toLowerCase()) &&
           !e.content?.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedTag && !(e.tags || []).includes(selectedTag)) return false;
-      // When viewing a folder, only show entries in that folder
       if (viewingFolder !== null) {
         if (e.folder !== viewingFolder) return false;
       } else if (selectedFolder) {
@@ -102,8 +107,6 @@ export default function Journals() {
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
   const openEntry = (entry) => { setViewingEntry(entry); };
   const openEdit = (entry) => { setEditEntry(entry); setNewEntryFolder(null); setShowEditor(true); };
-
-  // Open specific entry from URL ?id= param (e.g. from timeline double-click)
 
   const [searchParams] = useSearchParams();
   const pendingId = searchParams.get('id');
@@ -123,15 +126,25 @@ export default function Journals() {
     }
   }, [highlightId]);
 
-const handleCreateFolder = async () => {
-  if (!newFolderName.trim()) return;
-  const name = newFolderName.trim();
-  setShowNewFolder(false);
-  setNewFolderName("");
-  setViewingFolder(name);
-};
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim()) return;
+    const name = newFolderName.trim();
+    if (!savedFolders.includes(name)) {
+      const updated = [...savedFolders, name];
+      persistFolders(updated);
+      setSavedFoldersState(updated);
+    }
+    setShowNewFolder(false);
+    setNewFolderName("");
+    setViewingFolder(name);
+  };
 
-  // Entries with no folder (for the main view)
+  const handleDeleteFolder = (name) => {
+    const updated = savedFolders.filter(f => f !== name);
+    persistFolders(updated);
+    setSavedFoldersState(updated);
+  };
+
   const unfolderedEntries = useMemo(() =>
     filtered.filter((e) => !e.folder), [filtered]);
 
@@ -198,7 +211,6 @@ const handleCreateFolder = async () => {
             className="pl-9"
           />
         </div>
-
         {currentAlterIds.length > 0 && (
           <Button
             variant={fronterOnly ? "default" : "outline"}
@@ -231,14 +243,17 @@ const handleCreateFolder = async () => {
         </div>
       )}
 
-      {/* Folder grid (only when not inside a folder) */}
+      {/* Folder grid */}
       {!viewingFolder && allFolders.length > 0 && (
-        <FolderGrid folders={allFolders} onSelect={setViewingFolder} />
+        <FolderGrid
+          folders={allFolders}
+          onSelect={setViewingFolder}
+          onDelete={handleDeleteFolder}
+        />
       )}
 
       {/* Entries */}
       {viewingFolder ? (
-        // Inside a folder — show all filtered entries
         filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
@@ -250,18 +265,17 @@ const handleCreateFolder = async () => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {filtered.map((entry) => (
-<JournalEntryCard 
-  key={entry.id} 
-  entry={entry} 
-  altersById={altersById} 
-  onClick={() => openEntry(entry)}
-  highlight={highlightId === entry.id}
-/>
+              <JournalEntryCard
+                key={entry.id}
+                entry={entry}
+                altersById={altersById}
+                onClick={() => openEntry(entry)}
+                highlight={highlightId === entry.id}
+              />
             ))}
           </div>
         )
       ) : (
-        // Root view — show unfoldered entries below the folder grid
         <>
           {unfolderedEntries.length === 0 && allFolders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -278,13 +292,14 @@ const handleCreateFolder = async () => {
               )}
               <div className="grid gap-3 sm:grid-cols-2">
                 {unfolderedEntries.map((entry) => (
-<JournalEntryCard 
-  key={entry.id} 
-  entry={entry} 
-  altersById={altersById} 
-  onClick={() => openEntry(entry)}
-  highlight={highlightId === entry.id}
-/>                ))}
+                  <JournalEntryCard
+                    key={entry.id}
+                    entry={entry}
+                    altersById={altersById}
+                    onClick={() => openEntry(entry)}
+                    highlight={highlightId === entry.id}
+                  />
+                ))}
               </div>
             </>
           ) : null}
