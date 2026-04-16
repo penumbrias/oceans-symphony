@@ -135,33 +135,60 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
 {/* Folder selector */}
 <div className="space-y-1.5">
   <label className="text-sm font-medium flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Folder</label>
-  <div className="flex flex-wrap gap-1.5">
-    <button type="button" onClick={() => setFolder(null)}
-      className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${!folder ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-      None
-    </button>
-    {/* Top-level folders */}
-    {folders.filter(f => !f.includes("/")).map(f => (
-      <button key={f} type="button" onClick={() => setFolder(f)}
-        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${folder === f || folder?.startsWith(`${f}/`) ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-        {f}
-      </button>
-    ))}
-  </div>
-  {/* Subfolders of selected parent */}
-  {folder && folders.some(f => f.startsWith(`${folder.split("/")[0]}/`)) && (
-    <div className="flex flex-wrap gap-1.5 pl-3 border-l-2 border-primary/20 ml-1">
-      {folders.filter(f => {
-        const parent = folder.split("/")[0];
-        return f.startsWith(`${parent}/`) && f.split("/").length === 2;
-      }).map(f => (
-        <button key={f} type="button" onClick={() => setFolder(f)}
-          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${folder === f ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-          {f.split("/").pop()}
-        </button>
-      ))}
-    </div>
-  )}
+  
+  {/* Build levels dynamically */}
+  {(() => {
+    const levels = [];
+    let currentPath = null;
+    
+    // Always show root level
+    const rootFolders = folders.filter(f => !f.includes("/"));
+    levels.push({ parent: null, items: rootFolders, depth: 0 });
+    
+    // If a folder is selected, show each level of children down to selection
+    if (folder) {
+      const parts = folder.split("/");
+      for (let i = 0; i < parts.length; i++) {
+        const parentPath = parts.slice(0, i + 1).join("/");
+        const childFolders = folders.filter(f => {
+          const fParts = f.split("/");
+          return fParts.length === i + 2 && f.startsWith(`${parentPath}/`);
+        });
+        if (childFolders.length > 0) {
+          levels.push({ parent: parentPath, items: childFolders, depth: i + 1 });
+        }
+      }
+    }
+
+    const colors = [
+      "border-primary/20",
+      "border-blue-500/30",
+      "border-purple-500/30",
+      "border-pink-500/30",
+      "border-amber-500/30",
+    ];
+
+    return levels.map((level, li) => (
+      <div key={li} className={`flex flex-nowrap gap-1.5 overflow-x-auto pb-1 ${li > 0 ? `pl-3 border-l-2 ml-1 ${colors[li] || colors[colors.length - 1]}` : ""}`}>
+        {li === 0 && (
+          <button type="button" onClick={() => setFolder(null)}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${!folder ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+            None
+          </button>
+        )}
+        {level.items.map(f => (
+          <button key={f} type="button" onClick={() => setFolder(f)}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
+              folder === f ? "border-primary/40 bg-primary/10 text-primary" :
+              folder?.startsWith(`${f}/`) ? "border-primary/20 bg-primary/5 text-primary/70" :
+              "border-border text-muted-foreground hover:border-primary/30"
+            }`}>
+            {f.split("/").pop()}
+          </button>
+        ))}
+      </div>
+    ));
+  })()}
 </div>
 
           {!editingEntryFinal && (
