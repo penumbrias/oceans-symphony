@@ -8,6 +8,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { HexColorPicker } from "react-colorful";
 import BioEditor from "@/components/alters/BioEditor";
+import SimplePreview from "@/components/shared/SimplePreview";
+import { htmlToBlocks } from "@/components/shared/BlockEditor";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
