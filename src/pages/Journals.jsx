@@ -123,28 +123,13 @@ export default function Journals() {
     }
   }, [highlightId]);
 
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return;
-    const name = newFolderName.trim();
-    // Check if folder already exists
-    if (allFolders.some((f) => f.name === name)) {
-      setShowNewFolder(false);
-      setNewFolderName("");
-      setViewingFolder(name);
-      return;
-    }
-    // Create a placeholder entry to persist the folder
-    await base44.entities.JournalEntry.create({
-      title: `${name} — Welcome`,
-      content: `First entry in the **${name}** folder.`,
-      folder: name,
-      entry_type: "personal",
-    });
-    queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
-    setShowNewFolder(false);
-    setNewFolderName("");
-    setViewingFolder(name);
-  };
+const handleCreateFolder = async () => {
+  if (!newFolderName.trim()) return;
+  const name = newFolderName.trim();
+  setShowNewFolder(false);
+  setNewFolderName("");
+  setViewingFolder(name);
+};
 
   // Entries with no folder (for the main view)
   const unfolderedEntries = useMemo(() =>
