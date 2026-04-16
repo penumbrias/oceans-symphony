@@ -59,7 +59,7 @@ export function blocksToHTML(blocks) {
   });
 
   const json = encodeURIComponent(JSON.stringify(blocksForJSON));
-  return `<div data-blocks="${json}">${inner}</div>`;
+  return `<div data-blocks="${json}" style="width:100%;display:block;">${inner}</div>`;
 }
 
 export function htmlToBlocks(html) {
