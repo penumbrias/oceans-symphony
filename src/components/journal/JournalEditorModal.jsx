@@ -12,7 +12,7 @@ import { Lock, AlertCircle, Loader2 } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 
-export default function JournalEditorModal({ isOpen, open, onClose, editingEntry, entry, alters }) {
+export default function JournalEditorModal({ isOpen, open, onClose, editingEntry, entry, alters, defaultFolder }) {
   const isOpenFinal = isOpen ?? open;
   const editingEntryFinal = editingEntry ?? entry;
   const queryClient = useQueryClient();
