@@ -229,7 +229,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!title || (isEncrypted && !encryptionPassword && !editingEntryFinal) || saveMutation.isPending}>
+          <Button onClick={handleSave} disabled={(isEncrypted && !encryptionPassword && !editingEntryFinal) || saveMutation.isPending}>
             {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Save Entry
           </Button>
