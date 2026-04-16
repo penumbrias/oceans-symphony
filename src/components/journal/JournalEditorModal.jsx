@@ -20,11 +20,25 @@ const getSavedFolders = () => {
 
 function SimplePreview({ blocks, onBlockChange }) {
   const [editingId, setEditingId] = useState(null);
+  const [editingValue, setEditingValue] = useState("");
 
   const stripHTML = (html) => {
     const tmp = document.createElement("div");
     tmp.innerHTML = html || "";
     return tmp.textContent || tmp.innerText || "";
+  };
+
+  const startEdit = (id, currentValue) => {
+    setEditingId(id);
+    setEditingValue(stripHTML(currentValue));
+  };
+
+  const commitEdit = (id, field) => {
+    if (editingId === id) {
+      onBlockChange(id, { [field]: editingValue });
+      setEditingId(null);
+      setEditingValue("");
+    }
   };
 
   return (
@@ -36,16 +50,17 @@ function SimplePreview({ blocks, onBlockChange }) {
               <textarea
                 key={block.id}
                 autoFocus
-                defaultValue={stripHTML(block.content)}
-                onBlur={e => { onBlockChange(block.id, { content: e.target.value }); setEditingId(null); }}
+                value={editingValue}
+                onChange={e => setEditingValue(e.target.value)}
+                onBlur={() => commitEdit(block.id, "content")}
                 className="w-full min-h-[80px] px-3 py-2 text-sm bg-transparent border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
                 spellCheck={true}
-            />
+              />
             );
           }
           return (
             <div key={block.id}
-              onClick={() => setEditingId(block.id)}
+              onClick={() => startEdit(block.id, block.content)}
               className="px-2 py-1 rounded-lg hover:bg-muted/30 cursor-text transition-colors min-h-[24px]"
               dangerouslySetInnerHTML={{ __html: block.content || '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit text...</span>' }}
             />
@@ -56,30 +71,35 @@ function SimplePreview({ blocks, onBlockChange }) {
           const isLeft = block.type === "img-left";
           const imgEl = block.src ? (
             <img src={block.src} alt={block.alt || ""}
-              style={block.cropped ? { width: block.size || 120, height: block.size || 120, objectFit: "cover", borderRadius: 8, flexShrink: 0 } : { width: block.size || 120, height: "auto", borderRadius: 8, flexShrink: 0 }} />
+              style={block.cropped
+                ? { width: block.size || 120, height: block.size || 120, objectFit: "cover", borderRadius: 8, flexShrink: 0 }
+                : { width: block.size || 120, height: "auto", borderRadius: 8, flexShrink: 0 }} />
           ) : null;
+
           const textEl = editingId === block.id ? (
             <textarea
               autoFocus
-              defaultValue={stripHTML(block.text)}
-              onBlur={e => { onBlockChange(block.id, { text: e.target.value }); setEditingId(null); }}
-             className="flex-1 min-h-[80px] px-3 py-2 text-sm bg-transparent border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
+              value={editingValue}
+              onChange={e => setEditingValue(e.target.value)}
+              onBlur={() => commitEdit(block.id, "text")}
+              className="flex-1 min-h-[80px] px-3 py-2 text-sm bg-transparent border border-primary/40 rounded-lg focus:outline-none resize-y leading-relaxed"
               spellCheck={true}
             />
           ) : (
-            <div onClick={() => setEditingId(block.id)}
+            <div onClick={() => startEdit(block.id, block.text)}
               className="flex-1 px-2 py-1 rounded-lg hover:bg-muted/30 cursor-text transition-colors min-h-[40px]"
               dangerouslySetInnerHTML={{ __html: block.text || '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit text...</span>' }} />
           );
+
           return (
-            <div key={block.id} className="flex gap-3 items-start" style={{ flexDirection: isLeft ? "row" : "row-reverse" }}>
+            <div key={block.id} className="flex gap-3 items-start"
+              style={{ flexDirection: isLeft ? "row" : "row-reverse" }}>
               {imgEl}
               {textEl}
             </div>
           );
         }
 
-        // galleries, dividers, img-solo, raw — render as-is
         const html = blocksToHTML([block]).replace(/^<div data-blocks="[^"]*">/, "").replace(/<\/div>$/, "");
         return <div key={block.id} dangerouslySetInnerHTML={{ __html: html }} />;
       })}
