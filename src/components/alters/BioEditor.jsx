@@ -233,6 +233,15 @@ case "img-solo":
 // ── Parse HTML → blocks ──
 function htmlToBlocks(html) {
   if (!html || !html.trim()) return [];
+  const match = html.match(/data-blocks="([^"]*)"/);
+  if (match) {
+    try {
+      const blocks = JSON.parse(decodeURIComponent(match[1]));
+      if (Array.isArray(blocks) && blocks.length) {
+        return blocks.map(b => ({ ...b, id: uid() }));
+      }
+    } catch {}
+  }
   const blocks = [];
   const lines = html.split(/\n(?=<(?:div|hr))/);
   for (const chunk of lines) {
