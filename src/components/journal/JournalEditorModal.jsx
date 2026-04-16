@@ -6,11 +6,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
-import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type } from "lucide-react";
+import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-import BlockEditor from "@/components/shared/BlockEditor";
+
+import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
