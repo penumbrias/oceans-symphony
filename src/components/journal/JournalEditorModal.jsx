@@ -10,7 +10,7 @@ import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye } from "lucid
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 
 const getSavedFolders = () => {
@@ -21,7 +21,14 @@ const getSavedFolders = () => {
 function SimplePreview({ blocks, onBlockChange }) {
   const [editModal, setEditModal] = useState(null); // { id, field, value }
   const [editValue, setEditValue] = useState("");
-
+  const previewBlocks = useMemo(() => htmlToBlocks(content), [content]);
+<SimplePreview
+  blocks={previewBlocks}
+  onBlockChange={(id, patch) => {
+    const updated = previewBlocks.map(b => b.id === id ? { ...b, ...patch } : b);
+    setContent(blocksToHTML(updated));
+  }}
+/>
   const stripHTML = (html) => {
     const tmp = document.createElement("div");
     tmp.innerHTML = html || "";
