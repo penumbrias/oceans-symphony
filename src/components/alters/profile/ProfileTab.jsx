@@ -516,21 +516,23 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
         </div>
       )}
 
-      <div className="flex flex-col gap-2 pt-1">
-        <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          Save Changes
-        </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
-            {alter?.is_archived ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</> : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
-          </Button>
-          <Button variant="outline" onClick={handleDelete} disabled={deleting} className="flex-1 text-destructive hover:text-destructive border-destructive/30">
-            {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-            Delete
-          </Button>
-        </div>
-      </div>
+<div className="flex flex-col gap-2 pt-1">
+  <div className="flex gap-2">
+    <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
+      {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+      Save Changes
+    </Button>
+  </div>
+  <div className="flex gap-2">
+    <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
+      {alter?.is_archived ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</> : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
+    </Button>
+    <Button variant="outline" onClick={handleDelete} disabled={deleting} className="flex-1 text-destructive hover:text-destructive border-destructive/30">
+      {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+      Delete
+    </Button>
+  </div>
+</div>
 
       <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
       {showAvatarModal && <AvatarModal src={form.avatar_url} onSave={(url) => set("avatar_url", url)} onClose={() => setShowAvatarModal(false)} />}
