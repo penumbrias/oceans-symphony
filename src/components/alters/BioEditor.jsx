@@ -101,7 +101,7 @@ function ImportSPModal({ onImport, onClose }) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 max-w-lg mx-4 w-full shadow-2xl">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Import Simply Plural Template</h3>
+          <h3 className="font-semibold">Import Template</h3>
           <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
