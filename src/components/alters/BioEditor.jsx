@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useCallback } from "react";
-import { Eye, X, Type, LayoutGrid } from "lucide-react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
+import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
-import { useRef } from "react";
 
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
@@ -105,14 +104,14 @@ function ImportSPModal({ onImport, onClose }) {
           <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-  Paste a template or SP markdown. Raw HTML templates are imported directly; markdown is converted to blocks automatically.
-  </p>
-        <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Paste SP template here..."
+          Paste a template or SP markdown. Raw HTML templates are imported directly; markdown is converted to blocks automatically.
+        </p>
+        <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Paste template here..."
           className="w-full h-52 px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
         <div className="flex gap-2">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
           <button type="button" onClick={() => { onImport(text); onClose(); }} disabled={!text.trim()}
-            className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">Import as blocks</button>
+            className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">Import</button>
         </div>
       </div>
     </div>
@@ -145,41 +144,82 @@ function HTMLPreviewModal({ html, onClose }) {
   );
 }
 
+const MAX_HISTORY = 50;
+
 export default function BioEditor({ value, onChange }) {
+  const originalValue = useRef(value || "");
   const hasBlocks = value?.includes('data-blocks=');
   const [editorMode, setEditorMode] = useState(hasBlocks ? "simple" : "plain");
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
   const [currentHTML, setCurrentHTML] = useState(value || "");
+  const [history, setHistory] = useState([value || ""]);
+  const [historyIndex, setHistoryIndex] = useState(0);
   const taRef = useRef(null);
-  const insert = useTextareaInsert(taRef, currentHTML, (v) => { setCurrentHTML(v); onChange(v); });
+  const insert = useTextareaInsert(taRef, currentHTML, (v) => handleChange(v));
 
   const previewBlocks = useMemo(() => htmlToBlocks(currentHTML), [currentHTML]);
 
-  const handleChange = (html) => {
+  const handleChange = useCallback((html) => {
     setCurrentHTML(html);
     onChange(html);
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push(html);
+      if (newHistory.length > MAX_HISTORY) newHistory.shift();
+      return newHistory;
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, MAX_HISTORY - 1));
+  }, [historyIndex, onChange]);
+
+  const handleUndo = () => {
+    if (historyIndex <= 0) return;
+    const newIndex = historyIndex - 1;
+    const prev = history[newIndex];
+    setHistoryIndex(newIndex);
+    setCurrentHTML(prev);
+    onChange(prev);
+    toast("Undone");
   };
 
-const handleImport = useCallback((text) => {
-  // If it looks like raw HTML, use it directly as a single text block
-  if (text.trim().startsWith('<')) {
-    const blocks = [{ id: uid(), type: "text", content: text.trim() }];
-    handleChange(blocksToHTML(blocks));
-    toast.success("Template imported!");
-  } else {
-    // SP markdown — parse it
-    const blocks = convertSPToBlocks(text);
-    handleChange(blocksToHTML(blocks));
-    toast.success(`Imported ${blocks.length} block${blocks.length !== 1 ? "s" : ""}!`);
-  }
-}, []);
+  const handleDiscard = () => {
+    setCurrentHTML(originalValue.current);
+    onChange(originalValue.current);
+    setHistory([originalValue.current]);
+    setHistoryIndex(0);
+    toast("Changes discarded");
+  };
+
+  const handleImport = useCallback((text) => {
+    if (text.trim().startsWith('<')) {
+      const blocks = [{ id: uid(), type: "text", content: text.trim() }];
+      handleChange(blocksToHTML(blocks));
+      toast.success("Template imported!");
+    } else {
+      const blocks = convertSPToBlocks(text);
+      handleChange(blocksToHTML(blocks));
+      toast.success(`Imported ${blocks.length} block${blocks.length !== 1 ? "s" : ""}!`);
+    }
+  }, [handleChange]);
+
+  const canUndo = historyIndex > 0;
+  const hasChanges = currentHTML !== originalValue.current;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <label className="text-xs text-muted-foreground font-medium">Description / Bio</label>
         <div className="flex items-center gap-2">
+          <button type="button" onClick={handleUndo} disabled={!canUndo}
+            title="Undo"
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors disabled:opacity-30">
+            <Undo2 className="w-3 h-3" />
+          </button>
+          <button type="button" onClick={handleDiscard} disabled={!hasChanges}
+            title="Discard all changes"
+            className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors disabled:opacity-30">
+            <RotateCcw className="w-3 h-3" />
+          </button>
           <button type="button" onClick={() => setShowHTMLPreview(true)}
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
             <Eye className="w-3 h-3" /> Preview
@@ -191,7 +231,6 @@ const handleImport = useCallback((text) => {
         </div>
       </div>
 
-      {/* Mode toggle */}
       <div className="flex gap-1 bg-muted/40 p-1 rounded-lg w-fit">
         <button type="button" onClick={() => setEditorMode("plain")}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
