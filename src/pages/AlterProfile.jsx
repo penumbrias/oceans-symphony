@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
@@ -85,7 +85,6 @@ export default function AlterProfile() {
   const alterColor = hasColor ? alter.color : null;
   const textOnColor = hasColor ? getContrastColor(alter.color) : null;
 
-  // ── Page background from custom_fields ──
   const cf = alter.custom_fields || {};
   const pageBgColor = cf[BG_COLOR_KEY] || "";
   const pageBgImage = cf[BG_IMAGE_KEY] || "";
@@ -104,7 +103,6 @@ export default function AlterProfile() {
       transition={{ duration: 0.3 }}
       className="relative min-h-screen"
     >
-      {/* ── Full-page background layers ── */}
       {hasPageBg && (
         <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
           {pageBgColor && (
@@ -122,9 +120,7 @@ export default function AlterProfile() {
         </div>
       )}
 
-      {/* ── All content sits above the bg ── */}
       <div className="relative z-10">
-        {/* Navigation */}
         <div className="flex items-center justify-between mb-4">
           <Link to="/Home">
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
@@ -150,33 +146,30 @@ export default function AlterProfile() {
               </Link>
             )}
             {tab === "profile" && (
-  <div className="flex items-center gap-2">
-    {editMode && (
-      <Button
-        variant="default"
-        size="sm"
-        onClick={() => {
-          // Trigger save via a ref or event — need to wire this up
-        }}
-        className="gap-1.5 bg-primary hover:bg-primary/90"
-      >
-        <Save className="w-3.5 h-3.5" /> Save
-      </Button>
-    )}
-    <Button
-      variant={editMode ? "outline" : "outline"}
-      size="sm"
-      onClick={() => setEditMode(e => !e)}
-      className="gap-1.5"
-    >
-      {editMode ? <><Eye className="w-3.5 h-3.5" /> View</> : <><Pencil className="w-3.5 h-3.5" /> Edit</>}
-    </Button>
-  </div>
-)}
+              <div className="flex items-center gap-2">
+                {editMode && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => saveRef.current?.()}
+                    className="gap-1.5 bg-primary hover:bg-primary/90"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Save
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditMode(e => !e)}
+                  className="gap-1.5"
+                >
+                  {editMode ? <><Eye className="w-3.5 h-3.5" /> View</> : <><Pencil className="w-3.5 h-3.5" /> Edit</>}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Header strip — hidden on profile tab (ProfileTab shows its own header) */}
         {tab !== "profile" && (
           <div
             className="rounded-2xl p-4 mb-5 flex items-center gap-4"
@@ -207,7 +200,6 @@ export default function AlterProfile() {
           </div>
         )}
 
-        {/* Tab bar */}
         <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
           {TABS.map((t) => {
             const Icon = t.icon;
@@ -229,9 +221,16 @@ export default function AlterProfile() {
           })}
         </div>
 
-        {/* Tab content */}
         <div>
-          {tab === "profile" && <ProfileTab alter={alter} editMode={editMode} onEditModeChange={setEditMode} systemFields={systemFields} />}
+          {tab === "profile" && (
+            <ProfileTab
+              alter={alter}
+              editMode={editMode}
+              onEditModeChange={setEditMode}
+              systemFields={systemFields}
+              saveRef={saveRef}
+            />
+          )}
           {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
           {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
           {tab === "history" && <HistoryTab alterId={alter.id} />}
