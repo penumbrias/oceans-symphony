@@ -116,7 +116,7 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [] }) {
+export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [], saveRef }) {
   const queryClient = useQueryClient();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
