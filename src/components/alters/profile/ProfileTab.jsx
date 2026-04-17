@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -162,18 +162,18 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     return { ...f, custom_fields: cf };
   });
 
-  const handleSave = async () => {
-    if (!form.name.trim()) { toast.error("Name is required"); return; }
-    setSaving(true);
-    try {
-      await base44.entities.Alter.update(alter.id, form);
-      toast.success("Saved!");
-      queryClient.invalidateQueries({ queryKey: ["alters"] });
-      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
-      onEditModeChange(false);
-    } catch (e) { toast.error(e.message || "Failed to save"); }
-    finally { setSaving(false); }
-  };
+  const handleSave = useCallback(async () => {
+  if (!form.name.trim()) { toast.error("Name is required"); return; }
+  setSaving(true);
+  try {
+    await base44.entities.Alter.update(alter.id, form);
+    toast.success("Saved!");
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
+    queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    onEditModeChange(false);
+  } catch (e) { toast.error(e.message || "Failed to save"); }
+  finally { setSaving(false); }
+}, [form, alter.id]);
 
   const handleArchive = async () => {
     setSaving(true);
