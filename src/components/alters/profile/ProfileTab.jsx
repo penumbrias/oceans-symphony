@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_TEXT_KEY = "_header_text_color";
+const HIDE_HEADER_KEY = "_hide_header";
 
 function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose }) {
   const [hex, setHex] = React.useState(color);
@@ -43,6 +44,67 @@ function ColorPickerModal({ color = "#8b5cf6", label = "Color", onSave, onClose 
   );
 }
 
+function AvatarModal({ src, onSave, onClose }) {
+  const [url, setUrl] = useState(src || "");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploading(true);
+    try {
+      const compressImage = (file, maxWidth = 400, quality = 0.85) => new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const u = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(u);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = u;
+      });
+      const dataUrl = await compressImage(file);
+      setUrl(dataUrl);
+      toast.success("Image ready!");
+    } catch { toast.error("Failed to process image"); }
+    finally { setUploading(false); e.target.value = ""; }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 max-w-sm mx-4 w-full shadow-2xl">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm">Avatar</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+        </div>
+        {url && (
+          <div className="flex justify-center">
+            <img src={url} alt="preview" className="w-24 h-24 rounded-2xl object-cover border-2 border-border" onError={e => e.target.style.display = "none"} />
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste image URL..." className="flex-1 text-sm" />
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-muted-foreground" />}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleUpload} />
+        </div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
+          <button type="button" onClick={() => { onSave(url); onClose(); }}
+            className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
   const clean = hex.replace("#", "");
@@ -54,25 +116,12 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function BgPreview({ bgColor, bgImage, bgOpacity, headerTextColor }) {
-  const opacity = bgOpacity !== undefined ? bgOpacity : 0.15;
-  return (
-    <div className="relative w-full h-16 rounded-xl overflow-hidden border border-border/40 bg-muted/20">
-      {bgColor && <div className="absolute inset-0 rounded-xl" style={{ backgroundColor: bgColor, opacity }} />}
-      {bgImage && <div className="absolute inset-0 rounded-xl" style={{ backgroundImage: `url("${bgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity }} />}
-      <div className="absolute inset-0 flex items-center justify-center gap-3">
-        <span className="text-sm font-semibold" style={{ color: headerTextColor || "hsl(var(--foreground)/0.6)" }}>Name</span>
-        <span className="text-xs" style={{ color: headerTextColor ? `${headerTextColor}cc` : "hsl(var(--muted-foreground))" }}>they/them</span>
-      </div>
-    </div>
-  );
-}
-
 export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [] }) {
   const queryClient = useQueryClient();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "",
@@ -81,9 +130,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
-  const fileInputRef = useRef(null);
   const bgFileInputRef = useRef(null);
 
   useEffect(() => {
@@ -103,10 +150,10 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const bgImage = form.custom_fields?.[BG_IMAGE_KEY] || "";
   const bgOpacity = form.custom_fields?.[BG_OPACITY_KEY] !== undefined ? form.custom_fields[BG_OPACITY_KEY] : 0.15;
   const headerTextColor = form.custom_fields?.[HEADER_TEXT_KEY] || "";
+  const hideHeader = form.custom_fields?.[HIDE_HEADER_KEY] || false;
 
   const setBgField = (key, val) => setForm(f => ({
-    ...f,
-    custom_fields: { ...f.custom_fields, [key]: val },
+    ...f, custom_fields: { ...f.custom_fields, [key]: val },
   }));
 
   const clearBg = () => setForm(f => {
@@ -148,60 +195,51 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     finally { setDeleting(false); }
   };
 
+  const handleBgUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingBg(true);
+    try {
+      let localMode = false;
+      try { const { isLocalMode } = await import("@/lib/storageMode"); localMode = !!isLocalMode(); } catch {}
+      if (localMode) {
+        const sizeMB = file.size / (1024 * 1024);
+        const compressImage = (file, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
+          const img = new window.Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            let { width, height } = img;
+            if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+            canvas.width = width; canvas.height = height;
+            canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.onerror = reject;
+          img.src = url;
+        });
+        if (sizeMB > 1) toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
+        const dataUrl = await compressImage(file);
+        setBgField(BG_IMAGE_KEY, dataUrl);
+        toast.success("Background image saved!");
+      } else {
+        toast.error("Background upload requires cloud mode. Paste a URL instead.");
+      }
+    } catch (err) {
+      toast.error("Failed to process background image");
+    } finally { setUploadingBg(false); e.target.value = ""; }
+  };
+
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const hasColor = form.color && form.color.length > 3;
   const bgColorAlter = hasColor ? form.color : null;
   const textOnColor = hasColor ? getContrastColor(form.color) : null;
 
-  const handleAvatarUpload = async (e) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    setUploadingAvatar(true);
-    try { const { file_url } = await base44.integrations.Core.UploadFile({ file }); set("avatar_url", file_url); toast.success("Avatar uploaded!"); }
-    catch { toast.error("Failed to upload avatar"); }
-    finally { setUploadingAvatar(false); }
-  };
-
-const handleBgUpload = async (e) => {
-  const file = e.target.files?.[0]; if (!file) return;
-  setUploadingBg(true);
-  try {
-    let localMode = false;
-    try { const { isLocalMode } = await import("@/lib/storageMode"); localMode = !!isLocalMode(); } catch {}
-    if (localMode) {
-      const sizeMB = file.size / (1024 * 1024);
-      const compressImage = (file, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(url);
-          resolve(canvas.toDataURL("image/jpeg", quality));
-        };
-        img.onerror = reject;
-        img.src = url;
-      });
-      if (sizeMB > 1) toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
-      const dataUrl = await compressImage(file);
-      setBgField(BG_IMAGE_KEY, dataUrl);
-      toast.success("Background image saved locally!");
-    } else {
-      toast.error("Background upload requires cloud mode. Paste a URL instead.");
-    }
-  } catch (err) {
-    console.error("Background upload error:", err);
-    toast.error("Failed to process background image");
-  } finally { setUploadingBg(false); e.target.value = ""; }
-};
-
-  // View mode values
   const viewBgColor = alter.custom_fields?.[BG_COLOR_KEY] || "";
   const viewBgImage = alter.custom_fields?.[BG_IMAGE_KEY] || "";
   const viewBgOpacity = alter.custom_fields?.[BG_OPACITY_KEY] !== undefined ? alter.custom_fields[BG_OPACITY_KEY] : 0.15;
   const viewHeaderText = alter.custom_fields?.[HEADER_TEXT_KEY] || null;
+  const viewHideHeader = alter.custom_fields?.[HIDE_HEADER_KEY] || false;
   const hasBg = viewBgColor || viewBgImage;
   const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
 
@@ -209,57 +247,46 @@ const handleBgUpload = async (e) => {
   if (!editMode) {
     return (
       <div className="space-y-6">
-        <div className="relative rounded-2xl overflow-hidden">
-          {hasBg && (
-            <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-              {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
-              {viewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${viewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
-            </div>
-          )}
-          <div className={`relative flex gap-4 items-start ${hasBg ? "p-4" : ""}`}>
-            <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
-              style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
-              {alter.avatar_url
-                ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
-            </div>
-            <div className="flex-1 min-w-0 space-y-1">
-              <h2 className="font-display text-2xl font-semibold"
-                style={{ color: viewHeaderText || undefined }}>
-                {alter.name}
-              </h2>
-              {alter.alias && (
-                <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>
-                  aka {alter.alias}
-                </p>
-              )}
-              {alter.pronouns && (
-                <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>
-                  {alter.pronouns}
-                </p>
-              )}
-              {alter.role && (
-                <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
-                  style={{
-                    backgroundColor: viewHeaderText ? `${viewHeaderText}20` : (alter.color ? `${alter.color}20` : "hsl(var(--muted))"),
-                    color: viewHeaderText || alter.color || "hsl(var(--muted-foreground))",
-                  }}>
-                  {alter.role}
-                </span>
-              )}
+        {!viewHideHeader && (
+          <div className="relative rounded-2xl overflow-hidden">
+            {hasBg && (
+              <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+                {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
+                {viewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${viewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
+              </div>
+            )}
+            <div className={`relative flex gap-4 items-start ${hasBg ? "p-4" : ""}`}>
+              <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
+                style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
+                {alter.avatar_url
+                  ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                  : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>
+                  {alter.name}
+                </h2>
+                {alter.alias && <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>}
+                {alter.pronouns && <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>}
+                {alter.role && (
+                  <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
+                    style={{
+                      backgroundColor: viewHeaderText ? `${viewHeaderText}20` : (alter.color ? `${alter.color}20` : "hsl(var(--muted))"),
+                      color: viewHeaderText || alter.color || "hsl(var(--muted-foreground))",
+                    }}>
+                    {alter.role}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {alter.description ? (
-  <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
-    <SimplePreview
-      blocks={htmlToBlocks(alter.description)}
-      onBlockChange={() => {}}
-      readOnly={true}
-    />
-  </div>
-) : (
+          <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
+            <SimplePreview blocks={htmlToBlocks(alter.description)} onBlockChange={() => {}} readOnly={true} />
+          </div>
+        ) : (
           <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
             No bio yet. Tap <strong>Edit</strong> to add one.
           </div>
@@ -323,143 +350,148 @@ const handleBgUpload = async (e) => {
 
   // ── EDIT MODE ──
   return (
-    <div className="space-y-6">
-      {form.color && <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />}
+    <div className="space-y-4">
+      {form.color && <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: form.color }} />}
 
+      {/* Avatar */}
       <div className="flex justify-center">
-        <div className="w-32 h-32 rounded-2xl border-4 border-border overflow-hidden shadow-xl"
+        <button type="button" onClick={() => setShowAvatarModal(true)}
+          className="relative w-24 h-24 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden group"
           style={{ backgroundColor: bgColorAlter || "hsl(var(--muted))" }}>
           {form.avatar_url
             ? <img src={form.avatar_url} alt={form.name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}><User className="w-14 h-14" /></div>}
-        </div>
+            : <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}><User className="w-10 h-10" /></div>}
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Upload className="w-5 h-5 text-white" />
+          </div>
+        </button>
       </div>
 
-      <div className="space-y-4">
-        <div className="space-y-2">
+      {/* Name + Alias row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Name *</label>
           <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alter name" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Alias</label>
-          <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="Short nickname (for mentions)" />
+          <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="Short nickname" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground font-medium">Pronouns</label>
-            <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground font-medium">Role</label>
-            <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host..." />
-          </div>
-        </div>
+      </div>
 
-        <div className="space-y-2">
+      {/* Pronouns + Role + Color row */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground font-medium">Pronouns</label>
+          <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground font-medium">Role</label>
+          <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector..." />
+        </div>
+        <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Color</label>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button type="button" onClick={() => setShowColorPicker(true)}
-              className="w-10 h-10 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
+              className="w-9 h-9 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
               style={{ backgroundColor: form.color || "#8b5cf6" }} />
-            <Input value={form.color} onChange={(e) => set("color", e.target.value)} placeholder="#8b5cf6" className="font-mono text-sm" />
+            <Input value={form.color} onChange={(e) => set("color", e.target.value)} placeholder="#8b5cf6" className="font-mono text-xs" />
           </div>
         </div>
+      </div>
 
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground font-medium">Avatar</label>
-          <div className="flex gap-2">
-            <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
-            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
-              {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            </Button>
-            <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
-          </div>
-          {form.avatar_url && <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />}
-        </div>
-
-        {/* ── Profile Background & Style ── */}
-        <div className="space-y-3 rounded-xl border border-border/40 bg-muted/10 p-4">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-              <Image className="w-3.5 h-3.5 text-primary" /> Profile Background
-            </label>
+      {/* Profile Background — compact */}
+      <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+            <Image className="w-3.5 h-3.5 text-primary" /> Profile Style
+          </label>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setBgField(HIDE_HEADER_KEY, !hideHeader)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              {hideHeader ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {hideHeader ? "Header hidden" : "Header visible"}
+            </button>
             {(bgColor || bgImage || headerTextColor) && (
-              <button type="button" onClick={clearBg} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Clear all</button>
+              <button type="button" onClick={clearBg} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Clear</button>
             )}
           </div>
+        </div>
 
-          <BgPreview bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} headerTextColor={headerTextColor} />
+        {/* Compact bg preview */}
+        <div className="relative w-full h-12 rounded-lg overflow-hidden border border-border/40 bg-muted/20">
+          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
+          {bgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${bgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />}
+          <div className="absolute inset-0 flex items-center justify-center gap-3">
+            <span className="text-sm font-semibold" style={{ color: headerTextColor || "hsl(var(--foreground)/0.6)" }}>{form.name || "Name"}</span>
+            <span className="text-xs" style={{ color: headerTextColor ? `${headerTextColor}cc` : "hsl(var(--muted-foreground))" }}>{form.pronouns || "they/them"}</span>
+          </div>
+        </div>
 
-          <div className="space-y-1.5">
+        {/* Bg color + image side by side */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
             <label className="text-xs text-muted-foreground font-medium">Background color</label>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button type="button" onClick={() => setShowBgColorPicker(true)}
-                className="w-8 h-8 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 relative"
+                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 relative"
                 style={{ backgroundColor: bgColor || "transparent" }}>
                 {!bgColor && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">+</span>}
               </button>
               <Input value={bgColor} onChange={e => setBgField(BG_COLOR_KEY, e.target.value)}
-                placeholder="#1a0a2e" className="font-mono text-sm flex-1" />
-              {bgColor && <button type="button" onClick={() => setBgField(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3.5 h-3.5" /></button>}
+                placeholder="#1a0a2e" className="font-mono text-xs flex-1 h-7" />
+              {bgColor && <button type="button" onClick={() => setBgField(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
             </div>
           </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground font-medium">Background image</label>
-            <div className="flex gap-2">
-              <Input value={bgImage} onChange={e => setBgField(BG_IMAGE_KEY, e.target.value)}
-                placeholder="https://… or upload →" className="flex-1 text-sm" />
-              <Button type="button" variant="outline" onClick={() => bgFileInputRef.current?.click()} disabled={uploadingBg} className="flex-shrink-0">
-                {uploadingBg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              </Button>
-              <input ref={bgFileInputRef} type="file" accept="image/*" hidden onChange={handleBgUpload} />
-            </div>
-            {bgImage && (
-              <div className="flex items-center gap-2">
-                <img src={bgImage} alt="bg preview" className="w-12 h-12 rounded-lg object-cover border border-border" onError={e => e.target.style.display = "none"} />
-                <button type="button" onClick={() => setBgField(BG_IMAGE_KEY, "")}
-                  className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1">
-                  <X className="w-3 h-3" /> Remove
-                </button>
-              </div>
-            )}
-          </div>
-
-          {(bgColor || bgImage) && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-muted-foreground font-medium">Opacity</label>
-                <span className="text-xs text-muted-foreground">{Math.round(bgOpacity * 100)}%</span>
-              </div>
-              <input type="range" min={0.02} max={1} step={0.01} value={bgOpacity}
-                onChange={e => setBgField(BG_OPACITY_KEY, parseFloat(e.target.value))}
-                className="w-full h-1 accent-primary" />
-              <p className="text-xs text-muted-foreground/60">Lower opacity keeps the background subtle.</p>
-            </div>
-          )}
-
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-xs text-muted-foreground font-medium">Header text color</label>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button type="button" onClick={() => setShowHeaderTextPicker(true)}
-                className="w-8 h-8 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 flex items-center justify-center"
+                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 flex items-center justify-center"
                 style={{ backgroundColor: headerTextColor || "transparent" }}>
                 {!headerTextColor && <span className="text-muted-foreground text-xs font-bold">A</span>}
               </button>
               <Input value={headerTextColor} onChange={e => setBgField(HEADER_TEXT_KEY, e.target.value)}
-                placeholder="Default" className="font-mono text-sm flex-1" />
-              {headerTextColor && <button type="button" onClick={() => setBgField(HEADER_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3.5 h-3.5" /></button>}
+                placeholder="Default" className="font-mono text-xs flex-1 h-7" />
+              {headerTextColor && <button type="button" onClick={() => setBgField(HEADER_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
             </div>
           </div>
         </div>
 
-        <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+        {/* Background image */}
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground font-medium">Background image</label>
+          <div className="flex gap-2">
+            <Input value={bgImage} onChange={e => setBgField(BG_IMAGE_KEY, e.target.value)}
+              placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
+            <button type="button" onClick={() => bgFileInputRef.current?.click()} disabled={uploadingBg}
+              className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
+              {uploadingBg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
+            </button>
+            <input ref={bgFileInputRef} type="file" accept="image/*" hidden onChange={handleBgUpload} />
+            {bgImage && <button type="button" onClick={() => setBgField(BG_IMAGE_KEY, "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3 h-3" /></button>}
+          </div>
+        </div>
+
+        {/* Opacity — only show if bg set */}
+        {(bgColor || bgImage) && (
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">Opacity</label>
+            <input type="range" min={0.02} max={1} step={0.01} value={bgOpacity}
+              onChange={e => setBgField(BG_OPACITY_KEY, parseFloat(e.target.value))}
+              className="flex-1 h-1 accent-primary" />
+            <span className="text-xs text-muted-foreground flex-shrink-0">{Math.round(bgOpacity * 100)}%</span>
+          </div>
+        )}
       </div>
 
+      <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+
+      {/* Groups */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-primary flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups</label>
-          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit groups →</button>
+          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit →</button>
         </div>
         {alter.groups && alter.groups.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
@@ -475,8 +507,8 @@ const handleBgUpload = async (e) => {
 
       {alter.tags && alter.tags.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-3"><Tag className="w-3.5 h-3.5" /> Tags</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-2"><Tag className="w-3.5 h-3.5" /> Tags</p>
+          <div className="flex flex-wrap gap-1.5">
             {alter.tags.map((tag) => (
               <span key={tag} className="px-3 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">{tag}</span>
             ))}
@@ -484,7 +516,7 @@ const handleBgUpload = async (e) => {
         </div>
       )}
 
-      <div className="flex flex-col gap-2 pt-2">
+      <div className="flex flex-col gap-2 pt-1">
         <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
           {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           Save Changes
@@ -501,19 +533,10 @@ const handleBgUpload = async (e) => {
       </div>
 
       <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
-
-      {showColorPicker && (
-        <ColorPickerModal color={form.color || "#8b5cf6"} label="Alter Color"
-          onSave={(hex) => set("color", hex)} onClose={() => setShowColorPicker(false)} />
-      )}
-      {showBgColorPicker && (
-        <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color"
-          onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />
-      )}
-      {showHeaderTextPicker && (
-        <ColorPickerModal color={headerTextColor || "#ffffff"} label="Header Text Color"
-          onSave={(hex) => setBgField(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />
-      )}
+      {showAvatarModal && <AvatarModal src={form.avatar_url} onSave={(url) => set("avatar_url", url)} onClose={() => setShowAvatarModal(false)} />}
+      {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Alter Color" onSave={(hex) => set("color", hex)} onClose={() => setShowColorPicker(false)} />}
+      {showBgColorPicker && <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color" onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
+      {showHeaderTextPicker && <ColorPickerModal color={headerTextColor || "#ffffff"} label="Header Text Color" onSave={(hex) => setBgField(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
     </div>
   );
 }
