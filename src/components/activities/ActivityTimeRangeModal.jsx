@@ -150,7 +150,7 @@ const handleSave = async () => {
             co_fronter_ids: merged.slice(1),
           });
         } else {
-          const isStillActive = endDt >= now;
+          const isStillActive = endDt ? endDt >= now : true;
           await base44.entities.FrontingSession.create({
             primary_alter_id: selectedAlters[0],
             co_fronter_ids: selectedAlters.slice(1),
