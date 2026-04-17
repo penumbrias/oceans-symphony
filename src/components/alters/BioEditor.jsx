@@ -179,7 +179,7 @@ export default function BioEditor({ value, onChange }) {
           </button>
           <button type="button" onClick={() => setShowImport(true)}
             className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
-            Import SP Template
+            Import Template
           </button>
         </div>
       </div>
