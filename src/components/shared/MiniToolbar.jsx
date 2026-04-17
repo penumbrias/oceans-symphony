@@ -106,6 +106,7 @@ export function MiniToolbar({ onInsert }) {
         {btn("H3", "<h3>", "</h3>", "Heading 3")}
         <div className="w-px h-4 bg-border/40 mx-0.5" />
         {btn("🔗", '<a href="https://">', "</a>", "Link")}
+        {btn("✎", '<span data-edit="true">', "</span>", "Make editable in Simple mode")}
         <div className="w-px h-4 bg-border/40 mx-0.5" />
         <button type="button" title="Text color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("fg")}
           className="w-6 h-6 flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors gap-0">
