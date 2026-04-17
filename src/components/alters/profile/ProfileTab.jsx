@@ -322,8 +322,16 @@ useEffect(() => {
 
         {(() => {
           const customFieldValues = alter.custom_fields || {};
-          const visibleFilled = systemFields.filter(f => f.is_visible !== false && customFieldValues[f.id]);
-          const alterSpecific = (alter.alter_custom_fields || []).filter(f => f.value);
+const FIELD_ORDER_KEY = "_field_order";
+const perAlterOrder = customFieldValues[FIELD_ORDER_KEY] || null;
+const orderedFields = perAlterOrder
+  ? [...systemFields].sort((a, b) => {
+      const ai = perAlterOrder.indexOf(a.id);
+      const bi = perAlterOrder.indexOf(b.id);
+      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+    })
+  : systemFields;
+const visibleFilled = orderedFields.filter(f => f.is_visible !== false && customFieldValues[f.id]);          const alterSpecific = (alter.alter_custom_fields || []).filter(f => f.value);
           if (visibleFilled.length === 0 && alterSpecific.length === 0) return null;
           return (
             <div>
