@@ -94,7 +94,7 @@ export default function Settings() {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
       <h1 className="font-display text-3xl font-semibold text-foreground mb-2">Settings</h1>
-      <p className="text-muted-foreground mb-8">Customize {terms.system} and manage your account <span
+      <p className="text-muted-foreground mb-8">Customize {terms.system} and manage your account. Check out the <span
                     onClick={() => window.open("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1", "_blank")}
                     className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
                   >
