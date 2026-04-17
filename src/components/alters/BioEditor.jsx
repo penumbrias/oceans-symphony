@@ -105,7 +105,7 @@ function ImportSPModal({ onImport, onClose }) {
           <button type="button" onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Paste your SP markdown template. Images, galleries, layouts, tables, and formatting all convert automatically.
+          Paste your markdown template. Images, galleries, layouts, tables, and formatting all convert automatically.
         </p>
         <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Paste SP template here..."
           className="w-full h-52 px-3 py-2.5 rounded-xl border border-input bg-background text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-ring" autoFocus />
