@@ -174,6 +174,9 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   } catch (e) { toast.error(e.message || "Failed to save"); }
   finally { setSaving(false); }
 }, [form, alter.id]);
+useEffect(() => {
+  if (saveRef) saveRef.current = handleSave;
+}, [handleSave]);
 
   const handleArchive = async () => {
     setSaving(true);
