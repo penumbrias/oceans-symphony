@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +42,7 @@ export default function AlterProfile() {
   const { id: alterId } = useParams();
   const [tab, setTab] = useState("profile");
   const [editMode, setEditMode] = useState(false);
+  const saveRef = useRef(null);
 
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
