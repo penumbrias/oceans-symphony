@@ -161,12 +161,19 @@ export default function BioEditor({ value, onChange }) {
     onChange(html);
   };
 
-  const handleImport = useCallback((spText) => {
-    const blocks = convertSPToBlocks(spText);
-    const html = blocksToHTML(blocks);
-    handleChange(html);
+const handleImport = useCallback((text) => {
+  // If it looks like raw HTML, use it directly as a single text block
+  if (text.trim().startsWith('<')) {
+    const blocks = [{ id: uid(), type: "text", content: text.trim() }];
+    handleChange(blocksToHTML(blocks));
+    toast.success("Template imported!");
+  } else {
+    // SP markdown — parse it
+    const blocks = convertSPToBlocks(text);
+    handleChange(blocksToHTML(blocks));
     toast.success(`Imported ${blocks.length} block${blocks.length !== 1 ? "s" : ""}!`);
-  }, []);
+  }
+}, []);
 
   return (
     <div className="space-y-2">
