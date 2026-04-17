@@ -94,31 +94,75 @@ export function MiniToolbar({ onInsert }) {
     savedSelection.current = null;
   };
   return (
-    <>
-      <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/30 bg-muted/10 flex-wrap">
-        {btn("B", "<strong>", "</strong>", "Bold")}
-        {btn("I", "<em>", "</em>", "Italic")}
-        {btn("S̶", "<s>", "</s>", "Strikethrough")}
-        {btn("U", "<u>", "</u>", "Underline")}
-        <div className="w-px h-4 bg-border/40 mx-0.5" />
-        {btn("H1", "<h1>", "</h1>", "Heading 1")}
-        {btn("H2", "<h2>", "</h2>", "Heading 2")}
-        {btn("H3", "<h3>", "</h3>", "Heading 3")}
-        <div className="w-px h-4 bg-border/40 mx-0.5" />
-        {btn("🔗", '<a href="https://">', "</a>", "Link")}
-        {btn("✎", '<span data-edit="true">', "</span>", "Make editable in Simple mode")}
-        <div className="w-px h-4 bg-border/40 mx-0.5" />
-        <button type="button" title="Text color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("fg")}
-          className="w-6 h-6 flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors gap-0">
-          <span className="text-xs font-bold" style={{ lineHeight: 1 }}>A</span>
-          <span className="w-4 h-0.5 rounded-full" style={{ background: "linear-gradient(90deg,#ff4d4d,#ffd700,#2ecc71,#00bfff,#9b59b6)" }} />
-        </button>
-        <button type="button" title="Highlight color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("hl")}
-          className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
-          <span className="text-xs font-bold px-0.5 rounded" style={{ background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)", lineHeight: 1.6 }}>A</span>
-        </button>
-      </div>
-      {colorModal && <ColorPickerModal mode={colorModal} onApply={applyColor} onClose={() => setColorModal(null)} />}
-    </>
-  );
+  <>
+    <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/30 bg-muted/10 flex-wrap">
+      {/* Text style */}
+      {btn("B", "<strong>", "</strong>", "Bold")}
+      {btn("I", "<em>", "</em>", "Italic")}
+      {btn("S̶", "<s>", "</s>", "Strikethrough")}
+      {btn("U", "<u>", "</u>", "Underline")}
+      {btn("X²", "<sup>", "</sup>", "Superscript")}
+      {btn("X₂", "<sub>", "</sub>", "Subscript")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5" />
+
+      {/* Headings */}
+      {btn("H1", "<h1>", "</h1>", "Heading 1")}
+      {btn("H2", "<h2>", "</h2>", "Heading 2")}
+      {btn("H3", "<h3>", "</h3>", "Heading 3")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5" />
+
+      {/* Alignment */}
+      {btn("◀", '<div style="text-align:left;">', "</div>", "Align left")}
+      {btn("■", '<div style="text-align:center;">', "</div>", "Align center")}
+      {btn("▶", '<div style="text-align:right;">', "</div>", "Align right")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5" />
+
+      {/* Block elements */}
+      {btn("❝", '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">', "</blockquote>", "Blockquote")}
+      {btn("</>", '<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">', "</code>", "Inline code")}
+      {btn("—", '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
+      {btn("↵", "<br />", "", "Line break")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5" />
+
+      {/* Font size */}
+      {btn("S", '<span style="font-size:0.75em;">', "</span>", "Small text")}
+      {btn("L", '<span style="font-size:1.3em;">', "</span>", "Large text")}
+      {btn("XL", '<span style="font-size:1.8em;font-weight:bold;">', "</span>", "Extra large text")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5" />
+
+      {/* Links + editable */}
+      {btn("🔗", '<a href="https://">', "</a>", "Link")}
+      {btn("✎", '<span data-edit="true">', "</span>", "Make editable in Simple mode")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5" />
+
+      {/* Gradients / styling shortcuts */}
+      {btn("✨", '<span style="background:linear-gradient(90deg,#ff6ec7,#ffe680,#6effc8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Rainbow gradient text")}
+      {btn("🌊", '<span style="background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Ocean gradient text")}
+      {btn("🔲", '<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;">', "</div>", "Dark box")}
+      {btn("💠", '<div style="border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px;background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);">', "</div>", "Glass box")}
+      {btn("⚡", '<span style="animation:float 3s ease-in-out infinite;display:inline-block;">', "</span>", "Floating animation")}
+      {btn("💥", '<span style="text-shadow:0 0 10px currentColor;">', "</span>", "Glow effect")}
+
+      <div className="w-px h-4 bg-border/40 mx-0.5" />
+
+      {/* Colors */}
+      <button type="button" title="Text color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("fg")}
+        className="w-6 h-6 flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors gap-0">
+        <span className="text-xs font-bold" style={{ lineHeight: 1 }}>A</span>
+        <span className="w-4 h-0.5 rounded-full" style={{ background: "linear-gradient(90deg,#ff4d4d,#ffd700,#2ecc71,#00bfff,#9b59b6)" }} />
+      </button>
+      <button type="button" title="Highlight color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("hl")}
+        className="w-6 h-6 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+        <span className="text-xs font-bold px-0.5 rounded" style={{ background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)", lineHeight: 1.6 }}>A</span>
+      </button>
+    </div>
+    {colorModal && <ColorPickerModal mode={colorModal} onApply={applyColor} onClose={() => setColorModal(null)} />}
+  </>
+);
 }
