@@ -149,15 +149,29 @@ export default function AlterProfile() {
               </Link>
             )}
             {tab === "profile" && (
-              <Button
-                variant={editMode ? "default" : "outline"}
-                size="sm"
-                onClick={() => setEditMode(e => !e)}
-                className="gap-1.5"
-              >
-                {editMode ? <><Eye className="w-3.5 h-3.5" /> View</> : <><Pencil className="w-3.5 h-3.5" /> Edit</>}
-              </Button>
-            )}
+  <div className="flex items-center gap-2">
+    {editMode && (
+      <Button
+        variant="default"
+        size="sm"
+        onClick={() => {
+          // Trigger save via a ref or event — need to wire this up
+        }}
+        className="gap-1.5 bg-primary hover:bg-primary/90"
+      >
+        <Save className="w-3.5 h-3.5" /> Save
+      </Button>
+    )}
+    <Button
+      variant={editMode ? "outline" : "outline"}
+      size="sm"
+      onClick={() => setEditMode(e => !e)}
+      className="gap-1.5"
+    >
+      {editMode ? <><Eye className="w-3.5 h-3.5" /> View</> : <><Pencil className="w-3.5 h-3.5" /> Edit</>}
+    </Button>
+  </div>
+)}
           </div>
         </div>
 
