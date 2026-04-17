@@ -155,7 +155,7 @@ const handleSave = async () => {
             primary_alter_id: selectedAlters[0],
             co_fronter_ids: selectedAlters.slice(1),
             start_time: timestamp.toISOString(),
-            end_time: isStillActive ? null : endDt.toISOString(),
+            end_time: isStillActive ? null : endDt?.toISOString(),
             is_active: isStillActive,
           });
         }
