@@ -23,7 +23,7 @@ const STEPS = (t) => [
     body: `Create profiles for each alter with their own name, pronouns, color, avatar, role, and bio. Alters can have custom fields, notes from other parts, and their own journal entries.`,
     icon: <Users className='w-8 h-8' />,
     color: 'from-purple-500/20 to-pink-500/20',
-    tip: 'Long press an alter card to quickly switch fronting status',
+    tip: 'Press the thunder/active icon next to an alters card to set their front status; long press to set/remove as primary',
     features: ['Custom profiles with avatars', 'Pronouns and roles', 'Private alter notes', 'Custom fields', 'SP integration'],
   },
   {
