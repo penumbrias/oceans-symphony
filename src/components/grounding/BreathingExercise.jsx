@@ -109,7 +109,7 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
           style={{ width: SIZES.small, height: SIZES.small, backgroundColor: "var(--color-primary)", opacity: 0.5 }}
         />
 
-        <Button onClick={() => { setStarted(true); setPhaseSeconds(pattern.phases[0].seconds); }} size="lg" className="px-8">
+        <Button onClick={() => { setStarted(true); setCountdown(pattern.phases[0].seconds); }} size="lg" className="px-8">
           Begin
         </Button>
         <button onClick={onStop} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
