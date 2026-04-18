@@ -100,6 +100,7 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
 
 export default function CurrentSymptoms({ onOpenCheckIn }) {
   const [activeMenu, setActiveMenu] = useState(null);
+  const timerRefs = useRef({});
 
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["symptomSessions"],
@@ -118,6 +119,21 @@ export default function CurrentSymptoms({ onOpenCheckIn }) {
     .map(sess => ({ sess, symptom: symptomsById[sess.symptom_id] }))
     .filter(x => x.symptom && !x.symptom.is_archived);
 
+  const handleLongPress = (sess, symptom) => {
+    setActiveMenu({ sess, symptom });
+  };
+
+  const startLongPress = (sessId, sess, symptom) => {
+    timerRefs.current[sessId] = setTimeout(() => handleLongPress(sess, symptom), 500);
+  };
+
+  const clearLongPress = (sessId) => {
+    if (timerRefs.current[sessId]) {
+      clearTimeout(timerRefs.current[sessId]);
+      delete timerRefs.current[sessId];
+    }
+  };
+
   if (active.length === 0) return null;
 
   return (
@@ -127,19 +143,16 @@ export default function CurrentSymptoms({ onOpenCheckIn }) {
         {active.map(({ sess, symptom }) => {
           const lastSnapshot = sess.severity_snapshots?.[sess.severity_snapshots.length - 1];
           const severity = lastSnapshot?.severity;
-          const timerRef = useRef(null);
-
-          const handleLongPress = () => setActiveMenu({ sess, symptom });
 
           return (
             <button
               key={sess.id}
               onClick={() => onOpenCheckIn?.("symptoms")}
-              onMouseDown={() => { timerRef.current = setTimeout(handleLongPress, 500); }}
-              onMouseUp={() => clearTimeout(timerRef.current)}
-              onMouseLeave={() => clearTimeout(timerRef.current)}
-              onTouchStart={() => { timerRef.current = setTimeout(handleLongPress, 500); }}
-              onTouchEnd={() => clearTimeout(timerRef.current)}
+              onMouseDown={() => startLongPress(sess.id, sess, symptom)}
+              onMouseUp={() => clearLongPress(sess.id)}
+              onMouseLeave={() => clearLongPress(sess.id)}
+              onTouchStart={() => startLongPress(sess.id, sess, symptom)}
+              onTouchEnd={() => clearLongPress(sess.id)}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setActiveMenu({ sess, symptom });
