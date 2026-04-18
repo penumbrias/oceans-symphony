@@ -61,53 +61,51 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   );
 }
 
-export function SymptomPill({ symptom, checkIn, topPx, expanded, onTap }) {
-  const color = symptom?.color || "#8b5cf6";
-  const timeStr = checkIn?.timestamp ? format(new Date(checkIn.timestamp), "h:mmaaa") : null;
-
-  if (expanded) {
-    return (
-      <div
-        className="absolute cursor-pointer rounded-lg border px-1.5 py-1"
-        style={{
-          top: topPx,
-          left: 0,
-          backgroundColor: `${color}18`,
-          borderColor: `${color}60`,
-          userSelect: "none",
-          maxWidth: "100%",
-        }}
-        onClick={onTap}
-      >
-        <p className="font-semibold leading-tight" style={{ fontSize: 8, color }}>{symptom?.label}</p>
-        {checkIn.severity !== null && checkIn.severity !== undefined && (
-          <p style={{ fontSize: 7, color, opacity: 0.8 }}>Severity: {checkIn.severity}</p>
-        )}
-        {timeStr && <p style={{ fontSize: 7, color, opacity: 0.7 }}>{timeStr}</p>}
-      </div>
-    );
-  }
-
+// SymptomBubble — mirrors EmotionBubble exactly, grouped by minute
+// entry = { mins, checkIns: [{symptom, checkIn}], key }
+export function SymptomBubble({ entry, topPx, expanded, onTap }) {
+  const items = entry.checkIns || [];
+  const timeStr = entry.timeStr || "";
   return (
-    <div
-      className="absolute flex items-center gap-1 cursor-pointer rounded-full px-1.5 py-0.5 border"
-      style={{
-        top: topPx,
-        left: 0,
-        backgroundColor: `${color}18`,
-        borderColor: `${color}60`,
-        userSelect: "none",
-        maxWidth: "100%",
-      }}
-      onClick={onTap}
-      title={symptom?.label}
-    >
-      <div className="rounded-full flex-shrink-0" style={{ width: 6, height: 6, backgroundColor: color }} />
-      <span style={{ fontSize: 8, color, fontWeight: "bold" }}>
-        {symptom?.label?.charAt(0)?.toUpperCase() || "S"}
-      </span>
-      {checkIn.severity !== null && checkIn.severity !== undefined && (
-        <span style={{ fontSize: 8, color, opacity: 0.8 }}>{checkIn.severity}</span>
+    <div className="absolute left-0 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={onTap}>
+      {expanded ? (
+        <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm">
+          <p className="text-xs text-muted-foreground mb-1 font-medium">{timeStr}</p>
+          <div className="flex flex-col gap-0.5">
+            {items.map(({ symptom, checkIn }, i) => {
+              const color = symptom?.color || "#8b5cf6";
+              const hasSeverity = checkIn.severity !== null && checkIn.severity !== undefined;
+              return (
+                <span key={i} className="flex items-center gap-1">
+                  <div className="rounded-full flex-shrink-0" style={{ width: 8, height: 8, backgroundColor: color }} />
+                  <span className="font-medium" style={{ fontSize: 9, color }}>
+                    {symptom?.label || "?"}{hasSeverity ? ` · ${checkIn.severity}` : ""}
+                  </span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-0.5 flex-wrap">
+          {items.slice(0, 4).map(({ symptom, checkIn }, i) => {
+            const color = symptom?.color || "#8b5cf6";
+            const hasSeverity = checkIn.severity !== null && checkIn.severity !== undefined;
+            const label = hasSeverity ? String(checkIn.severity) : (symptom?.label?.charAt(0)?.toUpperCase() || "S");
+            return (
+              <div key={i} className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
+                style={{ width: 18, height: 18, backgroundColor: color }} title={symptom?.label}>
+                <span className="text-white font-bold" style={{ fontSize: 8 }}>{label}</span>
+              </div>
+            );
+          })}
+          {items.length > 4 && (
+            <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
+              style={{ width: 18, height: 18 }}>
+              <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{items.length - 4}</span>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

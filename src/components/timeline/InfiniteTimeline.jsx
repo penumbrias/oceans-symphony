@@ -7,7 +7,7 @@ import { parseDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
-import { SymptomBar, SymptomPill } from "@/components/timeline/SymptomBar";
+import { SymptomBar, SymptomBubble } from "@/components/timeline/SymptomBar";
 
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, symptom: 36, alter: 40 };
@@ -740,19 +740,40 @@ export default function InfiniteTimeline({
     });
   }, [symptomCheckIns, dayStart]);
 
-  const symptomCheckInPositioned = useMemo(() => {
-    let minNext = -Infinity;
-    const MIN_SYMPTOM_GAP = 24;
-    return [...daySymptomCheckIns]
+  // Group symptom check-ins by minute (same pattern as emotionEntries)
+  const symptomBubbleEntries = useMemo(() => {
+    const byMinute = {};
+    [...daySymptomCheckIns]
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-      .map(checkIn => {
+      .forEach(checkIn => {
         const mins = Math.max(0, minutesInDay(parseDate(checkIn.timestamp), dayStart));
-        const raw = getTopPx(mins);
-        const top = Math.max(raw, minNext);
-        minNext = top + MIN_SYMPTOM_GAP;
-        return { ...checkIn, adjustedTop: top };
+        const bucket = Math.floor(mins); // group by exact minute
+        if (!byMinute[bucket]) byMinute[bucket] = { mins: bucket, checkIns: [], timestamp: checkIn.timestamp };
+        byMinute[bucket].checkIns.push({ symptom: symptomMap[checkIn.symptom_id], checkIn });
       });
-  }, [daySymptomCheckIns, getTopPx, dayStart]);
+    return Object.values(byMinute)
+      .sort((a, b) => a.mins - b.mins)
+      .map((entry, i) => {
+        const h = Math.floor(entry.mins / 60);
+        const m = entry.mins % 60;
+        const period = h < 12 ? "am" : "pm";
+        const h12 = h % 12 || 12;
+        const timeStr = `${h12}:${String(m).padStart(2, "0")}${period}`;
+        return { ...entry, timeStr, key: `sbubble-${i}-${entry.mins}` };
+      });
+  }, [daySymptomCheckIns, dayStart, symptomMap]);
+
+  const symptomBubblePositioned = useMemo(() => {
+    let minNext = -Infinity;
+    const MIN_SYMPTOM_GAP = 22;
+    return symptomBubbleEntries.map(entry => {
+      const expanded = expandedKeys.has(entry.key);
+      const raw = getTopPx(entry.mins);
+      const top = Math.max(raw, minNext);
+      minNext = top + (expanded ? EXPANDED_EXTRA : MIN_SYMPTOM_GAP);
+      return { ...entry, adjustedTop: top };
+    });
+  }, [symptomBubbleEntries, getTopPx, expandedKeys]);
 
   const sortedSymptomSessions = useMemo(() => {
     return [...symptomSessions].sort((a, b) => {
@@ -1088,21 +1109,15 @@ export default function InfiniteTimeline({
                         />
                       );
                     })}
-                    {colIdx === 0 && symptomCheckInPositioned.map((checkIn) => {
-                      const symptom = symptomMap[checkIn.symptom_id];
-                      if (!symptom) return null;
-                      const pillKey = `spill-${checkIn.id}`;
-                      return (
-                        <SymptomPill
-                          key={pillKey}
-                          symptom={symptom}
-                          checkIn={checkIn}
-                          topPx={checkIn.adjustedTop}
-                          expanded={expandedKeys.has(pillKey)}
-                          onTap={() => toggleExpand(pillKey)}
-                        />
-                      );
-                    })}
+                    {colIdx === 0 && symptomBubblePositioned.map((entry) => (
+                      <SymptomBubble
+                        key={entry.key}
+                        entry={entry}
+                        topPx={entry.adjustedTop}
+                        expanded={expandedKeys.has(entry.key)}
+                        onTap={() => toggleExpand(entry.key)}
+                      />
+                    ))}
                   </div>
                 ))}
 
