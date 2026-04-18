@@ -27,6 +27,7 @@ import Timeline from '@/pages/Timeline.jsx';
 import CoFrontingAnalytics from '@/pages/CoFrontingAnalytics';
 import SystemMapPage from '@/pages/SystemMap';
 import Grounding from '@/pages/Grounding';
+import SafetyPlan from '@/pages/SafetyPlan';
 import BulletinPage from '@/pages/BulletinPage';
 import ManageCheckIn from '@/pages/ManageCheckIn';
 import TherapyReport from '@/pages/TherapyReport';
@@ -85,6 +86,7 @@ const AuthenticatedApp = () => {
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
         <Route path="/grounding" element={<Grounding />} />
+        <Route path="/safety-plan" element={<SafetyPlan />} />
         <Route path="/therapy-report" element={<TherapyReport />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

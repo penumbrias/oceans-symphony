@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus } from "lucide-react";
+import { Plus, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import StateCheckFlow from "@/components/grounding/StateCheckFlow";
 import TechniqueCard from "@/components/grounding/TechniqueCard";
@@ -414,6 +415,16 @@ export default function Grounding({ initialPath = null }) {
         </div>
 
         <div className="space-y-3">
+          <Link to="/safety-plan" className="w-full">
+            <button className="w-full text-left bg-primary/10 border border-primary/30 rounded-lg p-4 hover:bg-primary/15 transition-all flex items-center justify-between group">
+              <div>
+                <p className="font-semibold text-sm text-primary group-hover:text-primary transition-colors">My Safety Plan</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Warning signs, coping cards, distress plan</p>
+              </div>
+              <Shield className="text-primary text-lg ml-3 flex-shrink-0" />
+            </button>
+          </Link>
+
           <button
             onClick={() => setPath("all")}
             className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
