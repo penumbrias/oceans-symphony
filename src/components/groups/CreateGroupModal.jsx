@@ -20,12 +20,18 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
   const [color, setColor] = useState(group?.color || "#8b5cf6");
   const [icon, setIcon] = useState(group?.icon || "");
   const [customEmoji, setCustomEmoji] = useState("");
+  const [parentGroupId, setParentGroupId] = useState(group?.parent_group_id || "");
   const [selectedAlterIds, setSelectedAlterIds] = useState(new Set(group?.alter_ids || []));
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
+  });
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
   });
 
   const activeAlters = useMemo(
@@ -60,6 +66,7 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
         description: description.trim(),
         color,
         icon: finalIcon,
+        parent_group_id: parentGroupId || null,
         alter_ids: Array.from(selectedAlterIds),
       };
 
@@ -77,8 +84,8 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[calc(100vh-80px)] overflow-y-auto shadow-xl mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[calc(100vh-80px)] overflow-y-auto shadow-xl mx-4" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border/50 sticky top-0 bg-card">
           <h2 className="text-xl font-semibold text-foreground">
@@ -130,6 +137,27 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
               rows={2}
               className="w-full resize-none"
             />
+          </div>
+
+          {/* Parent Group */}
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Parent Group (optional)
+            </label>
+            <select
+              value={parentGroupId}
+              onChange={(e) => setParentGroupId(e.target.value)}
+              className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm text-foreground"
+            >
+              <option value="">No parent (top-level group)</option>
+              {groups
+                .filter(g => g.id !== group?.id)
+                .map(g => (
+                  <option key={g.id} value={g.id}>
+                    {g.icon} {g.name}
+                  </option>
+                ))}
+            </select>
           </div>
 
           {/* Color & Icon */}
