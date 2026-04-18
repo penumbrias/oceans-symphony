@@ -4,55 +4,57 @@ import { Link } from "react-router-dom";
 import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, Search, X, LayoutGrid, List, FileText, Heart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { DEFAULT_CONFIG } from "@/utils/navigationConfig";
 
 function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
   return {
     [systemLabel]: [
-    { label: altersLabel, icon: Users, path: "/Home" },
-    { label: "Groups", icon: Users, path: "/groups" },
-    { label: "Settings", icon: Settings, path: "/settings" }],
+    { id: "alters", label: altersLabel, icon: Users, path: "/Home" },
+    { id: "groups", label: "Groups", icon: Users, path: "/groups" },
+    { id: "settings", label: "Settings", icon: Settings, path: "/settings" }],
 
     "Tracking": [
-    { label: "Daily Tasks", icon: CheckSquare, path: "/tasks" },
-    { label: "To-Do List", icon: CheckSquare, path: "/todo" },
-    { label: "Diary Cards", icon: ClipboardList, path: "/diary" },
-    { label: "Activities", icon: Zap, path: "/activities" },
-    { label: "Sleep", icon: Activity, path: "/sleep" },
-    { label: `${systemLabel} Check-In`, icon: Sparkles, path: "/system-checkin" }],
+    { id: "daily-tasks", label: "Daily Tasks", icon: CheckSquare, path: "/tasks" },
+    { id: "diary-cards", label: "Diary Cards", icon: ClipboardList, path: "/diary" },
+    { id: "activities", label: "Activities", icon: Zap, path: "/activities" },
+    { id: "sleep", label: "Sleep", icon: Activity, path: "/sleep" },
+    { id: "checkin", label: `${systemLabel} Check-In`, icon: Sparkles, path: "/system-checkin" }],
 
     "Tools": [
-    { label: "Therapy Report", icon: CheckSquare, path: "/therapy-report" },
-    { label: "Support & Learn", icon: BookOpen, path: "/grounding" }],
+    { id: "therapy-report", label: "Therapy Report", icon: CheckSquare, path: "/therapy-report" },
+    { id: "support", label: "Support & Learn", icon: BookOpen, path: "/grounding" }],
 
     "Analytics": [
-    { label: "Analytics", icon: BarChart2, path: "/analytics" },
-    { label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics" },
-    { label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map" },
-    { label: "Timeline", icon: Clock, path: "/timeline" }],
+    { id: "analytics", label: "Analytics", icon: BarChart2, path: "/analytics" },
+    { id: "co-fronting", label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics" },
+    { id: "system-map", label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map" },
+    { id: "timeline", label: "Timeline", icon: Clock, path: "/timeline" }],
 
     "Journal": [
-    { label: "Journals", icon: BookOpen, path: "/journals" }]
+    { id: "journals", label: "Journals", icon: BookOpen, path: "/journals" }]
 
   };
 }
 
 function buildGridItems(altersLabel, frontLabel, systemLabel) {
   return [
-  { label: altersLabel, icon: Users, path: "/Home", color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
-  { label: `${systemLabel} Check-In`, icon: Sparkles, path: "/system-checkin", color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
-  { label: "Activities", icon: Zap, path: "/activities", color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
-  { label: "Analytics", icon: BarChart2, path: "/analytics", color: "bg-green-500/15 text-green-600 dark:text-green-400" },
-  { label: "Therapy Report", icon: FileText, path: "/therapy-report", color: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
-  { label: "Support & Learn", icon: Heart, path: "/grounding", color: "bg-red-500/15 text-red-600 dark:text-red-400" },
-  { label: "Diary Cards", icon: ClipboardList, path: "/diary", color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
-  { label: "Sleep", icon: Activity, path: "/sleep", color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
-  { label: "Timeline", icon: Clock, path: "/timeline", color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
-  { label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
-  { label: "Journals", icon: BookOpen, path: "/journals", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-  { label: "Daily Tasks", icon: CheckSquare, path: "/tasks", color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
-  { label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
-  { label: "Groups", icon: Users, path: "/groups", color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
-  { label: "Settings", icon: Settings, path: "/settings", color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" }];
+  { id: "alters", label: altersLabel, icon: Users, path: "/Home", color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
+  { id: "checkin", label: `${systemLabel} Check-In`, icon: Sparkles, path: "/system-checkin", color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+  { id: "activities", label: "Activities", icon: Zap, path: "/activities", color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
+  { id: "analytics", label: "Analytics", icon: BarChart2, path: "/analytics", color: "bg-green-500/15 text-green-600 dark:text-green-400" },
+  { id: "therapy-report", label: "Therapy Report", icon: FileText, path: "/therapy-report", color: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
+  { id: "support", label: "Support & Learn", icon: Heart, path: "/grounding", color: "bg-red-500/15 text-red-600 dark:text-red-400" },
+  { id: "diary-cards", label: "Diary Cards", icon: ClipboardList, path: "/diary", color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
+  { id: "sleep", label: "Sleep", icon: Activity, path: "/sleep", color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
+  { id: "timeline", label: "Timeline", icon: Clock, path: "/timeline", color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
+  { id: "system-map", label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
+  { id: "journals", label: "Journals", icon: BookOpen, path: "/journals", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+  { id: "daily-tasks", label: "Daily Tasks", icon: CheckSquare, path: "/tasks", color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
+  { id: "co-fronting", label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+  { id: "groups", label: "Groups", icon: Users, path: "/groups", color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
+  { id: "settings", label: "Settings", icon: Settings, path: "/settings", color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" }];
 
 }
 
@@ -60,16 +62,41 @@ export default function QuickNavMenu() {
   const terms = useTerms();
   const [searchQuery, setSearchQuery] = useState("");
   const [isGridLayout, setIsGridLayout] = useState(() => localStorage.getItem("nav_grid_layout") === "true");
+  
+  const { data: systemSettingsData = [] } = useQuery({
+    queryKey: ['systemSettings'],
+    queryFn: () => base44.entities.SystemSettings.list()
+  });
+
+  const navConfig = useMemo(() => {
+    return systemSettingsData?.[0]?.navigation_config || DEFAULT_CONFIG;
+  }, [systemSettingsData]);
+
   const NAV_GROUPS = useMemo(() => buildNavGroups(terms.Alters, terms.System, terms.Front, terms.Switch), [terms.Alters, terms.System, terms.Front, terms.Switch]);
   const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.Front, terms.System), [terms.Alters, terms.Front, terms.System]);
 
+  const configuredGridItems = useMemo(() => {
+    return GRID_ITEMS.filter(item => navConfig.dashboardGrid.includes(item.id));
+  }, [GRID_ITEMS, navConfig.dashboardGrid]);
+
+  const configuredGroups = useMemo(() => {
+    const filtered = {};
+    Object.entries(NAV_GROUPS).forEach(([group, items]) => {
+      const configuredItems = items.filter(item => navConfig.dashboardGrid.includes(item.id));
+      if (configuredItems.length > 0) {
+        filtered[group] = configuredItems;
+      }
+    });
+    return filtered;
+  }, [NAV_GROUPS, navConfig.dashboardGrid]);
+
   const filteredGroups = useMemo(() => {
-    if (!searchQuery.trim()) return NAV_GROUPS;
+    if (!searchQuery.trim()) return configuredGroups;
 
     const query = searchQuery.toLowerCase();
     const filtered = {};
 
-    Object.entries(NAV_GROUPS).forEach(([group, items]) => {
+    Object.entries(configuredGroups).forEach(([group, items]) => {
       const matches = items.filter((item) =>
       item.label.toLowerCase().includes(query)
       );
@@ -79,14 +106,14 @@ export default function QuickNavMenu() {
     });
 
     return filtered;
-  }, [searchQuery]);
+  }, [searchQuery, configuredGroups]);
 
   const filteredGridItems = useMemo(() => {
-    if (!searchQuery.trim()) return GRID_ITEMS;
-    return GRID_ITEMS.filter((item) =>
+    if (!searchQuery.trim()) return configuredGridItems;
+    return configuredGridItems.filter((item) =>
     item.label.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, configuredGridItems]);
 
   return (
     <div className="space-y-4">
