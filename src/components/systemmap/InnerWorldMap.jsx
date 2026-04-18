@@ -70,17 +70,10 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
       )}
       <circle cx={cx} cy={cy} r={NODE_RADIUS} fill={alter.color || "#8b5cf6"} opacity={0.9} />
       {alter.avatar_url ? (
-        <>
-          <defs>
-            <clipPath id={`iw-clip-${alter.id}`}>
-              <circle cx={cx} cy={cy} r={NODE_RADIUS - 2} />
-            </clipPath>
-          </defs>
-          <image x={cx - NODE_RADIUS + 2} y={cy - NODE_RADIUS + 2}
-            width={(NODE_RADIUS - 2) * 2} height={(NODE_RADIUS - 2) * 2}
-            href={alter.avatar_url} preserveAspectRatio="xMidYMid slice"
-            clipPath={`url(#iw-clip-${alter.id})`} />
-        </>
+        <image x={cx - NODE_RADIUS + 2} y={cy - NODE_RADIUS + 2}
+          width={(NODE_RADIUS - 2) * 2} height={(NODE_RADIUS - 2) * 2}
+          href={alter.avatar_url} preserveAspectRatio="xMidYMid slice"
+          style={{ borderRadius: NODE_RADIUS, clipPath: `circle(${NODE_RADIUS - 2}px)` }} />
       ) : (
         <text x={cx} y={cy + 5} textAnchor="middle" fontSize={14} fontWeight="bold" fill="white" pointerEvents="none">
           {alter.name?.charAt(0)?.toUpperCase()}
