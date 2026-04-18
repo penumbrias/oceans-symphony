@@ -106,7 +106,7 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
 
         <div
           className="rounded-full flex items-center justify-center"
-          style={{ width: SIZES.small, height: SIZES.small, backgroundColor: "var(--color-primary)", opacity: 0.5 }}
+          style={{ width: SIZES.small, height: SIZES.small, backgroundColor: "hsl(var(--primary))", opacity: 0.5 }}
         />
 
         <Button onClick={() => { setStarted(true); setCountdown(pattern.phases[0].seconds); }} size="lg" className="px-8">
@@ -124,7 +124,7 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
       <div className="flex flex-col items-center gap-6 py-8 text-center">
         <div
           className="rounded-full flex items-center justify-center"
-          style={{ width: 80, height: 80, backgroundColor: "var(--color-primary)", opacity: 0.35, transition: "all 0.8s ease" }}
+          style={{ width: 80, height: 80, backgroundColor: "hsl(var(--primary))", opacity: 0.35, transition: "all 0.8s ease" }}
         />
         <div className="space-y-2">
           <p className="text-lg font-medium text-foreground">Well done.</p>
@@ -150,7 +150,7 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
           style={{
             position: 'absolute',
             borderRadius: '50%',
-            backgroundColor: 'hsl(var(--color-primary))',
+            backgroundColor: 'hsl(var(--primary))',
             opacity: isHold ? 0.7 : 0.85,
             width: circleSize,
             height: circleSize,
