@@ -26,6 +26,7 @@ import ToDoList from '@/pages/ToDoList';
 import Timeline from '@/pages/Timeline.jsx';
 import CoFrontingAnalytics from '@/pages/CoFrontingAnalytics';
 import SystemMapPage from '@/pages/SystemMap';
+import Grounding from '@/pages/Grounding';
 import BulletinPage from '@/pages/BulletinPage';
 import ManageCheckIn from '@/pages/ManageCheckIn';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
@@ -82,6 +83,7 @@ const AuthenticatedApp = () => {
         <Route path="/system-map" element={<SystemMapPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
+        <Route path="/grounding" element={<Grounding />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

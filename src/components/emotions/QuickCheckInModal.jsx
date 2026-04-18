@@ -45,6 +45,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const [note, setNote] = useState("");
   // Saving
   const [saving, setSaving] = useState(false);
+  const [showGroundingPrompt, setShowGroundingPrompt] = useState(false);
+
+  const HIGH_DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
 
   const symptomGetterRef = useRef(null);
 
@@ -218,13 +221,46 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       }
 
       queryClient.invalidateQueries({ queryKey: ["activities"] });
-      onClose();
+
+      // Check for high-distress emotions
+      const hasDistress = selectedEmotions.some(e =>
+        HIGH_DISTRESS_EMOTIONS.some(d => e.toLowerCase().includes(d))
+      );
+      if (hasDistress) {
+        setShowGroundingPrompt(true);
+      } else {
+        onClose();
+      }
     } catch (e) {
       toast.error(e.message || "Failed to save");
     } finally {
       setSaving(false);
     }
   };
+
+  if (showGroundingPrompt) {
+    return (
+      <Dialog open={isOpen} onOpenChange={() => { setShowGroundingPrompt(false); onClose(); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Check-in saved 🤍</DialogTitle>
+            <DialogDescription>Would you like to try a grounding exercise?</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <p className="text-sm text-muted-foreground">It looks like you might be having a hard time. A grounding technique might help.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { setShowGroundingPrompt(false); onClose(); }} className="flex-1">
+                No thanks
+              </Button>
+              <Button onClick={() => { setShowGroundingPrompt(false); onClose(); window.location.href = "/grounding"; }} className="flex-1">
+                Yes, let's try
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

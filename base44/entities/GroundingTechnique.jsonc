@@ -1,0 +1,78 @@
+{
+  "name": "GroundingTechnique",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name of the technique"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description shown on card"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "breathing",
+        "sensory",
+        "body",
+        "visualization",
+        "movement",
+        "affirmation",
+        "custom"
+      ],
+      "description": "Category of the technique"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Guided step-by-step instructions"
+    },
+    "suggested_for": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Which states this is suggested for"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "description": "Estimated time to complete in seconds"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false,
+      "description": "True for preset techniques"
+    },
+    "is_archived": {
+      "type": "boolean",
+      "default": false,
+      "description": "Soft delete flag"
+    },
+    "order": {
+      "type": "number",
+      "default": 0,
+      "description": "Display order"
+    }
+  },
+  "required": [
+    "name",
+    "category"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

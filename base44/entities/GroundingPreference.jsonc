@@ -1,0 +1,43 @@
+{
+  "name": "GroundingPreference",
+  "type": "object",
+  "properties": {
+    "alter_id": {
+      "type": "string",
+      "description": "Alter ID \u2014 null means system-wide preference"
+    },
+    "technique_id": {
+      "type": "string",
+      "description": "References GroundingTechnique.id"
+    },
+    "rating": {
+      "type": "number",
+      "description": "1 to 5 star rating, null if unrated"
+    },
+    "is_favorited": {
+      "type": "boolean",
+      "default": false
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional personal notes about this technique"
+    }
+  },
+  "required": [
+    "technique_id"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

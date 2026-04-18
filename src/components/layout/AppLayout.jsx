@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import MigrationBanner from "@/components/fronting/MigrationBanner";
+import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
@@ -196,6 +197,7 @@ const handleNotifClick = (mentionLog) => {
       </nav>
       
       <MigrationBanner />
+      <FloatingGroundingButton />
       <NotificationPopups
         mentionLogs={mentionLogs}
         alters={alters}

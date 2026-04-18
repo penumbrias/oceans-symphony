@@ -1,0 +1,376 @@
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { Plus, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import StateCheckFlow from "@/components/grounding/StateCheckFlow";
+import TechniqueCard from "@/components/grounding/TechniqueCard";
+import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
+import BreathingExercise from "@/components/grounding/BreathingExercise";
+import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
+import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
+import {
+  DEFAULT_TECHNIQUES, EMOTIONAL_STATES, CATEGORY_LABELS, CATEGORY_EMOJIS,
+  BREATHING_PATTERNS
+} from "@/utils/groundingDefaults";
+
+// ---- Seed helper ----
+async function seedDefaultTechniques() {
+  const existing = await base44.entities.GroundingTechnique.list();
+  if (existing.length > 0) return;
+  await base44.entities.GroundingTechnique.bulkCreate(DEFAULT_TECHNIQUES);
+}
+
+const BREATHING_NAMES = Object.keys(BREATHING_PATTERNS);
+
+export default function Grounding({ initialPath = null }) {
+  // path: 'entry' | 'state-check' | 'suggestions' | 'all' | 'breathing' | 'guided' | 'custom-form'
+  const [path, setPath] = useState(initialPath || "entry");
+  const [selectedStates, setSelectedStates] = useState([]);
+  const [selectedTechnique, setSelectedTechnique] = useState(null);
+  const [selectedBreathing, setSelectedBreathing] = useState(null);
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [seeded, setSeeded] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  const { data: techniques = [] } = useQuery({
+    queryKey: ["groundingTechniques"],
+    queryFn: () => base44.entities.GroundingTechnique.list(),
+  });
+
+  const { data: preferences = [] } = useQuery({
+    queryKey: ["groundingPreferences"],
+    queryFn: () => base44.entities.GroundingPreference.list(),
+  });
+
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+
+  const { data: frontingSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+
+  useEffect(() => {
+    if (!seeded && techniques.length === 0) {
+      seedDefaultTechniques().then(() => {
+        queryClient.invalidateQueries({ queryKey: ["groundingTechniques"] });
+        setSeeded(true);
+      });
+    }
+  }, [techniques.length, seeded]);
+
+  const currentFronter = useMemo(() => {
+    const active = frontingSessions.find(s => s.is_primary && s.alter_id);
+    if (active) return alters.find(a => a.id === active.alter_id) || null;
+    const any = frontingSessions.find(s => s.alter_id);
+    if (any) return alters.find(a => a.id === any.alter_id) || null;
+    return null;
+  }, [frontingSessions, alters]);
+
+  const prefMap = useMemo(() => {
+    const m = {};
+    preferences.forEach(p => { m[p.technique_id] = p; });
+    return m;
+  }, [preferences]);
+
+  const visibleTechniques = techniques.filter(t => !t.is_archived);
+
+  const handleToggleFavorite = async (technique) => {
+    const pref = prefMap[technique.id];
+    if (pref) {
+      await base44.entities.GroundingPreference.update(pref.id, { is_favorited: !pref.is_favorited });
+    } else {
+      await base44.entities.GroundingPreference.create({ technique_id: technique.id, is_favorited: true });
+    }
+    queryClient.invalidateQueries({ queryKey: ["groundingPreferences"] });
+  };
+
+  const handleRate = async (technique, rating, alterId) => {
+    const pref = prefMap[technique.id];
+    if (pref) {
+      await base44.entities.GroundingPreference.update(pref.id, { rating, alter_id: alterId || null });
+    } else {
+      await base44.entities.GroundingPreference.create({ technique_id: technique.id, rating, alter_id: alterId || null });
+    }
+    queryClient.invalidateQueries({ queryKey: ["groundingPreferences"] });
+  };
+
+  const handleSaveNote = async (technique, notes, alterId) => {
+    const pref = prefMap[technique.id];
+    if (pref) {
+      await base44.entities.GroundingPreference.update(pref.id, { notes, alter_id: alterId || null });
+    } else {
+      await base44.entities.GroundingPreference.create({ technique_id: technique.id, notes, alter_id: alterId || null });
+    }
+    queryClient.invalidateQueries({ queryKey: ["groundingPreferences"] });
+  };
+
+  const handleStateCheckComplete = (states) => {
+    setSelectedStates(states);
+    setPath("suggestions");
+  };
+
+  const handleOpenTechnique = (technique) => {
+    setSelectedTechnique(technique);
+    setPath("guided");
+  };
+
+  const handleStartBreathing = (name) => {
+    setSelectedBreathing(name);
+    setPath("breathing");
+  };
+
+  const hasCrisis = selectedStates.includes("crisis");
+
+  const suggestedTechniques = useMemo(() => {
+    if (selectedStates.length === 0) return [];
+    return visibleTechniques.filter(t =>
+      t.category !== "breathing" &&
+      t.suggested_for?.some(s => selectedStates.includes(s))
+    ).slice(0, 3);
+  }, [visibleTechniques, selectedStates]);
+
+  const suggestedBreathing = useMemo(() => {
+    if (selectedStates.length === 0) return null;
+    const state = EMOTIONAL_STATES.find(s => selectedStates.includes(s.id));
+    return state?.suggested_breathing || "Box breathing";
+  }, [selectedStates]);
+
+  const byCategory = useMemo(() => {
+    const map = {};
+    visibleTechniques.filter(t => t.category !== "breathing").forEach(t => {
+      if (!map[t.category]) map[t.category] = [];
+      map[t.category].push(t);
+    });
+    return map;
+  }, [visibleTechniques]);
+
+  const breathingTechniques = useMemo(() =>
+    visibleTechniques.filter(t => t.category === "breathing"),
+    [visibleTechniques]
+  );
+
+  const favorites = useMemo(() =>
+    visibleTechniques.filter(t => prefMap[t.id]?.is_favorited),
+    [visibleTechniques, prefMap]
+  );
+
+  // ---- Render paths ----
+
+  if (path === "guided" && selectedTechnique) {
+    return (
+      <div className="max-w-lg mx-auto p-4 h-full flex flex-col">
+        <GuidedTechniqueView
+          technique={selectedTechnique}
+          preference={prefMap[selectedTechnique.id]}
+          currentAlter={currentFronter}
+          alters={alters.filter(a => !a.is_archived)}
+          onBack={() => setPath("all")}
+          onRate={handleRate}
+          onSaveNote={handleSaveNote}
+          onToggleFavorite={handleToggleFavorite}
+        />
+      </div>
+    );
+  }
+
+  if (path === "breathing") {
+    return (
+      <div className="max-w-lg mx-auto p-4">
+        <BreathingExercise
+          patternName={selectedBreathing || "Box breathing"}
+          onStop={() => setPath("all")}
+          onComplete={() => setPath("all")}
+        />
+      </div>
+    );
+  }
+
+  if (path === "state-check") {
+    return (
+      <div className="max-w-lg mx-auto p-4">
+        <StateCheckFlow
+          onComplete={handleStateCheckComplete}
+          onBack={() => setPath("entry")}
+        />
+      </div>
+    );
+  }
+
+  if (path === "suggestions") {
+    return (
+      <div className="max-w-lg mx-auto p-4 space-y-6">
+        <div>
+          <button onClick={() => setPath("state-check")} className="text-xs text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1 transition-colors">
+            ← Change what I'm feeling
+          </button>
+          <h2 className="text-lg font-semibold text-foreground">What might help</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Based on what you're experiencing</p>
+        </div>
+
+        {/* Suggested breathing */}
+        {suggestedBreathing && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Start with breathing</p>
+            <button
+              onClick={() => handleStartBreathing(suggestedBreathing)}
+              className="w-full text-left bg-primary/10 border border-primary/30 rounded-xl p-4 hover:bg-primary/15 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🌬️</span>
+                <div>
+                  <p className="font-medium text-sm text-primary">{suggestedBreathing}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {BREATHING_PATTERNS[suggestedBreathing]?.pattern || ""}
+                  </p>
+                </div>
+                <span className="ml-auto text-primary text-sm">→</span>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Top suggested techniques */}
+        {suggestedTechniques.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Suggested for you</p>
+            <div className="space-y-2">
+              {suggestedTechniques.map(t => (
+                <TechniqueCard
+                  key={t.id}
+                  technique={t}
+                  preference={prefMap[t.id]}
+                  onTap={handleOpenTechnique}
+                  onToggleFavorite={handleToggleFavorite}
+                  onRate={handleRate}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Crisis resources */}
+        {hasCrisis && <CrisisResourcesCard />}
+
+        <button onClick={() => setPath("all")} className="text-sm text-primary hover:underline">
+          Browse all techniques →
+        </button>
+      </div>
+    );
+  }
+
+  // "all" and "entry" share the all-techniques view
+  if (path === "all") {
+    return (
+      <div className="max-w-lg mx-auto p-4 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">All techniques</h2>
+            <p className="text-sm text-muted-foreground">Browse and save what works for you</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setShowCustomForm(true)} className="gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Add your own
+          </Button>
+        </div>
+
+        {/* Favorites */}
+        {favorites.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">My favorites ♥</p>
+            <div className="space-y-2">
+              {favorites.map(t => (
+                <TechniqueCard key={t.id} technique={t} preference={prefMap[t.id]}
+                  onTap={handleOpenTechnique} onToggleFavorite={handleToggleFavorite} onRate={handleRate} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Breathing */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">🌬️ Breathing</p>
+          <div className="space-y-2">
+            {BREATHING_NAMES.map(name => (
+              <button key={name} onClick={() => handleStartBreathing(name)}
+                className="w-full text-left bg-card border border-border/60 rounded-xl p-3 hover:border-primary/30 hover:bg-primary/5 transition-all">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <p className="font-medium text-sm text-foreground">{name}</p>
+                    <p className="text-xs text-muted-foreground">{BREATHING_PATTERNS[name]?.pattern}</p>
+                  </div>
+                  <span className="ml-auto text-muted-foreground text-sm">→</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* All other categories */}
+        {Object.entries(byCategory).map(([cat, techs]) => (
+          <div key={cat}>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+            </p>
+            <div className="space-y-2">
+              {techs.map(t => (
+                <TechniqueCard key={t.id} technique={t} preference={prefMap[t.id]}
+                  onTap={handleOpenTechnique} onToggleFavorite={handleToggleFavorite} onRate={handleRate} />
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {showCustomForm && (
+          <CustomTechniqueForm
+            onClose={() => setShowCustomForm(false)}
+            onSaved={() => {
+              setShowCustomForm(false);
+              queryClient.invalidateQueries({ queryKey: ["groundingTechniques"] });
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Entry screen
+  return (
+    <div className="max-w-lg mx-auto p-6 space-y-8">
+      <div className="text-center space-y-2 pt-4">
+        <p className="text-3xl">🫧</p>
+        <h1 className="text-2xl font-semibold text-foreground">You're okay.</h1>
+        <p className="text-sm text-muted-foreground">Let's find something that might help right now.</p>
+      </div>
+
+      <div className="space-y-3">
+        <button
+          onClick={() => setPath("all")}
+          className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+        >
+          <p className="font-semibold text-foreground group-hover:text-primary transition-colors">I know what I need</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Show me everything</p>
+        </button>
+
+        <button
+          onClick={() => setPath("state-check")}
+          className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+        >
+          <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Help me figure out what I need</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Quick check-in → tailored suggestions</p>
+        </button>
+
+        <button
+          onClick={() => { setSelectedBreathing("Box breathing"); setPath("breathing"); }}
+          className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+        >
+          <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Just start breathing</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Jump straight to a breathing exercise</p>
+        </button>
+      </div>
+    </div>
+  );
+}
