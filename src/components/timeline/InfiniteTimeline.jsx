@@ -1102,43 +1102,41 @@ export default function InfiniteTimeline({
                   style={{ left: timeLeft, height: totalHeight }} />
 
                 {showCheckIns && (
-                   <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth, height: totalHeight }}>
-                     {eventPositioned.map((entry) => (
-                       <div key={entry.key} id={`item-${entry.id}`}>
-                         <EventEntry
-                           entry={entry}
-                           topPx={entry.adjustedTop}
-                           expanded={expandedKeys.has(entry.key)}
-                           colWidth={eventColWidth}
-                           onTap={() => toggleExpand(entry.key)}
-                           onDoubleTap={() => {
-                             if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
-                             else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
-                             else if (entry.type === "bulletin") navigate(`/?bulletinId=${entry.id}`);
-                             else if (entry.type === "task") navigate(`/tasks?id=${entry.id}`);
-                             else if (entry.type === "symptom_checkin") navigate(`/diary`);
-                           }}
-                         />
-                       </div>
-                     ))}
-                   </div>
-                 )}
+                  <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth, height: totalHeight }}>
+                    {eventPositioned.map((entry) => (
+                      <EventEntry
+                        key={entry.key}
+                        entry={entry}
+                        topPx={entry.adjustedTop}
+                        expanded={expandedKeys.has(entry.key)}
+                        colWidth={eventColWidth}
+                        onTap={() => toggleExpand(entry.key)}
+                        onDoubleTap={() => {
+                          if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
+                          else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
+                          else if (entry.type === "bulletin") navigate(`/`);
+                          else if (entry.type === "task") navigate(`/todo`);
+                          else if (entry.type === "symptom_checkin") navigate(`/diary`);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
 
                 {showEmotions && (
-                   <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth_actual, height: totalHeight }}>
-                     {emotionPositioned.map((entry) => (
-                       <div key={entry.key} id={`item-${entry.id}`}>
-                         <EmotionBubble
-                           entry={entry}
-                           topPx={entry.adjustedTop}
-                           expanded={expandedKeys.has(entry.key)}
-                           colWidth={emotionColWidth}
-                           onTap={() => toggleExpand(entry.key)}
-                         />
-                       </div>
-                     ))}
-                   </div>
-                 )}
+                  <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth_actual, height: totalHeight }}>
+                    {emotionPositioned.map((entry) => (
+                      <EmotionBubble
+                        key={entry.key}
+                        entry={entry}
+                        topPx={entry.adjustedTop}
+                        expanded={expandedKeys.has(entry.key)}
+                        colWidth={emotionColWidth}
+                        onTap={() => toggleExpand(entry.key)}
+                      />
+                    ))}
+                  </div>
+                )}
 
                 <div
                   className="absolute"

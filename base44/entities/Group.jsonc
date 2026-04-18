@@ -24,10 +24,6 @@
         "type": "string"
       },
       "description": "Array of alter IDs in this group"
-    },
-    "parent_group_id": {
-      "type": "string",
-      "description": "Optional parent group ID for nested groups"
     }
   },
   "required": [

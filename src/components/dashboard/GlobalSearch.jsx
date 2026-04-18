@@ -158,7 +158,7 @@ export default function GlobalSearch() {
           id: j.id,
           title: j.title || "Journal Entry",
           subtitle: j.content?.slice(0, 60),
-          path: `/journals?id=${j.id}`,
+          path: `/journals`,
         });
       }
     });
@@ -171,7 +171,7 @@ export default function GlobalSearch() {
           id: b.id,
           title: "Bulletin",
           subtitle: b.content?.slice(0, 60),
-          path: `/?bulletinId=${b.id}`,
+          path: `/`,
         });
       }
     });
@@ -188,7 +188,7 @@ export default function GlobalSearch() {
           id: a.id,
           title: a.activity_name,
           subtitle: a.notes?.slice(0, 60),
-          path: `/activities?date=${new Date(a.timestamp).toISOString().split('T')[0]}&highlight=${a.id}`,
+          path: `/activities`,
         });
       }
     });
@@ -205,7 +205,7 @@ export default function GlobalSearch() {
           id: t.id,
           title: t.title,
           subtitle: t.notes?.slice(0, 60),
-          path: `/tasks?id=${t.id}`,
+          path: `/tasks`,
         });
       }
     });
@@ -221,7 +221,7 @@ export default function GlobalSearch() {
           id: e.id,
           title: "Emotion Check-In",
           subtitle: e.note || e.emotions?.join(", "),
-          path: `/timeline?date=${new Date(e.timestamp).toISOString().split('T')[0]}`,
+          path: `/timeline`,
         });
       }
     });
@@ -272,7 +272,7 @@ export default function GlobalSearch() {
           id: d.id,
           title: d.name || `Diary Card - ${d.date}`,
           subtitle: d.notes?.what?.slice(0, 60),
-          path: `/diary?id=${d.id}`,
+          path: `/diary`,
         });
       }
     });
@@ -285,7 +285,7 @@ export default function GlobalSearch() {
           id: c.id,
           title: "System Check-In",
           subtitle: c.notes?.slice(0, 60) || c.content?.slice(0, 60),
-          path: `/system-checkin?id=${c.id}`,
+          path: `/system-checkin`,
         });
       }
     });
