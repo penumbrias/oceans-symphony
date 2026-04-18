@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
 import { Button } from "@/components/ui/button";
 
-const MIN_SIZE = 120;
-const MAX_SIZE = 260;
+const SIZES = { small: 120, large: 220 };
 
 export default function BreathingExercise({ patternName = "Box breathing", onStop, onComplete }) {
   const pattern = BREATHING_PATTERNS[patternName] || BREATHING_PATTERNS["Box breathing"];
@@ -14,25 +13,29 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
 
   const [round, setRound] = useState(1);
   const [phaseIdx, setPhaseIdx] = useState(0);
-  const [phaseSeconds, setPhaseSeconds] = useState(pattern.phases[0].seconds);
-  const [circleSize, setCircleSize] = useState(MIN_SIZE);
+  const [countdown, setCountdown] = useState(pattern.phases[0].seconds);
+  const [circleSize, setCircleSize] = useState(SIZES.small);
 
   const timerRef = useRef(null);
   const pausedRef = useRef(false);
 
   const currentPhase = pattern.phases[phaseIdx];
+  const phaseType = currentPhase.label.toLowerCase();
+  const isInhale = phaseType.includes("inhale");
+  const isExhale = phaseType.includes("exhale");
+  const isHold = phaseType.includes("hold");
 
-  const getTargetSize = useCallback((phase) => {
-    if (phase.label === "Inhale" || phase.label === "Inhale again") return MAX_SIZE;
-    if (phase.label === "Exhale") return MIN_SIZE;
-    return circleSize; // hold — stay put
-  }, [circleSize]);
+  const getTargetSize = useCallback(() => {
+    if (isInhale) return SIZES.large;
+    if (isExhale) return SIZES.small;
+    return circleSize; // hold — stay at current size
+  }, [isInhale, isExhale, circleSize]);
 
   const advance = useCallback(() => {
     setPhaseIdx(prev => {
       const nextIdx = (prev + 1) % pattern.phases.length;
       const nextPhase = pattern.phases[nextIdx];
-      setPhaseSeconds(nextPhase.seconds);
+      setCountdown(nextPhase.seconds);
 
       if (nextIdx === 0) {
         // completed a full round
@@ -50,15 +53,14 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
 
   useEffect(() => {
     if (!started || paused || completed) return;
-    const phase = pattern.phases[phaseIdx];
-    const targetSize = getTargetSize(phase);
 
-    // Animate circle size via CSS transition approach using a ref
-    setCircleSize(targetSize);
+    // Set target size immediately for smooth transition
+    setCircleSize(getTargetSize());
 
+    // Countdown timer
     timerRef.current = setInterval(() => {
       if (pausedRef.current) return;
-      setPhaseSeconds(s => {
+      setCountdown(s => {
         if (s <= 1) {
           advance();
           return 0;
@@ -68,7 +70,7 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [started, paused, phaseIdx, completed, pattern.phases]);
+  }, [started, paused, phaseIdx, completed, getTargetSize, advance]);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -104,7 +106,7 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
 
         <div
           className="rounded-full flex items-center justify-center"
-          style={{ width: MIN_SIZE, height: MIN_SIZE, backgroundColor: "var(--color-primary)", opacity: 0.5 }}
+          style={{ width: SIZES.small, height: SIZES.small, backgroundColor: "var(--color-primary)", opacity: 0.5 }}
         />
 
         <Button onClick={() => { setStarted(true); setPhaseSeconds(pattern.phases[0].seconds); }} size="lg" className="px-8">
@@ -138,43 +140,31 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
     );
   }
 
-  const isInhale = currentPhase.label.includes("Inhale");
-  const isExhale = currentPhase.label === "Exhale";
-  const transitionDuration = isInhale || isExhale ? currentPhase.seconds : 0.3;
+  const transitionDuration = (isInhale || isExhale) ? currentPhase.seconds : 0.5;
 
   return (
     <div className="flex flex-col items-center gap-6 py-4">
-      <div className="relative flex items-center justify-center" style={{ width: MAX_SIZE + 40, height: MAX_SIZE + 40 }}>
-        {/* trailing ring */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: circleSize + 20,
-            height: circleSize + 20,
-            backgroundColor: "var(--color-primary)",
-            opacity: 0.12,
-            transition: `width ${transitionDuration + 0.3}s ease, height ${transitionDuration + 0.3}s ease`,
-          }}
-        />
-        {/* main circle */}
+      <div className="flex flex-col items-center gap-4">
         <div
           className="rounded-full flex items-center justify-center"
           style={{
             width: circleSize,
             height: circleSize,
-            backgroundColor: "var(--color-primary)",
-            opacity: 0.55,
-            transition: `width ${transitionDuration}s ease, height ${transitionDuration}s ease`,
+            backgroundColor: "hsl(var(--color-primary))",
+            opacity: isHold ? 0.7 : 0.85,
+            transition: `width ${transitionDuration}s ease-in-out, height ${transitionDuration}s ease-in-out, opacity 0.5s ease`,
           }}
         >
-          <span className="text-white font-bold text-3xl select-none">{phaseSeconds}</span>
+          <span style={{ color: "white", fontSize: 32, fontWeight: "bold" }}>
+            {countdown}
+          </span>
         </div>
+        <p className="text-lg font-semibold text-foreground">{currentPhase.label}</p>
       </div>
 
-      <div className="text-center space-y-1">
-        <p className="text-2xl font-semibold text-foreground">{currentPhase.label}</p>
+      <div className="text-center space-y-2">
         <p className="text-sm text-muted-foreground">{patternName} · {pattern.pattern}</p>
-        <p className="text-xs text-muted-foreground mt-1">Round {round} of {totalRounds}</p>
+        <p className="text-xs text-muted-foreground">Round {round} of {totalRounds}</p>
       </div>
 
       <div className="flex gap-3">
