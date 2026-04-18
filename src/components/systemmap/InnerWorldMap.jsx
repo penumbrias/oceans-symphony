@@ -94,13 +94,18 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
   );
 }
 
-function RelationshipLines({ relationships, alters, showRelationships, onRelClick }) {
-  if (!showRelationships) return null;
+function RelationshipLines({ relationships, alters, relMode, selectedAlter, onRelClick }) {
+  if (relMode === 'none') return null;
+
+  const visibleRels = relMode === 'selected'
+    ? relationships.filter(r => r.alter_id_a === selectedAlter?.id || r.alter_id_b === selectedAlter?.id)
+    : relationships;
+
   const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
 
   // Group by pair key for offset calculation
   const pairGroups = {};
-  relationships.forEach(rel => {
+  visibleRels.forEach(rel => {
     const key = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
     if (!pairGroups[key]) pairGroups[key] = [];
     pairGroups[key].push(rel);
@@ -108,7 +113,7 @@ function RelationshipLines({ relationships, alters, showRelationships, onRelClic
 
   const lines = [];
 
-  relationships.forEach(rel => {
+  visibleRels.forEach(rel => {
     const a = alterMap[rel.alter_id_a];
     const b = alterMap[rel.alter_id_b];
     if (!a?.inner_world_x || !b?.inner_world_x) return;
@@ -173,7 +178,7 @@ function RelationshipLines({ relationships, alters, showRelationships, onRelClic
   return (
     <g>
       <defs>
-        {relationships.map(rel => (
+        {visibleRels.map(rel => (
           <marker key={`arr-${rel.id}`} id={`iwarrow-${rel.id}`} markerWidth="8" markerHeight="6"
             refX={NODE_RADIUS + 6} refY="3" orient="auto">
             <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.9} />
@@ -223,7 +228,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const [snapToGrid, setSnapToGrid] = useState(false);
-  const [showRel, setShowRel] = useState(true);
+  const [relMode, setRelMode] = useState('all'); // 'all' | 'selected' | 'none'
   const [showAll, setShowAll] = useState(true);
 
   const [selectedAlter, setSelectedAlter] = useState(null);
@@ -430,7 +435,8 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             <RelationshipLines
               relationships={relationships}
               alters={placedAlters}
-              showRelationships={showRel}
+              relMode={relMode}
+              selectedAlter={selectedAlter}
               onRelClick={(rel, e) => setRelPopover({ rel, x: e.clientX, y: e.clientY })}
             />
 
@@ -476,9 +482,10 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground hover:border-primary/30"}`}>
             <Grid className="w-3 h-3" /> Snap
           </button>
-          <button onClick={() => setShowRel(v => !v)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${showRel ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground"}`}>
-            {showRel ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />} Relations
+          <button onClick={() => setRelMode(m => m === 'all' ? 'selected' : m === 'selected' ? 'none' : 'all')}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${relMode !== 'none' ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground"}`}>
+            {relMode === 'all' ? <Eye className="w-3 h-3" /> : relMode === 'selected' ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+            {relMode === 'all' ? 'Rels: All' : relMode === 'selected' ? 'Rels: Selected' : 'Rels: Hidden'}
           </button>
           <button onClick={() => setShowAll(v => !v)}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${showAll ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground"}`}>

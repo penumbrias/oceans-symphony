@@ -26,6 +26,7 @@ const SystemMap = ({ relationships = [] }) => {
   const [cofronters, setCofronters] = useState([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [relDisplayMode, setRelDisplayMode] = useState('simple'); // 'simple' | 'detailed' | 'selected' | 'none'
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -348,58 +349,84 @@ const nodePositions = useMemo(() => {
             );
           })}
 
-          {/* Relationship lines (dashed, with arrowheads for directional) */}
-          <defs>
-            {relationships.map(rel => (
-              <marker key={`arr-${rel.id}`} id={`rarrow-${rel.id}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.8} />
-              </marker>
-            ))}
-          </defs>
-          {(() => {
+          {/* Relationship lines */}
+          {relDisplayMode !== 'none' && (() => {
+            const visibleRels = relDisplayMode === 'selected'
+              ? relationships.filter(r => r.alter_id_a === selectedAlter?.id || r.alter_id_b === selectedAlter?.id)
+              : relationships;
+
+            if (visibleRels.length === 0) return null;
+
             const pairGroups = {};
-            relationships.forEach(rel => {
+            visibleRels.forEach(rel => {
               const key = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
               if (!pairGroups[key]) pairGroups[key] = [];
               pairGroups[key].push(rel);
             });
-            return relationships.map(rel => {
-              const nodeA = nodes.find(n => n.id === rel.alter_id_a);
-              const nodeB = nodes.find(n => n.id === rel.alter_id_b);
-              if (!nodeA || !nodeB) return null;
 
-              // For b_to_a: swap endpoints so arrow always uses markerEnd
-              let x1, y1, x2, y2;
-              if (rel.direction === "b_to_a") {
-                x1 = nodeB.x; y1 = nodeB.y; x2 = nodeA.x; y2 = nodeA.y;
-              } else {
-                x1 = nodeA.x; y1 = nodeA.y; x2 = nodeB.x; y2 = nodeB.y;
-              }
+            return (
+              <g>
+                <defs>
+                  {visibleRels.map(rel => (
+                    <marker key={`arr-${rel.id}`} id={`rarrow-${rel.id}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                      <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.8} />
+                    </marker>
+                  ))}
+                </defs>
+                {visibleRels.map(rel => {
+                  const nodeA = nodes.find(n => n.id === rel.alter_id_a);
+                  const nodeB = nodes.find(n => n.id === rel.alter_id_b);
+                  if (!nodeA || !nodeB) return null;
 
-              // Multi-line offset
-              const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
-              const pairRels = pairGroups[pairKey] || [rel];
-              const relIndex = pairRels.findIndex(r => r.id === rel.id);
-              const offset = (relIndex - (pairRels.length - 1) / 2) * 10;
-              const dx = x2 - x1, dy = y2 - y1;
-              const len = Math.sqrt(dx * dx + dy * dy) || 1;
-              const ox = (-dy / len) * offset;
-              const oy = (dx / len) * offset;
+                  let x1, y1, x2, y2;
+                  if (rel.direction === "b_to_a") {
+                    x1 = nodeB.x; y1 = nodeB.y; x2 = nodeA.x; y2 = nodeA.y;
+                  } else {
+                    x1 = nodeA.x; y1 = nodeA.y; x2 = nodeB.x; y2 = nodeB.y;
+                  }
 
-              const hasArrow = rel.direction !== "bidirectional";
-              const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
-              return (
-                <line key={`rel-${rel.id}`}
-                  x1={x1 + ox} y1={y1 + oy} x2={x2 + ox} y2={y2 + oy}
-                  stroke={rel.color || "#6b7280"}
-                  strokeWidth={1.5}
-                  strokeDasharray="6,3"
-                  opacity={0.7}
-                  markerEnd={hasArrow ? `url(#rarrow-${rel.id})` : undefined}>
-                  <title>{label}</title>
-                </line>
-              );
-            });
+                  const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
+                  const pairRels = pairGroups[pairKey] || [rel];
+                  const relIndex = pairRels.findIndex(r => r.id === rel.id);
+                  const offset = (relIndex - (pairRels.length - 1) / 2) * 10;
+                  const dx = x2 - x1, dy = y2 - y1;
+                  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                  const ox = (-dy / len) * offset;
+                  const oy = (dx / len) * offset;
+
+                  const hasArrow = rel.direction !== "bidirectional";
+                  const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
+                  const mx = (x1 + x2) / 2 + ox;
+                  const my = (y1 + y2) / 2 + oy;
+
+                  return (
+                    <g key={`rel-${rel.id}`}>
+                      <line
+                        x1={x1 + ox} y1={y1 + oy} x2={x2 + ox} y2={y2 + oy}
+                        stroke={rel.color || "#6b7280"}
+                        strokeWidth={1.5}
+                        strokeDasharray="6,3"
+                        opacity={0.7}
+                        markerEnd={hasArrow ? `url(#rarrow-${rel.id})` : undefined}>
+                        <title>{label}</title>
+                      </line>
+                      {relDisplayMode === 'detailed' && (
+                        <text
+                          x={mx} y={my - 6}
+                          textAnchor="middle"
+                          fontSize={9}
+                          fill={rel.color || "#6b7280"}
+                          opacity={0.9}
+                          pointerEvents="none"
+                        >
+                          {label}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </g>
+            );
           })()}
 
           {nodes.map((node) => (
@@ -578,6 +605,12 @@ const nodePositions = useMemo(() => {
 
       {/* Zoom controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-2">
+        <button
+          onClick={() => setRelDisplayMode(m => m === 'simple' ? 'detailed' : m === 'detailed' ? 'selected' : m === 'selected' ? 'none' : 'simple')}
+          className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs border transition-colors whitespace-nowrap ${relDisplayMode !== 'none' ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground"}`}
+        >
+          Rels: {relDisplayMode === 'simple' ? 'Simple' : relDisplayMode === 'detailed' ? 'Detailed' : relDisplayMode === 'selected' ? 'Selected' : 'Hidden'}
+        </button>
         <Button size="icon" variant="outline" onClick={() => handleZoom("in")}><ZoomIn className="w-4 h-4" /></Button>
         <Button size="icon" variant="outline" onClick={() => handleZoom("out")}><ZoomOut className="w-4 h-4" /></Button>
         <Button size="icon" variant="outline" onClick={handleReset}><RotateCcw className="w-4 h-4" /></Button>
