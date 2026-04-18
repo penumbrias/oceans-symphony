@@ -48,7 +48,7 @@ export default function ExportModal({ isOpen, onClose, content, filename, format
           </p>
 
           <textarea
-            className="flex-1 p-3 rounded-lg border border-input bg-muted/50 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            className="flex-1 p-3 rounded-lg border border-input bg-transparent text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             value={content}
             readOnly
           />
