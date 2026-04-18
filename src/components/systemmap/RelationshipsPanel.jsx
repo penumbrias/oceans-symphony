@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 import { useQuery } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
 
 export function AlterAvatar({ alter, size = 24 }) {
   if (!alter) return <div className="rounded-full bg-muted flex-shrink-0" style={{ width: size, height: size }} />;
@@ -98,6 +99,7 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
 
 export default function RelationshipsPanel({ relationships, alters, locations = [], onRefreshRelationships }) {
   const queryClient = useQueryClient();
+  const t = useTerms();
   const [filterAlterId, setFilterAlterId] = useState("");
   const [filterMode, setFilterMode] = useState("all"); // "all" | "relationships" | "locations"
   const [creating, setCreating] = useState(false);
@@ -215,7 +217,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
             {(filterMode === "all" || filterMode === "relationships") && (
               <select value={filterAlterId} onChange={e => setFilterAlterId(e.target.value)}
                 className="h-8 px-2 rounded border border-border bg-background text-xs">
-                <option value="">All alters</option>
+                <option value="">{`All ${t.alters}`}</option>
                 {alters.filter(a => !a.is_archived).map(a => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
@@ -232,7 +234,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
           <div className="divide-y divide-border/50">
             {filteredRels.length === 0 && filteredLocationRows.length === 0 && locationListItems.length === 0 && (
               <p className="text-xs text-muted-foreground px-4 py-3 text-center">
-                {filterMode === "locations" ? "No locations yet" : filterMode === "relationships" ? "No relationships yet" : "No relationships or locations yet"}
+                {filterMode === "locations" ? "No locations yet" : filterMode === "relationships" ? `No ${t.relationships} yet` : `No ${t.relationships} or locations yet`}
               </p>
             )}
 
@@ -302,7 +304,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
                     <div className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: loc.color || "#6366f1" }} />
                     <span className="text-xs text-foreground font-medium flex-1">{loc.name}</span>
                     {subLocs.length > 0 && <span className="text-xs text-muted-foreground text-right">{subLocs.length} sub</span>}
-                    {altersInLoc.length > 0 && <span className="text-xs text-muted-foreground text-right">{altersInLoc.length} alters</span>}
+                    {altersInLoc.length > 0 && <span className="text-xs text-muted-foreground text-right">{altersInLoc.length} {t.alters}</span>}
                   </button>
                   {parentLoc && (
                     <div className="mt-1 ml-6 flex items-center gap-1.5">
@@ -384,6 +386,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
 }
 
 function LocationDetailModal({ location, alters, locationMap, getParentLocation, getSubLocations, getAltersInLocation, onClose }) {
+  const t = useTerms();
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState(location);
   const queryClient = useQueryClient();
@@ -523,7 +526,7 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
           {altersInLoc.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Alters here ({altersInLoc.length})
+                {t.Alters} here ({altersInLoc.length})
               </p>
               <div className="space-y-2">
                 {altersInLoc.map(alter => (
