@@ -419,7 +419,7 @@ export default function Grounding({ initialPath = null }) {
             className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
           >
             <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Browse all</p>
-            <p className="text-sm text-muted-foreground mt-0.5">Show me everything</p>
+            
           </button>
 
           <button
@@ -434,7 +434,7 @@ export default function Grounding({ initialPath = null }) {
             onClick={() => setPath("breathing-picker")}
             className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
           >
-            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Just start breathing</p>
+            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Guided breathing</p>
             <p className="text-sm text-muted-foreground mt-0.5">Choose a breathing technique</p>
           </button>
         </div>
