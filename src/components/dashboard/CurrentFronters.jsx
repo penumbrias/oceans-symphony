@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
+import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import { saveMentions } from "@/lib/mentionUtils";
 
@@ -197,6 +198,9 @@ export default function CurrentFronters({ alters }) {
             );
           })}
         </div>
+
+        {/* Private Messages Indicator */}
+        <PrivateMessagesIndicator activeFronters={all} />
 
         {/* Custom Status */}
         {editingStatus ? (

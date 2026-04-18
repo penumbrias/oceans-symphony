@@ -1,0 +1,47 @@
+{
+  "name": "AlterMessage",
+  "type": "object",
+  "properties": {
+    "from_alter_id": {
+      "type": "string",
+      "description": "ID of the alter who sent the message"
+    },
+    "to_alter_id": {
+      "type": "string",
+      "description": "ID of the alter who the message is addressed to"
+    },
+    "content": {
+      "type": "string",
+      "description": "Message content"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the recipient has read this message"
+    },
+    "pinned": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this message is pinned by the recipient"
+    }
+  },
+  "required": [
+    "from_alter_id",
+    "to_alter_id",
+    "content"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

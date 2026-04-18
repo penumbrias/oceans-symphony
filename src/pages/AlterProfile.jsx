@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail } from "lucide-react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,12 +13,14 @@ import InfoTab from "@/components/alters/profile/InfoTab";
 import HistoryTab from "@/components/alters/profile/HistoryTab";
 import NotesTab from "@/components/alters/profile/NotesTab";
 import MessagesTab from "@/components/alters/profile/MessagesTab";
+import PrivateMessagesTab from "@/components/alters/profile/PrivateMessagesTab";
 import OptionsTab from "@/components/alters/profile/OptionsTab";
 
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
   { id: "info", label: "Info", icon: IdCard },
   { id: "messages", label: "Board", icon: MessageSquare },
+  { id: "private-messages", label: "Messages", icon: Mail },
   { id: "history", label: "History", icon: TrendingUp },
   { id: "notes", label: "Notes", icon: FileText },
   { id: "options", label: "Options", icon: SlidersHorizontal },
@@ -42,6 +45,7 @@ export default function AlterProfile() {
   const { id: alterId } = useParams();
   const [tab, setTab] = useState("profile");
   const [editMode, setEditMode] = useState(false);
+  const [showComposeMessage, setShowComposeMessage] = useState(false);
   const saveRef = useRef(null);
 
   const { data: alter, isLoading } = useQuery({
@@ -145,6 +149,16 @@ export default function AlterProfile() {
                 </Button>
               </Link>
             )}
+            {tab !== "profile" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowComposeMessage(true)}
+                className="gap-1.5"
+              >
+                <Mail className="w-3.5 h-3.5" /> Message
+              </Button>
+            )}
             {tab === "profile" && (
               <div className="flex items-center gap-2">
                 {editMode && (
@@ -233,6 +247,7 @@ export default function AlterProfile() {
           )}
           {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
           {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
+          {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} />}
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
           {tab === "options" && <OptionsTab alter={alter} />}
