@@ -7,6 +7,7 @@ import StateCheckFlow from "@/components/grounding/StateCheckFlow";
 import TechniqueCard from "@/components/grounding/TechniqueCard";
 import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
+import BreathingTechniquePicker from "@/components/grounding/BreathingTechniquePicker";
 import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
 import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
 import LearnSection from "@/components/support/LearnSection";
@@ -199,13 +200,25 @@ export default function Grounding({ initialPath = null }) {
     );
   }
 
+  if (path === "breathing-picker") {
+    return (
+      <BreathingTechniquePicker
+        onSelect={(name) => {
+          setSelectedBreathing(name);
+          setPath("breathing");
+        }}
+        onBack={() => setPath("entry")}
+      />
+    );
+  }
+
   if (path === "breathing") {
     return (
       <div className="max-w-lg mx-auto p-4">
         <BreathingExercise
           patternName={selectedBreathing || "Box breathing"}
-          onStop={() => setPath("all")}
-          onComplete={() => setPath("all")}
+          onStop={() => setPath("entry")}
+          onComplete={() => setPath("entry")}
         />
       </div>
     );
@@ -418,11 +431,11 @@ export default function Grounding({ initialPath = null }) {
           </button>
 
           <button
-            onClick={() => { setSelectedBreathing("Box breathing"); setPath("breathing"); }}
+            onClick={() => setPath("breathing-picker")}
             className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
           >
             <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Just start breathing</p>
-            <p className="text-sm text-muted-foreground mt-0.5">Jump straight to a breathing exercise</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Choose a breathing technique</p>
           </button>
         </div>
       </div>

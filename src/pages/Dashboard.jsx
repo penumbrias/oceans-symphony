@@ -135,7 +135,6 @@ export default function Dashboard() {
   frontingAlterIds={frontingAlterIds}
   onNotifClick={handleNotifClick} />
       
-      
       <button
         onClick={() => setShowEmotionModal(true)}
         aria-label="Quick emotional check-in" className="bg-destructive/10 text-destructive mb-2 px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors">

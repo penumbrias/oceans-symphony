@@ -549,6 +549,56 @@ export const BREATHING_PATTERNS = {
       { label: "Exhale", seconds: 8 },
     ],
   },
+  "Deep belly breathing": {
+    name: "Deep belly breathing",
+    pattern: "slow, deep",
+    phases: [
+      { label: "Inhale", seconds: 4 },
+      { label: "Hold", seconds: 2 },
+      { label: "Exhale", seconds: 4 },
+    ],
+  },
+  "Alternate nostril breathing": {
+    name: "Alternate nostril breathing",
+    pattern: "alternating sides",
+    phases: [
+      { label: "Inhale left", seconds: 4 },
+      { label: "Exhale right", seconds: 4 },
+      { label: "Inhale right", seconds: 4 },
+      { label: "Exhale left", seconds: 4 },
+    ],
+  },
+  "Pursed lip breathing": {
+    name: "Pursed lip breathing",
+    pattern: "2-4",
+    phases: [
+      { label: "Inhale", seconds: 2 },
+      { label: "Exhale", seconds: 4 },
+    ],
+  },
+  "Resonant breathing": {
+    name: "Resonant breathing",
+    pattern: "5-5",
+    phases: [
+      { label: "Inhale", seconds: 5 },
+      { label: "Exhale", seconds: 5 },
+    ],
+  },
+  "Humming bee breath": {
+    name: "Humming bee breath",
+    pattern: "hum on exhale",
+    phases: [
+      { label: "Inhale", seconds: 3 },
+      { label: "Hum exhale", seconds: 4 },
+    ],
+  },
+  "Breath counting": {
+    name: "Breath counting",
+    pattern: "count breaths",
+    phases: [
+      { label: "Breathe & count", seconds: 4 },
+    ],
+  },
 };
 
 export const CATEGORY_LABELS = {
