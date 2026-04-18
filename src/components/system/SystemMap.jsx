@@ -357,6 +357,8 @@ const nodePositions = useMemo(() => {
 
             if (visibleRels.length === 0) return null;
 
+            const NODE_R = 35;
+
             const pairGroups = {};
             visibleRels.forEach(rel => {
               const key = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
@@ -364,69 +366,105 @@ const nodePositions = useMemo(() => {
               pairGroups[key].push(rel);
             });
 
-            return (
-              <g>
-                <defs>
-                  {visibleRels.map(rel => (
-                    <marker key={`arr-${rel.id}`} id={`rarrow-${rel.id}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                      <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.8} />
-                    </marker>
-                  ))}
-                </defs>
-                {visibleRels.map(rel => {
-                  const nodeA = nodes.find(n => n.id === rel.alter_id_a);
-                  const nodeB = nodes.find(n => n.id === rel.alter_id_b);
-                  if (!nodeA || !nodeB) return null;
-
-                  let x1, y1, x2, y2;
-                  if (rel.direction === "b_to_a") {
-                    x1 = nodeB.x; y1 = nodeB.y; x2 = nodeA.x; y2 = nodeA.y;
-                  } else {
-                    x1 = nodeA.x; y1 = nodeA.y; x2 = nodeB.x; y2 = nodeB.y;
-                  }
-
-                  const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
-                  const pairRels = pairGroups[pairKey] || [rel];
-                  const relIndex = pairRels.findIndex(r => r.id === rel.id);
-                  const offset = (relIndex - (pairRels.length - 1) / 2) * 10;
-                  const dx = x2 - x1, dy = y2 - y1;
-                  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-                  const ox = (-dy / len) * offset;
-                  const oy = (dx / len) * offset;
-
-                  const hasArrow = rel.direction !== "bidirectional";
-                  const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
-                  const mx = (x1 + x2) / 2 + ox;
-                  const my = (y1 + y2) / 2 + oy;
-
-                  return (
-                    <g key={`rel-${rel.id}`}>
-                      <line
-                        x1={x1 + ox} y1={y1 + oy} x2={x2 + ox} y2={y2 + oy}
-                        stroke={rel.color || "#6b7280"}
-                        strokeWidth={1.5}
-                        strokeDasharray="6,3"
-                        opacity={0.7}
-                        markerEnd={hasArrow ? `url(#rarrow-${rel.id})` : undefined}>
-                        <title>{label}</title>
-                      </line>
-                      {relDisplayMode === 'detailed' && (
-                        <text
-                          x={mx} y={my - 6}
-                          textAnchor="middle"
-                          fontSize={9}
-                          fill={rel.color || "#6b7280"}
-                          opacity={0.9}
-                          pointerEvents="none"
-                        >
+            if (relDisplayMode === 'simple') {
+              // Simple: dashed colored lines with label at midpoint
+              return (
+                <g>
+                  {visibleRels.map(rel => {
+                    const nodeA = nodes.find(n => n.id === rel.alter_id_a);
+                    const nodeB = nodes.find(n => n.id === rel.alter_id_b);
+                    if (!nodeA || !nodeB) return null;
+                    const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
+                    const pairRels = pairGroups[pairKey] || [rel];
+                    const relIndex = pairRels.findIndex(r => r.id === rel.id);
+                    const offset = (relIndex - (pairRels.length - 1) / 2) * 10;
+                    const dx = nodeB.x - nodeA.x, dy = nodeB.y - nodeA.y;
+                    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const ox = (-dy / len) * offset, oy = (dx / len) * offset;
+                    const x1 = nodeA.x + ox, y1 = nodeA.y + oy;
+                    const x2 = nodeB.x + ox, y2 = nodeB.y + oy;
+                    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+                    const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
+                    return (
+                      <g key={`rel-${rel.id}`}>
+                        <line x1={x1} y1={y1} x2={x2} y2={y2}
+                          stroke={rel.color || "#6b7280"} strokeWidth={1.5}
+                          strokeDasharray="6,3" opacity={0.7}>
+                          <title>{label}</title>
+                        </line>
+                        <text x={mx} y={my - 6} textAnchor="middle" fontSize={9}
+                          fill={rel.color || "#6b7280"} opacity={0.9} pointerEvents="none">
                           {label}
                         </text>
-                      )}
-                    </g>
-                  );
-                })}
-              </g>
-            );
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            }
+
+            // Detailed mode: solid lines with arrowheads (InnerWorldMap style)
+            // For bidirectional: two lines with perp offset; for directional: swap endpoints for b_to_a
+            const lines = [];
+            visibleRels.forEach(rel => {
+              const nodeA = nodes.find(n => n.id === rel.alter_id_a);
+              const nodeB = nodes.find(n => n.id === rel.alter_id_b);
+              if (!nodeA || !nodeB) return;
+
+              const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
+              const pairRels = pairGroups[pairKey] || [rel];
+              const relIndex = pairRels.findIndex(r => r.id === rel.id);
+              const baseOffset = (relIndex - (pairRels.length - 1) / 2) * 10;
+
+              const ax = nodeA.x, ay = nodeA.y, bx = nodeB.x, by = nodeB.y;
+              const dx = bx - ax, dy = by - ay;
+              const len = Math.sqrt(dx * dx + dy * dy) || 1;
+              const perpX = -dy / len, perpY = dx / len;
+              const color = rel.color || "#6b7280";
+              const markerId = `smarrow-${rel.id}`;
+
+              if (rel.direction === "bidirectional") {
+                const biOff = 5;
+                const markerIdB = `smarrow-${rel.id}-b`;
+                const ox1 = perpX * (baseOffset + biOff), oy1 = perpY * (baseOffset + biOff);
+                const ox2 = perpX * (baseOffset - biOff), oy2 = perpY * (baseOffset - biOff);
+                lines.push(
+                  <React.Fragment key={`rel-${rel.id}`}>
+                    <defs>
+                      <marker id={markerId} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
+                      </marker>
+                      <marker id={markerIdB} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
+                      </marker>
+                    </defs>
+                    <line x1={ax+ox1} y1={ay+oy1} x2={bx+ox1} y2={by+oy1}
+                      stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
+                    <line x1={bx+ox2} y1={by+oy2} x2={ax+ox2} y2={ay+oy2}
+                      stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerIdB})`} />
+                  </React.Fragment>
+                );
+              } else {
+                // For a_to_b: A→B. For b_to_a: swap so it's B→A (still markerEnd only)
+                const [lx1, ly1, lx2, ly2] = rel.direction === "b_to_a"
+                  ? [bx, by, ax, ay]
+                  : [ax, ay, bx, by];
+                const ox = perpX * baseOffset, oy = perpY * baseOffset;
+                lines.push(
+                  <React.Fragment key={`rel-${rel.id}`}>
+                    <defs>
+                      <marker id={markerId} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
+                      </marker>
+                    </defs>
+                    <line x1={lx1+ox} y1={ly1+oy} x2={lx2+ox} y2={ly2+oy}
+                      stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
+                  </React.Fragment>
+                );
+              }
+            });
+
+            return <g>{lines}</g>;
           })()}
 
           {nodes.map((node) => (

@@ -1,0 +1,50 @@
+{
+  "name": "ReportExport",
+  "type": "object",
+  "properties": {
+    "template_id": {
+      "type": "string",
+      "description": "References ReportTemplate"
+    },
+    "date_from": {
+      "type": "string",
+      "format": "date"
+    },
+    "date_to": {
+      "type": "string",
+      "format": "date"
+    },
+    "mode": {
+      "type": "string"
+    },
+    "generated_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sections_included": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "date_from",
+    "date_to",
+    "mode"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

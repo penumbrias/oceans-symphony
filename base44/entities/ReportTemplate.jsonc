@@ -1,0 +1,93 @@
+{
+  "name": "ReportTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "e.g. 'My weekly therapy report'"
+    },
+    "period_type": {
+      "type": "string",
+      "enum": [
+        "week",
+        "month",
+        "custom"
+      ],
+      "default": "week"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "everything",
+        "smart",
+        "custom"
+      ],
+      "default": "smart"
+    },
+    "sections_config": {
+      "type": "object",
+      "description": "Which sections to include and their settings"
+    },
+    "noteworthy_thresholds": {
+      "type": "object",
+      "description": "User-defined thresholds for flagging"
+    },
+    "include_alter_info": {
+      "type": "boolean",
+      "default": true
+    },
+    "include_alter_appendix": {
+      "type": "boolean",
+      "default": false
+    },
+    "show_cover_page": {
+      "type": "boolean",
+      "default": true
+    },
+    "cover_note": {
+      "type": "string",
+      "description": "Optional message to therapist"
+    },
+    "system_name": {
+      "type": "string",
+      "description": "How the system wants to be identified"
+    },
+    "therapist_name": {
+      "type": "string"
+    },
+    "confidentiality_notice": {
+      "type": "boolean",
+      "default": true
+    },
+    "journal_detail": {
+      "type": "string",
+      "enum": [
+        "summaries",
+        "excerpts",
+        "full"
+      ],
+      "default": "summaries"
+    },
+    "last_used_date": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
