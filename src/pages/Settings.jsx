@@ -141,14 +141,14 @@ export default function Settings() {
 
       {/* Quick Nav Menu */}
       <div className={`mb-6 ${mobileMenuOpen ? "block sm:hidden" : "hidden"} sm:block`}>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+        <div className="space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20">
           {navSections.map(section => (
             <button
               key={section.id}
               onClick={() => handleScroll(section.id)}
-              className="p-3 rounded-lg border border-border/50 bg-card hover:bg-muted/50 transition-colors text-center text-xs sm:text-sm font-medium"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm text-left font-medium"
             >
-              <div className="text-lg sm:text-xl mb-1">{section.icon}</div>
+              <span className="text-base">{section.icon}</span>
               {section.label}
             </button>
           ))}
