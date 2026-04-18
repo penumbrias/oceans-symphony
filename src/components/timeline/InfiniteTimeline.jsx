@@ -764,16 +764,15 @@ export default function InfiniteTimeline({
   }, [daySymptomCheckIns, dayStart, symptomMap]);
 
   const symptomBubblePositioned = useMemo(() => {
+    const MIN_SYMPTOM_GAP = 28;
     let minNext = -Infinity;
-    const MIN_SYMPTOM_GAP = 22;
     return symptomBubbleEntries.map(entry => {
-      const expanded = expandedKeys.has(entry.key);
       const raw = getTopPx(entry.mins);
       const top = Math.max(raw, minNext);
-      minNext = top + (expanded ? EXPANDED_EXTRA : MIN_SYMPTOM_GAP);
+      minNext = top + MIN_SYMPTOM_GAP;
       return { ...entry, adjustedTop: top };
     });
-  }, [symptomBubbleEntries, getTopPx, expandedKeys]);
+  }, [symptomBubbleEntries, getTopPx]);
 
   const sortedSymptomSessions = useMemo(() => {
     return [...symptomSessions].sort((a, b) => {
@@ -1109,7 +1108,13 @@ export default function InfiniteTimeline({
                         />
                       );
                     })}
-                    {colIdx === 0 && symptomBubblePositioned.map((entry) => (
+                  </div>
+                ))}
+
+                {/* Symptom bubbles (check-ins) — always rendered in their own layer when symptoms are shown */}
+                {showSymptoms && (
+                  <div className="absolute" style={{ left: symptomLeft, top: 0, width: colWidths.symptom, height: totalHeight }}>
+                    {symptomBubblePositioned.map((entry) => (
                       <SymptomBubble
                         key={entry.key}
                         entry={entry}
@@ -1119,7 +1124,7 @@ export default function InfiniteTimeline({
                       />
                     ))}
                   </div>
-                ))}
+                )}
 
                 <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
                   style={{ left: timeLeft, height: totalHeight }} />
