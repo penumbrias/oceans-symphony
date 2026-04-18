@@ -356,26 +356,51 @@ const nodePositions = useMemo(() => {
               </marker>
             ))}
           </defs>
-          {relationships.map(rel => {
-            const srcNode = nodes.find(n => n.id === rel.alter_id_a);
-            const tgtNode = nodes.find(n => n.id === rel.alter_id_b);
-            if (!srcNode || !tgtNode) return null;
-            const markerEnd = rel.direction === "a_to_b" ? `url(#rarrow-${rel.id})` : undefined;
-            const markerStart = rel.direction === "b_to_a" ? `url(#rarrow-${rel.id})` : undefined;
-            const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
-            return (
-              <line key={`rel-${rel.id}`}
-                x1={srcNode.x} y1={srcNode.y} x2={tgtNode.x} y2={tgtNode.y}
-                stroke={rel.color || "#6b7280"}
-                strokeWidth={1.5}
-                strokeDasharray="6,3"
-                opacity={0.7}
-                markerEnd={markerEnd}
-                markerStart={markerStart}>
-                <title>{label}</title>
-              </line>
-            );
-          })}
+          {(() => {
+            const pairGroups = {};
+            relationships.forEach(rel => {
+              const key = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
+              if (!pairGroups[key]) pairGroups[key] = [];
+              pairGroups[key].push(rel);
+            });
+            return relationships.map(rel => {
+              const nodeA = nodes.find(n => n.id === rel.alter_id_a);
+              const nodeB = nodes.find(n => n.id === rel.alter_id_b);
+              if (!nodeA || !nodeB) return null;
+
+              // For b_to_a: swap endpoints so arrow always uses markerEnd
+              let x1, y1, x2, y2;
+              if (rel.direction === "b_to_a") {
+                x1 = nodeB.x; y1 = nodeB.y; x2 = nodeA.x; y2 = nodeA.y;
+              } else {
+                x1 = nodeA.x; y1 = nodeA.y; x2 = nodeB.x; y2 = nodeB.y;
+              }
+
+              // Multi-line offset
+              const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
+              const pairRels = pairGroups[pairKey] || [rel];
+              const relIndex = pairRels.findIndex(r => r.id === rel.id);
+              const offset = (relIndex - (pairRels.length - 1) / 2) * 10;
+              const dx = x2 - x1, dy = y2 - y1;
+              const len = Math.sqrt(dx * dx + dy * dy) || 1;
+              const ox = (-dy / len) * offset;
+              const oy = (dx / len) * offset;
+
+              const hasArrow = rel.direction !== "bidirectional";
+              const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
+              return (
+                <line key={`rel-${rel.id}`}
+                  x1={x1 + ox} y1={y1 + oy} x2={x2 + ox} y2={y2 + oy}
+                  stroke={rel.color || "#6b7280"}
+                  strokeWidth={1.5}
+                  strokeDasharray="6,3"
+                  opacity={0.7}
+                  markerEnd={hasArrow ? `url(#rarrow-${rel.id})` : undefined}>
+                  <title>{label}</title>
+                </line>
+              );
+            });
+          })()}
 
           {nodes.map((node) => (
             <g key={node.id}>

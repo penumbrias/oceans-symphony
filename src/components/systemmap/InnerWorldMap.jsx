@@ -4,12 +4,11 @@ import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import {
-  ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, List, X, Pencil, Trash2, ChevronLeft, ChevronRight
+  ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LocationNode from "./LocationNode";
 import CreateRelationshipModal from "./CreateRelationshipModal";
-import RelationshipsPanel from "./RelationshipsPanel";
 
 const localMode = isLocalMode ? isLocalMode() : false;
 const db = localMode ? localEntities : base44.entities;
@@ -95,17 +94,25 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
   );
 }
 
-function RelationshipLines({ relationships, alters, showRelationships, highlightedId }) {
+function RelationshipLines({ relationships, alters, showRelationships }) {
   if (!showRelationships) return null;
   const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
+
+  // Group by pair key for offset calculation
+  const pairGroups = {};
+  relationships.forEach(rel => {
+    const key = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
+    if (!pairGroups[key]) pairGroups[key] = [];
+    pairGroups[key].push(rel);
+  });
 
   return (
     <g>
       <defs>
         {relationships.map(rel => (
-          <marker key={`arr-${rel.id}`} id={`arrow-${rel.id}`} markerWidth="8" markerHeight="8"
+          <marker key={`arr-${rel.id}`} id={`iwarrow-${rel.id}`} markerWidth="8" markerHeight="8"
             refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.8} />
+            <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.9} />
           </marker>
         ))}
       </defs>
@@ -113,20 +120,36 @@ function RelationshipLines({ relationships, alters, showRelationships, highlight
         const a = alterMap[rel.alter_id_a];
         const b = alterMap[rel.alter_id_b];
         if (!a?.inner_world_x || !b?.inner_world_x) return null;
-        const x1 = a.inner_world_x, y1 = a.inner_world_y;
-        const x2 = b.inner_world_x, y2 = b.inner_world_y;
 
-        const markerEnd = (rel.direction === "a_to_b") ? `url(#arrow-${rel.id})` : undefined;
-        const markerStart = (rel.direction === "b_to_a") ? `url(#arrow-${rel.id})` : undefined;
+        // For b_to_a: swap endpoints so arrow always uses markerEnd
+        let x1, y1, x2, y2;
+        if (rel.direction === "b_to_a") {
+          x1 = b.inner_world_x; y1 = b.inner_world_y;
+          x2 = a.inner_world_x; y2 = a.inner_world_y;
+        } else {
+          x1 = a.inner_world_x; y1 = a.inner_world_y;
+          x2 = b.inner_world_x; y2 = b.inner_world_y;
+        }
+
+        // Multi-line offset
+        const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
+        const pairRels = pairGroups[pairKey] || [rel];
+        const relIndex = pairRels.findIndex(r => r.id === rel.id);
+        const offset = (relIndex - (pairRels.length - 1) / 2) * 10;
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const ox = (-dy / len) * offset;
+        const oy = (dx / len) * offset;
+
+        const hasArrow = rel.direction !== "bidirectional";
 
         return (
           <line key={rel.id}
-            x1={x1} y1={y1} x2={x2} y2={y2}
+            x1={x1 + ox} y1={y1 + oy} x2={x2 + ox} y2={y2 + oy}
             stroke={rel.color || "#6b7280"}
-            strokeWidth={highlightedId === rel.id ? 3 : 2}
-            opacity={0.7}
-            markerEnd={markerEnd}
-            markerStart={markerStart}
+            strokeWidth={2}
+            opacity={0.75}
+            markerEnd={hasArrow ? `url(#iwarrow-${rel.id})` : undefined}
           >
             <title>{rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type}</title>
           </line>
@@ -136,9 +159,39 @@ function RelationshipLines({ relationships, alters, showRelationships, highlight
   );
 }
 
+function AlterRelationshipsSection({ alter, relationships, alterMap }) {
+  const myRels = relationships.filter(r => r.alter_id_a === alter.id || r.alter_id_b === alter.id);
+
+  return (
+    <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Relationships</p>
+      {myRels.length === 0 && (
+        <p className="text-xs text-muted-foreground italic">No relationships defined</p>
+      )}
+      {myRels.map(rel => {
+        const isA = rel.alter_id_a === alter.id;
+        const otherId = isA ? rel.alter_id_b : rel.alter_id_a;
+        const other = alterMap[otherId];
+        const arrow = rel.direction === "bidirectional" ? "↔"
+          : (isA && rel.direction === "a_to_b") || (!isA && rel.direction === "b_to_a") ? "→" : "←";
+        const label = rel.relationship_type === "Custom" ? (rel.custom_label || "Custom") : rel.relationship_type;
+        return (
+          <div key={rel.id} className="flex items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground">{arrow}</span>
+            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: rel.color || "#6b7280" }} />
+            <span className="text-foreground font-medium truncate">{other?.name || "?"}</span>
+            <span className="text-muted-foreground truncate">({label})</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function InnerWorldMap({ alters: allAlters, relationships, onRefreshRelationships }) {
   const queryClient = useQueryClient();
   const svgRef = useRef(null);
+  const bgFileRef = useRef(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -146,14 +199,12 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [showRel, setShowRel] = useState(true);
   const [showAll, setShowAll] = useState(true);
-  const [showRelPanel, setShowRelPanel] = useState(false);
 
   const [selectedAlter, setSelectedAlter] = useState(null);
-  const [relModeAlter, setRelModeAlter] = useState(null); // first alter in relationship mode
-  const [createRelModal, setCreateRelModal] = useState(null); // { alterA, alterB }
+  const [relModeAlter, setRelModeAlter] = useState(null);
+  const [createRelModal, setCreateRelModal] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
-  const [highlightedRelId, setHighlightedRelId] = useState(null);
 
   const { data: locations = [], refetch: refetchLocations } = useQuery({
     queryKey: ["innerWorldLocations"],
@@ -162,6 +213,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
 
   const placedAlters = useMemo(() => allAlters.filter(a => !a.is_archived && a.inner_world_x != null), [allAlters]);
   const unplacedAlters = useMemo(() => allAlters.filter(a => !a.is_archived && a.inner_world_x == null), [allAlters]);
+  const alterMap = useMemo(() => Object.fromEntries(allAlters.map(a => [a.id, a])), [allAlters]);
 
   // Pan handlers
   const handleMouseDown = (e) => {
@@ -192,7 +244,6 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   }));
   const handleReset = () => setTransform({ x: 0, y: 0, scale: 1 });
 
-  // Escape to cancel rel mode
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") setRelModeAlter(null); };
     window.addEventListener("keydown", onKey);
@@ -203,7 +254,6 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     let fx = nx, fy = ny;
     if (snap) { fx = snapVal(nx); fy = snapVal(ny); }
 
-    // Check which location it falls in (highest order wins)
     const sortedLocs = [...locations].sort((a, b) => (b.order || 0) - (a.order || 0));
     let locationId = null;
     for (const loc of sortedLocs) {
@@ -235,10 +285,10 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     setEditingLocation(loc);
   };
 
-  const updateLocation = async (loc, fields) => {
+  const updateLocation = useCallback(async (loc, fields) => {
     await db.InnerWorldLocation.update(loc.id, fields);
     refetchLocations();
-  };
+  }, [refetchLocations]);
 
   const deleteLocation = async (loc) => {
     await db.InnerWorldLocation.delete(loc.id);
@@ -269,7 +319,6 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     setCreateRelModal(null);
   };
 
-  // Drop from unplaced panel — handled via HTML5 drag
   const handleSvgDrop = (e) => {
     e.preventDefault();
     const alterId = e.dataTransfer.getData("alterId");
@@ -280,6 +329,19 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     const nx = (e.clientX - rect.left - transform.x) / transform.scale;
     const ny = (e.clientY - rect.top - transform.y) / transform.scale;
     saveAlterPosition(alter, nx, ny, snapToGrid);
+  };
+
+  const handleBgImageFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingLocation) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const v = ev.target.result;
+      setEditingLocation(l => ({ ...l, background_image_url: v }));
+      updateLocation(editingLocation, { background_image_url: v });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const sortedLocations = useMemo(() => [...locations].sort((a, b) => (a.order || 0) - (b.order || 0)), [locations]);
@@ -324,7 +386,6 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           onDragOver={e => e.preventDefault()}
         >
           <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
-            {/* Locations (sorted by order, parent first) */}
             {sortedLocations.map(loc => (
               <LocationNode
                 key={loc.id}
@@ -337,15 +398,12 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               />
             ))}
 
-            {/* Relationship lines */}
             <RelationshipLines
               relationships={relationships}
               alters={placedAlters}
               showRelationships={showRel}
-              highlightedId={highlightedRelId}
             />
 
-            {/* Placed alter nodes */}
             {placedAlters.map(alter => (
               <g key={alter.id}>
                 <AlterNode
@@ -357,10 +415,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                   onDoubleTap={() => handleAlterDoubleTap(alter)}
                   onDragEnd={(nx, ny) => saveAlterPosition(alter, nx, ny, snapToGrid)}
                 />
-                {/* Remove button */}
-                <g
-                  onClick={() => removeAlterFromCanvas(alter)}
-                  style={{ cursor: "pointer" }}>
+                <g onClick={() => removeAlterFromCanvas(alter)} style={{ cursor: "pointer" }}>
                   <circle
                     cx={(alter.inner_world_x ?? 0) + NODE_RADIUS}
                     cy={(alter.inner_world_y ?? 0) - NODE_RADIUS}
@@ -399,10 +454,6 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${showAll ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground"}`}>
             <Users className="w-3 h-3" /> All Alters
           </button>
-          <button onClick={() => setShowRelPanel(v => !v)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${showRelPanel ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground"}`}>
-            <List className="w-3 h-3" /> Panel
-          </button>
           <div className="flex flex-col gap-1 mt-1">
             <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleZoom("in")}><ZoomIn className="w-3 h-3" /></Button>
             <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleZoom("out")}><ZoomOut className="w-3 h-3" /></Button>
@@ -412,7 +463,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
 
         {/* Location edit sidebar */}
         {editingLocation && (
-          <div className="absolute right-3 top-64 bg-card border border-border rounded-xl p-3 space-y-2 w-52 z-20 shadow-lg">
+          <div className="absolute right-3 top-56 bg-card border border-border rounded-xl p-3 space-y-2 w-56 z-20 shadow-lg max-h-[calc(100%-220px)] overflow-y-auto">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-foreground">Edit Location</p>
               <button onClick={() => setEditingLocation(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
@@ -422,6 +473,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               setEditingLocation(l => ({ ...l, name: v }));
               updateLocation(editingLocation, { name: v });
             }} placeholder="Name" className="w-full h-7 px-2 text-xs border border-border rounded bg-background" />
+
             <select value={editingLocation.shape || "rectangle"} onChange={e => {
               const v = e.target.value;
               setEditingLocation(l => ({ ...l, shape: v }));
@@ -430,20 +482,52 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               <option value="rectangle">Rectangle</option>
               <option value="oval">Oval</option>
             </select>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Color</span>
-              <input type="color" value={editingLocation.color || "#6366f1"} onChange={e => {
-                const v = e.target.value;
-                setEditingLocation(l => ({ ...l, color: v }));
-                updateLocation(editingLocation, { color: v });
-              }} className="w-7 h-7 rounded border border-border cursor-pointer bg-transparent" />
+
+            {/* Color picker — native + hex input */}
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Color</p>
+              <div className="flex items-center gap-2">
+                <input type="color" value={editingLocation.color || "#6366f1"} onChange={e => {
+                  const v = e.target.value;
+                  setEditingLocation(l => ({ ...l, color: v }));
+                  updateLocation(editingLocation, { color: v });
+                }} className="w-8 h-8 rounded border border-border cursor-pointer bg-transparent flex-shrink-0" />
+                <input value={editingLocation.color || "#6366f1"} onChange={e => {
+                  const v = e.target.value;
+                  setEditingLocation(l => ({ ...l, color: v }));
+                  if (/^#[0-9a-fA-F]{6}$/.test(v)) updateLocation(editingLocation, { color: v });
+                }} placeholder="#6366f1"
+                  className="flex-1 h-7 px-2 text-xs border border-border rounded bg-background font-mono" />
+              </div>
             </div>
+
+            {/* Background image */}
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Background image URL</p>
+              <input value={editingLocation.background_image_url || ""} onChange={e => {
+                const v = e.target.value;
+                setEditingLocation(l => ({ ...l, background_image_url: v }));
+                updateLocation(editingLocation, { background_image_url: v });
+              }} placeholder="https://..." className="w-full h-7 px-2 text-xs border border-border rounded bg-background" />
+              <button
+                onClick={() => bgFileRef.current?.click()}
+                className="w-full flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 hover:bg-muted/30 transition-colors text-muted-foreground">
+                <Upload className="w-3 h-3" /> Upload image file
+              </button>
+              <input ref={bgFileRef} type="file" accept="image/*" hidden onChange={handleBgImageFile} />
+              {editingLocation.background_image_url && (
+                <img src={editingLocation.background_image_url} alt="bg preview"
+                  className="w-full h-16 object-cover rounded border border-border" />
+              )}
+            </div>
+
             <textarea value={editingLocation.description || ""} onChange={e => {
               const v = e.target.value;
               setEditingLocation(l => ({ ...l, description: v }));
               updateLocation(editingLocation, { description: v });
             }} placeholder="Description..." rows={2}
               className="w-full px-2 py-1 text-xs border border-border rounded bg-background resize-none" />
+
             <Button size="sm" variant="destructive" className="w-full h-7 text-xs"
               onClick={() => { if (confirm("Delete this location?")) deleteLocation(editingLocation); }}>
               Delete Location
@@ -451,22 +535,9 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           </div>
         )}
 
-        {/* Relationships panel */}
-        {showRelPanel && (
-          <div className="absolute bottom-3 right-3 z-20">
-            <RelationshipsPanel
-              relationships={relationships}
-              alters={allAlters}
-              highlightedId={highlightedRelId}
-              onHighlight={setHighlightedRelId}
-              onClose={() => setShowRelPanel(false)}
-            />
-          </div>
-        )}
-
         {/* Alter detail panel */}
         {selectedAlter && !relModeAlter && (
-          <div className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-48 z-20 shadow-lg">
+          <div className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {selectedAlter.avatar_url ? (
@@ -486,14 +557,19 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             <button onClick={() => window.location.href = `/alter/${selectedAlter.id}`}
               className="text-xs text-primary hover:underline">View full profile →</button>
             <button onClick={() => handleAlterDoubleTap(selectedAlter)}
-              className="w-full text-xs bg-amber-500/10 text-amber-600 border border-amber-500/30 rounded px-2 py-1 hover:bg-amber-500/20 transition-colors mt-1">
+              className="w-full text-xs bg-amber-500/10 text-amber-600 border border-amber-500/30 rounded px-2 py-1 hover:bg-amber-500/20 transition-colors">
               + Create Relationship
             </button>
+            {/* Relationships for this alter */}
+            <AlterRelationshipsSection
+              alter={selectedAlter}
+              relationships={relationships}
+              alterMap={alterMap}
+            />
           </div>
         )}
       </div>
 
-      {/* Create relationship modal */}
       {createRelModal && (
         <CreateRelationshipModal
           alterA={createRelModal.alterA}

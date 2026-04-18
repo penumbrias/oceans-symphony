@@ -5,6 +5,7 @@ import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import AnalyticsMap from "@/components/system/SystemMap";
 import InnerWorldMap from "@/components/systemmap/InnerWorldMap";
+import RelationshipsPanel from "@/components/systemmap/RelationshipsPanel";
 import { useTerms } from "@/lib/useTerms";
 import { Map, Globe } from "lucide-react";
 
@@ -25,8 +26,13 @@ export default function SystemMapPage() {
     queryFn: () => base44.entities.AlterRelationship.list(),
   });
 
+  const { data: locations = [] } = useQuery({
+    queryKey: ["innerWorldLocations"],
+    queryFn: () => base44.entities.InnerWorldLocation.list(),
+  });
+
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col gap-3">
+    <div className="flex flex-col gap-3 pb-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">{terms.System} Structure Map</h1>
         <p className="text-muted-foreground mt-1 text-sm">
@@ -50,7 +56,8 @@ export default function SystemMapPage() {
         </button>
       </div>
 
-      <div className="flex-1 min-h-0">
+      {/* Map area */}
+      <div className="h-[calc(100vh-280px)] min-h-[400px]">
         {tab === "analytics" && <AnalyticsMap relationships={relationships} />}
         {tab === "inner" && (
           <InnerWorldMap
@@ -60,6 +67,14 @@ export default function SystemMapPage() {
           />
         )}
       </div>
+
+      {/* Relationships panel — always visible below both maps */}
+      <RelationshipsPanel
+        relationships={relationships}
+        alters={alters}
+        locations={locations}
+        onRefreshRelationships={refetchRelationships}
+      />
     </div>
   );
 }
