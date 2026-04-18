@@ -24,6 +24,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
         const hasPrimary = activeSessions.some(s => s.is_primary);
         await base44.entities.FrontingSession.create({
           alter_id: alter.id,
+          is_primary: false,
           start_time: new Date().toISOString(),
           is_active: true,
         });
