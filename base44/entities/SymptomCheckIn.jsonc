@@ -1,0 +1,41 @@
+{
+  "name": "SymptomCheckIn",
+  "type": "object",
+  "properties": {
+    "symptom_definition_id": {
+      "type": "string",
+      "description": "References SymptomDefinition.id"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this check-in was recorded"
+    },
+    "severity": {
+      "type": "number",
+      "description": "Optional severity 0-5, null if not set"
+    },
+    "check_in_id": {
+      "type": "string",
+      "description": "Optional reference to parent EmotionCheckIn or QuickCheckIn"
+    }
+  },
+  "required": [
+    "symptom_definition_id",
+    "timestamp"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

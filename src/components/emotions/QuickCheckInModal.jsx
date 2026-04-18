@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -6,15 +6,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus } from "lucide-react";
+import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, FileText } from "lucide-react";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
+import SymptomsSection from "@/components/symptoms/SymptomsSection";
+import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 
+const PILLS = [
+  { id: "feeling", label: "Feeling", icon: Smile },
+  { id: "fronting", label: "Fronting", icon: Users },
+  { id: "activity", label: "Activity", icon: Zap },
+  { id: "symptoms", label: "Symptoms / Habits", icon: Activity },
+  { id: "note", label: "Quick note", icon: FileText },
+];
 
 export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [] }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   const [selectedEmotions, setSelectedEmotions] = useState([]);
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
@@ -24,6 +34,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const [activityDuration, setActivityDuration] = useState("");
   const [newActivityName, setNewActivityName] = useState("");
   const [showNewActivity, setShowNewActivity] = useState(false);
+  const symptomCheckInsGetterRef = useRef(null);
 
   const { data: customEmotions = [] } = useQuery({
     queryKey: ["customEmotions"],
@@ -67,11 +78,26 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     );
   };
 
-  React.useEffect(() => {
-    if (isOpen && currentFronterIds.length > 0) {
-      setSelectedAlters(currentFronterIds.filter(id => id));
+  const toggleSection = (id) => {
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      setOpenSections(new Set(["feeling"]));
+      if (currentFronterIds.length > 0) {
+        setSelectedAlters(currentFronterIds.filter(id => id));
+      }
+      seedSymptomDefaults();
+    } else {
+      resetForm();
     }
-  }, [isOpen, currentFronterIds]);
+  }, [isOpen]);
 
   const createCheckInMutation = useMutation({
     mutationFn: async () => {
@@ -97,8 +123,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
-      resetForm();
-      onClose();
     },
   });
 
@@ -110,6 +134,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setActivityDuration("");
     setNewActivityName("");
     setShowNewActivity(false);
+    setAlterInput("");
   };
 
   const handleCreateNewActivity = async () => {
@@ -141,44 +166,47 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     }
   };
 
-const handleSubmit = async () => {
-  if (selectedEmotions.length === 0) return;
-  setSaving(true);
-  try {
-    await handleSaveActivity();
+  const handleSubmit = async () => {
+    const hasData =
+      selectedEmotions.length > 0 ||
+      selectedAlters.length > 0 ||
+      selectedActivityCategories.length > 0 ||
+      note.trim().length > 0 ||
+      (symptomCheckInsGetterRef.current && symptomCheckInsGetterRef.current().length > 0);
 
-    const currentSorted = [...currentFronterIds].sort();
-    const selectedSorted = [...selectedAlters].sort();
-    if (JSON.stringify(currentSorted) !== JSON.stringify(selectedSorted) && selectedAlters.length > 0) {
-      const now = new Date().toISOString();
-
-      // End all active sessions
-      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      for (const s of activeSessions) {
-        await base44.entities.FrontingSession.update(s.id, {
-          is_active: false,
-          end_time: now,
-        });
-      }
-
-      // Create one session with all selected alters — first one is primary
-      await base44.entities.FrontingSession.create({
-        primary_alter_id: selectedAlters[0],
-        co_fronter_ids: selectedAlters.slice(1),
-        start_time: now,
-        is_active: true,
-        end_time: null,
-      });
-
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    if (!hasData) {
+      toast.error("Add at least one entry before saving");
+      return;
     }
 
-    await createCheckInMutation.mutateAsync();
-  } finally {
-    setSaving(false);
-  }
-};
+    setSaving(true);
+    try {
+      await handleSaveActivity();
+
+      const now = new Date().toISOString();
+
+      // Save symptom check-ins
+      const symptomCheckIns = symptomCheckInsGetterRef.current ? symptomCheckInsGetterRef.current() : [];
+      const checkIn = await createCheckInMutation.mutateAsync();
+      for (const sc of symptomCheckIns) {
+        await base44.entities.SymptomCheckIn.create({
+          symptom_definition_id: sc.symptom_definition_id,
+          timestamp: now,
+          severity: sc.severity,
+          check_in_id: checkIn?.id || null,
+        });
+      }
+      if (symptomCheckIns.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      }
+
+      onClose();
+    } catch (e) {
+      toast.error(e.message || "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -191,122 +219,165 @@ const handleSubmit = async () => {
           <DialogDescription>Track your emotions, activities, and state</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm font-medium mb-2">How are you feeling?</p>
-            <EmotionWheelPicker
-              selectedEmotions={selectedEmotions}
-              onToggle={toggleEmotion}
-              customEmotions={customEmotions}
-              onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
-            />
+        <div className="space-y-3">
+          {/* Pill toggles */}
+          <div className="flex flex-wrap gap-1.5">
+            {PILLS.map((pill) => {
+              const PillIcon = pill.icon;
+              return (
+                <button
+                  key={pill.id}
+                  onClick={() => toggleSection(pill.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    openSections.has(pill.id)
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card text-muted-foreground border-border hover:text-foreground"
+                  }`}
+                >
+                  <PillIcon className="w-3 h-3" />
+                  {pill.label}
+                </button>
+              );
+            })}
           </div>
 
-          <div>
-            <p className="text-sm font-medium mb-2">
-              Who's {terms.fronting}? <span className="text-muted-foreground font-normal">(optional)</span>
-            </p>
-            <div className="relative mb-2">
-              <Input
-                placeholder={`Type ${terms.alter} name or alias...`}
-                value={alterInput}
-                onChange={e => setAlterInput(e.target.value)}
-                className="text-sm"
+          {/* Feeling section */}
+          {openSections.has("feeling") && (
+            <div className="border border-border/50 rounded-xl p-3 space-y-2">
+              <p className="text-sm font-medium">How are you feeling?</p>
+              <EmotionWheelPicker
+                selectedEmotions={selectedEmotions}
+                onToggle={toggleEmotion}
+                customEmotions={customEmotions}
+                onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
               />
-              {filteredAlters.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 max-h-32 overflow-y-auto">
-                  {filteredAlters.map(alter => (
-                    <button key={alter.id}
-                      onClick={() => { setSelectedAlters(prev => [...prev, alter.id]); setAlterInput(""); }}
-                      className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm transition-colors">
-                      {alter.avatar_url
-                        ? <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
-                        : <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                            style={{ backgroundColor: alter.color || "#8b5cf6" }}>{alter.name?.charAt(0)}</div>
-                      }
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{alter.name}</p>
-                        {alter.alias && <p className="text-xs text-muted-foreground truncate">{alter.alias}</p>}
+            </div>
+          )}
+
+          {/* Fronting section */}
+          {openSections.has("fronting") && (
+            <div className="border border-border/50 rounded-xl p-3 space-y-2">
+              <p className="text-sm font-medium">
+                Who's {terms.fronting}? <span className="text-muted-foreground font-normal">(optional)</span>
+              </p>
+              <div className="relative mb-2">
+                <Input
+                  placeholder={`Type ${terms.alter} name or alias...`}
+                  value={alterInput}
+                  onChange={e => setAlterInput(e.target.value)}
+                  className="text-sm"
+                />
+                {filteredAlters.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 max-h-32 overflow-y-auto">
+                    {filteredAlters.map(alter => (
+                      <button key={alter.id}
+                        onClick={() => { setSelectedAlters(prev => [...prev, alter.id]); setAlterInput(""); }}
+                        className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm transition-colors">
+                        {alter.avatar_url
+                          ? <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
+                          : <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                              style={{ backgroundColor: alter.color || "#8b5cf6" }}>{alter.name?.charAt(0)}</div>
+                        }
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{alter.name}</p>
+                          {alter.alias && <p className="text-xs text-muted-foreground truncate">{alter.alias}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedAlters.length > 0 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {selectedAlters.map(alterId => {
+                    const alter = activeAlters.find(a => a.id === alterId);
+                    return (
+                      <div key={alterId} className="relative group">
+                        <div className="aspect-square rounded-lg bg-muted overflow-hidden">
+                          {alter?.avatar_url
+                            ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center"
+                                style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
+                                <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>
+                                  {alter?.name?.charAt(0)}
+                                </span>
+                              </div>
+                          }
+                        </div>
+                        <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <button onClick={() => setSelectedAlters(prev => prev.filter(id => id !== alterId))}
+                            className="bg-destructive text-destructive-foreground rounded-full p-1">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <p className="text-xs font-medium text-center mt-1 truncate">{alter?.alias || alter?.name}</p>
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
-            {selectedAlters.length > 0 && (
-              <div className="grid grid-cols-4 gap-2">
-                {selectedAlters.map(alterId => {
-                  const alter = activeAlters.find(a => a.id === alterId);
-                  return (
-                    <div key={alterId} className="relative group">
-                      <div className="aspect-square rounded-lg bg-muted overflow-hidden">
-                        {alter?.avatar_url
-                          ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center"
-                              style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
-                              <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>
-                                {alter?.name?.charAt(0)}
-                              </span>
-                            </div>
-                        }
-                      </div>
-                      <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                        <button onClick={() => setSelectedAlters(prev => prev.filter(id => id !== alterId))}
-                          className="bg-destructive text-destructive-foreground rounded-full p-1">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                      <p className="text-xs font-medium text-center mt-1 truncate">{alter?.alias || alter?.name}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <ActivityPillSelector
-            selectedActivities={selectedActivityCategories}
-            onActivityChange={setSelectedActivityCategories}
-            duration={activityDuration}
-            onDurationChange={setActivityDuration}
-          />
-
-          {showNewActivity ? (
-            <div className="space-y-2">
-              <Input placeholder="Activity name..." value={newActivityName}
-                onChange={e => setNewActivityName(e.target.value)} className="text-sm" autoFocus />
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline"
-                  onClick={() => { setShowNewActivity(false); setNewActivityName(""); }}
-                  className="flex-1">Cancel</Button>
-                <Button size="sm" onClick={handleCreateNewActivity}
-                  disabled={!newActivityName.trim()} className="flex-1">Add</Button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setShowNewActivity(true)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1">
-              <Plus className="w-4 h-4" /> Create new activity
-            </button>
           )}
 
-          <div>
-            <p className="text-sm font-medium mb-2">
-              Quick note <span className="text-muted-foreground font-normal">(optional — over 50 words becomes a journal)</span>
-            </p>
-            <Textarea placeholder="Optional note..." value={note}
-              onChange={e => setNote(e.target.value)} className="h-20 text-xs" />
-            {note && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {note.trim().split(/\s+/).filter(Boolean).length} / 50 words
-                {note.trim().split(/\s+/).filter(Boolean).length > 50 && " · will save as journal entry"}
-              </p>
-            )}
-          </div>
+          {/* Activity section */}
+          {openSections.has("activity") && (
+            <div className="border border-border/50 rounded-xl p-3 space-y-2">
+              <ActivityPillSelector
+                selectedActivities={selectedActivityCategories}
+                onActivityChange={setSelectedActivityCategories}
+                duration={activityDuration}
+                onDurationChange={setActivityDuration}
+              />
+              {showNewActivity ? (
+                <div className="space-y-2">
+                  <Input placeholder="Activity name..." value={newActivityName}
+                    onChange={e => setNewActivityName(e.target.value)} className="text-sm" autoFocus />
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline"
+                      onClick={() => { setShowNewActivity(false); setNewActivityName(""); }}
+                      className="flex-1">Cancel</Button>
+                    <Button size="sm" onClick={handleCreateNewActivity}
+                      disabled={!newActivityName.trim()} className="flex-1">Add</Button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowNewActivity(true)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1">
+                  <Plus className="w-4 h-4" /> Create new activity
+                </button>
+              )}
+            </div>
+          )}
 
-          <div className="flex gap-2">
+          {/* Symptoms / Habits section */}
+          {openSections.has("symptoms") && (
+            <div className="border border-border/50 rounded-xl p-3">
+              <SymptomsSection
+                onSymptomCheckInsReady={(getter) => { symptomCheckInsGetterRef.current = getter; }}
+              />
+            </div>
+          )}
+
+          {/* Note section */}
+          {openSections.has("note") && (
+            <div className="border border-border/50 rounded-xl p-3 space-y-2">
+              <p className="text-sm font-medium">
+                Quick note <span className="text-muted-foreground font-normal">(over 50 words → journal)</span>
+              </p>
+              <Textarea placeholder="Optional note..." value={note}
+                onChange={e => setNote(e.target.value)} className="h-20 text-xs" />
+              {note && (
+                <p className="text-xs text-muted-foreground">
+                  {note.trim().split(/\s+/).filter(Boolean).length} / 50 words
+                  {note.trim().split(/\s+/).filter(Boolean).length > 50 && " · will save as journal entry"}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
             <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={selectedEmotions.length === 0 || saving} className="flex-1">
+            <Button onClick={handleSubmit} disabled={saving} className="flex-1">
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               Save Check-In
             </Button>

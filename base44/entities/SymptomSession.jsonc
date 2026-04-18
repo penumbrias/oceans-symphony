@@ -1,0 +1,58 @@
+{
+  "name": "SymptomSession",
+  "type": "object",
+  "properties": {
+    "symptom_definition_id": {
+      "type": "string",
+      "description": "References SymptomDefinition.id"
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this symptom session started"
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this symptom session ended (null if still active)"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "True while symptom is currently active"
+    },
+    "severity_snapshots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "number"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Append-only severity history: [{severity, timestamp}]"
+    }
+  },
+  "required": [
+    "symptom_definition_id",
+    "start_time"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

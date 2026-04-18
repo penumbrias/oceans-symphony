@@ -18,6 +18,7 @@ import ActivityTimeOfDayChart from "@/components/analytics/ActivityTimeOfDayChar
 import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline";
 import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
 import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive";
+import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 
 // MAIN_TABS defined dynamically in component
 
@@ -81,7 +82,8 @@ export default function Analytics() {
     { id: "alters", label: `${terms.System} Members` },
     { id: "activities", label: "Activities" },
     { id: "diary", label: "Diary Cards" },
-    { id: "emotions", label: "Emotion Check-Ins" },
+    { id: "emotions", label: "Emotions" },
+    { id: "symptoms", label: "Symptoms" },
   ];
   const ACTIVITY_SUB_TABS = [
     { id: "overview", label: "Overview" },
@@ -343,6 +345,15 @@ queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
              <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
            </div>
            <EmotionAnalytics from={from} to={to} />
+         </>
+       )}
+
+       {mainTab === "symptoms" && (
+         <>
+           <div className="mb-5">
+             <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+           </div>
+           <SymptomAnalytics startDate={from} endDate={to} />
          </>
        )}
       </div>

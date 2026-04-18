@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { Heart, Bell } from "lucide-react";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
@@ -124,6 +125,9 @@ const systemName = settings[0]?.system_name || `Your ${terms.system}`;
       </div>
 
       <CurrentFronters alters={alters} />
+      <div className="mt-3">
+        <CurrentSymptoms />
+      </div>
       <NotificationHistoryModal
   open={showNotifHistory}
   onClose={() => setShowNotifHistory(false)}
