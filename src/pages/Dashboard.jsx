@@ -10,6 +10,7 @@ import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
+import DashboardGrid from "@/components/dashboard/DashboardGrid";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import TourModal from "@/components/onboarding/TourModal";
@@ -82,8 +83,9 @@ export default function Dashboard() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list()
   });
-const terms = useTerms();
-const systemName = settings[0]?.system_name || `Your ${terms.system}`;
+  const terms = useTerms();
+  const systemName = settings[0]?.system_name || `Your ${terms.system}`;
+  const dashboardGridItems = settings[0]?.navigation_config?.dashboardGrid || ["alters", "checkin", "activities", "analytics", "therapy-report", "support"];
 
   const { data: mentionLogs = [] } = useQuery({
     queryKey: ["mentionLogs"],
@@ -144,6 +146,8 @@ const systemName = settings[0]?.system_name || `Your ${terms.system}`;
         <Heart className="w-4 h-4" />
         Quick Check-In
       </button>
+
+      <DashboardGrid visibleItems={dashboardGridItems} />
 
       <NewFeaturesBar />
       <QuickNavMenu />

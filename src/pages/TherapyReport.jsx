@@ -6,7 +6,7 @@ import { localEntities } from "@/api/base44Client";
 import ReportBuilder from "@/components/report/ReportBuilder";
 import ExportModal from "@/components/report/ExportModal";
 import { Toaster } from "@/components/ui/toaster";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import * as reportSections from "@/lib/reportSections";
 import { generateTherapyReport, formatTherapyReportAsText } from "@/lib/reportGenerator";
 
@@ -14,7 +14,6 @@ const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
 
 export default function TherapyReportPage() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [exportModal, setExportModal] = useState(null);
@@ -195,10 +194,7 @@ export default function TherapyReportPage() {
         const slug = (config.config.systemName || "system").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
         const filename = `${slug}-therapy-report-${config.dateFrom}-to-${config.dateTo}.txt`;
         setExportModal({ content: textContent, filename, format: "text" });
-        toast({
-          title: "Report ready!",
-          description: "Copy the text below to paste into email, notes, or anywhere.",
-        });
+        toast.success("Report ready — copy the text below");
       } else {
         // Generate PDF
         await generateTherapyReport({
@@ -206,10 +202,7 @@ export default function TherapyReportPage() {
           sections,
           enabledSections,
         });
-        toast({
-          title: "Report generated!",
-          description: "Your therapy report PDF has been downloaded.",
-        });
+        toast.success("Report ready — check your downloads");
       }
 
       // Save export log
@@ -239,11 +232,7 @@ export default function TherapyReportPage() {
         queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
       }
     } catch (error) {
-      toast({
-        title: "Error generating report",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(`Error: ${error.message}`);
       console.error("Report generation error:", error);
     } finally {
       setLoading(false);

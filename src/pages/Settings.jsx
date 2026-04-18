@@ -24,6 +24,7 @@ import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import { isLocalMode } from "@/lib/storageMode";
 import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import NavigationSettings from "@/components/settings/NavigationSettings";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -221,6 +222,9 @@ export default function Settings() {
 
         {/* Advanced Appearance */}
         <AdvancedAppearance />
+
+        {/* Navigation */}
+        <NavigationSettings settings={settings} />
 
         {/* Terminology */}
         <TermsSettings />
