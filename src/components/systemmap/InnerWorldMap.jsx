@@ -236,6 +236,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [editingLocation, setEditingLocation] = useState(null);
   const [relPopover, setRelPopover] = useState(null); // { rel, x, y }
   const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
+  const [showCreateRelModal, setShowCreateRelModal] = useState(false);
 
   const { data: locations = [], refetch: refetchLocations } = useQuery({
     queryKey: ["innerWorldLocations"],
@@ -672,7 +673,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             {selectedAlter.role && <p className="text-xs text-muted-foreground capitalize">{selectedAlter.role}</p>}
             <button onClick={() => window.location.href = `/alter/${selectedAlter.id}`}
               className="text-xs text-primary hover:underline">View full profile →</button>
-            <button onClick={() => handleAlterDoubleTap(selectedAlter)}
+            <button onClick={() => setShowCreateRelModal(true)}
               className="w-full text-xs bg-amber-500/10 text-amber-600 border border-amber-500/30 rounded px-2 py-1 hover:bg-amber-500/20 transition-colors">
               + Create Relationship
             </button>
@@ -686,9 +687,20 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
         )}
       </div>
 
+      {showCreateRelModal && selectedAlter && (
+        <CreateRelationshipModal
+          alterA={selectedAlter}
+          allAlters={allAlters}
+          alterB={null}
+          onSave={handleSaveRelationship}
+          onClose={() => setShowCreateRelModal(false)}
+        />
+      )}
+
       {createRelModal && (
         <CreateRelationshipModal
           alterA={createRelModal.alterA}
+          allAlters={allAlters}
           alterB={createRelModal.alterB}
           onSave={handleSaveRelationship}
           onClose={() => setCreateRelModal(null)}
