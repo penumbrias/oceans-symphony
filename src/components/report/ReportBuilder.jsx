@@ -306,14 +306,45 @@ export default function ReportBuilder({
       {/* Preview */}
       <ReportPreview sections={selectedSections} mode={mode} />
 
-      {/* Generate button */}
-      <Button
-        onClick={handleGenerate}
-        disabled={loading}
-        className="w-full py-6 text-base"
-      >
-        {loading ? "Generating report..." : "Generate PDF"}
-      </Button>
+      {/* Generate buttons */}
+      <div className="flex gap-3">
+        <Button
+          onClick={handleGenerate}
+          disabled={loading}
+          className="flex-1 py-6 text-base"
+        >
+          {loading ? "Generating..." : "Download PDF"}
+        </Button>
+        <Button
+          onClick={() => {
+            onGenerate({
+              dateFrom,
+              dateTo,
+              mode,
+              thresholds,
+              selectedSections,
+              config: {
+                systemName,
+                dateFrom,
+                dateTo,
+                therapistName,
+                sessionDate,
+                coverNote,
+                showCoverPage,
+                confidentialityNotice,
+                journalDetail,
+              },
+              exportAsText: true,
+              saveAsTemplate: saveAsTemplate ? { name: templateName } : null,
+            });
+          }}
+          disabled={loading}
+          variant="outline"
+          className="flex-1 py-6 text-base"
+        >
+          {loading ? "..." : "Copy as Text"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -415,6 +415,176 @@ function addAlterAppendix(doc, appendix, y) {
   return y;
 }
 
+// ── PLAIN TEXT EXPORT ─────────────────────────────────────────────────────────
+
+function formatAsPlainText({
+  config,
+  sections,
+  enabledSections,
+}) {
+  let text = "";
+
+  // Header
+  text += `${"=".repeat(60)}\n`;
+  text += `THERAPY REPORT\n`;
+  text += `${config.systemName || "My System"} | ${config.dateFrom} to ${config.dateTo}\n`;
+  text += `${"=".repeat(60)}\n\n`;
+
+  if (config.therapistName) {
+    text += `Prepared for: ${config.therapistName}\n`;
+  }
+  if (config.sessionDate) {
+    text += `Session date: ${config.sessionDate}\n`;
+  }
+  if (config.coverNote) {
+    text += `\nNote: ${config.coverNote}\n`;
+  }
+  if (config.therapistName || config.sessionDate || config.coverNote) {
+    text += `\nGenerated: ${format(new Date(), "MMMM d, yyyy")}\n`;
+    text += "\n";
+  }
+
+  // Overview
+  if (enabledSections.has("overview")) {
+    text += `OVERVIEW\n${"--------".padEnd(60, "-")}\n`;
+    const o = sections.overview;
+    text += `${o.frontingCount} fronting sessions recorded\n`;
+    text += `${o.checkInCount} emotion check-ins\n`;
+    text += `${o.journalCount} journal entries\n`;
+    text += `${o.diaryCardCount} diary cards\n`;
+    text += `${o.alterCount} system members\n\n`;
+  }
+
+  // Fronting History
+  if (enabledSections.has("fronting") && sections.fronting) {
+    text += `FRONTING HISTORY\n${"--------".padEnd(60, "-")}\n`;
+    if (sections.fronting.summaryTable.length > 0) {
+      text += `\nSummary by member:\n`;
+      sections.fronting.summaryTable.forEach(r => {
+        text += `  • ${r.name}: ${r.total} total time, ${r.sessions} sessions, primary: ${r.primary}\n`;
+      });
+    }
+    if (sections.fronting.noteworthy.length > 0) {
+      text += `\nNotable events:\n`;
+      sections.fronting.noteworthy.forEach(ev => {
+        text += `  • ${ev.date || ""}${ev.label ? ` [${ev.label}]` : ""}${ev.detail ? ` — ${ev.detail}` : ""}\n`;
+      });
+    }
+    text += "\n";
+  }
+
+  // Emotion Check-Ins
+  if (enabledSections.has("emotions") && sections.emotions) {
+    text += `EMOTION CHECK-INS\n${"--------".padEnd(60, "-")}\n`;
+    if (sections.emotions.topEmotions.length > 0) {
+      text += `\nMost frequent emotions:\n`;
+      sections.emotions.topEmotions.slice(0, 6).forEach(e => {
+        text += `  • ${e.emotion} (${e.count}×)\n`;
+      });
+    }
+    if (sections.emotions.noteworthy.length > 0) {
+      text += `\nNotable check-ins:\n`;
+      sections.emotions.noteworthy.forEach(ev => {
+        text += `  • ${ev.date}${ev.label ? ` [${ev.label}]` : ""}\n`;
+        if (ev.emotions) text += `    Emotions: ${ev.emotions}\n`;
+      });
+    }
+    text += "\n";
+  }
+
+  // Symptoms
+  if (enabledSections.has("symptoms") && sections.symptoms) {
+    text += `SYMPTOMS & HABITS\n${"--------".padEnd(60, "-")}\n`;
+    if (sections.symptoms.summaryTable.length > 0) {
+      text += `\nSummary:\n`;
+      sections.symptoms.summaryTable.forEach(r => {
+        text += `  • ${r.label}: ${r.count} check-ins, avg severity ${r.avgSeverity}, ${r.activeSessions} sessions\n`;
+      });
+    }
+    if (sections.symptoms.noteworthy.length > 0) {
+      text += `\nNotable events:\n`;
+      sections.symptoms.noteworthy.forEach(ev => {
+        text += `  • ${ev.date}: ${ev.label}${ev.flag ? ` [${ev.flag}]` : ""}\n`;
+      });
+    }
+    text += "\n";
+  }
+
+  // Activities
+  if (enabledSections.has("activities") && sections.activities) {
+    text += `ACTIVITIES\n${"--------".padEnd(60, "-")}\n`;
+    if (sections.activities.list.length > 0) {
+      sections.activities.list.slice(0, 15).forEach(a => {
+        text += `  • ${a.name}: ${a.count} times, ${a.duration} total\n`;
+      });
+    } else {
+      text += "No activities recorded in this period.\n";
+    }
+    text += "\n";
+  }
+
+  // Journals
+  if (enabledSections.has("journals") && sections.journals) {
+    text += `JOURNAL ENTRIES\n${"--------".padEnd(60, "-")}\n`;
+    if (sections.journals.length > 0) {
+      sections.journals.forEach(j => {
+        text += `\n  "${j.title || "Untitled"}" (${j.date})\n`;
+        if (j.excerpt || j.content) {
+          const snippet = (j.content || j.excerpt || "").slice(0, 300);
+          text += `  ${snippet}${snippet.length >= 300 ? "…" : ""}\n`;
+        }
+      });
+    } else {
+      text += "No journal entries in this period.\n";
+    }
+    text += "\n";
+  }
+
+  // Diary Cards
+  if (enabledSections.has("diary") && sections.diary) {
+    text += `DIARY CARD LOG\n${"--------".padEnd(60, "-")}\n`;
+    if (sections.diary.length > 0) {
+      sections.diary.forEach(d => {
+        text += `\n  ${d.date}:\n`;
+        if (d.emotions) text += `    Emotions: ${d.emotions}\n`;
+        if (d.urges) text += `    Urges: ${d.urges}\n`;
+        if (d.bodyMind) text += `    Body/Mind: ${d.bodyMind}\n`;
+        if (d.flags?.length > 0) text += `    Flags: ${d.flags.join(", ")}\n`;
+      });
+    } else {
+      text += "No diary cards in this period.\n";
+    }
+    text += "\n";
+  }
+
+  // Patterns
+  if (enabledSections.has("patterns") && sections.patterns) {
+    text += `PATTERNS SUMMARY\n${"--------".padEnd(60, "-")}\n`;
+    text += `${sections.patterns}\n\n`;
+  }
+
+  // Alter Appendix
+  if (enabledSections.has("alterAppendix") && sections.alterAppendix?.length > 0) {
+    text += `APPENDIX: SYSTEM MEMBERS\n${"--------".padEnd(60, "-")}\n`;
+    sections.alterAppendix.forEach(a => {
+      text += `\n  ${a.name}`;
+      if (a.pronouns || a.role) {
+        text += ` (${[a.pronouns, a.role].filter(Boolean).join(" · ")})`;
+      }
+      text += "\n";
+      if (a.bio) {
+        text += `  ${a.bio}\n`;
+      }
+    });
+    text += "\n";
+  }
+
+  text += `${"=".repeat(60)}\n`;
+  text += `Personal health information — shared voluntarily for therapeutic purposes.\n`;
+
+  return text;
+}
+
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
 export async function generateTherapyReport({
@@ -467,5 +637,34 @@ export async function generateTherapyReport({
 
   const slug = (config.systemName || "system").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   const filename = `${slug}-therapy-report-${config.dateFrom}-to-${config.dateTo}.pdf`;
-  doc.save(filename);
+  
+  // APK-friendly PDF export: try share API first
+  doc.getBase64((base64) => {
+    if (navigator.share) {
+      fetch(`data:application/pdf;base64,${base64}`)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], filename, { type: "application/pdf" });
+          if (navigator.canShare?.({ files: [file] })) {
+            navigator.share({ files: [file], title: filename }).catch(() => {
+              // Fallback: standard download
+              doc.save(filename);
+            });
+          } else {
+            doc.save(filename);
+          }
+        })
+        .catch(() => doc.save(filename));
+    } else {
+      doc.save(filename);
+    }
+  });
+}
+
+export function formatTherapyReportAsText({
+  config,
+  sections,
+  enabledSections,
+}) {
+  return formatAsPlainText({ config, sections, enabledSections });
 }

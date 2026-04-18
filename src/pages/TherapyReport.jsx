@@ -4,10 +4,11 @@ import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import ReportBuilder from "@/components/report/ReportBuilder";
+import ExportModal from "@/components/report/ExportModal";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 import * as reportSections from "@/lib/reportSections";
-import { generateTherapyReport } from "@/lib/reportGenerator";
+import { generateTherapyReport, formatTherapyReportAsText } from "@/lib/reportGenerator";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -16,6 +17,7 @@ export default function TherapyReportPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [exportModal, setExportModal] = useState(null);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -171,22 +173,44 @@ export default function TherapyReportPage() {
       enabledSections.add("overview");
       config.selectedSections.forEach(s => enabledSections.add(s));
 
-      // Generate PDF
-      await generateTherapyReport({
-        config: config.config,
-        sections: {
-          overview,
-          fronting,
-          emotions,
-          symptoms: symptomsData,
-          activities: activitiesData,
-          journals,
-          diary,
-          patterns,
-          alterAppendix,
-        },
-        enabledSections,
-      });
+      const sections = {
+        overview,
+        fronting,
+        emotions,
+        symptoms: symptomsData,
+        activities: activitiesData,
+        journals,
+        diary,
+        patterns,
+        alterAppendix,
+      };
+
+      // Handle text export
+      if (config.exportAsText) {
+        const textContent = formatTherapyReportAsText({
+          config: config.config,
+          sections,
+          enabledSections,
+        });
+        const slug = (config.config.systemName || "system").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+        const filename = `${slug}-therapy-report-${config.dateFrom}-to-${config.dateTo}.txt`;
+        setExportModal({ content: textContent, filename, format: "text" });
+        toast({
+          title: "Report ready!",
+          description: "Copy the text below to paste into email, notes, or anywhere.",
+        });
+      } else {
+        // Generate PDF
+        await generateTherapyReport({
+          config: config.config,
+          sections,
+          enabledSections,
+        });
+        toast({
+          title: "Report generated!",
+          description: "Your therapy report PDF has been downloaded.",
+        });
+      }
 
       // Save export log
       await db.ReportExport.create({
@@ -214,11 +238,6 @@ export default function TherapyReportPage() {
         });
         queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
       }
-
-      toast({
-        title: "Report generated!",
-        description: "Your therapy report PDF has been downloaded.",
-      });
     } catch (error) {
       toast({
         title: "Error generating report",
@@ -244,6 +263,14 @@ export default function TherapyReportPage() {
         templates={templates}
         onGenerate={handleGenerate}
         loading={loading}
+      />
+
+      <ExportModal
+        isOpen={!!exportModal}
+        onClose={() => setExportModal(null)}
+        content={exportModal?.content || ""}
+        filename={exportModal?.filename || ""}
+        format={exportModal?.format || "json"}
       />
     </div>
   );
