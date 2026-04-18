@@ -63,8 +63,22 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [search, setSearch] = useState("");
-  const [primaryId, setPrimaryId] = useState(currentSession?.primary_alter_id || "");
-  const [coFronterIds, setCoFronterIds] = useState(currentSession?.co_fronter_ids || []);
+  // Derive current fronter state from active sessions (new model)
+  const getInitialPrimary = () => {
+    if (!currentSession) return "";
+    if (currentSession.alter_id) {
+      // currentSession is one active record — find primary from all active sessions passed in
+      return currentSession.is_primary ? currentSession.alter_id : "";
+    }
+    return currentSession.primary_alter_id || "";
+  };
+  const getInitialCoFronters = () => {
+    if (!currentSession) return [];
+    if (currentSession.alter_id) return [];
+    return currentSession.co_fronter_ids || [];
+  };
+  const [primaryId, setPrimaryId] = useState(getInitialPrimary);
+  const [coFronterIds, setCoFronterIds] = useState(getInitialCoFronters);
   const [saving, setSaving] = useState(false);
   const [journalSwitch, setJournalSwitch] = useState(false);
   const [showJournalModal, setShowJournalModal] = useState(false);
@@ -75,12 +89,10 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   // Sync state when modal opens or currentSession changes
   useEffect(() => {
     if (open) {
-      setPrimaryId(currentSession?.primary_alter_id || "");
-      setCoFronterIds(currentSession?.co_fronter_ids || []);
       setIsUnsure(false);
       setJournalSwitch(false);
     }
-  }, [open, currentSession?.primary_alter_id, currentSession?.co_fronter_ids]);
+  }, [open]);
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const filtered = activeAlters.filter((a) =>
@@ -138,39 +150,32 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         onClose();
       } else {
+        const now = new Date().toISOString();
         const coIds = coFronterIds.filter((id) => id !== primaryId);
-        let sessionId = null;
+        const allSelectedIds = [primaryId, ...coIds].filter(Boolean);
 
-        if (activeSessions.length > 0) {
-          const now = new Date().toISOString();
-          for (const s of activeSessions) {
-            await base44.entities.FrontingSession.update(s.id, {
-              is_active: false,
-              end_time: now
-            });
-          }
+        // End all currently active sessions
+        for (const s of activeSessions) {
+          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+        }
+
+        // Create one record per selected alter (new model)
+        let firstSessionId = null;
+        for (const alterId of allSelectedIds) {
           const newSession = await base44.entities.FrontingSession.create({
-            primary_alter_id: primaryId,
-            co_fronter_ids: coIds,
+            alter_id: alterId,
+            is_primary: alterId === primaryId,
             start_time: now,
-            is_active: true
+            is_active: true,
           });
-          sessionId = newSession?.id || null;
-        } else {
-          const newSession = await base44.entities.FrontingSession.create({
-            primary_alter_id: primaryId,
-            co_fronter_ids: coIds,
-            start_time: new Date().toISOString(),
-            is_active: true
-          });
-          sessionId = newSession?.id || null;
+          if (!firstSessionId) firstSessionId = newSession?.id || null;
         }
 
         toast.success("Front updated!");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         if (journalSwitch) {
-          setNewSessionId(sessionId);
+          setNewSessionId(firstSessionId);
           setShowJournalModal(true);
         } else {
           onClose();

@@ -156,8 +156,11 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
 
 function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
   const [adjustedMins, setAdjustedMins] = useState(splitMins);
-  const isPrimary = session?.primary_alter_id === alter?.id;
-  const coIds = (session?.co_fronter_ids || []).filter(Boolean);
+  const isPrimary = session?.alter_id
+    ? (session?.is_primary ?? false)
+    : session?.primary_alter_id === alter?.id;
+  // For new model, co-fronters are derived from overlapping sessions (not in this record)
+  const coIds = session?.alter_id ? [] : (session?.co_fronter_ids || []).filter(Boolean);
 
   const minsToTime = (mins) => {
     const h = Math.floor(Math.max(0, mins) / 60) % 24;
@@ -471,7 +474,7 @@ export default function InfiniteTimeline({
   const [showRowSlider, setShowRowSlider] = useState(false);
   const [sessionPopover, setSessionPopover] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
-  const [splitPopover, setSplitPopover] = useState(null);
+  const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
   const [newSessionPopover, setNewSessionPopover] = useState(null);
   const longPressTargetRef = useRef(null);
 
@@ -500,10 +503,13 @@ export default function InfiniteTimeline({
   const alterEntries = useMemo(() => {
     const byAlter = {};
     sessions.forEach((session) => {
-      const ids = [
-        session.primary_alter_id,
-        ...(session.co_fronter_ids || [])
-      ].filter(Boolean);
+      // Support both new (alter_id) and legacy (primary_alter_id) models
+      let ids = [];
+      if (session.alter_id) {
+        ids = [session.alter_id];
+      } else {
+        ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      }
       ids.forEach((alterId) => {
         const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
         const endTime = session.end_time
@@ -511,11 +517,14 @@ export default function InfiniteTimeline({
           : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
         const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
         if (!byAlter[alterId]) byAlter[alterId] = [];
+        const isPrimary = session.alter_id
+          ? (session.is_primary ?? false)
+          : session.primary_alter_id === alterId;
         byAlter[alterId].push({
           startMins,
           endMins: Math.max(endMins, startMins + 8),
           sessionId: session.id,
-          isPrimary: session.primary_alter_id === alterId,
+          isPrimary,
         });
       });
     });
@@ -733,52 +742,76 @@ export default function InfiniteTimeline({
     if (!splitPopover) return;
     const { alter, session } = splitPopover;
     const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
+    const isNewModel = !!session.alter_id;
 
     try {
-      if (action === "end") {
-  await base44.entities.FrontingSession.update(session.id, {
-    end_time: splitTime,
-    is_active: false,
-  });
-  const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
-  if (others.length > 0) {
-    await base44.entities.FrontingSession.create({
-      primary_alter_id: others[0],
-      co_fronter_ids: others.slice(1),
-      start_time: splitTime,
-      end_time: session.end_time || null,
-      is_active: !session.end_time,
-      note: session.note || null,
-    });
-  }
-} else {
-        await base44.entities.FrontingSession.update(session.id, {
-          end_time: splitTime,
-          is_active: false,
-        });
-
-        const newSession = {
-          primary_alter_id: session.primary_alter_id,
-          co_fronter_ids: session.co_fronter_ids || [],
-          start_time: splitTime,
-          end_time: session.end_time || null,
-          is_active: !session.end_time,
-          note: session.note || null,
-        };
-
-        if (action === "promote") {
-          newSession.primary_alter_id = alter.id;
-          newSession.co_fronter_ids = [
-            session.primary_alter_id,
-            ...(session.co_fronter_ids || [])
-          ].filter(id => id && id !== alter.id);
+      if (isNewModel) {
+        // New individual model — each record is one alter
+        if (action === "end") {
+          // Simply end this alter's session at split time
+          await base44.entities.FrontingSession.update(session.id, {
+            end_time: splitTime,
+            is_active: false,
+          });
+        } else if (action === "promote") {
+          // End current session, create new with is_primary: true; demote any current primary
+          await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
+          // Find active sessions at split time to demote current primary
+          const allActive = sessions.filter(s => s.is_active && s.alter_id && s.id !== session.id);
+          const currentPrimary = allActive.find(s => s.is_primary);
+          if (currentPrimary) {
+            await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
+          }
+          await base44.entities.FrontingSession.create({
+            alter_id: alter.id,
+            is_primary: true,
+            start_time: splitTime,
+            end_time: session.end_time || null,
+            is_active: !session.end_time,
+          });
         } else if (action === "demote") {
-          const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
-          newSession.primary_alter_id = others[0] || null;
-          newSession.co_fronter_ids = [...others.slice(1), alter.id];
+          await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
+          await base44.entities.FrontingSession.create({
+            alter_id: alter.id,
+            is_primary: false,
+            start_time: splitTime,
+            end_time: session.end_time || null,
+            is_active: !session.end_time,
+          });
         }
-
-        await base44.entities.FrontingSession.create(newSession);
+      } else {
+        // Legacy model fallback
+        if (action === "end") {
+          await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
+          const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
+          if (others.length > 0) {
+            await base44.entities.FrontingSession.create({
+              primary_alter_id: others[0],
+              co_fronter_ids: others.slice(1),
+              start_time: splitTime,
+              end_time: session.end_time || null,
+              is_active: !session.end_time,
+            });
+          }
+        } else {
+          await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
+          const newSession = {
+            primary_alter_id: session.primary_alter_id,
+            co_fronter_ids: session.co_fronter_ids || [],
+            start_time: splitTime,
+            end_time: session.end_time || null,
+            is_active: !session.end_time,
+          };
+          if (action === "promote") {
+            newSession.primary_alter_id = alter.id;
+            newSession.co_fronter_ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
+          } else if (action === "demote") {
+            const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
+            newSession.primary_alter_id = others[0] || null;
+            newSession.co_fronter_ids = [...others.slice(1), alter.id];
+          }
+          await base44.entities.FrontingSession.create(newSession);
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ["frontHistory"], refetchType: 'all' });
@@ -800,9 +833,10 @@ export default function InfiniteTimeline({
         const [eh, em] = endTime.split(":").map(Number);
         endDate.setHours(eh, em, 0, 0);
       }
+      // New individual model
       await base44.entities.FrontingSession.create({
-        primary_alter_id: asPrimary ? alterId : null,
-        co_fronter_ids: asPrimary ? [] : [alterId],
+        alter_id: alterId,
+        is_primary: asPrimary,
         start_time: startDate.toISOString(),
         end_time: endDate?.toISOString() || null,
         is_active: !endDate,
@@ -1042,6 +1076,8 @@ export default function InfiniteTimeline({
                 </div>
 
                 {sessions.flatMap((session) => {
+                  // New model records don't carry notes (moved to EmotionCheckIn)
+                  if (session.alter_id) return [];
                   let notes = [];
                   if (!session.note) return [];
                   try {

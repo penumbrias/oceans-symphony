@@ -87,7 +87,9 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [endVal, setEndVal] = useState(toLocalDatetimeValue(session?.end_time));
   const [note, setNote] = useState(session?.note || "");
   const [saving, setSaving] = useState(false);
-  const [asPrimary, setAsPrimary] = useState(session?.primary_alter_id === alter?.id);
+  const [asPrimary, setAsPrimary] = useState(
+    session?.alter_id ? (session?.is_primary ?? false) : session?.primary_alter_id === alter?.id
+  );
 
 const handleSave = async () => {
   setSaving(true);
@@ -95,40 +97,45 @@ const handleSave = async () => {
     const newStart = localDatetimeToISO(startVal) || session.start_time;
     const newEnd = localDatetimeToISO(endVal) || session.end_time || null;
 
-    const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-    if (!allIds.includes(alter.id)) allIds.push(alter.id);
-    const otherIds = allIds.filter(id => id !== alter.id);
-
-    if (otherIds.length === 0) {
-      // Only this alter in the session — update in place
+    if (session.alter_id) {
+      // New individual model — update this record directly
       await base44.entities.FrontingSession.update(session.id, {
-        primary_alter_id: asPrimary ? alter.id : null,
-        co_fronter_ids: asPrimary ? [] : [alter.id],
+        is_primary: asPrimary,
         start_time: newStart,
         end_time: newEnd,
         is_active: !newEnd,
-        note: note || null,
       });
     } else {
-      // Multiple alters — keep others on original session, split this alter out
-      const otherPrimary = session.primary_alter_id === alter.id ? otherIds[0] : session.primary_alter_id;
-      await base44.entities.FrontingSession.update(session.id, {
-        primary_alter_id: otherPrimary,
-        co_fronter_ids: otherIds.filter(id => id !== otherPrimary),
-        // keep original times for others
-        start_time: session.start_time,
-        end_time: session.end_time,
-        is_active: session.is_active,
-      });
-      // Create a new session just for this alter with the edited times
-      await base44.entities.FrontingSession.create({
-        primary_alter_id: asPrimary ? alter.id : null,
-        co_fronter_ids: asPrimary ? [] : [alter.id],
-        start_time: newStart,
-        end_time: newEnd,
-        is_active: !newEnd,
-        note: note || null,
-      });
+      // Legacy model fallback
+      const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      if (!allIds.includes(alter.id)) allIds.push(alter.id);
+      const otherIds = allIds.filter(id => id !== alter.id);
+
+      if (otherIds.length === 0) {
+        await base44.entities.FrontingSession.update(session.id, {
+          primary_alter_id: asPrimary ? alter.id : null,
+          co_fronter_ids: asPrimary ? [] : [alter.id],
+          start_time: newStart,
+          end_time: newEnd,
+          is_active: !newEnd,
+        });
+      } else {
+        const otherPrimary = session.primary_alter_id === alter.id ? otherIds[0] : session.primary_alter_id;
+        await base44.entities.FrontingSession.update(session.id, {
+          primary_alter_id: otherPrimary,
+          co_fronter_ids: otherIds.filter(id => id !== otherPrimary),
+          start_time: session.start_time,
+          end_time: session.end_time,
+          is_active: session.is_active,
+        });
+        await base44.entities.FrontingSession.create({
+          alter_id: alter.id,
+          is_primary: asPrimary,
+          start_time: newStart,
+          end_time: newEnd,
+          is_active: !newEnd,
+        });
+      }
     }
 
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });

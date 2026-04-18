@@ -1,0 +1,44 @@
+{
+  "name": "FrontingSession",
+  "type": "object",
+  "properties": {
+    "alter_id": {
+      "type": "string",
+      "description": "ID of the alter this record belongs to (new individual model)"
+    },
+    "is_primary": {
+      "type": "boolean",
+      "description": "Whether this alter was primary fronter during this session"
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "primary_alter_id": {
+      "type": "string",
+      "description": "DEPRECATED: Legacy grouped model primary alter. Use alter_id instead."
+    },
+    "co_fronter_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "DEPRECATED: Legacy grouped model co-fronters. Use individual records instead."
+    },
+    "note": {
+      "type": "string",
+      "description": "DEPRECATED: Legacy status note. Use EmotionCheckIn instead."
+    }
+  },
+  "required": [
+    "start_time"
+  ]
+}

@@ -50,8 +50,16 @@ function durationLabel(start, end) {
 
 // SP-style session block with vertical colored bar and avatar pin at top
 function SessionBlock({ session, altersById, columnIndex, totalColumns }) {
-  const primary = altersById[session.primary_alter_id];
-  const coFronters = (session.co_fronter_ids || []).map((id) => altersById[id]).filter(Boolean);
+  // Support new (alter_id) and legacy (primary_alter_id) models
+  let primary = null;
+  let coFronters = [];
+  if (session.alter_id) {
+    primary = altersById[session.alter_id];
+    // co-fronters derived externally — not stored on this record
+  } else {
+    primary = altersById[session.primary_alter_id];
+    coFronters = (session.co_fronter_ids || []).map((id) => altersById[id]).filter(Boolean);
+  }
   const isActive = session.is_active;
   const color = primary?.color || "hsl(var(--primary))";
 
@@ -171,7 +179,24 @@ export default function FrontHistory() {
     return st >= fromMs && st <= toMs;
   });
 
-  const grouped = filtered.reduce((acc, s) => {
+  // For new model: de-duplicate sessions at same start_time (group into one entry per switch)
+  const deduplicated = (() => {
+    const seen = new Map();
+    for (const s of filtered) {
+      if (s.alter_id) {
+        // Group new-model records by start_time — keep only one representative per switch event
+        const key = s.start_time;
+        if (!seen.has(key) || s.is_primary) {
+          seen.set(key, s);
+        }
+      } else {
+        seen.set(s.id, s);
+      }
+    }
+    return [...seen.values()];
+  })();
+
+  const grouped = deduplicated.reduce((acc, s) => {
     const dateKey = format(new Date(s.start_time), "yyyy-MM-dd");
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(s);

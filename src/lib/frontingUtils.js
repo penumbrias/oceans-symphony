@@ -1,48 +1,40 @@
-import { base44 } from "@/api/base44Client";
-import { isLocalMode } from "@/lib/storageMode";
-
-// Get the right db depending on mode
-function getDb() {
-  if (isLocalMode()) {
-    const { localEntities } = require("@/api/base44Client");
-    return localEntities;
-  }
-  return base44.entities;
-}
+/**
+ * frontingUtils.js — New individual-session model helpers.
+ * Each FrontingSession record belongs to ONE alter (via alter_id).
+ * Co-fronting is derived by overlapping time ranges, not stored in a single record.
+ */
 
 /**
- * Normalizes a list of FrontingSession records into a flat per-alter list.
- * Legacy records (no alter_id) are expanded into one entry per alter.
- * New records (has alter_id) are passed through directly.
+ * Normalizes a list of FrontingSession records.
+ * Handles both new (alter_id) and legacy (primary_alter_id) formats for backward compat.
+ * Returns flat per-alter entries for display/analytics.
  */
 export function normalizeSessions(sessions) {
   const result = [];
   for (const s of sessions) {
     if (s.alter_id) {
-      // New individual format
       result.push({
         alterId: s.alter_id,
+        isPrimary: s.is_primary ?? false,
         start_time: s.start_time,
         end_time: s.end_time,
         is_active: s.is_active,
-        note: s.note,
         sessionId: s.id,
         isLegacy: false,
         raw: s,
       });
-    } else {
-      // Legacy grouped format — expand into one entry per alter
+    } else if (s.primary_alter_id) {
+      // Legacy fallback
       const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
       for (const alterId of ids) {
         result.push({
           alterId,
+          isPrimary: s.primary_alter_id === alterId,
           start_time: s.start_time,
           end_time: s.end_time,
           is_active: s.is_active,
-          note: s.note,
           sessionId: s.id,
           isLegacy: true,
-          isPrimary: s.primary_alter_id === alterId,
           raw: s,
         });
       }
@@ -52,32 +44,56 @@ export function normalizeSessions(sessions) {
 }
 
 /**
- * Creates a new individual session for a single alter.
+ * Returns alter IDs that are currently active from a list of raw sessions.
  */
-export async function createIndividualSession(db, { alterId, startTime, endTime, isActive, note }) {
-  return db.FrontingSession.create({
-    alter_id: alterId,
-    start_time: startTime,
-    end_time: endTime || null,
-    is_active: isActive ?? true,
-    note: note || null,
-  });
-}
-
-/**
- * Returns currently active alter IDs from a normalized session list.
- */
-export function getActiveFronters(normalizedSessions) {
+export function getActiveFronterIds(sessions) {
   return [...new Set(
-    normalizedSessions
+    sessions
       .filter(s => s.is_active)
-      .map(s => s.alterId)
+      .map(s => s.alter_id || s.primary_alter_id)
+      .filter(Boolean)
   )];
 }
 
 /**
- * Ends all currently active sessions for the given alter IDs.
- * Handles both legacy and new format.
+ * Returns the active primary alter ID from a list of raw sessions.
+ */
+export function getActivePrimaryId(sessions) {
+  const active = sessions.filter(s => s.is_active);
+  // New model
+  const primary = active.find(s => s.alter_id && s.is_primary);
+  if (primary) return primary.alter_id;
+  // Legacy fallback
+  const legacyPrimary = active.find(s => s.primary_alter_id);
+  return legacyPrimary?.primary_alter_id || null;
+}
+
+/**
+ * Finds co-fronters for a given alter at a given time by overlapping sessions.
+ */
+export function getCoFronters(alterId, sessions) {
+  const mySessions = sessions.filter(s => (s.alter_id || s.primary_alter_id) === alterId);
+  const coFronterIds = new Set();
+
+  for (const mine of mySessions) {
+    const myStart = new Date(mine.start_time).getTime();
+    const myEnd = mine.end_time ? new Date(mine.end_time).getTime() : Date.now();
+
+    for (const other of sessions) {
+      const otherId = other.alter_id || other.primary_alter_id;
+      if (!otherId || otherId === alterId) continue;
+      const otherStart = new Date(other.start_time).getTime();
+      const otherEnd = other.end_time ? new Date(other.end_time).getTime() : Date.now();
+      if (myStart < otherEnd && myEnd > otherStart) {
+        coFronterIds.add(otherId);
+      }
+    }
+  }
+  return [...coFronterIds];
+}
+
+/**
+ * Ends all currently active sessions.
  */
 export async function endActiveSessions(db, now) {
   const activeSessions = await db.FrontingSession.filter({ is_active: true });

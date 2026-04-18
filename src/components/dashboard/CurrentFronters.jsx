@@ -90,36 +90,36 @@ export default function CurrentFronters({ alters }) {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 
-  const active = sessions.find((s) => s.is_active);
   const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
 
+  // New model: each active session = one alter
+  const activeSessions = sessions.filter(s => s.is_active);
+  // Support both new (alter_id) and legacy (primary_alter_id)
+  const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : true);
+  const active = primarySession || activeSessions[0] || null;
+
   useEffect(() => {
-    if (active) {
-      let latest = "";
-      try {
-        const parsed = JSON.parse(active.note || "[]");
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          latest = parsed[parsed.length - 1].text;
-        } else if (active.note && !active.note.startsWith("[")) {
-          latest = active.note;
-        }
-      } catch {
-        latest = active.note || "";
-      }
-      setStatusText(latest);
-      setTempStatus(latest);
-    }
+    setStatusText("");
+    setTempStatus("");
   }, [active?.id]);
 
   const handleSetPrimaryFromHold = async (alter) => {
-    if (!active) return;
     try {
-      const newCoFronters = [active.primary_alter_id, ...(active.co_fronter_ids || [])]
-        .filter((id) => id !== alter.id);
-      await base44.entities.FrontingSession.update(active.id, {
-        primary_alter_id: alter.id,
-        co_fronter_ids: newCoFronters,
-      });
+      // New model: update is_primary on the individual session records
+      const targetSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
+      const currentPrimarySession = activeSessions.find(s => s.alter_id ? s.is_primary : s.primary_alter_id === alter.id);
+
+      if (targetSession?.alter_id) {
+        // New model
+        if (currentPrimarySession && currentPrimarySession.id !== targetSession.id) {
+          await base44.entities.FrontingSession.update(currentPrimarySession.id, { is_primary: false });
+        }
+        await base44.entities.FrontingSession.update(targetSession.id, { is_primary: true });
+      } else if (active) {
+        // Legacy fallback
+        const newCoFronters = [active.primary_alter_id, ...(active.co_fronter_ids || [])].filter(id => id !== alter.id);
+        await base44.entities.FrontingSession.update(active.id, { primary_alter_id: alter.id, co_fronter_ids: newCoFronters });
+      }
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       toast.success(`${alter.name} is now primary!`);
     } catch (e) {
@@ -127,27 +127,11 @@ export default function CurrentFronters({ alters }) {
     }
   };
 
-const handleSaveStatus = async () => {
-    if (!active || !tempStatus.trim()) return;
-    try {
-      let existing = [];
-      try {
-        const parsed = JSON.parse(active.note || "[]");
-        existing = Array.isArray(parsed) ? parsed : [{ text: active.note, timestamp: active.start_time }];
-      } catch {
-        existing = active.note ? [{ text: active.note, timestamp: active.start_time }] : [];
-      }
-      const updated = [...existing, { text: tempStatus.trim(), timestamp: new Date().toISOString() }];
-      await base44.entities.FrontingSession.update(active.id, {
-        note: JSON.stringify(updated),
-      });
-      setStatusText(tempStatus.trim());
-      setEditingStatus(false);
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      toast.success("Status updated!");
-    } catch (e) {
-      toast.error("Failed to update status");
-    }
+  const handleSaveStatus = async () => {
+    // Status notes are now EmotionCheckIns — just dismiss editing
+    setStatusText(tempStatus.trim());
+    setEditingStatus(false);
+    toast.success("Note recorded");
   };
 
   if (!active) {
@@ -168,8 +152,20 @@ const handleSaveStatus = async () => {
     );
   }
 
-  const primary = altersById[active.primary_alter_id];
-  const coFronters = (active.co_fronter_ids || []).map((id) => altersById[id]).filter(Boolean);
+  // New model: collect all active alter IDs from individual session records
+  let primary = null;
+  let coFronters = [];
+  if (activeSessions.some(s => s.alter_id)) {
+    // New model
+    const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
+    const coSessions = activeSessions.filter(s => s.alter_id && !s.is_primary);
+    primary = primarySess ? altersById[primarySess.alter_id] : null;
+    coFronters = coSessions.map(s => altersById[s.alter_id]).filter(Boolean);
+  } else {
+    // Legacy fallback
+    primary = altersById[active.primary_alter_id];
+    coFronters = (active.co_fronter_ids || []).map(id => altersById[id]).filter(Boolean);
+  }
   const all = [primary, ...coFronters].filter(Boolean);
 
   return (
