@@ -733,6 +733,27 @@ export default function InfiniteTimeline({
     return m;
   }, [symptoms]);
 
+  const daySymptomCheckIns = useMemo(() => {
+    return symptomCheckIns.filter(c => {
+      const t = parseDate(c.timestamp);
+      return t >= dayStart && t < new Date(dayStart.getTime() + 24 * 60 * 60000);
+    });
+  }, [symptomCheckIns, dayStart]);
+
+  const symptomCheckInPositioned = useMemo(() => {
+    let minNext = -Infinity;
+    const MIN_SYMPTOM_GAP = 24;
+    return [...daySymptomCheckIns]
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      .map(checkIn => {
+        const mins = Math.max(0, minutesInDay(parseDate(checkIn.timestamp), dayStart));
+        const raw = getTopPx(mins);
+        const top = Math.max(raw, minNext);
+        minNext = top + MIN_SYMPTOM_GAP;
+        return { ...checkIn, adjustedTop: top };
+      });
+  }, [daySymptomCheckIns, getTopPx, dayStart]);
+
   const sortedSymptomSessions = useMemo(() => {
     return [...symptomSessions].sort((a, b) => {
       if (a.is_active && !b.is_active) return -1;
@@ -1053,29 +1074,32 @@ export default function InfiniteTimeline({
                       const symptom = symptomMap[entry.symptomId];
                       const topPx = getTopPx(entry.startMins);
                       const heightPx = getRangePx(entry.startMins, entry.endMins);
+                      const barKey = `sbar-${entry.sessionId}-${i}`;
                       return (
                         <SymptomBar
-                          key={`sbar-${entry.sessionId}-${i}`}
+                          key={barKey}
                           symptom={symptom}
                           session={session}
                           topPx={topPx}
                           heightPx={heightPx}
                           rowH={rowH}
-                          onTap={() => {}}
+                          expanded={expandedKeys.has(barKey)}
+                          onTap={() => toggleExpand(barKey)}
                         />
                       );
                     })}
-                    {colIdx === 0 && symptomCheckIns.map((checkIn) => {
+                    {colIdx === 0 && symptomCheckInPositioned.map((checkIn) => {
                       const symptom = symptomMap[checkIn.symptom_id];
                       if (!symptom) return null;
-                      const mins = Math.max(0, minutesInDay(parseDate(checkIn.timestamp), dayStart));
+                      const pillKey = `spill-${checkIn.id}`;
                       return (
                         <SymptomPill
-                          key={`spill-${checkIn.id}`}
+                          key={pillKey}
                           symptom={symptom}
                           checkIn={checkIn}
-                          topPx={getTopPx(mins)}
-                          onTap={() => {}}
+                          topPx={checkIn.adjustedTop}
+                          expanded={expandedKeys.has(pillKey)}
+                          onTap={() => toggleExpand(pillKey)}
                         />
                       );
                     })}
