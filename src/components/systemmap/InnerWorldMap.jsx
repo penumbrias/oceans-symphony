@@ -383,26 +383,62 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
 
   return (
     <div className="relative w-full h-full flex">
-      {/* Unplaced alters panel */}
+      {/* Unplaced alters panel — toggleable, with tap-to-place on mobile and drag-drop on desktop */}
       {showAll && unplacedAlters.length > 0 && (
-        <div className="w-40 flex-shrink-0 bg-card border-r border-border overflow-y-auto p-2 space-y-1.5 z-10">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 pb-1">Unplaced</p>
-          {unplacedAlters.map(alter => (
-            <div key={alter.id}
-              draggable
-              onDragStart={e => e.dataTransfer.setData("alterId", alter.id)}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/50 bg-muted/20 cursor-grab hover:bg-muted/40 transition-colors">
-              {alter.avatar_url ? (
-                <img src={alter.avatar_url} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
-              ) : (
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
-                  style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 10 }}>
-                  {alter.name?.charAt(0)?.toUpperCase()}
-                </div>
-              )}
-              <span className="text-xs text-foreground truncate">{alter.name}</span>
+        <>
+          {panelOpen ? (
+            <div className="w-40 flex-shrink-0 bg-card border-r border-border overflow-y-auto flex flex-col z-10">
+              <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/50 flex-shrink-0">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unplaced</p>
+                <button onClick={() => setPanelOpen(false)} className="text-muted-foreground hover:text-foreground" title="Collapse panel">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+                {unplacedAlters.map(alter => (
+                  <div
+                    key={alter.id}
+                    draggable
+                    onDragStart={e => e.dataTransfer.setData("alterId", alter.id)}
+                    onClick={() => setPlacingAlter(alter)}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                      placingAlter?.id === alter.id
+                        ? "border-primary/60 bg-primary/15"
+                        : "border-border/50 bg-muted/20 hover:bg-muted/40 active:cursor-grabbing"
+                    }`}>
+                    {alter.avatar_url ? (
+                      <img src={alter.avatar_url} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+                        style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 10 }}>
+                        {alter.name?.charAt(0)?.toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-xs text-foreground truncate">{alter.name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
+          ) : (
+            <button
+              onClick={() => setPanelOpen(true)}
+              title="Expand unplaced alters"
+              className="flex-shrink-0 w-8 h-32 bg-card border-r border-border flex items-center justify-center hover:bg-muted/50 transition-colors z-10">
+              <div className="flex flex-col items-center gap-1 rotate-180 text-muted-foreground hover:text-foreground">
+                <span className="text-xs font-bold">U</span>
+              </div>
+            </button>
+          )}
+        </>
+      )}
+
+      {/* Tap-to-place banner */}
+      {placingAlter && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
+          <span>Tap map to place {placingAlter.name}</span>
+          <button onClick={() => setPlacingAlter(null)} className="ml-1 hover:opacity-70">
+            <X className="w-3 h-3" />
+          </button>
         </div>
       )}
 
@@ -412,14 +448,24 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
         <svg
           ref={svgRef}
           className="w-full h-full"
-          style={{ cursor: isDragging ? "grabbing" : relModeAlter ? "crosshair" : "grab" }}
+          style={{ cursor: isDragging ? "grabbing" : relModeAlter ? "crosshair" : placingAlter ? "crosshair" : "grab" }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onDrop={handleSvgDrop}
           onDragOver={e => e.preventDefault()}
-          onClick={() => setRelPopover(null)}
+          onClick={(e) => {
+            if (placingAlter) {
+              const rect = svgRef.current.getBoundingClientRect();
+              const nx = (e.clientX - rect.left - transform.x) / transform.scale;
+              const ny = (e.clientY - rect.top - transform.y) / transform.scale;
+              saveAlterPosition(placingAlter, nx, ny, snapToGrid);
+              setPlacingAlter(null);
+            } else {
+              setRelPopover(null);
+            }
+          }}
         >
           <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
             {sortedLocations.map(loc => (
