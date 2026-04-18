@@ -30,6 +30,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const scrollContainerRef = useRef(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
   const [deleted, setDeleted] = useState(false);
@@ -52,10 +53,16 @@ export default function Settings() {
 
   const handleScroll = (id) => {
     const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
-      setMobileMenuOpen(false);
+    if (!element) return;
+    const container = scrollContainerRef.current;
+    if (container) {
+      const containerTop = container.getBoundingClientRect().top;
+      const elementTop = element.getBoundingClientRect().top;
+      container.scrollTo({ top: container.scrollTop + elementTop - containerTop - 80, behavior: "smooth" });
+    } else {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+    setMobileMenuOpen(false);
   };
 
   const handleSignOut = () => {
@@ -119,7 +126,7 @@ export default function Settings() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} ref={scrollContainerRef} className="overflow-y-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex-1">
           <h1 className="font-display text-3xl font-semibold text-foreground mb-2">Settings</h1>
