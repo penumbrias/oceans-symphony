@@ -5,28 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Navigation, Save, Loader2, ChevronDown, ChevronUp } from "lucide-react";
-
-const ALL_PAGES = [
-  { id: "home", label: "Home" },
-  { id: "alters", label: "Alters" },
-  { id: "checkin", label: "Check-In" },
-  { id: "journals", label: "Journals" },
-  { id: "tasks", label: "Tasks" },
-  { id: "timeline", label: "Timeline" },
-  { id: "therapy-report", label: "Therapy Report" },
-  { id: "system-map", label: "System Map" },
-  { id: "analytics", label: "Analytics" },
-  { id: "activities", label: "Activities" },
-  { id: "sleep", label: "Sleep" },
-  { id: "support", label: "Support & Learn" },
-  { id: "groups", label: "Groups" },
-];
-
-const DEFAULT_CONFIG = {
-  topBar: ["home", "alters", "checkin", "journals", "tasks"],
-  bottomBar: ["home", "alters", "checkin", "journals", "tasks"],
-  dashboardGrid: ["alters", "checkin", "activities", "analytics", "therapy-report", "support"],
-};
+import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 
 export default function NavigationSettings({ settings }) {
   const queryClient = useQueryClient();

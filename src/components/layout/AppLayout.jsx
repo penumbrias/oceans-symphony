@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare, Home, Settings, ChevronLeft, FileText } from "lucide-react";
+import { Settings, ChevronLeft } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import MigrationBanner from "@/components/fronting/MigrationBanner";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
+import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
@@ -15,23 +16,16 @@ function isTabRoot(pathname) {
   return TAB_ROOTS.some((r) => pathname === r) || pathname === "/settings";
 }
 
-function useNavItems(terms) {
-  return [
-  { path: "/", label: "Home", icon: Home },
-  { path: "/Home", label: terms.Alters || "Alters", icon: Users },
-  { path: "/system-checkin", label: "Check-In", icon: Sparkles },
-  { path: "/journals", label: "Journals", icon: BookOpen },
-  { path: "/tasks", label: "Tasks", icon: CheckSquare }];
-
-}
-
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const terms = useTerms();
-  const navItems = useNavItems(terms);
   const [historyDepth, setHistoryDepth] = useState(0);
- 
+
+const { data: systemSettings = [] } = useQuery({
+  queryKey: ["systemSettings"],
+  queryFn: () => base44.entities.SystemSettings.list(),
+});
 
 const { data: alters = [] } = useQuery({
   queryKey: ["alters"],
@@ -49,6 +43,18 @@ const { data: mentionLogs = [] } = useQuery({
   refetchInterval: 15000, // refetch every 15 seconds
   refetchIntervalInBackground: false, // only when tab is active
 });
+
+const navConfig = useMemo(() => {
+  return systemSettings?.[0]?.navigation_config || DEFAULT_CONFIG;
+}, [systemSettings]);
+
+const navItems = useMemo(() => {
+  const filteredPages = ALL_PAGES.filter(page => navConfig.topBar?.includes(page.id));
+  return filteredPages.map(page => ({
+    ...page,
+    label: page.id === "alters" ? (terms.Alters || page.label) : page.label,
+  }));
+}, [navConfig, terms]);
 
 const activeSession = sessions.find((s) => s.is_active);
 const frontingAlterIds = activeSession
@@ -171,7 +177,7 @@ const handleNotifClick = (mentionLog) => {
         aria-label="Tab bar navigation">
         
         <div className="flex items-center justify-around h-14">
-          {navItems.map((item) => {
+          {ALL_PAGES.filter(page => navConfig.bottomBar?.includes(page.id)).map((item) => {
             const Icon = item.icon;
             const isActive = item.path === "/" ?
             location.pathname === "/" :
@@ -188,13 +194,13 @@ const handleNotifClick = (mentionLog) => {
                   "flex flex-col items-center justify-center gap-0.5 flex-1 min-h-[44px] py-1 select-none transition-colors",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}>
-                
+
                 <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
                 <span className="text-[10px] font-medium">{item.label}</span>
               </Link>);
 
-          })}
-        </div>
+            })}
+          </div>
       </nav>
       
       <MigrationBanner />

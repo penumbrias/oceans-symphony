@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -9,6 +9,7 @@ import AlterGrid from "@/components/alters/AlterGrid";
 import FrontingBar from "@/components/fronting/FrontingBar";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useTerms } from "@/lib/useTerms";
+import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 
 export default function Home() {
   const [showAddAlter, setShowAddAlter] = useState(false);
@@ -35,6 +36,10 @@ export default function Home() {
 
   const activeAlters = alters.filter((a) => !a.is_archived);
   const archivedAlters = alters.filter((a) => a.is_archived);
+
+  const navConfig = useMemo(() => {
+    return systemSettings?.navigation_config || DEFAULT_CONFIG;
+  }, [systemSettings]);
 
   if (altersLoading) {
     return (
