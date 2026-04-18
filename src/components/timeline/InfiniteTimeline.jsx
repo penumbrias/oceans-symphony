@@ -7,7 +7,7 @@ import { parseDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
-import { SymptomBar, SymptomBubble } from "@/components/timeline/SymptomBar";
+import { SymptomBar } from "@/components/timeline/SymptomBar";
 
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, symptom: 36, alter: 40 };
@@ -368,12 +368,13 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expand
 }
 
 const TYPE_META = {
-  journal:   { icon: "📓" },
-  checkin:   { icon: "✅" },
-  bulletin:  { icon: "📌" },
-  task:      { icon: "☑️" },
-  task_done: { icon: "✅" },
-  mention:   { icon: "@" },
+  journal:         { icon: "📓" },
+  checkin:         { icon: "✅" },
+  bulletin:        { icon: "📌" },
+  task:            { icon: "☑️" },
+  task_done:       { icon: "✅" },
+  mention:         { icon: "@" },
+  symptom_checkin: { icon: "💊" },
 };
 
 function EmotionBubble({ entry, topPx, expanded, onTap }) {
@@ -436,6 +437,15 @@ function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
           {entry.type === "checkin" && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
           {entry.type === "bulletin" && <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.data.content}</p>}
           {(entry.type === "task" || entry.type === "task_done") && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
+          {entry.type === "symptom_checkin" && (
+            <div className="flex flex-col gap-0.5 mt-0.5">
+              {(entry.data.items || []).map(({ symptom, checkIn }, i) => (
+                <span key={i} className="text-xs leading-tight" style={{ color: symptom?.color || "#8b5cf6" }}>
+                  {symptom?.label || "?"}{checkIn.severity != null ? ` · ${checkIn.severity}` : ""}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       ) : showLabel ? (
         <div className="flex items-center gap-1 rounded-full border shadow-sm bg-card border-border/60 px-1.5 py-0.5 hover:scale-105 transition-transform"
@@ -676,8 +686,19 @@ export default function InfiniteTimeline({
         }
       }
     });
+    // Group symptom check-ins by minute into single event entries
+    const scByMinute = {};
+    symptomCheckIns.forEach(sc => {
+      const mins = Math.max(0, minutesInDay(parseDate(sc.timestamp), dayStart));
+      const bucket = Math.floor(mins);
+      if (!scByMinute[bucket]) scByMinute[bucket] = { mins: bucket, items: [], id: sc.id };
+      scByMinute[bucket].items.push({ symptom: symptomMap[sc.symptom_id], checkIn: sc });
+    });
+    Object.values(scByMinute).forEach(group => {
+      entries.push({ mins: group.mins, type: "symptom_checkin", id: `sc-${group.id}`, label: "Symptom Check-In", data: group });
+    });
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
-  }, [journals, checkIns, bulletins, tasks, dayStart]);
+  }, [journals, checkIns, bulletins, tasks, symptomCheckIns, symptomMap, dayStart]);
 
   const checkInEntries = useMemo(() => [...emotionEntries, ...eventEntries], [emotionEntries, eventEntries]);
 
@@ -732,47 +753,6 @@ export default function InfiniteTimeline({
     symptoms.forEach(s => { m[s.id] = s; });
     return m;
   }, [symptoms]);
-
-  const daySymptomCheckIns = useMemo(() => {
-    return symptomCheckIns.filter(c => {
-      const t = parseDate(c.timestamp);
-      return t >= dayStart && t < new Date(dayStart.getTime() + 24 * 60 * 60000);
-    });
-  }, [symptomCheckIns, dayStart]);
-
-  // Group symptom check-ins by minute (same pattern as emotionEntries)
-  const symptomBubbleEntries = useMemo(() => {
-    const byMinute = {};
-    [...daySymptomCheckIns]
-      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-      .forEach(checkIn => {
-        const mins = Math.max(0, minutesInDay(parseDate(checkIn.timestamp), dayStart));
-        const bucket = Math.floor(mins); // group by exact minute
-        if (!byMinute[bucket]) byMinute[bucket] = { mins: bucket, checkIns: [], timestamp: checkIn.timestamp };
-        byMinute[bucket].checkIns.push({ symptom: symptomMap[checkIn.symptom_id], checkIn });
-      });
-    return Object.values(byMinute)
-      .sort((a, b) => a.mins - b.mins)
-      .map((entry, i) => {
-        const h = Math.floor(entry.mins / 60);
-        const m = entry.mins % 60;
-        const period = h < 12 ? "am" : "pm";
-        const h12 = h % 12 || 12;
-        const timeStr = `${h12}:${String(m).padStart(2, "0")}${period}`;
-        return { ...entry, timeStr, key: `sbubble-${i}-${entry.mins}` };
-      });
-  }, [daySymptomCheckIns, dayStart, symptomMap]);
-
-  const symptomBubblePositioned = useMemo(() => {
-    const MIN_SYMPTOM_GAP = 28;
-    let minNext = -Infinity;
-    return symptomBubbleEntries.map(entry => {
-      const raw = getTopPx(entry.mins);
-      const top = Math.max(raw, minNext);
-      minNext = top + MIN_SYMPTOM_GAP;
-      return { ...entry, adjustedTop: top };
-    });
-  }, [symptomBubbleEntries, getTopPx]);
 
   const sortedSymptomSessions = useMemo(() => {
     return [...symptomSessions].sort((a, b) => {
@@ -1111,20 +1091,7 @@ export default function InfiniteTimeline({
                   </div>
                 ))}
 
-                {/* Symptom bubbles (check-ins) — always rendered in their own layer when symptoms are shown */}
-                {showSymptoms && (
-                  <div className="absolute" style={{ left: symptomLeft, top: 0, width: colWidths.symptom, height: totalHeight }}>
-                    {symptomBubblePositioned.map((entry) => (
-                      <SymptomBubble
-                        key={entry.key}
-                        entry={entry}
-                        topPx={entry.adjustedTop}
-                        expanded={expandedKeys.has(entry.key)}
-                        onTap={() => toggleExpand(entry.key)}
-                      />
-                    ))}
-                  </div>
-                )}
+
 
                 <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
                   style={{ left: timeLeft, height: totalHeight }} />
@@ -1144,6 +1111,7 @@ export default function InfiniteTimeline({
                           else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
                           else if (entry.type === "bulletin") navigate(`/`);
                           else if (entry.type === "task") navigate(`/todo`);
+                          else if (entry.type === "symptom_checkin") navigate(`/diary`);
                         }}
                       />
                     ))}
