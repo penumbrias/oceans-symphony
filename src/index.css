@@ -4,6 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbars while keeping scroll functionality */
+.overflow-y-auto::-webkit-scrollbar {
+  display: none;
+}
+
 @layer base {
   :root {
     --font-sans: 'Inter', sans-serif;

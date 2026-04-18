@@ -126,7 +126,7 @@ export default function Settings() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 80px)" }}>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 80px)", scrollbarWidth: "none", msOverflowStyle: "none" }} onScroll={(e) => e.currentTarget.style.scrollbarWidth = "none"}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex-1">
           <h1 className="font-display text-3xl font-semibold text-foreground mb-2">Settings</h1>
@@ -148,7 +148,7 @@ export default function Settings() {
 
       {/* Quick Nav Menu */}
       <div className={`mb-6 ${mobileMenuOpen ? "block sm:hidden" : "hidden"} sm:block`}>
-        <div className="space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20 max-h-[400px] overflow-y-auto">
+        <div className="space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20 max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
           {navSections.map(section => (
             <button
               key={section.id}
