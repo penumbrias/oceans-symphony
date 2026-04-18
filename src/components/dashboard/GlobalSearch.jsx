@@ -158,7 +158,7 @@ export default function GlobalSearch() {
           id: j.id,
           title: j.title || "Journal Entry",
           subtitle: j.content?.slice(0, 60),
-          path: `/journals`,
+          path: `/journals?id=${j.id}`,
         });
       }
     });
@@ -171,7 +171,7 @@ export default function GlobalSearch() {
           id: b.id,
           title: "Bulletin",
           subtitle: b.content?.slice(0, 60),
-          path: `/`,
+          path: `/?bulletinId=${b.id}`,
         });
       }
     });
@@ -188,7 +188,7 @@ export default function GlobalSearch() {
           id: a.id,
           title: a.activity_name,
           subtitle: a.notes?.slice(0, 60),
-          path: `/activities`,
+          path: `/activities?date=${a.timestamp ? new Date(a.timestamp).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}&highlight=${a.id}`,
         });
       }
     });
@@ -205,7 +205,7 @@ export default function GlobalSearch() {
           id: t.id,
           title: t.title,
           subtitle: t.notes?.slice(0, 60),
-          path: `/tasks`,
+          path: `/tasks?id=${t.id}`,
         });
       }
     });
@@ -221,7 +221,7 @@ export default function GlobalSearch() {
           id: e.id,
           title: "Emotion Check-In",
           subtitle: e.note || e.emotions?.join(", "),
-          path: `/timeline`,
+          path: `/timeline?date=${new Date(e.timestamp).toISOString().split('T')[0]}`,
         });
       }
     });
@@ -272,7 +272,7 @@ export default function GlobalSearch() {
           id: d.id,
           title: d.name || `Diary Card - ${d.date}`,
           subtitle: d.notes?.what?.slice(0, 60),
-          path: `/diary`,
+          path: `/diary?id=${d.id}`,
         });
       }
     });
@@ -285,7 +285,7 @@ export default function GlobalSearch() {
           id: c.id,
           title: "System Check-In",
           subtitle: c.notes?.slice(0, 60) || c.content?.slice(0, 60),
-          path: `/system-checkin`,
+          path: `/system-checkin?id=${c.id}`,
         });
       }
     });

@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Plus, Filter } from "lucide-react";
 import TaskItem from "@/components/tasks/TaskItem";
 import TaskFormModal from "@/components/tasks/TaskFormModal";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 
 export default function ToDoList() {
   const queryClient = useQueryClient();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [highlightId, setHighlightId] = useState(() => location.state?.highlightId || null);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -17,6 +19,9 @@ export default function ToDoList() {
   const [expandedTasks, setExpandedTasks] = useState(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
+
+  // Handle deep link from search
+  useDeepLinkHighlight("id", "item-");
 
   useEffect(() => {
     if (highlightId) {
@@ -149,18 +154,19 @@ export default function ToDoList() {
         ) : (
           <div className="space-y-2">
             {rootTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                highlight={highlightId === task.id}
-                subTasks={tasksByParent.get(task.id) || []}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-                onCreateSubtask={handleCreateSubtask}
-                isExpanded={expandedTasks.has(task.id)}
-                onToggleExpand={() => handleToggleExpand(task.id)}
-              />
+              <div key={task.id} id={`item-${task.id}`}>
+                <TaskItem
+                  task={task}
+                  highlight={highlightId === task.id}
+                  subTasks={tasksByParent.get(task.id) || []}
+                  onToggle={handleToggle}
+                  onDelete={handleDelete}
+                  onEdit={handleEdit}
+                  onCreateSubtask={handleCreateSubtask}
+                  isExpanded={expandedTasks.has(task.id)}
+                  onToggleExpand={() => handleToggleExpand(task.id)}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -173,15 +179,16 @@ export default function ToDoList() {
           </h2>
           <div className="space-y-2">
             {completedTasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                highlight={highlightId === task.id}
-                subTasks={[]}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-              />
+              <div key={task.id} id={`item-${task.id}`}>
+                <TaskItem
+                  task={task}
+                  highlight={highlightId === task.id}
+                  subTasks={[]}
+                  onToggle={handleToggle}
+                  onDelete={handleDelete}
+                  onEdit={handleEdit}
+                />
+              </div>
             ))}
           </div>
         </div>

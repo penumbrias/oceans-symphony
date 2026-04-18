@@ -5,18 +5,20 @@ import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
 import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSearchParams } from "react-router-dom";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
 
 const CHUNK_DAYS = 14; // how many days to load per chunk
 
 export default function Timeline() {
+  const [searchParams] = useSearchParams();
   const [daysBack, setDaysBack] = useState(CHUNK_DAYS);
   const [showFronting, setShowFronting] = useState(true);
   const [showActivities, setShowActivities] = useState(true);
   const [showCheckIns, setShowCheckIns] = useState(true);
   const [showEmotions, setShowEmotions] = useState(true);
   const [showSymptoms, setShowSymptoms] = useState(true);
-  const [jumpDate, setJumpDate] = useState("");
+  const [jumpDate, setJumpDate] = useState(() => searchParams.get("date") || "");
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -84,6 +86,19 @@ export default function Timeline() {
     queryKey: ["symptoms"],
     queryFn: () => base44.entities.Symptom.list(),
   });
+
+  // Jump to date from URL param on mount
+  useEffect(() => {
+    const dateParam = searchParams.get("date");
+    if (dateParam && !jumpDate) {
+      const target = document.getElementById(`day-${dateParam}`);
+      if (target) {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      }
+    }
+  }, [searchParams, jumpDate]);
 
   // Lazy load more days as user scrolls to bottom
   useEffect(() => {

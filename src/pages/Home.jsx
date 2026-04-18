@@ -3,17 +3,22 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Users, Sparkles, Plus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import FrontingBar from "@/components/fronting/FrontingBar";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useTerms } from "@/lib/useTerms";
+import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 
 export default function Home() {
+  const [searchParams] = useSearchParams();
   const [showAddAlter, setShowAddAlter] = useState(false);
   const terms = useTerms();
+
+  // Handle bulletin deep-link
+  useDeepLinkHighlight("bulletinId", "bulletin-");
 
   const { data: alters = [], isLoading: altersLoading } = useQuery({
     queryKey: ["alters"],

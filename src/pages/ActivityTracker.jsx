@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
+import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityTimeRangeModal from "@/components/activities/ActivityTimeRangeModal";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
@@ -31,7 +32,9 @@ export default function ActivityTracker() {
   const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet("symphony_act_week_start", 0));
   const [selectedStartMinute, setSelectedStartMinute] = useState(0);
   const [selectedEndMinute, setSelectedEndMinute] = useState(0);
-  
+
+  // Handle deep link highlight
+  useDeepLinkHighlight("highlight", "activity-");
 
   useEffect(() => {
     if (highlightId) {
