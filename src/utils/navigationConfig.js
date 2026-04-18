@@ -1,6 +1,7 @@
 import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, ClipboardList, Shield } from "lucide-react";
 
 export const ALL_PAGES = [
+  { id: 'reminders', label: 'Reminders', path: '/settings#reminders', icon: 'Bell' },
   { id: "home", label: "Home", path: "/", icon: Home },
   { id: "alters", label: "Alters", path: "/Home", icon: Users },
   { id: "checkin", label: "Check-In", path: "/system-checkin", icon: Sparkles },

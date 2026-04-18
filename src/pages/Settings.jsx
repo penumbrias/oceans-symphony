@@ -25,6 +25,7 @@ import { isLocalMode } from "@/lib/storageMode";
 import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap, Menu, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import NavigationSettings from "@/components/settings/NavigationSettings";
+import RemindersManager from "@/components/settings/RemindersManager";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -42,6 +43,7 @@ export default function Settings() {
     { id: "appearance", label: "Appearance", icon: "🎨" },
     { id: "navigation", label: "Navigation", icon: "🗺️" },
     { id: "terminology", label: "Terminology", icon: "📝" },
+    { id: "reminders", label: "Reminders", icon: "🔔" },
     { id: "check-in", label: "Check-In Manager", icon: "⚡" },
     { id: "symptoms", label: "Symptoms & Habits", icon: "💊" },
     { id: "diary", label: "Diary Template", icon: "📔" },
@@ -76,7 +78,7 @@ export default function Settings() {
       "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
       "Symptom", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
       "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
-      "MentionLog", "ActivityGoal", "Group",
+      "MentionLog", "ActivityGoal", "Group", "Reminder",
     ];
     for (const name of entities) {
       try {
@@ -292,7 +294,10 @@ export default function Settings() {
           <TermsSettings />
         </div>
 
-        
+        {/* Reminders */}
+        <div id="reminders">
+          <RemindersManager />
+        </div>
 
         {/* Account (cloud only) */}
         {!isLocalMode() && (
