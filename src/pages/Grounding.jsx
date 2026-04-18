@@ -409,7 +409,7 @@ export default function Grounding({ initialPath = null }) {
       <div className="space-y-8">
         <div className="text-center space-y-2 pt-4">
           <p className="text-3xl">🫧</p>
-          <h1 className="text-2xl font-semibold text-foreground">You're okay.</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Quick support</h1>
           <p className="text-sm text-muted-foreground">Let's find something that might help right now.</p>
         </div>
 
