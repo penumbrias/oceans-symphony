@@ -78,7 +78,7 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-card border border-border rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+      <div className="bg-card border border-border rounded-xl w-full max-w-lg max-h-[calc(100vh-80px)] overflow-y-auto shadow-xl mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border/50 sticky top-0 bg-card">
           <h2 className="text-xl font-semibold text-foreground">
@@ -89,20 +89,34 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Name */}
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Group Name
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Protectors, Trauma Holders"
-              className="w-full"
-            />
-          </div>
+        {/* Preview */}
+         {(name || icon || customEmoji) && (
+           <div className="flex items-center justify-center py-3 border-b border-border/30">
+             <div
+               className="flex items-center gap-2 px-4 py-2 rounded-full text-white font-medium text-sm"
+               style={{ backgroundColor: color }}
+             >
+               {(customEmoji || icon) && <span>{customEmoji || icon}</span>}
+               <span>{name || 'Group name'}</span>
+             </div>
+           </div>
+         )}
+
+         {/* Content */}
+         <div className="p-6 space-y-6">
+           {/* Name */}
+           <div>
+             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+               Group Name
+             </label>
+             <Input
+               value={name}
+               onChange={(e) => setName(e.target.value)}
+               placeholder="e.g., Protectors, Trauma Holders"
+               className="w-full h-10"
+               autoFocus
+             />
+           </div>
 
           {/* Description */}
           <div>
@@ -119,7 +133,8 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
           </div>
 
           {/* Color & Icon */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-6">
+            {/* Color */}
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                 Color
@@ -127,11 +142,12 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
               <ColorPicker value={color} onChange={setColor} />
             </div>
 
+            {/* Icon */}
             <div>
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Icon
+                Icon (optional)
               </label>
-              <div className="grid grid-cols-5 gap-2 mb-3">
+              <div className="grid grid-cols-10 gap-1.5 mb-3">
                 {EMOJI_PRESETS.map((emoji) => (
                   <button
                     key={emoji}
@@ -139,7 +155,7 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
                       setIcon(emoji);
                       setCustomEmoji("");
                     }}
-                    className={`p-2 rounded-lg border transition-all text-lg ${
+                    className={`aspect-square rounded-lg border transition-all text-lg flex items-center justify-center ${
                       icon === emoji && !customEmoji
                         ? "border-primary bg-primary/10"
                         : "border-border/50 bg-muted/30 hover:bg-muted/50"
@@ -155,7 +171,7 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
                   setCustomEmoji(e.target.value);
                   if (e.target.value) setIcon("");
                 }}
-                placeholder="Or paste custom emoji"
+                placeholder="Or type/paste a custom emoji"
                 maxLength={2}
                 className="text-center text-lg"
               />
@@ -184,9 +200,9 @@ export default function CreateGroupModal({ group = null, onClose, onSave }) {
                     className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 transition-colors cursor-pointer"
                   >
                     <Checkbox
-                      checked={selectedAlterIds.has(alter.id)}
-                      onChange={() => toggleAlter(alter.id)}
-                    />
+                       checked={selectedAlterIds.has(alter.id)}
+                       onCheckedChange={() => toggleAlter(alter.id)}
+                     />
                     <div
                       className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                       style={{ backgroundColor: alter.color || "#8b5cf6" }}
