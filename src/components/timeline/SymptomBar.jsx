@@ -1,5 +1,6 @@
 import React, { useRef, useCallback } from "react";
 import { format } from "date-fns";
+import { X } from "lucide-react";
 
 function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
   const lastRef = useRef({ time: 0 });
@@ -141,8 +142,112 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   );
 }
 
+function SymptomDetailModal({ symptom, session, onClose }) {
+  const color = symptom?.color || "#8b5cf6";
+  const snapshots = session?.severity_snapshots || [];
+  const startStr = session?.start_time ? format(new Date(session.start_time), "h:mm aaa") : null;
+  const endStr = session?.end_time ? format(new Date(session.end_time), "h:mm aaa") : null;
+
+  const duration = () => {
+    const start = new Date(session?.start_time);
+    const end = session?.end_time ? new Date(session.end_time) : new Date();
+    const mins = Math.round((end - start) / 60000);
+    if (mins < 60) return `${mins}m`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="bg-card border border-border rounded-xl p-5 shadow-xl max-w-xs w-full mx-4 space-y-4"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: color }}
+          >
+            <span className="text-white font-bold text-sm">
+              {symptom?.label?.charAt(0)?.toUpperCase()}
+            </span>
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">{symptom?.label}</p>
+            <p className="text-xs text-muted-foreground">
+              {startStr} → {endStr || "now"} · {duration()}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Current severity */}
+        {session?.current_severity != null && (
+          <div
+            className="rounded-lg p-3 space-y-1"
+            style={{ backgroundColor: `${color}15`, borderColor: `${color}30`, border: "1px solid" }}
+          >
+            <p className="text-xs text-muted-foreground font-medium">Current severity</p>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold" style={{ color }}>
+                {session.current_severity}/5
+              </span>
+              <span style={{ color, fontSize: 16 }}>
+                {"●".repeat(session.current_severity)}{"○".repeat(5 - session.current_severity)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Severity history */}
+        {snapshots.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Severity history
+            </p>
+            <div className="space-y-1.5">
+              {snapshots.map((snap, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    {format(new Date(snap.timestamp), "h:mm aaa")}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color, fontSize: 14 }}>
+                      {"●".repeat(snap.severity)}{"○".repeat(5 - snap.severity)}
+                    </span>
+                    <span className="text-xs font-semibold" style={{ color }}>
+                      {snap.severity}/5
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {snapshots.length === 0 && session?.current_severity == null && (
+          <p className="text-sm text-muted-foreground italic text-center py-2">
+            No severity logged for this session
+          </p>
+        )}
+
+        <button
+          onClick={onClose}
+          className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // SymptomBubble — mirrors EmotionBubble exactly, grouped by minute
 // entry = { mins, checkIns: [{symptom, checkIn}], key }
+export { SymptomDetailModal };
+
 export function SymptomBubble({ entry, topPx, expanded, onTap }) {
   const items = entry.checkIns || [];
   const timeStr = entry.timeStr || "";

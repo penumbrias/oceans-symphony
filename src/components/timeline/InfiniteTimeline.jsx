@@ -7,7 +7,7 @@ import { parseDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
-import { SymptomBar } from "@/components/timeline/SymptomBar";
+import { SymptomBar, SymptomDetailModal } from "@/components/timeline/SymptomBar";
 import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 
 const LABEL_WIDTH = 44;
@@ -491,6 +491,7 @@ export default function InfiniteTimeline({
   const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
   const [newSessionPopover, setNewSessionPopover] = useState(null);
   const [symptomSessionPopover, setSymptomSessionPopover] = useState(null); // { session, symptom, splitMins }
+  const [symptomDetailModal, setSymptomDetailModal] = useState(null); // { session, symptom }
   const longPressTargetRef = useRef(null);
 
   const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
@@ -1087,16 +1088,8 @@ export default function InfiniteTimeline({
                            rowH={rowH}
                            expanded={expandedKeys.has(barKey)}
                            onTap={() => toggleExpand(barKey)}
+                           onLongPress={() => setSymptomDetailModal({ session, symptom })}
                            onDoubleTap={() => setSymptomSessionPopover({ session, symptom, splitMins: entry.startMins })}
-                           onLongPress={(clientY) => {
-                             if (!session) return;
-                             const gridEl = document.querySelector('.overflow-y-auto');
-                             const gridRect = gridEl?.getBoundingClientRect();
-                             const scrollTop = gridEl?.scrollTop || 0;
-                             const relY = clientY - (gridRect?.top || 0) + scrollTop;
-                             const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
-                             setSymptomSessionPopover({ session, symptom, splitMins: pressedMins });
-                           }}
                          />
                        );
                      })}
@@ -1270,6 +1263,14 @@ export default function InfiniteTimeline({
           session={symptomSessionPopover.session}
           onClose={() => setSymptomSessionPopover(null)}
           onSave={() => {}}
+        />
+      )}
+
+      {symptomDetailModal && (
+        <SymptomDetailModal
+          symptom={symptomDetailModal.symptom}
+          session={symptomDetailModal.session}
+          onClose={() => setSymptomDetailModal(null)}
         />
       )}
     </div>
