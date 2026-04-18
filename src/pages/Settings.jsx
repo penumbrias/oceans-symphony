@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -22,7 +22,7 @@ import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import { isLocalMode } from "@/lib/storageMode";
-import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap } from "lucide-react";
+import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap, Menu, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 
@@ -34,6 +34,29 @@ export default function Settings() {
   const [deleteInput, setDeleteInput] = useState("");
   const [deleted, setDeleted] = useState(false);
   const [noticeOpen, setNoticeOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navSections = [
+    { id: "system-info", label: "System Info", icon: "⚙️" },
+    { id: "appearance", label: "Appearance", icon: "🎨" },
+    { id: "navigation", label: "Navigation", icon: "🗺️" },
+    { id: "terminology", label: "Terminology", icon: "📝" },
+    { id: "check-in", label: "Check-In Manager", icon: "⚡" },
+    { id: "symptoms", label: "Symptoms & Habits", icon: "💊" },
+    { id: "diary", label: "Diary Template", icon: "📔" },
+    { id: "emotions", label: "Custom Emotions", icon: "😊" },
+    { id: "fields", label: "Custom Fields", icon: "🏷️" },
+    { id: "alters", label: "Archived Alters", icon: "👥" },
+    { id: "data", label: "Data Management", icon: "💾" },
+  ];
+
+  const handleScroll = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+      setMobileMenuOpen(false);
+    }
+  };
 
   const handleSignOut = () => {
     base44.auth.logout("/");
@@ -97,13 +120,40 @@ export default function Settings() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-      <h1 className="font-display text-3xl font-semibold text-foreground mb-2">Settings</h1>
-      <p className="text-muted-foreground mb-8">Customize {terms.system} and manage your account. Check out the <span
-                    onClick={() => window.open("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1", "_blank")}
-                    className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
-                  >
-                    alter card template gallery
-                  </span></p>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex-1">
+          <h1 className="font-display text-3xl font-semibold text-foreground mb-2">Settings</h1>
+          <p className="text-muted-foreground">Customize {terms.system} and manage your account. Check out the <span
+                      onClick={() => window.open("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1", "_blank")}
+                      className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
+                    >
+                      alter card template gallery
+                    </span></p>
+        </div>
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="sm:hidden p-2 rounded-lg hover:bg-muted transition-colors"
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Quick Nav Menu */}
+      <div className={`mb-6 ${mobileMenuOpen ? "block sm:hidden" : "hidden"} sm:block`}>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          {navSections.map(section => (
+            <button
+              key={section.id}
+              onClick={() => handleScroll(section.id)}
+              className="p-3 rounded-lg border border-border/50 bg-card hover:bg-muted/50 transition-colors text-center text-xs sm:text-sm font-medium"
+            >
+              <div className="text-lg sm:text-xl mb-1">{section.icon}</div>
+              {section.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="space-y-6 max-w-2xl">
 
@@ -178,7 +228,7 @@ export default function Settings() {
         </Card>
 
         {/* System Name */}
-        <Card className="border-border/50">
+        <Card className="border-border/50" id="system-info">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
@@ -221,13 +271,19 @@ export default function Settings() {
         </Card>
 
         {/* Advanced Appearance */}
-        <AdvancedAppearance />
+        <div id="appearance">
+          <AdvancedAppearance />
+        </div>
 
         {/* Navigation */}
-        <NavigationSettings settings={settings} />
+        <div id="navigation">
+          <NavigationSettings settings={settings} />
+        </div>
 
         {/* Terminology */}
-        <TermsSettings />
+        <div id="terminology">
+          <TermsSettings />
+        </div>
 
         
 
@@ -293,8 +349,7 @@ export default function Settings() {
           </Card>
         )}
 
-        {/* Data Management */}
-        <div className="space-y-3">
+        <div className="space-y-3 pt-4">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Data Management</p>
           <StorageModeSettings />
           <DataBackupRestore />
@@ -312,7 +367,7 @@ export default function Settings() {
         </div>
 
         {/* Check-In Manager */}
-        <div className="bg-card border border-border/50 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-card border border-border/50 rounded-xl p-4 flex items-center justify-between" id="check-in">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Zap className="w-5 h-5 text-primary" />
@@ -326,18 +381,31 @@ export default function Settings() {
         </div>
 
         {/* Symptoms & Habits */}
-        <SymptomManager />
+        <div id="symptoms">
+          <SymptomManager />
+        </div>
 
         {/* Diary Template */}
-        <DiaryTemplateManager settings={settings} />
+        <div id="diary">
+          <DiaryTemplateManager settings={settings} />
+        </div>
 
-<CustomEmotionsManager />
+        <div id="emotions">
+          <CustomEmotionsManager />
+        </div>
 
         {/* Custom Fields */}
-        <CustomFieldsManager />        
+        <div id="fields">
+          <CustomFieldsManager />
+        </div>
       
         {/* Archived Alters */}
-        <ArchivedAltersManager />
+        <div id="alters">
+          <ArchivedAltersManager />
+        </div>
+
+        {/* Data Management */}
+        <div id="data"></div>
 
       </div>
     </motion.div>
