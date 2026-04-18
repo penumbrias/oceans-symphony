@@ -77,7 +77,10 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
           await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
         }
         await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
-      }
+      } else if (isPrimary) {
+  await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
+  toast.success(`${alter.name} demoted to co-fronter`);
+}
       toast.success(`${alter.name} is now primary!`);
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
