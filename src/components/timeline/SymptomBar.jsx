@@ -1,8 +1,29 @@
-import React, { useRef } from "react";
+import React, { useRef, useCallback } from "react";
 import { format } from "date-fns";
 
-export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, onTap, onLongPress }) {
-  const sz = Math.max(18, Math.min(24, rowH * 0.4));
+function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
+  const lastRef = useRef({ time: 0 });
+  return useCallback((e) => {
+    e.preventDefault();
+    const now = Date.now();
+    if (now - lastRef.current.time < ms) {
+      lastRef.current.time = 0;
+      onDoubleTap?.(e);
+    } else {
+      lastRef.current.time = now;
+      setTimeout(() => {
+        if (lastRef.current.time !== 0 && Date.now() - lastRef.current.time >= ms - 30) {
+          lastRef.current.time = 0;
+          onSingleTap?.(e);
+        }
+      }, ms);
+    }
+  }, [onSingleTap, onDoubleTap, ms]);
+}
+
+export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, onTap, onDoubleTap, onLongPress }) {
+  const sz = Math.max(24, Math.min(32, rowH * 0.5));
+  const tap = useDoubleTap(onTap, onDoubleTap);
   const color = symptom?.color || "#8b5cf6";
   const snapshots = session?.severity_snapshots || [];
   const lpRef = useRef(null);
@@ -23,8 +44,8 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   return (
     <div
       className="absolute flex flex-col items-center cursor-pointer"
-      style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
-      onClick={onTap}
+      style={{ top: topPx, left: 0, right: 0, userSelect: "none", minWidth: 44 }}
+      onClick={tap}
       onMouseDown={startPress}
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}

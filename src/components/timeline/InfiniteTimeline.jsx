@@ -11,7 +11,7 @@ import { SymptomBar } from "@/components/timeline/SymptomBar";
 import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, symptom: 36, alter: 40 };
+const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, symptom: 56, alter: 40 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
 const EXPANDED_EXTRA = 100;
 const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
@@ -1087,13 +1087,15 @@ export default function InfiniteTimeline({
                            rowH={rowH}
                            expanded={expandedKeys.has(barKey)}
                            onTap={() => toggleExpand(barKey)}
+                           onDoubleTap={() => setSymptomSessionPopover({ session, symptom, splitMins: entry.startMins })}
                            onLongPress={(clientY) => {
                              if (!session) return;
                              const gridEl = document.querySelector('.overflow-y-auto');
                              const gridRect = gridEl?.getBoundingClientRect();
                              const scrollTop = gridEl?.scrollTop || 0;
                              const relY = clientY - (gridRect?.top || 0) + scrollTop;
-                             setSymptomSessionPopover({ session, symptom });
+                             const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
+                             setSymptomSessionPopover({ session, symptom, splitMins: pressedMins });
                            }}
                          />
                        );
