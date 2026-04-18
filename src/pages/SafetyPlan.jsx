@@ -4,9 +4,10 @@ import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { ChevronDown, Shield, Lightbulb, BarChart3, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function SafetyPlan() {
+  const navigate = useNavigate();
   const [expandedSections, setExpandedSections] = React.useState({
     warningSigns: true,
     copingCards: false,
@@ -58,11 +59,9 @@ export default function SafetyPlan() {
         </div>
 
         <div className="flex justify-center">
-          <Link to="/grounding">
-            <Button size="lg" className="gap-2">
-              <Lightbulb className="w-4 h-4" /> Go to Learn
-            </Button>
-          </Link>
+          <Button size="lg" onClick={() => navigate("/grounding?tab=learn&module=4&topic=3")} className="gap-2">
+            <Lightbulb className="w-4 h-4" /> Go to Safety Plan lesson
+          </Button>
         </div>
       </motion.div>
     );

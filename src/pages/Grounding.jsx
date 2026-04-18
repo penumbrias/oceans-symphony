@@ -31,6 +31,7 @@ const BREATHING_NAMES = Object.keys(BREATHING_PATTERNS);
 
 export default function Grounding({ initialPath = null }) {
   // path: 'entry' | 'state-check' | 'suggestions' | 'all' | 'breathing' | 'guided' | 'custom-form'
+  const navigate = useNavigate();
   const [path, setPath] = useState(initialPath || "entry");
   const [activeTab, setActiveTab] = useState("support"); // "support" | "learn"
   const [selectedStates, setSelectedStates] = useState([]);
@@ -41,6 +42,19 @@ export default function Grounding({ initialPath = null }) {
   const [returnPath, setReturnPath] = useState(null); // for "try now" from Learn
 
   const queryClient = useQueryClient();
+
+  const { data: supportEntries = [] } = useQuery({
+    queryKey: ["supportJournalEntries"],
+    queryFn: () => base44.entities.SupportJournalEntry.list(),
+  });
+
+  const hasSavedSafetyPlan = useMemo(() => {
+    return supportEntries.some(e => 
+      e.exercise_id === "m4_t3_safety_plan" || 
+      e.exercise_id === "m6_t2_window_plan" || 
+      e.exercise_id === "m6_t1_coping_cards"
+    );
+  }, [supportEntries]);
 
   const { data: techniques = [] } = useQuery({
     queryKey: ["groundingTechniques"],
@@ -415,16 +429,6 @@ export default function Grounding({ initialPath = null }) {
         </div>
 
         <div className="space-y-3">
-          <Link to="/safety-plan" className="w-full">
-            <button className="w-full text-left bg-primary/10 border border-primary/30 rounded-lg p-4 hover:bg-primary/15 transition-all flex items-center justify-between group">
-              <div>
-                <p className="font-semibold text-sm text-primary group-hover:text-primary transition-colors">My Safety Plan</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Warning signs, coping cards, distress plan</p>
-              </div>
-              <Shield className="text-primary text-lg ml-3 flex-shrink-0" />
-            </button>
-          </Link>
-
           <button
             onClick={() => setPath("all")}
             className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
@@ -456,6 +460,15 @@ export default function Grounding({ initialPath = null }) {
               <p className="text-xs text-muted-foreground mt-0.5">Choose a breathing technique</p>
             </div>
             <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
+          </button>
+
+          {/* My Safety Plan footer */}
+          <button
+            onClick={() => navigate("/safety-plan")}
+            className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2 border-t border-border/30 mt-2"
+          >
+            <Shield className="w-4 h-4" />
+            {hasSavedSafetyPlan ? "View my safety plan" : "Build my safety plan"}
           </button>
         </div>
       </div>
