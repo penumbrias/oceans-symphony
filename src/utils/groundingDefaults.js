@@ -51,6 +51,110 @@ export const DEFAULT_TECHNIQUES = [
     is_default: true,
     order: 3
   },
+  {
+    name: "Deep belly breathing",
+    description: "The simplest and most accessible breathing technique — a slow, deep breath that fills the belly rather than the chest.",
+    category: "breathing",
+    steps: [
+      "Find a comfortable position sitting or lying down.",
+      "Place one hand on your belly.",
+      "Inhale slowly through your nose, letting your belly rise as your lungs fill.",
+      "Hold gently for 2 seconds.",
+      "Exhale slowly through your mouth, feeling your belly fall.",
+      "Repeat for 5–10 breaths."
+    ],
+    suggested_for: ["anxiety", "dissociation", "overwhelm", "stuck", "crisis"],
+    duration_seconds: 120,
+    is_default: true,
+    order: 4
+  },
+  {
+    name: "Alternate nostril breathing",
+    description: "A balancing technique that alternates breathing between nostrils, good for mental reset and reducing stress.",
+    category: "breathing",
+    steps: [
+      "Sit comfortably.",
+      "Rest your left hand on your knee.",
+      "Use your right thumb to gently close your right nostril.",
+      "Inhale slowly through your left nostril.",
+      "Close your left nostril with your ring finger and release your right nostril.",
+      "Exhale fully through the right side.",
+      "Inhale through the right nostril.",
+      "Close it, then exhale through the left.",
+      "That is one round. Continue for 5–10 rounds."
+    ],
+    suggested_for: ["anxiety", "stuck", "overwhelm"],
+    duration_seconds: 180,
+    is_default: true,
+    order: 5
+  },
+  {
+    name: "Pursed lip breathing",
+    description: "A simple technique that slows your breathing and increases oxygen flow, especially helpful for anxiety or shortness of breath.",
+    category: "breathing",
+    steps: [
+      "Breathe in gently through your nose for a count of 2.",
+      "Purse your lips as if you are about to blow out a candle.",
+      "Exhale slowly and gently through pursed lips for a count of 4.",
+      "Keep the exhale controlled — twice as long as the inhale.",
+      "Repeat several times."
+    ],
+    suggested_for: ["anxiety", "dissociation", "crisis"],
+    duration_seconds: 120,
+    is_default: true,
+    order: 6
+  },
+  {
+    name: "Resonant breathing",
+    description: "A slow, steady breathing pattern of equal inhale and exhale that calms the nervous system and supports long-term stress recovery.",
+    category: "breathing",
+    steps: [
+      "Breathe in slowly for a count of 5.",
+      "Breathe out slowly for a count of 5.",
+      "Aim for a smooth, even rhythm — about 6 breaths per minute.",
+      "Focus on keeping the breath gentle and steady.",
+      "Continue for 5–10 minutes if possible, or as long as feels right."
+    ],
+    suggested_for: ["anxiety", "overwhelm", "stuck"],
+    duration_seconds: 300,
+    is_default: true,
+    order: 7
+  },
+  {
+    name: "Humming bee breath",
+    description: "An unusual and deeply calming technique that uses gentle humming on the exhale to create soothing vibrations.",
+    category: "breathing",
+    steps: [
+      "Sit comfortably and close your eyes if comfortable.",
+      "Take a slow breath in through your nose.",
+      "As you exhale, make a soft, gentle humming sound — like a distant bee.",
+      "Feel the vibrations in your face and head.",
+      "Let the sound be quiet and easy, not forced.",
+      "Repeat 5–10 times, letting each hum help you settle."
+    ],
+    suggested_for: ["anxiety", "overwhelm", "switching", "stuck"],
+    duration_seconds: 180,
+    is_default: true,
+    order: 8
+  },
+  {
+    name: "Breath counting",
+    description: "A mindful breathing technique that uses counting to quiet racing thoughts and bring attention to the present moment.",
+    category: "breathing",
+    steps: [
+      "Breathe in naturally.",
+      "On the inhale, silently count 'one.'",
+      "Exhale normally.",
+      "Breathe in again — count 'two.'",
+      "Continue up to 10, then start again at 1.",
+      "If you lose count, just return to 1 without judgment.",
+      "Continue for 5–10 minutes, or as long as feels helpful."
+    ],
+    suggested_for: ["anxiety", "dissociation", "stuck", "derealization"],
+    duration_seconds: 300,
+    is_default: true,
+    order: 9
+  },
 
   // --- SENSORY ---
   {
@@ -68,7 +172,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["dissociation", "derealization", "anxiety", "switching"],
     duration_seconds: 180,
     is_default: true,
-    order: 4
+    order: 10
   },
 
   // --- BODY ---
@@ -88,7 +192,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["dissociation", "derealization", "anxiety", "overwhelm", "stuck"],
     duration_seconds: 180,
     is_default: true,
-    order: 5
+    order: 11
   },
   {
     name: "Cold water",
@@ -105,7 +209,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["dissociation", "derealization", "anxiety"],
     duration_seconds: 60,
     is_default: true,
-    order: 6
+    order: 12
   },
   {
     name: "Bilateral tapping",
@@ -122,7 +226,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["dissociation", "anxiety", "switching", "crisis"],
     duration_seconds: 120,
     is_default: true,
-    order: 7
+    order: 13
   },
 
   // --- IMAGERY ---
@@ -140,7 +244,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["dissociation", "derealization", "switching", "stuck"],
     duration_seconds: 60,
     is_default: true,
-    order: 11
+    order: 14
   },
   {
     name: "Peaceful place visualization",
@@ -159,7 +263,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["overwhelm", "crisis", "anxiety", "switching"],
     duration_seconds: 300,
     is_default: true,
-    order: 12
+    order: 15
   },
   {
     name: "Split screen imagery",
@@ -177,7 +281,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["dissociation", "derealization", "anxiety", "overwhelm"],
     duration_seconds: 300,
     is_default: true,
-    order: 13
+    order: 16
   },
   {
     name: "Containment imagery",
@@ -195,7 +299,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["crisis", "overwhelm", "dissociation", "switching"],
     duration_seconds: 240,
     is_default: true,
-    order: 14
+    order: 17
   },
   {
     name: "Gauge and regulator imagery",
@@ -213,7 +317,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["anxiety", "overwhelm", "crisis"],
     duration_seconds: 180,
     is_default: true,
-    order: 15
+    order: 18
   },
   {
     name: "The pause button",
@@ -230,7 +334,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["crisis", "anxiety", "overwhelm", "stuck"],
     duration_seconds: 60,
     is_default: true,
-    order: 16
+    order: 19
   },
   {
     name: "Slow swing imagery",
@@ -247,7 +351,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["anxiety", "dissociation", "stuck"],
     duration_seconds: 120,
     is_default: true,
-    order: 17
+    order: 20
   },
 
   // --- VISUALIZATION (existing) ---
@@ -268,7 +372,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["overwhelm", "crisis", "switching", "anxiety"],
     duration_seconds: 300,
     is_default: true,
-    order: 8
+    order: 21
   },
 
   // --- SENSORY (additional) ---
@@ -287,7 +391,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["dissociation", "derealization", "switching"],
     duration_seconds: 120,
     is_default: true,
-    order: 18
+    order: 22
   },
   {
     name: "Feet on the ground",
@@ -303,7 +407,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["dissociation", "derealization", "anxiety"],
     duration_seconds: 60,
     is_default: true,
-    order: 19
+    order: 23
   },
   {
     name: "Muscle release",
@@ -320,7 +424,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["anxiety", "overwhelm", "stuck"],
     duration_seconds: 120,
     is_default: true,
-    order: 20
+    order: 24
   },
 
   // --- MOVEMENT ---
@@ -339,7 +443,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["stuck", "dissociation"],
     duration_seconds: 120,
     is_default: true,
-    order: 9
+    order: 25
   },
 
   // --- AFFIRMATION ---
@@ -359,7 +463,7 @@ export const DEFAULT_TECHNIQUES = [
     suggested_for: ["crisis", "overwhelm", "switching", "stuck", "anxiety"],
     duration_seconds: 120,
     is_default: true,
-    order: 10
+    order: 26
   }
 ];
 
