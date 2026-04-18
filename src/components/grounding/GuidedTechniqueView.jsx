@@ -20,6 +20,7 @@ export default function GuidedTechniqueView({
   currentAlter,
   alters = [],
   onBack,
+  backLabel,
   onRate,
   onSaveNote,
   onToggleFavorite,
@@ -77,8 +78,9 @@ export default function GuidedTechniqueView({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={onBack} className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-5 h-5" />
+          {backLabel && <span className="text-xs">{backLabel}</span>}
         </button>
         <div className="flex items-center gap-2 flex-1">
           <span className="text-xl">{emoji}</span>

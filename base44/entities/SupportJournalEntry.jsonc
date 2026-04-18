@@ -1,0 +1,40 @@
+{
+  "name": "SupportJournalEntry",
+  "type": "object",
+  "properties": {
+    "exercise_id": {
+      "type": "string",
+      "description": "Stable exercise identifier like 'm1_t2_orienting'"
+    },
+    "exercise_title": {
+      "type": "string",
+      "description": "Display name of the exercise"
+    },
+    "responses": {
+      "type": "object",
+      "description": "Map of fieldId to string value for each prompt"
+    },
+    "keep_history": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, new responses append; if false, overwrite"
+    }
+  },
+  "required": [
+    "exercise_id"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

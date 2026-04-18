@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StateCheckFlow from "@/components/grounding/StateCheckFlow";
 import TechniqueCard from "@/components/grounding/TechniqueCard";
@@ -9,16 +9,20 @@ import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
 import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
+import LearnSection from "@/components/support/LearnSection";
 import {
   DEFAULT_TECHNIQUES, EMOTIONAL_STATES, CATEGORY_LABELS, CATEGORY_EMOJIS,
   BREATHING_PATTERNS
 } from "@/utils/groundingDefaults";
 
-// ---- Seed helper ----
+// ---- Seed helper — adds new defaults that don't exist yet by name ----
 async function seedDefaultTechniques() {
   const existing = await base44.entities.GroundingTechnique.list();
-  if (existing.length > 0) return;
-  await base44.entities.GroundingTechnique.bulkCreate(DEFAULT_TECHNIQUES);
+  const existingNames = new Set(existing.map(t => t.name));
+  const toAdd = DEFAULT_TECHNIQUES.filter(t => !existingNames.has(t.name));
+  if (toAdd.length > 0) {
+    await base44.entities.GroundingTechnique.bulkCreate(toAdd);
+  }
 }
 
 const BREATHING_NAMES = Object.keys(BREATHING_PATTERNS);
@@ -26,11 +30,13 @@ const BREATHING_NAMES = Object.keys(BREATHING_PATTERNS);
 export default function Grounding({ initialPath = null }) {
   // path: 'entry' | 'state-check' | 'suggestions' | 'all' | 'breathing' | 'guided' | 'custom-form'
   const [path, setPath] = useState(initialPath || "entry");
+  const [activeTab, setActiveTab] = useState("support"); // "support" | "learn"
   const [selectedStates, setSelectedStates] = useState([]);
   const [selectedTechnique, setSelectedTechnique] = useState(null);
   const [selectedBreathing, setSelectedBreathing] = useState(null);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [seeded, setSeeded] = useState(false);
+  const [returnPath, setReturnPath] = useState(null); // for "try now" from Learn
 
   const queryClient = useQueryClient();
 
@@ -55,13 +61,13 @@ export default function Grounding({ initialPath = null }) {
   });
 
   useEffect(() => {
-    if (!seeded && techniques.length === 0) {
+    if (!seeded) {
       seedDefaultTechniques().then(() => {
         queryClient.invalidateQueries({ queryKey: ["groundingTechniques"] });
         setSeeded(true);
       });
     }
-  }, [techniques.length, seeded]);
+  }, [seeded]);
 
   const currentFronter = useMemo(() => {
     const active = frontingSessions.find(s => s.is_primary && s.alter_id);
@@ -114,9 +120,15 @@ export default function Grounding({ initialPath = null }) {
     setPath("suggestions");
   };
 
-  const handleOpenTechnique = (technique) => {
+  const handleOpenTechnique = (technique, fromLearn = false) => {
     setSelectedTechnique(technique);
+    if (fromLearn) setReturnPath("learn");
     setPath("guided");
+  };
+
+  const handleTryTechniqueByName = (name) => {
+    const t = visibleTechniques.find(x => x.name === name);
+    if (t) handleOpenTechnique(t, true);
   };
 
   const handleStartBreathing = (name) => {
@@ -169,7 +181,16 @@ export default function Grounding({ initialPath = null }) {
           preference={prefMap[selectedTechnique.id]}
           currentAlter={currentFronter}
           alters={alters.filter(a => !a.is_archived)}
-          onBack={() => setPath("all")}
+          onBack={() => {
+            if (returnPath === "learn") {
+              setReturnPath(null);
+              setActiveTab("learn");
+              setPath("entry");
+            } else {
+              setPath("all");
+            }
+          }}
+          backLabel={returnPath === "learn" ? "Back to lesson" : undefined}
           onRate={handleRate}
           onSaveNote={handleSaveNote}
           onToggleFavorite={handleToggleFavorite}
@@ -337,39 +358,73 @@ export default function Grounding({ initialPath = null }) {
     );
   }
 
-  // Entry screen
-  return (
-    <div className="max-w-lg mx-auto p-6 space-y-8">
-      <div className="text-center space-y-2 pt-4">
-        <p className="text-3xl">🫧</p>
-        <h1 className="text-2xl font-semibold text-foreground">You're okay.</h1>
-        <p className="text-sm text-muted-foreground">Let's find something that might help right now.</p>
+  // Tab bar shown on entry
+  const TabBar = () => (
+    <div className="flex border-b border-border/60 mb-6 sticky top-0 bg-background z-10">
+      {[
+        { id: "support", label: "Support" },
+        { id: "learn", label: "Learn" },
+      ].map(tab => (
+        <button
+          key={tab.id}
+          onClick={() => setActiveTab(tab.id)}
+          className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === tab.id
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (activeTab === "learn") {
+    return (
+      <div className="max-w-xl mx-auto">
+        <TabBar />
+        <LearnSection onTryTechnique={handleTryTechniqueByName} />
       </div>
+    );
+  }
 
-      <div className="space-y-3">
-        <button
-          onClick={() => setPath("all")}
-          className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
-        >
-          <p className="font-semibold text-foreground group-hover:text-primary transition-colors">I know what I need</p>
-          <p className="text-sm text-muted-foreground mt-0.5">Show me everything</p>
-        </button>
+  // Entry screen (Support tab)
+  return (
+    <div className="max-w-lg mx-auto px-4">
+      <TabBar />
+      <div className="space-y-8">
+        <div className="text-center space-y-2 pt-4">
+          <p className="text-3xl">🫧</p>
+          <h1 className="text-2xl font-semibold text-foreground">You're okay.</h1>
+          <p className="text-sm text-muted-foreground">Let's find something that might help right now.</p>
+        </div>
 
-        <button
-          onClick={() => setPath("state-check")}
-          className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
-        >
-          <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Help me figure out what I need</p>
-          <p className="text-sm text-muted-foreground mt-0.5">Quick check-in → tailored suggestions</p>
-        </button>
+        <div className="space-y-3">
+          <button
+            onClick={() => setPath("all")}
+            className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+          >
+            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">I know what I need</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Show me everything</p>
+          </button>
 
-        <button
-          onClick={() => { setSelectedBreathing("Box breathing"); setPath("breathing"); }}
-          className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
-        >
-          <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Just start breathing</p>
-          <p className="text-sm text-muted-foreground mt-0.5">Jump straight to a breathing exercise</p>
-        </button>
+          <button
+            onClick={() => setPath("state-check")}
+            className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+          >
+            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Help me figure out what I need</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Quick check-in → tailored suggestions</p>
+          </button>
+
+          <button
+            onClick={() => { setSelectedBreathing("Box breathing"); setPath("breathing"); }}
+            className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+          >
+            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Just start breathing</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Jump straight to a breathing exercise</p>
+          </button>
+        </div>
       </div>
     </div>
   );

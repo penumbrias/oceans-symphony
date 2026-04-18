@@ -1,50 +1,71 @@
 import { useState } from "react";
-import { Heart, ChevronDown, ChevronUp } from "lucide-react";
+
+const RESOURCES = [
+  {
+    region: "🇺🇸 In the US",
+    items: [
+      { name: "988 Suicide & Crisis Lifeline", detail: "Call or text 988" },
+      { name: "Crisis Text Line", detail: "Text HOME to 741741" },
+      { name: "Trans Lifeline", detail: "877-565-8860" },
+      { name: "The Trevor Project", detail: "Call 1-866-488-7386 or text START to 678-678 (LGBTQ+ youth)" },
+      { name: "RAINN", detail: "1-800-656-4673 or rainn.org (sexual assault support)" },
+    ]
+  },
+  {
+    region: "🌍 International",
+    items: [
+      { name: "International Association for Suicide Prevention", detail: "iasp.info/resources/Crisis_Centres — crisis centers by country" },
+      { name: "Befrienders Worldwide", detail: "befrienders.org" },
+    ]
+  },
+  {
+    region: "🧠 Dissociative disorders",
+    items: [
+      { name: "ISSTD Find a Therapist", detail: "isstd.connectedcommunity.org — therapists trained in trauma and dissociation" },
+    ]
+  }
+];
 
 export default function CrisisResourcesCard() {
-  const [expanded, setExpanded] = useState(false);
+  const [showResources, setShowResources] = useState(false);
 
   return (
-    <div className="rounded-xl border border-muted bg-muted/20 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <Heart className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        <p className="text-sm text-foreground">Would you like to see some support resources?</p>
+    <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/40 rounded-2xl p-4 space-y-3">
+      <p className="text-sm font-medium text-rose-700 dark:text-rose-400">
+        🤍 You don't have to go through this alone.
+      </p>
+
+      {!showResources ? (
         <button
-          onClick={() => setExpanded(v => !v)}
-          className="ml-auto text-xs px-3 py-1 rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors flex items-center gap-1"
+          onClick={() => setShowResources(true)}
+          className="text-sm text-rose-600 dark:text-rose-400 hover:underline transition-colors"
         >
-          {expanded ? "Hide" : "Show"}
-          {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          Would you like to see some support resources?
         </button>
-      </div>
-
-      {expanded && (
-        <div className="space-y-3 pt-1">
-          <div className="rounded-lg bg-card border border-border/60 p-3 space-y-1">
-            <p className="text-sm font-medium text-foreground">988 Suicide & Crisis Lifeline</p>
-            <p className="text-xs text-muted-foreground">Call or text <span className="font-semibold text-foreground">988</span> — available 24/7 (US)</p>
-          </div>
-
-          <div className="rounded-lg bg-card border border-border/60 p-3 space-y-1">
-            <p className="text-sm font-medium text-foreground">Crisis Text Line</p>
-            <p className="text-xs text-muted-foreground">Text <span className="font-semibold text-foreground">HOME</span> to <span className="font-semibold text-foreground">741741</span> (US)</p>
-          </div>
-
-          <div className="rounded-lg bg-card border border-border/60 p-3 space-y-1">
-            <p className="text-sm font-medium text-foreground">International Crisis Centres</p>
-            <a
-              href="https://www.iasp.info/resources/Crisis_Centres/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary hover:underline"
-            >
-              iasp.info/resources/Crisis_Centres
-            </a>
-          </div>
-
-          <p className="text-xs text-muted-foreground italic px-1">
-            You can also reach out to a trusted person in your life. You don't have to get through this alone.
+      ) : (
+        <div className="space-y-4">
+          {RESOURCES.map((section) => (
+            <div key={section.region} className="space-y-2">
+              <p className="text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wide">
+                {section.region}
+              </p>
+              {section.items.map((item) => (
+                <div key={item.name} className="space-y-0.5">
+                  <p className="text-sm font-medium text-rose-800 dark:text-rose-300">{item.name}</p>
+                  <p className="text-xs text-rose-600 dark:text-rose-400">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          ))}
+          <p className="text-xs text-rose-600 dark:text-rose-500 italic pt-1">
+            Reaching out is a sign of strength, not weakness. You deserve support.
           </p>
+          <button
+            onClick={() => setShowResources(false)}
+            className="text-xs text-rose-500 hover:underline"
+          >
+            Hide resources
+          </button>
         </div>
       )}
     </div>

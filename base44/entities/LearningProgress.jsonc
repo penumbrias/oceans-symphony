@@ -1,0 +1,44 @@
+{
+  "name": "LearningProgress",
+  "type": "object",
+  "properties": {
+    "module_id": {
+      "type": "string",
+      "description": "Module identifier e.g. 'm1'"
+    },
+    "topic_id": {
+      "type": "string",
+      "description": "Topic identifier e.g. 'm1_t1'"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional personal notes the user adds to this topic"
+    }
+  },
+  "required": [
+    "module_id",
+    "topic_id"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

@@ -125,7 +125,132 @@ export const DEFAULT_TECHNIQUES = [
     order: 7
   },
 
-  // --- VISUALIZATION ---
+  // --- IMAGERY ---
+  {
+    name: "Orienting to the present",
+    description: "A mental check-in that anchors you to the current moment by asking simple questions about where and when you are.",
+    category: "imagery",
+    steps: [
+      "Ask yourself: What year is it? What month? What day?",
+      "Ask: How old am I right now?",
+      "Ask: Where am I? What is this place?",
+      "Look around and name three things you can see right now.",
+      "Notice: I am here, now, in this moment."
+    ],
+    suggested_for: ["dissociation", "derealization", "switching", "stuck"],
+    duration_seconds: 60,
+    is_default: true,
+    order: 11
+  },
+  {
+    name: "Peaceful place visualization",
+    description: "Build a vivid mental image of a place — real or imagined — where you feel calm and safe.",
+    category: "imagery",
+    steps: [
+      "Close your eyes if comfortable. Take a slow breath.",
+      "Think of a place that feels peaceful to you — anywhere real or imagined.",
+      "What do you see there? Notice the colors, the light, what's around you.",
+      "What sounds are there? Notice them in detail.",
+      "What does the air feel like? The temperature?",
+      "Are there any smells? What does this place feel like in your body?",
+      "Let yourself rest here for a few minutes. You are safe here.",
+      "When ready, slowly bring your attention back to the room."
+    ],
+    suggested_for: ["overwhelm", "crisis", "anxiety", "switching"],
+    duration_seconds: 300,
+    is_default: true,
+    order: 12
+  },
+  {
+    name: "Split screen imagery",
+    description: "A visualization for separating memories of the past from what's happening now — like watching two screens at once.",
+    category: "imagery",
+    steps: [
+      "Get grounded first — take a slow breath and orient to the present.",
+      "Imagine a large screen showing the present moment — where you are right now.",
+      "In a small corner, imagine an old, slightly blurry image representing whatever from the past is coming up.",
+      "Look at the big present-moment screen. Notice how NOW is different from THEN.",
+      "What resources do you have now that you didn't have then?",
+      "When ready, let the small past image fade or turn off. The big present screen remains.",
+      "If you like, let the present image grow to fill the whole screen."
+    ],
+    suggested_for: ["dissociation", "derealization", "anxiety", "overwhelm"],
+    duration_seconds: 300,
+    is_default: true,
+    order: 13
+  },
+  {
+    name: "Containment imagery",
+    description: "A visualization for safely setting aside overwhelming thoughts until you have the resources to address them — like placing them in a secure container for safekeeping.",
+    category: "imagery",
+    steps: [
+      "Take a slow breath and orient to the present.",
+      "Imagine a strong, secure container — a vault, a locked box, a chest — something solid and safe.",
+      "Notice its details: what is it made of? How does it close? Where is it?",
+      "Gently imagine placing whatever feels overwhelming — thoughts, images, feelings, memories — into the container.",
+      "Close and lock the container. It will hold these things safely until you're ready.",
+      "Remind yourself: these feelings are contained, not gone. You can return to them with support when ready.",
+      "Take a slow breath and bring your attention back to the room."
+    ],
+    suggested_for: ["crisis", "overwhelm", "dissociation", "switching"],
+    duration_seconds: 240,
+    is_default: true,
+    order: 14
+  },
+  {
+    name: "Gauge and regulator imagery",
+    description: "Visualize internal dials and gauges to help you notice and gently adjust the intensity of overwhelming feelings.",
+    category: "imagery",
+    steps: [
+      "Close your eyes if comfortable. Take a breath.",
+      "Imagine a gauge — like a thermometer or pressure gauge — that shows how intense your feelings are right now.",
+      "Now imagine a dial or control knob connected to that feeling.",
+      "Slowly, gently, imagine turning the dial down — just a little. Not turning it off, just lowering the intensity.",
+      "Notice any shift in your body as you do this.",
+      "You can also imagine a lever that slows racing thoughts — gently pressing it, like a brake.",
+      "Take a breath. You have more control than it sometimes feels like."
+    ],
+    suggested_for: ["anxiety", "overwhelm", "crisis"],
+    duration_seconds: 180,
+    is_default: true,
+    order: 15
+  },
+  {
+    name: "The pause button",
+    description: "A simple mental image of pressing pause before acting on an overwhelming urge — giving yourself time to choose a healthy response.",
+    category: "imagery",
+    steps: [
+      "When you notice an overwhelming feeling or urge, imagine a pause button.",
+      "Press it. Everything slows down.",
+      "Take a slow breath.",
+      "Get grounded — orient to the present moment.",
+      "Ask yourself: what healthy option do I have right now?",
+      "Choose that option when you're ready."
+    ],
+    suggested_for: ["crisis", "anxiety", "overwhelm", "stuck"],
+    duration_seconds: 60,
+    is_default: true,
+    order: 16
+  },
+  {
+    name: "Slow swing imagery",
+    description: "A gentle rocking visualization that can calm the nervous system, especially when deep breathing feels difficult.",
+    category: "imagery",
+    steps: [
+      "Close your eyes if comfortable.",
+      "Imagine yourself on a gentle swing, moving slowly back and forth.",
+      "Feel the rhythm — forward, back, forward, back.",
+      "Notice the gentle breeze as you move.",
+      "Let your breathing slow to match the rhythm of the swing.",
+      "Stay here as long as you need."
+    ],
+    suggested_for: ["anxiety", "dissociation", "stuck"],
+    duration_seconds: 120,
+    is_default: true,
+    order: 17
+  },
+
+  // --- VISUALIZATION (existing) ---
   {
     name: "Safe place visualization",
     description: "Visit a place — real or imagined — where you feel calm and protected.",
@@ -144,6 +269,58 @@ export const DEFAULT_TECHNIQUES = [
     duration_seconds: 300,
     is_default: true,
     order: 8
+  },
+
+  // --- SENSORY (additional) ---
+  {
+    name: "Orienting with objects",
+    description: "Using a physical object to anchor yourself in the present — something you can hold, touch, and focus on in detail.",
+    category: "sensory",
+    steps: [
+      "Find an object near you — anything small you can hold.",
+      "Look at it. What color is it? What shape?",
+      "Turn it over in your hands. What does it feel like? Smooth? Rough? Warm? Cool?",
+      "How heavy is it?",
+      "Does it have a smell?",
+      "Keep describing it to yourself in detail. This object is here. You are here."
+    ],
+    suggested_for: ["dissociation", "derealization", "switching"],
+    duration_seconds: 120,
+    is_default: true,
+    order: 18
+  },
+  {
+    name: "Feet on the ground",
+    description: "A quick physical technique using the pressure of your feet on the floor to reconnect with your body and the present.",
+    category: "sensory",
+    steps: [
+      "Plant both feet flat on the floor.",
+      "Press them down gently, then harder, then gently again.",
+      "Notice the feeling of the floor beneath you — solid, real, here.",
+      "What does the floor feel like through your shoes or socks?",
+      "Press down again. You are here. This floor is here. This moment is real."
+    ],
+    suggested_for: ["dissociation", "derealization", "anxiety"],
+    duration_seconds: 60,
+    is_default: true,
+    order: 19
+  },
+  {
+    name: "Muscle release",
+    description: "Tensing and releasing muscle groups to reconnect with your body and discharge nervous system activation.",
+    category: "sensory",
+    steps: [
+      "Start with your hands. Make tight fists for 5 seconds.",
+      "Release. Notice the difference.",
+      "Move to your arms. Tense them for 5 seconds, then release.",
+      "Shoulders — shrug them up to your ears for 5 seconds, then drop.",
+      "Continue through your body if you like — legs, feet.",
+      "Notice how your body feels now compared to when you started."
+    ],
+    suggested_for: ["anxiety", "overwhelm", "stuck"],
+    duration_seconds: 120,
+    is_default: true,
+    order: 20
   },
 
   // --- MOVEMENT ---
@@ -272,8 +449,9 @@ export const BREATHING_PATTERNS = {
 
 export const CATEGORY_LABELS = {
   breathing: "Breathing",
-  sensory: "Sensory",
+  sensory: "Sensory & Physical",
   body: "Body",
+  imagery: "Imagery",
   visualization: "Visualization",
   movement: "Movement",
   affirmation: "Affirmations",
@@ -284,6 +462,7 @@ export const CATEGORY_EMOJIS = {
   breathing: "🌬️",
   sensory: "👁️",
   body: "🫧",
+  imagery: "🌊",
   visualization: "🌿",
   movement: "🤸",
   affirmation: "💬",
