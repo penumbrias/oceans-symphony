@@ -169,7 +169,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
           </div>
           <div className="space-y-3">
             {pinned.map((b) =>
-              <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
+              <div key={b.id} id={`item-${b.id}`} ref={(el) => bulletinRefs.current[b.id] = el}>
                 {b.content?.match(/^\[task:/) ?
                   <TaskBulletinCard
                     bulletin={b}
@@ -209,7 +209,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
 
           <div className="space-y-3">
             {sortedRecent.slice(0, visibleCount).map((b) =>
-              <div key={b.id} ref={(el) => bulletinRefs.current[b.id] = el}>
+              <div key={b.id} id={`item-${b.id}`} ref={(el) => bulletinRefs.current[b.id] = el}>
                 {b.content?.match(/^\[task:/) ?
                   <TaskBulletinCard
                     bulletin={b}

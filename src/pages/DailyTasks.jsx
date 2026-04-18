@@ -18,12 +18,18 @@ import TaskTemplateManager from "@/components/tasks/TaskTemplateManager";
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
+import { useMentionHighlight } from "@/lib/useMentionHighlight";
 
 export default function DailyTasks() {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const TODAY = getTodayString();
   const [showManager, setShowManager] = useState(false);
+  const [searchParams] = useSearchParams();
+  const pendingId = searchParams.get("id");
+
+  useMentionHighlight("id", true);
 
   // Task templates
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
@@ -241,16 +247,17 @@ export default function DailyTasks() {
 
       <div className="space-y-3">
         {activeTasks.map((task) => (
-  <TaskCard
-    key={task.id}
-    task={{
-      ...task,
-      title: applyTerms(task.title, terms),
-      description: applyTerms(task.description, terms),
-    }}
-    completed={isTaskCompleted(task, manualCompletedIds, autoTriggers)}
-    onToggle={toggleManual}
-  />
+  <div key={task.id} id={`item-${task.id}`}>
+    <TaskCard
+      task={{
+        ...task,
+        title: applyTerms(task.title, terms),
+        description: applyTerms(task.description, terms),
+      }}
+      completed={isTaskCompleted(task, manualCompletedIds, autoTriggers)}
+      onToggle={toggleManual}
+    />
+  </div>
 ))}
       </div>
     </motion.div>

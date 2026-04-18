@@ -9,6 +9,7 @@ import ActivityTimeRangeModal from "@/components/activities/ActivityTimeRangeMod
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
+import { useMentionHighlight } from "@/lib/useMentionHighlight";
 
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -20,6 +21,8 @@ export default function ActivityTracker() {
   const urlParams = new URLSearchParams(window.location.search);
   const jumpDate = urlParams.get("date") || null;
   const [highlightId, setHighlightId] = useState(() => urlParams.get("highlight") || null);
+  
+  useMentionHighlight("id", !!highlightId);
   const [currentDate, setCurrentDate] = useState(() => jumpDate ? new Date(jumpDate + "T00:00:00") : new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);

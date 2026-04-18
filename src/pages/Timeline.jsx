@@ -6,6 +6,8 @@ import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
 import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
+import { useSearchParams } from "react-router-dom";
+import { useMentionHighlight } from "@/lib/useMentionHighlight";
 
 const CHUNK_DAYS = 14; // how many days to load per chunk
 
@@ -19,6 +21,20 @@ export default function Timeline() {
   const [jumpDate, setJumpDate] = useState("");
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
+  const [searchParams] = useSearchParams();
+  const dateParam = searchParams.get("date");
+
+  useMentionHighlight("id", !!dateParam);
+
+  // Jump to date on load if provided
+  useEffect(() => {
+    if (dateParam) {
+      setTimeout(() => {
+        const target = document.getElementById(`day-${dateParam}`);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [dateParam]);
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontHistory"],
