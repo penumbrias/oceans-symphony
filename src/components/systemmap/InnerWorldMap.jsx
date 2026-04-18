@@ -673,10 +673,15 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             {selectedAlter.role && <p className="text-xs text-muted-foreground capitalize">{selectedAlter.role}</p>}
             <button onClick={() => window.location.href = `/alter/${selectedAlter.id}`}
               className="text-xs text-primary hover:underline">View full profile →</button>
-            <button onClick={() => setShowCreateRelModal(true)}
-              className="w-full text-xs bg-amber-500/10 text-amber-600 border border-amber-500/30 rounded px-2 py-1 hover:bg-amber-500/20 transition-colors">
-              + Create Relationship
-            </button>
+            <Button variant="outline" className="flex-1" size="sm" onClick={() => {
+            const loc = locations.find(l => l.id === selectedAlter?.inner_world_location_id);
+            if (loc) {
+            setEditingLocation(loc);
+            bgFileRef.current?.click();
+            }
+            }}>
+            <Upload className="w-3.5 h-3.5 mr-1" /> Location Image
+            </Button>
             {/* Relationships for this alter */}
             <AlterRelationshipsSection
               alter={selectedAlter}
