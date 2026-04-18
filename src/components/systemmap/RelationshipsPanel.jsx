@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
+import { useQuery } from "@tanstack/react-query";
 
 export function AlterAvatar({ alter, size = 24 }) {
   if (!alter) return <div className="rounded-full bg-muted flex-shrink-0" style={{ width: size, height: size }} />;
@@ -98,23 +99,62 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
 export default function RelationshipsPanel({ relationships, alters, locations = [], onRefreshRelationships }) {
   const queryClient = useQueryClient();
   const [filterAlterId, setFilterAlterId] = useState("");
+  const [filterMode, setFilterMode] = useState("all"); // "all" | "relationships" | "locations"
   const [creating, setCreating] = useState(false);
   const [editingRel, setEditingRel] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [open, setOpen] = useState(true);
+  const [selectedLocation, setSelectedLocation] = useState(null); // location detail modal
 
   const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
   const locationMap = Object.fromEntries(locations.map(l => [l.id, l]));
 
-  const filteredRels = filterAlterId
-    ? relationships.filter(r => r.alter_id_a === filterAlterId || r.alter_id_b === filterAlterId)
-    : relationships;
+  const filteredRels = (filterMode === "relationships" || filterMode === "all") 
+    ? filterAlterId
+      ? relationships.filter(r => r.alter_id_a === filterAlterId || r.alter_id_b === filterAlterId)
+      : relationships
+    : [];
 
   // Location rows: alters that have inner_world_location_id set
   const locationRows = alters.filter(a => !a.is_archived && a.inner_world_location_id);
-  const filteredLocationRows = filterAlterId
-    ? locationRows.filter(a => a.id === filterAlterId)
-    : locationRows;
+  const filteredLocationRows = (filterMode === "locations" || filterMode === "all")
+    ? filterAlterId
+      ? locationRows.filter(a => a.id === filterAlterId)
+      : locationRows
+    : [];
+
+  // Nested locations: locations inside other locations by coordinate overlap
+  const getParentLocation = (loc) => {
+    const sortedLocs = [...locations].sort((a, b) => (b.order || 0) - (a.order || 0));
+    for (const parent of sortedLocs) {
+      if (parent.id === loc.id) continue;
+      if (loc.x >= parent.x && loc.x + (loc.width || 200) <= parent.x + (parent.width || 200) &&
+          loc.y >= parent.y && loc.y + (loc.height || 150) <= parent.y + (parent.height || 150)) {
+        return parent;
+      }
+    }
+    return null;
+  };
+
+  // Get sub-locations for a location
+  const getSubLocations = (locId) => {
+    return locations.filter(loc => {
+      const parent = getParentLocation(loc);
+      return parent?.id === locId;
+    });
+  };
+
+  // Get alters in a location
+  const getAltersInLocation = (locId) => {
+    return alters.filter(a => !a.is_archived && a.inner_world_location_id === locId);
+  };
+
+  const locationListItems = (filterMode === "locations" || filterMode === "all")
+    ? locations.filter(l => {
+        // Only show top-level locations or filter by parent if needed
+        return !getParentLocation(l);
+      })
+    : [];
 
   const handleDelete = async (rel) => {
     await base44.entities.AlterRelationship.delete(rel.id);
@@ -137,7 +177,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
     setEditingRel(null);
   };
 
-  const totalCount = filteredRels.length + filteredLocationRows.length;
+  const totalCount = filteredRels.length + filteredLocationRows.length + locationListItems.length;
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -154,21 +194,46 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
       {open && (
         <>
           <div className="px-3 pb-2 border-t border-border pt-2 flex flex-wrap gap-2 items-center">
-            <select value={filterAlterId} onChange={e => setFilterAlterId(e.target.value)}
-              className="h-8 px-2 rounded border border-border bg-background text-xs">
-              <option value="">All alters</option>
-              {alters.filter(a => !a.is_archived).map(a => (
-                <option key={a.id} value={a.id}>{a.name}</option>
+            {/* Filter tabs */}
+            <div className="flex gap-1 border border-border rounded-lg bg-muted/20 p-0.5">
+              {["all", "relationships", "locations"].map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => { setFilterMode(mode); setFilterAlterId(""); }}
+                  className={`px-2.5 py-1 text-xs rounded font-medium transition-colors ${
+                    filterMode === mode
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {mode === "all" ? "All" : mode === "relationships" ? "Relationships" : "Locations"}
+                </button>
               ))}
-            </select>
-            <Button size="sm" className="text-xs h-8" onClick={() => setCreating(true)}>
-              <Plus className="w-3 h-3 mr-1" /> Add Relationship
-            </Button>
+            </div>
+
+            {/* Alter filter (only for relationships and all modes) */}
+            {(filterMode === "all" || filterMode === "relationships") && (
+              <select value={filterAlterId} onChange={e => setFilterAlterId(e.target.value)}
+                className="h-8 px-2 rounded border border-border bg-background text-xs">
+                <option value="">All alters</option>
+                {alters.filter(a => !a.is_archived).map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
+
+            {(filterMode === "all" || filterMode === "relationships") && (
+              <Button size="sm" className="text-xs h-8" onClick={() => setCreating(true)}>
+                <Plus className="w-3 h-3 mr-1" /> Add Relationship
+              </Button>
+            )}
           </div>
 
           <div className="divide-y divide-border/50">
-            {filteredRels.length === 0 && filteredLocationRows.length === 0 && (
-              <p className="text-xs text-muted-foreground px-4 py-3 text-center">No relationships yet</p>
+            {filteredRels.length === 0 && filteredLocationRows.length === 0 && locationListItems.length === 0 && (
+              <p className="text-xs text-muted-foreground px-4 py-3 text-center">
+                {filterMode === "locations" ? "No locations yet" : filterMode === "relationships" ? "No relationships yet" : "No relationships or locations yet"}
+              </p>
             )}
 
             {/* Relationship rows */}
@@ -207,7 +272,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
               );
             })}
 
-            {/* Location rows */}
+            {/* Location rows (alters in locations) */}
             {filteredLocationRows.map(alter => {
               const loc = locationMap[alter.inner_world_location_id];
               return (
@@ -216,7 +281,53 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
                   <span className="text-xs text-foreground font-medium">{alter.name}</span>
                   <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                   <span className="text-xs text-muted-foreground">located in</span>
-                  <span className="text-xs text-foreground font-medium">{loc?.name || "Unknown location"}</span>
+                  <button onClick={() => setSelectedLocation(loc)}
+                    className="text-xs text-primary hover:underline font-medium">
+                    {loc?.name || "Unknown location"}
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Location list rows */}
+            {locationListItems.map(loc => {
+              const parentLoc = getParentLocation(loc);
+              const subLocs = getSubLocations(loc.id);
+              const altersInLoc = getAltersInLocation(loc.id);
+              return (
+                <div key={`location-${loc.id}`} className="px-4 py-2.5 hover:bg-muted/20 transition-colors">
+                  <button 
+                    onClick={() => setSelectedLocation(loc)}
+                    className="w-full text-left flex items-center gap-2.5">
+                    <div className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: loc.color || "#6366f1" }} />
+                    <span className="text-xs text-foreground font-medium flex-1">{loc.name}</span>
+                    {subLocs.length > 0 && <span className="text-xs text-muted-foreground text-right">{subLocs.length} sub</span>}
+                    {altersInLoc.length > 0 && <span className="text-xs text-muted-foreground text-right">{altersInLoc.length} alters</span>}
+                  </button>
+                  {parentLoc && (
+                    <div className="mt-1 ml-6 flex items-center gap-1.5">
+                      <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                      <span className="text-xs text-muted-foreground">inside</span>
+                      <button onClick={() => setSelectedLocation(parentLoc)}
+                        className="text-xs text-primary hover:underline">
+                        {parentLoc.name}
+                      </button>
+                    </div>
+                  )}
+                  {/* Nested sublocs */}
+                  {subLocs.length > 0 && (
+                    <div className="mt-2 ml-6 space-y-1.5">
+                      {subLocs.map(sub => (
+                        <div key={`sub-${sub.id}`} className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: sub.color || "#6366f1" }} />
+                          <button onClick={() => setSelectedLocation(sub)}
+                            className="text-xs text-foreground hover:text-primary transition-colors font-medium flex-1">
+                            {sub.name}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -256,6 +367,204 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
           </div>
         </div>
       )}
+
+      {selectedLocation && (
+        <LocationDetailModal
+          location={selectedLocation}
+          alters={alters}
+          locationMap={locationMap}
+          getParentLocation={getParentLocation}
+          getSubLocations={getSubLocations}
+          getAltersInLocation={getAltersInLocation}
+          onClose={() => setSelectedLocation(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function LocationDetailModal({ location, alters, locationMap, getParentLocation, getSubLocations, getAltersInLocation, onClose }) {
+  const [editing, setEditing] = useState(false);
+  const [editData, setEditData] = useState(location);
+  const queryClient = useQueryClient();
+
+  const parentLoc = getParentLocation(location);
+  const subLocs = getSubLocations(location.id);
+  const altersInLoc = getAltersInLocation(location.id);
+
+  const handleSave = async () => {
+    await base44.entities.InnerWorldLocation.update(location.id, editData);
+    queryClient.invalidateQueries({ queryKey: ["innerWorldLocations"] });
+    setEditing(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 pb-16 sm:pb-0" onClick={onClose}>
+      <div
+        className="bg-card border border-border rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header with background image or color */}
+        <div
+          className="relative h-40 flex items-end p-4"
+          style={{
+            backgroundColor: editData.color || "#6366f1",
+            backgroundImage: editData.background_image_url ? `url(${editData.background_image_url})` : "none",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative z-10">
+            {editing ? (
+              <input
+                value={editData.name || ""}
+                onChange={e => setEditData(l => ({ ...l, name: e.target.value }))}
+                className="text-3xl font-bold text-white bg-black/30 rounded px-3 py-1 w-full max-w-md"
+              />
+            ) : (
+              <h1 className="text-3xl font-bold text-white">{editData.name}</h1>
+            )}
+          </div>
+          <button onClick={onClose} className="absolute top-3 right-3 z-20 text-white hover:text-muted-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5 space-y-5">
+          {/* Description */}
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Description</p>
+            {editing ? (
+              <textarea
+                value={editData.description || ""}
+                onChange={e => setEditData(l => ({ ...l, description: e.target.value }))}
+                className="w-full h-20 px-3 py-2 border border-border rounded-lg bg-background text-sm resize-none"
+              />
+            ) : (
+              <p className="text-sm text-foreground">{editData.description || "No description"}</p>
+            )}
+          </div>
+
+          {/* Color & Shape */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Color</p>
+              <div className="flex items-center gap-2">
+                {editing ? (
+                  <>
+                    <input
+                      type="color"
+                      value={editData.color || "#6366f1"}
+                      onChange={e => setEditData(l => ({ ...l, color: e.target.value }))}
+                      className="w-10 h-10 rounded border border-border cursor-pointer bg-transparent"
+                    />
+                    <input
+                      value={editData.color || "#6366f1"}
+                      onChange={e => setEditData(l => ({ ...l, color: e.target.value }))}
+                      className="flex-1 h-8 px-2 rounded border border-border bg-background text-xs font-mono"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="w-8 h-8 rounded border border-border" style={{ backgroundColor: editData.color || "#6366f1" }} />
+                    <span className="text-sm font-mono text-muted-foreground">{editData.color || "#6366f1"}</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Shape</p>
+              {editing ? (
+                <select
+                  value={editData.shape || "rectangle"}
+                  onChange={e => setEditData(l => ({ ...l, shape: e.target.value }))}
+                  className="w-full h-8 px-2 rounded border border-border bg-background text-xs"
+                >
+                  <option value="rectangle">Rectangle</option>
+                  <option value="oval">Oval</option>
+                </select>
+              ) : (
+                <p className="text-sm text-foreground capitalize">{editData.shape || "rectangle"}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Parent location */}
+          {parentLoc && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 border border-border/50">
+              <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Located inside</p>
+                <p className="text-sm text-foreground font-medium">{parentLoc.name}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Sub-locations */}
+          {subLocs.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Sub-locations ({subLocs.length})
+              </p>
+              <div className="space-y-2">
+                {subLocs.map(sub => (
+                  <div key={sub.id} className="flex items-center gap-3 p-2 rounded-lg border border-border/50 hover:bg-muted/10">
+                    <div className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: sub.color || "#6366f1" }} />
+                    <span className="text-sm text-foreground flex-1">{sub.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Alters in this location */}
+          {altersInLoc.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Alters here ({altersInLoc.length})
+              </p>
+              <div className="space-y-2">
+                {altersInLoc.map(alter => (
+                  <div key={alter.id} className="flex items-center gap-2.5 p-2 rounded-lg border border-border/50 hover:bg-muted/10">
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+                      style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 10 }}
+                    >
+                      {alter.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <span className="text-sm text-foreground flex-1">{alter.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-4 border-t border-border/50">
+            {editing ? (
+              <>
+                <Button variant="outline" className="flex-1" size="sm" onClick={() => { setEditing(false); setEditData(location); }}>
+                  Cancel
+                </Button>
+                <Button className="flex-1" size="sm" onClick={handleSave}>
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" className="flex-1" size="sm" onClick={() => setEditing(true)}>
+                  <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                </Button>
+                <Button variant="outline" className="flex-1" size="sm">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Relationship
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
