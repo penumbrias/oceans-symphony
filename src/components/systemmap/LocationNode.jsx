@@ -31,6 +31,27 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
     window.addEventListener("mouseup", onUp);
   };
 
+  const handleTouchStart = (e) => {
+    e.stopPropagation();
+    onSelect(location);
+    setDragging(true);
+    dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, x, y };
+  };
+
+  const handleTouchMove = (e) => {
+    e.stopPropagation();
+    if (!dragStart.current) return;
+    const dx = (e.touches[0].clientX - dragStart.current.mx) / zoom;
+    const dy = (e.touches[0].clientY - dragStart.current.my) / zoom;
+    onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
+  };
+
+  const handleTouchEnd = (e) => {
+    e.stopPropagation();
+    setDragging(false);
+    dragStart.current = null;
+  };
+
   const handleResizeDown = (e) => {
     e.stopPropagation();
     const startMx = e.clientX;
@@ -51,6 +72,26 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
     window.addEventListener("mouseup", onUp);
   };
 
+  const handleResizeTouchStart = (e) => {
+    e.stopPropagation();
+    const startMx = e.touches[0].clientX;
+    const startMy = e.touches[0].clientY;
+    const startW = width;
+    const startH = height;
+
+    const onMove = (ev) => {
+      const dw = (ev.touches[0].clientX - startMx) / zoom;
+      const dh = (ev.touches[0].clientY - startMy) / zoom;
+      onUpdate({ width: Math.max(MIN_SIZE, startW + dw), height: Math.max(MIN_SIZE, startH + dh) });
+    };
+    const onUp = () => {
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("touchend", onUp);
+  };
+
   const fill = color + "26"; // 15% opacity
   const borderColor = color;
   const isOval = shape === "oval";
@@ -58,7 +99,7 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   const ry = isOval ? height / 2 : 8;
 
   return (
-    <g style={{ cursor: dragging ? "grabbing" : "grab" }}>
+    <g style={{ cursor: dragging ? "grabbing" : "grab", touchAction: "none" }}>
       <defs>
         {background_image_url && (
           <>
@@ -81,6 +122,9 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
         strokeWidth={isSelected ? 2.5 : 1.5}
         strokeDasharray={isSelected ? "6,3" : "none"}
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       />
 
       {/* Name label */}
@@ -103,8 +147,9 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
         fill={borderColor}
         opacity={0.6}
         rx={2}
-        style={{ cursor: "se-resize" }}
+        style={{ cursor: "se-resize", touchAction: "none" }}
         onMouseDown={handleResizeDown}
+        onTouchStart={handleResizeTouchStart}
       />
     </g>
   );

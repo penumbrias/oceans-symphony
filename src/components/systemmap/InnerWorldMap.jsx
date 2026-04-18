@@ -60,12 +60,39 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
     }
   };
 
+  const handleTouchStart = (e) => {
+    e.stopPropagation();
+    dragRef.current = { startMx: e.touches[0].clientX, startMy: e.touches[0].clientY, startX: alter.inner_world_x, startY: alter.inner_world_y, moved: false };
+  };
+
+  const handleTouchMove = (e) => {
+    e.stopPropagation();
+    if (!dragRef.current) return;
+    const dx = (e.touches[0].clientX - dragRef.current.startMx) / zoom;
+    const dy = (e.touches[0].clientY - dragRef.current.startMy) / zoom;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.moved = true;
+  };
+
+  const handleTouchEnd = (e) => {
+    e.stopPropagation();
+    if (!dragRef.current) return;
+    const touch = e.changedTouches[0];
+    if (dragRef.current.moved) {
+      const dx = (touch.clientX - dragRef.current.startMx) / zoom;
+      const dy = (touch.clientY - dragRef.current.startMy) / zoom;
+      onDragEnd(dragRef.current.startX + dx, dragRef.current.startY + dy);
+    } else {
+      onTap();
+    }
+    dragRef.current = null;
+  };
+
   const cx = alter.inner_world_x ?? 0;
   const cy = alter.inner_world_y ?? 0;
   const ringColor = isRelMode ? "#f59e0b" : isSelected ? "#3b82f6" : "transparent";
 
   return (
-    <g onMouseDown={handleMouseDown} style={{ cursor: "grab" }}>
+    <g onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: "grab", touchAction: "none" }}>
       {(isSelected || isRelMode) && (
         <circle cx={cx} cy={cy} r={NODE_RADIUS + 5} fill="none" stroke={ringColor} strokeWidth={2.5} opacity={0.8} />
       )}
@@ -217,6 +244,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const queryClient = useQueryClient();
   const svgRef = useRef(null);
   const bgFileRef = useRef(null);
+  const lastPinchRef = useRef(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -247,6 +275,44 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const placedAlters = useMemo(() => allAlters.filter(a => !a.is_archived && a.inner_world_x != null), [allAlters]);
   const unplacedAlters = useMemo(() => allAlters.filter(a => !a.is_archived && a.inner_world_x == null), [allAlters]);
   const alterMap = useMemo(() => Object.fromEntries(allAlters.map(a => [a.id, a])), [allAlters]);
+
+  // Touch handlers
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.touches[0].clientX - transform.x, y: e.touches[0].clientY - transform.y });
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      // Pinch zoom
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (lastPinchRef.current !== null) {
+        const delta = dist / lastPinchRef.current;
+        setTransform(t => ({ 
+          ...t, 
+          scale: Math.max(0.2, Math.min(4, t.scale * delta)) 
+        }));
+      }
+      lastPinchRef.current = dist;
+    } else if (e.touches.length === 1 && isDragging) {
+      setTransform(t => ({ 
+        ...t, 
+        x: e.touches[0].clientX - dragStart.x, 
+        y: e.touches[0].clientY - dragStart.y 
+      }));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    lastPinchRef.current = null;
+    setIsDragging(false);
+  };
 
   // Pan handlers
   const handleMouseDown = (e) => {
@@ -381,10 +447,20 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     e.target.value = "";
   };
 
+  const handleCanvasTouchEnd = (e) => {
+    if (!placingAlter) return;
+    const touch = e.changedTouches[0];
+    const rect = svgRef.current.getBoundingClientRect();
+    const nx = (touch.clientX - rect.left - transform.x) / transform.scale;
+    const ny = (touch.clientY - rect.top - transform.y) / transform.scale;
+    saveAlterPosition(placingAlter, nx, ny, snapToGrid);
+    setPlacingAlter(null);
+  };
+
   const sortedLocations = useMemo(() => [...locations].sort((a, b) => (a.order || 0) - (b.order || 0)), [locations]);
 
   return (
-    <div className="relative w-full h-full flex">
+    <div className="relative w-full h-full flex" style={{ touchAction: 'none' }}>
       {/* Unplaced alters panel — toggleable, with tap-to-place on mobile and drag-drop on desktop */}
       {showAll && unplacedAlters.length > 0 && (
         <>
@@ -405,7 +481,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                     onClick={() => setPlacingAlter(alter)}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors cursor-pointer ${
                       placingAlter?.id === alter.id
-                        ? "border-primary/60 bg-primary/15"
+                        ? "border-primary/60 bg-primary/15 animate-pulse"
                         : "border-border/50 bg-muted/20 hover:bg-muted/40 active:cursor-grabbing"
                     }`}>
                     {alter.avatar_url ? (
@@ -450,11 +526,14 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
         <svg
           ref={svgRef}
           className="w-full h-full"
-          style={{ cursor: isDragging ? "grabbing" : relModeAlter ? "crosshair" : placingAlter ? "crosshair" : "grab" }}
+          style={{ cursor: isDragging ? "grabbing" : relModeAlter ? "crosshair" : placingAlter ? "crosshair" : "grab", touchAction: 'none' }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           onDrop={handleSvgDrop}
           onDragOver={e => e.preventDefault()}
           onClick={(e) => {
@@ -468,6 +547,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               setRelPopover(null);
             }
           }}
+          onTouchEnd={handleCanvasTouchEnd}
         >
           <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
             {sortedLocations.map(loc => (
@@ -505,7 +585,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                   <circle
                     cx={(alter.inner_world_x ?? 0) + NODE_RADIUS}
                     cy={(alter.inner_world_y ?? 0) - NODE_RADIUS}
-                    r={8} fill="#ef4444" opacity={0.85} />
+                    r={12} fill="#ef4444" opacity={0.85} />
                   <text
                     x={(alter.inner_world_x ?? 0) + NODE_RADIUS}
                     y={(alter.inner_world_y ?? 0) - NODE_RADIUS + 4}
