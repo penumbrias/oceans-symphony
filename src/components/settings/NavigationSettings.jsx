@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Navigation, Save, Loader2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
-import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
+import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
