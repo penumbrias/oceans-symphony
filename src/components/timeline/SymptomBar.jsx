@@ -52,9 +52,10 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
       onTouchStart={startPress}
       onTouchEnd={cancelPress}
     >
+      {/* Circle — always shown */}
       <div
         className="rounded-full flex-shrink-0 flex items-center justify-center border-2 border-background"
-        style={{ width: sz, height: sz, backgroundColor: color }}
+        style={{ width: sz, height: sz, backgroundColor: color, zIndex: 2, position: "relative" }}
         title={symptom?.label}
       >
         <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>
@@ -62,18 +63,9 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
         </span>
       </div>
 
-      {expanded && (
-        <div className="mt-0.5 px-1 py-0.5 rounded-md border text-center"
-          style={{ backgroundColor: `${color}18`, borderColor: `${color}40`, maxWidth: 56 }}>
-          <p className="font-semibold leading-tight" style={{ fontSize: 8, color, wordBreak: "break-word" }}>{symptom?.label}</p>
-          {startStr && (
-            <p style={{ fontSize: 7, color, opacity: 0.75 }}>{startStr}{endStr ? `–${endStr}` : "→"}</p>
-          )}
-        </div>
-      )}
-
-      {!expanded && heightPx > sz + 4 && (
-        <div className="relative" style={{ width: 4, height: Math.max(heightPx - sz - 2, 4) }}>
+      {/* Duration line — ALWAYS shown, behind expanded card */}
+      {heightPx > sz + 4 && (
+        <div className="relative" style={{ width: 4, height: Math.max(heightPx - sz - 2, 4), zIndex: 1 }}>
           <div
             className="w-full rounded-full"
             style={{ height: "100%", background: `linear-gradient(to bottom, ${color}, ${color}40)` }}
@@ -92,6 +84,57 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Expanded detail card — floats ON TOP of line using absolute positioning */}
+      {expanded && (
+        <div
+          className="absolute rounded-lg border shadow-md text-left px-2 py-1.5"
+          style={{
+            top: sz + 4,
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: `color-mix(in srgb, var(--background) 95%, transparent)`,
+            borderColor: `${color}60`,
+            minWidth: 120,
+            maxWidth: 160,
+            zIndex: 10,
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <p className="font-semibold leading-tight mb-1" style={{ fontSize: 9, color }}>
+            {symptom?.label}
+          </p>
+          {startStr && (
+            <p style={{ fontSize: 8, color, opacity: 0.8 }}>
+              {startStr}{endStr ? ` → ${endStr}` : " → now"}
+            </p>
+          )}
+          {session?.current_severity != null && (
+            <p style={{ fontSize: 8, color, opacity: 0.9 }} className="mt-0.5">
+              Current severity: {session.current_severity}/5
+            </p>
+          )}
+          {snapshots.length > 0 && (
+            <div className="mt-1 space-y-0.5">
+              <p style={{ fontSize: 7, color, opacity: 0.7 }} className="font-medium">Severity history:</p>
+              {snapshots.map((snap, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <span style={{ fontSize: 7, color, opacity: 0.7 }}>
+                    {format(new Date(snap.timestamp), "h:mmaaa")}
+                  </span>
+                  <span style={{ fontSize: 7, color, fontWeight: "bold" }}>
+                    {"●".repeat(snap.severity)}{"○".repeat(5 - snap.severity)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {snapshots.length === 0 && session?.current_severity == null && (
+            <p style={{ fontSize: 8, color, opacity: 0.6 }} className="mt-0.5 italic">No severity logged</p>
+          )}
         </div>
       )}
     </div>
