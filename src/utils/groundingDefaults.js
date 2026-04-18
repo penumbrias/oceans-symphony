@@ -7,9 +7,9 @@ export const DEFAULT_TECHNIQUES = [
     steps: [
       "Find a comfortable position and gently close your eyes if that feels okay.",
       "Inhale slowly through your nose for 4 counts.",
-      "Hold your breath gently for 4 counts.",
+      "Hold for 4 counts.",
       "Exhale slowly through your mouth for 4 counts.",
-      "Hold again for 4 counts.",
+      "Hold for 4 counts.",
       "Repeat this cycle. Let each breath be a little slower than the last."
     ],
     suggested_for: ["anxiety", "dissociation", "crisis", "switching", "derealization"],
@@ -23,9 +23,9 @@ export const DEFAULT_TECHNIQUES = [
     category: "breathing",
     steps: [
       "Sit comfortably and let your shoulders drop.",
-      "Inhale quietly through your nose for 4 counts.",
-      "Hold your breath for 7 counts.",
-      "Exhale completely through your mouth for 8 counts — let it all go.",
+      "Inhale through your nose for 4 counts.",
+      "Hold for 7 counts.",
+      "Exhale completely through your mouth for 8 counts, making a gentle whooshing sound.",
       "That's one cycle. Repeat 3–4 times.",
       "Notice how your body feels a little heavier and softer with each round."
     ],
@@ -39,9 +39,9 @@ export const DEFAULT_TECHNIQUES = [
     description: "A quick, powerful reset your nervous system already knows how to do.",
     category: "breathing",
     steps: [
-      "Take a deep inhale through your nose.",
-      "Before you exhale — take one more short inhale on top of that, to fully fill your lungs.",
-      "Now let out a long, slow exhale through your mouth. Let it take as long as it wants.",
+      "Take a full inhale through your nose.",
+      "Before exhaling, take one more short sharp inhale through your nose to fully top up the lungs.",
+      "Exhale everything slowly and completely through your mouth.",
       "Pause for a moment.",
       "Repeat 3–5 times at whatever pace feels right.",
       "You may notice your shoulders drop or a sense of release — that's your nervous system settling."
@@ -58,9 +58,9 @@ export const DEFAULT_TECHNIQUES = [
     steps: [
       "Find a comfortable position sitting or lying down.",
       "Place one hand on your belly.",
-      "Inhale slowly through your nose, letting your belly rise as your lungs fill.",
+      "Inhale slowly and deeply through your nose, letting your belly rise.",
       "Hold gently for 2 seconds.",
-      "Exhale slowly through your mouth, feeling your belly fall.",
+      "Exhale slowly through your mouth, letting your belly fall.",
       "Repeat for 5–10 breaths."
     ],
     suggested_for: ["anxiety", "dissociation", "overwhelm", "stuck", "crisis"],
@@ -75,13 +75,12 @@ export const DEFAULT_TECHNIQUES = [
     steps: [
       "Sit comfortably.",
       "Rest your left hand on your knee.",
-      "Use your right thumb to gently close your right nostril.",
-      "Inhale slowly through your left nostril.",
-      "Close your left nostril with your ring finger and release your right nostril.",
-      "Exhale fully through the right side.",
-      "Inhale through the right nostril.",
-      "Close it, then exhale through the left.",
-      "That is one round. Continue for 5–10 rounds."
+      "Close your right nostril with your right thumb and inhale through your left nostril.",
+      "Close your left nostril with your ring finger, release your right nostril, exhale through your right nostril.",
+      "Inhale through your right nostril.",
+      "Close your right nostril, release your left, exhale through your left nostril.",
+      "That is one round.",
+      "Continue for 5–10 rounds."
     ],
     suggested_for: ["anxiety", "stuck", "overwhelm"],
     duration_seconds: 180,
@@ -93,9 +92,9 @@ export const DEFAULT_TECHNIQUES = [
     description: "A simple technique that slows your breathing and increases oxygen flow, especially helpful for anxiety or shortness of breath.",
     category: "breathing",
     steps: [
-      "Breathe in gently through your nose for a count of 2.",
-      "Purse your lips as if you are about to blow out a candle.",
-      "Exhale slowly and gently through pursed lips for a count of 4.",
+      "Inhale gently through your nose for 2 counts.",
+      "Purse your lips as if blowing out a candle.",
+      "Exhale slowly through pursed lips for 4 counts.",
       "Keep the exhale controlled — twice as long as the inhale.",
       "Repeat several times."
     ],
@@ -109,9 +108,9 @@ export const DEFAULT_TECHNIQUES = [
     description: "A slow, steady breathing pattern of equal inhale and exhale that calms the nervous system and supports long-term stress recovery.",
     category: "breathing",
     steps: [
-      "Breathe in slowly for a count of 5.",
-      "Breathe out slowly for a count of 5.",
-      "Aim for a smooth, even rhythm — about 6 breaths per minute.",
+      "Inhale slowly through your nose for 5 counts.",
+      "Exhale slowly through your nose for 5 counts.",
+      "Keep a smooth, even rhythm — about 6 breaths per minute.",
       "Focus on keeping the breath gentle and steady.",
       "Continue for 5–10 minutes if possible, or as long as feels right."
     ],
@@ -126,8 +125,8 @@ export const DEFAULT_TECHNIQUES = [
     category: "breathing",
     steps: [
       "Sit comfortably and close your eyes if comfortable.",
-      "Take a slow breath in through your nose.",
-      "As you exhale, make a soft, gentle humming sound — like a distant bee.",
+      "Inhale through your nose.",
+      "As you exhale through your nose, keep your lips gently closed and make a soft humming sound.",
       "Feel the vibrations in your face and head.",
       "Let the sound be quiet and easy, not forced.",
       "Repeat 5–10 times, letting each hum help you settle."
@@ -142,12 +141,11 @@ export const DEFAULT_TECHNIQUES = [
     description: "A mindful breathing technique that uses counting to quiet racing thoughts and bring attention to the present moment.",
     category: "breathing",
     steps: [
-      "Breathe in naturally.",
-      "On the inhale, silently count 'one.'",
-      "Exhale normally.",
-      "Breathe in again — count 'two.'",
-      "Continue up to 10, then start again at 1.",
-      "If you lose count, just return to 1 without judgment.",
+      "Inhale naturally through your nose.",
+      "On each inhale, silently count — one, two, three, up to ten.",
+      "Exhale naturally through your nose.",
+      "Then start again at one.",
+      "If you lose count, gently return to one without judgment.",
       "Continue for 5–10 minutes, or as long as feels helpful."
     ],
     suggested_for: ["anxiety", "dissociation", "stuck", "derealization"],
@@ -525,9 +523,9 @@ export const BREATHING_PATTERNS = {
     name: "Box breathing",
     pattern: "4-4-4-4",
     phases: [
-      { label: "Inhale", seconds: 4 },
+      { label: "Inhale through nose", seconds: 4 },
       { label: "Hold", seconds: 4 },
-      { label: "Exhale", seconds: 4 },
+      { label: "Exhale through mouth", seconds: 4 },
       { label: "Hold", seconds: 4 },
     ],
   },
@@ -535,68 +533,68 @@ export const BREATHING_PATTERNS = {
     name: "4-7-8 breathing",
     pattern: "4-7-8",
     phases: [
-      { label: "Inhale", seconds: 4 },
+      { label: "Inhale through nose", seconds: 4 },
       { label: "Hold", seconds: 7 },
-      { label: "Exhale", seconds: 8 },
+      { label: "Exhale through mouth", seconds: 8 },
     ],
   },
   "Physiological sigh": {
     name: "Physiological sigh",
     pattern: "double inhale + long exhale",
     phases: [
-      { label: "Inhale", seconds: 3 },
-      { label: "Inhale again", seconds: 2 },
-      { label: "Exhale", seconds: 8 },
+      { label: "Inhale through nose", seconds: 3 },
+      { label: "Inhale again (nose)", seconds: 2 },
+      { label: "Exhale through mouth", seconds: 8 },
     ],
   },
   "Deep belly breathing": {
     name: "Deep belly breathing",
     pattern: "slow, deep",
     phases: [
-      { label: "Inhale", seconds: 4 },
+      { label: "Inhale through nose", seconds: 4 },
       { label: "Hold", seconds: 2 },
-      { label: "Exhale", seconds: 4 },
+      { label: "Exhale through mouth", seconds: 4 },
     ],
   },
   "Alternate nostril breathing": {
     name: "Alternate nostril breathing",
     pattern: "alternating sides",
     phases: [
-      { label: "Inhale left", seconds: 4 },
-      { label: "Exhale right", seconds: 4 },
-      { label: "Inhale right", seconds: 4 },
-      { label: "Exhale left", seconds: 4 },
+      { label: "Inhale left nostril", seconds: 4 },
+      { label: "Exhale right nostril", seconds: 4 },
+      { label: "Inhale right nostril", seconds: 4 },
+      { label: "Exhale left nostril", seconds: 4 },
     ],
   },
   "Pursed lip breathing": {
     name: "Pursed lip breathing",
     pattern: "2-4",
     phases: [
-      { label: "Inhale", seconds: 2 },
-      { label: "Exhale", seconds: 4 },
+      { label: "Inhale through nose", seconds: 2 },
+      { label: "Exhale through lips", seconds: 4 },
     ],
   },
   "Resonant breathing": {
     name: "Resonant breathing",
     pattern: "5-5",
     phases: [
-      { label: "Inhale", seconds: 5 },
-      { label: "Exhale", seconds: 5 },
+      { label: "Inhale through nose", seconds: 5 },
+      { label: "Exhale through nose", seconds: 5 },
     ],
   },
   "Humming bee breath": {
     name: "Humming bee breath",
     pattern: "hum on exhale",
     phases: [
-      { label: "Inhale", seconds: 3 },
-      { label: "Hum exhale", seconds: 4 },
+      { label: "Inhale through nose", seconds: 3 },
+      { label: "Hum exhale (nose)", seconds: 4 },
     ],
   },
   "Breath counting": {
     name: "Breath counting",
     pattern: "count breaths",
     phases: [
-      { label: "Breathe & count", seconds: 4 },
+      { label: "Breathe naturally (nose)", seconds: 4 },
     ],
   },
 };
