@@ -28,7 +28,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
   });
 
-  const activeFront = sessions.find((s) => s.is_active);
+  const activeSessions = sessions.filter((s) => s.is_active);
 
   const filtered = alters.
   filter(
@@ -113,7 +113,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
       <div className="space-y-8">
         {/* Folders section */}
         {showFolders && rootGroups.length > 0 &&
-        <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortDir} currentSession={activeFront} />
+        <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortDir} activeSessions={activeSessions} />
         }
 
         {/* Alters list/grid */}
@@ -125,11 +125,11 @@ export default function AlterGrid({ alters, currentSession = null }) {
           viewMode === "list" ?
           <div className="mx-auto flex flex-col gap-2">
           {filtered.map((alter, i) =>
-  <AlterCard key={alter.id} alter={alter} index={i} currentSession={activeFront} />
+  <AlterCard key={alter.id} alter={alter} index={i} activeSessions={activeSessions} />
 )}
               </div> :
 
-          <AlterGridView alters={filtered} currentSession={activeFront} allAlters={alters} /> :
+          <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={alters} /> :
 
 
           <div className="flex flex-col items-center justify-center py-20 text-center">

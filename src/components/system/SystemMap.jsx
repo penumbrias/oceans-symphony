@@ -49,8 +49,11 @@ const SystemMap = () => {
       const endTime = session.end_time ? new Date(session.end_time) : new Date();
       const startTime = new Date(session.start_time);
       const duration = endTime - startTime;
-      const allFronters = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-      allFronters.forEach((id) => {
+      // Support both new (alter_id) and legacy (primary_alter_id) models
+      const ids = session.alter_id
+        ? [session.alter_id]
+        : [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+      ids.forEach((id) => {
         time[id] = (time[id] || 0) + duration;
       });
     });
@@ -61,17 +64,26 @@ const SystemMap = () => {
   // cofrontingTime[a][b] = total ms a and b were fronting together
   const cofrontingTime = useMemo(() => {
     const map = {};
+    // New model: derive co-fronting from overlapping time ranges
+    // Group sessions by overlapping intervals
     frontingSessions.forEach((session) => {
-      const endTime = session.end_time ? new Date(session.end_time) : new Date();
-      const duration = endTime - new Date(session.start_time);
-      const allFronters = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-      allFronters.forEach((alter1) => {
-        if (!map[alter1]) map[alter1] = {};
-        allFronters.forEach((alter2) => {
-          if (alter1 !== alter2) {
-            map[alter1][alter2] = (map[alter1][alter2] || 0) + duration;
-          }
-        });
+      const myId = session.alter_id || session.primary_alter_id;
+      if (!myId) return;
+      const myStart = new Date(session.start_time).getTime();
+      const myEnd = session.end_time ? new Date(session.end_time).getTime() : Date.now();
+
+      frontingSessions.forEach((other) => {
+        const otherId = other.alter_id || other.primary_alter_id;
+        if (!otherId || otherId === myId) return;
+        const otherStart = new Date(other.start_time).getTime();
+        const otherEnd = other.end_time ? new Date(other.end_time).getTime() : Date.now();
+        const overlapStart = Math.max(myStart, otherStart);
+        const overlapEnd = Math.min(myEnd, otherEnd);
+        if (overlapEnd > overlapStart) {
+          const overlap = overlapEnd - overlapStart;
+          if (!map[myId]) map[myId] = {};
+          map[myId][otherId] = (map[myId][otherId] || 0) + overlap;
+        }
       });
     });
     return map;

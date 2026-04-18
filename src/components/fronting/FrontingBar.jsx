@@ -57,12 +57,17 @@ export default function FrontingBar({ alters }) {
     refetchInterval: 30000
   });
 
-  const session = activeSessions[0] || null;
   const allAltersById = Object.fromEntries((alters || []).map((a) => [a.id, a]));
-  const primaryAlter = session ? allAltersById[session.primary_alter_id] : null;
-  const coFronters = (session?.co_fronter_ids || []).map((id) => allAltersById[id]).filter(Boolean);
 
-  const startedAt = session?.start_time ? new Date(session.start_time) : null;
+  // New model: each active session record = one alter
+  const primarySession = activeSessions.find(s => s.alter_id && s.is_primary) || activeSessions.find(s => s.alter_id) || null;
+  const primaryAlter = primarySession ? allAltersById[primarySession.alter_id] : null;
+  const coFronters = activeSessions
+    .filter(s => s.alter_id && !s.is_primary && s.id !== primarySession?.id)
+    .map(s => allAltersById[s.alter_id]).filter(Boolean);
+
+  const session = activeSessions[0] || null; // keep for modal prop
+  const startedAt = primarySession?.start_time ? new Date(primarySession.start_time) : null;
   const duration = startedAt ?
   (() => {
     const diff = Date.now() - startedAt.getTime();

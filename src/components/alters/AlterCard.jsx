@@ -16,63 +16,36 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-export function FrontingToggleButton({ alter, currentSession }) {
+export function FrontingToggleButton({ alter, activeSessions = [] }) {
   const queryClient = useQueryClient();
   const longPressRef = useRef(null);
-  const isFronting = currentSession &&
-    (currentSession.primary_alter_id === alter.id ||
-     (currentSession.co_fronter_ids || []).includes(alter.id));
-  const isPrimary = currentSession?.primary_alter_id === alter.id;
+
+  // New individual model: each active session is one alter
+  const mySession = activeSessions.find(s => s.alter_id === alter.id);
+  const isFronting = !!mySession;
+  const isPrimary = mySession?.is_primary ?? false;
 
   const handleToggle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      if (activeSessions.length === 0) {
+      if (isFronting) {
+        // Remove this alter from front
+        await base44.entities.FrontingSession.update(mySession.id, {
+          is_active: false,
+          end_time: new Date().toISOString(),
+        });
+        toast.success(`${alter.name} removed from front`);
+      } else {
+        // Add alter to front (as co-fronter by default)
+        const hasPrimary = activeSessions.some(s => s.is_primary);
         await base44.entities.FrontingSession.create({
-          primary_alter_id: alter.id,
-          co_fronter_ids: [],
+          alter_id: alter.id,
+          is_primary: !hasPrimary, // become primary if no one is
           start_time: new Date().toISOString(),
           is_active: true,
         });
-        toast.success(`${alter.name} is now fronting!`);
-      } else {
-        const session = activeSessions[0];
-        const allFronters = new Set([session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean));
-        if (allFronters.has(alter.id)) {
-            if (session.primary_alter_id === alter.id) {
-              // Demote primary to co-fronter instead of removing
-              const coIds = (session.co_fronter_ids || []).filter(Boolean);
-              if (coIds.length === 0) {
-                // No one to promote — just clear front entirely
-                await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: new Date().toISOString() });
-                toast.success(`${alter.name} removed from front`);
-              } else {
-                const newPrimary = coIds[0];
-                const newCoFronters = [...coIds.filter(id => id !== newPrimary), alter.id];
-                await base44.entities.FrontingSession.update(session.id, {
-                  primary_alter_id: newPrimary,
-                  co_fronter_ids: newCoFronters,
-                });
-                toast.success(`${alter.name} demoted to co-fronter`);
-              }
-            } else {
-              // Remove co-fronter entirely
-              allFronters.delete(alter.id);
-              const remaining = Array.from(allFronters).filter(Boolean);
-              await base44.entities.FrontingSession.update(session.id, {
-                primary_alter_id: session.primary_alter_id,
-                co_fronter_ids: remaining.filter(id => id !== session.primary_alter_id),
-              });
-              toast.success(`${alter.name} removed from front`);
-            }
-        } else {
-          await base44.entities.FrontingSession.update(session.id, {
-            co_fronter_ids: [...(session.co_fronter_ids || []), alter.id],
-          });
-          toast.success(`${alter.name} added to front!`);
-        }
+        toast.success(`${alter.name} added to front!`);
       }
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
@@ -85,23 +58,25 @@ export function FrontingToggleButton({ alter, currentSession }) {
     e.preventDefault();
     e.stopPropagation();
     try {
-      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      if (activeSessions.length === 0) {
+      if (!isFronting) {
+        // Add as primary, demote current primary
+        const currentPrimary = activeSessions.find(s => s.is_primary);
+        if (currentPrimary) {
+          await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
+        }
         await base44.entities.FrontingSession.create({
-          primary_alter_id: alter.id,
-          co_fronter_ids: [],
+          alter_id: alter.id,
+          is_primary: true,
           start_time: new Date().toISOString(),
           is_active: true,
         });
-      } else {
-        const session = activeSessions[0];
-        const allFronters = new Set([session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean));
-        allFronters.add(alter.id);
-        const coIds = Array.from(allFronters).filter(id => id !== alter.id);
-        await base44.entities.FrontingSession.update(session.id, {
-          primary_alter_id: alter.id,
-          co_fronter_ids: coIds,
-        });
+      } else if (!isPrimary) {
+        // Promote to primary, demote current primary
+        const currentPrimary = activeSessions.find(s => s.is_primary);
+        if (currentPrimary) {
+          await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
+        }
+        await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
       }
       toast.success(`${alter.name} is now primary!`);
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
@@ -162,7 +137,7 @@ export function FrontingToggleButton({ alter, currentSession }) {
   );
 }
 
-export default function AlterCard({ alter, index, currentSession = null }) {
+export default function AlterCard({ alter, index, activeSessions = [] }) {
   const hasColor = alter.color && alter.color.length > 3;
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
@@ -200,7 +175,7 @@ export default function AlterCard({ alter, index, currentSession = null }) {
           )}
         </div>
       </Link>
-      <FrontingToggleButton alter={alter} currentSession={currentSession} />
+      <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
     </motion.div>
   );
 }

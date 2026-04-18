@@ -56,7 +56,10 @@ function computeStats(sessions, alters, from, to) {
   }
 
   for (const s of filtered) {
-    const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+    // Support both new (alter_id) and legacy (primary_alter_id) models
+    const ids = s.alter_id
+      ? [s.alter_id]
+      : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
     const start = new Date(s.start_time).getTime();
     const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
     const dur = Math.max(end - start, 0);

@@ -4,63 +4,32 @@ import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
-export default function AlterGridView({ alters, currentSession = null, allAlters = [] }) {
+export default function AlterGridView({ alters, activeSessions = [], allAlters = [] }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
 
   const handleDoubleClick = async (alter) => {
     try {
-      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      
-      if (activeSessions.length === 0) {
-        // No active session, create one with this alter as primary
+      const mySession = activeSessions.find(s => s.alter_id === alter.id);
+      if (mySession) {
+        // Remove from front
+        await base44.entities.FrontingSession.update(mySession.id, {
+          is_active: false,
+          end_time: new Date().toISOString(),
+        });
+        toast.success(`${alter.name} removed from front`);
+      } else {
+        // Add to front
+        const hasPrimary = activeSessions.some(s => s.is_primary);
         await base44.entities.FrontingSession.create({
-          primary_alter_id: alter.id,
-          co_fronter_ids: [],
+          alter_id: alter.id,
+          is_primary: !hasPrimary,
           start_time: new Date().toISOString(),
           is_active: true,
         });
-        toast.success(`${alter.name} is now fronting!`);
-      } else {
-        // Toggle fronting status
-        const session = activeSessions[0];
-        const allFronters = new Set([session.primary_alter_id, ...session.co_fronter_ids]);
-        
-        if (allFronters.has(alter.id)) {
-          // Remove from front
-          allFronters.delete(alter.id);
-          
-          if (allFronters.size === 0) {
-            // Clear front if no one left
-            await base44.entities.FrontingSession.update(session.id, {
-              is_active: false,
-              end_time: new Date().toISOString(),
-            });
-            toast.success(`${alter.name} removed from front`);
-          } else {
-            // Update session with remaining fronters
-            const newPrimary = Array.from(allFronters)[0];
-            const newCoFronters = Array.from(allFronters).filter(id => id !== newPrimary);
-            
-            await base44.entities.FrontingSession.update(session.id, {
-              primary_alter_id: newPrimary,
-              co_fronter_ids: newCoFronters,
-            });
-            toast.success(`${alter.name} removed from front`);
-          }
-        } else {
-          // Add to front
-          allFronters.add(alter.id);
-          const newCoFronters = Array.from(allFronters).filter(id => id !== session.primary_alter_id);
-          
-          await base44.entities.FrontingSession.update(session.id, {
-            co_fronter_ids: newCoFronters,
-          });
-          toast.success(`${alter.name} added to front!`);
-        }
+        toast.success(`${alter.name} added to front!`);
       }
-
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     } catch (err) {
@@ -68,10 +37,7 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
     }
   };
 
-  const isFronting = (alterId) => {
-    if (!currentSession) return false;
-    return currentSession.primary_alter_id === alterId || currentSession.co_fronter_ids?.includes(alterId);
-  };
+  const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
 
   const handleMouseDown = (alter) => {
     const timeoutId = setTimeout(() => {
@@ -99,7 +65,7 @@ export default function AlterGridView({ alters, currentSession = null, allAlters
       <div className="grid grid-cols-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {alters.map((alter) => {
           const fronting = isFronting(alter.id);
-          const isPrimary = currentSession?.primary_alter_id === alter.id;
+          const isPrimary = activeSessions.find(s => s.alter_id === alter.id)?.is_primary ?? false;
           const alterColor = alter.color || "#9333ea";
           
           return (

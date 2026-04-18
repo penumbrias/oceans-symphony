@@ -21,7 +21,7 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function MemberRow({ alter, onClick, currentSession }) {
+function MemberRow({ alter, onClick, activeSessions }) {
   const hasColor = alter.color && alter.color.length > 3;
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
@@ -60,7 +60,7 @@ function MemberRow({ alter, onClick, currentSession }) {
           }
         </div>
       </motion.div>
-      <FrontingToggleButton alter={alter} currentSession={currentSession} />
+      <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
     </div>);
 
 }
@@ -86,7 +86,7 @@ function FolderRow({ group, onClick }) {
 
 }
 
-export default function FolderGroupsSection({ alters, sortDir = "asc", currentSession = null }) {
+export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [] }) {
   const [navStack, setNavStack] = useState([]);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
@@ -190,7 +190,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", currentSe
         <MemberRow
           key={alter.id}
           alter={alter}
-          currentSession={currentSession}
+          activeSessions={activeSessions}
           onClick={() => navigate(`/alter/${alter.id}`)} />
 
         )}
@@ -234,7 +234,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", currentSe
             setSelectedAlter(null);
           }}
           alters={alters}
-          currentSession={currentSession} />
+          currentSession={activeSessions[0] || null} />
         
           <AlterEditModal
           alter={selectedAlter}

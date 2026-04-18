@@ -98,7 +98,7 @@ const handleSave = async () => {
     const newEnd = localDatetimeToISO(endVal) || session.end_time || null;
 
     if (session.alter_id) {
-      // New individual model — update this record directly
+      // New individual model — update this record directly (no note field)
       await base44.entities.FrontingSession.update(session.id, {
         is_primary: asPrimary,
         start_time: newStart,
@@ -171,13 +171,8 @@ const handleSave = async () => {
             <Input type="datetime-local" value={endVal} onChange={e => setEndVal(e.target.value)} className="text-sm" />
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Custom status note</p>
-            <Textarea
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              placeholder="e.g. Feeling tired, taking a break..."
-              className="text-sm h-16 resize-none"
-            />
+            <p className="text-xs text-muted-foreground mb-1">Note (use Emotion Check-In for notes)</p>
+            <p className="text-xs text-muted-foreground italic">Session notes are stored as Emotion Check-Ins.</p>
           </div>
           <div className="flex items-center gap-2 py-1 border-t border-border/40">
             <input

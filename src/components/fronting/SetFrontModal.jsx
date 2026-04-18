@@ -63,22 +63,27 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [search, setSearch] = useState("");
-  // Derive current fronter state from active sessions (new model)
-  const getInitialPrimary = () => {
-    if (!currentSession) return "";
+  // Derive current fronter state from active sessions (new individual model)
+  // currentSession may be a single session record; fetch all active sessions to initialize properly
+  const getInitialState = () => {
+    if (!currentSession) return { primary: "", coFronters: [] };
     if (currentSession.alter_id) {
-      // currentSession is one active record — find primary from all active sessions passed in
-      return currentSession.is_primary ? currentSession.alter_id : "";
+      // New model: we only have one session record here — we can only read this alter's primary state
+      // The caller (CurrentFronters/FrontingBar) should pass activeSessions instead, but for compat:
+      return {
+        primary: currentSession.is_primary ? currentSession.alter_id : "",
+        coFronters: [],
+      };
     }
-    return currentSession.primary_alter_id || "";
+    // Legacy fallback
+    return {
+      primary: currentSession.primary_alter_id || "",
+      coFronters: currentSession.co_fronter_ids || [],
+    };
   };
-  const getInitialCoFronters = () => {
-    if (!currentSession) return [];
-    if (currentSession.alter_id) return [];
-    return currentSession.co_fronter_ids || [];
-  };
-  const [primaryId, setPrimaryId] = useState(getInitialPrimary);
-  const [coFronterIds, setCoFronterIds] = useState(getInitialCoFronters);
+  const init = getInitialState();
+  const [primaryId, setPrimaryId] = useState(init.primary);
+  const [coFronterIds, setCoFronterIds] = useState(init.coFronters);
   const [saving, setSaving] = useState(false);
   const [journalSwitch, setJournalSwitch] = useState(false);
   const [showJournalModal, setShowJournalModal] = useState(false);
@@ -86,11 +91,26 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
   const [isUnsure, setIsUnsure] = useState(false);
   const [viewMode, setViewMode] = useState("list");
 
-  // Sync state when modal opens or currentSession changes
+  // Sync state when modal opens — load actual active sessions to populate current front
   useEffect(() => {
     if (open) {
       setIsUnsure(false);
       setJournalSwitch(false);
+      // Re-initialize from live active sessions (new model)
+      base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
+        const newModelSessions = active.filter(s => s.alter_id);
+        if (newModelSessions.length > 0) {
+          const primarySess = newModelSessions.find(s => s.is_primary);
+          const coSessions = newModelSessions.filter(s => !s.is_primary);
+          setPrimaryId(primarySess?.alter_id || "");
+          setCoFronterIds(coSessions.map(s => s.alter_id));
+        } else if (active.length > 0) {
+          // Legacy fallback
+          const s = active[0];
+          setPrimaryId(s.primary_alter_id || "");
+          setCoFronterIds(s.co_fronter_ids || []);
+        }
+      }).catch(() => {});
     }
   }, [open]);
 

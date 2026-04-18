@@ -183,16 +183,19 @@ export default function CurrentFronters({ alters }) {
         </div>
 
         <div className="mb-2 grid grid-cols-2 gap-2">
-          {all.map((alter, i) => (
-            <FronterChip
-              key={alter.id}
-              alter={alter}
-              isPrimary={i === 0}
-              startTime={active.start_time}
-              onHold={handleSetPrimaryFromHold}
-              coFronterLabel={`Co-${terms.fronting}`}
-            />
-          ))}
+          {all.map((alter, i) => {
+            const alterSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
+            return (
+              <FronterChip
+                key={alter.id}
+                alter={alter}
+                isPrimary={i === 0}
+                startTime={alterSession?.start_time || active.start_time}
+                onHold={handleSetPrimaryFromHold}
+                coFronterLabel={`Co-${terms.fronting}`}
+              />
+            );
+          })}
         </div>
 
         {/* Custom Status */}

@@ -25,8 +25,10 @@ export default function HistoryTab({ alterId }) {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 20000),
   });
 
-  const alterSessions = sessions.filter(
-    (s) => s.primary_alter_id === alterId || (s.co_fronter_ids || []).includes(alterId)
+  const alterSessions = sessions.filter((s) =>
+    s.alter_id
+      ? s.alter_id === alterId
+      : s.primary_alter_id === alterId || (s.co_fronter_ids || []).includes(alterId)
   );
 
   if (isLoading) return (
@@ -47,7 +49,9 @@ export default function HistoryTab({ alterId }) {
       {alterSessions.map((session) => {
         const start = new Date(session.start_time);
         const end = session.end_time ? new Date(session.end_time) : null;
-        const isPrimary = session.primary_alter_id === alterId;
+        const isPrimary = session.alter_id
+          ? (session.is_primary ?? false)
+          : session.primary_alter_id === alterId;
         return (
           <div key={session.id} className="rounded-xl border border-border/50 bg-muted/10 p-4">
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
@@ -63,9 +67,6 @@ export default function HistoryTab({ alterId }) {
             </p>
             {!isPrimary && (
               <span className="text-xs text-muted-foreground/60 mt-1 inline-block">co-fronting</span>
-            )}
-            {session.note && (
-              <p className="text-xs text-muted-foreground mt-2 border-t border-border/30 pt-2">{session.note}</p>
             )}
           </div>
         );
