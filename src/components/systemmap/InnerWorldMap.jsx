@@ -219,6 +219,11 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [placingAlter, setPlacingAlter] = useState(null);
+  const [panelOpen, setPanelOpen] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("iw_panel_open") ?? "true"); }
+    catch { return true; }
+  });
 
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [relMode, setRelMode] = useState('all'); // 'all' | 'selected' | 'none'
@@ -264,6 +269,10 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => svg.removeEventListener("wheel", handleWheel);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("iw_panel_open", JSON.stringify(panelOpen));
+  }, [panelOpen]);
 
   const handleZoom = (dir) => setTransform(t => ({
     ...t, scale: Math.max(0.2, Math.min(4, t.scale * (dir === "in" ? 1.2 : 0.85)))

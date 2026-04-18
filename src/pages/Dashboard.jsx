@@ -171,7 +171,7 @@ export default function Dashboard() {
         isOpen={showEmotionModal}
         onClose={() => { setShowEmotionModal(false); setEmotionModalInitialSection(null); }}
         alters={alters}
-        currentFronterIds={activeSession ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])] : []}
+        currentFronterIds={frontingAlterIds}
         initialSection={emotionModalInitialSection} />
       
     </motion.div>);
