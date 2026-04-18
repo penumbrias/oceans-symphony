@@ -26,9 +26,9 @@ export default function FloatingGroundingButton() {
             style={{ height: 'calc(90vh - 64px)', maxHeight: 'calc(90vh - 64px)' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/40">
+            <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border/40">
               <p className="text-sm font-semibold text-foreground">Support</p>
-              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1 -mr-1">
                 <X className="w-4 h-4" />
               </button>
             </div>

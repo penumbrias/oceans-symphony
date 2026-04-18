@@ -416,26 +416,35 @@ export default function Grounding({ initialPath = null }) {
         <div className="space-y-3">
           <button
             onClick={() => setPath("all")}
-            className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+            className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
           >
-            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Browse all</p>
-            
+            <div>
+              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Browse all</p>
+              <p className="text-xs text-muted-foreground mt-0.5">All techniques by category</p>
+            </div>
+            <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
           </button>
 
           <button
             onClick={() => setPath("state-check")}
-            className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+            className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
           >
-            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Help me figure out what I need</p>
-            <p className="text-sm text-muted-foreground mt-0.5">Quick check-in → tailored suggestions</p>
+            <div>
+              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Help me figure out what I need</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Quick check-in → tailored suggestions</p>
+            </div>
+            <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
           </button>
 
           <button
             onClick={() => setPath("breathing-picker")}
-            className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
+            className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
           >
-            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Guided breathing</p>
-            <p className="text-sm text-muted-foreground mt-0.5">Choose a breathing technique</p>
+            <div>
+              <p className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">Guided breathing</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Choose a breathing technique</p>
+            </div>
+            <span className="text-muted-foreground group-hover:text-primary text-lg transition-colors ml-3 flex-shrink-0">→</span>
           </button>
         </div>
       </div>
