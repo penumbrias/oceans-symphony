@@ -2,9 +2,9 @@
   "name": "SymptomCheckIn",
   "type": "object",
   "properties": {
-    "symptom_definition_id": {
+    "symptom_id": {
       "type": "string",
-      "description": "References SymptomDefinition.id"
+      "description": "References Symptom.id"
     },
     "timestamp": {
       "type": "string",
@@ -13,15 +13,15 @@
     },
     "severity": {
       "type": "number",
-      "description": "Optional severity 0-5, null if not set"
+      "description": "Optional severity 0-5, null if not set (boolean symptoms have no severity)"
     },
     "check_in_id": {
       "type": "string",
-      "description": "Optional reference to parent EmotionCheckIn or QuickCheckIn"
+      "description": "Optional reference to parent EmotionCheckIn"
     }
   },
   "required": [
-    "symptom_definition_id",
+    "symptom_id",
     "timestamp"
   ],
   "rls": {

@@ -1,61 +1,31 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { Plus, BookOpen, ChevronLeft, Calendar, BarChart2, Trash2 } from "lucide-react";
+import { BookOpen, ChevronLeft, Calendar, BarChart2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import SectionRow from "@/components/diary/SectionRow";
-import DiarySectionPanel from "@/components/diary/DiarySectionPanel";
-import AlterSelector from "@/components/diary/AlterSelector";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
-import ExistingCardDialog from "@/components/diary/ExistingCardDialog";
 import DiaryCardView from "@/components/diary/DiaryCardView";
-import MentionTextarea from "@/components/shared/MentionTextarea";
-import { saveMentions } from "@/lib/mentionUtils";
-import { getActiveTemplate, getSectionSummary, getCompletion } from "@/lib/diaryCardTemplate";
+import { getActiveTemplate, getCompletion } from "@/lib/diaryCardTemplate";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
   const [view, setView] = useState("list");
-  const [activeSection, setActiveSection] = useState(null);
-  const [entryName, setEntryName] = useState("");
-  const [draftData, setDraftData] = useState({});
-  const [frontingAlterIds, setFrontingAlterIds] = useState([]);
-  const [saving, setSaving] = useState(false);
   const [viewingEntry, setViewingEntry] = useState(null);
-  const [editingEntry, setEditingEntry] = useState(null);
-  const [showExistingCardDialog, setShowExistingCardDialog] = useState(false);
-  const [existingCardToday, setExistingCardToday] = useState(null);
-  const [mentionNote, setMentionNote] = useState("");
   const [searchParams] = useSearchParams();
-const pendingId = searchParams.get('id');
-const highlightId = searchParams.get('id');
+  const highlightId = searchParams.get("id");
 
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
     queryFn: () => base44.entities.DiaryCard.list("-created_date"),
   });
 
-  // Auto-open card from URL ?id= param
-  useEffect(() => {
-    if (pendingId && cards.length > 0) {
-      const card = cards.find(c => c.id === pendingId);
-      if (card) { setViewingEntry(card); setView("entry"); }
-    }
-  }, [pendingId, cards.length]);
-
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
-  });
-
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 5),
   });
 
   const { data: settingsList = [] } = useQuery({
@@ -65,174 +35,35 @@ const highlightId = searchParams.get('id');
 
   const activeSections = useMemo(() => {
     const template = getActiveTemplate(settingsList[0]);
-    return template.sections.filter((s) => s.enabled);
+    return template.sections.filter(s => s.enabled);
   }, [settingsList]);
 
-  const altersById = useMemo(() =>
-    Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
+  const altersById = useMemo(() => Object.fromEntries(alters.map(a => [a.id, a])), [alters]);
 
   const cardsByDate = useMemo(() => {
     const grouped = {};
-    cards.forEach((card) => {
+    cards.forEach(card => {
       if (!grouped[card.date]) grouped[card.date] = [];
       grouped[card.date].push(card);
     });
     return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
   }, [cards]);
 
+  // Auto-open from URL param
+  useEffect(() => {
+    if (highlightId && cards.length > 0) {
+      const card = cards.find(c => c.id === highlightId);
+      if (card) { setViewingEntry(card); setView("entry"); }
+    }
+  }, [highlightId, cards.length]);
+
   const handleDelete = async (cardId) => {
-    if (!confirm("Delete this diary card entry?")) return;
+    if (!confirm("Delete this daily log entry?")) return;
     await base44.entities.DiaryCard.delete(cardId);
-    toast.success("Diary card deleted");
+    toast.success("Entry deleted");
     queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
-    queryClient.invalidateQueries({ queryKey: ["diaryCardsToday"] });
+    if (viewingEntry?.id === cardId) setView("list");
   };
-
-  const startNew = () => {
-    const today = format(new Date(), "yyyy-MM-dd");
-    const cardForToday = cards.find((c) => c.date === today);
-    if (cardForToday) {
-      setExistingCardToday(cardForToday);
-      setShowExistingCardDialog(true);
-      return;
-    }
-    const activeSession = sessions.find((s) => s.is_active);
-    const currentIds = activeSession
-      ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
-      : [];
-    setFrontingAlterIds(currentIds);
-    setDraftData({});
-    setEntryName("");
-    setMentionNote("");
-    setActiveSection(null);
-    setEditingEntry(null);
-    setView("new");
-  };
-
-  const proceedWithNewCard = () => {
-    const activeSession = sessions.find((s) => s.is_active);
-    const currentIds = activeSession
-      ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
-      : [];
-    setFrontingAlterIds(currentIds);
-    setDraftData({});
-    setEntryName("");
-    setMentionNote("");
-    setActiveSection(null);
-    setEditingEntry(null);
-    setShowExistingCardDialog(false);
-    setExistingCardToday(null);
-    setView("new");
-  };
-
-  const proceedWithUpdate = () => {
-    if (existingCardToday) {
-      startEdit(existingCardToday);
-      setShowExistingCardDialog(false);
-      setExistingCardToday(null);
-    }
-  };
-
-  const startEdit = (card) => {
-    setEditingEntry(card);
-    setDraftData(card);
-    setEntryName(card.name || "");
-    setFrontingAlterIds(card.fronting_alter_ids || []);
-    setMentionNote("");
-    setActiveSection(null);
-    setView("edit");
-  };
-
-  const handleChange = (key, value) => {
-    setDraftData((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    let savedId;
-    if (editingEntry) {
-      await base44.entities.DiaryCard.update(editingEntry.id, {
-        name: entryName.trim() || editingEntry.name,
-        fronting_alter_ids: frontingAlterIds,
-        ...draftData,
-      });
-      savedId = editingEntry.id;
-      toast.success("Diary card updated!");
-      setEditingEntry(null);
-    } else {
-      const saved = await base44.entities.DiaryCard.create({
-        card_type: "daily",
-        date: format(new Date(), "yyyy-MM-dd"),
-        name: entryName.trim() || `Daily — ${format(new Date(), "MMM d, yyyy")}`,
-        fronting_alter_ids: frontingAlterIds,
-        ...draftData,
-      });
-      savedId = saved.id;
-      toast.success("Diary card saved!");
-    }
-
-    if (mentionNote.trim() && alters.length > 0) {
-      await saveMentions({
-        content: mentionNote,
-        alters,
-        sourceType: "checkin",
-        sourceId: savedId,
-        sourceLabel: "Diary Card",
-        navigatePath: `/diary?id=${savedId}`,
-        authorAlterId: frontingAlterIds[0] || null,
-      });
-    }
-
-    queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
-    queryClient.invalidateQueries({ queryKey: ["diaryCardsToday"] });
-    queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
-    setSaving(false);
-    setMentionNote("");
-    setView("list");
-  };
-
-  const completion = getCompletion(activeSections, draftData);
-
-  const MentionField = () => (
-    <div>
-      <label className="text-sm font-medium">Mention alters</label>
-      <p className="text-xs text-muted-foreground mb-1">Tag alters who appear in this entry</p>
-      <MentionTextarea
-        value={mentionNote}
-        onChange={setMentionNote}
-        alters={alters}
-        placeholder="Use @ to mention alters..."
-        className="h-16"
-      />
-    </div>
-  );
-
-  const SectionsList = ({ onSectionClick }) => (
-    <div className="space-y-2">
-      {activeSections.map((s) => (
-        <SectionRow
-          key={s.id}
-          emoji={s.emoji}
-          title={s.label}
-          subtitle={s.subtitle}
-          value={getSectionSummary(s, draftData)}
-          onClick={() => onSectionClick(s.id)}
-        />
-      ))}
-    </div>
-  );
-
-  const CompletionBar = () => (
-    <div className="bg-card border border-border/50 rounded-xl p-4 space-y-2">
-      <div className="flex justify-between text-xs text-muted-foreground">
-        <span>Completion</span>
-        <span>{completion}%</span>
-      </div>
-      <div className="w-full bg-muted rounded-full h-2">
-        <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${completion}%` }} />
-      </div>
-    </div>
-  );
 
   // ── LIST ──
   if (view === "list") {
@@ -240,26 +71,19 @@ const highlightId = searchParams.get('id');
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-3xl font-semibold">Diary Cards</h1>
+            <h1 className="font-display text-3xl font-semibold">Daily Log</h1>
             <p className="text-muted-foreground text-sm mt-0.5">{cards.length} entries</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
-              <BarChart2 className="w-4 h-4" />Analytics
-            </Button>
-            <Button onClick={startNew} className="bg-primary hover:bg-primary/90 gap-1.5">
-              <Plus className="w-4 h-4" />New Entry
-            </Button>
-          </div>
+          <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
+            <BarChart2 className="w-4 h-4" /> Analytics
+          </Button>
         </div>
 
         {cards.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground text-sm">No diary cards yet.</p>
-            <Button variant="link" onClick={startNew} className="mt-1 text-primary text-sm">
-              Fill out your first daily card
-            </Button>
+            <p className="text-muted-foreground text-sm">No daily log entries yet.</p>
+            <p className="text-xs text-muted-foreground mt-1">Use the Quick Check-In to start tracking your day.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -267,23 +91,17 @@ const highlightId = searchParams.get('id');
               <div key={date} className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="font-medium text-sm text-foreground">{format(new Date(date + "T12:00:00"), "EEEE, MMMM d, yyyy")}</h3>
+                  <h3 className="font-medium text-sm">{format(new Date(date + "T12:00:00"), "EEEE, MMMM d, yyyy")}</h3>
                   <span className="text-xs text-muted-foreground ml-auto">{dateCards.length} entr{dateCards.length !== 1 ? "ies" : "y"}</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {dateCards.map((card) => {
+                  {dateCards.map(card => {
                     const comp = getCompletion(activeSections, card);
-                    const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]?.name).filter(Boolean);
+                    const fronters = (card.fronting_alter_ids || []).map(id => altersById[id]?.name).filter(Boolean);
                     const isHighlighted = highlightId === card.id;
                     return (
-                      <div
-                        key={card.id}
-                        className={`text-left bg-card border rounded-xl p-4 hover:shadow-md transition-all space-y-2 ${
-                          isHighlighted
-                            ? "border-yellow-400 ring-2 ring-yellow-400/60 shadow-md"
-                            : "border-border/50"
-                        }`}
-                      >
+                      <div key={card.id}
+                        className={`bg-card border rounded-xl p-4 hover:shadow-md transition-all space-y-2 ${isHighlighted ? "border-yellow-400 ring-2 ring-yellow-400/60 shadow-md" : "border-border/50"}`}>
                         <div className="flex items-start justify-between gap-2">
                           <button onClick={() => { setViewingEntry(card); setView("entry"); }} className="flex-1 text-left">
                             <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>
@@ -291,11 +109,9 @@ const highlightId = searchParams.get('id');
                               <p className="text-xs text-muted-foreground mt-1">Fronting: {fronters.join(", ")}</p>
                             )}
                           </button>
-                          <Button
-                            variant="ghost" size="icon"
+                          <Button variant="ghost" size="icon"
                             className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
-                            onClick={(e) => { e.stopPropagation(); handleDelete(card.id); }}
-                          >
+                            onClick={e => { e.stopPropagation(); handleDelete(card.id); }}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -326,7 +142,7 @@ const highlightId = searchParams.get('id');
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="font-display text-2xl font-semibold">Diary Analytics</h1>
+            <h1 className="font-display text-2xl font-semibold">Log Analytics</h1>
             <p className="text-muted-foreground text-xs">Track patterns over time</p>
           </div>
         </div>
@@ -335,10 +151,10 @@ const highlightId = searchParams.get('id');
     );
   }
 
-  // ── ENTRY VIEW ──
+  // ── ENTRY VIEW (read-only) ──
   if (view === "entry" && viewingEntry) {
     const card = viewingEntry;
-    const fronters = (card.fronting_alter_ids || []).map((id) => altersById[id]).filter(Boolean);
+    const fronters = (card.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
         <div className="flex items-center justify-between gap-3">
@@ -347,21 +163,19 @@ const highlightId = searchParams.get('id');
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="font-display text-2xl font-semibold">{card.name}</h1>
+              <h1 className="font-display text-2xl font-semibold">{card.name || `Daily — ${card.date}`}</h1>
               <p className="text-muted-foreground text-xs">{card.date}</p>
             </div>
           </div>
-          <Button
-            variant="ghost" size="icon"
+          <Button variant="ghost" size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => { handleDelete(card.id); setView("list"); }}
-          >
+            onClick={() => { handleDelete(card.id); }}>
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
         {fronters.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {fronters.map((alter) => (
+            {fronters.map(alter => (
               <div key={alter.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border/50 text-xs font-medium">
                 <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#8b5cf6" }} />
                 {alter.alias || alter.name}
@@ -370,113 +184,9 @@ const highlightId = searchParams.get('id');
           </div>
         )}
         <DiaryCardView card={card} altersById={altersById} sections={activeSections} />
-        <Button onClick={() => startEdit(card)} className="w-full bg-primary hover:bg-primary/90 gap-1.5">
-          Edit Card
-        </Button>
       </motion.div>
     );
   }
 
-  // ── EDIT ENTRY ──
-  if (view === "edit" && editingEntry) {
-    return (
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => setView("entry")} className="h-8 w-8">
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="font-display text-2xl font-semibold">Edit Diary Card</h1>
-            <p className="text-muted-foreground text-xs">{editingEntry.date}</p>
-          </div>
-        </div>
-        <CompletionBar />
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Entry name</label>
-          <Input value={entryName} onChange={(e) => setEntryName(e.target.value)} />
-        </div>
-        <div className="bg-card border border-border/50 rounded-xl p-4">
-          <AlterSelector alters={alters} selected={frontingAlterIds} onChange={setFrontingAlterIds} />
-        </div>
-        <AnimatePresence mode="wait">
-          {activeSection ? (
-            <motion.div key={activeSection} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="bg-card border border-border/60 rounded-xl p-4">
-              <DiarySectionPanel
-                section={activeSections.find((s) => s.id === activeSection)}
-                data={draftData}
-                onChange={handleChange}
-                onClose={() => setActiveSection(null)}
-              />
-            </motion.div>
-          ) : (
-            <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <SectionsList onSectionClick={setActiveSection} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-        {!activeSection && (
-          <>
-            <MentionField />
-            <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-              {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          </>
-        )}
-      </motion.div>
-    );
-  }
-
-  // ── NEW ENTRY ──
-  return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => setView("list")} className="h-8 w-8">
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <div>
-          <h1 className="font-display text-2xl font-semibold">Daily Diary Card</h1>
-          <p className="text-muted-foreground text-xs">{format(new Date(), "MMMM d, yyyy")}</p>
-        </div>
-      </div>
-      <CompletionBar />
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Entry name <span className="text-muted-foreground font-normal">(optional)</span></label>
-        <Input value={entryName} onChange={(e) => setEntryName(e.target.value)} placeholder={`Daily — ${format(new Date(), "MMM d, yyyy")}`} />
-      </div>
-      <div className="bg-card border border-border/50 rounded-xl p-4">
-        <AlterSelector alters={alters} selected={frontingAlterIds} onChange={setFrontingAlterIds} />
-      </div>
-      <AnimatePresence mode="wait">
-        {activeSection ? (
-          <motion.div key={activeSection} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="bg-card border border-border/60 rounded-xl p-4">
-            <DiarySectionPanel
-              section={activeSections.find((s) => s.id === activeSection)}
-              data={draftData}
-              onChange={handleChange}
-              onClose={() => setActiveSection(null)}
-            />
-          </motion.div>
-        ) : (
-          <motion.div key="sections" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <SectionsList onSectionClick={setActiveSection} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {!activeSection && (
-        <>
-          <MentionField />
-          <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-            {saving ? "Saving..." : "Save Diary Card"}
-          </Button>
-        </>
-      )}
-      <ExistingCardDialog
-        isOpen={showExistingCardDialog}
-        onClose={() => { setShowExistingCardDialog(false); setExistingCardToday(null); }}
-        onUpdate={proceedWithUpdate}
-        onCreateNew={proceedWithNewCard}
-        existingCard={existingCardToday}
-      />
-    </motion.div>
-  );
+  return null;
 }

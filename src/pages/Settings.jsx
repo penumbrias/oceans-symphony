@@ -16,6 +16,7 @@ import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
+import SymptomManager from "@/components/symptoms/SymptomManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
@@ -303,6 +304,9 @@ export default function Settings() {
             }}
           />
         </div>
+
+        {/* Symptoms & Habits */}
+        <SymptomManager />
 
         {/* Diary Template */}
         <DiaryTemplateManager settings={settings} />

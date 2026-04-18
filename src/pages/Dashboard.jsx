@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Heart, Bell } from "lucide-react";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
+import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
@@ -94,6 +95,8 @@ const systemName = settings[0]?.system_name || `Your ${terms.system}`;
   [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean) :
   [];
 
+  const [emotionModalInitialSection, setEmotionModalInitialSection] = useState(null);
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       
@@ -125,6 +128,7 @@ const systemName = settings[0]?.system_name || `Your ${terms.system}`;
       </div>
 
       <CurrentFronters alters={alters} />
+      <CurrentSymptoms onOpenCheckIn={(section) => { setEmotionModalInitialSection(section); setShowEmotionModal(true); }} />
       <div className="mt-3">
         <CurrentSymptoms />
       </div>
@@ -157,9 +161,10 @@ const systemName = settings[0]?.system_name || `Your ${terms.system}`;
       <TourModal open={showTour} onClose={handleTourClose} />
       <QuickCheckInModal
         isOpen={showEmotionModal}
-        onClose={() => setShowEmotionModal(false)}
+        onClose={() => { setShowEmotionModal(false); setEmotionModalInitialSection(null); }}
         alters={alters}
-        currentFronterIds={activeSession ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])] : []} />
+        currentFronterIds={activeSession ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])] : []}
+        initialSection={emotionModalInitialSection} />
       
     </motion.div>);
 

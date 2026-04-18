@@ -19,6 +19,8 @@ import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline"
 import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
 import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
+import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
+import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 
 // MAIN_TABS defined dynamically in component
 
@@ -81,7 +83,7 @@ export default function Analytics() {
   const MAIN_TABS = [
     { id: "alters", label: `${terms.System} Members` },
     { id: "activities", label: "Activities" },
-    { id: "diary", label: "Diary Cards" },
+    { id: "diary", label: "Daily Log" },
     { id: "emotions", label: "Emotions" },
     { id: "symptoms", label: "Symptoms" },
   ];

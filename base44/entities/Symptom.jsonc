@@ -1,0 +1,69 @@
+{
+  "name": "Symptom",
+  "type": "object",
+  "properties": {
+    "label": {
+      "type": "string",
+      "description": "Display name of the symptom or habit"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "symptom",
+        "habit"
+      ],
+      "description": "Whether this is a symptom or a habit"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "rating",
+        "boolean"
+      ],
+      "default": "boolean",
+      "description": "Whether this symptom has a 0-5 rating or is boolean (yes/no)"
+    },
+    "is_positive": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if higher values are better (e.g. joy), false if worse (e.g. anxiety)"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color for this symptom/habit"
+    },
+    "order": {
+      "type": "number",
+      "default": 0,
+      "description": "Display order"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false,
+      "description": "True for preset definitions seeded on first load"
+    },
+    "is_archived": {
+      "type": "boolean",
+      "default": false,
+      "description": "Soft delete flag \u2014 never hard delete"
+    }
+  },
+  "required": [
+    "label",
+    "category"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

@@ -1,28 +1,29 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Plus, ArrowDownAZ, ArrowUpAZ, Loader2 } from "lucide-react";
+import { Search, Plus, ArrowDownAZ, ArrowUpAZ, Loader2, Minus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import SymptomCard from "./SymptomCard";
 
 const TABS = ["symptom", "habit"];
 const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
 
-export default function SymptomsSection({ onSymptomCheckInsReady }) {
+// Exported so QuickCheckInModal can collect at save time
+export default function SymptomsSection({ onCheckInsReady }) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("symptom");
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [addingNew, setAddingNew] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState("boolean");
   const [adding, setAdding] = useState(false);
-  // card states: { [definitionId]: { checked: bool, severity: number|null } }
+  // { [symptomId]: { checked: bool, severity: number|null } }
   const [cardStates, setCardStates] = useState({});
   const newInputRef = useRef(null);
 
-  const { data: definitions = [] } = useQuery({
-    queryKey: ["symptomDefinitions"],
-    queryFn: () => base44.entities.SymptomDefinition.list(),
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
   });
 
   const { data: activeSessions = [] } = useQuery({
@@ -30,54 +31,46 @@ export default function SymptomsSection({ onSymptomCheckInsReady }) {
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true }),
   });
 
-  const visibleDefs = definitions
-    .filter(
-      (d) =>
-        !d.is_archived &&
-        d.category === activeTab &&
-        d.name.toLowerCase().includes(search.toLowerCase())
-    )
+  const visible = symptoms
+    .filter(s => !s.is_archived && s.category === activeTab &&
+      (s.label || "").toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
-      const cmp = (a.name || "").localeCompare(b.name || "");
+      const cmp = (a.label || "").localeCompare(b.label || "");
       return sortAsc ? cmp : -cmp;
     });
 
-  const getActiveSession = (defId) =>
-    activeSessions.find((s) => s.symptom_definition_id === defId) || null;
+  const getSession = (id) => activeSessions.find(s => s.symptom_id === id) || null;
 
-  const setCard = (defId, checked, severity) => {
-    setCardStates((prev) => ({ ...prev, [defId]: { checked, severity } }));
-  };
+  const setCard = (id, checked, severity) =>
+    setCardStates(prev => ({ ...prev, [id]: { checked, severity } }));
 
-  // Expose collected check-ins to parent via callback ref pattern
-  // Parent calls this on save
-  const getCheckIns = () =>
-    Object.entries(cardStates)
-      .filter(([, s]) => s.checked)
-      .map(([id, s]) => ({ symptom_definition_id: id, severity: s.severity ?? null }));
-
-  // Pass getter up whenever it changes
-  React.useEffect(() => {
-    onSymptomCheckInsReady?.(getCheckIns);
+  // Provide getter to parent
+  useEffect(() => {
+    onCheckInsReady?.(() =>
+      Object.entries(cardStates)
+        .filter(([, s]) => s.checked)
+        .map(([symptom_id, s]) => ({ symptom_id, severity: s.severity ?? null }))
+    );
   });
 
   const handleAddNew = async () => {
     if (!newName.trim()) return;
     setAdding(true);
     try {
-      await base44.entities.SymptomDefinition.create({
-        name: newName.trim(),
+      await base44.entities.Symptom.create({
+        label: newName.trim(),
         category: activeTab,
+        type: newType,
+        is_positive: activeTab === "habit",
         is_default: false,
         is_archived: false,
         order: 999,
       });
-      queryClient.invalidateQueries({ queryKey: ["symptomDefinitions"] });
-      setNewName("");
-      setAddingNew(false);
+      queryClient.invalidateQueries({ queryKey: ["symptoms"] });
+      setNewName(""); setAddingNew(false);
       toast.success("Added!");
     } catch (e) {
-      toast.error(e.message || "Failed to add");
+      toast.error(e.message || "Failed");
     } finally {
       setAdding(false);
     }
@@ -87,95 +80,73 @@ export default function SymptomsSection({ onSymptomCheckInsReady }) {
     <div className="space-y-3">
       {/* Tabs */}
       <div className="flex gap-1 bg-muted/40 rounded-lg p-1">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+        {TABS.map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-colors ${
-              activeTab === tab
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
+              activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}>
             {TAB_LABELS[tab]}
           </button>
         ))}
       </div>
 
-      {/* Header row */}
+      {/* Header */}
       <div className="flex gap-2 items-center">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+          <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder={`Search ${TAB_LABELS[activeTab].toLowerCase()}...`}
-            className="w-full pl-8 pr-3 py-1.5 text-sm bg-muted/40 border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
-          />
+            className="w-full pl-8 pr-3 py-1.5 text-sm bg-muted/40 border border-border/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary" />
         </div>
-        <button
-          onClick={() => setSortAsc(!sortAsc)}
-          className="p-1.5 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground"
-          title={sortAsc ? "A→Z" : "Z→A"}
-        >
+        <button onClick={() => setSortAsc(!sortAsc)}
+          className="p-1.5 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground" title={sortAsc ? "A→Z" : "Z→A"}>
           {sortAsc ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
         </button>
-        <button
-          onClick={() => {
-            setAddingNew(true);
-            setTimeout(() => newInputRef.current?.focus(), 50);
-          }}
-          className="p-1.5 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground"
-          title="Add new"
-        >
+        <button onClick={() => { setAddingNew(true); setTimeout(() => newInputRef.current?.focus(), 50); }}
+          className="p-1.5 rounded-lg border border-border/50 hover:bg-muted/50 text-muted-foreground" title="Add new">
           <Plus className="w-4 h-4" />
         </button>
       </div>
 
       {/* Add new inline */}
       {addingNew && (
-        <div className="flex gap-2">
-          <input
-            ref={newInputRef}
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleAddNew();
-              if (e.key === "Escape") { setAddingNew(false); setNewName(""); }
-            }}
-            placeholder={`New ${TAB_LABELS[activeTab].toLowerCase()} name...`}
-            className="flex-1 px-3 py-1.5 text-sm bg-muted/40 border border-primary/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <button
-            onClick={handleAddNew}
-            disabled={adding}
-            className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg flex items-center gap-1"
-          >
-            {adding ? <Loader2 className="w-3 h-3 animate-spin" /> : "Add"}
-          </button>
-          <button
-            onClick={() => { setAddingNew(false); setNewName(""); }}
-            className="px-3 py-1.5 text-sm border border-border rounded-lg text-muted-foreground hover:bg-muted/50"
-          >
-            Cancel
-          </button>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <input ref={newInputRef} value={newName} onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleAddNew(); if (e.key === "Escape") { setAddingNew(false); setNewName(""); } }}
+              placeholder={`New ${TAB_LABELS[activeTab].toLowerCase()} name...`}
+              className="flex-1 px-3 py-1.5 text-sm bg-muted/40 border border-primary/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary" />
+            <select value={newType} onChange={e => setNewType(e.target.value)}
+              className="px-2 py-1.5 text-xs bg-muted/40 border border-border/50 rounded-lg focus:outline-none">
+              <option value="boolean">Yes/No</option>
+              <option value="rating">Rating</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleAddNew} disabled={adding}
+              className="flex-1 px-3 py-1.5 text-sm bg-primary text-white rounded-lg flex items-center justify-center gap-1">
+              {adding ? <Loader2 className="w-3 h-3 animate-spin" /> : "Add"}
+            </button>
+            <button onClick={() => { setAddingNew(false); setNewName(""); }}
+              className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg text-muted-foreground hover:bg-muted/50">
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Symptom cards */}
+      {/* Cards */}
       <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-        {visibleDefs.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">
-            No {TAB_LABELS[activeTab].toLowerCase()} found
-          </p>
+        {visible.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">No {TAB_LABELS[activeTab].toLowerCase()} found</p>
         ) : (
-          visibleDefs.map((def) => (
-            <SymptomCardWrapper
-              key={def.id}
-              definition={def}
-              activeSession={getActiveSession(def.id)}
-              cardState={cardStates[def.id]}
-              onStateChange={(checked, severity) => setCard(def.id, checked, severity)}
+          visible.map(symptom => (
+            <SymptomCardRow
+              key={symptom.id}
+              symptom={symptom}
+              activeSession={getSession(symptom.id)}
+              state={cardStates[symptom.id]}
+              onStateChange={(checked, severity) => setCard(symptom.id, checked, severity)}
             />
           ))
         )}
@@ -184,44 +155,35 @@ export default function SymptomsSection({ onSymptomCheckInsReady }) {
   );
 }
 
-// Wrapper that manages local checked/severity state and reports up
-function SymptomCardWrapper({ definition, activeSession, cardState, onStateChange }) {
+function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
   const queryClient = useQueryClient();
-  const [checked, setChecked] = useState(cardState?.checked ?? !!activeSession);
-  const [severity, setSeverity] = useState(cardState?.severity ?? null);
+  const [checked, setChecked] = useState(state.checked ?? !!activeSession);
+  const [severity, setSeverity] = useState(state.severity ?? null);
   const [toggling, setToggling] = useState(false);
   const [holdTimer, setHoldTimer] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
-  const color = definition.color || "#8B5CF6";
+  const color = symptom.color || "#8B5CF6";
   const isActive = !!activeSession;
+  const isRating = symptom.type === "rating";
+  const LABELS = ["—", "0", "1", "2", "3", "4", "5"];
 
-  const SEVERITY_LABELS = ["—", "0", "1", "2", "3", "4", "5"];
+  const updateState = (c, s) => {
+    setChecked(c); setSeverity(s);
+    onStateChange(c, s);
+  };
 
-  const handleSeverityClick = async (idx) => {
-    if (idx === 0) {
-      setSeverity(null);
-      setChecked(false);
-      onStateChange(false, null);
-      return;
-    }
+  const handleSeverity = async (idx) => {
+    if (idx === 0) { updateState(false, null); return; }
     const val = idx - 1;
-    setSeverity(val);
-    setChecked(true);
-    onStateChange(true, val);
+    updateState(true, val);
     if (activeSession) {
-      const snapshots = activeSession.severity_snapshots || [];
+      const snaps = activeSession.severity_snapshots || [];
       await base44.entities.SymptomSession.update(activeSession.id, {
-        severity_snapshots: [...snapshots, { severity: val, timestamp: new Date().toISOString() }],
+        severity_snapshots: [...snaps, { severity: val, timestamp: new Date().toISOString() }],
       });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
     }
-  };
-
-  const handleCheckbox = () => {
-    const next = !checked;
-    setChecked(next);
-    onStateChange(next, severity);
   };
 
   const handleToggleSession = async () => {
@@ -229,21 +191,17 @@ function SymptomCardWrapper({ definition, activeSession, cardState, onStateChang
     setToggling(true);
     try {
       if (isActive) {
-        await base44.entities.SymptomSession.update(activeSession.id, {
-          is_active: false,
-          end_time: new Date().toISOString(),
-        });
-        toast.success(`${definition.name} session ended`);
+        await base44.entities.SymptomSession.update(activeSession.id, { is_active: false, end_time: new Date().toISOString() });
+        toast.success(`${symptom.label} session ended`);
       } else {
         await base44.entities.SymptomSession.create({
-          symptom_definition_id: definition.id,
+          symptom_id: symptom.id,
           start_time: new Date().toISOString(),
           is_active: true,
           severity_snapshots: [],
         });
-        setChecked(true);
-        onStateChange(true, severity);
-        toast.success(`${definition.name} set to active`);
+        updateState(true, severity);
+        toast.success(`${symptom.label} set to active`);
       }
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
     } catch (e) {
@@ -254,110 +212,74 @@ function SymptomCardWrapper({ definition, activeSession, cardState, onStateChang
   };
 
   const handlePointerDown = () => {
-    const t = setTimeout(() => setShowDeleteConfirm(true), 5000);
+    const t = setTimeout(() => setShowDelete(true), 5000);
     setHoldTimer(t);
   };
-  const handlePointerUp = () => {
-    if (holdTimer) { clearTimeout(holdTimer); setHoldTimer(null); }
-  };
+  const handlePointerUp = () => { if (holdTimer) { clearTimeout(holdTimer); setHoldTimer(null); } };
 
   const handleArchive = async () => {
-    await base44.entities.SymptomDefinition.update(definition.id, { is_archived: true });
-    queryClient.invalidateQueries({ queryKey: ["symptomDefinitions"] });
-    setShowDeleteConfirm(false);
-    toast.success(`${definition.name} removed`);
+    await base44.entities.Symptom.update(symptom.id, { is_archived: true });
+    queryClient.invalidateQueries({ queryKey: ["symptoms"] });
+    setShowDelete(false);
+    toast.success(`${symptom.label} removed`);
   };
 
   return (
     <>
-      <div
-        className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all"
-        style={{
-          borderColor: isActive ? color : "hsl(var(--border))",
-          backgroundColor: isActive ? `${color}15` : "hsl(var(--card))",
-        }}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-      >
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all"
+        style={{ borderColor: isActive ? color : "hsl(var(--border))", backgroundColor: isActive ? `${color}15` : "hsl(var(--card))" }}
+        onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
+
         {/* Checkbox */}
-        <button
-          onClick={handleCheckbox}
+        <button onClick={() => updateState(!checked, severity)}
           className="w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors"
-          style={{
-            borderColor: checked ? color : "hsl(var(--border))",
-            backgroundColor: checked ? color : "transparent",
-          }}
-        >
+          style={{ borderColor: checked ? color : "hsl(var(--border))", backgroundColor: checked ? color : "transparent" }}>
           {checked && <div className="w-2 h-2 rounded-sm bg-white" />}
         </button>
 
-        {/* Name + Severity */}
+        {/* Label + severity */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{definition.name}</p>
-          <div className="flex gap-1 mt-1 flex-wrap">
-            {SEVERITY_LABELS.map((label, idx) => {
-              const isSelected = idx === 0 ? severity === null : severity === idx - 1;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => handleSeverityClick(idx)}
-                  className="w-6 h-6 rounded text-xs font-medium transition-colors"
-                  style={{
-                    backgroundColor: isSelected
-                      ? idx === 0 ? `${color}30` : color
-                      : "hsl(var(--muted))",
-                    color: isSelected
-                      ? idx === 0 ? color : "#fff"
-                      : "hsl(var(--muted-foreground))",
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          <p className="text-sm font-medium truncate">{symptom.label}</p>
+          {isRating && (
+            <div className="flex gap-1 mt-1">
+              {LABELS.map((lbl, idx) => {
+                const sel = idx === 0 ? severity === null : severity === idx - 1;
+                return (
+                  <button key={idx} onClick={() => handleSeverity(idx)}
+                    className="w-6 h-6 rounded text-xs font-medium transition-colors"
+                    style={{
+                      backgroundColor: sel ? (idx === 0 ? `${color}30` : color) : "hsl(var(--muted))",
+                      color: sel ? (idx === 0 ? color : "#fff") : "hsl(var(--muted-foreground))",
+                    }}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Toggle session */}
-        <button
-          onClick={handleToggleSession}
-          disabled={toggling}
+        {/* Session toggle */}
+        <button onClick={handleToggleSession} disabled={toggling}
           className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all border"
-          style={{
-            borderColor: isActive ? color : "hsl(var(--border))",
-            backgroundColor: isActive ? color : "transparent",
-            color: isActive ? "#fff" : color,
-          }}
-          title={isActive ? "End active session" : "Start active session"}
-        >
-          {isActive ? <Minus className="w-3 h-3" /> : <PlusIcon className="w-3 h-3" />}
+          style={{ borderColor: isActive ? color : "hsl(var(--border))", backgroundColor: isActive ? color : "transparent", color: isActive ? "#fff" : color }}
+          title={isActive ? "End session" : "Start session"}>
+          {isActive ? <Minus className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
         </button>
       </div>
 
-      {showDeleteConfirm && (
+      {showDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card border border-border rounded-xl p-6 max-w-sm mx-4 space-y-4">
-            <p className="text-sm font-medium">Delete "{definition.name}"?</p>
-            <p className="text-xs text-muted-foreground">This will not delete existing session history.</p>
+            <p className="text-sm font-medium">Delete "{symptom.label}"?</p>
+            <p className="text-xs text-muted-foreground">Existing session history will be preserved.</p>
             <div className="flex gap-2">
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-3 py-2 rounded-lg border text-sm hover:bg-muted/50">Cancel</button>
+              <button onClick={() => setShowDelete(false)} className="flex-1 px-3 py-2 rounded-lg border text-sm hover:bg-muted/50">Cancel</button>
               <button onClick={handleArchive} className="flex-1 px-3 py-2 rounded-lg bg-destructive text-white text-sm">Delete</button>
             </div>
           </div>
         </div>
       )}
     </>
-  );
-}
-
-function PlusIcon({ className }) {
-  return <Plus className={className} />;
-}
-function Minus({ className }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
   );
 }

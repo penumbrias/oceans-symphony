@@ -3,47 +3,43 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { formatDistanceToNow } from "date-fns";
 
-export default function CurrentSymptoms() {
+export default function CurrentSymptoms({ onOpenCheckIn }) {
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["symptomSessions"],
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true }),
     refetchInterval: 60000,
   });
 
-  const { data: definitions = [] } = useQuery({
-    queryKey: ["symptomDefinitions"],
-    queryFn: () => base44.entities.SymptomDefinition.list(),
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
   });
 
-  const defsById = Object.fromEntries(definitions.map((d) => [d.id, d]));
+  const symptomsById = Object.fromEntries(symptoms.map(s => [s.id, s]));
 
-  const activeWithDefs = activeSessions
-    .map((s) => ({ session: s, def: defsById[s.symptom_definition_id] }))
-    .filter((x) => x.def && !x.def.is_archived);
+  const active = activeSessions
+    .map(sess => ({ sess, symptom: symptomsById[sess.symptom_id] }))
+    .filter(x => x.symptom && !x.symptom.is_archived);
 
-  if (activeWithDefs.length === 0) return null;
+  if (active.length === 0) return null;
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">
-        Active Symptoms
-      </p>
+    <div className="space-y-2 mt-3">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Active Symptoms</p>
       <div className="flex flex-wrap gap-2">
-        {activeWithDefs.map(({ session, def }) => (
-          <div
-            key={session.id}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium"
-            style={{
-              borderColor: def.color || "#8B5CF6",
-              backgroundColor: `${def.color || "#8B5CF6"}15`,
-              color: def.color || "#8B5CF6",
-            }}
+        {active.map(({ sess, symptom }) => (
+          <button
+            key={sess.id}
+            onClick={() => onOpenCheckIn?.("symptoms")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ borderColor: symptom.color || "#8B5CF6", backgroundColor: `${symptom.color || "#8B5CF6"}15`, color: symptom.color || "#8B5CF6" }}
           >
-            <span>{def.name}</span>
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: symptom.color || "#8B5CF6" }} />
+            {symptom.label}
             <span className="opacity-60 font-normal">
-              · {formatDistanceToNow(new Date(session.start_time), { addSuffix: false })}
+              · {formatDistanceToNow(new Date(sess.start_time))}
             </span>
-          </div>
+          </button>
         ))}
       </div>
     </div>

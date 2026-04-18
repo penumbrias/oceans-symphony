@@ -2,9 +2,9 @@
   "name": "SymptomSession",
   "type": "object",
   "properties": {
-    "symptom_definition_id": {
+    "symptom_id": {
       "type": "string",
-      "description": "References SymptomDefinition.id"
+      "description": "References Symptom.id"
     },
     "start_time": {
       "type": "string",
@@ -38,7 +38,7 @@
     }
   },
   "required": [
-    "symptom_definition_id",
+    "symptom_id",
     "start_time"
   ],
   "rls": {
