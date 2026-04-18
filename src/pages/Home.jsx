@@ -13,11 +13,17 @@ import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 
 export default function Home() {
   const [showAddAlter, setShowAddAlter] = useState(false);
+  const [groupFilter, setGroupFilter] = useState(null);
   const terms = useTerms();
 
   const { data: alters = [], isLoading: altersLoading } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list()
+  });
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list()
   });
 
   const { data: settings = [] } = useQuery({
@@ -36,6 +42,10 @@ export default function Home() {
 
   const activeAlters = alters.filter((a) => !a.is_archived);
   const archivedAlters = alters.filter((a) => a.is_archived);
+
+  const filteredAlters = groupFilter
+    ? activeAlters.filter((a) => groups.find((g) => g.id === groupFilter)?.alter_ids?.includes(a.id))
+    : activeAlters;
 
   const navConfig = useMemo(() => {
     return systemSettings?.navigation_config || DEFAULT_CONFIG;
@@ -111,7 +121,36 @@ export default function Home() {
       </motion.div>
 
       <FrontingBar alters={activeAlters} />
-      <AlterGrid alters={activeAlters} currentSession={activeSession} />
+
+      {/* Group Filter */}
+      {groups.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-3">
+          <button
+            onClick={() => setGroupFilter(null)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              !groupFilter ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/40"
+            }`}
+          >
+            All {terms.alters}
+          </button>
+          {groups.map((group) => (
+            <button
+              key={group.id}
+              onClick={() => setGroupFilter(group.id)}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                groupFilter === group.id ? "text-white border-transparent" : "border-border text-muted-foreground hover:border-primary/40"
+              }`}
+              style={groupFilter === group.id ? { backgroundColor: group.color || "hsl(var(--primary))" } : {}}
+            >
+              {group.icon && <span>{group.icon}</span>}
+              {group.name}
+              <span className="opacity-70">({group.alter_ids?.length || 0})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <AlterGrid alters={filteredAlters} currentSession={activeSession} />
 
       <AlterEditModal
         open={showAddAlter}

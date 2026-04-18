@@ -67,6 +67,13 @@ export default function AlterProfile() {
     queryFn: () => base44.entities.CustomField.list("order"),
   });
 
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+
+  const alterGroups = groups.filter((g) => g.alter_ids?.includes(alter?.id));
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -236,13 +243,32 @@ export default function AlterProfile() {
 
         <div>
           {tab === "profile" && (
-            <ProfileTab
-              alter={alter}
-              editMode={editMode}
-              onEditModeChange={setEditMode}
-              systemFields={systemFields}
-              saveRef={saveRef}
-            />
+            <>
+              {alterGroups.length > 0 && (
+                <div className="mb-4 p-4 rounded-xl bg-muted/30 border border-border/50">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Groups</p>
+                  <div className="flex flex-wrap gap-2">
+                    {alterGroups.map((group) => (
+                      <span
+                        key={group.id}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium text-white"
+                        style={{ backgroundColor: group.color || "#8b5cf6" }}
+                      >
+                        {group.icon && <span>{group.icon}</span>}
+                        {group.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <ProfileTab
+                alter={alter}
+                editMode={editMode}
+                onEditModeChange={setEditMode}
+                systemFields={systemFields}
+                saveRef={saveRef}
+              />
+            </>
           )}
           {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
           {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
