@@ -126,7 +126,7 @@ export default function Settings() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} ref={scrollContainerRef} className="overflow-y-auto">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 80px)" }}>
       <div className="flex items-center justify-between mb-6">
         <div className="flex-1">
           <h1 className="font-display text-3xl font-semibold text-foreground mb-2">Settings</h1>
