@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare, Home, Settings, ChevronLeft } from "lucide-react";
+import { Users, Sparkles, ClipboardList, BookOpen, CheckSquare, Home, Settings, ChevronLeft, FileText } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -107,6 +107,12 @@ const handleNotifClick = (mentionLog) => {
                 </Link>);
 
             })}
+            <Link to="/therapy-report"
+            aria-label="Therapy Report"
+            aria-current={location.pathname.startsWith("/therapy-report") ? "page" : undefined} className="text-muted-foreground px-3 text-sm font-medium rounded-lg flex items-center gap-2 transition-all duration-200 select-none min-h-[44px] hover:text-foreground hover:bg-muted/50">
+              <FileText className="w-4 h-4" />
+              <span>Therapy Report</span>
+            </Link>
             <Link to="/settings"
             aria-label="Settings"
             aria-current={location.pathname.startsWith("/settings") ? "page" : undefined} className="text-muted-foreground px-3 text-sm font-medium rounded-lg flex items-center gap-2 transition-all duration-200 select-none min-h-[44px] hover:text-foreground hover:bg-muted/50">

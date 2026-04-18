@@ -1,20 +1,17 @@
-// reportGenerator.js — assembles and downloads the therapy report PDF using jsPDF + autotable
+// reportGenerator.js — assembles and downloads therapy report PDF using jsPDF
 // All generation is client-side. No data leaves the browser.
 
 import jsPDF from "jspdf";
-import "jspdf-autotable";
 import { format } from "date-fns";
 
-const PRIMARY = [59, 130, 246]; // blue-500
-const MUTED = [100, 116, 139]; // slate-500
-const LIGHT_BG = [241, 245, 249]; // slate-100
-const FLAG_BG = [254, 243, 199]; // amber-100
-const FLAG_TEXT = [146, 64, 14]; // amber-800
+const PRIMARY = [59, 130, 246];
+const MUTED = [100, 116, 139];
+const LIGHT_BG = [241, 245, 249];
+const FLAG_BG = [254, 243, 199];
+const FLAG_TEXT = [146, 64, 14];
 const PAGE_W = 210;
 const MARGIN = 18;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-
-function rgb(arr) { return { r: arr[0], g: arr[1], b: arr[2] }; }
 
 function pageFooter(doc, config, pageNum) {
   const totalPages = doc.internal.getNumberOfPages();
@@ -70,6 +67,45 @@ function flagBadge(doc, label, x, y) {
   return x + w + 3;
 }
 
+function drawTable(doc, headers, rows, y, colWidths = null) {
+  const colW = colWidths || headers.map(() => CONTENT_W / headers.length);
+  const rowH = 6;
+  
+  // Header
+  doc.setFillColor(...PRIMARY);
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  let x = MARGIN;
+  headers.forEach((h, i) => {
+    doc.rect(x, y, colW[i], rowH, "F");
+    doc.text(h, x + 1.5, y + 4.5);
+    x += colW[i];
+  });
+  y += rowH;
+
+  // Rows
+  doc.setTextColor(50, 50, 50);
+  doc.setFont("helvetica", "normal");
+  rows.forEach((row, ri) => {
+    if (ri % 2 === 1) {
+      x = MARGIN;
+      doc.setFillColor(...LIGHT_BG);
+      headers.forEach((_, i) => { doc.rect(x, y, colW[i], rowH, "F"); x += colW[i]; });
+    }
+    x = MARGIN;
+    row.forEach((cell, i) => {
+      const text = String(cell || "");
+      const truncated = text.length > 20 ? text.slice(0, 17) + "…" : text;
+      doc.text(truncated, x + 1, y + 4.5);
+      x += colW[i];
+    });
+    y += rowH;
+  });
+  
+  return y + 2;
+}
+
 // ── COVER PAGE ────────────────────────────────────────────────────────────────
 
 function addCoverPage(doc, config) {
@@ -90,7 +126,6 @@ function addCoverPage(doc, config) {
   doc.setFontSize(10);
   doc.text(`${config.dateFrom} – ${config.dateTo}`, PAGE_W / 2, cy + 20, { align: "center" });
 
-  // Divider
   doc.setDrawColor(...PRIMARY);
   doc.setLineWidth(0.5);
   doc.line(MARGIN + 20, cy + 26, PAGE_W - MARGIN - 20, cy + 26);
@@ -119,7 +154,6 @@ function addCoverPage(doc, config) {
     noteLines.forEach(line => { doc.text(line, PAGE_W / 2, ty, { align: "center" }); ty += 5; });
   }
 
-  // Footer
   const fy = doc.internal.pageSize.height - 18;
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
@@ -166,17 +200,10 @@ function addFrontingSection(doc, frontingData, y) {
   y = sectionHeader(doc, "Fronting History", y);
 
   if (frontingData.summaryTable.length > 0) {
-    doc.autoTable({
-      startY: y,
-      head: [["System Member", "Total Time", "Sessions", "Primary"]],
-      body: frontingData.summaryTable.map(r => [r.name, r.total, r.sessions, r.primary]),
-      margin: { left: MARGIN, right: MARGIN },
-      styles: { fontSize: 8, cellPadding: 2.5 },
-      headStyles: { fillColor: PRIMARY, textColor: [255, 255, 255], fontSize: 8 },
-      alternateRowStyles: { fillColor: LIGHT_BG },
-      tableWidth: CONTENT_W,
-    });
-    y = doc.lastAutoTable.finalY + 6;
+    y = drawTable(doc, ["System Member", "Total Time", "Sessions", "Primary"], 
+      frontingData.summaryTable.map(r => [r.name, r.total, r.sessions, r.primary]), y,
+      [CONTENT_W * 0.4, CONTENT_W * 0.2, CONTENT_W * 0.2, CONTENT_W * 0.2]);
+    y += 6;
   }
 
   if (frontingData.noteworthy.length > 0) {
@@ -255,17 +282,10 @@ function addSymptomsSection(doc, symptomsData, y) {
   y = sectionHeader(doc, "Symptoms & Habits", y);
 
   if (symptomsData.summaryTable.length > 0) {
-    doc.autoTable({
-      startY: y,
-      head: [["Symptom / Habit", "Check-ins", "Avg Severity", "Sessions", "Total Duration"]],
-      body: symptomsData.summaryTable.map(r => [r.label, r.count, r.avgSeverity, r.activeSessions, r.totalDuration]),
-      margin: { left: MARGIN, right: MARGIN },
-      styles: { fontSize: 8, cellPadding: 2.5 },
-      headStyles: { fillColor: PRIMARY, textColor: [255, 255, 255], fontSize: 8 },
-      alternateRowStyles: { fillColor: LIGHT_BG },
-      tableWidth: CONTENT_W,
-    });
-    y = doc.lastAutoTable.finalY + 6;
+    y = drawTable(doc, ["Symptom / Habit", "Check-ins", "Avg Severity", "Sessions", "Total Duration"],
+      symptomsData.summaryTable.map(r => [r.label, r.count, r.avgSeverity, r.activeSessions, r.totalDuration]), y,
+      [CONTENT_W * 0.3, CONTENT_W * 0.15, CONTENT_W * 0.15, CONTENT_W * 0.15, CONTENT_W * 0.25]);
+    y += 6;
   }
 
   if (symptomsData.noteworthy.length > 0) {
@@ -299,17 +319,10 @@ function addActivitiesSection(doc, activitiesData, y) {
     doc.setFontSize(8); doc.setTextColor(...MUTED);
     doc.text("No activities recorded in this period.", MARGIN, y); return y + 10;
   }
-  doc.autoTable({
-    startY: y,
-    head: [["Activity", "Times logged", "Total duration"]],
-    body: activitiesData.list.slice(0, 15).map(r => [r.name, r.count, r.duration]),
-    margin: { left: MARGIN, right: MARGIN },
-    styles: { fontSize: 8, cellPadding: 2.5 },
-    headStyles: { fillColor: PRIMARY, textColor: [255, 255, 255], fontSize: 8 },
-    alternateRowStyles: { fillColor: LIGHT_BG },
-    tableWidth: CONTENT_W,
-  });
-  return doc.lastAutoTable.finalY + 8;
+  y = drawTable(doc, ["Activity", "Times logged", "Total duration"],
+    activitiesData.list.slice(0, 15).map(r => [r.name, r.count, r.duration]), y,
+    [CONTENT_W * 0.5, CONTENT_W * 0.25, CONTENT_W * 0.25]);
+  return y + 8;
 }
 
 // ── JOURNALS ──────────────────────────────────────────────────────────────────
@@ -357,18 +370,10 @@ function addDiarySection(doc, diaryData, y) {
     doc.setFontSize(8); doc.setTextColor(...MUTED);
     doc.text("No diary cards in this period.", MARGIN, y); return y + 10;
   }
-  doc.autoTable({
-    startY: y,
-    head: [["Date", "Emotions", "Urges", "Body / Mind", "Flags"]],
-    body: diaryData.map(d => [d.date, d.emotions, d.urges, d.bodyMind, d.flags.join(", ") || "—"]),
-    margin: { left: MARGIN, right: MARGIN },
-    styles: { fontSize: 7.5, cellPadding: 2, overflow: "linebreak" },
-    headStyles: { fillColor: PRIMARY, textColor: [255, 255, 255], fontSize: 8 },
-    alternateRowStyles: { fillColor: LIGHT_BG },
-    columnStyles: { 0: { cellWidth: 22 }, 4: { cellWidth: 28 } },
-    tableWidth: CONTENT_W,
-  });
-  return doc.lastAutoTable.finalY + 8;
+  y = drawTable(doc, ["Date", "Emotions", "Urges", "Body/Mind", "Flags"],
+    diaryData.map(d => [d.date, d.emotions?.slice(0, 20) || "—", d.urges?.slice(0, 20) || "—", d.bodyMind?.slice(0, 20) || "—", d.flags.join(", ") || "—"]), y,
+    [CONTENT_W * 0.15, CONTENT_W * 0.2, CONTENT_W * 0.2, CONTENT_W * 0.25, CONTENT_W * 0.2]);
+  return y + 8;
 }
 
 // ── PATTERNS SUMMARY ──────────────────────────────────────────────────────────
@@ -413,13 +418,12 @@ function addAlterAppendix(doc, appendix, y) {
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
 export async function generateTherapyReport({
-  config,       // { systemName, dateFrom, dateTo, therapistName, sessionDate, coverNote, showCoverPage, confidentialityNotice, journalDetail }
-  sections,     // object with keys: overview, fronting, emotions, symptoms, activities, journals, diary, patterns, alterAppendix
-  enabledSections, // Set of section keys to include
+  config,
+  sections,
+  enabledSections,
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
-  // Cover page
   if (config.showCoverPage) {
     addCoverPage(doc, config);
     doc.addPage();
@@ -455,14 +459,12 @@ export async function generateTherapyReport({
     addAlterAppendix(doc, sections.alterAppendix, y);
   }
 
-  // Add footers to all pages
   const total = doc.internal.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
     pageFooter(doc, config, i);
   }
 
-  // Download
   const slug = (config.systemName || "system").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   const filename = `${slug}-therapy-report-${config.dateFrom}-to-${config.dateTo}.pdf`;
   doc.save(filename);

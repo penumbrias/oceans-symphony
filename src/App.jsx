@@ -29,6 +29,7 @@ import SystemMapPage from '@/pages/SystemMap';
 import Grounding from '@/pages/Grounding';
 import BulletinPage from '@/pages/BulletinPage';
 import ManageCheckIn from '@/pages/ManageCheckIn';
+import TherapyReport from '@/pages/TherapyReport';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
 import { isDbInitialized, initLocalDb } from '@/lib/localDb';
@@ -84,6 +85,7 @@ const AuthenticatedApp = () => {
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
         <Route path="/grounding" element={<Grounding />} />
+        <Route path="/therapy-report" element={<TherapyReport />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
