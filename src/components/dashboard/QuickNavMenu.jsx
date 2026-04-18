@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, Search, X, LayoutGrid, List, FileText, Heart } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, LayoutGrid, List, FileText, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import GlobalSearch from "./GlobalSearch";
 
 function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
   return {
@@ -60,7 +60,6 @@ function buildGridItems(altersLabel, frontLabel, systemLabel) {
 
 export default function QuickNavMenu() {
   const terms = useTerms();
-  const [searchQuery, setSearchQuery] = useState("");
   const [isGridLayout, setIsGridLayout] = useState(() => localStorage.getItem("nav_grid_layout") === "true");
   
   const { data: systemSettingsData = [] } = useQuery({
@@ -92,52 +91,15 @@ export default function QuickNavMenu() {
     return filtered;
   }, [NAV_GROUPS, navConfig.dashboardGrid]);
 
-  const filteredGroups = useMemo(() => {
-    if (!searchQuery.trim()) return configuredGroups;
-
-    const query = searchQuery.toLowerCase();
-    const filtered = {};
-
-    Object.entries(configuredGroups).forEach(([group, items]) => {
-      const matches = items.filter((item) =>
-      item.label.toLowerCase().includes(query)
-      );
-      if (matches.length > 0) {
-        filtered[group] = matches;
-      }
-    });
-
-    return filtered;
-  }, [searchQuery, configuredGroups]);
-
-  const filteredGridItems = useMemo(() => {
-    if (!searchQuery.trim()) return configuredGridItems;
-    return configuredGridItems.filter((item) =>
-    item.label.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery, configuredGridItems]);
+  // Always show all items since search is now global
+  const filteredGroups = configuredGroups;
+  const filteredGridItems = configuredGridItems;
 
   return (
     <div className="space-y-4">
       {/* Header with search and layout toggle */}
       <div className="flex gap-2 items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-9" />
-          
-          {searchQuery &&
-          <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground">
-            
-              <X className="h-4 w-4" />
-            </button>
-          }
-        </div>
+        <GlobalSearch />
         <Button
           variant="ghost"
           size="icon"
@@ -154,10 +116,8 @@ export default function QuickNavMenu() {
 
       {/* Grid Layout */}
       {isGridLayout &&
-      <div>
-          {filteredGridItems.length > 0 ?
-        <div className="grid grid-cols-3 gap-2">
-              {filteredGridItems.map((item) => {
+      <div className="grid grid-cols-3 gap-2">
+              {configuredGridItems.map((item) => {
             const Icon = item.icon;
             return (
               <Link key={item.path} to={item.path}>
@@ -172,19 +132,13 @@ export default function QuickNavMenu() {
                   </Link>);
 
           })}
-            </div> :
-
-        <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">No items found</p>
             </div>
-        }
-        </div>
       }
 
       {/* List Layout */}
       {!isGridLayout &&
       <div className="space-y-6">
-          {Object.entries(filteredGroups).map(([groupName, items]) =>
+          {Object.entries(configuredGroups).map(([groupName, items]) =>
         <div key={groupName}>
               <p className="text-muted-foreground mr-1 mb-1 ml-2 text-xs font-semibold uppercase tracking-wider">
                 {groupName}
@@ -208,12 +162,6 @@ export default function QuickNavMenu() {
               </div>
             </div>
         )}
-
-          {searchQuery && Object.keys(filteredGroups).length === 0 &&
-        <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">No items found</p>
-            </div>
-        }
         </div>
       }
     </div>);
