@@ -19,8 +19,6 @@ import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline"
 import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
 import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
-import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
-import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 
 // MAIN_TABS defined dynamically in component
 
