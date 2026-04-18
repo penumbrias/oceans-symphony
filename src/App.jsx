@@ -104,25 +104,20 @@ function App() {
     return null;
   });
 
-  if (setupState) {
-    return (
-      <StorageModeSetup
-        mode={setupState}
-        onComplete={() => setSetupState(null)}
-      />
-    );
-  }
-
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <QueryClientProvider client={queryClientInstance}>
+      <QueryClientProvider client={queryClientInstance}>
+        <AuthProvider>
           <Router>
-            <AuthenticatedApp />
+            {setupState ? (
+              <StorageModeSetup mode={setupState} onComplete={() => setSetupState(null)} />
+            ) : (
+              <AuthenticatedApp />
+            )}
           </Router>
           <Toaster />
-        </QueryClientProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   )
 }
