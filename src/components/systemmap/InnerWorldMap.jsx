@@ -106,55 +106,90 @@ function RelationshipLines({ relationships, alters, showRelationships }) {
     pairGroups[key].push(rel);
   });
 
+  const lines = [];
+
+  relationships.forEach(rel => {
+    const a = alterMap[rel.alter_id_a];
+    const b = alterMap[rel.alter_id_b];
+    if (!a?.inner_world_x || !b?.inner_world_x) return;
+
+    const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
+    const pairRels = pairGroups[pairKey] || [rel];
+    const relIndex = pairRels.findIndex(r => r.id === rel.id);
+    const baseOffset = (relIndex - (pairRels.length - 1) / 2) * 10;
+
+    const ax = a.inner_world_x, ay = a.inner_world_y;
+    const bx = b.inner_world_x, by = b.inner_world_y;
+    const dx = bx - ax, dy = by - ay;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const perpX = (-dy / len);
+    const perpY = (dx / len);
+
+    const color = rel.color || "#6b7280";
+    const title = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
+    const markerId = `iwarrow-${rel.id}`;
+
+    if (rel.direction === "a_to_b") {
+      const ox = perpX * baseOffset, oy = perpY * baseOffset;
+      lines.push(
+        <line key={`${rel.id}-atob`}
+          x1={ax + ox} y1={ay + oy} x2={bx + ox} y2={by + oy}
+          stroke={color} strokeWidth={2} opacity={0.75}
+          markerEnd={`url(#${markerId})`}>
+          <title>{title}</title>
+        </line>
+      );
+    } else if (rel.direction === "b_to_a") {
+      const ox = perpX * baseOffset, oy = perpY * baseOffset;
+      lines.push(
+        <line key={`${rel.id}-btoa`}
+          x1={bx + ox} y1={by + oy} x2={ax + ox} y2={ay + oy}
+          stroke={color} strokeWidth={2} opacity={0.75}
+          markerEnd={`url(#${markerId})`}>
+          <title>{title}</title>
+        </line>
+      );
+    } else {
+      // bidirectional: two lines with small perpendicular offset so both arrows show
+      const biOffset = 5;
+      const ox1 = perpX * (baseOffset + biOffset), oy1 = perpY * (baseOffset + biOffset);
+      const ox2 = perpX * (baseOffset - biOffset), oy2 = perpY * (baseOffset - biOffset);
+      const markerIdB = `iwarrow-${rel.id}-b`;
+      lines.push(
+        <React.Fragment key={`${rel.id}-bi`}>
+          <defs>
+            <marker id={markerIdB} markerWidth="8" markerHeight="6" refX={NODE_RADIUS + 6} refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
+            </marker>
+          </defs>
+          <line
+            x1={ax + ox1} y1={ay + oy1} x2={bx + ox1} y2={by + oy1}
+            stroke={color} strokeWidth={2} opacity={0.75}
+            markerEnd={`url(#${markerId})`}>
+            <title>{title}</title>
+          </line>
+          <line
+            x1={bx + ox2} y1={by + oy2} x2={ax + ox2} y2={ay + oy2}
+            stroke={color} strokeWidth={2} opacity={0.75}
+            markerEnd={`url(#${markerIdB})`}>
+            <title>{title}</title>
+          </line>
+        </React.Fragment>
+      );
+    }
+  });
+
   return (
     <g>
       <defs>
         {relationships.map(rel => (
-          <marker key={`arr-${rel.id}`} id={`iwarrow-${rel.id}`} markerWidth="8" markerHeight="8"
-            refX="6" refY="3" orient="auto">
+          <marker key={`arr-${rel.id}`} id={`iwarrow-${rel.id}`} markerWidth="8" markerHeight="6"
+            refX={NODE_RADIUS + 6} refY="3" orient="auto">
             <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.9} />
           </marker>
         ))}
       </defs>
-      {relationships.map(rel => {
-        const a = alterMap[rel.alter_id_a];
-        const b = alterMap[rel.alter_id_b];
-        if (!a?.inner_world_x || !b?.inner_world_x) return null;
-
-        // For b_to_a: swap endpoints so arrow always uses markerEnd
-        let x1, y1, x2, y2;
-        if (rel.direction === "b_to_a") {
-          x1 = b.inner_world_x; y1 = b.inner_world_y;
-          x2 = a.inner_world_x; y2 = a.inner_world_y;
-        } else {
-          x1 = a.inner_world_x; y1 = a.inner_world_y;
-          x2 = b.inner_world_x; y2 = b.inner_world_y;
-        }
-
-        // Multi-line offset
-        const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
-        const pairRels = pairGroups[pairKey] || [rel];
-        const relIndex = pairRels.findIndex(r => r.id === rel.id);
-        const offset = (relIndex - (pairRels.length - 1) / 2) * 10;
-        const dx = x2 - x1, dy = y2 - y1;
-        const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        const ox = (-dy / len) * offset;
-        const oy = (dx / len) * offset;
-
-        const hasArrow = rel.direction !== "bidirectional";
-
-        return (
-          <line key={rel.id}
-            x1={x1 + ox} y1={y1 + oy} x2={x2 + ox} y2={y2 + oy}
-            stroke={rel.color || "#6b7280"}
-            strokeWidth={2}
-            opacity={0.75}
-            markerEnd={hasArrow ? `url(#iwarrow-${rel.id})` : undefined}
-          >
-            <title>{rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type}</title>
-          </line>
-        );
-      })}
+      {lines}
     </g>
   );
 }
