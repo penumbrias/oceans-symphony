@@ -523,29 +523,38 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           </div>
         )}
 
-        {/* Toolbar */}
-        <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-20">
-          <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2" onClick={addLocation}>
+        {/* Toolbar — top right */}
+        <div className="absolute top-3 right-3 flex flex-col gap-1 z-20">
+          <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addLocation}>
             <Plus className="w-3 h-3" /> Location
           </Button>
           <button onClick={() => setSnapToGrid(v => !v)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground hover:border-primary/30"}`}>
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground hover:border-primary/30"}`}>
             <Grid className="w-3 h-3" /> Snap
           </button>
           <button onClick={() => setRelMode(m => m === 'all' ? 'selected' : m === 'selected' ? 'none' : 'all')}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${relMode !== 'none' ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground"}`}>
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${relMode !== 'none' ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
             {relMode === 'all' ? <Eye className="w-3 h-3" /> : relMode === 'selected' ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
             {relMode === 'all' ? 'Rels: All' : relMode === 'selected' ? 'Rels: Selected' : 'Rels: Hidden'}
           </button>
           <button onClick={() => setShowAll(v => !v)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${showAll ? "bg-primary/20 text-primary border-primary/40" : "bg-card border-border text-muted-foreground"}`}>
-            <Users className="w-3 h-3" /> All Alters
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${showAll ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
+            <Users className="w-3 h-3" />
+            {showAll ? 'Hide panel' : 'Unplaced'}
           </button>
-          <div className="flex flex-col gap-1 mt-1">
-            <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleZoom("in")}><ZoomIn className="w-3 h-3" /></Button>
-            <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleZoom("out")}><ZoomOut className="w-3 h-3" /></Button>
-            <Button size="icon" variant="outline" className="h-7 w-7" onClick={handleReset}><RotateCcw className="w-3 h-3" /></Button>
-          </div>
+        </div>
+
+        {/* Zoom controls — bottom right */}
+        <div className="absolute bottom-4 right-3 flex flex-col gap-1 z-20">
+          <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={() => handleZoom('in')}>
+            <ZoomIn className="w-3.5 h-3.5" />
+          </Button>
+          <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={() => handleZoom('out')}>
+            <ZoomOut className="w-3.5 h-3.5" />
+          </Button>
+          <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={handleReset}>
+            <RotateCcw className="w-3.5 h-3.5" />
+          </Button>
         </div>
 
         {/* Location edit sidebar */}
