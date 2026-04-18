@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { format, parseISO, subDays } from "date-fns";
+import { format, parseISO, subDays, startOfDay, endOfDay } from "date-fns";
 import { SYMPTOMS } from "./SymptomsChecklistPanel";
 import RatingsChart from "./analytics/RatingsChart";
 import HabitImpactChart from "./analytics/HabitImpactChart";
@@ -36,7 +36,7 @@ const SYMPTOM_TABS = [
 
 const RATING_SYMPTOMS = SYMPTOMS.filter((s) => s.type === "rating");
 
-export default function DiaryAnalytics({ cards, altersById = {} }) {
+export default function DiaryAnalytics({ cards, altersById = {}, from, to }) {
   const [rangeDays, setRangeDays] = useState(7);
   const [activeTab, setActiveTab] = useState("dayofweek");
   const [symptomTab, setSymptomTab] = useState("grid");
@@ -48,14 +48,21 @@ export default function DiaryAnalytics({ cards, altersById = {} }) {
     patterns: true,
   });
 
-  const cutoff = subDays(new Date(), rangeDays);
+  // Use passed date range if provided, otherwise use rangeDays
+  const cutoff = from ? from : subDays(new Date(), rangeDays);
+  const endDate = to ? to : new Date();
 
-  const filteredCards = useMemo(() =>
-    cards
-      .filter((c) => c.date && parseISO(c.date) >= cutoff)
-      .sort((a, b) => a.date.localeCompare(b.date)),
-    [cards, rangeDays]
-  );
+  const filteredCards = useMemo(() => {
+    const startFilter = from ? startOfDay(from).getTime() : cutoff.getTime();
+    const endFilter = to ? endOfDay(to).getTime() : new Date().getTime();
+    return cards
+      .filter((c) => {
+        if (!c.date) return false;
+        const ts = new Date(c.date).getTime();
+        return ts >= startFilter && ts <= endFilter;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [cards, rangeDays, from, to]);
 
   const dailyAggregates = useMemo(() =>
     aggregateDailyMetrics(filteredCards),

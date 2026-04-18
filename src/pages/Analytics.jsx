@@ -19,6 +19,8 @@ import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline"
 import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
 import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
+import SleepAnalytics from "@/components/analytics/SleepAnalytics";
+import JournalAnalytics from "@/components/analytics/JournalAnalytics";
 
 // MAIN_TABS defined dynamically in component
 
@@ -84,6 +86,8 @@ export default function Analytics() {
     { id: "diary", label: "Daily Log" },
     { id: "emotions", label: "Emotions" },
     { id: "symptoms", label: "Symptoms" },
+    { id: "sleep", label: "Sleep" },
+    { id: "journals", label: "Journals" },
   ];
   const ACTIVITY_SUB_TABS = [
     { id: "overview", label: "Overview" },
@@ -131,6 +135,41 @@ queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
   const { data: systemCheckIns = [] } = useQuery({
     queryKey: ["systemCheckIns"],
     queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 500),
+  });
+
+  const { data: symptomSessions = [] } = useQuery({
+    queryKey: ['symptomSessions'],
+    queryFn: () => base44.entities.SymptomSession.list('-start_time', 1000),
+  });
+
+  const { data: symptomCheckIns = [] } = useQuery({
+    queryKey: ['symptomCheckIns'],
+    queryFn: () => base44.entities.SymptomCheckIn.list('-timestamp', 1000),
+  });
+
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ['symptoms'],
+    queryFn: () => base44.entities.Symptom.list(),
+  });
+
+  const { data: sleepRecords = [] } = useQuery({
+    queryKey: ['sleep'],
+    queryFn: () => base44.entities.Sleep.list('-date', 500),
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: () => base44.entities.Task.list('-created_date', 500),
+  });
+
+  const { data: journals = [] } = useQuery({
+    queryKey: ['journals'],
+    queryFn: () => base44.entities.JournalEntry.list('-created_date', 500),
+  });
+
+  const { data: bulletins = [] } = useQuery({
+    queryKey: ['bulletins'],
+    queryFn: () => base44.entities.Bulletin.list('-created_date', 500),
   });
 
   const altersById = useMemo(() => {
@@ -336,7 +375,12 @@ queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
       )}
 
       {mainTab === "diary" && (
-         <DiaryAnalytics cards={cards} altersById={altersById} />
+         <>
+           <div className="mb-5">
+             <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+           </div>
+           <DiaryAnalytics cards={cards} altersById={altersById} from={from} to={to} />
+         </>
        )}
 
        {mainTab === "emotions" && (
@@ -353,7 +397,25 @@ queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
            <div className="mb-5">
              <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
            </div>
-           <SymptomAnalytics startDate={from} endDate={to} />
+           <SymptomAnalytics startDate={from} endDate={to} symptomSessions={symptomSessions} symptomCheckIns={symptomCheckIns} symptoms={symptoms} />
+         </>
+       )}
+
+       {mainTab === "sleep" && (
+         <>
+           <div className="mb-5">
+             <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+           </div>
+           <SleepAnalytics sleepRecords={sleepRecords} from={from} to={to} />
+         </>
+       )}
+
+       {mainTab === "journals" && (
+         <>
+           <div className="mb-5">
+             <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+           </div>
+           <JournalAnalytics journals={journals} bulletins={bulletins} alters={alters} from={from} to={to} />
          </>
        )}
       </div>

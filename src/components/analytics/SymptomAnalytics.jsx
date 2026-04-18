@@ -7,20 +7,24 @@ import {
 } from "recharts";
 import { format, parseISO, isWithinInterval } from "date-fns";
 
-export default function SymptomAnalytics({ startDate, endDate }) {
-  const { data: symptoms = [] } = useQuery({
+export default function SymptomAnalytics({ startDate, endDate, symptomSessions = null, symptomCheckIns = null, symptoms: propsSymptoms = null }) {
+  // Use pre-fetched data if provided, otherwise fetch
+  const { data: symptoms = propsSymptoms } = useQuery({
     queryKey: ["symptoms"],
     queryFn: () => base44.entities.Symptom.list(),
+    enabled: !propsSymptoms,
   });
 
-  const { data: checkIns = [] } = useQuery({
+  const { data: checkIns = symptomCheckIns } = useQuery({
     queryKey: ["symptomCheckIns"],
     queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 500),
+    enabled: !symptomCheckIns,
   });
 
-  const { data: sessions = [] } = useQuery({
+  const { data: sessions = symptomSessions } = useQuery({
     queryKey: ["symptomSessionsAll"],
     queryFn: () => base44.entities.SymptomSession.list("-start_time", 500),
+    enabled: !symptomSessions,
   });
 
   const { data: frontSessions = [] } = useQuery({
