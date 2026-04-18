@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
+import ColorPicker from "@/components/shared/ColorPicker";
 
 export function AlterAvatar({ alter, size = 24 }) {
   if (!alter) return <div className="rounded-full bg-muted flex-shrink-0" style={{ width: size, height: size }} />;
@@ -75,13 +76,9 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
               className="mt-2 w-full h-9 px-3 rounded-md border border-border bg-background text-sm" />
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Color</p>
-          <div className="flex items-center gap-2">
-            <input type="color" value={color} onChange={e => setColor(e.target.value)}
-              className="w-8 h-8 rounded border border-border cursor-pointer bg-transparent" />
-            <span className="text-xs text-muted-foreground font-mono">{color}</span>
-          </div>
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Color</p>
+          <ColorPicker value={color} onChange={setColor} />
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Notes</p>
@@ -468,28 +465,14 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Color</p>
-              <div className="flex items-center gap-2">
-                {editing ? (
-                  <>
-                    <input
-                      type="color"
-                      value={editData.color || "#6366f1"}
-                      onChange={e => setEditData(l => ({ ...l, color: e.target.value }))}
-                      className="w-10 h-10 rounded border border-border cursor-pointer bg-transparent"
-                    />
-                    <input
-                      value={editData.color || "#6366f1"}
-                      onChange={e => setEditData(l => ({ ...l, color: e.target.value }))}
-                      className="flex-1 h-8 px-2 rounded border border-border bg-background text-xs font-mono"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <div className="w-8 h-8 rounded border border-border" style={{ backgroundColor: editData.color || "#6366f1" }} />
-                    <span className="text-sm font-mono text-muted-foreground">{editData.color || "#6366f1"}</span>
-                  </>
-                )}
-              </div>
+              {editing ? (
+                <ColorPicker value={editData.color || "#6366f1"} onChange={e => setEditData(l => ({ ...l, color: e }))} />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded border border-border" style={{ backgroundColor: editData.color || "#6366f1" }} />
+                  <span className="text-sm font-mono text-muted-foreground">{editData.color || "#6366f1"}</span>
+                </div>
+              )}
             </div>
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Shape</p>

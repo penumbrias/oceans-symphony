@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
+import ColorPicker from "@/components/shared/ColorPicker";
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) {
   const queryClient = useQueryClient();
@@ -188,13 +189,7 @@ const handleAvatarUpload = async (e) => {
 
           <div className="space-y-2">
             <Label>Color</Label>
-            <div className="flex items-center gap-3">
-              <input type="color" value={form.color || "#8b5cf6"}
-                onChange={(e) => set("color", e.target.value)}
-                className="w-10 h-10 rounded-lg border border-border cursor-pointer bg-transparent" />
-              <Input value={form.color} onChange={(e) => set("color", e.target.value)}
-                placeholder="#8b5cf6" className="font-mono text-sm" />
-            </div>
+            <ColorPicker value={form.color || "#8b5cf6"} onChange={(v) => set("color", v)} />
           </div>
 
           <div className="space-y-2">

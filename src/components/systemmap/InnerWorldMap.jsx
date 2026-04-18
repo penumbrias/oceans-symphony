@@ -7,6 +7,7 @@ import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ColorPicker from "@/components/shared/ColorPicker";
 import LocationNode from "./LocationNode";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 
@@ -569,23 +570,18 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               <option value="oval">Oval</option>
             </select>
 
-            {/* Color picker — native + hex input */}
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Color</p>
-              <div className="flex items-center gap-2">
-                <input type="color" value={editingLocation.color || "#6366f1"} onChange={e => {
-                  const v = e.target.value;
-                  setEditingLocation(l => ({ ...l, color: v }));
-                  updateLocation(editingLocation, { color: v });
-                }} className="w-8 h-8 rounded border border-border cursor-pointer bg-transparent flex-shrink-0" />
-                <input value={editingLocation.color || "#6366f1"} onChange={e => {
-                  const v = e.target.value;
-                  setEditingLocation(l => ({ ...l, color: v }));
-                  if (/^#[0-9a-fA-F]{6}$/.test(v)) updateLocation(editingLocation, { color: v });
-                }} placeholder="#6366f1"
-                  className="flex-1 h-7 px-2 text-xs border border-border rounded bg-background font-mono" />
-              </div>
-            </div>
+            {/* Color picker */}
+             <div className="space-y-1">
+               <p className="text-xs text-muted-foreground">Color</p>
+               <ColorPicker 
+                 value={editingLocation.color || "#6366f1"} 
+                 onChange={v => {
+                   setEditingLocation(l => ({ ...l, color: v }));
+                   if (/^#[0-9a-fA-F]{6}$/.test(v)) updateLocation(editingLocation, { color: v });
+                 }}
+                 className="justify-between"
+               />
+             </div>
 
             {/* Background image */}
             <div className="space-y-1">
@@ -774,11 +770,9 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
               placeholder="Custom label..." className="mt-2 w-full h-9 px-3 rounded-md border border-border bg-background text-sm" />
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Color</p>
-          <input type="color" value={color} onChange={e => setColor(e.target.value)}
-            className="w-8 h-8 rounded border border-border cursor-pointer bg-transparent" />
-          <span className="text-xs text-muted-foreground font-mono">{color}</span>
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Color</p>
+          <ColorPicker value={color} onChange={setColor} />
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
