@@ -48,6 +48,8 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
     id: group.id,
   });
 
+  const fieldSensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -107,7 +109,7 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
           {sortedFields.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No fields in this group</p>
           ) : (
-            <DndContext sensors={useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }))}>
+            <DndContext sensors={fieldSensors}>
               <SortableContext items={sortedFields.map(f => `${group.id}-${f.id}`)} strategy={verticalListSortingStrategy}>
                 {sortedFields.map(field => (
                   <SortableFieldItem
