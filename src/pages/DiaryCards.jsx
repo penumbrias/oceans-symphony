@@ -11,7 +11,6 @@ import DiaryCardView from "@/components/diary/DiaryCardView";
 import { getActiveTemplate } from "@/lib/diaryCardTemplate";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
-import React, { useState, useMemo, useEffect } from "react";
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
