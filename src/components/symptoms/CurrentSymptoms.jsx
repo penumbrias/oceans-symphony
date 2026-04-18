@@ -127,17 +127,23 @@ export default function CurrentSymptoms({ onOpenCheckIn }) {
         {active.map(({ sess, symptom }) => {
           const lastSnapshot = sess.severity_snapshots?.[sess.severity_snapshots.length - 1];
           const severity = lastSnapshot?.severity;
-          const longPress = useLongPress(() => setActiveMenu({ sess, symptom }));
+          const timerRef = useRef(null);
+
+          const handleLongPress = () => setActiveMenu({ sess, symptom });
 
           return (
             <button
               key={sess.id}
               onClick={() => onOpenCheckIn?.("symptoms")}
+              onMouseDown={() => { timerRef.current = setTimeout(handleLongPress, 500); }}
+              onMouseUp={() => clearTimeout(timerRef.current)}
+              onMouseLeave={() => clearTimeout(timerRef.current)}
+              onTouchStart={() => { timerRef.current = setTimeout(handleLongPress, 500); }}
+              onTouchEnd={() => clearTimeout(timerRef.current)}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setActiveMenu({ sess, symptom });
               }}
-              {...longPress}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-opacity hover:opacity-80 active:scale-95"
               style={{ borderColor: symptom.color || "#8B5CF6", backgroundColor: `${symptom.color || "#8B5CF6"}15`, color: symptom.color || "#8B5CF6" }}
             >
