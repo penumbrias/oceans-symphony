@@ -75,7 +75,7 @@ const handleNotifClick = (mentionLog) => {
   const canGoBack = historyDepth > 0 && !isTabRoot(location.pathname);
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
       {/* ── Desktop top header (hidden on mobile) ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl hidden sm:block">
         <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between">
