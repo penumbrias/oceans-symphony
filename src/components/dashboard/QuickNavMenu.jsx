@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, Search, X, LayoutGrid, List } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, Search, X, LayoutGrid, List, FileText, Heart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -37,6 +37,8 @@ function buildGridItems(altersLabel, frontLabel, systemLabel) {
   { label: `${systemLabel} Check-In`, icon: Sparkles, path: "/system-checkin", color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
   { label: "Activities", icon: Zap, path: "/activities", color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
   { label: "Analytics", icon: BarChart2, path: "/analytics", color: "bg-green-500/15 text-green-600 dark:text-green-400" },
+  { label: "Therapy Report", icon: FileText, path: "/therapy-report", color: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
+  { label: "Support & Learn", icon: Heart, path: "/grounding", color: "bg-red-500/15 text-red-600 dark:text-red-400" },
   { label: "Diary Cards", icon: ClipboardList, path: "/diary", color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
   { label: "Sleep", icon: Activity, path: "/sleep", color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
   { label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },

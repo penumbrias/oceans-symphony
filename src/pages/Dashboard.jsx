@@ -10,7 +10,6 @@ import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
-import DashboardGrid from "@/components/dashboard/DashboardGrid";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import TourModal from "@/components/onboarding/TourModal";
@@ -85,7 +84,6 @@ export default function Dashboard() {
   });
   const terms = useTerms();
   const systemName = settings[0]?.system_name || `Your ${terms.system}`;
-  const dashboardGridItems = settings[0]?.navigation_config?.dashboardGrid || ["alters", "checkin", "activities", "analytics", "therapy-report", "support"];
 
   const { data: mentionLogs = [] } = useQuery({
     queryKey: ["mentionLogs"],
@@ -146,8 +144,6 @@ export default function Dashboard() {
         <Heart className="w-4 h-4" />
         Quick Check-In
       </button>
-
-      <DashboardGrid visibleItems={dashboardGridItems} />
 
       <NewFeaturesBar />
       <QuickNavMenu />
