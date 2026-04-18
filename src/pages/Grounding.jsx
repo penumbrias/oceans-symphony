@@ -418,7 +418,7 @@ export default function Grounding({ initialPath = null }) {
             onClick={() => setPath("all")}
             className="w-full text-left bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/30 hover:bg-primary/5 transition-all group"
           >
-            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">I know what I need</p>
+            <p className="font-semibold text-foreground group-hover:text-primary transition-colors">Browse all</p>
             <p className="text-sm text-muted-foreground mt-0.5">Show me everything</p>
           </button>
 
