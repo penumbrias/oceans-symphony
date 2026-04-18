@@ -662,6 +662,12 @@ export default function InfiniteTimeline({
     return cols;
   }, [activityEntries]);
 
+  const symptomMap = useMemo(() => {
+    const m = {};
+    symptoms.forEach(s => { m[s.id] = s; });
+    return m;
+  }, [symptoms]);
+
   const emotionEntries = useMemo(() => {
     return emotions.map((e, i) => ({
       mins: Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart)),
@@ -747,12 +753,6 @@ export default function InfiniteTimeline({
       return { ...entry, adjustedTop: top };
     });
   }, [eventEntries, getTopPx, expandedKeys]);
-
-  const symptomMap = useMemo(() => {
-    const m = {};
-    symptoms.forEach(s => { m[s.id] = s; });
-    return m;
-  }, [symptoms]);
 
   const sortedSymptomSessions = useMemo(() => {
     return [...symptomSessions].sort((a, b) => {
