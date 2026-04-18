@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Navigation, Save, Loader2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
-import { DndContext, closestCenter } from "@dnd-kit/core";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -15,6 +15,15 @@ export default function NavigationSettings({ settings }) {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [saving, setSaving] = useState(false);
   const [openSection, setOpenSection] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 }
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 }
+    })
+  );
 
   useEffect(() => {
     if (settings?.navigation_config) {
@@ -113,7 +122,7 @@ export default function NavigationSettings({ settings }) {
               {/* Content - Shown when open */}
               {isOpen && (
                 <div className="px-4 py-3 border-t border-border bg-muted/5 space-y-3">
-                  <DndContext collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, location)}>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, location)}>
                     <SortableContext items={checkedItems} strategy={verticalListSortingStrategy}>
                       <div className="space-y-2">
                         {/* Active items (sortable) */}
