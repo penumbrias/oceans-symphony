@@ -180,6 +180,8 @@ const nodePositions = useMemo(() => {
   useEffect(() => {
     if (!filteredAlters.length) return;
 
+    const centerX = 600;
+    const centerY = 400;
     const alterNodes = filteredAlters.map((alter) => {
       const pos = nodePositions[alter.id] || { x: centerX, y: centerY };
       return {

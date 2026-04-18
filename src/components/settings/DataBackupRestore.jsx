@@ -129,10 +129,11 @@ const handleExportFull = async () => {
     await downloadJson(exportData, `symphony-backup-${date}.json`);
     showStatus("success", "Backup exported!");
   } catch (e) {
-    if (e.message === "__clipboard_fallback__") {
-      // Auto-copy to clipboard as last resort
-      try {
-        await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
+  if (e.message === "__clipboard_fallback__") {
+  // Auto-copy to clipboard as last resort
+  const exportDataFallback = await buildExportData();
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(exportDataFallback, null, 2));
         showStatus("success", "Couldn't open share dialog — backup copied to clipboard. Use Import from File on another device, or paste into a plain text file (.txt) and import that.");
       } catch {
         showStatus("error", "Export failed. Please use a desktop browser to download your backup.");

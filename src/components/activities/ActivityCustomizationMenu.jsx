@@ -97,6 +97,20 @@ export default function ActivityCustomizationMenu({ onClose }) {
     onError: (e) => toast.error(e.message),
   });
 
+  const createSubMutation = useMutation({
+    mutationFn: async ({ parentId, name }) => {
+      const parent = categories.find(c => c.id === parentId);
+      await base44.entities.ActivityCategory.create({
+        name,
+        color: parent?.color || "#8b5cf6",
+        parent_category_id: parentId,
+        order: categories.filter(c => c.parent_category_id === parentId).length,
+      });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["activityCategories"] }); setCreatingSubFor(null); setNewSubName(""); toast.success("Sub-activity created!"); },
+    onError: (e) => toast.error(e.message),
+  });
+
   const createRootMutation = useMutation({
     mutationFn: async (data) => {
       const existing = categories.find(
