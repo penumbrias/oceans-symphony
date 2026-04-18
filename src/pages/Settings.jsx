@@ -148,7 +148,7 @@ export default function Settings() {
 
       {/* Quick Nav Menu */}
       <div className={`mb-6 ${mobileMenuOpen ? "block sm:hidden" : "hidden"} sm:block`}>
-        <div className="space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20">
+        <div className="space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20 max-h-[400px] overflow-y-auto">
           {navSections.map(section => (
             <button
               key={section.id}
