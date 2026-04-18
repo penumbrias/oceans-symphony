@@ -76,7 +76,9 @@ export default function QuickNavMenu() {
   const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.Front, terms.System), [terms.Alters, terms.Front, terms.System]);
 
   const configuredGridItems = useMemo(() => {
-    return GRID_ITEMS.filter(item => navConfig.dashboardGrid.includes(item.id));
+    return navConfig.dashboardGrid
+      .map(id => GRID_ITEMS.find(item => item.id === id))
+      .filter(Boolean);
   }, [GRID_ITEMS, navConfig.dashboardGrid]);
 
   const configuredGroups = useMemo(() => {

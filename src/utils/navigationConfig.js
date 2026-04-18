@@ -21,5 +21,21 @@ export const ALL_PAGES = [
 export const DEFAULT_CONFIG = {
   topBar: ["home", "alters", "checkin", "journals", "tasks"],
   bottomBar: ["home", "alters", "checkin", "journals", "tasks"],
-  dashboardGrid: ["alters", "checkin", "activities", "analytics", "therapy-report", "support"],
+  dashboardGrid: [
+    "alters",
+    "checkin",
+    "activities",
+    "analytics",
+    "therapy-report",
+    "support",
+    "diary-cards",
+    "sleep",
+    "timeline",
+    "system-map",
+    "journals",
+    "daily-tasks",
+    "co-fronting",
+    "groups",
+    "settings"
+  ],
 };

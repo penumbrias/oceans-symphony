@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Navigation, Save, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Navigation, Save, Loader2, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 export default function NavigationSettings({ settings }) {
   const queryClient = useQueryClient();
@@ -19,7 +22,7 @@ export default function NavigationSettings({ settings }) {
     } else {
       setConfig(DEFAULT_CONFIG);
     }
-  }, [settings]);
+  }, [settings?.navigation_config]);
 
   const handleToggle = (location, pageId) => {
     setConfig(prev => {
@@ -37,6 +40,18 @@ export default function NavigationSettings({ settings }) {
       updated[location] = list;
       return updated;
     });
+  };
+
+  const handleDragEnd = (event, location) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setConfig(prev => {
+        const list = [...prev[location]];
+        const oldIndex = list.indexOf(active.id);
+        const newIndex = list.indexOf(over.id);
+        return { ...prev, [location]: arrayMove(list, oldIndex, newIndex) };
+      });
+    }
   };
 
   const handleSave = async () => {
@@ -62,7 +77,7 @@ export default function NavigationSettings({ settings }) {
           </div>
           <div>
             <CardTitle className="text-lg">Navigation</CardTitle>
-            <CardDescription>Customize where pages appear</CardDescription>
+            <CardDescription>Customize where pages appear and their order</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -72,6 +87,8 @@ export default function NavigationSettings({ settings }) {
           const count = config[location]?.length || 0;
           const isOpen = openSection === location;
           const sectionLabel = location === "topBar" ? "Top Navigation Bar" : location === "bottomBar" ? "Mobile Bottom Bar" : "Dashboard Grid";
+          const checkedItems = config[location] || [];
+          const uncheckedItems = ALL_PAGES.filter(p => !checkedItems.includes(p.id));
 
           return (
             <div key={location} className="border border-border rounded-lg overflow-hidden">
@@ -96,24 +113,34 @@ export default function NavigationSettings({ settings }) {
               {/* Content - Shown when open */}
               {isOpen && (
                 <div className="px-4 py-3 border-t border-border bg-muted/5 space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    {ALL_PAGES.map(page => (
-                      <label
-                        key={page.id}
-                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 cursor-pointer text-sm"
-                      >
-                        <Checkbox
-                          checked={config[location]?.includes(page.id) || false}
-                          disabled={
-                            !config[location]?.includes(page.id) &&
-                            count >= maxLen
-                          }
-                          onCheckedChange={() => handleToggle(location, page.id)}
-                        />
-                        {page.label}
-                      </label>
-                    ))}
-                  </div>
+                  <DndContext collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, location)}>
+                    <SortableContext items={checkedItems} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-2">
+                        {/* Active items (sortable) */}
+                        {checkedItems.map(pageId => {
+                          const page = ALL_PAGES.find(p => p.id === pageId);
+                          return page ? <SortableItem key={page.id} id={page.id} label={page.label} checked onToggle={() => handleToggle(location, page.id)} /> : null;
+                        })}
+                      </div>
+                    </SortableContext>
+
+                    {/* Inactive items (not sortable) */}
+                    {uncheckedItems.length > 0 && (
+                      <div className="space-y-2 mt-3 pt-3 border-t border-border/30">
+                        {uncheckedItems.map(page => (
+                          <div key={page.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 opacity-60">
+                            <div className="w-4 h-4 text-muted-foreground/30"><GripVertical className="w-4 h-4" /></div>
+                            <span className="flex-1 text-sm text-muted-foreground">{page.label}</span>
+                            <Checkbox
+                              checked={false}
+                              disabled={count >= maxLen}
+                              onCheckedChange={() => handleToggle(location, page.id)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </DndContext>
                 </div>
               )}
             </div>
@@ -130,5 +157,18 @@ export default function NavigationSettings({ settings }) {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+function SortableItem({ id, label, checked, onToggle }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-3 p-2 rounded-lg bg-card border border-border/50 transition-all">
+      <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing" {...attributes} {...listeners} />
+      <span className="flex-1 text-sm text-foreground">{label}</span>
+      <Checkbox checked={checked} onCheckedChange={onToggle} />
+    </div>
   );
 }

@@ -49,12 +49,20 @@ const navConfig = useMemo(() => {
 }, [systemSettings]);
 
 const navItems = useMemo(() => {
-  const filteredPages = ALL_PAGES.filter(page => navConfig.topBar?.includes(page.id));
-  return filteredPages.map(page => ({
-    ...page,
-    label: page.id === "alters" ? (terms.Alters || page.label) : page.label,
-  }));
-}, [navConfig, terms]);
+  return (navConfig.topBar || [])
+    .map(pageId => ALL_PAGES.find(p => p.id === pageId))
+    .filter(Boolean)
+    .map(page => ({
+      ...page,
+      label: page.id === "alters" ? (terms.Alters || page.label) : page.label,
+    }));
+}, [navConfig.topBar, terms]);
+
+const bottomNavItems = useMemo(() => {
+  return (navConfig.bottomBar || [])
+    .map(pageId => ALL_PAGES.find(p => p.id === pageId))
+    .filter(Boolean);
+}, [navConfig.bottomBar]);
 
 const activeSession = sessions.find((s) => s.is_active);
 const frontingAlterIds = activeSession
@@ -177,7 +185,7 @@ const handleNotifClick = (mentionLog) => {
         aria-label="Tab bar navigation">
         
         <div className="flex items-center justify-around h-14">
-          {ALL_PAGES.filter(page => navConfig.bottomBar?.includes(page.id)).map((item) => {
+          {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.path === "/" ?
             location.pathname === "/" :
