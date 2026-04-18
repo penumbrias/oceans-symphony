@@ -1,19 +1,35 @@
-import React from "react";
+import React, { useRef } from "react";
 import { format } from "date-fns";
 
-export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, onTap }) {
+export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, onTap, onLongPress }) {
   const sz = Math.max(18, Math.min(24, rowH * 0.4));
   const color = symptom?.color || "#8b5cf6";
   const snapshots = session?.severity_snapshots || [];
+  const lpRef = useRef(null);
 
   const startStr = session?.start_time ? format(new Date(session.start_time), "h:mmaaa") : null;
   const endStr = session?.end_time ? format(new Date(session.end_time), "h:mmaaa") : null;
+
+  const startPress = (e) => {
+    e.stopPropagation();
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
+  };
+  const cancelPress = (e) => {
+    e?.stopPropagation();
+    if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; }
+  };
 
   return (
     <div
       className="absolute flex flex-col items-center cursor-pointer"
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
       onClick={onTap}
+      onMouseDown={startPress}
+      onMouseUp={cancelPress}
+      onMouseLeave={cancelPress}
+      onTouchStart={startPress}
+      onTouchEnd={cancelPress}
     >
       <div
         className="rounded-full flex-shrink-0 flex items-center justify-center border-2 border-background"

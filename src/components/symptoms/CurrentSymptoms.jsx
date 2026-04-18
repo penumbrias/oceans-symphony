@@ -4,22 +4,13 @@ import { base44 } from "@/api/base44Client";
 import { formatDistanceToNow } from "date-fns";
 import { X } from "lucide-react";
 
-const useLongPress = (onLongPress, delay = 500) => {
-  const timerRef = useRef(null);
-  return {
-    onMouseDown: () => { timerRef.current = setTimeout(onLongPress, delay); },
-    onMouseUp: () => clearTimeout(timerRef.current),
-    onMouseLeave: () => clearTimeout(timerRef.current),
-    onTouchStart: () => { timerRef.current = setTimeout(onLongPress, delay); },
-    onTouchEnd: () => clearTimeout(timerRef.current),
-  };
-};
-
 function SeverityDots({ severity }) {
   return (
     <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map(i => (
-        <div key={i} className="w-1 h-1 rounded-full" style={{ backgroundColor: i <= severity ? "currentColor" : "currentColor", opacity: i <= severity ? 1 : 0.3 }} />
+        <span key={i} className="text-xs">
+          {i <= severity ? "●" : "○"}
+        </span>
       ))}
     </div>
   );
@@ -33,19 +24,33 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
 
   const handleSetSeverity = async (severity) => {
     setSaving(true);
-    const newSnapshots = [...(sess.severity_snapshots || []), { severity, timestamp: new Date().toISOString() }];
-    await base44.entities.SymptomSession.update(sess.id, { severity_snapshots: newSnapshots });
-    queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
-    setSaving(false);
-    onClose();
+    try {
+      const existingSnapshots = sess.severity_snapshots || [];
+      const newSnapshots = [...existingSnapshots, { severity, timestamp: new Date().toISOString() }];
+      await base44.entities.SymptomSession.update(sess.id, { severity_snapshots: newSnapshots });
+      await base44.entities.SymptomCheckIn.create({
+        symptom_id: sess.symptom_id,
+        severity,
+        timestamp: new Date().toISOString(),
+      });
+      queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+    } finally {
+      setSaving(false);
+      onClose();
+    }
   };
 
   const handleEndSession = async () => {
     setSaving(true);
-    await base44.entities.SymptomSession.update(sess.id, { end_time: new Date().toISOString(), is_active: false });
-    queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
-    setSaving(false);
-    onClose();
+    try {
+      await base44.entities.SymptomSession.update(sess.id, { end_time: new Date().toISOString(), is_active: false });
+      queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+    } finally {
+      setSaving(false);
+      onClose();
+    }
   };
 
   return (

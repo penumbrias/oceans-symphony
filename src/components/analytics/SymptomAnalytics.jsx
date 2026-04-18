@@ -72,17 +72,17 @@ export default function SymptomAnalytics({ startDate, endDate }) {
   // 8.3 Severity over time
   const severityData = useMemo(() => {
     const bySym = {};
-    filteredSessions.forEach(s => {
-      if (!s.severity_snapshots?.length) return;
-      if (!bySym[s.symptom_id]) bySym[s.symptom_id] = [];
-      s.severity_snapshots.forEach(snap => bySym[s.symptom_id].push({ ts: snap.timestamp, severity: snap.severity }));
+    filteredCheckIns.forEach(c => {
+      if (c.severity == null) return;
+      if (!bySym[c.symptom_id]) bySym[c.symptom_id] = [];
+      bySym[c.symptom_id].push({ ts: c.timestamp, severity: c.severity });
     });
-    return Object.entries(bySym).slice(0, 5).map(([id, snaps]) => ({
+    return Object.entries(bySym).slice(0, 5).map(([id, points]) => ({
       symptom: symptomsById[id],
-      points: snaps.sort((a, b) => new Date(a.ts) - new Date(b.ts))
+      points: points.sort((a, b) => new Date(a.ts) - new Date(b.ts))
         .map(p => ({ date: format(parseISO(p.ts), "MM/dd"), severity: p.severity })),
     })).filter(x => x.symptom);
-  }, [filteredSessions, symptomsById]);
+  }, [filteredCheckIns, symptomsById]);
 
   // 8.4 Correlation
   const correlationData = useMemo(() =>

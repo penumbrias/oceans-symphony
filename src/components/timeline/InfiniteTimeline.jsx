@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } f
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
 import { SymptomBar } from "@/components/timeline/SymptomBar";
+import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, symptom: 36, alter: 40 };
@@ -489,6 +490,7 @@ export default function InfiniteTimeline({
   const [editingSession, setEditingSession] = useState(null);
   const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
   const [newSessionPopover, setNewSessionPopover] = useState(null);
+  const [symptomSessionPopover, setSymptomSessionPopover] = useState(null); // { session, symptom, splitMins }
   const longPressTargetRef = useRef(null);
 
   const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
@@ -1070,24 +1072,32 @@ export default function InfiniteTimeline({
                   <div key={`scol-${colIdx}`} className="absolute"
                     style={{ left: symptomLeft + colIdx * colWidths.symptom, top: 0, width: colWidths.symptom, height: totalHeight }}>
                     {col.map((entry, i) => {
-                      const session = symptomSessions.find(s => s.id === entry.sessionId);
-                      const symptom = symptomMap[entry.symptomId];
-                      const topPx = getTopPx(entry.startMins);
-                      const heightPx = getRangePx(entry.startMins, entry.endMins);
-                      const barKey = `sbar-${entry.sessionId}-${i}`;
-                      return (
-                        <SymptomBar
-                          key={barKey}
-                          symptom={symptom}
-                          session={session}
-                          topPx={topPx}
-                          heightPx={heightPx}
-                          rowH={rowH}
-                          expanded={expandedKeys.has(barKey)}
-                          onTap={() => toggleExpand(barKey)}
-                        />
-                      );
-                    })}
+                       const session = symptomSessions.find(s => s.id === entry.sessionId);
+                       const symptom = symptomMap[entry.symptomId];
+                       const topPx = getTopPx(entry.startMins);
+                       const heightPx = getRangePx(entry.startMins, entry.endMins);
+                       const barKey = `sbar-${entry.sessionId}-${i}`;
+                       return (
+                         <SymptomBar
+                           key={barKey}
+                           symptom={symptom}
+                           session={session}
+                           topPx={topPx}
+                           heightPx={heightPx}
+                           rowH={rowH}
+                           expanded={expandedKeys.has(barKey)}
+                           onTap={() => toggleExpand(barKey)}
+                           onLongPress={(clientY) => {
+                             if (!session) return;
+                             const gridEl = document.querySelector('.overflow-y-auto');
+                             const gridRect = gridEl?.getBoundingClientRect();
+                             const scrollTop = gridEl?.scrollTop || 0;
+                             const relY = clientY - (gridRect?.top || 0) + scrollTop;
+                             setSymptomSessionPopover({ session, symptom });
+                           }}
+                         />
+                       );
+                     })}
                   </div>
                 ))}
 
@@ -1249,6 +1259,15 @@ export default function InfiniteTimeline({
           alters={alters}
           onClose={() => setNewSessionPopover(null)}
           onSave={handleNewSessionSave}
+        />
+      )}
+
+      {symptomSessionPopover && (
+        <SymptomSessionPopup
+          symptom={symptomSessionPopover.symptom}
+          session={symptomSessionPopover.session}
+          onClose={() => setSymptomSessionPopover(null)}
+          onSave={() => {}}
         />
       )}
     </div>
