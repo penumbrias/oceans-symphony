@@ -22,9 +22,11 @@ import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import { isLocalMode } from "@/lib/storageMode";
-import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown } from "lucide-react";
+import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function Settings() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -303,6 +305,20 @@ export default function Settings() {
               queryClient.invalidateQueries({ queryKey: ["alters"] });
             }}
           />
+        </div>
+
+        {/* Check-In Manager */}
+        <div className="bg-card border border-border/50 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Zap className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Manage Check-In</p>
+              <p className="text-xs text-muted-foreground">Configure symptoms and habits</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
         </div>
 
         {/* Symptoms & Habits */}

@@ -27,6 +27,7 @@ import Timeline from '@/pages/Timeline.jsx';
 import CoFrontingAnalytics from '@/pages/CoFrontingAnalytics';
 import SystemMapPage from '@/pages/SystemMap';
 import BulletinPage from '@/pages/BulletinPage';
+import ManageCheckIn from '@/pages/ManageCheckIn';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
 import { isDbInitialized, initLocalDb } from '@/lib/localDb';
@@ -80,6 +81,7 @@ const AuthenticatedApp = () => {
         <Route path="/cofronting-analytics" element={<CoFrontingAnalytics />} />
         <Route path="/system-map" element={<SystemMapPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />
+        <Route path="/manage-checkin" element={<ManageCheckIn />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

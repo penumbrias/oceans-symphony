@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import DiaryCardView from "@/components/diary/DiaryCardView";
-import { getActiveTemplate, getCompletion } from "@/lib/diaryCardTemplate";
+import { getActiveTemplate } from "@/lib/diaryCardTemplate";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function DiaryCards() {
@@ -37,6 +37,26 @@ export default function DiaryCards() {
     const template = getActiveTemplate(settingsList[0]);
     return template.sections.filter(s => s.enabled);
   }, [settingsList]);
+
+  function buildSummary(card) {
+    const parts = [];
+    if (card.emotions?.length) {
+      parts.push(card.emotions.slice(0, 2).join(", ") + (card.emotions.length > 2 ? ` +${card.emotions.length - 2}` : ""));
+    }
+    if (card.urges && Object.values(card.urges).some(v => v !== undefined)) {
+      const rated = Object.entries(card.urges).filter(([, v]) => v !== undefined).map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`);
+      parts.push(`Urges: ${rated.join(", ")}`);
+    }
+    if (card.body_mind && Object.values(card.body_mind).some(v => v !== undefined)) {
+      const rated = Object.entries(card.body_mind).filter(([, v]) => v !== undefined).map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`);
+      parts.push(rated.join(", "));
+    }
+    if (card.checklist) {
+      const count = [...Object.values(card.checklist.symptoms || {}), ...Object.values(card.checklist.habits || {})].filter(v => v !== undefined).length;
+      if (count > 0) parts.push(`${count} symptoms/habits`);
+    }
+    return parts.join(" · ") || null;
+  }
 
   const altersById = useMemo(() => Object.fromEntries(alters.map(a => [a.id, a])), [alters]);
 
@@ -96,17 +116,27 @@ export default function DiaryCards() {
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {dateCards.map(card => {
-                    const comp = getCompletion(activeSections, card);
-                    const fronters = (card.fronting_alter_ids || []).map(id => altersById[id]?.name).filter(Boolean);
+                    const fronters = (card.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
+                    const summary = buildSummary(card);
                     const isHighlighted = highlightId === card.id;
                     return (
                       <div key={card.id}
-                        className={`bg-card border rounded-xl p-4 hover:shadow-md transition-all space-y-2 ${isHighlighted ? "border-yellow-400 ring-2 ring-yellow-400/60 shadow-md" : "border-border/50"}`}>
+                        className={`bg-card border rounded-xl p-4 hover:shadow-md transition-all ${isHighlighted ? "border-yellow-400 ring-2 ring-yellow-400/60 shadow-md" : "border-border/50"}`}>
                         <div className="flex items-start justify-between gap-2">
-                          <button onClick={() => { setViewingEntry(card); setView("entry"); }} className="flex-1 text-left">
+                          <button onClick={() => { setViewingEntry(card); setView("entry"); }} className="flex-1 text-left space-y-1.5">
                             <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>
                             {fronters.length > 0 && (
-                              <p className="text-xs text-muted-foreground mt-1">Fronting: {fronters.join(", ")}</p>
+                              <div className="flex flex-wrap gap-1">
+                                {fronters.map(alter => (
+                                  <span key={alter.id} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-muted border border-border/50">
+                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#8b5cf6" }} />
+                                    {alter.alias || alter.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {summary && (
+                              <p className="text-xs text-muted-foreground leading-relaxed">{summary}</p>
                             )}
                           </button>
                           <Button variant="ghost" size="icon"
@@ -115,12 +145,6 @@ export default function DiaryCards() {
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
-                        <div className="w-full bg-muted rounded-full h-1.5">
-                          <div className="bg-primary h-1.5 rounded-full transition-all" style={{ width: `${comp}%` }} />
-                        </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium inline-block ${comp === 100 ? "bg-green-500/10 text-green-600" : "bg-primary/10 text-primary"}`}>
-                          {comp}%
-                        </span>
                       </div>
                     );
                   })}

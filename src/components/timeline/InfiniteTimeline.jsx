@@ -7,9 +7,10 @@ import { parseDate } from "@/lib/dateUtils";
 import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
+import { SymptomBar, SymptomPill } from "@/components/timeline/SymptomBar";
 
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, alter: 40 };
+const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, symptom: 36, alter: 40 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
 const EXPANDED_EXTRA = 100;
 const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
@@ -457,6 +458,8 @@ export default function InfiniteTimeline({
   day, sessions, activities, emotions, alters, hasData, isToday,
   journals = [], checkIns = [], bulletins = [], tasks = [],
   showActivities = true, showCheckIns = true, showEmotions = true,
+  showSymptoms = true,
+  symptomSessions = [], symptomCheckIns = [], symptoms = [],
   categories = [],
 }) {
   const queryClient = useQueryClient();
@@ -724,6 +727,44 @@ export default function InfiniteTimeline({
     });
   }, [eventEntries, getTopPx, expandedKeys]);
 
+  const symptomMap = useMemo(() => {
+    const m = {};
+    symptoms.forEach(s => { m[s.id] = s; });
+    return m;
+  }, [symptoms]);
+
+  const sortedSymptomSessions = useMemo(() => {
+    return [...symptomSessions].sort((a, b) => {
+      if (a.is_active && !b.is_active) return -1;
+      if (!a.is_active && b.is_active) return 1;
+      return new Date(b.start_time) - new Date(a.start_time);
+    });
+  }, [symptomSessions]);
+
+  const symptomColumns = useMemo(() => {
+    const cols = [];
+    const symptomIds = [...new Set(sortedSymptomSessions.map(s => s.symptom_id))];
+    symptomIds.forEach(symptomId => {
+      const segs = sortedSymptomSessions
+        .filter(s => s.symptom_id === symptomId)
+        .map(s => {
+          const startMins = Math.max(0, minutesInDay(parseDate(s.start_time), dayStart));
+          const endTime = s.end_time ? parseDate(s.end_time) : s.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+          const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
+          return { symptomId, startMins, endMins: Math.max(endMins, startMins + 8), sessionId: s.id };
+        });
+      let placed = false;
+      for (const col of cols) {
+        const conflicts = segs.some(seg =>
+          col.some(existing => seg.startMins < existing.endMins && seg.endMins > existing.startMins)
+        );
+        if (!conflicts) { segs.forEach(seg => col.push(seg)); placed = true; break; }
+      }
+      if (!placed) cols.push([...segs]);
+    });
+    return cols;
+  }, [sortedSymptomSessions, dayStart, isToday]);
+
   const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
   const activityAreaWidth = numActivityCols * colWidths.activity;
   const eventColWidth_actual = showCheckIns ? eventColWidth : 0;
@@ -731,9 +772,12 @@ export default function InfiniteTimeline({
   const eventColLeft = activityAreaWidth;
   const emotionColLeft = eventColLeft + eventColWidth_actual;
   const checkInAreaWidth = eventColWidth_actual + emotionColWidth_actual;
+  const numSymptomCols = showSymptoms ? Math.max(1, symptomColumns.length) : 0;
+  const symptomAreaWidth = numSymptomCols * colWidths.symptom;
+  const symptomLeft = activityAreaWidth + checkInAreaWidth;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * colWidths.alter;
-  const timeLeft = activityAreaWidth + checkInAreaWidth;
+  const timeLeft = symptomLeft + (showSymptoms ? symptomAreaWidth : 0);
   const alterLeft = timeLeft + LABEL_WIDTH;
   const totalWidth = timeLeft + LABEL_WIDTH + alterAreaWidth;
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
@@ -933,6 +977,12 @@ export default function InfiniteTimeline({
                   <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
                 </div>
               )}
+              {showSymptoms && (
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: symptomAreaWidth }}>
+                  <span className="text-xs text-muted-foreground opacity-60">⚡</span>
+                  <ResizeHandle onDrag={(d) => dragCol("symptom", d / Math.max(1, numSymptomCols))} />
+                </div>
+              )}
               <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
               <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
                 <Users className="w-3.5 h-3.5 inline" />
@@ -990,6 +1040,48 @@ export default function InfiniteTimeline({
                   <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
                     style={{ left: emotionColLeft, height: totalHeight }} />
                 )}
+                {showSymptoms && (
+                  <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
+                    style={{ left: symptomLeft, height: totalHeight }} />
+                )}
+
+                {showSymptoms && symptomColumns.map((col, colIdx) => (
+                  <div key={`scol-${colIdx}`} className="absolute"
+                    style={{ left: symptomLeft + colIdx * colWidths.symptom, top: 0, width: colWidths.symptom, height: totalHeight }}>
+                    {col.map((entry, i) => {
+                      const session = symptomSessions.find(s => s.id === entry.sessionId);
+                      const symptom = symptomMap[entry.symptomId];
+                      const topPx = getTopPx(entry.startMins);
+                      const heightPx = getRangePx(entry.startMins, entry.endMins);
+                      return (
+                        <SymptomBar
+                          key={`sbar-${entry.sessionId}-${i}`}
+                          symptom={symptom}
+                          session={session}
+                          topPx={topPx}
+                          heightPx={heightPx}
+                          rowH={rowH}
+                          onTap={() => {}}
+                        />
+                      );
+                    })}
+                    {colIdx === 0 && symptomCheckIns.map((checkIn) => {
+                      const symptom = symptomMap[checkIn.symptom_id];
+                      if (!symptom) return null;
+                      const mins = Math.max(0, minutesInDay(parseDate(checkIn.timestamp), dayStart));
+                      return (
+                        <SymptomPill
+                          key={`spill-${checkIn.id}`}
+                          symptom={symptom}
+                          checkIn={checkIn}
+                          topPx={getTopPx(mins)}
+                          onTap={() => {}}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+
                 <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
                   style={{ left: timeLeft, height: totalHeight }} />
 

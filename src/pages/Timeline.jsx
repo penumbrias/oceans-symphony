@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { parseDate } from "@/lib/dateUtils";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
-import { Activity, Heart, Users, Calendar, BarChart3, BookOpen } from "lucide-react";
+import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
 
@@ -15,6 +15,7 @@ export default function Timeline() {
   const [showActivities, setShowActivities] = useState(true);
   const [showCheckIns, setShowCheckIns] = useState(true);
   const [showEmotions, setShowEmotions] = useState(true);
+  const [showSymptoms, setShowSymptoms] = useState(true);
   const [jumpDate, setJumpDate] = useState("");
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
@@ -67,6 +68,21 @@ export default function Timeline() {
   const { data: dailyProgress = [] } = useQuery({
     queryKey: ["dailyProgress"],
     queryFn: () => base44.entities.DailyProgress.list("-date", 365),
+  });
+
+  const { data: symptomSessions = [] } = useQuery({
+    queryKey: ["symptomSessions"],
+    queryFn: () => base44.entities.SymptomSession.list("-start_time", 2000),
+  });
+
+  const { data: symptomCheckIns = [] } = useQuery({
+    queryKey: ["symptomCheckIns"],
+    queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 2000),
+  });
+
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
   });
 
   // Lazy load more days as user scrolls to bottom
@@ -134,6 +150,9 @@ export default function Timeline() {
         <button className={toggleStyles(showFronting)} onClick={() => setShowFronting(!showFronting)} title="Fronting">
           <Users className="w-3.5 h-3.5" />
         </button>
+        <button className={toggleStyles(showSymptoms)} onClick={() => setShowSymptoms(!showSymptoms)} title="Symptoms">
+          <Zap className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Timeline days */}
@@ -184,7 +203,22 @@ export default function Timeline() {
             return (created >= dayStart && created <= dayEnd) || (completed && completed >= dayStart && completed <= dayEnd);
           });
 
-          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0;
+          const daySymptomSessions = showSymptoms
+            ? symptomSessions.filter(s => {
+                const start = parseDate(s.start_time);
+                const end = s.end_time ? parseDate(s.end_time) : new Date();
+                return start <= dayEnd && end >= dayStart;
+              })
+            : [];
+
+          const daySymptomCheckIns = showSymptoms
+            ? symptomCheckIns.filter(s => {
+                const t = parseDate(s.timestamp);
+                return t >= dayStart && t <= dayEnd;
+              })
+            : [];
+
+          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0;
 
           return (
             <div key={dateStr} id={`day-${dateStr}`}>
@@ -203,6 +237,10 @@ export default function Timeline() {
                 showActivities={showActivities}
                 showCheckIns={showCheckIns}
                 showEmotions={showEmotions}
+                showSymptoms={showSymptoms}
+                symptomSessions={daySymptomSessions}
+                symptomCheckIns={daySymptomCheckIns}
+                symptoms={symptoms}
                 categories={categories}
                 dailyProgress={dailyProgress.find((p) => p.date === format(day, "yyyy-MM-dd"))}
               />
