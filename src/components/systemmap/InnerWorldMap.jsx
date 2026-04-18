@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LocationNode from "./LocationNode";
-import CreateRelationshipModal from "./CreateRelationshipModal";
+import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 
 const localMode = isLocalMode ? isLocalMode() : false;
 const db = localMode ? localEntities : base44.entities;
@@ -94,7 +94,7 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
   );
 }
 
-function RelationshipLines({ relationships, alters, showRelationships }) {
+function RelationshipLines({ relationships, alters, showRelationships, onRelClick }) {
   if (!showRelationships) return null;
   const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
 
@@ -129,26 +129,27 @@ function RelationshipLines({ relationships, alters, showRelationships }) {
     const title = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
     const markerId = `iwarrow-${rel.id}`;
 
+    const handleClick = (e) => { e.stopPropagation(); onRelClick?.(rel, e); };
+
+    const renderLine = (key, lx1, ly1, lx2, ly2, mId) => (
+      <g key={key} style={{ cursor: "pointer" }} onClick={handleClick}>
+        {/* Wide transparent hit area */}
+        <line x1={lx1} y1={ly1} x2={lx2} y2={ly2} stroke="transparent" strokeWidth={12} />
+        {/* Visible line */}
+        <line x1={lx1} y1={ly1} x2={lx2} y2={ly2}
+          stroke={color} strokeWidth={2} opacity={0.75}
+          markerEnd={`url(#${mId})`}>
+          <title>{title}</title>
+        </line>
+      </g>
+    );
+
     if (rel.direction === "a_to_b") {
       const ox = perpX * baseOffset, oy = perpY * baseOffset;
-      lines.push(
-        <line key={`${rel.id}-atob`}
-          x1={ax + ox} y1={ay + oy} x2={bx + ox} y2={by + oy}
-          stroke={color} strokeWidth={2} opacity={0.75}
-          markerEnd={`url(#${markerId})`}>
-          <title>{title}</title>
-        </line>
-      );
+      lines.push(renderLine(`${rel.id}-atob`, ax + ox, ay + oy, bx + ox, by + oy, markerId));
     } else if (rel.direction === "b_to_a") {
       const ox = perpX * baseOffset, oy = perpY * baseOffset;
-      lines.push(
-        <line key={`${rel.id}-btoa`}
-          x1={bx + ox} y1={by + oy} x2={ax + ox} y2={ay + oy}
-          stroke={color} strokeWidth={2} opacity={0.75}
-          markerEnd={`url(#${markerId})`}>
-          <title>{title}</title>
-        </line>
-      );
+      lines.push(renderLine(`${rel.id}-btoa`, bx + ox, by + oy, ax + ox, ay + oy, markerId));
     } else {
       // bidirectional: two lines with small perpendicular offset so both arrows show
       const biOffset = 5;
@@ -162,18 +163,8 @@ function RelationshipLines({ relationships, alters, showRelationships }) {
               <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
             </marker>
           </defs>
-          <line
-            x1={ax + ox1} y1={ay + oy1} x2={bx + ox1} y2={by + oy1}
-            stroke={color} strokeWidth={2} opacity={0.75}
-            markerEnd={`url(#${markerId})`}>
-            <title>{title}</title>
-          </line>
-          <line
-            x1={bx + ox2} y1={by + oy2} x2={ax + ox2} y2={ay + oy2}
-            stroke={color} strokeWidth={2} opacity={0.75}
-            markerEnd={`url(#${markerIdB})`}>
-            <title>{title}</title>
-          </line>
+          {renderLine(`${rel.id}-bi-1`, ax + ox1, ay + oy1, bx + ox1, by + oy1, markerId)}
+          {renderLine(`${rel.id}-bi-2`, bx + ox2, by + oy2, ax + ox2, ay + oy2, markerIdB)}
         </React.Fragment>
       );
     }
@@ -240,6 +231,8 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [createRelModal, setCreateRelModal] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
+  const [relPopover, setRelPopover] = useState(null); // { rel, x, y }
+  const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
 
   const { data: locations = [], refetch: refetchLocations } = useQuery({
     queryKey: ["innerWorldLocations"],
@@ -419,6 +412,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           onMouseLeave={handleMouseUp}
           onDrop={handleSvgDrop}
           onDragOver={e => e.preventDefault()}
+          onClick={() => setRelPopover(null)}
         >
           <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
             {sortedLocations.map(loc => (
@@ -437,6 +431,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               relationships={relationships}
               alters={placedAlters}
               showRelationships={showRel}
+              onRelClick={(rel, e) => setRelPopover({ rel, x: e.clientX, y: e.clientY })}
             />
 
             {placedAlters.map(alter => (
@@ -570,6 +565,37 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           </div>
         )}
 
+        {/* Relationship line popover */}
+        {relPopover && (() => {
+          const rect = svgRef.current?.getBoundingClientRect();
+          const left = relPopover.x - (rect?.left || 0) + 8;
+          const top = relPopover.y - (rect?.top || 0) + 8;
+          const rel = relPopover.rel;
+          const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
+          return (
+            <div
+              className="absolute z-30 bg-card border border-border rounded-xl p-3 shadow-lg space-y-1.5 min-w-[160px]"
+              style={{ left, top }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-foreground">{label}</span>
+                <button onClick={() => setRelPopover(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: rel.color || "#6b7280" }} />
+                {rel.direction === "bidirectional" ? "↔" : "→"}
+              </div>
+              {rel.notes && <p className="text-xs text-muted-foreground italic">{rel.notes}</p>}
+              <button
+                onClick={() => { setEditingRelFromPopover(rel); setRelPopover(null); }}
+                className="text-xs text-primary hover:underline block">
+                Edit relationship
+              </button>
+            </div>
+          );
+        })()}
+
         {/* Alter detail panel */}
         {selectedAlter && !relModeAlter && (
           <div className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto">
@@ -613,6 +639,85 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           onClose={() => setCreateRelModal(null)}
         />
       )}
+
+      {editingRelFromPopover && (
+        <EditRelFromPopover
+          rel={editingRelFromPopover}
+          alterMap={alterMap}
+          onClose={() => setEditingRelFromPopover(null)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
+            onRefreshRelationships?.();
+            setEditingRelFromPopover(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Minimal inline edit modal for relationships opened from popover
+function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
+  const [direction, setDirection] = useState(rel.direction);
+  const [relType, setRelType] = useState(rel.relationship_type);
+  const [customLabel, setCustomLabel] = useState(rel.custom_label || "");
+  const [color, setColor] = useState(rel.color || "#6b7280");
+  const [notes, setNotes] = useState(rel.notes || "");
+  const alterA = alterMap[rel.alter_id_a];
+  const alterB = alterMap[rel.alter_id_b];
+
+  const handleSave = async () => {
+    await base44.entities.AlterRelationship.update(rel.id, { direction, relationship_type: relType, custom_label: customLabel, color, notes });
+    onSaved();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm mx-4 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-foreground text-sm">Edit Relationship</h3>
+          <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Direction</p>
+          {[
+            { value: "a_to_b", label: `${alterA?.name} → ${alterB?.name}` },
+            { value: "b_to_a", label: `${alterB?.name} → ${alterA?.name}` },
+            { value: "bidirectional", label: `${alterA?.name} ↔ ${alterB?.name}` },
+          ].map(opt => (
+            <button key={opt.value} onClick={() => setDirection(opt.value)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm border mb-1 transition-colors ${direction === opt.value ? "bg-primary/10 border-primary/40 text-primary" : "border-border hover:bg-muted/40"}`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Type</p>
+          <select value={relType} onChange={e => setRelType(e.target.value)}
+            className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm">
+            {RELATIONSHIP_PRESETS.map(p => <option key={p.type} value={p.type}>{p.type}</option>)}
+          </select>
+          {relType === "Custom" && (
+            <input value={customLabel} onChange={e => setCustomLabel(e.target.value)}
+              placeholder="Custom label..." className="mt-2 w-full h-9 px-3 rounded-md border border-border bg-background text-sm" />
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Color</p>
+          <input type="color" value={color} onChange={e => setColor(e.target.value)}
+            className="w-8 h-8 rounded border border-border cursor-pointer bg-transparent" />
+          <span className="text-xs text-muted-foreground font-mono">{color}</span>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+            className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button className="flex-1" onClick={handleSave}>Save</Button>
+        </div>
+      </div>
     </div>
   );
 }
