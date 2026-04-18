@@ -9,6 +9,7 @@ function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
   return {
     [systemLabel]: [
     { label: altersLabel, icon: Users, path: "/Home" },
+    { label: "Groups", icon: Users, path: "/groups" },
     { label: "Settings", icon: Settings, path: "/settings" }],
 
     "Tracking": [
@@ -17,7 +18,11 @@ function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
     { label: "Diary Cards", icon: ClipboardList, path: "/diary" },
     { label: "Activities", icon: Zap, path: "/activities" },
     { label: "Sleep", icon: Activity, path: "/sleep" },
-    { label: "Check-In", icon: Sparkles, path: "/system-checkin" }],
+    { label: `${systemLabel} Check-In`, icon: Sparkles, path: "/system-checkin" }],
+
+    "Tools": [
+    { label: "Therapy Report", icon: CheckSquare, path: "/therapy-report" },
+    { label: "Support & Learn", icon: BookOpen, path: "/grounding" }],
 
     "Analytics": [
     { label: "Analytics", icon: BarChart2, path: "/analytics" },
@@ -41,11 +46,12 @@ function buildGridItems(altersLabel, frontLabel, systemLabel) {
   { label: "Support & Learn", icon: Heart, path: "/grounding", color: "bg-red-500/15 text-red-600 dark:text-red-400" },
   { label: "Diary Cards", icon: ClipboardList, path: "/diary", color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
   { label: "Sleep", icon: Activity, path: "/sleep", color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
+  { label: "Timeline", icon: Clock, path: "/timeline", color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
   { label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
   { label: "Journals", icon: BookOpen, path: "/journals", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-  { label: "Timeline", icon: Clock, path: "/timeline", color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
-  { label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
   { label: "Daily Tasks", icon: CheckSquare, path: "/tasks", color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
+  { label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+  { label: "Groups", icon: Users, path: "/groups", color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
   { label: "Settings", icon: Settings, path: "/settings", color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" }];
 
 }

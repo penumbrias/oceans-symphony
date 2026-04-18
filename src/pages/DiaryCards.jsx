@@ -10,13 +10,14 @@ import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import DiaryCardView from "@/components/diary/DiaryCardView";
 import { getActiveTemplate } from "@/lib/diaryCardTemplate";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useMentionHighlight } from "@/lib/useMentionHighlight";
+import React, { useState, useMemo, useEffect } from "react";
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
   const [view, setView] = useState("list");
   const [viewingEntry, setViewingEntry] = useState(null);
   const [searchParams] = useSearchParams();
-  const highlightId = searchParams.get("id");
 
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
@@ -32,6 +33,8 @@ export default function DiaryCards() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
+
+  useMentionHighlight("id", cards.length > 0);
 
   const activeSections = useMemo(() => {
     const template = getActiveTemplate(settingsList[0]);
@@ -71,11 +74,12 @@ export default function DiaryCards() {
 
   // Auto-open from URL param
   useEffect(() => {
+    const highlightId = searchParams.get("id");
     if (highlightId && cards.length > 0) {
       const card = cards.find(c => c.id === highlightId);
       if (card) { setViewingEntry(card); setView("entry"); }
     }
-  }, [highlightId, cards.length]);
+  }, [searchParams, cards.length]);
 
   const handleDelete = async (cardId) => {
     if (!confirm("Delete this daily log entry?")) return;
@@ -118,10 +122,9 @@ export default function DiaryCards() {
                   {dateCards.map(card => {
                     const fronters = (card.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
                     const summary = buildSummary(card);
-                    const isHighlighted = highlightId === card.id;
                     return (
-                      <div key={card.id}
-                        className={`bg-card border rounded-xl p-4 hover:shadow-md transition-all ${isHighlighted ? "border-yellow-400 ring-2 ring-yellow-400/60 shadow-md" : "border-border/50"}`}>
+                      <div key={card.id} id={`item-${card.id}`}
+                        className="bg-card border rounded-xl p-4 hover:shadow-md transition-all border-border/50">
                         <div className="flex items-start justify-between gap-2">
                           <button onClick={() => { setViewingEntry(card); setView("entry"); }} className="flex-1 text-left space-y-1.5">
                             <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>

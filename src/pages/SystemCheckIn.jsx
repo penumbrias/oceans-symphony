@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -16,6 +16,7 @@ import CheckInStep3 from "@/components/system-checkin/CheckInStep3";
 import CheckInStep4 from "@/components/system-checkin/CheckInStep4";
 import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
 import { saveMentions } from "@/lib/mentionUtils";
+import { useMentionHighlight } from "@/lib/useMentionHighlight";
 
 export default function SystemCheckInPage() {
   const navigate = useNavigate();
@@ -50,6 +51,9 @@ export default function SystemCheckInPage() {
     }
   }, [pendingId, checkIns.length]);
 
+  // Highlight check-in on arrival from mention
+  useMentionHighlight("id", checkIns.length > 0 && view === "view");
+
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.SystemCheckIn.create(data),
     onSuccess: () => {
@@ -83,30 +87,46 @@ export default function SystemCheckInPage() {
     const shouldCreateDiary = formData.create_diary_card;
     delete dataToSave.create_diary_card;
 
+    const allStepContent = [
+      formData.step3_greet?.notes,
+      formData.step4_share?.notes,
+      formData.step5_closing?.notes,
+    ].filter(Boolean).join(" ");
+
     if (currentCheckIn) {
       updateMutation.mutate(dataToSave);
+      // Save mentions for existing check-in
+      if (allStepContent && alters.length > 0) {
+        await saveMentions({
+          content: allStepContent,
+          alters,
+          sourceType: "checkin",
+          sourceId: currentCheckIn.id,
+          sourceLabel: "System Check-In",
+          navigatePath: `/system-checkin?id=${currentCheckIn.id}`,
+          authorAlterId: null,
+        });
+      }
     } else {
-      createMutation.mutate(dataToSave);
+      // Create new and then save mentions with the returned ID
+      const newCheckIn = await base44.entities.SystemCheckIn.create(dataToSave);
+      queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });
+      if (allStepContent && alters.length > 0) {
+        await saveMentions({
+          content: allStepContent,
+          alters,
+          sourceType: "checkin",
+          sourceId: newCheckIn.id,
+          sourceLabel: "System Check-In",
+          navigatePath: `/system-checkin?id=${newCheckIn.id}`,
+          authorAlterId: null,
+        });
+      }
+      toast.success("Check-in saved!");
+      setFormData({});
+      setView("list");
+      return;
     }
-// Save mentions from check-in step notes
-const allStepContent = [
-  formData.step3_greet?.notes,
-  formData.step4_share?.notes,
-  formData.step5_closing?.notes,
-].filter(Boolean).join(" ");
-
-if (allStepContent && alters.length > 0) {
-  const checkInId = currentCheckIn?.id || "new";
-  await saveMentions({
-    content: allStepContent,
-    alters,
-    sourceType: "checkin",
-    sourceId: checkInId,
-    sourceLabel: "System Check-In",
-    navigatePath: `/system-checkin?id=${checkInId}`,
-    authorAlterId: null,
-  });
-}
     // If step2 has alters_present, update the active fronting session
     const altersPresent = formData.step2_notice?.alters_present || [];
     const alterIds = altersPresent.filter((id) => alters.some((a) => a.id === id));
@@ -325,7 +345,7 @@ const formatted = date.toLocaleDateString("en-US", {
   weekday: "short", month: "short", day: "numeric", year: "numeric",
 });
                 return (
-                  <Card key={checkIn.id} className="hover:bg-card/80 transition-colors">
+                  <Card key={checkIn.id} id={`item-${checkIn.id}`} className="hover:bg-card/80 transition-colors border-border/50">
                     <CardContent className="py-4 px-4 flex items-center justify-between">
                       <div className="flex-1 cursor-pointer" onClick={() => handleView(checkIn)}>
                         <p className="font-medium text-foreground">{formatted}</p>

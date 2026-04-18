@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft } from "lucide-react";
+import { useMentionHighlight } from "@/lib/useMentionHighlight";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,7 +139,6 @@ export default function Journals() {
 
   const [searchParams] = useSearchParams();
   const pendingId = searchParams.get('id');
-  const [highlightId, setHighlightId] = useState(() => searchParams.get('id'));
 
   useEffect(() => {
     if (pendingId && entries.length > 0) {
@@ -147,12 +147,7 @@ export default function Journals() {
     }
   }, [pendingId, entries.length]);
 
-  useEffect(() => {
-    if (highlightId) {
-      const timer = setTimeout(() => setHighlightId(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [highlightId]);
+  useMentionHighlight("id", entries.length > 0);
 
   const handleCreateFolder = () => {
     if (!newFolderName.trim()) return;
@@ -300,13 +295,13 @@ export default function Journals() {
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             {filtered.map((entry) => (
-              <JournalEntryCard
-                key={entry.id}
-                entry={entry}
-                altersById={altersById}
-                onClick={() => openEntry(entry)}
-                highlight={highlightId === entry.id}
-              />
+              <div key={entry.id} id={`item-${entry.id}`}>
+                <JournalEntryCard
+                  entry={entry}
+                  altersById={altersById}
+                  onClick={() => openEntry(entry)}
+                />
+              </div>
             ))}
           </div>
         </>

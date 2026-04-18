@@ -37,15 +37,15 @@ export default function MentionNotifications({ frontingAlterIds = [], alters = [
       </button>
 
       {expanded && (
-        <div className="mt-3 space-y-2">
-          {relevant.slice(0, 15).map((m) => {
-            const alter = alters.find((a) => a.id === m.mentioned_alter_id);
-            return (
-              <button
-                key={m.id}
-                onClick={() => navigate(m.navigate_path || "/timeline")}
-                className="w-full text-left rounded-lg bg-background border border-border/50 px-3 py-2 hover:bg-muted/30 transition-colors"
-              >
+         <div className="mt-3 space-y-2">
+           {relevant.slice(0, 15).map((m) => {
+             const alter = alters.find((a) => a.id === m.mentioned_alter_id);
+             return (
+               <button
+                 key={m.id}
+                 onClick={() => navigate(m.navigate_path)}
+                 className="w-full text-left rounded-lg bg-background border border-border/50 px-3 py-2 hover:bg-muted/30 transition-colors"
+               >
                 <div className="flex items-center gap-2 mb-1">
                   <div
                     className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
