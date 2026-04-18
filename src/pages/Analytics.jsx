@@ -21,6 +21,7 @@ import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive"
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import SleepAnalytics from "@/components/analytics/SleepAnalytics";
 import JournalAnalytics from "@/components/analytics/JournalAnalytics";
+import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 
 // MAIN_TABS defined dynamically in component
 
@@ -82,6 +83,7 @@ export default function Analytics() {
   const terms = useTerms();
   const MAIN_TABS = [
     { id: "alters", label: `${terms.System} Members` },
+    { id: "cofronting", label: `${terms.Cofronting}` },
     { id: "activities", label: "Activities" },
     { id: "diary", label: "Daily Log" },
     { id: "emotions", label: "Emotions" },
@@ -237,6 +239,15 @@ queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
           </button>
         ))}
       </div>
+
+      {mainTab === "cofronting" && (
+        <>
+          <div className="mb-5">
+            <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+          </div>
+          <CoFrontingAnalytics sessions={sessions} alters={alters} altersById={altersById} from={from} to={to} />
+        </>
+      )}
 
       {mainTab === "alters" && (
         <>

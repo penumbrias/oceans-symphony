@@ -24,7 +24,7 @@ import ActivityTracker from '@/pages/ActivityTracker';
 import SleepTracker from '@/pages/SleepTracker';
 import ToDoList from '@/pages/ToDoList';
 import Timeline from '@/pages/Timeline.jsx';
-import CoFrontingAnalytics from '@/pages/CoFrontingAnalytics';
+
 import SystemMapPage from '@/pages/SystemMap';
 import Grounding from '@/pages/Grounding';
 import SafetyPlan from '@/pages/SafetyPlan';
@@ -81,7 +81,6 @@ const AuthenticatedApp = () => {
         <Route path="/activities" element={<ActivityTracker />} />
         <Route path="/sleep" element={<SleepTracker />} />
         <Route path="/timeline" element={<Timeline />} />
-        <Route path="/cofronting-analytics" element={<CoFrontingAnalytics />} />
         <Route path="/system-map" element={<SystemMapPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
