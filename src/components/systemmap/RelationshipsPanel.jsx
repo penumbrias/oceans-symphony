@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -387,6 +387,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
 
 function LocationDetailModal({ location, alters, locationMap, getParentLocation, getSubLocations, getAltersInLocation, onClose }) {
   const t = useTerms();
+  const bgFileRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState(location);
   const queryClient = useQueryClient();
@@ -395,9 +396,22 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
   const subLocs = getSubLocations(location.id);
   const altersInLoc = getAltersInLocation(location.id);
 
+  const handleBgImageFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const v = ev.target.result;
+      setEditData(l => ({ ...l, background_image_url: v }));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
   const handleSave = async () => {
     await base44.entities.InnerWorldLocation.update(location.id, editData);
     queryClient.invalidateQueries({ queryKey: ["innerWorldLocations"] });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
     setEditing(false);
   };
 
@@ -494,6 +508,43 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
             </div>
           </div>
 
+          {/* Background Image */}
+          {editing && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Background Image</p>
+              <div className="space-y-2">
+                <input
+                  value={editData.background_image_url || ''}
+                  onChange={e => setEditData(l => ({ ...l, background_image_url: e.target.value }))}
+                  placeholder="https://... or upload below"
+                  className="w-full h-8 px-3 rounded border border-border bg-background text-xs"
+                />
+                <button
+                  onClick={() => bgFileRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-1.5 h-8 text-xs border border-dashed border-border rounded hover:border-primary/50 hover:bg-muted/30 transition-colors text-muted-foreground"
+                >
+                  <Upload className="w-3 h-3" /> Upload image file
+                </button>
+                <input ref={bgFileRef} type="file" accept="image/*" hidden onChange={handleBgImageFile} />
+                {editData.background_image_url && (
+                  <div className="relative">
+                    <img
+                      src={editData.background_image_url}
+                      alt="background preview"
+                      className="w-full h-24 object-cover rounded border border-border"
+                    />
+                    <button
+                      onClick={() => setEditData(l => ({ ...l, background_image_url: '' }))}
+                      className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-black/80"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Parent location */}
           {parentLoc && (
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 border border-border/50">
@@ -556,14 +607,9 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
                 </Button>
               </>
             ) : (
-              <>
-                <Button variant="outline" className="flex-1" size="sm" onClick={() => setEditing(true)}>
-                  <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
-                </Button>
-                <Button variant="outline" className="flex-1" size="sm">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Relationship
-                </Button>
-              </>
+              <Button variant="outline" className="w-full" size="sm" onClick={() => setEditing(true)}>
+                <Pencil className="w-3.5 h-3.5 mr-1" /> Edit Location
+              </Button>
             )}
           </div>
         </div>
