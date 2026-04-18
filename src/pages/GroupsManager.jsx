@@ -21,16 +21,6 @@ export default function GroupsManager() {
     queryFn: () => base44.entities.Alter.list(),
   });
 
-  const handleDeleteGroup = async (groupId) => {
-    try {
-      await base44.entities.Group.delete(groupId);
-      toast.success("Group deleted!");
-      queryClient.invalidateQueries({ queryKey: ["groups"] });
-    } catch (err) {
-      toast.error(err.message || "Failed to delete group");
-    }
-  };
-
   const handleDeleteGroup = async (group) => {
     if (window.confirm(`Delete group "${group.name}"?`)) {
       try {
