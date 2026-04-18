@@ -60,10 +60,10 @@ export default function FrontingBar({ alters }) {
   const allAltersById = Object.fromEntries((alters || []).map((a) => [a.id, a]));
 
   // New model: each active session record = one alter
-  const primarySession = activeSessions.find(s => s.alter_id && s.is_primary) || activeSessions.find(s => s.alter_id) || null;
+  const primarySession = activeSessions.find(s => s.alter_id && s.is_primary) || null;
   const primaryAlter = primarySession ? allAltersById[primarySession.alter_id] : null;
   const coFronters = activeSessions
-    .filter(s => s.alter_id && !s.is_primary && s.id !== primarySession?.id)
+    .filter(s => s.alter_id && !s.is_primary)
     .map(s => allAltersById[s.alter_id]).filter(Boolean);
 
   const session = activeSessions[0] || null; // keep for modal prop
