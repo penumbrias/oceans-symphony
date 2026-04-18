@@ -5,7 +5,7 @@ import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { startReminderScheduler, stopReminderScheduler } from "@/lib/reminderScheduler";
+import { startReminderScheduler, stopReminderScheduler } from "@/lib/reminderScheduler.jsx";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import MigrationBanner from "@/components/fronting/MigrationBanner";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
