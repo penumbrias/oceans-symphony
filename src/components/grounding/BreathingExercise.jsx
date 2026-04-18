@@ -105,8 +105,8 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
         </div>
 
         <div
-          className="rounded-full flex items-center justify-center"
-          style={{ width: SIZES.small, height: SIZES.small, backgroundColor: "hsl(var(--primary))", opacity: 0.5 }}
+          className="rounded-full flex items-center justify-center bg-primary"
+          style={{ width: SIZES.small, height: SIZES.small, opacity: 0.5 }}
         />
 
         <Button onClick={() => { setStarted(true); setCountdown(pattern.phases[0].seconds); }} size="lg" className="px-8">
@@ -123,8 +123,8 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
     return (
       <div className="flex flex-col items-center gap-6 py-8 text-center">
         <div
-          className="rounded-full flex items-center justify-center"
-          style={{ width: 80, height: 80, backgroundColor: "hsl(var(--primary))", opacity: 0.35, transition: "all 0.8s ease" }}
+          className="rounded-full flex items-center justify-center bg-primary"
+          style={{ width: 80, height: 80, opacity: 0.35, transition: "all 0.8s ease" }}
         />
         <div className="space-y-2">
           <p className="text-lg font-medium text-foreground">Well done.</p>
@@ -147,17 +147,12 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
       {/* Fixed container for circle animation */}
       <div className="relative flex items-center justify-center" style={{ width: 240, height: 240, flexShrink: 0 }}>
         <div
+          className="rounded-full absolute bg-primary flex items-center justify-center"
           style={{
-            position: 'absolute',
-            borderRadius: '50%',
-            backgroundColor: 'hsl(var(--primary))',
             opacity: isHold ? 0.7 : 0.85,
             width: circleSize,
             height: circleSize,
             transition: `width ${transitionDuration}s ease-in-out, height ${transitionDuration}s ease-in-out, opacity 0.5s ease`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
           }}
         >
           <span style={{ color: 'white', fontSize: 32, fontWeight: 'bold' }}>
