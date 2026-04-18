@@ -1,0 +1,97 @@
+{
+  "name": "DiaryTemplate",
+  "type": "object",
+  "properties": {
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "order": {
+            "type": "number"
+          },
+          "collapsed_by_default": {
+            "type": "boolean",
+            "default": false
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "data_key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "rating",
+                    "boolean",
+                    "number",
+                    "text"
+                  ]
+                },
+                "max": {
+                  "type": "number"
+                },
+                "is_positive": {
+                  "type": "boolean"
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "order": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "data_key",
+                "label",
+                "type"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      }
+    }
+  },
+  "required": [
+    "groups"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

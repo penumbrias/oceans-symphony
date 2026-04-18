@@ -3,13 +3,15 @@
  * Renders all enabled diary fields grouped visually.
  * Uses existing RatingRow for rating fields.
  */
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import RatingRow from "@/components/diary/RatingRow";
 
-const DEFAULT_GROUPS = [
+export const DEFAULT_GROUPS = [
   {
     id: "urges",
     label: "Urges to",
@@ -43,6 +45,18 @@ const DEFAULT_GROUPS = [
 export default function DiarySection({ data, onChange }) {
   const [collapsed, setCollapsed] = useState({});
 
+  const { data: templateData } = useQuery({
+    queryKey: ['diaryTemplate'],
+    queryFn: () => base44.entities.DiaryTemplate.list(),
+  });
+
+  const groups = useMemo(() => {
+    if (!templateData?.[0]?.groups) return DEFAULT_GROUPS;
+    return templateData[0].groups
+      .filter(g => g.enabled !== false)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [templateData]);
+
   const toggleGroup = (id) =>
     setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -58,7 +72,7 @@ export default function DiarySection({ data, onChange }) {
 
   return (
     <div className="space-y-3">
-      {DEFAULT_GROUPS.map(group => (
+      {groups.map(group => (
         <div key={group.id} className="border border-border/50 rounded-xl overflow-hidden">
           <button
             onClick={() => toggleGroup(group.id)}
@@ -70,7 +84,7 @@ export default function DiarySection({ data, onChange }) {
 
           {!collapsed[group.id] && (
             <div className="px-4 py-3 space-y-4">
-              {group.fields.map(field => {
+              {group.fields.filter(field => field.enabled !== false).map(field => {
                 if (field.type === "rating") {
                   return (
                     <RatingRow

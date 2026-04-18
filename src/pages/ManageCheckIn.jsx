@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
 
 const DEFAULT_COLORS = ["#8b5cf6", "#ec4899", "#3b82f6", "#14b8a6", "#f59e0b", "#ef4444", "#22c55e", "#f97316"];
 
@@ -195,6 +196,7 @@ export default function ManageCheckIn() {
   const TABS = [
     { id: "symptoms", label: "Symptoms" },
     { id: "habits", label: "Habits" },
+    { id: "diary", label: "Diary card fields" },
   ];
 
   return (
@@ -220,6 +222,7 @@ export default function ManageCheckIn() {
 
       {tab === "symptoms" && <SymptomTab category="symptom" />}
       {tab === "habits" && <SymptomTab category="habit" />}
+      {tab === "diary" && <DiaryTemplateManager />}
     </motion.div>
   );
 }
