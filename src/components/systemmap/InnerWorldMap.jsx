@@ -603,6 +603,59 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               )}
             </div>
 
+            {/* Background image opacity */}
+            {editingLocation.background_image_url && (
+              <div className='space-y-1'>
+                <div className='flex items-center justify-between'>
+                  <p className='text-xs text-muted-foreground'>Image opacity</p>
+                  <span className='text-xs text-muted-foreground font-mono'>
+                    {Math.round((editingLocation.background_opacity ?? 0.7) * 100)}%
+                  </span>
+                </div>
+                <input
+                  type='range'
+                  min={0.05}
+                  max={1}
+                  step={0.05}
+                  value={editingLocation.background_opacity ?? 0.7}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value);
+                    setEditingLocation(l => ({ ...l, background_opacity: v }));
+                    updateLocation(editingLocation, { background_opacity: v });
+                  }}
+                  className='w-full accent-primary'
+                />
+              </div>
+            )}
+
+            {/* Layer order */}
+            <div className='space-y-1'>
+              <p className='text-xs text-muted-foreground'>Layer order</p>
+              <div className='flex gap-1'>
+                <button
+                  onClick={() => {
+                    const newOrder = (editingLocation.order || 0) + 1;
+                    setEditingLocation(l => ({ ...l, order: newOrder }));
+                    updateLocation(editingLocation, { order: newOrder });
+                  }}
+                  className='flex-1 h-7 text-xs border border-border rounded hover:bg-muted/50 transition-colors'
+                >
+                  ↑ Bring forward
+                </button>
+                <button
+                  onClick={() => {
+                    const newOrder = Math.max(0, (editingLocation.order || 0) - 1);
+                    setEditingLocation(l => ({ ...l, order: newOrder }));
+                    updateLocation(editingLocation, { order: newOrder });
+                  }}
+                  className='flex-1 h-7 text-xs border border-border rounded hover:bg-muted/50 transition-colors'
+                >
+                  ↓ Send back
+                </button>
+              </div>
+              <p className='text-xs text-muted-foreground text-center'>Layer: {editingLocation.order || 0}</p>
+            </div>
+
             <textarea value={editingLocation.description || ""} onChange={e => {
               const v = e.target.value;
               setEditingLocation(l => ({ ...l, description: v }));

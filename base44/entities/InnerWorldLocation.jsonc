@@ -23,6 +23,11 @@
       "type": "string",
       "description": "Optional background image URL"
     },
+    "background_opacity": {
+      "type": "number",
+      "default": 0.7,
+      "description": "Opacity of background image (0-1)"
+    },
     "x": {
       "type": "number",
       "description": "Canvas x position"

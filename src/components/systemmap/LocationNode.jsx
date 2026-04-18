@@ -7,7 +7,7 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   const [resizing, setResizing] = useState(null); // "se" corner handle
   const dragStart = useRef(null);
 
-  const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url } = location;
+  const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity } = location;
 
   const handleMouseDown = (e) => {
     e.stopPropagation();
@@ -66,7 +66,7 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
               <rect x={x} y={y} width={width} height={height} rx={rx} ry={ry} />
             </clipPath>
             <pattern id={`loc-bg-${location.id}`} patternUnits="userSpaceOnUse" x={x} y={y} width={width} height={height}>
-              <image href={background_image_url} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid slice" opacity="0.4" />
+              <image href={background_image_url} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid slice" opacity={background_opacity ?? 0.7} />
             </pattern>
           </>
         )}
