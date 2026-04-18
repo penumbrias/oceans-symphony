@@ -157,7 +157,7 @@ function SymptomDetailModal({ symptom, session, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 pb-16 sm:pb-0" onClick={onClose}>
       <div
         className="bg-card border border-border rounded-xl p-5 shadow-xl max-w-xs w-full mx-4 space-y-4"
         onClick={e => e.stopPropagation()}

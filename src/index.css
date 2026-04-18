@@ -24,6 +24,7 @@
     --color-text-secondary: #64748B;
 
     --radius: 0.75rem;
+    --bottom-nav-height: 64px;
   }
 
   .dark {

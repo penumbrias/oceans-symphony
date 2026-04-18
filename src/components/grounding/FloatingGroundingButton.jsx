@@ -19,11 +19,11 @@ export default function FloatingGroundingButton() {
 
       {/* Modal overlay */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4 pb-16 sm:pb-0"
           onClick={() => setOpen(false)}>
           <div
             className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg overflow-hidden"
-            style={{ height: '90vh', maxHeight: '90vh' }}
+            style={{ height: 'calc(90vh - 64px)', maxHeight: 'calc(90vh - 64px)' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/40">

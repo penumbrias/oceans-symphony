@@ -61,7 +61,7 @@ export default function CreateRelationshipModal({ alterA, allAlters = [], alterB
   ] : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 pb-16 sm:pb-0" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm mx-4 space-y-4"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
