@@ -1,0 +1,116 @@
+{
+  "name": "Alter",
+  "type": "object",
+  "properties": {
+    "sp_id": {
+      "type": "string",
+      "description": "Simply Plural member ID"
+    },
+    "name": {
+      "type": "string",
+      "description": "Name of the alter"
+    },
+    "alias": {
+      "type": "string",
+      "description": "Short alias to refer to this alter (e.g., for mentions)"
+    },
+    "pronouns": {
+      "type": "string",
+      "description": "Pronouns"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description/bio of the alter"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color associated with this alter"
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Avatar image URL"
+    },
+    "role": {
+      "type": "string",
+      "description": "Role in the system (e.g. host, protector, etc.)"
+    },
+    "custom_fields": {
+      "type": "object",
+      "description": "Values for system-wide custom fields (keyed by CustomField ID)"
+    },
+    "alter_custom_fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Alter-specific custom fields (not shared with other alters)"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags assigned to this alter in Simply Plural"
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Groups this alter belongs to"
+    },
+    "is_archived": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this alter profile is archived"
+    },
+    "inner_world_x": {
+      "type": "number",
+      "description": "X position on inner world canvas"
+    },
+    "inner_world_y": {
+      "type": "number",
+      "description": "Y position on inner world canvas"
+    },
+    "inner_world_location_id": {
+      "type": "string",
+      "description": "Optional \u2014 which InnerWorldLocation this alter currently resides in"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

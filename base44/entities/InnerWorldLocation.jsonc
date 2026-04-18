@@ -1,0 +1,75 @@
+{
+  "name": "InnerWorldLocation",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name, e.g. 'The Forest'"
+    },
+    "shape": {
+      "type": "string",
+      "enum": [
+        "rectangle",
+        "oval"
+      ],
+      "default": "rectangle",
+      "description": "Shape of the location container"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex border/background color"
+    },
+    "background_image_url": {
+      "type": "string",
+      "description": "Optional background image URL"
+    },
+    "x": {
+      "type": "number",
+      "description": "Canvas x position"
+    },
+    "y": {
+      "type": "number",
+      "description": "Canvas y position"
+    },
+    "width": {
+      "type": "number",
+      "default": 200,
+      "description": "Canvas width"
+    },
+    "height": {
+      "type": "number",
+      "default": 150,
+      "description": "Canvas height"
+    },
+    "parent_location_id": {
+      "type": "string",
+      "description": "Optional parent InnerWorldLocation for nesting"
+    },
+    "order": {
+      "type": "number",
+      "default": 0,
+      "description": "Z-index layering order"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional notes about this location"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

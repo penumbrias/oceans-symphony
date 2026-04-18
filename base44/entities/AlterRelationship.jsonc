@@ -1,0 +1,60 @@
+{
+  "name": "AlterRelationship",
+  "type": "object",
+  "properties": {
+    "alter_id_a": {
+      "type": "string",
+      "description": "References Alter.id \u2014 first alter in the relationship"
+    },
+    "alter_id_b": {
+      "type": "string",
+      "description": "References Alter.id \u2014 second alter in the relationship"
+    },
+    "relationship_type": {
+      "type": "string",
+      "description": "Preset or custom relationship label"
+    },
+    "custom_label": {
+      "type": "string",
+      "description": "Used when relationship_type is 'custom'"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "a_to_b",
+        "b_to_a",
+        "bidirectional"
+      ],
+      "default": "bidirectional",
+      "description": "Direction of the relationship"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color for the relationship line"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional description"
+    }
+  },
+  "required": [
+    "alter_id_a",
+    "alter_id_b",
+    "relationship_type",
+    "direction"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

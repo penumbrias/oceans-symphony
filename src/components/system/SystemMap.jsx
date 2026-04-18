@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
 
-const SystemMap = () => {
+const SystemMap = ({ relationships = [] }) => {
   const svgRef = useRef(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
@@ -348,6 +348,35 @@ const nodePositions = useMemo(() => {
             );
           })}
 
+          {/* Relationship lines (dashed, with arrowheads for directional) */}
+          <defs>
+            {relationships.map(rel => (
+              <marker key={`arr-${rel.id}`} id={`rarrow-${rel.id}`} markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.8} />
+              </marker>
+            ))}
+          </defs>
+          {relationships.map(rel => {
+            const srcNode = nodes.find(n => n.id === rel.alter_id_a);
+            const tgtNode = nodes.find(n => n.id === rel.alter_id_b);
+            if (!srcNode || !tgtNode) return null;
+            const markerEnd = rel.direction === "a_to_b" ? `url(#rarrow-${rel.id})` : undefined;
+            const markerStart = rel.direction === "b_to_a" ? `url(#rarrow-${rel.id})` : undefined;
+            const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
+            return (
+              <line key={`rel-${rel.id}`}
+                x1={srcNode.x} y1={srcNode.y} x2={tgtNode.x} y2={tgtNode.y}
+                stroke={rel.color || "#6b7280"}
+                strokeWidth={1.5}
+                strokeDasharray="6,3"
+                opacity={0.7}
+                markerEnd={markerEnd}
+                markerStart={markerStart}>
+                <title>{label}</title>
+              </line>
+            );
+          })}
+
           {nodes.map((node) => (
             <g key={node.id}>
               <defs>
@@ -536,6 +565,7 @@ const nodePositions = useMemo(() => {
         <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full bg-indigo-500"/><span className="text-muted-foreground">Groups</span></div>
         <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2 border-dashed border-muted-foreground/50"/><span className="text-muted-foreground">Membership</span></div>
         <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2" style={{borderColor:"hsl(var(--accent))"}}/><span className="text-muted-foreground">Co-fronting</span></div>
+        <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2 border-dashed border-muted-foreground"/><span className="text-muted-foreground">Relationship</span></div>
         <div className="mt-1 pt-1 border-t border-border text-muted-foreground">
           {nodes.filter(n => n.type === "alter").length} alters · {nodes.filter(n => n.type === "group").length} groups
         </div>
