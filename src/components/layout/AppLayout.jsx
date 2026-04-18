@@ -5,7 +5,6 @@ import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { startReminderScheduler, stopReminderScheduler } from "@/lib/reminderScheduler.jsx";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import MigrationBanner from "@/components/fronting/MigrationBanner";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
@@ -43,11 +42,6 @@ const { data: mentionLogs = [] } = useQuery({
   queryFn: () => base44.entities.MentionLog.list("-created_date", 200),
   refetchInterval: 15000, // refetch every 15 seconds
   refetchIntervalInBackground: false, // only when tab is active
-});
-
-const { data: reminders = [] } = useQuery({
-  queryKey: ["reminders"],
-  queryFn: () => base44.entities.Reminder.list(),
 });
 
 const navConfig = useMemo(() => {
@@ -91,11 +85,6 @@ const handleNotifClick = (mentionLog) => {
   useEffect(() => {
     setHistoryDepth((prev) => isTabRoot(location.pathname) ? 0 : prev + 1);
   }, [location.pathname]);
-
-  useEffect(() => {
-    startReminderScheduler(reminders, alters, frontingAlterIds);
-    return () => stopReminderScheduler();
-  }, [reminders, alters, frontingAlterIds]);
 
   const canGoBack = historyDepth > 0 && !isTabRoot(location.pathname);
 
