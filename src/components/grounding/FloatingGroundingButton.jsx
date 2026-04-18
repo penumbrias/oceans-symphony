@@ -22,7 +22,8 @@ export default function FloatingGroundingButton() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
           onClick={() => setOpen(false)}>
           <div
-            className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg overflow-hidden"
+            style={{ height: '90vh', maxHeight: '90vh' }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border/40">
@@ -31,7 +32,7 @@ export default function FloatingGroundingButton() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="pb-6">
+            <div className="pb-6 overflow-y-auto" style={{ height: 'calc(90vh - 56px)' }}>
               <Grounding />
             </div>
           </div>

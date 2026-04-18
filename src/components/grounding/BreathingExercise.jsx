@@ -144,25 +144,31 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
 
   return (
     <div className="flex flex-col items-center gap-6 py-4">
-      <div className="flex flex-col items-center gap-4">
+      {/* Fixed container for circle animation */}
+      <div className="relative flex items-center justify-center" style={{ width: 240, height: 240, flexShrink: 0 }}>
         <div
-          className="rounded-full flex items-center justify-center"
           style={{
+            position: 'absolute',
+            borderRadius: '50%',
+            backgroundColor: 'hsl(var(--color-primary))',
+            opacity: isHold ? 0.7 : 0.85,
             width: circleSize,
             height: circleSize,
-            backgroundColor: "hsl(var(--color-primary))",
-            opacity: isHold ? 0.7 : 0.85,
             transition: `width ${transitionDuration}s ease-in-out, height ${transitionDuration}s ease-in-out, opacity 0.5s ease`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          <span style={{ color: "white", fontSize: 32, fontWeight: "bold" }}>
+          <span style={{ color: 'white', fontSize: 32, fontWeight: 'bold' }}>
             {countdown}
           </span>
         </div>
-        <p className="text-lg font-semibold text-foreground">{currentPhase.label}</p>
       </div>
 
+      {/* Phase label below fixed container */}
       <div className="text-center space-y-2">
+        <p className="text-lg font-semibold text-foreground">{currentPhase.label}</p>
         <p className="text-sm text-muted-foreground">{patternName} · {pattern.pattern}</p>
         <p className="text-xs text-muted-foreground">Round {round} of {totalRounds}</p>
       </div>
