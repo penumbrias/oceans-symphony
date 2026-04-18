@@ -75,9 +75,6 @@ export default function Dashboard() {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
   });
 
-  const activeSession = sessions.find((s) => s.is_active);
-  const currentAlterId = activeSession?.primary_alter_id || null;
-
   const { data: settings = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list()
@@ -90,9 +87,25 @@ export default function Dashboard() {
     queryFn: () => base44.entities.MentionLog.list("-created_date", 200)
   });
 
-  const frontingAlterIds = activeSession ?
-  [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean) :
-  [];
+  // Extract currently active alter IDs from active FrontingSession records
+  // Support both new individual model (alter_id) and legacy grouped model (primary_alter_id + co_fronter_ids)
+  const activeSessions = sessions.filter((s) => s.is_active);
+  let frontingAlterIds = [];
+  let currentAlterId = null;
+
+  if (activeSessions.length > 0) {
+    // New individual model: each session is one alter
+    if (activeSessions[0].alter_id) {
+      frontingAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
+      // First active session's alter is the "primary"
+      currentAlterId = frontingAlterIds[0] || null;
+    } else {
+      // Legacy grouped model: sessions group multiple alters
+      const firstSession = activeSessions[0];
+      currentAlterId = firstSession.primary_alter_id || null;
+      frontingAlterIds = [firstSession.primary_alter_id, ...(firstSession.co_fronter_ids || [])].filter(Boolean);
+    }
+  }
 
   const [emotionModalInitialSection, setEmotionModalInitialSection] = useState(null);
 
