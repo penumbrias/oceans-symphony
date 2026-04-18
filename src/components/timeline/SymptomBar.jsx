@@ -88,7 +88,7 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
             return (
               <div key={i} className="absolute flex items-center" style={{ top: tickTop, left: -8 }}>
                 <div style={{ width: 12, height: 2, backgroundColor: color, opacity: 0.8 }} />
-                <span style={{ fontSize: 7, color, marginLeft: 1, fontWeight: "bold" }}>{snap.severity}</span>
+                <span style={{ fontSize: 12, color, marginLeft: 1, fontWeight: "bold" }}>{snap.severity}</span>
               </div>
             );
           })}
