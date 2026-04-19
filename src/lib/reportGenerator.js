@@ -638,27 +638,36 @@ export async function generateTherapyReport({
   const slug = (config.systemName || "system").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   const filename = `${slug}-therapy-report-${config.dateFrom}-to-${config.dateTo}.pdf`;
   
-  // APK-friendly PDF export: try share API first
-  doc.getBase64((base64) => {
-    if (navigator.share) {
-      fetch(`data:application/pdf;base64,${base64}`)
-        .then(res => res.blob())
-        .then(blob => {
-          const file = new File([blob], filename, { type: "application/pdf" });
-          if (navigator.canShare?.({ files: [file] })) {
-            navigator.share({ files: [file], title: filename }).catch(() => {
-              // Fallback: standard download
-              doc.save(filename);
-            });
-          } else {
-            doc.save(filename);
-          }
-        })
-        .catch(() => doc.save(filename));
-    } else {
-      doc.save(filename);
+  // APK-friendly PDF export
+  try {
+    const blob = doc.output("blob");
+    const file = new File([blob], filename, { type: "application/pdf" });
+
+    // Try Web Share API first (works on mobile)
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: filename });
+        return;
+      } catch (err) {
+        // User cancelled share or share failed — fall through to download
+        if (err.name === "AbortError") return;
+      }
     }
-  });
+
+    // Desktop / fallback: trigger download via anchor
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  } catch (err) {
+    console.error("PDF export failed:", err);
+    // Last resort: use jsPDF's built-in save
+    doc.save(filename);
+  }
 }
 
 export function formatTherapyReportAsText({
