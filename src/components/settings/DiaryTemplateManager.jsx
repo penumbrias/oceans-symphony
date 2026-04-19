@@ -54,11 +54,7 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
   const [newFieldType, setNewFieldType] = useState("rating");
   const [newFieldMax, setNewFieldMax] = useState(5);
   const [newFieldIsPositive, setNewFieldIsPositive] = useState(false);
-  const handleFieldReorder = (groupId, newFields) => {
-  setGroups(prev =>
-    prev.map(g => g.id === groupId ? { ...g, fields: newFields } : g)
-  );
-};
+
 
   const sortedFields = [...(group.fields || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
 
@@ -314,6 +310,9 @@ export default function DiaryTemplateManager() {
                 onFieldEdit={handleFieldEdit}
                 onFieldDelete={handleFieldDelete}
                 onFieldToggle={handleFieldToggle}
+                onFieldReorder={(groupId, newFields) =>
+                  setGroups(prev => prev.map(g => g.id === groupId ? { ...g, fields: newFields } : g))
+                }
               />
             ))}
           </div>
