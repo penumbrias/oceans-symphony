@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -19,7 +19,7 @@ import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import { isLocalMode } from "@/lib/storageMode";
-import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap } from "lucide-react";
+import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -77,6 +77,8 @@ export default function Settings() {
     if (settings?.system_description !== undefined) setSystemDescription(settings.system_description || "");
   }, [settings]);
 
+  const [saved, setSaved] = useState(false);
+
   const handleSaveName = async () => {
     setSaving(true);
     const data = { system_name: systemName, system_description: systemDescription };
@@ -86,8 +88,9 @@ export default function Settings() {
       } else {
         await base44.entities.SystemSettings.create(data);
       }
-      toast.success("Saved!");
       refetch();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch { toast.error("Failed to save"); }
     finally { setSaving(false); }
   };
@@ -166,9 +169,10 @@ export default function Settings() {
               <Textarea placeholder={`Describe your ${terms.system}...`} value={systemDescription}
                 onChange={e => setSystemDescription(e.target.value)} className="mt-2 min-h-[100px]" />
             </div>
-            <Button onClick={handleSaveName} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              Save
+            <Button onClick={handleSaveName} disabled={saving || saved} size="sm"
+              className={saved ? "bg-green-600 hover:bg-green-600 text-white" : "bg-primary hover:bg-primary/90"}>
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : saved ? <Check className="w-4 h-4 mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              {saved ? "Saved!" : "Save"}
             </Button>
           </div>
           <TermsSettings />

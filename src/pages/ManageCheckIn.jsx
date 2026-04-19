@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
-import { Plus, Pencil, Trash2, ChevronLeft, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronLeft, Check, X, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -23,7 +23,7 @@ function ColorPicker({ value, onChange }) {
   );
 }
 
-function SymptomRow({ symptom, onSave, onDelete }) {
+function SymptomRow({ symptom, onSave, onDelete, onMoveUp, onMoveDown, index, total }) {
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(symptom.label);
   const [type, setType] = useState(symptom.type || "boolean");
@@ -38,6 +38,16 @@ function SymptomRow({ symptom, onSave, onDelete }) {
   return (
     <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
+        <div className="flex flex-col gap-0.5">
+          <button onClick={onMoveUp} disabled={index === 0}
+            className="p-0.5 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
+            <ChevronUp className="w-3 h-3" />
+          </button>
+          <button onClick={onMoveDown} disabled={index === total - 1}
+            className="p-0.5 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
+            <ChevronDown className="w-3 h-3" />
+          </button>
+        </div>
         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: symptom.color || "#8b5cf6" }} />
         <span className="flex-1 text-sm font-medium">{symptom.label}</span>
         <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">{symptom.type || "boolean"}</span>
@@ -181,8 +191,28 @@ function SymptomTab({ category }) {
       )}
 
       <div className="space-y-2">
-        {filtered.map(s => (
-          <SymptomRow key={s.id} symptom={s} onSave={handleSave} onDelete={handleDelete} />
+        {filtered.map((s, index) => (
+          <SymptomRow key={s.id} symptom={s} index={index} total={filtered.length}
+            onSave={handleSave} onDelete={handleDelete}
+            onMoveUp={async () => {
+              const a = filtered[index - 1];
+              const b = filtered[index];
+              await Promise.all([
+                base44.entities.Symptom.update(a.id, { order: b.order ?? index }),
+                base44.entities.Symptom.update(b.id, { order: a.order ?? index - 1 }),
+              ]);
+              invalidate();
+            }}
+            onMoveDown={async () => {
+              const a = filtered[index];
+              const b = filtered[index + 1];
+              await Promise.all([
+                base44.entities.Symptom.update(a.id, { order: b.order ?? index + 1 }),
+                base44.entities.Symptom.update(b.id, { order: a.order ?? index }),
+              ]);
+              invalidate();
+            }}
+          />
         ))}
       </div>
     </div>
