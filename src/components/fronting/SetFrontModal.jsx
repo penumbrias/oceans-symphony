@@ -165,7 +165,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
         for (const s of activeSessions) {
           await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
         }
-        toast.success("Front cleared");
+        toast.success("✅ Front cleared");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         onClose();
@@ -191,7 +191,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
           if (!firstSessionId) firstSessionId = newSession?.id || null;
         }
 
-        toast.success("Front updated!");
+        toast.success("✅ Front updated!");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         if (journalSwitch) {
@@ -305,7 +305,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
               )}
               </div> :
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {filtered.map((a) => {
                 const isFronting = selectedIds.has(a.id);
                 const isPrimary = primaryId === a.id;

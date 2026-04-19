@@ -180,7 +180,7 @@ export default function DiaryCards() {
   const handleDelete = async (cardId) => {
     if (!confirm("Delete this daily log entry?")) return;
     await base44.entities.DiaryCard.delete(cardId);
-    toast.success("Entry deleted");
+    toast.success("🗑 Entry deleted");
     queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
     if (viewingEntry?.id === cardId) setView("list");
   };
@@ -200,10 +200,10 @@ export default function DiaryCards() {
         </div>
 
         {cards.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground text-sm">No daily log entries yet.</p>
-            <p className="text-xs text-muted-foreground mt-1">Use the Quick Check-In to start tracking your day.</p>
+          <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+            <div className="text-4xl mb-3">📋</div>
+            <p className="text-sm font-medium text-foreground mb-1">No daily log entries yet</p>
+            <p className="text-xs text-muted-foreground">Use the Quick Check-In to start tracking your day.</p>
           </div>
         ) : (
           <div className="space-y-3">

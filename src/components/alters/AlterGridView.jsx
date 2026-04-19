@@ -18,7 +18,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           is_active: false,
           end_time: new Date().toISOString(),
         });
-        toast.success(`${alter.name} removed from front`);
+        toast.success(`✅ ${alter.name} removed from front`);
       } else {
         // Add to front
         const hasPrimary = activeSessions.some(s => s.is_primary);
@@ -28,7 +28,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           start_time: new Date().toISOString(),
           is_active: true,
         });
-        toast.success(`${alter.name} added to front!`);
+        toast.success(`✅ ${alter.name} added to front!`);
       }
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
@@ -62,7 +62,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
   return (
     <>
-      <div className="grid grid-cols-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
         {alters.map((alter) => {
           const fronting = isFronting(alter.id);
           const isPrimary = activeSessions.find(s => s.alter_id === alter.id)?.is_primary ?? false;

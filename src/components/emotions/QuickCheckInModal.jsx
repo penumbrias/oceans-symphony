@@ -274,13 +274,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         </DialogHeader>
 
         <div className="space-y-3">
-          {/* Pill toggles */}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Pill toggles — scrollable row on mobile */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
             {PILLS.map(pill => {
               const PillIcon = pill.icon;
               return (
                 <button key={pill.id} onClick={() => toggleSection(pill.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex-shrink-0 ${
                     openSections.has(pill.id)
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-card text-muted-foreground border-border hover:text-foreground"

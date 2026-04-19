@@ -110,10 +110,10 @@ const handleAvatarUpload = async (e) => {
     try {
       if (isNew) {
         await base44.entities.Alter.create({ ...form, is_archived: false });
-        toast.success(`${t.Alter} created!`);
+        toast.success(`✅ ${t.Alter} created!`);
       } else {
         await base44.entities.Alter.update(alter.id, form);
-        toast.success("Saved!");
+        toast.success("✅ Saved!");
       }
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       queryClient.invalidateQueries({ queryKey: ["alter", alter?.id] });
@@ -129,7 +129,7 @@ const handleAvatarUpload = async (e) => {
     setSaving(true);
     try {
       await base44.entities.Alter.update(alter.id, { is_archived: !alter.is_archived });
-      toast.success(alter.is_archived ? "Unarchived!" : "Archived!");
+      toast.success(alter.is_archived ? "✅ Unarchived!" : "🗃 Archived!");
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       onClose();
     } finally {
@@ -142,7 +142,7 @@ const handleAvatarUpload = async (e) => {
     setDeleting(true);
     try {
       await base44.entities.Alter.delete(alter.id);
-      toast.success(`${t.Alter} deleted.`);
+      toast.success(`🗑 ${t.Alter} deleted.`);
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       onClose();
     } catch (e) {
@@ -251,7 +251,7 @@ const handleAvatarUpload = async (e) => {
                     : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
                 </Button>
                 <Button variant="outline" onClick={handleDelete} disabled={deleting}
-                  className="flex-1 text-destructive hover:text-destructive border-destructive/30">
+                  className="flex-1 text-destructive hover:bg-destructive/10 border-destructive/40 hover:border-destructive/60">
                   {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
                   Delete
                 </Button>

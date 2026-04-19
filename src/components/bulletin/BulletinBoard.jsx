@@ -26,7 +26,7 @@ function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
       read_by_alter_ids: frontingAlterIds
     });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
-    toast.success("Task added!");
+    toast.success("✅ Task added!");
     setText("");
     setSaving(false);
   };
@@ -163,9 +163,10 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
       {/* Pinned — always on top, never reordered */}
       {pinned.length > 0 &&
         <div className="mb-4">
-          <div className="mr-2 mb-2 px-2 flex items-center gap-1.5">
-            <Pin className="w-3.5 h-3.5 text-primary" />
-            <p className="text-xs font-semibold text-primary uppercase tracking-wider">Pinned</p>
+          <div className="mr-2 mb-2 px-2 flex items-center gap-2">
+            <Pin className="w-3 h-3 text-primary" />
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">Pinned</p>
+            <div className="flex-1 h-px bg-border/50" />
           </div>
           <div className="space-y-3">
             {pinned.map((b) =>
@@ -192,7 +193,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
           {/* RECENT header with activity sort toggle */}
           <div className="flex items-center justify-between mb-2 px-2">
             {pinned.length > 0 &&
-              <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Recent</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recent</p>
             }
             <button
               onClick={() => { setSortByActivity(p => !p); setVisibleCount(10); }}
@@ -233,10 +234,18 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
       }
 
       {filteredBulletins.length === 0 && searchQuery &&
-        <div className="text-center py-10"><p className="text-muted-foreground text-sm">No bulletins match your search</p></div>
+        <div className="flex flex-col items-center py-10 text-center">
+          <div className="text-3xl mb-2">🔍</div>
+          <p className="text-sm font-medium text-foreground mb-1">No matches found</p>
+          <p className="text-xs text-muted-foreground">Try a different search term</p>
+        </div>
       }
       {bulletins.length === 0 && !composing &&
-        <div className="text-center py-10"><p className="text-muted-foreground text-sm">No bulletins yet. Start writing above!</p></div>
+        <div className="flex flex-col items-center py-10 text-center">
+          <div className="text-3xl mb-2">📌</div>
+          <p className="text-sm font-medium text-foreground mb-1">No bulletins yet</p>
+          <p className="text-xs text-muted-foreground">Start typing above to post the first one!</p>
+        </div>
       }
     </div>
   );

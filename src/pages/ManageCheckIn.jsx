@@ -159,21 +159,21 @@ function SymptomTab({ category }) {
   const handleSave = async (id, data) => {
     await base44.entities.Symptom.update(id, data);
     invalidate();
-    toast.success("Saved");
+    toast.success("✅ Saved");
   };
 
   const handleDelete = async (id) => {
     if (!confirm("Remove this item?")) return;
     await base44.entities.Symptom.update(id, { is_archived: true });
     invalidate();
-    toast.success("Removed");
+    toast.success("🗑 Removed");
   };
 
   const handleAdd = async (data) => {
     await base44.entities.Symptom.create(data);
     invalidate();
     setShowAdd(false);
-    toast.success("Added");
+    toast.success("✅ Added");
   };
 
   return (
@@ -187,7 +187,11 @@ function SymptomTab({ category }) {
       {showAdd && <AddSymptomForm category={category} onAdd={handleAdd} onCancel={() => setShowAdd(false)} />}
 
       {filtered.length === 0 && !showAdd && (
-        <p className="text-sm text-muted-foreground text-center py-8">No {category === "symptom" ? "symptoms" : "habits"} configured yet.</p>
+        <div className="flex flex-col items-center py-10 text-center">
+          <div className="text-3xl mb-2">{category === "symptom" ? "💊" : "🌱"}</div>
+          <p className="text-sm font-medium text-foreground mb-1">No {category === "symptom" ? "symptoms" : "habits"} yet</p>
+          <p className="text-xs text-muted-foreground">Add your first {category === "symptom" ? "symptom" : "habit"} to track it in check-ins.</p>
+        </div>
       )}
 
       <div className="space-y-2">

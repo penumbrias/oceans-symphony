@@ -279,19 +279,25 @@ export default function Journals() {
 
       {/* Entries */}
       {filtered.length === 0 && visibleFolders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <BookOpen className="w-10 h-10 text-muted-foreground/30 mb-3" />
-          <p className="text-muted-foreground text-sm">
-            {viewingFolder ? "No entries in this folder yet." : "No journal entries yet."}
+        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+          <div className="text-4xl mb-3">📓</div>
+          <p className="text-sm font-medium text-foreground mb-1">
+            {viewingFolder ? "This folder is empty" : "No journal entries yet"}
           </p>
-          <Button variant="link" onClick={() => openNew(viewingFolder)} className="mt-1 text-primary text-sm">
-            {viewingFolder ? "Add the first entry" : "Write your first entry"}
+          <p className="text-xs text-muted-foreground mb-4">
+            {viewingFolder ? "Add your first entry to this folder." : "Start writing to capture your thoughts and experiences."}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => openNew(viewingFolder)}>
+            {viewingFolder ? "Add entry here" : "Write your first entry"}
           </Button>
         </div>
       ) : filtered.length > 0 ? (
         <>
           {visibleFolders.length > 0 && (
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Entries</p>
+            <div className="flex items-center gap-2 mb-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Entries</p>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
             {filtered.map((entry) => (

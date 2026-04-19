@@ -42,7 +42,7 @@ export default function SleepTracker() {
     try {
       await base44.entities.Sleep.delete(sleepId);
       queryClient.invalidateQueries({ queryKey: ["sleep"] });
-      toast.success("Sleep record deleted");
+      toast.success("🗑 Sleep record deleted");
     } catch (err) {
       toast.error(err.message || "Failed to delete sleep record");
     }
@@ -56,7 +56,7 @@ export default function SleepTracker() {
   const handleSave = () => {
     queryClient.invalidateQueries({ queryKey: ["sleep"] });
     setIsModalOpen(false);
-    toast.success("Sleep logged!");
+    toast.success("✅ Sleep logged!");
   };
 
   const averageQuality =
@@ -132,13 +132,16 @@ export default function SleepTracker() {
 
         {/* Sleep records list */}
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">Recent records</h2>
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recent Records</p>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
           {sleepRecords.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6 text-center text-muted-foreground">
-                No sleep records yet. Start tracking!
-              </CardContent>
-            </Card>
+            <div className="flex flex-col items-center py-12 text-center">
+              <div className="text-4xl mb-2">😴</div>
+              <p className="text-sm font-medium text-foreground mb-1">No sleep records yet</p>
+              <p className="text-xs text-muted-foreground">Log your first night to start tracking patterns.</p>
+            </div>
           ) : (
             sleepRecords
               .sort(

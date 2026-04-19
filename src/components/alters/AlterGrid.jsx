@@ -49,7 +49,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
   return (
     <div>
       {/* Toolbar */}
-      <div className="my-1 flex items-center gap-3">
+      <div className="my-1 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -119,7 +119,10 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {/* Alters list/grid */}
         <div>
           {showFolders && rootGroups.length > 0 &&
-          <h3 className="text-muted-foreground mb-3 px-1 text-xs font-medium">{terms.Alters}</h3>
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
           }
           {filtered.length > 0 ?
           viewMode === "list" ?
@@ -132,12 +135,13 @@ export default function AlterGrid({ alters, currentSession = null }) {
           <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={alters} /> :
 
 
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                <Users className="w-7 h-7 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground text-sm">
-                {search ? `No ${terms.alters} match your search` : `No ${terms.alters} yet`}
+          <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+              <div className="text-4xl mb-3">{search ? "🔍" : "👥"}</div>
+              <p className="text-sm font-medium text-foreground mb-1">
+                {search ? "No matches found" : `No ${terms.alters} yet`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {search ? `Try a different search term` : `Add your first ${terms.alter} to get started`}
               </p>
             </div>
           }

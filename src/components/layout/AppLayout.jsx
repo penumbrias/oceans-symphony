@@ -204,7 +204,7 @@ const handleNotifClick = (mentionLog) => {
                 )}>
 
                 <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[11px] font-medium">{item.label}</span>
               </Link>);
 
             })}

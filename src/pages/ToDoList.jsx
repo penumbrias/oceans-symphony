@@ -123,7 +123,7 @@ export default function ToDoList() {
         </Button>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
@@ -148,9 +148,16 @@ export default function ToDoList() {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Active Tasks</h2>
+        <div className="flex items-center gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Active Tasks</p>
+          <div className="flex-1 h-px bg-border/50" />
+        </div>
         {rootTasks.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No active tasks. Great job!</p>
+          <div className="flex flex-col items-center py-12 text-center">
+            <div className="text-3xl mb-2">✅</div>
+            <p className="text-sm font-medium text-foreground mb-1">All caught up!</p>
+            <p className="text-xs text-muted-foreground">No active tasks right now.</p>
+          </div>
         ) : (
           <div className="space-y-2">
             {rootTasks.map((task) => (
@@ -174,9 +181,10 @@ export default function ToDoList() {
 
       {completedTasks.length > 0 && (
         <div className="space-y-3 border-t border-border pt-6">
-          <h2 className="text-lg font-semibold text-muted-foreground">
-            Completed ({completedTasks.length})
-          </h2>
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Completed ({completedTasks.length})</p>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
           <div className="space-y-2">
             {completedTasks.map((task) => (
               <div key={task.id} id={`item-${task.id}`}>

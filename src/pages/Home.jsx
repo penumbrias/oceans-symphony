@@ -48,10 +48,10 @@ export default function Home() {
 
   if (altersLoading) {
     return (
-      <div className="flex items-center justify-center py-32">
+      <div className="flex flex-col items-center justify-center py-32 gap-3">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        <p className="text-xs text-muted-foreground">Loading...</p>
       </div>);
-
   }
 
   if (!isConnected && activeAlters.length === 0) {
