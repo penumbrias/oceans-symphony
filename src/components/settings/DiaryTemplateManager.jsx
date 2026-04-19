@@ -113,7 +113,6 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
     total={sortedFields.length}
     onDelete={fid => onFieldDelete(group.id, fid)}
     onToggle={fid => onFieldToggle(group.id, fid)}
-    onFieldReorder={handleFieldReorder}
     onMoveUp={() => {
       const newFields = [...sortedFields];
       [newFields[index - 1], newFields[index]] = [newFields[index], newFields[index - 1]];
