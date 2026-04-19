@@ -89,7 +89,9 @@ export default function ActivityWeeklyGrid({
   const [showSettings,   setShowSettings]   = useState(false);
   const [expandedCells,  setExpandedCells]  = useState(new Set());
   const [pendingStart,   setPendingStart]   = useState(null);
-  const lastTapRef = useRef({ key: "", time: 0 });
+  const [hoveredCell,    setHoveredCell]    = useState(null);
+  const lastTapRef     = useRef({ key: "", time: 0 });
+  const tooltipTimerRef = useRef(null);
 
   useEffect(() => { lsSet(LS_ROW_H,      rowH);         }, [rowH]);
   useEffect(() => { lsSet(LS_COL_W,      colW);         }, [colW]);
@@ -260,6 +262,41 @@ if (isSameCell) {
   const handleToggleAddMode = () => { setPendingStart(null); onToggleAddMode?.(); };
   const handleSetWeekStart = (val) => { setWeekStartsOn(val); onWeekStartChange?.(val); };
 
+  const clampTooltipPos = useCallback((x, y) => {
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const TW = 260; // approx tooltip width
+    const TH = 320; // approx tooltip max height
+    return {
+      x: Math.min(x + 10, W - TW - 8),
+      y: Math.min(y + 10, H - TH - 8),
+    };
+  }, []);
+
+  const handleCellMouseEnter = useCallback((e, date, hour, minute) => {
+    const key = slotKey(date, hour, minute);
+    const pos = clampTooltipPos(e.clientX, e.clientY);
+    setHoveredCell({ key, date, hour, minute, position: pos });
+  }, [clampTooltipPos]);
+
+  const handleCellMouseLeave = useCallback(() => {
+    setHoveredCell(null);
+  }, []);
+
+  const handleCellTouchStart = useCallback((e, date, hour, minute) => {
+    const touch = e.touches[0];
+    const key = slotKey(date, hour, minute);
+    const pos = clampTooltipPos(touch.clientX, touch.clientY);
+    tooltipTimerRef.current = setTimeout(() => {
+      setHoveredCell({ key, date, hour, minute, position: pos });
+    }, 500);
+  }, [clampTooltipPos]);
+
+  const handleCellTouchEnd = useCallback(() => {
+    if (tooltipTimerRef.current) { clearTimeout(tooltipTimerRef.current); tooltipTimerRef.current = null; }
+    setHoveredCell(null);
+  }, []);
+
   return (
     <div className="space-y-2">
       {/* Controls */}
@@ -363,6 +400,86 @@ if (isSameCell) {
       )}
 
       {showCustomMenu && <ActivityCustomizationMenu onClose={() => setShowCustomMenu(false)} />}
+
+      {/* Floating tooltip */}
+      {hoveredCell && (() => {
+        const { date, hour, minute, position } = hoveredCell;
+        const { timed, logged } = getActivitiesForSlot(date, hour, minute);
+        const allLogged = logged;
+        const allActs = [...timed, ...allLogged];
+        const alterIds = getAlterIdsForSlot(date, hour, minute);
+        const emotions = getEmotionsForSlot(date, hour, minute);
+        if (allActs.length === 0 && emotions.length === 0 && alterIds.length === 0) return null;
+
+        const slotStart = new Date(date);
+        slotStart.setHours(hour, minute, 0, 0);
+        const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
+        const timeRange = `${formatSlotLabel(hour, minute, timeFmt)} – ${formatSlotLabel(slotEnd.getHours(), slotEnd.getMinutes(), timeFmt)}`;
+
+        return (
+          <div
+            className="fixed z-50 pointer-events-none"
+            style={{ left: position.x, top: position.y, maxWidth: 260 }}
+          >
+            <div className="bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-lg p-3 space-y-2 text-xs">
+              <p className="text-muted-foreground font-medium">{format(date, "EEE d MMM")} · {timeRange}</p>
+
+              {timed.map(a => (
+                <div key={a.id} className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: getActivityColor(a) }} />
+                    <span className="font-semibold text-foreground">{a.activity_name}</span>
+                    {a.duration_minutes && <span className="text-muted-foreground ml-auto">{a.duration_minutes}m</span>}
+                  </div>
+                  {a.notes && <p className="text-muted-foreground italic pl-4 leading-snug">{a.notes}</p>}
+                </div>
+              ))}
+
+              {allLogged.map(a => (
+                <div key={a.id} className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: getActivityColor(a) }} />
+                    <span className="font-semibold text-foreground">{a.activity_name}</span>
+                    <span className="text-muted-foreground ml-1 opacity-70">· logged</span>
+                  </div>
+                  {a.notes && <p className="text-muted-foreground italic pl-4 leading-snug">{a.notes}</p>}
+                </div>
+              ))}
+
+              {emotions.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  {emotions.map((em, i) => (
+                    <span key={i} className="px-1.5 py-0.5 rounded-full text-white font-medium"
+                      style={{ fontSize: 9, backgroundColor: emotionColor(em) }}>
+                      {em}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {alterIds.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-0.5">
+                  {alterIds.map(alterId => {
+                    const alter = alters.find(a => a.id === alterId);
+                    return (
+                      <div key={alterId} className="flex items-center gap-1">
+                        <div className="w-5 h-5 rounded-full border border-border overflow-hidden flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: alter?.color || "#9333ea" }}>
+                          {alter?.avatar_url
+                            ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
+                            : <span className="font-bold text-white" style={{ fontSize: 8 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
+                          }
+                        </div>
+                        <span className="text-foreground">{alter?.name || "Unknown"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Grid */}
       <div className="border border-border rounded-lg overflow-hidden flex" style={{ maxWidth: "100vw" }}>
@@ -470,6 +587,11 @@ if (isSameCell) {
                     <button
                       key={key}
                       onClick={() => handleCellTap(date, hour, minute)}
+                      onMouseEnter={(e) => handleCellMouseEnter(e, date, hour, minute)}
+                      onMouseLeave={handleCellMouseLeave}
+                      onTouchStart={(e) => handleCellTouchStart(e, date, hour, minute)}
+                      onTouchEnd={handleCellTouchEnd}
+                      onTouchMove={handleCellTouchEnd}
                         className={`border-r border-border/40 relative flex flex-col items-start justify-start overflow-visible cursor-pointer transition-colors group
                         ${timedContinues ? "" : "border-b border-border/40"}
                         ${!hasContent && addMode ? "hover:bg-primary/10" : ""}
