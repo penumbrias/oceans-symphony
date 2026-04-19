@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Shield } from "lucide-react";
+import { Plus, Shield, Shuffle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import StateCheckFlow from "@/components/grounding/StateCheckFlow";
@@ -40,6 +40,9 @@ export default function Grounding({ initialPath = null }) {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [seeded, setSeeded] = useState(false);
   const [returnPath, setReturnPath] = useState(null); // for "try now" from Learn
+  const [seenTechniqueIds, setSeenTechniqueIds] = useState([]);
+  const [shuffledIds, setShuffledIds] = useState(null); // null = use default suggestion logic
+  const [suggestionFadeKey, setSuggestionFadeKey] = useState(0);
 
   const queryClient = useQueryClient();
 
@@ -133,6 +136,9 @@ export default function Grounding({ initialPath = null }) {
 
   const handleStateCheckComplete = (states) => {
     setSelectedStates(states);
+    setShuffledIds(null);
+    setSeenTechniqueIds([]);
+    setSuggestionFadeKey(0);
     setPath("suggestions");
   };
 
@@ -156,11 +162,39 @@ export default function Grounding({ initialPath = null }) {
 
   const suggestedTechniques = useMemo(() => {
     if (selectedStates.length === 0) return [];
+    if (shuffledIds) {
+      return visibleTechniques.filter(t => shuffledIds.includes(t.id));
+    }
     return visibleTechniques.filter(t =>
       t.category !== "breathing" &&
       t.suggested_for?.some(s => selectedStates.includes(s))
     ).slice(0, 3);
-  }, [visibleTechniques, selectedStates]);
+  }, [visibleTechniques, selectedStates, shuffledIds]);
+
+  const handleReshuffle = useCallback(() => {
+    const currentIds = new Set(suggestedTechniques.map(t => t.id));
+    const pool = visibleTechniques.filter(t =>
+      t.category !== "breathing" &&
+      t.suggested_for?.some(s => selectedStates.includes(s))
+    );
+
+    let excluded = new Set([...seenTechniqueIds, ...currentIds]);
+    let available = pool.filter(t => !excluded.has(t.id));
+
+    // If pool exhausted, reset and use full pool minus current
+    if (available.length < 3) {
+      setSeenTechniqueIds([]);
+      excluded = new Set(currentIds);
+      available = pool.filter(t => !excluded.has(t.id));
+    }
+
+    // Shuffle available
+    const shuffled = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
+
+    setSeenTechniqueIds(prev => [...new Set([...prev, ...currentIds])]);
+    setShuffledIds(shuffled.map(t => t.id));
+    setSuggestionFadeKey(k => k + 1);
+  }, [suggestedTechniques, visibleTechniques, selectedStates, seenTechniqueIds]);
 
   const suggestedBreathing = useMemo(() => {
     if (selectedStates.length === 0) return null;
@@ -286,8 +320,21 @@ export default function Grounding({ initialPath = null }) {
         {/* Top suggested techniques */}
         {suggestedTechniques.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Suggested for you</p>
-            <div className="space-y-2">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Suggested for you</p>
+              <button
+                onClick={handleReshuffle}
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+              >
+                <Shuffle className="w-3.5 h-3.5" />
+                More suggestions
+              </button>
+            </div>
+            <div
+              key={suggestionFadeKey}
+              className="space-y-2"
+              style={{ animation: "suggestionFadeIn 0.3s ease-out" }}
+            >
               {suggestedTechniques.map(t => (
                 <TechniqueCard
                   key={t.id}

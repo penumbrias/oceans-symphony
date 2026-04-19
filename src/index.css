@@ -68,6 +68,11 @@ body {
   }
 }
 
+@keyframes suggestionFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes mentionGlow {
   0% { box-shadow: 0 0 0 0 hsl(var(--color-primary) / 0.7); }
   50% { box-shadow: 0 0 0 8px hsl(var(--color-primary) / 0.3); }
