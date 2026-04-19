@@ -102,7 +102,7 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
           {sortedFields.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No fields in this group</p>
           ) : (
-            {sortedFields.map((field, index) => (
+            <>{sortedFields.map((field, index) => (
               <FieldItem
                 key={field.id}
                 field={field}
@@ -124,7 +124,7 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
                   onFieldReorder(group.id, reordered);
                 }}
               />
-            ))}
+            ))}</>
           )}
 
           <div className="border-t border-border/30 pt-2 space-y-2">
