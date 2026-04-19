@@ -19,7 +19,7 @@ async function downloadJson(data, filename) {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: "application/json" });
 
-  // Try the Web Share API first (works on Android)
+  // Try Web Share API (works on Android APK)
   if (navigator.share && navigator.canShare) {
     const file = new File([blob], filename, { type: "application/json" });
     if (navigator.canShare({ files: [file] })) {
@@ -28,28 +28,15 @@ async function downloadJson(data, filename) {
     }
   }
 
-  // Desktop: File System Access API
-  if (window.showSaveFilePicker) {
-    try {
-      const fileHandle = await window.showSaveFilePicker({
-        suggestedName: filename,
-        types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
-      });
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return;
-    } catch (e) {
-      if (e.name === "AbortError") return;
-    }
-  }
-
-  // Fallback: open as data URL in new tab
-  const reader = new FileReader();
-  reader.onload = () => {
-    window.open(reader.result, "_blank");
-  };
-  reader.readAsDataURL(blob);
+  // Desktop fallback: anchor click
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 export default function DataBackupRestore() {
