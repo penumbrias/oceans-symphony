@@ -5,7 +5,6 @@ import { X } from "lucide-react";
 function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
   const lastRef = useRef({ time: 0 });
   return useCallback((e) => {
-    e.preventDefault();
     const now = Date.now();
     if (now - lastRef.current.time < ms) {
       lastRef.current.time = 0;
@@ -28,12 +27,14 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   const color = symptom?.color || "#8b5cf6";
   const snapshots = session?.severity_snapshots || [];
   const lpRef = useRef(null);
+  const touchFiredRef = useRef(false);
 
   const startStr = session?.start_time ? format(new Date(session.start_time), "h:mmaaa") : null;
   const endStr = session?.end_time ? format(new Date(session.end_time), "h:mmaaa") : null;
 
   const startPress = (e) => {
     e.stopPropagation();
+    touchFiredRef.current = false;
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
     lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
   };
@@ -41,17 +42,22 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
     e?.stopPropagation();
     if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; }
   };
+  const handleTouchEnd = (e) => {
+    cancelPress(e);
+    touchFiredRef.current = true;
+    onTap?.();
+  };
 
   return (
     <div
       className="absolute flex flex-col items-center cursor-pointer"
       style={{ top: topPx, left: 0, right: 0, userSelect: "none", minWidth: 44 }}
-      onClick={tap}
+      onTouchStart={startPress}
+      onTouchEnd={handleTouchEnd}
       onMouseDown={startPress}
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}
-      onTouchStart={startPress}
-      onTouchEnd={cancelPress}
+      onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}
     >
       {/* Circle — always shown */}
       <div

@@ -48,7 +48,6 @@ function formatMins(mins) {
 function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
   const lastRef = useRef({ time: 0 });
   return useCallback((e) => {
-    e.preventDefault();
     const now = Date.now();
     if (now - lastRef.current.time < ms) {
       lastRef.current.time = 0;
@@ -114,9 +113,11 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
   const lpRef = useRef(null);
+  const touchFiredRef = useRef(false);
 
   const startPress = (e) => {
     e.stopPropagation();
+    touchFiredRef.current = false;
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
     lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
   };
@@ -124,13 +125,19 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
     e?.stopPropagation();
     if (lpRef.current) { clearTimeout(lpRef.current); lpRef.current = null; }
   };
+  const handleTouchEnd = (e) => {
+    cancelPress(e);
+    if (lpRef.current === null && !touchFiredRef.current) return; // long press fired, skip
+    touchFiredRef.current = true;
+    onTap?.();
+  };
 
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
-      onClick={tap}
+      onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}
       onMouseDown={startPress} onMouseUp={cancelPress} onMouseLeave={cancelPress}
-      onTouchStart={startPress} onTouchEnd={cancelPress}>
+      onTouchStart={startPress} onTouchEnd={handleTouchEnd}>
       <div
         className="rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
         style={{
@@ -336,10 +343,16 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
 function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expanded, notes, onTap, onDoubleTap }) {
   const sz = 26;
   const tap = useDoubleTap(onTap, onDoubleTap);
+  const touchFiredRef = useRef(false);
+  const handleTouchEnd = (e) => {
+    touchFiredRef.current = true;
+    onTap?.();
+  };
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
-      onClick={tap}>
+      onTouchEnd={handleTouchEnd}
+      onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}>
       <div className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
         style={{ width: sz, height: sz, backgroundColor: color }}>
         <span className="text-xs font-bold text-white leading-none">
