@@ -39,9 +39,8 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
 
   const handleTouchStart = (e) => {
     if (is_locked) {
-      e.stopPropagation();
       onSelect(location);
-      return;
+      return; // Allow canvas pan to work
     }
     e.stopPropagation();
     onSelect(location);
@@ -50,15 +49,15 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   };
 
   const handleTouchMove = (e) => {
+    if (!dragStart.current) return; // Locked or not dragging, let canvas pan
     e.stopPropagation();
-    if (!dragStart.current) return;
     const dx = (e.touches[0].clientX - dragStart.current.mx) / zoom;
     const dy = (e.touches[0].clientY - dragStart.current.my) / zoom;
     onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
   };
 
   const handleTouchEnd = (e) => {
-    e.stopPropagation();
+    if (dragStart.current) e.stopPropagation(); // Only stop if we were dragging
     setDragging(false);
     dragStart.current = null;
   };
