@@ -113,44 +113,34 @@ const handleExportFull = async () => {
   }
 };
 
-  const execCommandCopy = (text) => {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.cssText = "position:fixed;top:0;left:0;width:2em;height:2em;padding:0;border:none;outline:none;boxShadow:none;background:transparent;opacity:0.01;z-index:9999";
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.setSelectionRange(0, textarea.value.length);
-    const success = document.execCommand("copy");
-    document.body.removeChild(textarea);
-    if (success) {
-      showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.");
-    } else {
-      showStatus("error", "Copy failed — try the Download button instead");
-    }
-  };
-
-  const handleCopyToClipboard = () => {
+  const handleCopyToClipboard = async () => {
     setCopyLoading(true);
+    try {
+      const exportData = await buildExportData();
+      const json = JSON.stringify(exportData);
 
-    // Build data as a promise — gesture context preserved by ClipboardItem API
-    const textPromise = buildExportData().then(data => {
-      return new Blob([JSON.stringify(data)], { type: "text/plain" });
-    });
-
-    if (navigator.clipboard?.write && typeof ClipboardItem !== "undefined") {
-      navigator.clipboard.write([
-        new ClipboardItem({ "text/plain": textPromise })
-      ]).then(() => {
+      try {
+        await navigator.clipboard.writeText(json);
         showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. Copied data must not be reformatted or changed in any way in order to import.");
-      }).catch(() => {
-        // Fallback to execCommand if ClipboardItem fails
-        textPromise.then(blob => blob.text()).then(json => execCommandCopy(json));
-      }).finally(() => setCopyLoading(false));
-    } else {
-      // Direct fallback for older browsers
-      buildExportData().then(data => {
-        execCommandCopy(JSON.stringify(data));
-      }).finally(() => setCopyLoading(false));
+        return;
+      } catch {}
+
+      const textarea = document.createElement("textarea");
+      textarea.value = json;
+      textarea.style.position = "fixed";
+      textarea.style.top = "0";
+      textarea.style.left = "0";
+      textarea.style.opacity = "0.01";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. Copied data must not be reformatted or changed in any way in order to import.");
+    } catch (e) {
+      showStatus("error", `Copy failed: ${e.message}`);
+    } finally {
+      setCopyLoading(false);
     }
   };
 
