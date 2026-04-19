@@ -1,18 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
-
 import { Textarea } from "@/components/ui/textarea";
-import { useTheme } from "@/lib/ThemeContext";
+import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
-
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
@@ -21,53 +17,82 @@ import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
-import { isLocalMode } from "@/lib/storageMode";
-import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap, Menu, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import NavigationSettings from "@/components/settings/NavigationSettings";
+import { isLocalMode } from "@/lib/storageMode";
+import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+
+const SECTIONS = [
+  { id: "system", label: "System", icon: "⚙️" },
+  { id: "appearance", label: "Appearance", icon: "🎨" },
+  { id: "alters", label: "Alters & Fields", icon: "👥" },
+  { id: "checkin", label: "Check-In & Tracking", icon: "⚡" },
+  { id: "data", label: "Data & Privacy", icon: "💾" },
+  { id: "account", label: "Account", icon: "🔑" },
+];
+
+function Section({ id, icon, label, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div id={id} className="border border-border/50 rounded-xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
+      >
+        <span className="text-xl">{icon}</span>
+        <span className="flex-1 font-semibold text-sm">{label}</span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="px-4 py-4 space-y-6 border-t border-border/30">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Settings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const terms = useTerms();
-  const scrollContainerRef = useRef(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
   const [deleted, setDeleted] = useState(false);
-  const [noticeOpen, setNoticeOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navSections = [
-    { id: "system-info", label: "System Info", icon: "⚙️" },
-    { id: "appearance", label: "Appearance", icon: "🎨" },
-    { id: "navigation", label: "Navigation", icon: "🗺️" },
-    { id: "terminology", label: "Terminology", icon: "📝" },
-    { id: "check-in", label: "Check-In Manager", icon: "⚡" },
-    { id: "symptoms", label: "Symptoms & Habits", icon: "💊" },
-    { id: "diary", label: "Diary Template", icon: "📔" },
-    { id: "emotions", label: "Custom Emotions", icon: "😊" },
-    { id: "fields", label: "Custom Fields", icon: "🏷️" },
-    { id: "alters", label: "Archived Alters", icon: "👥" },
-    { id: "data", label: "Data Management", icon: "💾" },
-  ];
+  const { data: settingsList = [], isLoading, refetch } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
 
-  const handleScroll = (id) => {
-    const element = document.getElementById(id);
-    if (!element) return;
-    const container = scrollContainerRef.current;
-    if (container) {
-      const containerTop = container.getBoundingClientRect().top;
-      const elementTop = element.getBoundingClientRect().top;
-      container.scrollTo({ top: container.scrollTop + elementTop - containerTop - 80, behavior: "smooth" });
-    } else {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-    setMobileMenuOpen(false);
+  const settings = settingsList[0] || null;
+  const [systemName, setSystemName] = useState("");
+  const [systemDescription, setSystemDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    if (settings?.system_name) setSystemName(settings.system_name);
+    if (settings?.system_description !== undefined) setSystemDescription(settings.system_description || "");
+  }, [settings]);
+
+  const handleSaveName = async () => {
+    setSaving(true);
+    const data = { system_name: systemName, system_description: systemDescription };
+    try {
+      if (settings?.id) {
+        await base44.entities.SystemSettings.update(settings.id, data);
+      } else {
+        await base44.entities.SystemSettings.create(data);
+      }
+      toast.success("Saved!");
+      refetch();
+    } catch { toast.error("Failed to save"); }
+    finally { setSaving(false); }
   };
 
-  const handleSignOut = () => {
-    base44.auth.logout("/");
-  };
+  const handleSignOut = () => base44.auth.logout("/");
 
   const handleDeleteAccount = async () => {
     if (deleteInput.trim().toLowerCase() !== "delete my account") return;
@@ -81,40 +106,18 @@ export default function Settings() {
     for (const name of entities) {
       try {
         const records = await base44.entities[name].list();
-        for (const r of records) {
-          await base44.entities[name].delete(r.id);
-        }
+        for (const r of records) await base44.entities[name].delete(r.id);
       } catch {}
     }
     setDeleted(true);
   };
 
-  const { data: settingsList = [], isLoading, refetch } = useQuery({
-    queryKey: ["systemSettings"],
-    queryFn: () => base44.entities.SystemSettings.list(),
-  });
-
-  const settings = settingsList[0] || null;
-
-  const [systemName, setSystemName] = useState("");
-  const [systemDescription, setSystemDescription] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (settings?.system_name) setSystemName(settings.system_name);
-    if (settings?.system_description !== undefined) setSystemDescription(settings.system_description || "");
-  }, [settings]);
-
-  const handleSaveName = async () => {
-    setSaving(true);
-    const data = { system_name: systemName, system_description: systemDescription };
-    if (settings?.id) {
-      await base44.entities.SystemSettings.update(settings.id, data);
-    } else {
-      await base44.entities.SystemSettings.create(data);
-    }
-    setSaving(false);
-    refetch();
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Auto-open the section
+    el.querySelector("button")?.click();
   };
 
   if (isLoading) {
@@ -126,293 +129,165 @@ export default function Settings() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} ref={scrollContainerRef} className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 80px)", scrollbarWidth: "none", msOverflowStyle: "none" }} onScroll={(e) => e.currentTarget.style.scrollbarWidth = "none"}>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex-1">
-          <h1 className="font-display text-3xl font-semibold text-foreground mb-2">Settings</h1>
-          <p className="text-muted-foreground">Customize {terms.system} and manage your account. Check out the <span
-                      onClick={() => window.open("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1", "_blank")}
-                      className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
-                    >
-                      alter card template gallery
-                    </span></p>
-        </div>
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="sm:hidden p-2 rounded-lg hover:bg-muted transition-colors"
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+      <div className="mb-6">
+        <h1 className="font-display text-3xl font-semibold text-foreground mb-1">Settings</h1>
+        <p className="text-muted-foreground text-sm">
+          Customize your {terms.system} and manage your account. {" "}
+          <span onClick={() => window.open("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1", "_blank")}
+            className="text-primary underline hover:text-primary/80 cursor-pointer">
+            Template gallery →
+          </span>
+        </p>
       </div>
 
-      {/* Quick Nav Menu */}
-      <div className={`mb-6 ${mobileMenuOpen ? "block sm:hidden" : "hidden"} sm:block`}>
-        <div className="space-y-1 border border-border/50 rounded-lg p-2 bg-muted/20 max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-          {navSections.map(section => (
-            <button
-              key={section.id}
-              onClick={() => handleScroll(section.id)}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 transition-colors text-sm text-left font-medium"
-            >
-              <span className="text-base">{section.icon}</span>
-              {section.label}
-            </button>
-          ))}
-        </div>
+      {/* Quick Nav */}
+      <div className="flex flex-wrap gap-2 mb-6 p-3 bg-muted/20 border border-border/40 rounded-xl">
+        {SECTIONS.map(s => (
+          <button key={s.id} onClick={() => scrollTo(s.id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-border/40 hover:bg-muted/50 hover:border-primary/40 transition-colors text-xs font-medium">
+            <span>{s.icon}</span> {s.label}
+          </button>
+        ))}
       </div>
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-3 max-w-2xl">
 
-        {/* Privacy & Security Notice */}
-        <Card className="border-amber-500/30 bg-amber-500/5">
-          <CardHeader
-            className="cursor-pointer select-none"
-            onClick={() => setNoticeOpen(p => !p)}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <span className="text-lg">🔐</span>
-              </div>
-              <div className="flex-1">
-                <CardTitle className="text-lg">Privacy &amp; Data Notice</CardTitle>
-                <CardDescription><strong className="text-foreground">!!Please read!!</strong></CardDescription>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${noticeOpen ? "rotate-180" : ""}`} />
-            </div>
-          </CardHeader>
-          {noticeOpen && (
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">☁️ Cloud Mode <strong>(not recommended)</strong></p>
-                <p>
-                  <strong className="text-foreground">Oceans Symphony is built on and "vibe-coded" with the Base44 platform.</strong> Your data is stored on Base44's servers
-                  with row-level security — no other user can access your data, and data cannot be accessed
-                  without being logged into your account. However, cloud data is{" "}
-                  <strong>not end-to-end encrypted</strong>, meaning <strong className="text-foreground">I as the
-                  developer technically have server access</strong>. I am committed to never accessing your data, but
-                  please be mindful of what you enter if this concerns you.
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">🔒 Local Mode <strong>(recommended)</strong></p>
-                <p>
-                  Local mode stores all data exclusively on your device. When encryption is enabled, your
-                  data is protected with <strong className="text-foreground">AES-256-GCM encryption</strong> —
-                  the same standard used by banks and governments. Your password never leaves your device.
-                  Even I cannot access your encrypted local data. <strong>This is the recommended mode for sensitive
-                  information.</strong>
-                </p>
-                <p>
-                  <strong className="text-foreground">If you lose your encryption password, data cannot be retrieved; make frequent backups and save your password securely.</strong>
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="font-semibold text-foreground">💾 Backups</p>
-                <p>
-                  Use Settings → Backup &amp; Export to save your data as a JSON file. Keep backups somewhere
-                  safe — local data is tied to this device and will be lost if you clear app data or
-                  uninstall without a backup (or clear browser history on webapp).
-                </p>
-                <p><strong className="text-foreground">
-                  Looking for the latest version?{" "}
-                  <span
-                    onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
-                    className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
-                  >
-                    Check releases on GitHub
-                  </span>.</strong>
-                </p>
-              </div>
-              <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
-                🌊 Oceans Symphony is free and shared in good faith with the community by a DID system.
-                It was built to fill a void and has no intention of being gatekept. If you're a developer,
-                feel free to copy it. This app is a work in progress — thank you for your
-                patience and trust. contact us @ pesturedrawing@gmail.com
-              </p>
-            </CardContent>
-          )}
-        </Card>
-
-        {/* System Name */}
-        <Card className="border-border/50" id="system-info">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                <Palette className="w-5 h-5 text-accent-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">{terms.System} Info</CardTitle>
-                <CardDescription>Set your {terms.system} name and details</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="system-name" className="text-sm font-medium">{terms.System} Name</Label>
-                <Input
-                  id="system-name"
-                  placeholder={`Enter your ${terms.system} name...`}
-                  value={systemName}
-                  onChange={(e) => setSystemName(e.target.value)}
-                  className="mt-2"
-                />
-              </div>
-              <div>
-                <Label htmlFor="system-description" className="text-sm font-medium">{terms.System} Description</Label>
-                <Textarea
-                  id="system-description"
-                  placeholder={`Describe your ${terms.system}...`}
-                  value={systemDescription}
-                  onChange={(e) => setSystemDescription(e.target.value)}
-                  className="mt-2 min-h-[100px]"
-                />
-              </div>
-              <Button onClick={handleSaveName} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Advanced Appearance */}
-        <div id="appearance">
-          <AdvancedAppearance />
-        </div>
-
-        {/* Navigation */}
-        <div id="navigation">
-          <NavigationSettings settings={settings} />
-        </div>
-
-        {/* Terminology */}
-        <div id="terminology">
-          <TermsSettings />
-        </div>
-
-        
-
-        {/* Account (cloud only) */}
-        {!isLocalMode() && (
-          <Card className="border-border/50">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-                  <LogOut className="w-5 h-5 text-destructive" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Account</CardTitle>
-                  <CardDescription>Manage your account and data</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button onClick={handleSignOut} variant="outline" className="w-full gap-2">
-                <LogOut className="w-4 h-4" /> Sign Out
-              </Button>
-              {!showDeleteConfirm && !deleted && (
-                <Button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  variant="ghost"
-                  className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2"
-                >
-                  <Trash2 className="w-4 h-4" /> Delete My Account
-                </Button>
-              )}
-              {showDeleteConfirm && !deleted && (
-                <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
-                  <p className="text-sm font-semibold text-destructive">⚠️ This is permanent</p>
-                  <p className="text-xs text-muted-foreground">All your system data will be permanently deleted. This cannot be undone.</p>
-                  <p className="text-xs font-medium">Type <span className="font-mono bg-muted px-1 rounded">delete my account</span> to confirm:</p>
-                  <Input
-                    value={deleteInput}
-                    onChange={(e) => setDeleteInput(e.target.value)}
-                    placeholder="delete my account"
-                    className="h-8 text-sm border-destructive/40"
-                  />
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }} className="flex-1">Cancel</Button>
-                    <Button
-                      size="sm"
-                      onClick={handleDeleteAccount}
-                      disabled={deleteInput.trim().toLowerCase() !== "delete my account"}
-                      className="flex-1 bg-destructive hover:bg-destructive/90 text-white"
-                    >
-                      Delete Everything
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {deleted && (
-                <div className="rounded-xl border border-green-500/40 bg-green-500/5 p-4 text-center space-y-2">
-                  <p className="text-sm font-semibold text-green-600">✅ Account data deleted</p>
-                  <p className="text-xs text-muted-foreground">All your data has been removed. You can close the app or sign out.</p>
-                  <Button size="sm" onClick={handleSignOut} variant="outline" className="w-full">Sign Out Now</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="space-y-3 pt-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Data Management</p>
-          <StorageModeSettings />
-          <DataBackupRestore />
-        </div>
-
-        {/* Integrations */}
-        <div className="space-y-2">
-          <SimplyPluralConnect
-            settings={settings}
-            onSettingsChange={() => {
-              refetch();
-              queryClient.invalidateQueries({ queryKey: ["alters"] });
-            }}
-          />
-        </div>
-
-        {/* Check-In Manager */}
-        <div className="bg-card border border-border/50 rounded-xl p-4 flex items-center justify-between" id="check-in">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-primary" />
+        {/* ── SYSTEM ── */}
+        <Section id="system" icon="⚙️" label="System" defaultOpen={true}>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium">{terms.System} Name</Label>
+              <Input placeholder={`Enter your ${terms.system} name...`} value={systemName}
+                onChange={e => setSystemName(e.target.value)} className="mt-2" />
             </div>
             <div>
-              <p className="font-semibold text-sm">Manage Check-In</p>
-              <p className="text-xs text-muted-foreground">Configure symptoms and habits</p>
+              <Label className="text-sm font-medium">{terms.System} Description</Label>
+              <Textarea placeholder={`Describe your ${terms.system}...`} value={systemDescription}
+                onChange={e => setSystemDescription(e.target.value)} className="mt-2 min-h-[100px]" />
             </div>
+            <Button onClick={handleSaveName} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
+              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Save
+            </Button>
           </div>
-          <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
-        </div>
+          <TermsSettings />
+        </Section>
 
-        {/* Symptoms & Habits */}
-        <div id="symptoms">
-          <SymptomManager />
-        </div>
+        {/* ── APPEARANCE ── */}
+        <Section id="appearance" icon="🎨" label="Appearance">
+          <AdvancedAppearance />
+          <NavigationSettings settings={settings} />
+        </Section>
 
-        {/* Diary Template */}
-        <div id="diary">
-          <DiaryTemplateManager settings={settings} />
-        </div>
-
-        <div id="emotions">
-          <CustomEmotionsManager />
-        </div>
-
-        {/* Custom Fields */}
-        <div id="fields">
+        {/* ── ALTERS & FIELDS ── */}
+        <Section id="alters" icon="👥" label="Alters & Fields">
           <CustomFieldsManager />
-        </div>
-      
-        {/* Archived Alters */}
-        <div id="alters">
-          <ArchivedAltersManager />
-        </div>
+          <div className="border-t border-border/30 pt-4">
+            <ArchivedAltersManager />
+          </div>
+        </Section>
 
-        {/* Data Management */}
-        <div id="data"></div>
+        {/* ── CHECK-IN & TRACKING ── */}
+        <Section id="checkin" icon="⚡" label="Check-In & Tracking">
+          <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Check-In Manager</p>
+                <p className="text-xs text-muted-foreground">Configure quick check-in fields</p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <DiaryTemplateManager settings={settings} />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <SymptomManager />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <CustomEmotionsManager />
+          </div>
+        </Section>
+
+        {/* ── DATA & PRIVACY ── */}
+        <Section id="data" icon="💾" label="Data & Privacy">
+          {/* Privacy notice */}
+          <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-3 text-sm text-muted-foreground">
+            <p className="font-semibold text-foreground">🔐 Privacy & Data Notice</p>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">☁️ Cloud Mode <strong>(not recommended)</strong></p>
+              <p>Your data is stored on Base44's servers with row-level security. It is <strong>not end-to-end encrypted</strong> — as the developer I technically have server access. I am committed to never accessing your data.</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">🔒 Local Mode <strong>(recommended)</strong></p>
+              <p>Local mode stores all data on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">💾 Backups</p>
+              <p>Use Backup & Export below to save your data as a JSON file. Keep backups safe — local data is tied to this device.</p>
+            </div>
+            <p className="text-amber-600 dark:text-amber-400 font-medium">
+              🌊 Oceans Symphony is free and shared in good faith by a DID system. Contact: pesturedrawing@gmail.com. {" "}
+              <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+                className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
+            </p>
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <StorageModeSettings />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <DataBackupRestore />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <SimplyPluralConnect settings={settings} onSettingsChange={() => {
+              refetch();
+              queryClient.invalidateQueries({ queryKey: ["alters"] });
+            }} />
+          </div>
+        </Section>
+
+        {/* ── ACCOUNT (cloud only) ── */}
+        {!isLocalMode() && (
+          <Section id="account" icon="🔑" label="Account">
+            <Button onClick={handleSignOut} variant="outline" className="w-full gap-2">
+              <LogOut className="w-4 h-4" /> Sign Out
+            </Button>
+            {!showDeleteConfirm && !deleted && (
+              <Button onClick={() => setShowDeleteConfirm(true)} variant="ghost"
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
+                <Trash2 className="w-4 h-4" /> Delete My Account
+              </Button>
+            )}
+            {showDeleteConfirm && !deleted && (
+              <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+                <p className="text-sm font-semibold text-destructive">⚠️ This is permanent</p>
+                <p className="text-xs text-muted-foreground">All your system data will be permanently deleted. This cannot be undone.</p>
+                <p className="text-xs font-medium">Type <span className="font-mono bg-muted px-1 rounded">delete my account</span> to confirm:</p>
+                <Input value={deleteInput} onChange={e => setDeleteInput(e.target.value)}
+                  placeholder="delete my account" className="h-8 text-sm border-destructive/40" />
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }} className="flex-1">Cancel</Button>
+                  <Button size="sm" onClick={handleDeleteAccount}
+                    disabled={deleteInput.trim().toLowerCase() !== "delete my account"}
+                    className="flex-1 bg-destructive hover:bg-destructive/90 text-white">
+                    Delete Everything
+                  </Button>
+                </div>
+              </div>
+            )}
+            {deleted && (
+              <div className="rounded-xl border border-green-500/40 bg-green-500/5 p-4 text-center space-y-2">
+                <p className="text-sm font-semibold text-green-600">✅ Account data deleted</p>
+                <p className="text-xs text-muted-foreground">All your data has been removed.</p>
+                <Button size="sm" onClick={handleSignOut} variant="outline" className="w-full">Sign Out Now</Button>
+              </div>
+            )}
+          </Section>
+        )}
 
       </div>
     </motion.div>
