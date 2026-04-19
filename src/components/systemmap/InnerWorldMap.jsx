@@ -665,11 +665,28 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               <p className="text-xs font-semibold text-foreground">Edit Location</p>
               <button onClick={() => setEditingLocation(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
             </div>
-            <input value={editingLocation.name || ""} onChange={e => {
-              const v = e.target.value;
-              setEditingLocation(l => ({ ...l, name: v }));
-              updateLocation(editingLocation, { name: v });
-            }} placeholder="Name" className="w-full h-7 px-2 text-xs border border-border rounded bg-background" />
+            <div className="flex gap-2 items-center">
+              <input value={editingLocation.name || ""} onChange={e => {
+                const v = e.target.value;
+                setEditingLocation(l => ({ ...l, name: v }));
+                updateLocation(editingLocation, { name: v });
+              }} placeholder="Name" className="flex-1 h-7 px-2 text-xs border border-border rounded bg-background" />
+              <button
+                onClick={() => {
+                  const locked = !editingLocation.is_locked;
+                  setEditingLocation(l => ({ ...l, is_locked: locked }));
+                  updateLocation(editingLocation, { is_locked: locked });
+                }}
+                className={`h-7 px-2.5 rounded text-xs font-medium transition-colors ${
+                  editingLocation.is_locked
+                    ? "bg-amber-100/30 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/50"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted/80 border border-border/50"
+                }`}
+                title={editingLocation.is_locked ? "Unlock location" : "Lock location"}
+              >
+                🔒
+              </button>
+            </div>
 
             <select value={editingLocation.shape || "rectangle"} onChange={e => {
               const v = e.target.value;

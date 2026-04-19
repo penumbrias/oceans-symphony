@@ -58,6 +58,11 @@
     "description": {
       "type": "string",
       "description": "Optional notes about this location"
+    },
+    "is_locked": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this location is locked and cannot be moved or resized"
     }
   },
   "required": [

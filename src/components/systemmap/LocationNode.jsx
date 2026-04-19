@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { Lock } from "lucide-react";
 
 const MIN_SIZE = 80;
 
@@ -7,9 +8,14 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   const [resizing, setResizing] = useState(null); // "se" corner handle
   const dragStart = useRef(null);
 
-  const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity } = location;
+  const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked } = location;
 
   const handleMouseDown = (e) => {
+    if (is_locked) {
+      e.stopPropagation();
+      onSelect(location);
+      return;
+    }
     e.stopPropagation();
     onSelect(location);
     setDragging(true);
@@ -32,6 +38,11 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   };
 
   const handleTouchStart = (e) => {
+    if (is_locked) {
+      e.stopPropagation();
+      onSelect(location);
+      return;
+    }
     e.stopPropagation();
     onSelect(location);
     setDragging(true);
@@ -53,6 +64,10 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   };
 
   const handleResizeDown = (e) => {
+    if (is_locked) {
+      e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     const startMx = e.clientX;
     const startMy = e.clientY;
@@ -73,6 +88,10 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   };
 
   const handleResizeTouchStart = (e) => {
+    if (is_locked) {
+      e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     const startMx = e.touches[0].clientX;
     const startMy = e.touches[0].clientY;
@@ -99,7 +118,7 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   const ry = isOval ? height / 2 : 8;
 
   return (
-    <g style={{ cursor: dragging ? "grabbing" : "grab", touchAction: "none" }}>
+    <g style={{ cursor: is_locked ? "not-allowed" : dragging ? "grabbing" : "grab", touchAction: "none" }}>
       <defs>
         {background_image_url && (
           <>
@@ -141,16 +160,31 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
       </text>
 
       {/* Resize handle (bottom-right) */}
-      <rect
-        x={x + width - 10} y={y + height - 10}
-        width={10} height={10}
-        fill={borderColor}
-        opacity={0.6}
-        rx={2}
-        style={{ cursor: "se-resize", touchAction: "none" }}
-        onMouseDown={handleResizeDown}
-        onTouchStart={handleResizeTouchStart}
-      />
+      {!is_locked && (
+        <rect
+          x={x + width - 10} y={y + height - 10}
+          width={10} height={10}
+          fill={borderColor}
+          opacity={0.6}
+          rx={2}
+          style={{ cursor: "se-resize", touchAction: "none" }}
+          onMouseDown={handleResizeDown}
+          onTouchStart={handleResizeTouchStart}
+        />
+      )}
+
+      {/* Lock indicator */}
+      {is_locked && (
+        <text
+          x={x + width - 12} y={y + 14}
+          fontSize={12}
+          fill={color}
+          pointerEvents="none"
+          style={{ userSelect: "none" }}
+        >
+          🔒
+        </text>
+      )}
     </g>
   );
 }
