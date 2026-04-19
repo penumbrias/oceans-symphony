@@ -90,6 +90,9 @@ const handleNotifClick = (mentionLog) => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
+      {/* ── Safe area top spacer (mobile only) ── */}
+      <div style={{ height: 'env(safe-area-inset-top, 0px)', background: 'var(--background)' }} className="sm:hidden" />
+
       {/* ── Desktop top header (hidden on mobile) ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl hidden sm:block">
         <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between">
@@ -137,7 +140,7 @@ const handleNotifClick = (mentionLog) => {
       </header>
 
       {/* ── Mobile top bar (shown only on mobile) ── */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col">
         <div className="flex items-center justify-between px-2 h-14">
         {/* Left: back button or logo */}
         {canGoBack ?
@@ -174,8 +177,7 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Page content ── */}
       <main
-        className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8"
-        style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}>
+        className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8">
         
         <Outlet />
       </main>
@@ -183,7 +185,7 @@ const handleNotifClick = (mentionLog) => {
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
         className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
         aria-label="Tab bar navigation">
         
         <div className="flex items-center justify-around h-14">
