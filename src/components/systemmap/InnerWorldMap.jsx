@@ -588,7 +588,10 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               alters={placedAlters}
               relMode={relMode}
               selectedAlter={selectedAlter}
-              onRelClick={(rel, e) => setRelPopover({ rel, x: e.clientX, y: e.clientY })}
+              onRelClick={(rel, e) => {
+                const rect = svgRef.current?.getBoundingClientRect();
+                setRelPopover({ rel, x: e.clientX - (rect?.left || 0), y: e.clientY - (rect?.top || 0) });
+              }}
             />
 
             {placedAlters.map(alter => (
@@ -798,10 +801,9 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
         )}
 
         {/* Relationship line popover */}
-        {relPopover && (() => {
-          const rect = svgRef.current?.getBoundingClientRect();
-          const left = relPopover.x - (rect?.left || 0) + 8;
-          const top = relPopover.y - (rect?.top || 0) + 8;
+         {relPopover && (() => {
+           const left = relPopover.x + 8;
+           const top = relPopover.y + 8;
           const rel = relPopover.rel;
           const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
           return (
