@@ -118,7 +118,28 @@ const handleExportFull = async () => {
     try {
       const exportData = await buildExportData();
       const json = JSON.stringify(exportData);
-      await navigator.clipboard.writeText(json);
+      
+      // Try modern clipboard API first
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(json);
+          showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. Copied data must not be reformatted or changed in any way in order to import.");
+          return;
+        } catch (clipErr) {
+          // Fallback if modern API fails
+          console.warn("Clipboard API failed:", clipErr);
+        }
+      }
+
+      // Fallback: old-school method for older browsers/APK
+      const textarea = document.createElement("textarea");
+      textarea.value = json;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
       showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. Copied data must not be reformatted or changed in any way in order to import.");
     } catch (e) {
       showStatus("error", `Copy failed: ${e.message}`);
