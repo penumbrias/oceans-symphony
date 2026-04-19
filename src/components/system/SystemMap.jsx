@@ -65,28 +65,48 @@ const SystemMap = ({ relationships = [] }) => {
   // cofrontingTime[a][b] = total ms a and b were fronting together
   const cofrontingTime = useMemo(() => {
     const map = {};
-    // New model: derive co-fronting from overlapping time ranges
-    // Group sessions by overlapping intervals
-    frontingSessions.forEach((session) => {
-      const myId = session.alter_id || session.primary_alter_id;
-      if (!myId) return;
-      const myStart = new Date(session.start_time).getTime();
-      const myEnd = session.end_time ? new Date(session.end_time).getTime() : Date.now();
 
-      frontingSessions.forEach((other) => {
-        const otherId = other.alter_id || other.primary_alter_id;
-        if (!otherId || otherId === myId) return;
-        const otherStart = new Date(other.start_time).getTime();
-        const otherEnd = other.end_time ? new Date(other.end_time).getTime() : Date.now();
-        const overlapStart = Math.max(myStart, otherStart);
-        const overlapEnd = Math.min(myEnd, otherEnd);
+    const addOverlap = (idA, idB, overlap) => {
+      if (!idA || !idB || idA === idB) return;
+      if (!map[idA]) map[idA] = {};
+      if (!map[idB]) map[idB] = {};
+      map[idA][idB] = (map[idA][idB] || 0) + overlap;
+      map[idB][idA] = (map[idB][idA] || 0) + overlap;
+    };
+
+    // New individual model: find overlapping sessions between different alters
+    const individualSessions = frontingSessions.filter(s => s.alter_id);
+    for (let i = 0; i < individualSessions.length; i++) {
+      for (let j = i + 1; j < individualSessions.length; j++) {
+        const a = individualSessions[i];
+        const b = individualSessions[j];
+        if (a.alter_id === b.alter_id) continue;
+        const aStart = new Date(a.start_time).getTime();
+        const aEnd = a.end_time ? new Date(a.end_time).getTime() : Date.now();
+        const bStart = new Date(b.start_time).getTime();
+        const bEnd = b.end_time ? new Date(b.end_time).getTime() : Date.now();
+        const overlapStart = Math.max(aStart, bStart);
+        const overlapEnd = Math.min(aEnd, bEnd);
         if (overlapEnd > overlapStart) {
-          const overlap = overlapEnd - overlapStart;
-          if (!map[myId]) map[myId] = {};
-          map[myId][otherId] = (map[myId][otherId] || 0) + overlap;
+          addOverlap(a.alter_id, b.alter_id, overlapEnd - overlapStart);
         }
-      });
+      }
+    }
+
+    // Legacy grouped model: primary + co_fronter_ids were all fronting together
+    const legacySessions = frontingSessions.filter(s => !s.alter_id && s.primary_alter_id);
+    legacySessions.forEach(s => {
+      const start = new Date(s.start_time).getTime();
+      const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
+      const duration = end - start;
+      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          addOverlap(ids[i], ids[j], duration);
+        }
+      }
     });
+
     return map;
   }, [frontingSessions]);
 
