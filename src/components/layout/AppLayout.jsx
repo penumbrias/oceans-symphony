@@ -177,7 +177,7 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Page content ── */}
       <main
-        className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8">
+        className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8 pb-20 sm:pb-8">
         
         <Outlet />
       </main>
