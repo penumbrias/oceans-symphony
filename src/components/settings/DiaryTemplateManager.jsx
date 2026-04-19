@@ -12,30 +12,22 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { DEFAULT_GROUPS } from "@/components/diary/DiarySection";
 
-function SortableFieldItem({ field, groupId, onEdit, onDelete, onToggle }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: `${groupId}-${field.id}`,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
+function FieldItem({ field, groupId, index, total, onEdit, onDelete, onToggle, onMoveUp, onMoveDown }) {
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-2 bg-muted/30 rounded-lg p-2">
-      <button {...attributes} {...listeners} className="text-muted-foreground hover:text-foreground">
-        <GripVertical className="w-3.5 h-3.5" />
-      </button>
+    <div className="flex items-center gap-2 bg-muted/30 rounded-lg p-2">
+      <div className="flex flex-col gap-0.5">
+        <button onClick={onMoveUp} disabled={index === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+          <ChevronDown className="w-3 h-3 rotate-180" />
+        </button>
+        <button onClick={onMoveDown} disabled={index === total - 1} className="text-muted-foreground hover:text-foreground disabled:opacity-30">
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium truncate">{field.label}</p>
         <p className="text-xs text-muted-foreground capitalize">{field.type}</p>
       </div>
       <Switch checked={field.enabled !== false} onCheckedChange={() => onToggle(field.id)} />
-      <button onClick={() => onEdit(field)} className="p-1 hover:bg-muted/50 rounded">
-        <Plus className="w-3 h-3 text-muted-foreground" />
-      </button>
       <button onClick={() => onDelete(field.id)} className="p-1 hover:bg-destructive/10 rounded">
         <Trash2 className="w-3 h-3 text-destructive" />
       </button>
@@ -43,7 +35,7 @@ function SortableFieldItem({ field, groupId, onEdit, onDelete, onToggle }) {
   );
 }
 
-function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGroupToggle, onFieldEdit, onFieldDelete, onFieldToggle }) {
+function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGroupToggle, onFieldEdit, onFieldDelete, onFieldToggle, onFieldReorder }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: group.id,
   });
@@ -111,16 +103,29 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
           ) : (
             <DndContext sensors={fieldSensors}>
               <SortableContext items={sortedFields.map(f => `${group.id}-${f.id}`)} strategy={verticalListSortingStrategy}>
-                {sortedFields.map(field => (
-                  <SortableFieldItem
-                    key={field.id}
-                    field={field}
-                    groupId={group.id}
-                    onEdit={f => setEditingField(f)}
-                    onDelete={fid => onFieldDelete(group.id, fid)}
-                    onToggle={fid => onFieldToggle(group.id, fid)}
-                  />
-                ))}
+                {sortedFields.map((field, index) => (
+  <FieldItem
+    key={field.id}
+    field={field}
+    groupId={group.id}
+    index={index}
+    total={sortedFields.length}
+    onDelete={fid => onFieldDelete(group.id, fid)}
+    onToggle={fid => onFieldToggle(group.id, fid)}
+    onMoveUp={() => {
+      const newFields = [...sortedFields];
+      [newFields[index - 1], newFields[index]] = [newFields[index], newFields[index - 1]];
+      newFields.forEach((f, i) => f.order = i);
+      onFieldReorder(group.id, newFields);
+    }}
+    onMoveDown={() => {
+      const newFields = [...sortedFields];
+      [newFields[index], newFields[index + 1]] = [newFields[index + 1], newFields[index]];
+      newFields.forEach((f, i) => f.order = i);
+      onFieldReorder(group.id, newFields);
+    }}
+  />
+))}
               </SortableContext>
             </DndContext>
           )}
