@@ -643,7 +643,6 @@ if (isSameCell) {
               </div>
             ))}
           </div>
-          </div>
         </div>
       </div>
     </div>
