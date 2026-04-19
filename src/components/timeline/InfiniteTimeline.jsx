@@ -510,6 +510,19 @@ export default function InfiniteTimeline({
   const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
   useEffect(() => { lsSet(LS_TIMELINE_ROW_H, rowH); }, [rowH]);
 
+  const [nowMins, setNowMins] = useState(() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  });
+  useEffect(() => {
+    if (!isToday) return;
+    const interval = setInterval(() => {
+      const n = new Date();
+      setNowMins(n.getHours() * 60 + n.getMinutes());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [isToday]);
+
   const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -1032,9 +1045,15 @@ export default function InfiniteTimeline({
 
                 {HOURS.map((h) => {
                   const top = getTopPx(h * 60);
+                  const isCurrentHour = isToday && Math.floor(nowMins / 60) === h;
                   return (
                     <div key={h} className="absolute flex items-start"
-                      style={{ top, height: rowH, left: timeLeft, right: 0 }}>
+                      style={{ top, height: rowH, left: 0, right: 0 }}>
+                      {/* Current-hour highlight */}
+                      {isCurrentHour && (
+                        <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
+                      )}
+                      <div className="flex-shrink-0" style={{ width: timeLeft }} />
                       <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-1 text-right" style={{ width: LABEL_WIDTH }}>
                         {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
                       </div>
@@ -1042,6 +1061,20 @@ export default function InfiniteTimeline({
                     </div>
                   );
                 })}
+
+                {/* Now line — only on today */}
+                {isToday && (() => {
+                  const nowTop = getTopPx(nowMins);
+                  return (
+                    <div className="absolute pointer-events-none z-20"
+                      style={{ top: nowTop, left: 0, right: 0 }}>
+                      <div className="relative flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 -ml-1" />
+                        <div className="flex-1 h-px bg-primary opacity-70" />
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {showActivities && activityColumns.map((col, colIdx) => (
                   <div key={`acol-${colIdx}`} className="absolute"
