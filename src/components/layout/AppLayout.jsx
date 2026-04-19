@@ -185,7 +185,7 @@ const handleNotifClick = (mentionLog) => {
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
         className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
-        style={{ paddingBottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         aria-label="Tab bar navigation">
         
         <div className="flex items-center justify-around h-14">
