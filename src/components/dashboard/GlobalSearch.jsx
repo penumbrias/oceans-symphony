@@ -32,6 +32,51 @@ const TYPE_LABELS = {
   checkin: "Check-Ins",
 };
 
+// Returns multiple string formats of a date for flexible matching
+function getDateFormats(dateInput) {
+  if (!dateInput) return [];
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return [];
+  const pad = (n) => String(n).padStart(2, "0");
+  const year = d.getFullYear();
+  const month = d.getMonth(); // 0-indexed
+  const day = d.getDate();
+  const monthNames = ["january","february","march","april","may","june","july","august","september","october","november","december"];
+  const monthShort = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+  const monthName = monthNames[month];
+  const monthAbbr = monthShort[month];
+  const dayName = dayNames[d.getDay()];
+  return [
+    `${year}-${pad(month + 1)}-${pad(day)}`,               // 2026-04-14
+    `${pad(month + 1)}/${pad(day)}/${year}`,                // 04/14/2026
+    `${monthName} ${day} ${year}`,                          // april 14 2026
+    `${monthAbbr} ${day} ${year}`,                          // apr 14 2026
+    `${monthAbbr} ${day}`,                                  // apr 14
+    `${monthName} ${day}`,                                  // april 14
+    `${day}th`, `${day}st`, `${day}nd`, `${day}rd`,        // 14th etc.
+    `${dayName} ${monthName} ${day}`,                       // monday april 14
+    `${dayName} ${monthAbbr} ${day}`,                       // monday apr 14
+    monthName,                                              // april
+    monthAbbr,                                              // apr
+    `${year}-${pad(month + 1)}`,                            // 2026-04
+    `${pad(month + 1)}/${year}`,                            // 04/2026
+    String(year),                                           // 2026
+  ];
+}
+
+function matchesDate(dateInput, q) {
+  const formats = getDateFormats(dateInput);
+  return formats.some((f) => f.includes(q));
+}
+
+function formatDateLabel(dateInput) {
+  if (!dateInput) return null;
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+}
+
 function highlightMatch(text, query) {
   if (!text || !query) return text;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
@@ -130,162 +175,121 @@ export default function GlobalSearch() {
 
     // Alters
     alters.forEach((a) => {
-      if (
-        [a.name, a.alias, a.pronouns, a.role, a.bio]
-          .filter(Boolean)
-          .some((f) => f.toLowerCase().includes(q))
-      ) {
+      const textMatch = [a.name, a.alias, a.pronouns, a.role, a.bio].filter(Boolean).some((f) => f.toLowerCase().includes(q));
+      const dateMatch = !textMatch && matchesDate(a.created_date, q);
+      if (textMatch || dateMatch) {
         results.push({
-          type: "alter",
-          id: a.id,
-          title: a.name,
-          subtitle: a.role || a.pronouns,
-          color: a.color,
-          path: `/alter/${a.id}`,
+          type: "alter", id: a.id, title: a.name,
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(a.created_date)}` : (a.role || a.pronouns),
+          color: a.color, path: `/alter/${a.id}`, dateMatch,
         });
       }
     });
 
     // Journals
     journals.forEach((j) => {
-      if (
-        [j.title, j.content]
-          .filter(Boolean)
-          .some((f) => f.toLowerCase().includes(q))
-      ) {
+      const textMatch = [j.title, j.content].filter(Boolean).some((f) => f.toLowerCase().includes(q));
+      const dateMatch = !textMatch && matchesDate(j.created_date, q);
+      if (textMatch || dateMatch) {
         results.push({
-          type: "journal",
-          id: j.id,
-          title: j.title || "Journal Entry",
-          subtitle: j.content?.slice(0, 60),
-          path: `/journals?id=${j.id}`,
+          type: "journal", id: j.id, title: j.title || "Journal Entry",
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(j.created_date)}` : j.content?.slice(0, 60),
+          path: `/journals?id=${j.id}`, dateMatch,
         });
       }
     });
 
     // Bulletins
     bulletins.forEach((b) => {
-      if (b.content?.toLowerCase().includes(q)) {
+      const textMatch = b.content?.toLowerCase().includes(q);
+      const dateMatch = !textMatch && matchesDate(b.created_date, q);
+      if (textMatch || dateMatch) {
         results.push({
-          type: "bulletin",
-          id: b.id,
-          title: "Bulletin",
-          subtitle: b.content?.slice(0, 60),
-          path: `/?bulletinId=${b.id}`,
+          type: "bulletin", id: b.id, title: "Bulletin",
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(b.created_date)}` : b.content?.slice(0, 60),
+          path: `/?bulletinId=${b.id}`, dateMatch,
         });
       }
     });
 
     // Activities
     activities.forEach((a) => {
-      if (
-        [a.activity_name, a.notes]
-          .filter(Boolean)
-          .some((f) => f.toLowerCase().includes(q))
-      ) {
+      const textMatch = [a.activity_name, a.notes].filter(Boolean).some((f) => f.toLowerCase().includes(q));
+      const dateMatch = !textMatch && matchesDate(a.timestamp, q);
+      if (textMatch || dateMatch) {
+        const dateStr = a.timestamp ? new Date(a.timestamp).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
         results.push({
-          type: "activity",
-          id: a.id,
-          title: a.activity_name,
-          subtitle: a.notes?.slice(0, 60),
-          path: `/activities?date=${a.timestamp ? new Date(a.timestamp).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}&highlight=${a.id}`,
+          type: "activity", id: a.id, title: a.activity_name,
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(a.timestamp)}` : a.notes?.slice(0, 60),
+          path: `/activities?date=${dateStr}&highlight=${a.id}`, dateMatch,
         });
       }
     });
 
     // Tasks
     tasks.forEach((t) => {
-      if (
-        [t.title, t.notes]
-          .filter(Boolean)
-          .some((f) => f.toLowerCase().includes(q))
-      ) {
+      const textMatch = [t.title, t.notes].filter(Boolean).some((f) => f.toLowerCase().includes(q));
+      const dateMatch = !textMatch && matchesDate(t.created_date, q);
+      if (textMatch || dateMatch) {
         results.push({
-          type: "task",
-          id: t.id,
-          title: t.title,
-          subtitle: t.notes?.slice(0, 60),
-          path: `/tasks?id=${t.id}`,
+          type: "task", id: t.id, title: t.title,
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(t.created_date)}` : t.notes?.slice(0, 60),
+          path: `/tasks?id=${t.id}`, dateMatch,
         });
       }
     });
 
     // Emotion check-ins
     emotionCheckIns.forEach((e) => {
-      if (
-        e.note?.toLowerCase().includes(q) ||
-        e.emotions?.some((em) => em.toLowerCase().includes(q))
-      ) {
+      const textMatch = e.note?.toLowerCase().includes(q) || e.emotions?.some((em) => em.toLowerCase().includes(q));
+      const dateMatch = !textMatch && matchesDate(e.timestamp, q);
+      if (textMatch || dateMatch) {
         results.push({
-          type: "emotion",
-          id: e.id,
-          title: "Emotion Check-In",
-          subtitle: e.note || e.emotions?.join(", "),
-          path: `/timeline?date=${new Date(e.timestamp).toISOString().split('T')[0]}`,
+          type: "emotion", id: e.id, title: "Emotion Check-In",
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(e.timestamp)}` : (e.note || e.emotions?.join(", ")),
+          path: `/timeline?date=${new Date(e.timestamp).toISOString().split('T')[0]}`, dateMatch,
         });
       }
     });
 
-    // Symptoms
+    // Symptoms (no date fields that are meaningful to search)
     symptoms.forEach((s) => {
       if (s.label?.toLowerCase().includes(q)) {
-        results.push({
-          type: "symptom",
-          id: s.id,
-          title: s.label,
-          subtitle: "Symptom",
-          path: `/diary`,
-        });
+        results.push({ type: "symptom", id: s.id, title: s.label, subtitle: "Symptom", path: `/diary` });
       }
     });
 
-    // Groups
+    // Groups (no date fields that are meaningful to search)
     groups.forEach((g) => {
-      if (
-        [g.name, g.description]
-          .filter(Boolean)
-          .some((f) => f.toLowerCase().includes(q))
-      ) {
-        results.push({
-          type: "group",
-          id: g.id,
-          title: g.name,
-          subtitle: g.description?.slice(0, 60),
-          path: `/groups`,
-        });
+      if ([g.name, g.description].filter(Boolean).some((f) => f.toLowerCase().includes(q))) {
+        results.push({ type: "group", id: g.id, title: g.name, subtitle: g.description?.slice(0, 60), path: `/groups` });
       }
     });
 
     // Diary cards
     diaryCalls.forEach((d) => {
-      const allText = [
-        d.name,
-        d.notes?.what,
-        d.notes?.judgments,
-        d.notes?.optional,
-      ]
-        .filter(Boolean)
-        .join(" ");
-      if (allText.toLowerCase().includes(q)) {
+      const allText = [d.name, d.notes?.what, d.notes?.judgments, d.notes?.optional].filter(Boolean).join(" ");
+      const textMatch = allText.toLowerCase().includes(q);
+      const dateMatch = !textMatch && (matchesDate(d.date, q) || matchesDate(d.created_date, q));
+      if (textMatch || dateMatch) {
+        const matchedDate = d.date || d.created_date;
         results.push({
-          type: "diarycard",
-          id: d.id,
-          title: d.name || `Diary Card - ${d.date}`,
-          subtitle: d.notes?.what?.slice(0, 60),
-          path: `/diary?id=${d.id}`,
+          type: "diarycard", id: d.id, title: d.name || `Diary Card - ${d.date}`,
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(matchedDate)}` : d.notes?.what?.slice(0, 60),
+          path: `/diary?id=${d.id}`, dateMatch,
         });
       }
     });
 
     // System check-ins
     systemCheckIns.forEach((c) => {
-      if ([c.notes, c.content].filter(Boolean).some((f) => f.toLowerCase().includes(q))) {
+      const textMatch = [c.notes, c.content].filter(Boolean).some((f) => f.toLowerCase().includes(q));
+      const dateMatch = !textMatch && matchesDate(c.created_date, q);
+      if (textMatch || dateMatch) {
         results.push({
-          type: "checkin",
-          id: c.id,
-          title: "System Check-In",
-          subtitle: c.notes?.slice(0, 60) || c.content?.slice(0, 60),
-          path: `/system-checkin?id=${c.id}`,
+          type: "checkin", id: c.id, title: "System Check-In",
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(c.created_date)}` : (c.notes?.slice(0, 60) || c.content?.slice(0, 60)),
+          path: `/system-checkin?id=${c.id}`, dateMatch,
         });
       }
     });
