@@ -248,6 +248,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const bgFileRef = useRef(null);
   const lastPinchRef = useRef(null);
   const touchStartPos = useRef(null);
+  const justSelectedRef = useRef(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -424,6 +425,9 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   };
 
   const handleAlterTap = (alter) => {
+    justSelectedRef.current = true;
+    setTimeout(() => { justSelectedRef.current = false; }, 50);
+    
     if (relModeAlter) {
       if (relModeAlter.id === alter.id) { setRelModeAlter(null); return; }
       setCreateRelModal({ alterA: relModeAlter, alterB: alter });
@@ -550,6 +554,8 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           onDrop={handleSvgDrop}
           onDragOver={e => e.preventDefault()}
           onClick={(e) => {
+            // Don't close anything if we just selected an alter
+            if (justSelectedRef.current) return;
             // Only close popovers if clicking directly on canvas background
             if (e.target === svgRef.current) {
               if (placingAlter) {
