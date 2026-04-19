@@ -334,10 +334,11 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
         </>
       )}
 
-      {creating && alters.filter(a => !a.is_archived).length >= 2 && (
+      {creating && (
         <CreateRelationshipModal
-          alterA={alters.filter(a => !a.is_archived)[0]}
-          alterB={alters.filter(a => !a.is_archived)[1]}
+          allAlters={alters.filter(a => !a.is_archived)}
+          alterA={null}
+          alterB={null}
           onSave={handleSaveNew}
           onClose={() => setCreating(false)}
         />
