@@ -31,7 +31,7 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
       if (!dragRef.current) return;
       const dx = (ev.clientX - dragRef.current.startMx) / zoom;
       const dy = (ev.clientY - dragRef.current.startMy) / zoom;
-      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) dragRef.current.moved = true;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.moved = true;
     };
     const onUp = (ev) => {
       if (!dragRef.current) return;
@@ -70,7 +70,7 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
     if (!dragRef.current) return;
     const dx = (e.touches[0].clientX - dragRef.current.startMx) / zoom;
     const dy = (e.touches[0].clientY - dragRef.current.startMy) / zoom;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) dragRef.current.moved = true;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.moved = true;
   };
 
   const handleTouchEnd = (e) => {
