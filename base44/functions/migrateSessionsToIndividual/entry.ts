@@ -7,14 +7,7 @@ function delay(ms) {
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
 
-  // Step 0: Auth
-  let user;
-  try {
-    user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  } catch (e) {
-    return Response.json({ error: 'Auth failed', detail: e.message }, { status: 401 });
-  }
+
 
   const db = base44.asServiceRole.entities;
 
