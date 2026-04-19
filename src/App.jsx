@@ -106,14 +106,8 @@ function App() {
   });
 
   const handleSetupComplete = () => {
-    // Re-initialize setup state in case storage mode changed
-    if (isFirstRun()) {
-      setSetupState('first_run');
-    } else if (isLocalMode() && isEncryptionEnabled() && !isDbInitialized()) {
-      setSetupState('unlock');
-    } else {
-      setSetupState(null);
-    }
+    // Setup is complete, clear the modal to show the app
+    setSetupState(null);
   };
 
   return (
