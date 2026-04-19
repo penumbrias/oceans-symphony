@@ -12,10 +12,9 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
 
   const handleMouseDown = (e) => {
     if (is_locked) {
-      e.stopPropagation();
-      onSelect(location);
-      return;
-    }
+  onSelect(location);
+  return;
+}
     e.stopPropagation();
     onSelect(location);
     setDragging(true);
