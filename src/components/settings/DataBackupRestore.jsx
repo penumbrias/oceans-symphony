@@ -134,13 +134,17 @@ const handleExportFull = async () => {
       // Fallback: old-school method for older browsers/APK
       const textarea = document.createElement("textarea");
       textarea.value = json;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
+      textarea.style.cssText = "position:fixed;top:0;left:0;width:2em;height:2em;padding:0;border:none;outline:none;boxShadow:none;background:transparent;opacity:0.01;z-index:9999";
       document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
+      textarea.focus();
+      textarea.setSelectionRange(0, textarea.value.length);
+      const success = document.execCommand("copy");
       document.body.removeChild(textarea);
-      showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. Copied data must not be reformatted or changed in any way in order to import.");
+      if (success) {
+        showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.");
+      } else {
+        showStatus("error", "Copy failed — try the Download button instead");
+      }
     } catch (e) {
       showStatus("error", `Copy failed: ${e.message}`);
     } finally {
