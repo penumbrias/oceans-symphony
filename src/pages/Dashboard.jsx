@@ -110,7 +110,7 @@ export default function Dashboard() {
   const [emotionModalInitialSection, setEmotionModalInitialSection] = useState(null);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-2 sm:pt-0">
       
       
       <div className="mb-3 flex items-start justify-between">
