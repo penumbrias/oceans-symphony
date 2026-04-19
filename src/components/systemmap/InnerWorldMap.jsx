@@ -792,7 +792,12 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
 
         {/* Alter detail panel */}
         {selectedAlter && !relModeAlter && (
-          <div className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto">
+          <div className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+            onTouchStart={e => e.stopPropagation()}
+            onTouchEnd={e => e.stopPropagation()}
+            onTouchMove={e => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {selectedAlter.avatar_url ? (
@@ -888,18 +893,19 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
           <h3 className="font-semibold text-foreground text-sm">Edit Relationship</h3>
           <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
-        <div className="space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Direction</p>
-          {[
-            { value: "a_to_b", label: `${alterA?.name} → ${alterB?.name}` },
-            { value: "b_to_a", label: `${alterB?.name} → ${alterA?.name}` },
-            { value: "bidirectional", label: `${alterA?.name} ↔ ${alterB?.name}` },
-          ].map(opt => (
-            <button key={opt.value} onClick={() => setDirection(opt.value)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm border mb-1 transition-colors ${direction === opt.value ? "bg-primary/10 border-primary/40 text-primary" : "border-border hover:bg-muted/40"}`}>
-              {opt.label}
-            </button>
-          ))}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Direction</p>
+          <button
+            onClick={() => {
+              const cycle = ["a_to_b", "b_to_a", "bidirectional"];
+              const idx = cycle.indexOf(direction);
+              setDirection(cycle[(idx + 1) % cycle.length]);
+            }}
+            className="w-full px-4 py-3 rounded-xl border-2 border-primary/40 bg-primary/5 text-primary font-semibold text-sm text-center hover:bg-primary/10 transition-colors select-none"
+          >
+            {direction === "a_to_b" ? `${alterA?.name} → ${alterB?.name}` : direction === "b_to_a" ? `${alterB?.name} → ${alterA?.name}` : `${alterA?.name} ↔ ${alterB?.name}`}
+            <span className="block text-xs text-primary/60 font-normal mt-0.5">tap to change direction</span>
+          </button>
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Type</p>

@@ -1,11 +1,37 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Pencil, Archive, RotateCcw } from "lucide-react";
+import { Plus, Pencil, Archive, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HexColorPicker } from "react-colorful";
+
+function ColorPickerModal({ color = "#8B5CF6", onSave, onClose }) {
+  const [hex, setHex] = useState(color);
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-sm mx-4 w-full">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Pick Color</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+        </div>
+        <HexColorPicker color={hex} onChange={setHex} style={{ width: "100%" }} />
+        <input type="text" value={hex}
+          onChange={e => { if (/^#?[0-9A-F]{0,6}$/i.test(e.target.value)) setHex(e.target.value); }}
+          className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-mono" />
+        <div className="w-full h-10 rounded-lg border-2 border-border" style={{ backgroundColor: hex }} />
+        <div className="flex gap-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
+          <button type="button" onClick={() => { onSave(hex); onClose(); }}
+            disabled={!/^#[0-9A-F]{6}$/i.test(hex)}
+            className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const TABS = ["symptom", "habit"];
 const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
@@ -13,9 +39,10 @@ const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
 export default function SymptomManager() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("symptom");
-  const [editing, setEditing] = useState(null); // null | symptom object
+  const [editing, setEditing] = useState(null);
   const [addingNew, setAddingNew] = useState(false);
   const [form, setForm] = useState({ label: "", type: "boolean", is_positive: false, color: "#8B5CF6" });
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const { data: symptoms = [] } = useQuery({
@@ -92,8 +119,10 @@ export default function SymptomManager() {
                 <input type="checkbox" checked={form.is_positive} onChange={e => setForm(f => ({ ...f, is_positive: e.target.checked }))} />
                 Positive
               </label>
-              <input type="color" value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
-                className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Color" />
+              <button type="button" onClick={() => setShowColorPicker(true)}
+                className="w-8 h-8 rounded-lg border-2 border-border cursor-pointer flex-shrink-0"
+                style={{ backgroundColor: form.color }} />
+              {showColorPicker && <ColorPickerModal color={form.color} onSave={c => setForm(f => ({ ...f, color: c }))} onClose={() => setShowColorPicker(false)} />}
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={handleSave} disabled={saving || !form.label.trim()} className="flex-1">Save</Button>
