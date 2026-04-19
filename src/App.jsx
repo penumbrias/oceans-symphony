@@ -105,13 +105,24 @@ function App() {
     return null;
   });
 
+  const handleSetupComplete = () => {
+    // Re-initialize setup state in case storage mode changed
+    if (isFirstRun()) {
+      setSetupState('first_run');
+    } else if (isLocalMode() && isEncryptionEnabled() && !isDbInitialized()) {
+      setSetupState('unlock');
+    } else {
+      setSetupState(null);
+    }
+  };
+
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClientInstance}>
         <AuthProvider>
           <Router>
             {setupState ? (
-              <StorageModeSetup mode={setupState} onComplete={() => setSetupState(null)} />
+              <StorageModeSetup mode={setupState} onComplete={handleSetupComplete} />
             ) : (
               <AuthenticatedApp />
             )}
