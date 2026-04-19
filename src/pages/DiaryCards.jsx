@@ -3,14 +3,111 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
-import { BookOpen, ChevronLeft, Calendar, BarChart2, Trash2 } from "lucide-react";
+import { BookOpen, ChevronLeft, Calendar, BarChart2, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
+import DiaryAnalyticsSummary from "@/components/diary/DiaryAnalyticsSummary";
 import DiaryCardView from "@/components/diary/DiaryCardView";
 import { getActiveTemplate } from "@/lib/diaryCardTemplate";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
+
+function DailySummaryCard({ date, dateCards, altersById, buildSummary, onViewEntry, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Aggregate fronters across all cards for the day
+  const allFronterIds = [...new Set(dateCards.flatMap(c => c.fronting_alter_ids || []))];
+  const fronters = allFronterIds.map(id => altersById[id]).filter(Boolean);
+
+  // Aggregate emotions
+  const allEmotions = [...new Set(dateCards.flatMap(c => c.emotions || []))];
+
+  // Count symptoms/habits logged across all cards
+  const symptomCount = dateCards.reduce((acc, c) => {
+    if (!c.checklist) return acc;
+    const vals = [...Object.values(c.checklist.symptoms || {}), ...Object.values(c.checklist.habits || {})];
+    return acc + vals.filter(v => v !== undefined && v !== null && v !== false).length;
+  }, 0);
+
+  return (
+    <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
+      {/* Summary header — click to expand */}
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full text-left px-4 py-4 hover:bg-muted/20 transition-colors"
+      >
+        <div className="flex items-start gap-3">
+          <Calendar className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold text-sm">{format(new Date(date + "T12:00:00"), "EEEE, MMMM d, yyyy")}</p>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <span className="text-xs text-muted-foreground">{dateCards.length} entr{dateCards.length !== 1 ? "ies" : "y"}</span>
+                {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+              </div>
+            </div>
+
+            {fronters.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {fronters.map(alter => (
+                  <span key={alter.id} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-muted border border-border/50">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#8b5cf6" }} />
+                    {alter.alias || alter.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {allEmotions.length > 0 && (
+                <span>{allEmotions.slice(0, 3).join(", ")}{allEmotions.length > 3 ? ` +${allEmotions.length - 3}` : ""}</span>
+              )}
+              {symptomCount > 0 && (
+                <span className="text-muted-foreground/70">· {symptomCount} symptoms/habits logged</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </button>
+
+      {/* Expanded individual entries */}
+      {expanded && (
+        <div className="border-t border-border/30 divide-y divide-border/20">
+          {dateCards.map(card => {
+            const summary = buildSummary(card);
+            const cardFronters = (card.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
+            return (
+              <div key={card.id} id={`item-${card.id}`} className="px-4 py-3 flex items-start gap-3 hover:bg-muted/10 transition-colors">
+                <button
+                  onClick={() => onViewEntry(card)}
+                  className="flex-1 text-left space-y-1 min-w-0"
+                >
+                  <p className="text-xs font-medium text-foreground">{card.name || `Entry`}</p>
+                  {cardFronters.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {cardFronters.map(a => (
+                        <span key={a.id} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-muted/70 border border-border/40">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: a.color || "#8b5cf6" }} />
+                          {a.alias || a.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {summary && <p className="text-xs text-muted-foreground truncate">{summary}</p>}
+                </button>
+                <Button variant="ghost" size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
+                  onClick={e => { e.stopPropagation(); onDelete(card.id); }}>
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function DiaryCards() {
   const queryClient = useQueryClient();
@@ -109,49 +206,17 @@ export default function DiaryCards() {
             <p className="text-xs text-muted-foreground mt-1">Use the Quick Check-In to start tracking your day.</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-3">
             {cardsByDate.map(([date, dateCards]) => (
-              <div key={date} className="space-y-3">
-                <div className="flex items-center gap-2 px-1">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <h3 className="font-medium text-sm">{format(new Date(date + "T12:00:00"), "EEEE, MMMM d, yyyy")}</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">{dateCards.length} entr{dateCards.length !== 1 ? "ies" : "y"}</span>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {dateCards.map(card => {
-                    const fronters = (card.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
-                    const summary = buildSummary(card);
-                    return (
-                      <div key={card.id} id={`item-${card.id}`}
-                        className="bg-card border rounded-xl p-4 hover:shadow-md transition-all border-border/50">
-                        <div className="flex items-start justify-between gap-2">
-                          <button onClick={() => { setViewingEntry(card); setView("entry"); }} className="flex-1 text-left space-y-1.5">
-                            <p className="font-medium text-sm">{card.name || `Daily — ${card.date}`}</p>
-                            {fronters.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {fronters.map(alter => (
-                                  <span key={alter.id} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-muted border border-border/50">
-                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#8b5cf6" }} />
-                                    {alter.alias || alter.name}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            {summary && (
-                              <p className="text-xs text-muted-foreground leading-relaxed">{summary}</p>
-                            )}
-                          </button>
-                          <Button variant="ghost" size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
-                            onClick={e => { e.stopPropagation(); handleDelete(card.id); }}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <DailySummaryCard
+                key={date}
+                date={date}
+                dateCards={dateCards}
+                altersById={altersById}
+                buildSummary={buildSummary}
+                onViewEntry={(card) => { setViewingEntry(card); setView("entry"); }}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         )}
@@ -172,7 +237,7 @@ export default function DiaryCards() {
             <p className="text-muted-foreground text-xs">Track patterns over time</p>
           </div>
         </div>
-        <DiaryAnalytics cards={cards} altersById={altersById} />
+        <DiaryAnalyticsSummary cards={cards} />
       </motion.div>
     );
   }
