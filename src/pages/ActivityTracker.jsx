@@ -10,6 +10,7 @@ import ActivityTimeRangeModal from "@/components/activities/ActivityTimeRangeMod
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
+import ActivityDayView from "@/components/activities/ActivityDayView";
 
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -29,6 +30,7 @@ export default function ActivityTracker() {
   const [selectedEndHour, setSelectedEndHour] = useState(undefined);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [addMode, setAddMode] = useState(false);
+  const [zoomedDate, setZoomedDate] = useState(null);
   const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet("symphony_act_week_start", 0));
   const [selectedStartMinute, setSelectedStartMinute] = useState(0);
   const [selectedEndMinute, setSelectedEndMinute] = useState(0);
@@ -123,6 +125,7 @@ export default function ActivityTracker() {
           onToggleAddMode={() => setAddMode(v => !v)}
           highlightActivityId={highlightId}
           onWeekStartChange={setWeekStartsOn}
+          onDayClick={setZoomedDate}
         />
 
         <div className="mt-6">
@@ -146,6 +149,20 @@ export default function ActivityTracker() {
         frontingHistory={frontingHistory}
         onSave={() => { handleCloseModal(); handleActivitySave(); }}
       />
+      {zoomedDate && (
+        <ActivityDayView
+          date={zoomedDate}
+          activities={activities}
+          alters={alters}
+          frontingHistory={frontingHistory}
+          onClose={() => setZoomedDate(null)}
+          onActivityClick={handleActivityClick}
+          onTimeRangeSelect={(date, startHour, endHour, startMinute, endMinute) => {
+            setZoomedDate(null);
+            handleTimeRangeSelect(date, startHour, endHour, startMinute, endMinute);
+          }}
+        />
+      )}
       <ActivityDetailsModal
         isOpen={isDetailsOpen}
         onClose={handleDetailsClose}

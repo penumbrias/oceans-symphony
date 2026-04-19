@@ -25,16 +25,7 @@ function lsSet(key, val) {
 const HEADER_H = 56;
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-const EMOTION_COLORS = [
-  "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
-  "#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4",
-  "#f97316","#84cc16","#e11d48","#7c3aed","#0891b2",
-];
-function emotionColor(name) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return EMOTION_COLORS[h % EMOTION_COLORS.length];
-}
+import { emotionColor, getActivityColor as _getActivityColor, getActivitiesForSlot as _getActivitiesForSlot, getAlterIdsForSlot as _getAlterIdsForSlot, getEmotionsForSlot as _getEmotionsForSlot } from "./activityHelpers";
 function truncate(str, max) {
   if (!str) return "";
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
@@ -69,6 +60,7 @@ export default function ActivityWeeklyGrid({
   onToggleAddMode,
   highlightActivityId = null,
   onWeekStartChange,
+  onDayClick,
 }) {
   const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
   const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      110));
@@ -124,30 +116,10 @@ export default function ActivityWeeklyGrid({
     return s;
   }, [gridInterval]);
 
-  const getActivityColor = useCallback((act) => {
-    for (const id of (act.activity_category_ids || [])) {
-      const cat = catById[id];
-      if (cat?.color) return cat.color;
-    }
-    return act.color || "hsl(var(--primary))";
-  }, [catById]);
-
-  const getActivitiesForSlot = useCallback((date, hour, minute) => {
-    const slotStart = new Date(date);
-    slotStart.setHours(hour, minute, 0, 0);
-    const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
-    const timed = [], logged = [];
-    activities.forEach(a => {
-      const actStart = parseDate(a.timestamp);
-      if (a.duration_minutes) {
-        const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
-        if (actStart < slotEnd && actEnd > slotStart) timed.push(a);
-      } else {
-        if (actStart >= slotStart && actStart < slotEnd) logged.push(a);
-      }
-    });
-    return { timed, logged };
-  }, [activities, gridInterval]);
+  const getActivityColor = useCallback((act) => _getActivityColor(act, catById), [catById]);
+  const getActivitiesForSlot = useCallback((date, hour, minute) => _getActivitiesForSlot(date, hour, minute, gridInterval, activities), [activities, gridInterval]);
+  const getAlterIdsForSlot = useCallback((date, hour, minute) => _getAlterIdsForSlot(date, hour, minute, gridInterval, frontingHistory), [frontingHistory, gridInterval]);
+  const getEmotionsForSlot = useCallback((date, hour, minute) => _getEmotionsForSlot(date, hour, minute, gridInterval, activities, emotionCheckIns), [emotionCheckIns, activities, gridInterval]);
 
   const isFirstSlotForActivity = useCallback((act, date, hour, minute) => {
     const actStart = parseDate(act.timestamp);
@@ -164,40 +136,6 @@ export default function ActivityWeeklyGrid({
     slotEnd.setTime(slotEnd.getTime() + gridInterval * 60 * 1000);
     return actEnd <= slotEnd;
   }, [gridInterval]);
-
-  const getAlterIdsForSlot = useCallback((date, hour, minute) => {
-    const slotStart = new Date(date);
-    slotStart.setHours(hour, minute, 0, 0);
-    const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
-    const ids = new Set();
-    frontingHistory.forEach(s => {
-      const start = parseDate(s.start_time);
-      const end = s.end_time ? parseDate(s.end_time) : new Date();
-      if (start < slotEnd && end > slotStart) {
-        if (s.primary_alter_id) ids.add(s.primary_alter_id);
-        (s.co_fronter_ids || []).forEach(id => ids.add(id));
-      }
-    });
-    return [...ids];
-  }, [frontingHistory, gridInterval]);
-
-const getEmotionsForSlot = useCallback((date, hour, minute) => {
-    const slotStart = new Date(date);
-    slotStart.setHours(hour, minute, 0, 0);
-    const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
-    const all = [];
-    emotionCheckIns.forEach(e => {
-      const t = parseDate(e.timestamp);
-      if (t >= slotStart && t < slotEnd) all.push(...(e.emotions || []));
-    });
-    activities.forEach(a => {
-      const t = parseDate(a.timestamp);
-      if (t >= slotStart && t < slotEnd && (a.emotions || []).length > 0) {
-        all.push(...(a.emotions || []));
-      }
-    });
-    return [...new Set(all)];
-  }, [emotionCheckIns, activities, gridInterval]);
 
   const getDayStats = useCallback((date) => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -539,8 +477,14 @@ if (isSameCell) {
                 const stats = getDayStats(date);
                 const isToday = format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                 return (
-                  <div key={format(date, "yyyy-MM-dd")}
-                    className={`p-1.5 text-center border-r border-border ${isToday ? "bg-primary/5" : ""}`}>
+                  <button
+                    key={format(date, "yyyy-MM-dd")}
+                    onClick={() => onDayClick?.(date)}
+                    className={`p-1.5 text-center border-r border-border w-full h-full transition-colors
+                      ${isToday ? "bg-primary/5" : ""}
+                      ${onDayClick ? "hover:bg-primary/10 cursor-pointer" : "cursor-default"}
+                    `}
+                  >
                     <div className="text-xs font-medium text-muted-foreground">{format(date, "EEE")}</div>
                     <div className={`text-base font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
                       {format(date, "d")}
@@ -550,7 +494,7 @@ if (isSameCell) {
                         {stats.count}{stats.duration > 0 ? ` · ${Math.round(stats.duration / 60)}h` : ""}
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
