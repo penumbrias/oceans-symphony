@@ -65,7 +65,7 @@ export default function Home() {
           <Sparkles className="w-9 h-9 text-primary/40" />
         </div>
         <h1 className="font-display text-3xl font-semibold text-foreground mb-2">
-          Welcome to Innerworld
+          Welcome to Oceans Symphony
         </h1>
         <p className="text-muted-foreground max-w-md leading-relaxed mb-8">
           Connect your Simply Plural account to import {terms.alters}, or add them manually.
