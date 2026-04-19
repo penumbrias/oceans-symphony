@@ -102,33 +102,29 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
           {sortedFields.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No fields in this group</p>
           ) : (
-            <DndContext sensors={fieldSensors}>
-              <SortableContext items={sortedFields.map(f => `${group.id}-${f.id}`)} strategy={verticalListSortingStrategy}>
-                {sortedFields.map((field, index) => (
-  <FieldItem
-    key={field.id}
-    field={field}
-    groupId={group.id}
-    index={index}
-    total={sortedFields.length}
-    onDelete={fid => onFieldDelete(group.id, fid)}
-    onToggle={fid => onFieldToggle(group.id, fid)}
-    onMoveUp={() => {
-      const newFields = [...sortedFields];
-      [newFields[index - 1], newFields[index]] = [newFields[index], newFields[index - 1]];
-      newFields.forEach((f, i) => f.order = i);
-      onFieldReorder(group.id, newFields);
-    }}
-    onMoveDown={() => {
-      const newFields = [...sortedFields];
-      [newFields[index], newFields[index + 1]] = [newFields[index + 1], newFields[index]];
-      newFields.forEach((f, i) => f.order = i);
-      onFieldReorder(group.id, newFields);
-    }}
-  />
-))}
-              </SortableContext>
-            </DndContext>
+            {sortedFields.map((field, index) => (
+              <FieldItem
+                key={field.id}
+                field={field}
+                groupId={group.id}
+                index={index}
+                total={sortedFields.length}
+                onDelete={fid => onFieldDelete(group.id, fid)}
+                onToggle={fid => onFieldToggle(group.id, fid)}
+                onMoveUp={() => {
+                  const newFields = [...sortedFields];
+                  [newFields[index - 1], newFields[index]] = [newFields[index], newFields[index - 1]];
+                  const reordered = newFields.map((f, i) => ({ ...f, order: i }));
+                  onFieldReorder(group.id, reordered);
+                }}
+                onMoveDown={() => {
+                  const newFields = [...sortedFields];
+                  [newFields[index], newFields[index + 1]] = [newFields[index + 1], newFields[index]];
+                  const reordered = newFields.map((f, i) => ({ ...f, order: i }));
+                  onFieldReorder(group.id, reordered);
+                }}
+              />
+            ))}
           )}
 
           <div className="border-t border-border/30 pt-2 space-y-2">
