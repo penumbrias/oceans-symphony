@@ -23,8 +23,23 @@ async function downloadJson(data, filename) {
   if (navigator.share && navigator.canShare) {
     const file = new File([blob], filename, { type: "application/json" });
     if (navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
-      return;
+      try {
+        await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
+        return; // Share succeeded
+      } catch (e) {
+        // Share was cancelled or failed — fall through to clipboard
+        if (e.name === "AbortError") {
+          // User cancelled — try clipboard instead
+          try {
+            await navigator.clipboard.writeText(json);
+            throw new Error("__clipboard_success__");
+          } catch (clipErr) {
+            if (clipErr.message === "__clipboard_success__") throw clipErr;
+            throw new Error("__clipboard_fallback__");
+          }
+        }
+        // Other share errors — fall through to desktop fallback
+      }
     }
   }
 
@@ -86,15 +101,10 @@ const handleExportFull = async () => {
     await downloadJson(exportData, `symphony-backup-${date}.json`);
     showStatus("success", "Backup exported!");
   } catch (e) {
-  if (e.message === "__clipboard_fallback__") {
-  // Auto-copy to clipboard as last resort
-  const exportDataFallback = await buildExportData();
-  try {
-    await navigator.clipboard.writeText(JSON.stringify(exportDataFallback, null, 2));
-        showStatus("success", "Couldn't open share dialog — backup copied to clipboard. Use Import from File on another device, or paste into a plain text file (.txt) and import that.");
-      } catch {
-        showStatus("error", "Export failed. Please use a desktop browser to download your backup.");
-      }
+    if (e.message === "__clipboard_fallback__") {
+      showStatus("success", "Share dialog unavailable — backup copied to clipboard. Paste it into Google Drive or a notes app, then share/export as .txt to reimport.");
+    } else if (e.message === "__clipboard_success__") {
+      showStatus("success", "Backup copied to clipboard (share was cancelled). Paste it into Google Drive or a notes app, then share/export as .txt to reimport.");
     } else {
       showStatus("error", `Export failed: ${e.message}`);
     }
