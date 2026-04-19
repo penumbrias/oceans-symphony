@@ -105,10 +105,7 @@ function App() {
     return null;
   });
 
-  const handleSetupComplete = () => {
-    // Setup is complete, clear the modal to show the app
-    setSetupState(null);
-  };
+
 
   return (
     <ThemeProvider>
@@ -116,7 +113,10 @@ function App() {
         <AuthProvider>
           <Router>
             {setupState ? (
-              <StorageModeSetup mode={setupState} onComplete={handleSetupComplete} />
+              <StorageModeSetup mode={setupState} onComplete={() => {
+                setSetupState(null);
+                window.location.href = "/";
+              }} />
             ) : (
               <AuthenticatedApp />
             )}
