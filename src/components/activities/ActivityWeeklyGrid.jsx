@@ -72,7 +72,7 @@ export default function ActivityWeeklyGrid({
 }) {
   const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
   const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      110));
-  const [interval,     setInterval]     = useState(() => lsGet(LS_INTERVAL,   60));
+  const [gridInterval, setGridInterval] = useState(() => lsGet(LS_INTERVAL,   60));
   const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet(LS_WEEK_START, 0));
   const [timeFmt,      setTimeFmt]      = useState(() => lsGet(LS_TIME_FMT,   "24"));
   const [tickMode,     setTickMode]     = useState(() => lsGet(LS_TICK_MODE,  "auto"));
@@ -93,7 +93,7 @@ export default function ActivityWeeklyGrid({
 
   useEffect(() => { lsSet(LS_ROW_H,      rowH);         }, [rowH]);
   useEffect(() => { lsSet(LS_COL_W,      colW);         }, [colW]);
-  useEffect(() => { lsSet(LS_INTERVAL,   interval);     }, [interval]);
+  useEffect(() => { lsSet(LS_INTERVAL,   gridInterval); }, [gridInterval]);
   useEffect(() => { lsSet(LS_WEEK_START, weekStartsOn); }, [weekStartsOn]);
   useEffect(() => { lsSet(LS_TIME_FMT,   timeFmt);      }, [timeFmt]);
   useEffect(() => { lsSet(LS_TICK_MODE,  tickMode);     }, [tickMode]);
@@ -115,12 +115,12 @@ export default function ActivityWeeklyGrid({
   const slots = useMemo(() => {
     const s = [];
     ALL_HOURS.forEach(h => {
-      for (let m = 0; m < 60; m += interval) {
+      for (let m = 0; m < 60; m += gridInterval) {
         s.push({ hour: h, minute: m });
       }
     });
     return s;
-  }, [interval]);
+  }, [gridInterval]);
 
   const getActivityColor = useCallback((act) => {
     for (const id of (act.activity_category_ids || [])) {
@@ -133,7 +133,7 @@ export default function ActivityWeeklyGrid({
   const getActivitiesForSlot = useCallback((date, hour, minute) => {
     const slotStart = new Date(date);
     slotStart.setHours(hour, minute, 0, 0);
-    const slotEnd = new Date(slotStart.getTime() + interval * 60 * 1000);
+    const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
     const timed = [], logged = [];
     activities.forEach(a => {
       const actStart = parseDate(a.timestamp);
@@ -145,28 +145,28 @@ export default function ActivityWeeklyGrid({
       }
     });
     return { timed, logged };
-  }, [activities, interval]);
+  }, [activities, gridInterval]);
 
   const isFirstSlotForActivity = useCallback((act, date, hour, minute) => {
     const actStart = parseDate(act.timestamp);
     const slotStart = new Date(date);
     slotStart.setHours(hour, minute, 0, 0);
-    const slotEnd = new Date(slotStart.getTime() + interval * 60 * 1000);
+    const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
     return actStart >= slotStart && actStart < slotEnd;
-  }, [interval]);
+  }, [gridInterval]);
 
   const isLastSlotForActivity = useCallback((act, date, hour, minute) => {
     const actEnd = new Date(parseDate(act.timestamp).getTime() + act.duration_minutes * 60 * 1000);
     const slotEnd = new Date(date);
     slotEnd.setHours(hour, minute, 0, 0);
-    slotEnd.setTime(slotEnd.getTime() + interval * 60 * 1000);
+    slotEnd.setTime(slotEnd.getTime() + gridInterval * 60 * 1000);
     return actEnd <= slotEnd;
-  }, [interval]);
+  }, [gridInterval]);
 
   const getAlterIdsForSlot = useCallback((date, hour, minute) => {
     const slotStart = new Date(date);
     slotStart.setHours(hour, minute, 0, 0);
-    const slotEnd = new Date(slotStart.getTime() + interval * 60 * 1000);
+    const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
     const ids = new Set();
     frontingHistory.forEach(s => {
       const start = parseDate(s.start_time);
@@ -177,12 +177,12 @@ export default function ActivityWeeklyGrid({
       }
     });
     return [...ids];
-  }, [frontingHistory, interval]);
+  }, [frontingHistory, gridInterval]);
 
 const getEmotionsForSlot = useCallback((date, hour, minute) => {
     const slotStart = new Date(date);
     slotStart.setHours(hour, minute, 0, 0);
-    const slotEnd = new Date(slotStart.getTime() + interval * 60 * 1000);
+    const slotEnd = new Date(slotStart.getTime() + gridInterval * 60 * 1000);
     const all = [];
     emotionCheckIns.forEach(e => {
       const t = parseDate(e.timestamp);
@@ -195,7 +195,7 @@ const getEmotionsForSlot = useCallback((date, hour, minute) => {
       }
     });
     return [...new Set(all)];
-  }, [emotionCheckIns, activities, interval]);
+  }, [emotionCheckIns, activities, gridInterval]);
 
   const getDayStats = useCallback((date) => {
     const dateStr = format(date, "yyyy-MM-dd");
@@ -305,9 +305,9 @@ if (isSameCell) {
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Interval</span>
               {[15, 30, 60].map(iv => (
-                <button key={iv} onClick={() => setInterval(iv)}
+                <button key={iv} onClick={() => setGridInterval(iv)}
                   className={`px-2 py-0.5 rounded font-medium transition-colors ${
-                    interval === iv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
+                    gridInterval === iv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
                   }`}>
                   {iv === 60 ? "1h" : `${iv}m`}
                 </button>
@@ -370,7 +370,7 @@ if (isSameCell) {
         <div className="flex-shrink-0 bg-muted border-r border-border flex flex-col z-10">
           <div style={{ height: HEADER_H, minHeight: HEADER_H }} className="border-b border-border" />
           {slots.map(({ hour, minute }) => {
-            const useTicks = shouldUseTicks(rowH, tickMode, interval);
+            const useTicks = shouldUseTicks(rowH, tickMode, gridInterval);
             return (
               <div
                 key={`${hour}-${minute}`}
@@ -386,7 +386,7 @@ if (isSameCell) {
                     {minute % 30 === 0 ? "·" : "−"}
                   </span>
                 ) : (
-                  interval <= 30 && (
+                  gridInterval <= 30 && (
                     <span className="opacity-50" style={{ fontSize: 8 }}>
                       {formatSlotLabel(hour, minute, timeFmt)}
                     </span>
