@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 
 export default function CoFrontingAnalytics({ sessions = [], alters = [], altersById = {}, from, to }) {
   const terms = useTerms();
+  const cofrontingLabel = terms.Cofronting;
 
   // Compute co-fronting pairs with overlap analysis
   const coFrontingPairs = useMemo(() => {
@@ -296,7 +297,7 @@ export default function CoFrontingAnalytics({ sessions = [], alters = [], alters
             <Bar
               dataKey="pairs"
               fill="var(--color-primary)"
-              name="Active {terms.Cofronting} Pairs"
+              name={`Active ${cofrontingLabel} Pairs`}
               radius={[8, 8, 0, 0]}
             />
           </BarChart>

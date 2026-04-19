@@ -45,8 +45,21 @@ export default function ActivityTimeOfDayChart({ activities = [], categories = [
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={hourData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-          <XAxis dataKey="hour" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" interval={1} />
-          <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+          <XAxis
+            dataKey="hour"
+            tick={{ fontSize: 11 }}
+            stroke="hsl(var(--muted-foreground))"
+            interval={3}
+            tickFormatter={(val) => {
+              // val is like "09:00"
+              const h = parseInt(val, 10);
+              if (isNaN(h)) return val;
+              if (h === 0) return "12am";
+              if (h === 12) return "12pm";
+              return h < 12 ? `${h}am` : `${h - 12}pm`;
+            }}
+          />
+          <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
           <Tooltip
             contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 6, fontSize: 12 }}
             formatter={(v) => [v, "Activities"]}

@@ -55,7 +55,14 @@ export default function ActivityFrequencyChart({ activities = [], categories = [
           <BarChart data={activityStats} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-            <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+            <YAxis
+              dataKey="name"
+              type="category"
+              width={90}
+              tick={{ fontSize: 11 }}
+              stroke="hsl(var(--muted-foreground))"
+              tickFormatter={(v) => v && v.length > 10 ? v.slice(0, 10) + "…" : v}
+            />
             <Tooltip 
               contentStyle={{ 
                 backgroundColor: "hsl(var(--card))",
@@ -77,7 +84,14 @@ export default function ActivityFrequencyChart({ activities = [], categories = [
             <BarChart data={activityStats} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-              <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+              <YAxis
+                dataKey="name"
+                type="category"
+                width={90}
+                tick={{ fontSize: 11 }}
+                stroke="hsl(var(--muted-foreground))"
+                tickFormatter={(v) => v && v.length > 10 ? v.slice(0, 10) + "…" : v}
+              />
               <Tooltip 
                 contentStyle={{ 
                   backgroundColor: "hsl(var(--card))",
