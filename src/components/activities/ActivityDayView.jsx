@@ -21,12 +21,12 @@ function formatHour(h) {
   return `${h % 12 || 12}${period}`;
 }
 
-// Build a list of "segments": either an activity hour or a collapsed empty band
-function buildSegments(hours, getSlotData) {
+// Build segments: consecutive empty hours → one collapsed band; active hours → individual rows
+function buildSegments(getSlotData) {
   const segments = [];
   let emptyBand = null;
 
-  for (const hour of hours) {
+  for (const hour of ALL_HOURS) {
     const data = getSlotData(hour);
     const isEmpty = data.timed.length === 0 && data.logged.length === 0;
 
@@ -49,66 +49,70 @@ function AlterAvatar({ alterId, alters }) {
   const alter = alters.find(a => a.id === alterId);
   return (
     <div
-      className="w-5 h-5 rounded-full border border-white/60 overflow-hidden flex items-center justify-center flex-shrink-0"
+      className="w-5 h-5 rounded-full border-2 border-white/80 overflow-hidden flex items-center justify-center flex-shrink-0"
       style={{ backgroundColor: alter?.color || "#9333ea" }}
       title={alter?.name}
     >
       {alter?.avatar_url
         ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
-        : <span className="font-bold text-white" style={{ fontSize: 8 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
+        : <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
       }
     </div>
   );
 }
 
+// Tall color block for timed activities
 function ActivityBlock({ activity, getColor, alters, emotions, alterIds }) {
   const color = getColor(activity);
   return (
     <div
-      className="rounded-lg overflow-hidden relative"
+      className="rounded-lg overflow-hidden relative w-full"
       style={{ backgroundColor: color, minHeight: 72 }}
-      onClick={(e) => e.stopPropagation()}
     >
-      {/* Emotions + alters overlay — top right */}
-      {(emotions.length > 0 || alterIds.length > 0) && (
+      {/* Alter avatars + emotion dots — top right, tightly stacked */}
+      {(alterIds.length > 0 || emotions.length > 0) && (
         <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
           {alterIds.length > 0 && (
-            <div className="flex gap-0.5">
+            <div className="flex -space-x-1">
               {alterIds.slice(0, 4).map(id => <AlterAvatar key={id} alterId={id} alters={alters} />)}
             </div>
           )}
           {emotions.length > 0 && (
-            <div className="flex gap-0.5 flex-wrap justify-end">
+            <div className="flex gap-0.5 flex-wrap justify-end max-w-[60px]">
               {emotions.slice(0, 4).map((em, i) => (
-                <div key={i} className="w-3 h-3 rounded-full" style={{ backgroundColor: emotionColor(em) }} title={em} />
+                <div key={i} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: emotionColor(em) }} title={em} />
               ))}
             </div>
           )}
         </div>
       )}
-
       <div className="p-3 pr-14">
-        <p className="font-bold text-white text-base leading-tight">{activity.activity_name}</p>
+        <p className="font-bold text-white text-base leading-snug break-words max-w-full">{activity.activity_name}</p>
         {activity.duration_minutes > 0 && (
-          <p className="text-white/80 text-xs mt-0.5">{activity.duration_minutes}m</p>
+          <p className="text-white/75 text-xs mt-0.5">{activity.duration_minutes}m</p>
         )}
         {activity.notes && (
-          <p className="text-white/70 text-xs italic mt-1 leading-snug">{activity.notes}</p>
+          <p className="text-white/65 text-xs italic mt-1 leading-snug break-words">{activity.notes}</p>
         )}
       </div>
     </div>
   );
 }
 
+// Small colored pill for logged (no-duration) activities
 function LoggedPill({ activity, getColor }) {
   const color = getColor(activity);
   return (
-    <div className="flex items-start gap-2">
-      <div className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: color }} />
-      <div>
-        <span className="font-medium text-foreground text-sm">{activity.activity_name}</span>
-        {activity.notes && <p className="text-xs text-muted-foreground italic leading-snug">{activity.notes}</p>}
+    <div className="flex flex-col gap-0.5">
+      <div
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full self-start"
+        style={{ backgroundColor: color }}
+      >
+        <span className="font-semibold text-white text-sm break-words">{activity.activity_name}</span>
       </div>
+      {activity.notes && (
+        <p className="text-xs text-muted-foreground italic leading-snug pl-1 break-words">{activity.notes}</p>
+      )}
     </div>
   );
 }
@@ -154,26 +158,24 @@ export default function ActivityDayView({
 
   const getSlotData = useCallback((hour) => {
     const { timed, logged } = getActivitiesForSlot(date, hour, 0, INTERVAL, dayActivities);
-    const alterIds = getAlterIdsForSlot(date, hour, 0, INTERVAL, frontingHistory);
-    const emotions = getEmotionsForSlot(date, hour, 0, INTERVAL, dayActivities, emotionCheckIns);
-    // Only show alters if there are activities in this slot
     const hasActivities = timed.length > 0 || logged.length > 0;
-    return { timed, logged, alterIds: hasActivities ? alterIds : [], emotions };
+    // Only attach alters/emotions to rows that actually have activities
+    const alterIds = hasActivities ? getAlterIdsForSlot(date, hour, 0, INTERVAL, frontingHistory) : [];
+    const emotions = hasActivities ? getEmotionsForSlot(date, hour, 0, INTERVAL, dayActivities, emotionCheckIns) : [];
+    return { timed, logged, alterIds, emotions };
   }, [date, dayActivities, frontingHistory, emotionCheckIns]);
 
-  const segments = useMemo(() => buildSegments(ALL_HOURS, getSlotData), [getSlotData]);
+  const segments = useMemo(() => buildSegments(getSlotData), [getSlotData]);
+  const allEmpty = dayActivities.length === 0;
 
   // Now line
-  const [nowMins, setNowMins] = useState(() => {
-    const n = new Date(); return n.getHours() * 60 + n.getMinutes();
-  });
+  const [nowMins, setNowMins] = useState(() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); });
   useEffect(() => {
     if (!isToday) return;
-    const t = setInterval(() => {
-      const n = new Date(); setNowMins(n.getHours() * 60 + n.getMinutes());
-    }, 60000);
+    const t = setInterval(() => { const n = new Date(); setNowMins(n.getHours() * 60 + n.getMinutes()); }, 60000);
     return () => clearInterval(t);
   }, [isToday]);
+  const nowHour = isToday ? Math.floor(nowMins / 60) : null;
 
   // ESC to close
   useEffect(() => {
@@ -191,7 +193,6 @@ export default function ActivityDayView({
   };
 
   // Auto-scroll to current time or first activity
-  const scrollRef = useRef(null);
   const nowLineRef = useRef(null);
   const firstActivityRef = useRef(null);
   useEffect(() => {
@@ -201,18 +202,13 @@ export default function ActivityDayView({
       } else if (firstActivityRef.current) {
         firstActivityRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
       }
-    }, 100);
+    }, 120);
   }, [isToday]);
 
   const handleAddNow = () => {
     const now = new Date();
     onTimeRangeSelect(date, now.getHours(), null, now.getMinutes(), null);
   };
-
-  // Track which hours are "active" for now-line positioning
-  // We render a flat list, so track cumulative pixel offset manually
-  // Instead, use a ref on each segment row for the now line
-  const nowHour = isToday ? Math.floor(nowMins / 60) : null;
 
   let firstActivitySet = false;
 
@@ -228,13 +224,12 @@ export default function ActivityDayView({
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-bold text-foreground leading-tight">
-            {format(date, "EEEE, MMMM d")}
-          </h2>
+          <h2 className="text-base font-bold text-foreground leading-tight">{format(date, "EEEE, MMMM d")}</h2>
           <p className="text-xs text-muted-foreground">
-            {dayActivities.length > 0
-              ? `${dayActivities.length} activit${dayActivities.length !== 1 ? "ies" : "y"}${totalDuration > 0 ? ` · ${Math.floor(totalDuration / 60)}h${totalDuration % 60 > 0 ? ` ${totalDuration % 60}m` : ""}` : ""}`
-              : "No activities"}
+            {allEmpty
+              ? "No activities"
+              : `${dayActivities.length} activit${dayActivities.length !== 1 ? "ies" : "y"}${totalDuration > 0 ? ` · ${Math.floor(totalDuration / 60)}h${totalDuration % 60 > 0 ? ` ${totalDuration % 60}m` : ""}` : ""}`
+            }
           </p>
         </div>
         <Button size="sm" onClick={handleAddNow} className="gap-1.5 flex-shrink-0">
@@ -243,121 +238,124 @@ export default function ActivityDayView({
       </div>
 
       {/* Scrollable timeline */}
-      <div className="flex-1 overflow-y-auto" ref={scrollRef}>
-        <div className="relative" style={{ paddingLeft: 52, paddingBottom: 80 }}>
+      <div className="flex-1 overflow-y-auto">
+        <div className="pb-32">
 
-          {segments.map((seg, segIdx) => {
-            // Collapsed empty band
-            if (seg.type === "empty") {
-              // Check if now is in this band
-              const nowInBand = nowHour !== null && nowHour >= seg.startHour && nowHour <= seg.endHour;
+          {/* Full-day empty state */}
+          {allEmpty ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-24 px-8 text-center">
+              <p className="text-muted-foreground text-sm">No activities logged for this day</p>
+              <Button onClick={handleAddNow} className="gap-2">
+                <Plus className="w-4 h-4" /> Log an activity
+              </Button>
+            </div>
+          ) : (
+            segments.map((seg) => {
+              /* ── Collapsed empty band ── */
+              if (seg.type === "empty") {
+                const nowInBand = nowHour !== null && nowHour >= seg.startHour && nowHour <= seg.endHour;
+                const label = seg.startHour === seg.endHour
+                  ? `${formatHour(seg.startHour)} · no activities`
+                  : `${formatHour(seg.startHour)} – ${formatHour(seg.endHour + 1)} · no activities`;
+
+                return (
+                  <div
+                    key={`empty-${seg.startHour}`}
+                    ref={nowInBand ? nowLineRef : null}
+                    className="relative flex items-center border-t border-b border-border/20 bg-muted/10 cursor-pointer hover:bg-primary/5 transition-colors"
+                    style={{ minHeight: 32 }}
+                    onClick={() => onTimeRangeSelect(date, seg.startHour, null, 0, null)}
+                  >
+                    {/* Hour label column */}
+                    <div className="w-14 flex-shrink-0 text-right pr-3 select-none"
+                      style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", opacity: 0.45 }}>
+                      {formatHour(seg.startHour)}
+                    </div>
+                    {/* Band text */}
+                    <div className="flex-1 py-2">
+                      <span className="text-xs text-muted-foreground/40 select-none">{label}</span>
+                    </div>
+                    {/* Now line inside empty band */}
+                    {nowInBand && (
+                      <div className="absolute left-0 right-0 pointer-events-none flex items-center z-10" style={{ top: "50%" }}>
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 ml-11" />
+                        <div className="flex-1 h-0.5 bg-primary opacity-80" />
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              /* ── Active hour row ── */
+              const { timed, logged, alterIds, emotions } = seg.data;
+              const isCurrentHour = isToday && nowHour === seg.hour;
+              const isFirstActivity = !firstActivitySet;
+              if (isFirstActivity) firstActivitySet = true;
+
               return (
                 <div
-                  key={`empty-${seg.startHour}`}
-                  ref={nowInBand ? nowLineRef : null}
-                  className="relative flex items-center group"
-                  style={{ height: 32 }}
-                  onClick={() => onTimeRangeSelect(date, seg.startHour, null, 0, null)}
+                  key={`active-${seg.hour}`}
+                  ref={isCurrentHour ? nowLineRef : (isFirstActivity ? firstActivityRef : null)}
+                  className={`relative flex border-t border-border/20 ${isCurrentHour ? "bg-primary/5" : ""}`}
+                  style={{ minHeight: 80 }}
                 >
-                  {/* Hour label */}
-                  <div
-                    className="absolute left-0 text-right pr-3 select-none"
-                    style={{ width: 48, fontSize: 11, color: "hsl(var(--muted-foreground))", opacity: 0.5 }}
-                  >
-                    {formatHour(seg.startHour)}
-                  </div>
-                  {/* Band label */}
-                  <div className="flex-1 border-t border-border/20 flex items-center cursor-pointer hover:bg-primary/5 transition-colors rounded-r">
-                    <span className="text-xs text-muted-foreground/40 px-2 group-hover:text-muted-foreground/60 transition-colors select-none">
-                      {seg.startHour === seg.endHour
-                        ? formatHour(seg.startHour)
-                        : `${formatHour(seg.startHour)} – ${formatHour(seg.endHour + 1)}`}
-                      {" · no activities"}
-                    </span>
-                  </div>
-                  {/* Now line in empty band */}
-                  {nowInBand && (
-                    <div className="absolute left-0 right-0 pointer-events-none flex items-center z-10" style={{ top: "50%" }}>
-                      <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0" style={{ marginLeft: 44 }} />
+                  {/* Now line */}
+                  {isCurrentHour && (
+                    <div
+                      className="absolute left-0 right-0 pointer-events-none flex items-center z-10"
+                      style={{ top: `${((nowMins % 60) / 60) * 100}%` }}
+                    >
+                      <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 ml-11" />
                       <div className="flex-1 h-0.5 bg-primary opacity-80" />
                     </div>
                   )}
+
+                  {/* Hour label column — fixed width, never floats over content */}
+                  <div
+                    className="w-14 flex-shrink-0 text-right pr-3 pt-3 select-none"
+                    style={{
+                      fontSize: 13,
+                      fontWeight: isCurrentHour ? 700 : 500,
+                      color: isCurrentHour ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                    }}
+                  >
+                    {formatHour(seg.hour)}
+                  </div>
+
+                  {/* Content column */}
+                  <div
+                    className="flex-1 px-2 py-2 space-y-2 cursor-pointer"
+                    onClick={() => {
+                      const allActs = [...timed, ...logged];
+                      if (allActs.length > 0) onActivityClick?.(allActs);
+                      else onTimeRangeSelect(date, seg.hour, null, 0, null);
+                    }}
+                  >
+                    {timed.map(a => (
+                      <ActivityBlock
+                        key={a.id}
+                        activity={a}
+                        getColor={getColor}
+                        alters={alters}
+                        emotions={emotions}
+                        alterIds={alterIds}
+                      />
+                    ))}
+                    {logged.map(a => (
+                      <LoggedPill key={a.id} activity={a} getColor={getColor} />
+                    ))}
+                  </div>
                 </div>
               );
-            }
-
-            // Active hour row
-            const { timed, logged, alterIds, emotions } = seg.data;
-            const isCurrentHour = isToday && new Date().getHours() === seg.hour;
-            const isFirstActivity = !firstActivitySet && (timed.length > 0 || logged.length > 0);
-            if (isFirstActivity) firstActivitySet = true;
-
-            return (
-              <div
-                key={`active-${seg.hour}`}
-                ref={isToday && isCurrentHour ? nowLineRef : (isFirstActivity ? firstActivityRef : null)}
-                className="relative flex"
-                style={{ minHeight: 80 }}
-              >
-                {/* Hour label */}
-                <div
-                  className="absolute left-0 top-3 text-right pr-3 select-none"
-                  style={{
-                    width: 48,
-                    fontSize: 13,
-                    fontWeight: isCurrentHour ? 700 : 500,
-                    color: isCurrentHour ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"
-                  }}
-                >
-                  {formatHour(seg.hour)}
-                </div>
-
-                {/* Now line */}
-                {isToday && isCurrentHour && (
-                  <div
-                    className="absolute left-0 right-0 pointer-events-none flex items-center z-10"
-                    style={{ top: ((nowMins % 60) / 60) * 80 }}
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0" style={{ marginLeft: 44 }} />
-                    <div className="flex-1 h-0.5 bg-primary opacity-80" />
-                  </div>
-                )}
-
-                {/* Content area */}
-                <div
-                  className={`flex-1 border-t border-border/20 px-2 py-2 space-y-2
-                    ${isCurrentHour ? "bg-primary/5" : ""}
-                  `}
-                  onClick={() => {
-                    const allActs = [...timed, ...logged];
-                    if (allActs.length > 0) onActivityClick?.(allActs);
-                    else onTimeRangeSelect(date, seg.hour, null, 0, null);
-                  }}
-                >
-                  {timed.map(a => (
-                    <ActivityBlock
-                      key={a.id}
-                      activity={a}
-                      getColor={getColor}
-                      alters={alters}
-                      emotions={emotions}
-                      alterIds={alterIds}
-                    />
-                  ))}
-                  {logged.map(a => (
-                    <LoggedPill key={a.id} activity={a} getColor={getColor} />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+            })
+          )}
         </div>
       </div>
 
-      {/* Floating add button */}
+      {/* Floating add button — above bottom nav */}
       <button
         onClick={handleAddNow}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-primary shadow-lg flex items-center justify-center text-white z-20 hover:bg-primary/90 transition-colors"
+        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-primary shadow-lg flex items-center justify-center text-white z-20 hover:bg-primary/90 transition-colors"
         aria-label="Add activity"
       >
         <Plus className="w-6 h-6" />

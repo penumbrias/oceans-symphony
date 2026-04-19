@@ -201,13 +201,9 @@ if (isSameCell) {
   const handleSetWeekStart = (val) => { setWeekStartsOn(val); onWeekStartChange?.(val); };
 
   const clampTooltipPos = useCallback((x, y) => {
-    const W = window.innerWidth;
-    const H = window.innerHeight;
-    const TW = 260; // approx tooltip width
-    const TH = 320; // approx tooltip max height
     return {
-      x: Math.min(x + 10, W - TW - 8),
-      y: Math.min(y + 10, H - TH - 8),
+      x: Math.min(x + 10, window.innerWidth - 300),
+      y: Math.min(y + 10, window.innerHeight - 200),
     };
   }, []);
 
@@ -356,8 +352,8 @@ if (isSameCell) {
 
         return (
           <div
-            className="fixed z-50 pointer-events-none"
-            style={{ left: position.x, top: position.y, maxWidth: 260 }}
+            className="fixed z-50 pointer-events-none w-max max-w-[280px]"
+            style={{ left: position.x, top: position.y }}
           >
             <div className="bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-lg p-3 space-y-2 text-xs">
               <p className="text-muted-foreground font-medium">{format(date, "EEE d MMM")} · {timeRange}</p>
