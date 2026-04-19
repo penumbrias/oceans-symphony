@@ -4,6 +4,9 @@ import { useTerms } from "@/lib/useTerms";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card } from "@/components/ui/card";
 
+const getAlterIdFromSession = (s) => s.alter_id || s.primary_alter_id;
+const getAllIdsFromSession = (s) => s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+
 export default function CoFrontingAnalytics({ sessions = [], alters = [], altersById = {}, from, to }) {
   const terms = useTerms();
   const cofrontingLabel = terms.Cofronting;
@@ -16,43 +19,52 @@ export default function CoFrontingAnalytics({ sessions = [], alters = [], alters
       return st >= startOfDay(from).getTime() && st <= endOfDay(to).getTime();
     });
 
-    // Find overlapping sessions
-    filtered.forEach((sessionA) => {
-      const startA = new Date(sessionA.start_time).getTime();
-      const endA = sessionA.end_time ? new Date(sessionA.end_time).getTime() : Date.now();
+    const addOverlap = (idA, idB, overlap) => {
+      if (!idA || !idB || idA === idB) return;
+      const pairKey = [idA, idB].sort().join("--");
+      if (!pairs[pairKey]) {
+        pairs[pairKey] = {
+          alterIdA: [idA, idB].sort()[0],
+          alterIdB: [idA, idB].sort()[1],
+          totalOverlap: 0,
+          occurrences: 0,
+        };
+      }
+      pairs[pairKey].totalOverlap += overlap;
+      pairs[pairKey].occurrences += 1;
+    };
 
-      filtered.forEach((sessionB) => {
-        if (sessionA.id === sessionB.id) return;
-        if (sessionA.alter_id === sessionB.alter_id) return;
-
-        const startB = new Date(sessionB.start_time).getTime();
-        const endB = sessionB.end_time ? new Date(sessionB.end_time).getTime() : Date.now();
-
-        // Check overlap
-        const overlapStart = Math.max(startA, startB);
-        const overlapEnd = Math.min(endA, endB);
-        if (overlapEnd <= overlapStart) return;
-
-        const overlapDuration = overlapEnd - overlapStart;
-        const pairKey = [sessionA.alter_id, sessionB.alter_id].sort().join("--");
-
-        if (!pairs[pairKey]) {
-          pairs[pairKey] = {
-            alterIdA: [sessionA.alter_id, sessionB.alter_id].sort()[0],
-            alterIdB: [sessionA.alter_id, sessionB.alter_id].sort()[1],
-            totalOverlap: 0,
-            occurrences: 0,
-          };
+    // New individual model: find overlapping sessions between different alters
+    const individualSessions = filtered.filter(s => s.alter_id);
+    for (let i = 0; i < individualSessions.length; i++) {
+      for (let j = i + 1; j < individualSessions.length; j++) {
+        const a = individualSessions[i];
+        const b = individualSessions[j];
+        if (a.alter_id === b.alter_id) continue;
+        const aStart = new Date(a.start_time).getTime();
+        const aEnd = a.end_time ? new Date(a.end_time).getTime() : Date.now();
+        const bStart = new Date(b.start_time).getTime();
+        const bEnd = b.end_time ? new Date(b.end_time).getTime() : Date.now();
+        const overlapStart = Math.max(aStart, bStart);
+        const overlapEnd = Math.min(aEnd, bEnd);
+        if (overlapEnd > overlapStart) {
+          addOverlap(a.alter_id, b.alter_id, overlapEnd - overlapStart);
         }
-        pairs[pairKey].totalOverlap += overlapDuration;
-        pairs[pairKey].occurrences += 1;
-      });
-    });
+      }
+    }
 
-    // De-duplicate (each pair counted twice)
-    Object.keys(pairs).forEach((key) => {
-      pairs[key].totalOverlap = Math.round(pairs[key].totalOverlap / 2);
-      pairs[key].occurrences = Math.round(pairs[key].occurrences / 2);
+    // Legacy grouped model: primary + co_fronter_ids were all fronting together
+    const legacySessions = filtered.filter(s => !s.alter_id && s.primary_alter_id);
+    legacySessions.forEach(s => {
+      const start = new Date(s.start_time).getTime();
+      const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
+      const duration = end - start;
+      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          addOverlap(ids[i], ids[j], duration);
+        }
+      }
     });
 
     return Object.values(pairs).sort((a, b) => b.totalOverlap - a.totalOverlap);
@@ -63,7 +75,7 @@ export default function CoFrontingAnalytics({ sessions = [], alters = [], alters
     return alters
       .filter((a) => !a.is_archived)
       .map((alter) => {
-        const alterSessions = sessions.filter((s) => s.alter_id === alter.id);
+        const alterSessions = sessions.filter((s) => getAllIdsFromSession(s).includes(alter.id));
         let soloTime = 0;
         let coTime = 0;
 
@@ -74,7 +86,7 @@ export default function CoFrontingAnalytics({ sessions = [], alters = [], alters
 
           // Check if any other session overlaps
           const hasOverlap = sessions.some((other) => {
-            if (other.id === session.id || other.alter_id === alter.id) return false;
+            if (other.id === session.id || !getAllIdsFromSession(other).includes(alter.id)) return false;
             const oStart = new Date(other.start_time).getTime();
             const oEnd = other.end_time ? new Date(other.end_time).getTime() : Date.now();
             return oStart < end && oEnd > start;
@@ -98,27 +110,40 @@ export default function CoFrontingAnalytics({ sessions = [], alters = [], alters
       return st >= startOfDay(from).getTime() && st <= endOfDay(to).getTime();
     });
 
-    filtered.forEach((sessionA) => {
-      const startA = new Date(sessionA.start_time).getTime();
-      const endA = sessionA.end_time ? new Date(sessionA.end_time).getTime() : Date.now();
+    const addHourOverlap = (startMs, endMs) => {
+      const startHour = new Date(startMs).getHours();
+      const endHour = new Date(endMs).getHours();
+      for (let h = startHour; h <= endHour && h < 24; h++) {
+        hours[h] += 1;
+      }
+    };
 
-      filtered.forEach((sessionB) => {
-        if (sessionA.id === sessionB.id) return;
-        if (sessionA.alter_id === sessionB.alter_id) return;
-
-        const startB = new Date(sessionB.start_time).getTime();
-        const endB = sessionB.end_time ? new Date(sessionB.end_time).getTime() : Date.now();
-
-        const overlapStart = Math.max(startA, startB);
-        const overlapEnd = Math.min(endA, endB);
-        if (overlapEnd <= overlapStart) return;
-
-        const startHour = new Date(overlapStart).getHours();
-        const endHour = new Date(overlapEnd).getHours();
-        for (let h = startHour; h <= endHour && h < 24; h++) {
-          hours[h] += 1;
+    // New individual model
+    const individualSessions = filtered.filter(s => s.alter_id);
+    for (let i = 0; i < individualSessions.length; i++) {
+      for (let j = i + 1; j < individualSessions.length; j++) {
+        const a = individualSessions[i];
+        const b = individualSessions[j];
+        if (a.alter_id === b.alter_id) continue;
+        const aStart = new Date(a.start_time).getTime();
+        const aEnd = a.end_time ? new Date(a.end_time).getTime() : Date.now();
+        const bStart = new Date(b.start_time).getTime();
+        const bEnd = b.end_time ? new Date(b.end_time).getTime() : Date.now();
+        const overlapStart = Math.max(aStart, bStart);
+        const overlapEnd = Math.min(aEnd, bEnd);
+        if (overlapEnd > overlapStart) {
+          addHourOverlap(overlapStart, overlapEnd);
         }
-      });
+      }
+    }
+
+    // Legacy grouped model
+    const legacySessions = filtered.filter(s => !s.alter_id && s.primary_alter_id);
+    legacySessions.forEach(s => {
+      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+      if (ids.length > 1) {
+        addHourOverlap(new Date(s.start_time).getTime(), s.end_time ? new Date(s.end_time).getTime() : Date.now());
+      }
     });
 
     // De-duplicate
@@ -131,7 +156,7 @@ export default function CoFrontingAnalytics({ sessions = [], alters = [], alters
       alters.filter(
         (a) =>
           !a.is_archived &&
-          sessions.some((s) => s.alter_id === a.id)
+          sessions.some((s) => getAllIdsFromSession(s).includes(a.id))
       ),
     [alters, sessions]
   );
