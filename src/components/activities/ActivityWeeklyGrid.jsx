@@ -77,6 +77,12 @@ export default function ActivityWeeklyGrid({
   const [timeFmt,      setTimeFmt]      = useState(() => lsGet(LS_TIME_FMT,   "24"));
   const [tickMode,     setTickMode]     = useState(() => lsGet(LS_TICK_MODE,  "auto"));
 
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const [showAlters,     setShowAlters]     = useState(false);
   const [showEmotions,   setShowEmotions]   = useState(false);
   const [showCustomMenu, setShowCustomMenu] = useState(false);
@@ -393,7 +399,22 @@ if (isSameCell) {
 
         {/* Scrollable days */}
         <div className="overflow-x-auto flex-1">
-          <div style={{ minWidth: weekDays.length * colW }}>
+          <div className="relative" style={{ minWidth: weekDays.length * colW }}>
+            {/* Now line — only when today is in the visible week */}
+            {(() => {
+              const todayStr = format(currentTime, "yyyy-MM-dd");
+              const todayInWeek = weekDays.some(d => format(d, "yyyy-MM-dd") === todayStr);
+              if (!todayInWeek) return null;
+              const totalGridHeight = slots.length * rowH;
+              const nowTop = HEADER_H + ((currentTime.getHours() * 60 + currentTime.getMinutes()) / (24 * 60)) * totalGridHeight;
+              return (
+                <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
+                  style={{ top: nowTop }}>
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 -ml-1" />
+                  <div className="flex-1 h-0.5 bg-primary opacity-80" />
+                </div>
+              );
+            })()}
             {/* Day headers */}
             <div className="grid bg-card border-b border-border"
               style={{ gridTemplateColumns: `repeat(${weekDays.length}, ${colW}px)`, height: HEADER_H }}>
@@ -621,6 +642,7 @@ if (isSameCell) {
                 })}
               </div>
             ))}
+          </div>
           </div>
         </div>
       </div>
