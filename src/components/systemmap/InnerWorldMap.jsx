@@ -537,14 +537,17 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           onDrop={handleSvgDrop}
           onDragOver={e => e.preventDefault()}
           onClick={(e) => {
-            if (placingAlter) {
-              const rect = svgRef.current.getBoundingClientRect();
-              const nx = (e.clientX - rect.left - transform.x) / transform.scale;
-              const ny = (e.clientY - rect.top - transform.y) / transform.scale;
-              saveAlterPosition(placingAlter, nx, ny, snapToGrid);
-              setPlacingAlter(null);
-            } else {
-              setRelPopover(null);
+            // Only close popovers if clicking directly on canvas background
+            if (e.target === svgRef.current) {
+              if (placingAlter) {
+                const rect = svgRef.current.getBoundingClientRect();
+                const nx = (e.clientX - rect.left - transform.x) / transform.scale;
+                const ny = (e.clientY - rect.top - transform.y) / transform.scale;
+                saveAlterPosition(placingAlter, nx, ny, snapToGrid);
+                setPlacingAlter(null);
+              } else {
+                setRelPopover(null);
+              }
             }
           }}
           onTouchEnd={handleCanvasTouchEnd}
