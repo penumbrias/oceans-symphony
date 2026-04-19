@@ -12,7 +12,7 @@ const STEPS = (t) => [
   {
     title: `Welcome to Oceans Symphony 💜`,
     subtitle: 'A safe space built for dissociative systems',
-    body: `Symphony is built specifically for DID, OSDD, and other dissociative systems. It helps your system stay connected, track experiences, and bridge the gaps that amnesia creates.`,
+    body: `Symphony is built intentionally for DID, OSDD, and other dissociative systems, and is free for anyone to use for any purpose. It is designed specifically to help track and manage dissociative and PTSD symptoms, help your system stay connected, track experiences, and bridge the gaps that amnesia creates.`,
     icon: '🌊',
     color: 'from-violet-500/20 to-purple-500/20',
     tip: null,
