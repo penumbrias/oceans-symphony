@@ -116,7 +116,7 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   const ry = isOval ? height / 2 : 8;
 
   return (
-    <g style={{ cursor: is_locked ? "not-allowed" : dragging ? "grabbing" : "grab", touchAction: "none" }}>
+    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }}>
       <defs>
         {background_image_url && (
           <>
