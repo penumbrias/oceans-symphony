@@ -89,7 +89,7 @@ const handleNotifClick = (mentionLog) => {
   const canGoBack = historyDepth > 0 && !isTabRoot(location.pathname);
 
   return (
-    <div className="flex flex-col min-h-screen bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+    <div className="flex flex-col min-h-screen bg-background">
       {/* ── Desktop top header (hidden on mobile) ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl hidden sm:block">
         <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between">
@@ -137,7 +137,8 @@ const handleNotifClick = (mentionLog) => {
       </header>
 
       {/* ── Mobile top bar (shown only on mobile) ── */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex items-center justify-between px-2 h-14">
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+        <div className="flex items-center justify-between px-2 h-14">
         {/* Left: back button or logo */}
         {canGoBack ?
         <button
@@ -168,6 +169,7 @@ const handleNotifClick = (mentionLog) => {
           
           <Settings className="w-5 h-5" />
         </Link>
+        </div>
       </header>
 
       {/* ── Page content ── */}

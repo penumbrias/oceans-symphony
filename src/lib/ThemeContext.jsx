@@ -363,6 +363,20 @@ export function ThemeProvider({ children }) {
     for (const [key, value] of Object.entries(colors)) {
       document.documentElement.style.setProperty(`--color-${key}`, value);
     }
+
+    // Update theme-color meta tag to match the app background (for APK status bar)
+    const bgColor = colors.bg || colors['bg'];
+    if (bgColor) {
+      let metaTag = document.querySelector('meta[name="theme-color"]:not([media])');
+      if (!metaTag) {
+        // Remove media-conditional ones and add a single one
+        document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.remove());
+        metaTag = document.createElement('meta');
+        metaTag.name = 'theme-color';
+        document.head.appendChild(metaTag);
+      }
+      metaTag.content = bgColor;
+    }
   }, [themeMode, selectedTheme, customColors, mounted, isDarkOS, selectedFont, userCustomPresets]);
 
   const updateCustomColors = (newLight) => {
