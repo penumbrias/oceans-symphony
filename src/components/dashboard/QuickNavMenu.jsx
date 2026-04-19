@@ -28,7 +28,6 @@ function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
 
     "Analytics": [
     { id: "analytics", label: "Analytics", icon: BarChart2, path: "/analytics" },
-    { id: "co-fronting", label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics" },
     { id: "system-map", label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map" },
     { id: "timeline", label: "Timeline", icon: Clock, path: "/timeline" }],
 
@@ -52,7 +51,6 @@ function buildGridItems(altersLabel, frontLabel, systemLabel) {
   { id: "system-map", label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
   { id: "journals", label: "Journals", icon: BookOpen, path: "/journals", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
   { id: "daily-tasks", label: "Daily Tasks", icon: CheckSquare, path: "/tasks", color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
-  { id: "co-fronting", label: `Co-${frontLabel}ing`, icon: GitBranch, path: "/cofronting-analytics", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
   { id: "groups", label: "Groups", icon: Users, path: "/groups", color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
   { id: "tasks", label: "Daily Tasks", icon: CheckSquare, path: "/tasks", color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
 { id: "safety-plan", label: "Safety Plan", icon: Heart, path: "/safety-plan", color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },

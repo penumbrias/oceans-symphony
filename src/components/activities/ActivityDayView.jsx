@@ -100,8 +100,11 @@ function ActivityBlock({ activity, getColor, alters, emotions, alterIds }) {
 }
 
 // Small colored pill for logged (no-duration) activities
-function LoggedPill({ activity, getColor }) {
+function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAlterIds = [] }) {
   const color = getColor(activity);
+  // Merge emotions/alters from the activity itself + slot-level
+  const emotions = [...new Set([...(activity.emotions || []), ...slotEmotions])];
+  const alterIds = [...new Set([...(activity.fronting_alter_ids || []), ...slotAlterIds])];
   return (
     <div className="flex flex-col gap-0.5">
       <div
@@ -109,6 +112,18 @@ function LoggedPill({ activity, getColor }) {
         style={{ backgroundColor: color }}
       >
         <span className="font-semibold text-white text-sm break-words">{activity.activity_name}</span>
+        {alterIds.length > 0 && (
+          <div className="flex -space-x-1">
+            {alterIds.slice(0, 3).map(id => <AlterAvatar key={id} alterId={id} alters={alters} />)}
+          </div>
+        )}
+        {emotions.length > 0 && (
+          <div className="flex gap-0.5">
+            {emotions.slice(0, 3).map((em, i) => (
+              <div key={i} className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emotionColor(em) }} title={em} />
+            ))}
+          </div>
+        )}
       </div>
       {activity.notes && (
         <p className="text-xs text-muted-foreground italic leading-snug pl-1 break-words">{activity.notes}</p>
@@ -342,7 +357,7 @@ export default function ActivityDayView({
                       />
                     ))}
                     {logged.map(a => (
-                      <LoggedPill key={a.id} activity={a} getColor={getColor} />
+                      <LoggedPill key={a.id} activity={a} getColor={getColor} alters={alters} slotEmotions={emotions} slotAlterIds={alterIds} />
                     ))}
                   </div>
                 </div>
