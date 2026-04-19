@@ -11,8 +11,6 @@ import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
-import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
-import SymptomManager from "@/components/symptoms/SymptomManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
@@ -205,12 +203,6 @@ export default function Settings() {
               </div>
             </div>
             <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <DiaryTemplateManager settings={settings} />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <SymptomManager />
           </div>
           <div className="border-t border-border/30 pt-4">
             <CustomEmotionsManager />
