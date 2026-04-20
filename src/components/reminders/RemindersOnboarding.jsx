@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { toast } from "sonner";
+import ReminderEditorModal from "./ReminderEditorModal";
 
 const SEEDS = [
   {
@@ -72,10 +73,42 @@ const SEEDS = [
     delivery_channels: ["in_app"],
     inline_actions: [],
     quiet_hours_respect: true,
-    is_active: false, // off by default
+    is_active: false,
+    snooze_options: [10, 60, 240, "tomorrow"],
+  },
+  {
+    title: "Did that help?",
+    body: "Quick check: has the medication kicked in?",
+    category: "meds",
+    trigger_type: "contextual",
+    trigger_config: { on: "symptom_logged", symptom_ids: [], delay_minutes: 30 },
+    delivery_channels: ["in_app"],
+    inline_actions: [
+      { label: "Log symptom check-in", action_type: "open_symptom_check_in", payload: {} },
+      { label: "All good", action_type: "dismiss", payload: {} },
+    ],
+    quiet_hours_respect: true,
+    is_active: false,
+    snooze_options: [10, 60, 240, "tomorrow"],
+  },
+  {
+    title: "Hi [alter name] 🤍",
+    body: "Anything you want to note for later?",
+    category: "check_in",
+    trigger_type: "contextual",
+    trigger_config: { on: "alter_fronts", alter_id: "" },
+    delivery_channels: ["in_app"],
+    inline_actions: [
+      { label: "Quick check-in", action_type: "open_check_in", payload: {} },
+    ],
+    quiet_hours_respect: true,
+    is_active: false,
     snooze_options: [10, 60, 240, "tomorrow"],
   },
 ];
+
+// Seeds that require setup before enabling (open editor pre-filled)
+const NEEDS_SETUP = new Set([5, 6]);
 
 const SEED_SUBTITLES = [
   "Daily at 8pm",
@@ -83,11 +116,14 @@ const SEED_SUBTITLES = [
   "30 min after distress emotion",
   "When front not updated for 6h",
   "Every 3h (off by default)",
+  "30 min after symptom logged — pick which symptoms first",
+  "When a specific alter takes front — pick alter first",
 ];
 
 export default function RemindersOnboarding({ onDone }) {
-  const [enabled, setEnabled] = useState(new Set([0, 1, 2, 3])); // 0-3 on by default, 4 off
+  const [enabled, setEnabled] = useState(new Set([0, 1, 2, 3]));
   const [saving, setSaving] = useState(false);
+  const [setupSeed, setSetupSeed] = useState(null); // open editor for seeds needing setup
 
   const toggle = (i) => {
     setEnabled(prev => {
@@ -99,20 +135,24 @@ export default function RemindersOnboarding({ onDone }) {
 
   const handleEnable = async () => {
     setSaving(true);
-    const toCreate = SEEDS.map((seed, i) => ({
-      ...seed,
-      is_active: enabled.has(i) ? seed.is_active !== false : false,
-    })).filter((_, i) => enabled.has(i));
+    // Only create seeds that DON'T need setup
+    const toCreate = SEEDS
+      .map((seed, i) => ({ ...seed, is_active: enabled.has(i) ? seed.is_active !== false : false }))
+      .filter((_, i) => enabled.has(i) && !NEEDS_SETUP.has(i));
 
-    if (!toCreate.length) {
-      setSaving(false);
-      onDone?.();
+    if (toCreate.length) {
+      await base44.entities.Reminder.bulkCreate(toCreate);
+    }
+    setSaving(false);
+
+    // For seeds needing setup that are enabled, open editor for first one
+    const setupQueue = [...enabled].filter(i => NEEDS_SETUP.has(i));
+    if (setupQueue.length) {
+      setSetupSeed(SEEDS[setupQueue[0]]);
       return;
     }
 
-    await base44.entities.Reminder.bulkCreate(toCreate);
-    setSaving(false);
-    toast.success(`${toCreate.length} reminder${toCreate.length !== 1 ? "s" : ""} created!`);
+    if (toCreate.length) toast.success(`${toCreate.length} reminder${toCreate.length !== 1 ? "s" : ""} created!`);
     onDone?.();
   };
 
@@ -129,6 +169,7 @@ export default function RemindersOnboarding({ onDone }) {
         {SEEDS.map((seed, i) => {
           const Icon = CATEGORY_ICONS[seed.category];
           const on = enabled.has(i);
+          const needsSetup = NEEDS_SETUP.has(i);
           return (
             <button
               key={i}
@@ -140,7 +181,10 @@ export default function RemindersOnboarding({ onDone }) {
             >
               <span className="text-2xl flex-shrink-0">{Icon}</span>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-foreground leading-tight">{seed.title}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-sm text-foreground leading-tight">{seed.title}</p>
+                  {needsSetup && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 font-medium">Setup required</span>}
+                </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{seed.body}</p>
                 <p className="text-xs text-primary/70 mt-1">{SEED_SUBTITLES[i]}</p>
               </div>
@@ -160,6 +204,16 @@ export default function RemindersOnboarding({ onDone }) {
           {saving ? "Setting up…" : `Enable ${enabled.size} reminder${enabled.size !== 1 ? "s" : ""}`}
         </Button>
       </div>
+
+      {/* Pre-filled editor for seeds that need setup */}
+      {setupSeed && (
+        <ReminderEditorModal
+          isOpen={true}
+          existing={setupSeed}
+          onClose={() => { setSetupSeed(null); onDone?.(); }}
+          onSaved={() => { setSetupSeed(null); toast.success("Reminder created!"); onDone?.(); }}
+        />
+      )}
     </div>
   );
 }

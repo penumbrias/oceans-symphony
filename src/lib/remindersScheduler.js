@@ -141,6 +141,50 @@ function evaluateReminderDue(reminder, now, existingInstances, cachedData) {
       return null;
     }
 
+    if (on === "alter_fronts") {
+      const alterId = cfg?.alter_id;
+      if (!alterId) return null;
+      const delayMs = (cfg?.delay_minutes || 0) * 60 * 1000;
+      const lookback = delayMs + 60 * 60 * 1000; // delay + 1h
+      const sessions = cachedData?.sessions || [];
+      for (const s of sessions) {
+        if ((s.alter_id || s.primary_alter_id) !== alterId) continue;
+        const createdMs = new Date(s.created_date || s.start_time).getTime();
+        if (nowMs - createdMs > lookback) break;
+        const fireAt = createdMs + delayMs;
+        if (nowMs >= fireAt && nowMs - fireAt < WINDOW) {
+          const alreadyFired = existingInstances.some(i =>
+            i.reminder_id === reminder.id &&
+            Math.abs(new Date(i.scheduled_for).getTime() - fireAt) < WINDOW
+          );
+          if (!alreadyFired) return { scheduled_for: new Date(fireAt).toISOString() };
+        }
+      }
+      return null;
+    }
+
+    if (on === "symptom_logged") {
+      const symptomIds = cfg?.symptom_ids || [];
+      if (!symptomIds.length) return null;
+      const delayMs = (cfg?.delay_minutes || 0) * 60 * 1000;
+      const lookback = delayMs + 60 * 60 * 1000;
+      const checkIns = cachedData?.symptomCheckIns || [];
+      for (const ci of checkIns) {
+        if (!symptomIds.includes(ci.symptom_id)) continue;
+        const ciMs = new Date(ci.timestamp || ci.created_date).getTime();
+        if (nowMs - ciMs > lookback) break;
+        const fireAt = ciMs + delayMs;
+        if (nowMs >= fireAt && nowMs - fireAt < WINDOW) {
+          const alreadyFired = existingInstances.some(i =>
+            i.reminder_id === reminder.id &&
+            Math.abs(new Date(i.scheduled_for).getTime() - fireAt) < WINDOW
+          );
+          if (!alreadyFired) return { scheduled_for: new Date(fireAt).toISOString() };
+        }
+      }
+      return null;
+    }
+
     return null;
   }
 
@@ -315,6 +359,49 @@ export function usePendingReminderInstances() {
   });
 }
 
+// ── one-time migration: open_route paths → named action types ────────────────
+
+const PATH_TO_ACTION = {
+  "/journals": "open_journal",
+  "/grounding": "open_grounding",
+  "/diary": "open_diary",
+  "/timeline": "open_timeline",
+  "/todo": "open_todo",
+};
+
+export async function runReminderMigration() {
+  const FLAG = "reminders_migration_v1_done";
+  if (localStorage.getItem(FLAG)) return;
+  try {
+    const reminders = await base44.entities.Reminder.list();
+    for (const r of reminders || []) {
+      const actions = r.inline_actions || [];
+      let changed = false;
+      const migrated = actions.map(a => {
+        if (a.action_type !== "open_route") return a;
+        const path = a.payload?.path || "";
+        // open_set_front detection
+        if (path.includes("openSetFront") || path.includes("set_front")) {
+          changed = true;
+          return { ...a, action_type: "open_set_front", payload: {} };
+        }
+        const mapped = PATH_TO_ACTION[path] || PATH_TO_ACTION[path.split("?")[0]];
+        if (mapped) {
+          changed = true;
+          return { ...a, action_type: mapped, payload: {} };
+        }
+        return a;
+      });
+      if (changed) {
+        await base44.entities.Reminder.update(r.id, { inline_actions: migrated });
+      }
+    }
+    localStorage.setItem(FLAG, "1");
+  } catch (e) {
+    console.warn("[remindersScheduler] migration error:", e.message);
+  }
+}
+
 // ── hook: mount + interval scheduler ─────────────────────────────────────────
 
 export function useRemindersScheduler() {
@@ -322,6 +409,8 @@ export function useRemindersScheduler() {
   const intervalRef = useRef(null);
 
   useEffect(() => {
+    // Run migration once
+    runReminderMigration();
     // Run immediately on mount
     runClientScheduler(queryClient);
 

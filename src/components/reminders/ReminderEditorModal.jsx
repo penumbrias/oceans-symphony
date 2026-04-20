@@ -18,6 +18,8 @@ const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const CONTEXTUAL_ON = [
   { value: "no_front_update", label: "Front not updated" },
   { value: "emotion_logged", label: "Emotion logged" },
+  { value: "alter_fronts", label: "Alter fronts" },
+  { value: "symptom_logged", label: "Symptom logged" },
   { value: "sleep_ended", label: "After sleep ends" },
 ];
 const AUTO_RESOLVE_ON = [
@@ -26,7 +28,23 @@ const AUTO_RESOLVE_ON = [
   { value: "activity", label: "Activity logged" },
   { value: "front_update", label: "Front updated" },
 ];
-const DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "dissociated", "sad", "angry", "scared", "numb", "depressed"];
+const DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
+const BASE_EMOTIONS = ["happy", "content", "calm", "grateful", "hopeful", "excited", "proud", "loved", "safe", "sad", "anxious", "overwhelmed", "angry", "scared", "frustrated", "ashamed", "guilty", "lonely", "confused", "dissociated", "numb", "depressed", "panic", "terrified", "crisis", "unsafe", "frozen", "tired", "bored", "curious"];
+
+const ACTION_TYPE_OPTIONS = [
+  { value: "open_check_in",        label: "Check in" },
+  { value: "open_grounding",       label: "Grounding exercise" },
+  { value: "open_set_front",       label: "Set who's fronting" },
+  { value: "open_journal",         label: "Open journal" },
+  { value: "open_diary",           label: "Open diary" },
+  { value: "open_symptom_check_in",label: "Log a symptom" },
+  { value: "open_system_map",      label: "View system map" },
+  { value: "open_timeline",        label: "View timeline" },
+  { value: "open_todo",            label: "View to-do list" },
+  { value: "log_symptom",          label: "Log a specific symptom" },
+  { value: "dismiss",              label: "Dismiss" },
+  { value: "open_route",           label: "Other page…" },
+];
 const PRE_ALERT_OPTIONS = [15, 60, 1440];
 
 const DEFAULT_FORM = {
@@ -83,8 +101,9 @@ function PillRow({ options, value, onChange, multi = false, labels }) {
   );
 }
 
-function TriggerConfig({ triggerType, config, onChange }) {
+function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = [], customEmotions = [] }) {
   const set = (key, val) => onChange({ ...config, [key]: val });
+  const allEmotions = [...new Set([...BASE_EMOTIONS, ...customEmotions.map(e => e.name || e.label).filter(Boolean)])];
 
   if (triggerType === "scheduled") {
     const times = config.times || ["09:00"];
@@ -185,9 +204,15 @@ function TriggerConfig({ triggerType, config, onChange }) {
         {on === "emotion_logged" && (
           <>
             <div>
-              <Label className="text-xs font-medium text-muted-foreground">Match emotions (any = always)</Label>
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                {DISTRESS_EMOTIONS.map(e => (
+              <div className="flex items-center justify-between mb-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Match emotions (any = always fire)</Label>
+                <button type="button" className="text-xs text-primary hover:underline"
+                  onClick={() => set("matches", DISTRESS_EMOTIONS)}>
+                  Distress presets
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {allEmotions.map(e => (
                   <button key={e} type="button"
                     onClick={() => {
                       const arr = config.matches || [];
@@ -198,6 +223,60 @@ function TriggerConfig({ triggerType, config, onChange }) {
                     }`}>{e}</button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-1.5">Fires when a check-in is logged that includes any selected emotion.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground w-28">Fire after</Label>
+              <Input type="number" min={0} value={config.delay_minutes || 0} className="h-8 text-sm w-20"
+                onChange={e => set("delay_minutes", parseInt(e.target.value))} />
+              <span className="text-xs text-muted-foreground">min delay</span>
+            </div>
+          </>
+        )}
+        {on === "alter_fronts" && (
+          <>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground">Which alter</Label>
+              <div className="flex flex-wrap gap-2 mt-1.5 max-h-40 overflow-y-auto">
+                {alters.filter(a => !a.is_archived).map(a => (
+                  <button key={a.id} type="button"
+                    onClick={() => set("alter_id", a.id)}
+                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs border transition-all ${
+                      config.alter_id === a.id ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
+                    }`}>
+                    {a.avatar_url
+                      ? <img src={a.avatar_url} className="w-4 h-4 rounded-full object-cover" />
+                      : <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }}>{a.name?.charAt(0)}</span>}
+                    {a.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground w-28">Fire after</Label>
+              <Input type="number" min={0} value={config.delay_minutes || 0} className="h-8 text-sm w-20"
+                onChange={e => set("delay_minutes", parseInt(e.target.value))} />
+              <span className="text-xs text-muted-foreground">min delay</span>
+            </div>
+          </>
+        )}
+        {on === "symptom_logged" && (
+          <>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground mb-1.5">Which symptoms (any match fires)</Label>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {symptoms.map(s => (
+                  <button key={s.id} type="button"
+                    onClick={() => {
+                      const arr = config.symptom_ids || [];
+                      set("symptom_ids", arr.includes(s.id) ? arr.filter(x => x !== s.id) : [...arr, s.id]);
+                    }}
+                    className={`px-2 py-1 rounded-lg text-xs border transition-all ${
+                      (config.symptom_ids || []).includes(s.id) ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
+                    }`}>{s.label}</button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">Fires when you log a check-in for any selected symptom.</p>
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground w-28">Fire after</Label>
@@ -263,6 +342,14 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
+  });
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+  });
+  const { data: customEmotions = [] } = useQuery({
+    queryKey: ["customEmotions"],
+    queryFn: () => base44.entities.CustomEmotion.list(),
   });
 
   useEffect(() => {
@@ -373,6 +460,9 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                 triggerType={form.trigger_type}
                 config={form.trigger_config || {}}
                 onChange={cfg => set("trigger_config", cfg)}
+                alters={alters}
+                symptoms={symptoms.filter(s => !s.is_archived)}
+                customEmotions={customEmotions}
               />
             </div>
           </div>
@@ -437,34 +527,42 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
           {/* Inline actions */}
           <Collapsible label="Quick action buttons">
             <div className="space-y-2">
-              {(form.inline_actions || []).map((action, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg text-xs">
-                  <span className="flex-1 truncate">{action.label} → {action.action_type}</span>
-                  <button type="button" onClick={() => set("inline_actions", (form.inline_actions || []).filter((_, j) => j !== i))}>
-                    <X className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                  </button>
-                </div>
-              ))}
+              {(form.inline_actions || []).map((action, i) => {
+                const opt = ACTION_TYPE_OPTIONS.find(o => o.value === action.action_type);
+                return (
+                  <div key={i} className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg text-xs">
+                    <span className="flex-1 truncate font-medium">{action.label}</span>
+                    <span className="text-muted-foreground truncate">{opt?.label || action.action_type}</span>
+                    <button type="button" onClick={() => set("inline_actions", (form.inline_actions || []).filter((_, j) => j !== i))}>
+                      <X className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                    </button>
+                  </div>
+                );
+              })}
               {(form.inline_actions || []).length < 3 && (
                 <div className="space-y-2 p-3 bg-muted/10 rounded-lg border border-dashed border-border/40">
-                  <Input placeholder="Button label" value={newAction?.label || ""} className="h-7 text-xs"
-                    onChange={e => setNewAction(a => ({ ...a, label: e.target.value }))} />
+                  <Input placeholder="Button label, e.g. Try grounding" value={newAction?.label || ""} className="h-7 text-xs"
+                    onChange={e => setNewAction(a => ({ ...(a || {}), label: e.target.value }))} />
                   <select className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
-                    value={newAction?.action_type || "dismiss"}
-                    onChange={e => setNewAction(a => ({ ...a, action_type: e.target.value }))}>
-                    <option value="open_route">Open route</option>
-                    <option value="log_symptom">Log symptom</option>
-                    <option value="open_check_in">Open check-in</option>
-                    <option value="open_grounding">Open grounding</option>
-                    <option value="dismiss">Dismiss</option>
+                    value={newAction?.action_type || "open_check_in"}
+                    onChange={e => setNewAction(a => ({ ...(a || {}), action_type: e.target.value, payload: {} }))}>
+                    {ACTION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
+                  {newAction?.action_type === "log_symptom" && (
+                    <select className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
+                      value={newAction?.payload?.symptom_id || ""}
+                      onChange={e => setNewAction(a => ({ ...(a || {}), payload: { symptom_id: e.target.value } }))}>
+                      <option value="">— pick symptom —</option>
+                      {symptoms.filter(s => !s.is_archived).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </select>
+                  )}
                   {newAction?.action_type === "open_route" && (
-                    <Input placeholder="/path" value={newAction?.payload?.path || ""} className="h-7 text-xs"
-                      onChange={e => setNewAction(a => ({ ...a, payload: { path: e.target.value } }))} />
+                    <Input placeholder="/path (e.g. /analytics)" value={newAction?.payload?.path || ""} className="h-7 text-xs"
+                      onChange={e => setNewAction(a => ({ ...(a || {}), payload: { path: e.target.value } }))} />
                   )}
                   <Button size="sm" type="button" className="w-full h-7 text-xs" onClick={() => {
                     if (!newAction?.label) return;
-                    set("inline_actions", [...(form.inline_actions || []), { label: newAction.label, action_type: newAction.action_type || "dismiss", payload: newAction.payload || {} }]);
+                    set("inline_actions", [...(form.inline_actions || []), { label: newAction.label, action_type: newAction.action_type || "open_check_in", payload: newAction.payload || {} }]);
                     setNewAction(null);
                   }}>Add action</Button>
                 </div>

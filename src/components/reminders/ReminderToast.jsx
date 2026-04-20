@@ -68,24 +68,34 @@ export default function ReminderToast() {
   };
 
   const handleAction = async ({ instance, reminder }, action) => {
-    if (action.action_type === "open_set_front") {
+    const type = action.action_type;
+    if (type === "open_set_front") {
       window.dispatchEvent(new CustomEvent("open-set-front"));
-      await updateInstance(instance.id, { status: "acted", acted_action: "open_set_front" });
-    } else if (action.action_type === "open_route") {
-      navigate(action.payload?.path || "/");
-      await updateInstance(instance.id, { status: "acted", acted_action: "open_route" });
-    } else if (action.action_type === "open_grounding") {
+    } else if (type === "open_check_in") {
+      window.dispatchEvent(new CustomEvent("open-check-in"));
+    } else if (type === "open_grounding") {
       navigate("/grounding");
-      await updateInstance(instance.id, { status: "acted", acted_action: "open_grounding" });
-    } else if (action.action_type === "open_check_in") {
-      navigate("/");
-      await updateInstance(instance.id, { status: "acted", acted_action: "open_check_in" });
-    } else if (action.action_type === "log_symptom") {
+    } else if (type === "open_journal") {
+      navigate("/journals");
+    } else if (type === "open_diary") {
+      navigate("/diary");
+    } else if (type === "open_symptom_check_in") {
+      navigate("/diary?openSymptoms=1");
+    } else if (type === "open_system_map") {
+      navigate("/system-map");
+    } else if (type === "open_timeline") {
+      navigate("/timeline");
+    } else if (type === "open_todo") {
+      navigate("/todo");
+    } else if (type === "open_route") {
+      navigate(action.payload?.path || "/");
+    } else if (type === "log_symptom") {
       await base44.entities.SymptomCheckIn.create({ symptom_id: action.payload?.symptom_id, timestamp: new Date().toISOString() });
-      await updateInstance(instance.id, { status: "acted", acted_action: "logged_symptom" });
-    } else if (action.action_type === "dismiss") {
+    } else if (type === "dismiss") {
       await updateInstance(instance.id, { status: "dismissed" });
+      return;
     }
+    await updateInstance(instance.id, { status: "acted", acted_action: type });
   };
 
   const handleSnooze = async ({ instance, reminder }, opt) => {
