@@ -221,6 +221,8 @@ export async function runClientScheduler(queryClient) {
     );
 
     const settings = settingsList?.[0] || {};
+    if (settings.reminders_paused) return []; // kill switch
+
     const quietHours = settings.quiet_hours || {};
 
     const cachedData = { emotionCheckIns, sessions, activities, symptomCheckIns };

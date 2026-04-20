@@ -16,6 +16,7 @@ import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import NavigationSettings from "@/components/settings/NavigationSettings";
+import RemindersSettings from "@/components/settings/RemindersSettings";
 import { isLocalMode } from "@/lib/storageMode";
 import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +27,7 @@ const SECTIONS = [
   { id: "appearance", label: "Appearance", icon: "🎨" },
   { id: "alters", label: "Alters & Fields", icon: "👥" },
   { id: "checkin", label: "Check-In & Tracking", icon: "⚡" },
+  { id: "reminders", label: "Reminders", icon: "🔔" },
   { id: "data", label: "Data & Privacy", icon: "💾" },
   { id: "account", label: "Account", icon: "🔑" },
 ];
@@ -207,6 +209,11 @@ export default function Settings() {
           <div className="border-t border-border/30 pt-4">
             <CustomEmotionsManager />
           </div>
+        </Section>
+
+        {/* ── REMINDERS ── */}
+        <Section id="reminders" icon="🔔" label="Reminders">
+          <RemindersSettings />
         </Section>
 
         {/* ── DATA & PRIVACY ── */}

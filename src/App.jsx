@@ -32,6 +32,7 @@ import BulletinPage from '@/pages/BulletinPage';
 import ManageCheckIn from '@/pages/ManageCheckIn';
 import TherapyReport from '@/pages/TherapyReport';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
+import Reminders from '@/pages/Reminders';
 import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
 import { isDbInitialized, initLocalDb } from '@/lib/localDb';
 
@@ -87,6 +88,7 @@ const AuthenticatedApp = () => {
         <Route path="/grounding" element={<Grounding />} />
         <Route path="/safety-plan" element={<SafetyPlan />} />
         <Route path="/therapy-report" element={<TherapyReport />} />
+        <Route path="/reminders" element={<Reminders />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

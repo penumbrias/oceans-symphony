@@ -234,6 +234,8 @@ Deno.serve(async (req) => {
     // Load settings for quiet hours (keyed per created_by — best effort, one per user in cron)
     const settingsList = await base44.asServiceRole.entities.SystemSettings.list();
     const settings = settingsList?.[0] || {};
+    if (settings.reminders_paused) return Response.json({ ok: true, processed: 0, paused: true });
+
     const quietHours = settings.quiet_hours || {};
 
     // Load push subscriptions

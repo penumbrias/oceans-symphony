@@ -9,7 +9,9 @@ import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import MigrationBanner from "@/components/fronting/MigrationBanner";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
-import { useRemindersScheduler } from "@/lib/remindersScheduler";
+import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
+import ReminderToast from "@/components/reminders/ReminderToast";
+import { Bell } from "lucide-react";
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
@@ -65,6 +67,9 @@ const bottomNavItems = useMemo(() => {
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
     .filter(Boolean);
 }, [navConfig.bottomBar]);
+
+const { data: pendingReminders = [] } = usePendingReminderInstances();
+const pendingCount = pendingReminders.filter(i => i.status === "fired").length;
 
 const activeSession = sessions.find((s) => s.is_active);
 const frontingAlterIds = activeSession
@@ -127,6 +132,17 @@ const handleNotifClick = (mentionLog) => {
 
             })}
 
+            <Link to="/reminders" aria-label="Reminders"
+              aria-current={location.pathname.startsWith("/reminders") ? "page" : undefined}
+              className="relative text-muted-foreground px-3 text-sm font-medium rounded-lg flex items-center gap-2 transition-all duration-200 select-none min-h-[44px] hover:text-foreground hover:bg-muted/50">
+              <Bell className="w-4 h-4" />
+              <span>Reminders</span>
+              {pendingCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                  {pendingCount > 9 ? "9+" : pendingCount}
+                </span>
+              )}
+            </Link>
             <Link to="/settings"
             aria-label="Settings"
             aria-current={location.pathname.startsWith("/settings") ? "page" : undefined} className="text-muted-foreground px-3 text-sm font-medium rounded-lg flex items-center gap-2 transition-all duration-200 select-none min-h-[44px] hover:text-foreground hover:bg-muted/50">
@@ -163,7 +179,20 @@ const handleNotifClick = (mentionLog) => {
           </Link>
         }
 
-        {/* Right: settings icon */}
+        {/* Right: bell + settings icons */}
+        <div className="flex items-center gap-1">
+        <Link to="/reminders" aria-label="Reminders"
+          className={cn(
+            "relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
+            location.pathname.startsWith("/reminders") ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
+          )}>
+          <Bell className="w-5 h-5" />
+          {pendingCount > 0 && (
+            <span className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+              {pendingCount > 9 ? "9+" : pendingCount}
+            </span>
+          )}
+        </Link>
         <Link
           to="/settings"
           aria-label="Settings"
@@ -174,6 +203,7 @@ const handleNotifClick = (mentionLog) => {
           
           <Settings className="w-5 h-5" />
         </Link>
+        </div>
         </div>
       </header>
 
@@ -219,6 +249,7 @@ const handleNotifClick = (mentionLog) => {
       
       <MigrationBanner />
       <FloatingGroundingButton />
+      <ReminderToast />
       <NotificationPopups
         mentionLogs={mentionLogs}
         alters={alters}

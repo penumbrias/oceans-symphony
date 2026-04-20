@@ -1,0 +1,145 @@
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { useNavigate } from "react-router-dom";
+import { ChevronDown, ChevronRight, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { formatDistanceToNow } from "date-fns";
+import ReminderInstanceCard from "./ReminderInstanceCard";
+import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+
+export default function RemindersInbox() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [showHandled, setShowHandled] = useState(false);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [pendingActInstance, setPendingActInstance] = useState(null);
+
+  const { data: instances = [] } = useQuery({
+    queryKey: ["reminderInstances", "inbox"],
+    queryFn: () => base44.entities.ReminderInstance.list("-scheduled_for", 200),
+    refetchInterval: 60000,
+  });
+
+  const { data: reminders = [] } = useQuery({
+    queryKey: ["reminders", "all"],
+    queryFn: () => base44.entities.Reminder.list(),
+  });
+
+  const reminderMap = Object.fromEntries(reminders.map(r => [r.id, r]));
+
+  const active = instances.filter(i => ["fired", "pending", "snoozed"].includes(i.status))
+    .sort((a, b) => {
+      const aTime = a.fired_at || a.scheduled_for;
+      const bTime = b.fired_at || b.scheduled_for;
+      return new Date(bTime) - new Date(aTime);
+    });
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const handled = instances
+    .filter(i => ["acted", "dismissed", "auto_resolved"].includes(i.status) && (i.updated_date || i.created_date) >= sevenDaysAgo)
+    .sort((a, b) => new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date))
+    .slice(0, 10);
+
+  const updateInstance = async (id, data) => {
+    await base44.entities.ReminderInstance.update(id, data);
+    queryClient.invalidateQueries({ queryKey: ["reminderInstances"] });
+  };
+
+  const handleAction = async (instance, action) => {
+    const reminder = reminderMap[instance.reminder_id];
+    if (!reminder) return;
+
+    if (action.action_type === "open_route") {
+      navigate(action.payload?.path || "/");
+      await updateInstance(instance.id, { status: "acted", acted_action: "open_route" });
+    } else if (action.action_type === "log_symptom") {
+      await base44.entities.SymptomCheckIn.create({ symptom_id: action.payload?.symptom_id, timestamp: new Date().toISOString() });
+      await updateInstance(instance.id, { status: "acted", acted_action: "logged_symptom" });
+    } else if (action.action_type === "open_check_in") {
+      setPendingActInstance(instance);
+      setCheckInOpen(true);
+    } else if (action.action_type === "open_grounding") {
+      navigate("/grounding");
+      await updateInstance(instance.id, { status: "acted", acted_action: "open_grounding" });
+    } else if (action.action_type === "dismiss") {
+      await updateInstance(instance.id, { status: "dismissed" });
+    }
+  };
+
+  const handleSnooze = async (instance, option) => {
+    let until;
+    if (option === "tomorrow") {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(9, 0, 0, 0);
+      until = d.toISOString();
+    } else {
+      until = new Date(Date.now() + option * 60 * 1000).toISOString();
+    }
+    await updateInstance(instance.id, { status: "snoozed", snoozed_until: until });
+  };
+
+  const handleDone = (instance) => updateInstance(instance.id, { status: "acted", acted_action: "done" });
+  const handleDismiss = (instance) => updateInstance(instance.id, { status: "dismissed" });
+
+  return (
+    <div className="space-y-4">
+      {active.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <p className="text-4xl mb-3">🤍</p>
+          <p className="font-medium">No pending reminders. You're all caught up 🤍</p>
+        </div>
+      ) : (
+        active.map(instance => (
+          <ReminderInstanceCard
+            key={instance.id}
+            instance={instance}
+            reminder={reminderMap[instance.reminder_id]}
+            onAction={(action) => handleAction(instance, action)}
+            onSnooze={(opt) => handleSnooze(instance, opt)}
+            onDone={() => handleDone(instance)}
+            onDismiss={() => handleDismiss(instance)}
+          />
+        ))
+      )}
+
+      {handled.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowHandled(o => !o)}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+          >
+            {showHandled ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Recently handled ({handled.length})
+          </button>
+          {showHandled && (
+            <div className="space-y-2 mt-2 opacity-60">
+              {handled.map(instance => (
+                <ReminderInstanceCard
+                  key={instance.id}
+                  instance={instance}
+                  reminder={reminderMap[instance.reminder_id]}
+                  readOnly
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {checkInOpen && (
+        <QuickCheckInModal
+          isOpen={checkInOpen}
+          onClose={(saved) => {
+            setCheckInOpen(false);
+            if (saved && pendingActInstance) {
+              updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_check_in" });
+            }
+            setPendingActInstance(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
