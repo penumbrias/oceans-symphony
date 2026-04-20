@@ -629,6 +629,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                 onSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); } }}
                 onDoubleSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); setEditingLocation(loc); } }}
                 onLongPress={() => { setSelectedLocation(loc); setEditingLocation(loc); }}
+                onEdit={() => { setSelectedLocation(loc); setEditingLocation(loc); }}
                 onUpdate={(fields) => updateLocation(loc, fields)}
                 onDelete={() => deleteLocation(loc)}
               />
