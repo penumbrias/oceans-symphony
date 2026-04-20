@@ -3,10 +3,12 @@ import { Lock } from "lucide-react";
 
 const MIN_SIZE = 80;
 
-export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onUpdate, onDelete, zoom = 1 }) {
+export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, zoom = 1 }) {
   const [dragging, setDragging] = useState(false);
+  const [pressingId, setPressingId] = useState(false);
   const dragStart = useRef(null);
   const tapRef = useRef({ time: 0, timer: null });
+  const longPressRef = useRef(null);
 
   const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked } = location;
 
@@ -26,16 +28,31 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     if (is_locked) { e.stopPropagation(); return; }
     e.stopPropagation();
     setDragging(true);
-    dragStart.current = { mx: e.clientX, my: e.clientY, x, y, moved: false };
+    dragStart.current = { mx: e.clientX, my: e.clientY, x, y, moved: false, startTime: Date.now() };
+    setPressingId(true);
+
+    // Start long-press timer
+    longPressRef.current = setTimeout(() => {
+      if (dragStart.current && !dragStart.current.moved && onLongPress) {
+        onLongPress();
+        if (navigator.vibrate) navigator.vibrate(50);
+      }
+    }, 3000);
 
     const onMove = (ev) => {
       if (!dragStart.current) return;
       const dx = (ev.clientX - dragStart.current.mx) / zoom;
       const dy = (ev.clientY - dragStart.current.my) / zoom;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragStart.current.moved = true;
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        dragStart.current.moved = true;
+        clearTimeout(longPressRef.current);
+        setPressingId(false);
+      }
       onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
     };
     const onUp = () => {
+      clearTimeout(longPressRef.current);
+      setPressingId(false);
       if (dragStart.current && !dragStart.current.moved) fireTap();
       setDragging(false);
       dragStart.current = null;
@@ -51,6 +68,15 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     e.stopPropagation();
     setDragging(true);
     dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, x, y, moved: false, startTime: Date.now() };
+    setPressingId(true);
+
+    // Start long-press timer
+    longPressRef.current = setTimeout(() => {
+      if (dragStart.current && !dragStart.current.moved && onLongPress) {
+        onLongPress();
+        if (navigator.vibrate) navigator.vibrate(50);
+      }
+    }, 3000);
   };
 
   const handleTouchMove = (e) => {
@@ -58,13 +84,19 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     e.stopPropagation();
     const dx = (e.touches[0].clientX - dragStart.current.mx) / zoom;
     const dy = (e.touches[0].clientY - dragStart.current.my) / zoom;
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dragStart.current.moved = true;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      dragStart.current.moved = true;
+      clearTimeout(longPressRef.current);
+      setPressingId(false);
+    }
     onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
   };
 
   const handleTouchEnd = (e) => {
     if (!dragStart.current) return;
     e.stopPropagation();
+    clearTimeout(longPressRef.current);
+    setPressingId(false);
     const elapsed = Date.now() - dragStart.current.startTime;
     if (!dragStart.current.moved && elapsed < 500) fireTap();
     setDragging(false);
@@ -138,7 +170,29 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
             </pattern>
           </>
         )}
+        {pressingId && (
+          <style>
+            {`@keyframes longPressRing {
+              0% { r: ${Math.max(width, height) / 2 + 2}; opacity: 0.6; }
+              100% { r: ${Math.max(width, height) / 2 + 12}; opacity: 0; }
+            }`}
+          </style>
+        )}
       </defs>
+
+      {/* Long-press visual feedback ring */}
+      {pressingId && (
+        <circle
+          cx={x + width / 2}
+          cy={y + height / 2}
+          r={Math.max(width, height) / 2 + 2}
+          fill="none"
+          stroke={color}
+          strokeWidth={2}
+          opacity={0.6}
+          style={{ animation: "longPressRing 3s ease-out forwards" }}
+        />
+      )}
 
       {/* Background fill */}
       <rect
