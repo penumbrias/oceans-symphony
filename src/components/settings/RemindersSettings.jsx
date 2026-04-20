@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Check, Loader2, Bell, BellOff } from "lucide-react";
 import { registerPush, unregisterPush, isPushEnabled } from "@/lib/pushRegistration";
-import { toast } from "sonner";
 
 export default function RemindersSettings() {
   const queryClient = useQueryClient();
