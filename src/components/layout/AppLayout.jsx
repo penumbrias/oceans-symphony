@@ -22,6 +22,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const terms = useTerms();
   const [historyDepth, setHistoryDepth] = useState(0);
+  useRemindersScheduler();
 
 const { data: systemSettings = [] } = useQuery({
   queryKey: ["systemSettings"],
