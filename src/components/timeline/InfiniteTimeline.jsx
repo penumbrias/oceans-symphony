@@ -711,33 +711,49 @@ export default function InfiniteTimeline({
   }, [symptoms]);
 
   const emotionEntries = useMemo(() => {
-    return emotions.map((e, i) => ({
-      mins: Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart)),
-      type: "emotion", id: e.id, data: e, key: `em-${i}-${e.id}`
-    })).sort((a, b) => a.mins - b.mins);
+    return emotions
+      .map((e, i) => {
+        const mins = minutesInDay(parseDate(e.timestamp), dayStart);
+        return { mins, type: "emotion", id: e.id, data: e, key: `em-${i}-${e.id}` };
+      })
+      .filter(e => e.mins >= 0 && e.mins < 24 * 60)
+      .sort((a, b) => a.mins - b.mins);
   }, [emotions, dayStart]);
 
   const eventEntries = useMemo(() => {
+    const inDay = (mins) => mins >= 0 && mins < 24 * 60;
     const entries = [];
-    journals.forEach((j) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(j.created_date), dayStart)), type: "journal", id: j.id, label: j.title || "Journal Entry", data: j }));
-    checkIns.forEach((c) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(c.created_date), dayStart)), type: "checkin", id: c.id, label: "System Check-In", data: c }));
-    bulletins.forEach((b) => entries.push({ mins: Math.max(0, minutesInDay(parseDate(b.created_date), dayStart)), type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b }));
+
+    journals.forEach((j) => {
+      const mins = minutesInDay(parseDate(j.created_date), dayStart);
+      if (inDay(mins)) entries.push({ mins, type: "journal", id: j.id, label: j.title || "Journal Entry", data: j });
+    });
+    checkIns.forEach((c) => {
+      const mins = minutesInDay(parseDate(c.created_date), dayStart);
+      if (inDay(mins)) entries.push({ mins, type: "checkin", id: c.id, label: "System Check-In", data: c });
+    });
+    bulletins.forEach((b) => {
+      const mins = minutesInDay(parseDate(b.created_date), dayStart);
+      if (inDay(mins)) entries.push({ mins, type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b });
+    });
     tasks.forEach((t) => {
-      const createdDate = parseDate(t.created_date);
-      if (startOfDay(createdDate).getTime() === dayStart.getTime()) {
-        entries.push({ mins: Math.max(0, minutesInDay(createdDate, dayStart)), type: "task", id: t.id, label: t.title || "Task", data: t });
+      const createdMins = minutesInDay(parseDate(t.created_date), dayStart);
+      if (inDay(createdMins)) {
+        entries.push({ mins: createdMins, type: "task", id: t.id, label: t.title || "Task", data: t });
       }
       if (t.completed && t.completed_date) {
-        const completedDate = parseDate(t.completed_date);
-        if (startOfDay(completedDate).getTime() === dayStart.getTime()) {
-          entries.push({ mins: Math.max(0, minutesInDay(completedDate, dayStart)), type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
+        const completedMins = minutesInDay(parseDate(t.completed_date), dayStart);
+        if (inDay(completedMins)) {
+          entries.push({ mins: completedMins, type: "task_done", id: `done-${t.id}`, label: `✓ ${t.title || "Task"}`, data: t });
         }
       }
     });
+
     // Group symptom check-ins by minute into single event entries
     const scByMinute = {};
     symptomCheckIns.forEach(sc => {
-      const mins = Math.max(0, minutesInDay(parseDate(sc.timestamp), dayStart));
+      const mins = minutesInDay(parseDate(sc.timestamp), dayStart);
+      if (!inDay(mins)) return;
       const bucket = Math.floor(mins);
       if (!scByMinute[bucket]) scByMinute[bucket] = { mins: bucket, items: [], id: sc.id };
       scByMinute[bucket].items.push({ symptom: symptomMap[sc.symptom_id], checkIn: sc });
@@ -745,6 +761,7 @@ export default function InfiniteTimeline({
     Object.values(scByMinute).forEach(group => {
       entries.push({ mins: group.mins, type: "symptom_checkin", id: `sc-${group.id}`, label: "Symptom Check-In", data: group });
     });
+
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
   }, [journals, checkIns, bulletins, tasks, symptomCheckIns, symptomMap, dayStart]);
 
@@ -1267,8 +1284,12 @@ export default function InfiniteTimeline({
                 })}
 
                 {/* Status notes from EmotionCheckIn.note — render as badges in the alter area */}
-                {emotions.filter(e => e.note && e.note.trim()).map((e, i) => {
-                  const mins = Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart));
+                {emotions.filter(e => {
+                  if (!e.note || !e.note.trim()) return false;
+                  const mins = minutesInDay(parseDate(e.timestamp), dayStart);
+                  return mins >= 0 && mins < 24 * 60;
+                }).map((e, i) => {
+                  const mins = minutesInDay(parseDate(e.timestamp), dayStart);
                   const topPx = getTopPx(mins);
                   return (
                     <div key={`status-note-${e.id || i}`} className="absolute pointer-events-none"
