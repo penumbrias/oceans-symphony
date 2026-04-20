@@ -1230,11 +1230,11 @@ export default function InfiniteTimeline({
                   ))}
                 </div>
 
+                {/* Legacy session notes */}
                 {sessions.flatMap((session) => {
-                  // New model records don't carry notes (moved to EmotionCheckIn)
                   if (session.alter_id) return [];
-                  let notes = [];
                   if (!session.note) return [];
+                  let notes = [];
                   try {
                     const parsed = JSON.parse(session.note);
                     notes = Array.isArray(parsed) ? parsed : [{ text: session.note, timestamp: session.start_time }];
@@ -1251,6 +1251,18 @@ export default function InfiniteTimeline({
                       </div>
                     );
                   });
+                })}
+
+                {/* Status notes from EmotionCheckIn.note — render as badges in the alter area */}
+                {emotions.filter(e => e.note && e.note.trim()).map((e, i) => {
+                  const mins = Math.max(0, minutesInDay(parseDate(e.timestamp), dayStart));
+                  const topPx = getTopPx(mins);
+                  return (
+                    <div key={`status-note-${e.id || i}`} className="absolute pointer-events-none"
+                      style={{ left: alterLeft, right: 0, top: 0, height: totalHeight }}>
+                      <StatusNoteBadge note={e.note} topPx={topPx} />
+                    </div>
+                  );
                 })}
 
               </div>
