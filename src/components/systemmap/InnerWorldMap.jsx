@@ -556,8 +556,9 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           onClick={(e) => {
             // Don't close anything if we just selected an alter
             if (justSelectedRef.current) return;
-            // Only close popovers if clicking directly on canvas background
-            if (e.target === svgRef.current) {
+            // Only close popovers if clicking directly on canvas background (SVG root)
+            const isSvgRoot = e.target.tagName === 'svg' && e.target === svgRef.current;
+            if (isSvgRoot) {
               if (placingAlter) {
                 const rect = svgRef.current.getBoundingClientRect();
                 const nx = (e.clientX - rect.left - transform.x) / transform.scale;
