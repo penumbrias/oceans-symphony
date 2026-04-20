@@ -1,0 +1,41 @@
+{
+  "name": "PushSubscription",
+  "type": "object",
+  "properties": {
+    "endpoint": {
+      "type": "string",
+      "description": "Web Push endpoint URL"
+    },
+    "keys": {
+      "type": "object",
+      "description": "{ p256dh: string, auth: string }"
+    },
+    "user_agent": {
+      "type": "string",
+      "description": "User agent string for debugging which device this subscription belongs to"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this subscription is still valid"
+    }
+  },
+  "required": [
+    "endpoint",
+    "keys"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

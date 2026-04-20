@@ -1,0 +1,147 @@
+{
+  "name": "Reminder",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Short label shown in the reminder"
+    },
+    "body": {
+      "type": "string",
+      "description": "Longer text / description (optional)"
+    },
+    "trigger_type": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "interval",
+        "contextual",
+        "event"
+      ],
+      "description": "How this reminder is triggered"
+    },
+    "trigger_config": {
+      "type": "object",
+      "description": "Shape depends on trigger_type. scheduled: { times, days }, interval: { every_minutes, active_window?, after_last? }, contextual: { on, threshold_minutes?, matches?, delay_minutes? }, event: { when, pre_alerts? }"
+    },
+    "delivery_channels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "in_app",
+          "push"
+        ]
+      },
+      "default": [
+        "in_app"
+      ],
+      "description": "Which channels to deliver this reminder through"
+    },
+    "alter_id": {
+      "type": "string",
+      "description": "References Alter.id \u2014 null for system-wide reminders"
+    },
+    "alter_scope": {
+      "type": "string",
+      "enum": [
+        "when_fronting",
+        "always"
+      ],
+      "description": "Only meaningful if alter_id is set"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "check_in",
+        "habit",
+        "meds",
+        "grounding",
+        "appointment",
+        "custom"
+      ],
+      "description": "Reminder category"
+    },
+    "auto_resolve_rule": {
+      "type": "object",
+      "description": "Describes what action auto-dismisses this cycle's instance. e.g. { on: 'check_in' } or { on: 'symptom_checkin', symptom_id: '...' }"
+    },
+    "snooze_options": {
+      "type": "array",
+      "default": [
+        10,
+        60,
+        240,
+        "tomorrow"
+      ],
+      "description": "Minute values or the string 'tomorrow'"
+    },
+    "quiet_hours_respect": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this reminder respects the user's quiet hours"
+    },
+    "inline_actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "open_route",
+              "log_symptom",
+              "open_check_in",
+              "open_grounding",
+              "dismiss"
+            ]
+          },
+          "payload": {
+            "type": "object"
+          }
+        }
+      },
+      "default": [],
+      "description": "Quick action buttons shown on the reminder"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this reminder is enabled"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Reminder auto-expires after this date (optional)"
+    },
+    "last_fired_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Updated by the scheduler when this reminder last fired"
+    }
+  },
+  "required": [
+    "title",
+    "trigger_type",
+    "trigger_config",
+    "delivery_channels",
+    "category"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

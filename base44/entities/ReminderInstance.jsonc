@@ -1,0 +1,68 @@
+{
+  "name": "ReminderInstance",
+  "type": "object",
+  "properties": {
+    "reminder_id": {
+      "type": "string",
+      "description": "References Reminder.id"
+    },
+    "scheduled_for": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this instance was supposed to fire"
+    },
+    "fired_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it actually fired (optional)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "fired",
+        "dismissed",
+        "acted",
+        "snoozed",
+        "auto_resolved"
+      ],
+      "description": "Current lifecycle status of this instance"
+    },
+    "snoozed_until": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When to re-fire if snoozed (optional)"
+    },
+    "acted_action": {
+      "type": "string",
+      "description": "Description of what the user did, e.g. 'logged_meds', 'opened_grounding'"
+    },
+    "delivery_attempted": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Which channels actually attempted delivery, e.g. ['in_app', 'push']"
+    }
+  },
+  "required": [
+    "reminder_id",
+    "scheduled_for",
+    "status"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
