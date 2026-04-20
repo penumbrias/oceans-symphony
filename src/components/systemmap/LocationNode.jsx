@@ -2,9 +2,6 @@ import React, { useRef, useState } from "react";
 import { Lock } from "lucide-react";
 
 const MIN_SIZE = 80;
-const MOVEMENT_THRESHOLD = 6;
-const LONG_PRESS_DELAY = 3000;
-const TAP_DELAY = 500;
 
 export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, zoom = 1 }) {
   const [dragging, setDragging] = useState(false);
@@ -15,101 +12,22 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
 
   const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked } = location;
 
-  const detectMovement = (startX, startY, currentX, currentY) => {
-    const dx = (currentX - startX) / zoom;
-    const dy = (currentY - startY) / zoom;
-    return Math.abs(dx) > MOVEMENT_THRESHOLD || Math.abs(dy) > MOVEMENT_THRESHOLD;
+  const fireTap = () => {
+    const now = Date.now();
+    if (now - tapRef.current.time < 300) {
+      clearTimeout(tapRef.current.timer);
+      tapRef.current.time = 0;
+      onDoubleSelect?.();
+    } else {
+      tapRef.current.time = now;
+      tapRef.current.timer = setTimeout(() => { onSelect(); }, 310);
+    }
   };
 
   const handleMouseDown = (e) => {
-    // Don't stop propagation yet—let parent pan handler see the event
+    e.stopPropagation();
     setDragging(true);
-    dragStart.current = {
-      mx: e.clientX,
-      my: e.clientY,
-      x,
-      y,
-      moved: false,
-      startTime: Date.now(),
-      isLocked: is_locked
-    };
-    setPressingId(true);
-
-    // Start long-press timer (3 seconds)
-    longPressRef.current = setTimeout(() => {
-      if (dragStart.current && !dragStart.current.moved && onLongPress) {
-        onLongPress();
-        if (navigator.vibrate) navigator.vibrate(50);
-      }
-    }, LONG_PRESS_DELAY);
-
-    const onMove = (ev) => {
-      if (!dragStart.current) return;
-
-      const hasMovement = detectMovement(dragStart.current.mx, dragStart.current.my, ev.clientX, ev.clientY);
-
-      if (hasMovement && !dragStart.current.moved) {
-        dragStart.current.moved = true;
-        clearTimeout(longPressRef.current);
-        setPressingId(false);
-
-        // If locked or movement detected, stop processing location events
-        if (dragStart.current.isLocked) {
-          // Let the pan handler take over—don't call stopPropagation
-          return;
-        }
-      }
-
-      // If unlocked and moving, update location position
-      if (!dragStart.current.isLocked && dragStart.current.moved) {
-        e.stopPropagation();
-        const dx = (ev.clientX - dragStart.current.mx) / zoom;
-        const dy = (ev.clientY - dragStart.current.my) / zoom;
-        onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
-      }
-    };
-
-    const onUp = () => {
-      if (!dragStart.current) return;
-
-      clearTimeout(longPressRef.current);
-      setPressingId(false);
-
-      const elapsed = Date.now() - dragStart.current.startTime;
-      const wasTap = !dragStart.current.moved && elapsed < TAP_DELAY;
-
-      if (wasTap) {
-        // Tap detection
-        if (dragStart.current.isLocked) {
-          // Locked location: ignore single tap
-        } else {
-          // Unlocked: fire tap detection (may be double-tap)
-          fireTap();
-        }
-      }
-
-      setDragging(false);
-      dragStart.current = null;
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  };
-
-  const handleTouchStart = (e) => {
-    // Don't stop propagation yet
-    setDragging(true);
-    dragStart.current = {
-      mx: e.touches[0].clientX,
-      my: e.touches[0].clientY,
-      x,
-      y,
-      moved: false,
-      startTime: Date.now(),
-      isLocked: is_locked
-    };
+    dragStart.current = { mx: e.clientX, my: e.clientY, x, y, moved: false, startTime: Date.now() };
     setPressingId(true);
 
     // Start long-press timer
@@ -118,74 +36,69 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         onLongPress();
         if (navigator.vibrate) navigator.vibrate(50);
       }
-    }, LONG_PRESS_DELAY);
+    }, 1000);
 
     const onMove = (ev) => {
-      if (!dragStart.current) return;
-
-      const hasMovement = detectMovement(dragStart.current.mx, dragStart.current.my, ev.touches[0].clientX, ev.touches[0].clientY);
-
-      if (hasMovement && !dragStart.current.moved) {
+      if (!dragStart.current || is_locked) return;
+      const dx = (ev.clientX - dragStart.current.mx) / zoom;
+      const dy = (ev.clientY - dragStart.current.my) / zoom;
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
         dragStart.current.moved = true;
         clearTimeout(longPressRef.current);
         setPressingId(false);
-
-        // If locked or movement detected, let pan handler take over
-        if (dragStart.current.isLocked) {
-          return;
-        }
       }
-
-      // If unlocked and moving, update location position
-      if (!dragStart.current.isLocked && dragStart.current.moved) {
-        const dx = (ev.touches[0].clientX - dragStart.current.mx) / zoom;
-        const dy = (ev.touches[0].clientY - dragStart.current.my) / zoom;
-        onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
-      }
+      onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
     };
-
     const onUp = () => {
-      if (!dragStart.current) return;
-
       clearTimeout(longPressRef.current);
       setPressingId(false);
-
-      const elapsed = Date.now() - dragStart.current.startTime;
-      const wasTap = !dragStart.current.moved && elapsed < TAP_DELAY;
-
-      if (wasTap) {
-        if (dragStart.current.isLocked) {
-          // Locked location: ignore single tap
-        } else {
-          // Unlocked: fire tap detection
-          fireTap();
-        }
-      }
-
+      if (dragStart.current && !dragStart.current.moved) fireTap();
       setDragging(false);
       dragStart.current = null;
-      window.removeEventListener("touchmove", onMove);
-      window.removeEventListener("touchend", onUp);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
     };
-
-    window.addEventListener("touchmove", onMove);
-    window.addEventListener("touchend", onUp);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
   };
 
-  const fireTap = () => {
-    const now = Date.now();
-    if (now - tapRef.current.time < 300) {
-      // Double-tap detected
-      clearTimeout(tapRef.current.timer);
-      tapRef.current.time = 0;
-      onLongPress?.();
-    } else {
-      // First tap
-      tapRef.current.time = now;
-      tapRef.current.timer = setTimeout(() => {
-        onSelect();
-      }, 310);
+  const handleTouchStart = (e) => {
+    e.stopPropagation();
+    setDragging(true);
+    dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, x, y, moved: false, startTime: Date.now() };
+    setPressingId(true);
+
+    // Start long-press timer
+    longPressRef.current = setTimeout(() => {
+      if (dragStart.current && !dragStart.current.moved && onLongPress) {
+        onLongPress();
+        if (navigator.vibrate) navigator.vibrate(50);
+      }
+    }, 1000);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!dragStart.current || is_locked) return;
+    e.stopPropagation();
+    const dx = (e.touches[0].clientX - dragStart.current.mx) / zoom;
+    const dy = (e.touches[0].clientY - dragStart.current.my) / zoom;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      dragStart.current.moved = true;
+      clearTimeout(longPressRef.current);
+      setPressingId(false);
     }
+    onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!dragStart.current) return;
+    e.stopPropagation();
+    clearTimeout(longPressRef.current);
+    setPressingId(false);
+    const elapsed = Date.now() - dragStart.current.startTime;
+    if (!dragStart.current.moved && elapsed < 500) fireTap();
+    setDragging(false);
+    dragStart.current = null;
   };
 
   const handleResizeDown = (e) => {
@@ -243,7 +156,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const ry = isOval ? height / 2 : 8;
 
   return (
-    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }}>
+    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }} onMouseDown={is_locked ? handleMouseDown : undefined} onTouchStart={is_locked ? handleTouchStart : undefined}>
       <defs>
         {background_image_url && (
           <>
@@ -265,8 +178,11 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         stroke={borderColor}
         strokeWidth={isSelected ? 2.5 : 1.5}
         strokeDasharray={isSelected ? "6,3" : "none"}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
+        pointerEvents={is_locked ? "none" : "auto"}
+        onMouseDown={!is_locked ? handleMouseDown : undefined}
+        onTouchStart={!is_locked ? handleTouchStart : undefined}
+        onTouchMove={!is_locked ? handleTouchMove : undefined}
+        onTouchEnd={!is_locked ? handleTouchEnd : undefined}
       />
 
       {/* Name label */}
