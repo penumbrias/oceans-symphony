@@ -25,7 +25,6 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   };
 
   const handleMouseDown = (e) => {
-    if (is_locked) { e.stopPropagation(); return; }
     e.stopPropagation();
     setDragging(true);
     dragStart.current = { mx: e.clientX, my: e.clientY, x, y, moved: false, startTime: Date.now() };
@@ -40,7 +39,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     }, 1000);
 
     const onMove = (ev) => {
-      if (!dragStart.current) return;
+      if (!dragStart.current || is_locked) return;
       const dx = (ev.clientX - dragStart.current.mx) / zoom;
       const dy = (ev.clientY - dragStart.current.my) / zoom;
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
@@ -64,7 +63,6 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   };
 
   const handleTouchStart = (e) => {
-    if (is_locked) { return; }
     e.stopPropagation();
     setDragging(true);
     dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, x, y, moved: false, startTime: Date.now() };
@@ -80,7 +78,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   };
 
   const handleTouchMove = (e) => {
-    if (!dragStart.current) return;
+    if (!dragStart.current || is_locked) return;
     e.stopPropagation();
     const dx = (e.touches[0].clientX - dragStart.current.mx) / zoom;
     const dy = (e.touches[0].clientY - dragStart.current.my) / zoom;
