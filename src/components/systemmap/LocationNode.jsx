@@ -37,7 +37,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         onLongPress();
         if (navigator.vibrate) navigator.vibrate(50);
       }
-    }, 3000);
+    }, 2000);
 
     const onMove = (ev) => {
       if (!dragStart.current) return;
@@ -76,7 +76,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         onLongPress();
         if (navigator.vibrate) navigator.vibrate(50);
       }
-    }, 3000);
+    }, 2000);
   };
 
   const handleTouchMove = (e) => {
@@ -190,7 +190,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
           stroke={color}
           strokeWidth={2}
           opacity={0.6}
-          style={{ animation: "longPressRing 3s ease-out forwards" }}
+          style={{ animation: "longPressRing 2s ease-out forwards" }}
         />
       )}
 
