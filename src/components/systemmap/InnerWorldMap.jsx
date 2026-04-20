@@ -22,6 +22,8 @@ function snapVal(v) { return Math.round(v / SNAP) * SNAP; }
 function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd, zoom }) {
   const dragRef = useRef(null);
   const tapRef = useRef({ time: 0, timer: null });
+  // Separate touch-tap detector to avoid interference with mouse events
+  const touchTapRef = useRef({ time: 0, timer: null });
 
   const handleMouseDown = (e) => {
     e.stopPropagation();
@@ -36,9 +38,22 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
     const onUp = (ev) => {
       if (!dragRef.current) return;
       if (dragRef.current.moved) {
-        const dx = (ev.clientX - dragRef.current.startMx) / zoom;
-        const dy = (ev.clientY - dragRef.current.startMy) / zoom;
-        onDragEnd(dragRef.current.startX + dx, dragRef.current.startY + dy);
+        if (!alter.inner_world_locked) {
+          const dx = (ev.clientX - dragRef.current.startMx) / zoom;
+          const dy = (ev.clientY - dragRef.current.startMy) / zoom;
+          onDragEnd(dragRef.current.startX + dx, dragRef.current.startY + dy);
+        }
+      } else {
+        // Mouse single/double tap
+        const now = Date.now();
+        if (now - tapRef.current.time < 300) {
+          clearTimeout(tapRef.current.timer);
+          tapRef.current.time = 0;
+          onDoubleTap();
+        } else {
+          tapRef.current.time = now;
+          tapRef.current.timer = setTimeout(() => { onTap(); }, 310);
+        }
       }
       dragRef.current = null;
       window.removeEventListener("mousemove", onMove);
@@ -46,45 +61,60 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-
-    const now = Date.now();
-    if (now - tapRef.current.time < 300) {
-      clearTimeout(tapRef.current.timer);
-      tapRef.current.time = 0;
-      onDoubleTap();
-    } else {
-      tapRef.current.time = now;
-      tapRef.current.timer = setTimeout(() => {
-        if (!dragRef.current?.moved) onTap();
-      }, 310);
-    }
   };
 
   const handleTouchStart = (e) => {
     e.stopPropagation();
-    dragRef.current = { startMx: e.touches[0].clientX, startMy: e.touches[0].clientY, startX: alter.inner_world_x, startY: alter.inner_world_y, moved: false };
+    e.preventDefault();
+    const t = e.touches[0];
+    dragRef.current = { startMx: t.clientX, startMy: t.clientY, startX: alter.inner_world_x, startY: alter.inner_world_y, moved: false, startTime: Date.now() };
   };
 
   const handleTouchMove = (e) => {
     e.stopPropagation();
+    e.preventDefault();
     if (!dragRef.current) return;
-    const dx = (e.touches[0].clientX - dragRef.current.startMx) / zoom;
-    const dy = (e.touches[0].clientY - dragRef.current.startMy) / zoom;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.moved = true;
+    const t = e.touches[0];
+    const dx = (t.clientX - dragRef.current.startMx) / zoom;
+    const dy = (t.clientY - dragRef.current.startMy) / zoom;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+      dragRef.current.moved = true;
+      // Live drag feedback — update position without saving
+      if (!alter.inner_world_locked) {
+        // Just mark as moved; save on touchEnd
+      }
+    }
   };
 
   const handleTouchEnd = (e) => {
     e.stopPropagation();
+    e.preventDefault();
     if (!dragRef.current) return;
     const touch = e.changedTouches[0];
+    const elapsed = Date.now() - dragRef.current.startTime;
+
     if (dragRef.current.moved) {
-      const dx = (touch.clientX - dragRef.current.startMx) / zoom;
-      const dy = (touch.clientY - dragRef.current.startMy) / zoom;
-      onDragEnd(dragRef.current.startX + dx, dragRef.current.startY + dy);
+      if (!alter.inner_world_locked) {
+        const dx = (touch.clientX - dragRef.current.startMx) / zoom;
+        const dy = (touch.clientY - dragRef.current.startMy) / zoom;
+        onDragEnd(dragRef.current.startX + dx, dragRef.current.startY + dy);
+      }
+      dragRef.current = null;
+    } else if (elapsed < 500) {
+      dragRef.current = null;
+      // Double-tap detection
+      const now = Date.now();
+      if (now - touchTapRef.current.time < 300) {
+        clearTimeout(touchTapRef.current.timer);
+        touchTapRef.current.time = 0;
+        onDoubleTap();
+      } else {
+        touchTapRef.current.time = now;
+        touchTapRef.current.timer = setTimeout(() => { onTap(); }, 310);
+      }
     } else {
-      onTap();
+      dragRef.current = null;
     }
-    dragRef.current = null;
   };
 
   const cx = alter.inner_world_x ?? 0;
@@ -92,9 +122,9 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
   const ringColor = isRelMode ? "#f59e0b" : isSelected ? "#3b82f6" : "transparent";
 
   return (
-    <g onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: "grab", touchAction: "none" }}>
+    <g onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: alter.inner_world_locked ? "default" : "grab", touchAction: "none" }}>
       {/* Larger invisible touch target */}
-      <circle cx={cx} cy={cy} r={NODE_RADIUS + 10} fill="transparent" />
+      <circle cx={cx} cy={cy} r={NODE_RADIUS + 18} fill="transparent" />
       {(isSelected || isRelMode) && (
         <circle cx={cx} cy={cy} r={NODE_RADIUS + 5} fill="none" stroke={ringColor} strokeWidth={2.5} opacity={0.8} />
       )}
@@ -113,6 +143,9 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
         style={{ userSelect: "none" }}>
         {alter.name?.length > 14 ? alter.name.slice(0, 12) + "…" : alter.name}
       </text>
+      {alter.inner_world_locked && (
+        <text x={cx + NODE_RADIUS - 4} y={cy + NODE_RADIUS - 4} textAnchor="middle" fontSize={10} pointerEvents="none">🔒</text>
+      )}
     </g>
   );
 }
@@ -179,20 +212,25 @@ function RelationshipLines({ relationships, alters, relMode, selectedAlter, onRe
       const ox = perpX * baseOffset, oy = perpY * baseOffset;
       lines.push(renderLine(`${rel.id}-btoa`, bx + ox, by + oy, ax + ox, ay + oy, markerId));
     } else {
-      // bidirectional: two lines with small perpendicular offset so both arrows show
-      const biOffset = 5;
-      const ox1 = perpX * (baseOffset + biOffset), oy1 = perpY * (baseOffset + biOffset);
-      const ox2 = perpX * (baseOffset - biOffset), oy2 = perpY * (baseOffset - biOffset);
-      const markerIdB = `iwarrow-${rel.id}-b`;
+      // bidirectional: single line with arrowheads on both ends
+      const ox = perpX * baseOffset, oy = perpY * baseOffset;
+      const markerStartId = `iwarrow-${rel.id}-start`;
       lines.push(
         <React.Fragment key={`${rel.id}-bi`}>
           <defs>
-            <marker id={markerIdB} markerWidth="8" markerHeight="6" refX={NODE_RADIUS + 6} refY="3" orient="auto">
+            <marker id={markerStartId} markerWidth="8" markerHeight="6" refX={NODE_RADIUS + 6} refY="3" orient="auto-start-reverse">
               <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
             </marker>
           </defs>
-          {renderLine(`${rel.id}-bi-1`, ax + ox1, ay + oy1, bx + ox1, by + oy1, markerId)}
-          {renderLine(`${rel.id}-bi-2`, bx + ox2, by + oy2, ax + ox2, ay + oy2, markerIdB)}
+          <g style={{ cursor: "pointer" }} onClick={handleClick}>
+            <line x1={ax + ox} y1={ay + oy} x2={bx + ox} y2={by + oy} stroke="transparent" strokeWidth={12} />
+            <line x1={ax + ox} y1={ay + oy} x2={bx + ox} y2={by + oy}
+              stroke={color} strokeWidth={2} opacity={0.75}
+              markerStart={`url(#${markerStartId})`}
+              markerEnd={`url(#${markerId})`}>
+              <title>{title}</title>
+            </line>
+          </g>
         </React.Fragment>
       );
     }
@@ -252,6 +290,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const panMovedRef = useRef(false);
   const [placingAlter, setPlacingAlter] = useState(null);
   const [panelOpen, setPanelOpen] = useState(() => {
     try { return JSON.parse(localStorage.getItem("iw_panel_open") ?? "true"); }
@@ -283,6 +322,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   // Touch handlers
   const handleTouchStart = (e) => {
     if (e.touches.length === 1) {
+      panMovedRef.current = false;
       touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       setIsDragging(true);
       setDragStart({ x: e.touches[0].clientX - transform.x, y: e.touches[0].clientY - transform.y });
@@ -306,6 +346,9 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
       }
       lastPinchRef.current = dist;
     } else if (e.touches.length === 1 && isDragging) {
+      const dx = Math.abs(e.touches[0].clientX - (dragStart.x + transform.x));
+      const dy = Math.abs(e.touches[0].clientY - (dragStart.y + transform.y));
+      if (dx > 5 || dy > 5) panMovedRef.current = true;
       setTransform(t => ({ 
         ...t, 
         x: e.touches[0].clientX - dragStart.x, 
@@ -341,11 +384,15 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   // Pan handlers
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
+    panMovedRef.current = false;
     setIsDragging(true);
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   };
   const handleMouseMove = (e) => {
     if (!isDragging) return;
+    const dx = Math.abs(e.clientX - (dragStart.x + transform.x));
+    const dy = Math.abs(e.clientY - (dragStart.y + transform.y));
+    if (dx > 5 || dy > 5) panMovedRef.current = true;
     setTransform(t => ({ ...t, x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }));
   };
   const handleMouseUp = () => setIsDragging(false);
@@ -578,7 +625,8 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                 location={loc}
                 isSelected={selectedLocation?.id === loc.id}
                 zoom={transform.scale}
-                onSelect={() => { setSelectedLocation(loc); setEditingLocation(loc); }}
+                onSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); } }}
+              onDoubleSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); setEditingLocation(loc); } }}
                 onUpdate={(fields) => updateLocation(loc, fields)}
                 onDelete={() => deleteLocation(loc)}
               />
@@ -855,17 +903,23 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             </div>
             {selectedAlter.pronouns && <p className="text-xs text-muted-foreground">{selectedAlter.pronouns}</p>}
             {selectedAlter.role && <p className="text-xs text-muted-foreground capitalize">{selectedAlter.role}</p>}
-            <button onClick={() => window.location.href = `/alter/${selectedAlter.id}`}
-              className="text-xs text-primary hover:underline">View full profile →</button>
-            <Button variant="outline" className="flex-1" size="sm" onClick={() => {
-            const loc = locations.find(l => l.id === selectedAlter?.inner_world_location_id);
-            if (loc) {
-            setEditingLocation(loc);
-            bgFileRef.current?.click();
-            }
-            }}>
-            <Upload className="w-3.5 h-3.5 mr-1" /> Location Image
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={() => window.location.href = `/alter/${selectedAlter.id}`}
+                className="text-xs text-primary hover:underline">View full profile →</button>
+              <button onClick={async () => {
+                const newLocked = !selectedAlter.inner_world_locked;
+                await db.Alter.update(selectedAlter.id, { inner_world_locked: newLocked });
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+                setSelectedAlter({ ...selectedAlter, inner_world_locked: newLocked });
+              }}
+                className={`h-7 px-2.5 rounded text-xs font-medium transition-colors ${
+                  selectedAlter.inner_world_locked
+                    ? "bg-amber-100/30 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/50"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted/80 border border-border/50"
+                }`}>
+                🔒 {selectedAlter.inner_world_locked ? "Locked" : "Lock position"}
+              </button>
+            </div>
             {/* Relationships for this alter */}
             <AlterRelationshipsSection
               alter={selectedAlter}

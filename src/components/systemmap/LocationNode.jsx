@@ -3,30 +3,40 @@ import { Lock } from "lucide-react";
 
 const MIN_SIZE = 80;
 
-export default function LocationNode({ location, isSelected, onSelect, onUpdate, onDelete, zoom = 1 }) {
+export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onUpdate, onDelete, zoom = 1 }) {
   const [dragging, setDragging] = useState(false);
-  const [resizing, setResizing] = useState(null); // "se" corner handle
   const dragStart = useRef(null);
+  const tapRef = useRef({ time: 0, timer: null });
 
   const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked } = location;
 
+  const fireTap = () => {
+    const now = Date.now();
+    if (now - tapRef.current.time < 300) {
+      clearTimeout(tapRef.current.timer);
+      tapRef.current.time = 0;
+      onDoubleSelect?.();
+    } else {
+      tapRef.current.time = now;
+      tapRef.current.timer = setTimeout(() => { onSelect(); }, 310);
+    }
+  };
+
   const handleMouseDown = (e) => {
-    if (is_locked) {
-  onSelect(location);
-  return;
-}
+    if (is_locked) { e.stopPropagation(); return; }
     e.stopPropagation();
-    onSelect(location);
     setDragging(true);
-    dragStart.current = { mx: e.clientX, my: e.clientY, x, y };
+    dragStart.current = { mx: e.clientX, my: e.clientY, x, y, moved: false };
 
     const onMove = (ev) => {
       if (!dragStart.current) return;
       const dx = (ev.clientX - dragStart.current.mx) / zoom;
       const dy = (ev.clientY - dragStart.current.my) / zoom;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragStart.current.moved = true;
       onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
     };
     const onUp = () => {
+      if (dragStart.current && !dragStart.current.moved) fireTap();
       setDragging(false);
       dragStart.current = null;
       window.removeEventListener("mousemove", onMove);
@@ -37,26 +47,26 @@ export default function LocationNode({ location, isSelected, onSelect, onUpdate,
   };
 
   const handleTouchStart = (e) => {
-    if (is_locked) {
-      onSelect(location);
-      return; // Allow canvas pan to work
-    }
+    if (is_locked) { return; }
     e.stopPropagation();
-    onSelect(location);
     setDragging(true);
-    dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, x, y };
+    dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, x, y, moved: false, startTime: Date.now() };
   };
 
   const handleTouchMove = (e) => {
-    if (!dragStart.current) return; // Locked or not dragging, let canvas pan
+    if (!dragStart.current) return;
     e.stopPropagation();
     const dx = (e.touches[0].clientX - dragStart.current.mx) / zoom;
     const dy = (e.touches[0].clientY - dragStart.current.my) / zoom;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dragStart.current.moved = true;
     onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
   };
 
   const handleTouchEnd = (e) => {
-    if (dragStart.current) e.stopPropagation(); // Only stop if we were dragging
+    if (!dragStart.current) return;
+    e.stopPropagation();
+    const elapsed = Date.now() - dragStart.current.startTime;
+    if (!dragStart.current.moved && elapsed < 500) fireTap();
     setDragging(false);
     dragStart.current = null;
   };

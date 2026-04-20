@@ -94,6 +94,11 @@
     "inner_world_location_id": {
       "type": "string",
       "description": "Optional \u2014 which InnerWorldLocation this alter currently resides in"
+    },
+    "inner_world_locked": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this alter is locked in place on the inner world canvas"
     }
   },
   "required": [
