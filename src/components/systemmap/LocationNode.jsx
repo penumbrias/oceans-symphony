@@ -170,29 +170,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
             </pattern>
           </>
         )}
-        {pressingId && (
-          <style>
-            {`@keyframes longPressRing {
-              0% { r: ${Math.max(width, height) / 2 + 2}; opacity: 0.6; }
-              100% { r: ${Math.max(width, height) / 2 + 12}; opacity: 0; }
-            }`}
-          </style>
-        )}
       </defs>
-
-      {/* Long-press visual feedback ring */}
-      {pressingId && (
-        <circle
-          cx={x + width / 2}
-          cy={y + height / 2}
-          r={Math.max(width, height) / 2 + 2}
-          fill="none"
-          stroke={color}
-          strokeWidth={2}
-          opacity={0.6}
-          style={{ animation: "longPressRing 2s ease-out forwards" }}
-        />
-      )}
 
       {/* Background fill */}
       <rect
