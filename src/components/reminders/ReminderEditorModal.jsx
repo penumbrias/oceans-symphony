@@ -11,6 +11,7 @@ import { Plus, X, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "./snoozeHelpers";
 import SearchableSelect from "@/components/shared/SearchableSelect";
+import AlterScopeSection from "./AlterScopeSection";
 import { registerPush, isPushEnabled } from "@/lib/pushRegistration";
 import { toast } from "sonner";
 
@@ -56,8 +57,9 @@ const DEFAULT_FORM = {
   trigger_type: "scheduled",
   trigger_config: { times: ["09:00"], days: [0,1,2,3,4,5,6] },
   delivery_channels: ["in_app"],
-  alter_id: "",
-  alter_scope: "always",
+  alter_id: null,
+  alter_scope: null,
+  alter_scope_catchup: false,
   inline_actions: [],
   auto_resolve_rule: null,
   quiet_hours_respect: true,
@@ -377,7 +379,6 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
 export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved }) {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
-  const [hasAlterScope, setHasAlterScope] = useState(false);
   const [hasAutoResolve, setHasAutoResolve] = useState(false);
 
   const { data: alters = [] } = useQuery({
@@ -400,11 +401,9 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
   useEffect(() => {
     if (existing) {
       setForm({ ...DEFAULT_FORM, ...existing });
-      setHasAlterScope(!!existing.alter_id);
       setHasAutoResolve(!!existing.auto_resolve_rule);
     } else {
       setForm(DEFAULT_FORM);
-      setHasAlterScope(false);
       setHasAutoResolve(false);
     }
   }, [existing, isOpen]);
@@ -426,7 +425,9 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
     setSaving(true);
     const data = {
       ...form,
-      alter_id: hasAlterScope ? form.alter_id : null,
+      alter_id: form.alter_id || null,
+      alter_scope: form.alter_id ? (form.alter_scope || "always") : null,
+      alter_scope_catchup: form.alter_id && form.alter_scope === "when_fronting" ? (form.alter_scope_catchup || false) : false,
       auto_resolve_rule: hasAutoResolve ? form.auto_resolve_rule : null,
     };
     if (existing?.id) {
@@ -542,41 +543,19 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
           </div>
 
           {/* Alter scope */}
-          <Collapsible label="Tie to a specific alter">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Enable alter scope</span>
-              <Switch checked={hasAlterScope} onCheckedChange={setHasAlterScope} />
-            </div>
-            {hasAlterScope && (
-              <>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Alter</Label>
-                  <SearchableSelect
-                    className="mt-1"
-                    value={form.alter_id || null}
-                    onChange={id => set("alter_id", id || "")}
-                    options={alters.map(a => ({
-                      id: a.id,
-                      label: a.name,
-                      sublabel: a.alias || a.pronouns,
-                      avatar_url: a.avatar_url,
-                      color: a.color,
-                    }))}
-                    placeholder="— select alter —"
-                    allowClear
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">When to fire</Label>
-                  <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
-                    value={form.alter_scope || "always"} onChange={e => set("alter_scope", e.target.value)}>
-                    <option value="always">Always</option>
-                    <option value="when_fronting">Only when fronting</option>
-                  </select>
-                </div>
-              </>
-            )}
-          </Collapsible>
+          {(() => {
+            const scopedAlter = alters.find(a => a.id === form.alter_id);
+            const scopeSummary = !form.alter_id
+              ? "For the whole system"
+              : form.alter_scope === "when_fronting"
+                ? `For ${scopedAlter?.name || "…"}, only when fronting`
+                : `For ${scopedAlter?.name || "…"}, always active`;
+            return (
+              <Collapsible label="Alter scope" summary={scopeSummary}>
+                <AlterScopeSection form={form} set={set} alters={alters} />
+              </Collapsible>
+            );
+          })()}
 
           {/* Inline actions */}
           <Collapsible label="Quick action buttons">

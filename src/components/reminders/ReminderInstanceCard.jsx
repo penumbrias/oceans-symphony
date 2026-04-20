@@ -17,7 +17,35 @@ const STATUS_LABELS = {
   snoozed: "Snoozed",
 };
 
-export default function ReminderInstanceCard({ instance, reminder, onAction, onSnooze, onDone, onDismiss, onUnsnooze, readOnly = false }) {
+function AlterAvatar({ alter, categoryIcon }) {
+  if (!alter) {
+    return (
+      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <span className="text-base">{categoryIcon}</span>
+      </div>
+    );
+  }
+  const borderColor = alter.color || "#3B82F6";
+  return (
+    <div
+      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 border-2 overflow-hidden"
+      style={{ borderColor }}
+    >
+      {alter.avatar_url ? (
+        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+      ) : (
+        <div
+          className="w-full h-full flex items-center justify-center text-white text-sm font-bold"
+          style={{ backgroundColor: borderColor }}
+        >
+          {alter.name?.[0]?.toUpperCase() || "?"}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ReminderInstanceCard({ instance, reminder, alter, onAction, onSnooze, onDone, onDismiss, onUnsnooze, readOnly = false }) {
   if (!reminder) return null;
 
   const displayTime = instance.fired_at || instance.scheduled_for;
@@ -29,9 +57,7 @@ export default function ReminderInstanceCard({ instance, reminder, onAction, onS
   return (
     <div className={`bg-card border border-border/50 rounded-xl p-4 space-y-3 transition-all ${readOnly ? "opacity-60" : ""} ${isSnoozed ? "border-amber-200/60 dark:border-amber-800/40" : ""}`}>
       <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-          <span className="text-base">{Icon}</span>
-        </div>
+        <AlterAvatar alter={alter} categoryIcon={Icon} />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold text-sm text-foreground leading-tight">{reminder.title}</p>
@@ -41,6 +67,25 @@ export default function ReminderInstanceCard({ instance, reminder, onAction, onS
               </span>
             )}
           </div>
+          {alter && (
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  backgroundColor: (alter.color || "#3B82F6") + "22",
+                  color: alter.color || "#3B82F6",
+                  border: `1px solid ${(alter.color || "#3B82F6")}44`,
+                }}
+              >
+                For {alter.name}
+              </span>
+              {reminder.alter_scope === "when_fronting" && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-muted/40 text-muted-foreground border border-border/40">
+                  · when fronting
+                </span>
+              )}
+            </div>
+          )}
           {reminder.body && (
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{reminder.body}</p>
           )}

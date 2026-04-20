@@ -3,10 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import ReminderInstanceCard from "./ReminderInstanceCard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { snoozeUntilDate } from "./snoozeHelpers";
-import { toast } from "sonner";
 
 export default function RemindersInbox() {
   const queryClient = useQueryClient();
@@ -26,7 +26,13 @@ export default function RemindersInbox() {
     queryFn: () => base44.entities.Reminder.list(),
   });
 
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+
   const reminderMap = Object.fromEntries(reminders.map(r => [r.id, r]));
+  const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
 
   const active = instances.filter(i => {
     if (i.status === "snoozed") return true; // always show snoozed so user can unsnooze
@@ -114,17 +120,22 @@ export default function RemindersInbox() {
           <p className="font-medium">No pending reminders. You're all caught up 🤍</p>
         </div>
       ) : (
-        active.map(instance => (
-          <ReminderInstanceCard
-            key={instance.id}
-            instance={instance}
-            reminder={reminderMap[instance.reminder_id]}
-            onAction={(action) => handleAction(instance, action)}
-            onSnooze={(opt) => handleSnoozeWithToast(instance, opt)}
-            onUnsnooze={() => handleUnsnooze(instance)}
-            onDone={() => handleDone(instance)}
-            onDismiss={() => handleDismiss(instance)}
-          />
+        active.map(instance => {
+          const reminder = reminderMap[instance.reminder_id];
+          return (
+            <ReminderInstanceCard
+              key={instance.id}
+              instance={instance}
+              reminder={reminder}
+              alter={reminder?.alter_id ? alterMap[reminder.alter_id] : null}
+              onAction={(action) => handleAction(instance, action)}
+              onSnooze={(opt) => handleSnoozeWithToast(instance, opt)}
+              onUnsnooze={() => handleUnsnooze(instance)}
+              onDone={() => handleDone(instance)}
+              onDismiss={() => handleDismiss(instance)}
+            />
+          );
+        }
         ))
       )}
 
@@ -139,13 +150,18 @@ export default function RemindersInbox() {
           </button>
           {showHandled && (
             <div className="space-y-2 mt-2 opacity-60">
-              {handled.map(instance => (
-                <ReminderInstanceCard
-                  key={instance.id}
-                  instance={instance}
-                  reminder={reminderMap[instance.reminder_id]}
-                  readOnly
-                />
+              {handled.map(instance => {
+                const reminder = reminderMap[instance.reminder_id];
+                return (
+                  <ReminderInstanceCard
+                    key={instance.id}
+                    instance={instance}
+                    reminder={reminder}
+                    alter={reminder?.alter_id ? alterMap[reminder.alter_id] : null}
+                    readOnly
+                  />
+                );
+              }
               ))}
             </div>
           )}

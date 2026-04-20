@@ -238,13 +238,54 @@ Deno.serve(async (req) => {
 
     const quietHours = settings.quiet_hours || {};
 
-    // Load push subscriptions
+    // Load push subscriptions and alters
     const pushSubs = await base44.asServiceRole.entities.PushSubscription.filter({ is_active: true });
+    const alters = await base44.asServiceRole.entities.Alter.list();
+    const alterMap = Object.fromEntries((alters || []).map(a => [a.id, a]));
+
+    // Load active fronting sessions for alter scope gate
+    const activeFrontingSessions = await base44.asServiceRole.entities.FrontingSession.filter({ is_active: true });
 
     let processed = 0;
 
+    // Promote catchup instances whose alter is now fronting, expire stale ones
+    const catchupInstances = (allInstances || []).filter(i =>
+      i.status === "pending" && i.pending_note === "waiting_for_alter_front"
+    );
+    for (const inst of catchupInstances) {
+      const reminder = activeReminders.find(r => r.id === inst.reminder_id);
+      if (!reminder?.alter_id) continue;
+      const createdMs = new Date(inst.created_date || 0).getTime();
+      if (now.getTime() - createdMs > 24 * 60 * 60 * 1000) {
+        await base44.asServiceRole.entities.ReminderInstance.update(inst.id, {
+          status: "auto_resolved",
+          skipped_reason: "alter_not_fronting",
+        });
+        continue;
+      }
+      const isNowFronting = (activeFrontingSessions || []).some(s => {
+        if (s.alter_id) return s.alter_id === reminder.alter_id;
+        return s.primary_alter_id === reminder.alter_id || (s.co_fronter_ids || []).includes(reminder.alter_id);
+      });
+      if (isNowFronting) {
+        await base44.asServiceRole.entities.ReminderInstance.update(inst.id, {
+          status: "fired",
+          fired_at: nowISO(),
+          delivery_attempted: ["in_app"],
+          pending_note: null,
+        });
+        processed++;
+      }
+    }
+
     for (const reminder of activeReminders) {
       try {
+        // Skip if scoped to an archived alter
+        if (reminder.alter_id) {
+          const alter = alterMap[reminder.alter_id];
+          if (alter?.is_archived) continue;
+        }
+
         const due = await evaluateReminderDue(reminder, now, base44, recentInstances);
         if (!due) continue;
 
@@ -256,10 +297,51 @@ Deno.serve(async (req) => {
             scheduled_for: due.scheduled_for,
             fired_at: now.toISOString(),
             status: "auto_resolved",
+            skipped_reason: "auto_resolved_rule",
             delivery_attempted: [],
           });
           processed++;
           continue;
+        }
+
+        // Alter scope gate
+        if (reminder.alter_id && reminder.alter_scope === "when_fronting") {
+          const isAlterFronting = (activeFrontingSessions || []).some(s => {
+            if (s.alter_id) return s.alter_id === reminder.alter_id;
+            return s.primary_alter_id === reminder.alter_id || (s.co_fronter_ids || []).includes(reminder.alter_id);
+          });
+          if (!isAlterFronting) {
+            if (reminder.alter_scope_catchup) {
+              // Don't create duplicate catchup instances
+              const alreadyPending = recentInstances.some(i =>
+                i.reminder_id === reminder.id &&
+                i.status === "pending" &&
+                i.pending_note === "waiting_for_alter_front"
+              );
+              if (!alreadyPending) {
+                await base44.asServiceRole.entities.ReminderInstance.create({
+                  reminder_id: reminder.id,
+                  scheduled_for: due.scheduled_for,
+                  status: "pending",
+                  pending_note: "waiting_for_alter_front",
+                  delivery_attempted: [],
+                });
+                processed++;
+              }
+            } else {
+              await base44.asServiceRole.entities.ReminderInstance.create({
+                reminder_id: reminder.id,
+                scheduled_for: due.scheduled_for,
+                fired_at: now.toISOString(),
+                status: "auto_resolved",
+                skipped_reason: "alter_not_fronting",
+                delivery_attempted: [],
+              });
+              await base44.asServiceRole.entities.Reminder.update(reminder.id, { last_fired_at: now.toISOString() });
+              processed++;
+            }
+            continue;
+          }
         }
 
         // Check quiet hours

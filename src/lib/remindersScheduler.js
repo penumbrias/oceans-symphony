@@ -272,6 +272,12 @@ export async function runClientScheduler(queryClient) {
 
     const quietHours = settings.quiet_hours || {};
 
+    // Load alters for archived check and scope check
+    const alters = await base44.entities.Alter.list();
+    const alterMap = Object.fromEntries((alters || []).map(a => [a.id, a]));
+    // Active fronting sessions for alter scope gate
+    const activeFrontingSessions = (sessions || []).filter(s => s.is_active);
+
     const cachedData = { emotionCheckIns, sessions, activities, symptomCheckIns };
     const newInstances = [];
 
@@ -284,8 +290,45 @@ export async function runClientScheduler(queryClient) {
       newInstances.push({ ...inst, status: "fired" });
     }
 
+    // Check pending catchup instances — fire if their alter is now fronting
+    const catchupInstances = (allInstances || []).filter(i =>
+      i.status === "pending" && i.pending_note === "waiting_for_alter_front"
+    );
+    for (const inst of catchupInstances) {
+      const reminder = (reminders || []).find(r => r.id === inst.reminder_id);
+      if (!reminder?.alter_id) continue;
+      // Expire after 24h
+      const createdMs = new Date(inst.created_date || 0).getTime();
+      if (nowMs - createdMs > 24 * 60 * 60 * 1000) {
+        await base44.entities.ReminderInstance.update(inst.id, {
+          status: "auto_resolved",
+          skipped_reason: "alter_not_fronting",
+        });
+        continue;
+      }
+      const isNowFronting = activeFrontingSessions.some(s => {
+        if (s.alter_id) return s.alter_id === reminder.alter_id;
+        return s.primary_alter_id === reminder.alter_id || (s.co_fronter_ids || []).includes(reminder.alter_id);
+      });
+      if (isNowFronting) {
+        await base44.entities.ReminderInstance.update(inst.id, {
+          status: "fired",
+          fired_at: now.toISOString(),
+          delivery_attempted: ["in_app"],
+          pending_note: null,
+        });
+        newInstances.push({ ...inst, status: "fired" });
+      }
+    }
+
     for (const reminder of activeReminders) {
       try {
+        // Skip if scoped to an archived alter
+        if (reminder.alter_id) {
+          const alter = alterMap[reminder.alter_id];
+          if (alter?.is_archived) continue;
+        }
+
         const due = evaluateReminderDue(reminder, now, recentInstances, cachedData);
         if (!due) continue;
 
@@ -296,10 +339,52 @@ export async function runClientScheduler(queryClient) {
             scheduled_for: due.scheduled_for,
             fired_at: now.toISOString(),
             status: "auto_resolved",
+            skipped_reason: "auto_resolved_rule",
             delivery_attempted: [],
           });
           recentInstances.push(inst);
           continue;
+        }
+
+        // Alter scope gate — check if alter is fronting
+        if (reminder.alter_id && reminder.alter_scope === "when_fronting") {
+          const isAlterFronting = activeFrontingSessions.some(s => {
+            if (s.alter_id) return s.alter_id === reminder.alter_id;
+            return s.primary_alter_id === reminder.alter_id || (s.co_fronter_ids || []).includes(reminder.alter_id);
+          });
+          if (!isAlterFronting) {
+            if (reminder.alter_scope_catchup) {
+              // Create a pending catchup instance
+              const alreadyPending = (allInstances || []).some(i =>
+                i.reminder_id === reminder.id &&
+                i.status === "pending" &&
+                i.pending_note === "waiting_for_alter_front"
+              );
+              if (!alreadyPending) {
+                const inst = await base44.entities.ReminderInstance.create({
+                  reminder_id: reminder.id,
+                  scheduled_for: due.scheduled_for,
+                  status: "pending",
+                  pending_note: "waiting_for_alter_front",
+                  delivery_attempted: [],
+                });
+                recentInstances.push(inst);
+              }
+            } else {
+              // Auto-resolve with skipped reason
+              const inst = await base44.entities.ReminderInstance.create({
+                reminder_id: reminder.id,
+                scheduled_for: due.scheduled_for,
+                fired_at: now.toISOString(),
+                status: "auto_resolved",
+                skipped_reason: "alter_not_fronting",
+                delivery_attempted: [],
+              });
+              await base44.entities.Reminder.update(reminder.id, { last_fired_at: now.toISOString() });
+              recentInstances.push(inst);
+            }
+            continue;
+          }
         }
 
         // Quiet hours — defer

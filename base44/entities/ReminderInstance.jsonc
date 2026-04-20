@@ -44,6 +44,21 @@
       },
       "default": [],
       "description": "Which channels actually attempted delivery, e.g. ['in_app', 'push']"
+    },
+    "skipped_reason": {
+      "type": "string",
+      "enum": [
+        "alter_not_fronting",
+        "alter_archived",
+        "auto_resolved_rule",
+        "quiet_hours_deferred",
+        "paused"
+      ],
+      "description": "Why this instance was skipped rather than fired normally"
+    },
+    "pending_note": {
+      "type": "string",
+      "description": "Internal note for pending catchup instances, e.g. 'waiting_for_alter_front'"
     }
   },
   "required": [

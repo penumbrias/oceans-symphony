@@ -50,6 +50,11 @@
       ],
       "description": "Only meaningful if alter_id is set"
     },
+    "alter_scope_catchup": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, when alter_scope=when_fronting and alter isn't fronting at fire time, create a pending catchup instance that fires next time they front (within 24h)"
+    },
     "category": {
       "type": "string",
       "enum": [
