@@ -209,13 +209,13 @@ export function SearchableSelect({
       </button>
 
       {/* Dropdown */}
-      {open && (
-        <div
-          className={cn(
-            "absolute left-0 right-0 z-50 rounded-lg border border-border bg-card shadow-lg",
-            openAbove ? "bottom-full mb-1" : "top-full mt-1"
-          )}
-        >
+       {open && (
+         <div
+           className={cn(
+             "absolute left-0 right-0 z-[9999] rounded-lg border border-border bg-card shadow-lg",
+             openAbove ? "bottom-full mb-1" : "top-full mt-1"
+           )}
+         >
           {/* Search */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
@@ -374,7 +374,7 @@ export function SearchableMultiSelect({
       {/* Dropdown */}
       {open && (
         <div className={cn(
-          "absolute left-0 right-0 z-50 rounded-lg border border-border bg-card shadow-lg",
+          "absolute left-0 right-0 z-[9999] rounded-lg border border-border bg-card shadow-lg",
           openAbove ? "bottom-full mb-1" : "top-full mt-1"
         )}>
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50">
