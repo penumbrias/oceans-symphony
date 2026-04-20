@@ -78,7 +78,7 @@ const SEEDS = [
   },
   {
     title: "Did that help?",
-    body: "Quick check: has the medication kicked in?",
+    body: "Quick check: how are you feeling now?",
     category: "meds",
     trigger_type: "contextual",
     trigger_config: { on: "symptom_logged", symptom_ids: [], delay_minutes: 30 },
