@@ -100,8 +100,23 @@ export default function CurrentFronters({ alters }) {
   const active = primarySession || activeSessions[0] || null;
 
   useEffect(() => {
-    setStatusText("");
-    setTempStatus("");
+    if (!active) { setStatusText(""); setTempStatus(""); return; }
+    // Load persisted note from the active session
+    try {
+      const raw = active.note;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const text = Array.isArray(parsed) ? (parsed[0]?.text || "") : raw;
+        setStatusText(text);
+        setTempStatus(text);
+      } else {
+        setStatusText("");
+        setTempStatus("");
+      }
+    } catch {
+      setStatusText(active.note || "");
+      setTempStatus(active.note || "");
+    }
   }, [active?.id]);
 
   const handleSetPrimaryFromHold = async (alter) => {
@@ -129,10 +144,19 @@ export default function CurrentFronters({ alters }) {
   };
 
   const handleSaveStatus = async () => {
-    // Status notes are now EmotionCheckIns — just dismiss editing
-    setStatusText(tempStatus.trim());
+    const note = tempStatus.trim();
+    setStatusText(note);
     setEditingStatus(false);
-    toast.success("Note recorded");
+    // Persist the note to all active fronting sessions
+    try {
+      const nowIso = new Date().toISOString();
+      const noteEntry = JSON.stringify([{ text: note, timestamp: nowIso }]);
+      for (const s of activeSessions) {
+        await base44.entities.FrontingSession.update(s.id, { note: noteEntry });
+      }
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+    } catch {}
+    toast.success("Status saved");
   };
 
   if (!active) {
