@@ -293,6 +293,7 @@ export function SearchableMultiSelect({
   const searchRef = useRef(null);
   const containerRef = useRef(null);
 
+  const panelMaxHeight = 300;
   const selectedOptions = (value || []).map(id => options.find(o => o.id === id)).filter(Boolean);
 
   const filtered = query.trim()
@@ -306,8 +307,10 @@ export function SearchableMultiSelect({
     if (disabled) return;
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setOpenAbove(spaceBelow < 280 && rect.top > 280);
+      // Only flip up if: insufficient room below AND sufficient room above
+      const insufficientBelow = rect.bottom + panelMaxHeight > window.innerHeight;
+      const sufficientAbove = rect.top > panelMaxHeight;
+      setOpenAbove(insufficientBelow && sufficientAbove);
     }
     setOpen(true);
     setQuery("");
