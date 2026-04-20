@@ -81,8 +81,8 @@ export default function DataBackupRestore() {
   const [importMode, setImportMode] = useState("add");
   const [showPasteInput, setShowPasteInput] = useState(false);
   const [pasteText, setPasteText] = useState("");
-  const [showManualCopy, setShowManualCopy] = useState(null); // holds parts array when clipboard fails
-  const [manualCopyCurrentPart, setManualCopyCurrentPart] = useState(0); // current part index
+  const [showManualCopy, setShowManualCopy] = useState(null); // holds single string or parts array
+  const [copiedChunks, setCopiedChunks] = useState(new Set()); // tracks which parts have been copied
   const [multiPartChunks, setMultiPartChunks] = useState([]); // for multi-part import
   const [showMultiPartImport, setShowMultiPartImport] = useState(false);
 
@@ -136,11 +136,15 @@ const handleExportFull = async () => {
 };
 
   const splitBackupIntoParts = (backup, chunkSize = 50000) => {
+    if (backup.length <= chunkSize) {
+      return { isSinglePart: true, parts: [backup] };
+    }
     const parts = [];
     for (let i = 0; i < backup.length; i += chunkSize) {
       parts.push(backup.slice(i, i + chunkSize));
     }
-    return parts.length > 1 ? parts.map((part, idx) => `PART:${idx + 1}:${parts.length}:${part}`) : [backup];
+    const prefixedParts = parts.map((part, idx) => `PART:${idx + 1}:${parts.length}:${part}`);
+    return { isSinglePart: false, parts: prefixedParts };
   };
 
   const handleCopyToClipboard = async () => {
@@ -178,10 +182,10 @@ const handleExportFull = async () => {
       if (copied) {
         showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.");
       } else {
-        // Both methods failed — split into parts
-        const parts = splitBackupIntoParts(compressed);
+        // Both methods failed — split into parts if needed
+        const { isSinglePart, parts } = splitBackupIntoParts(compressed);
         setShowManualCopy(parts);
-        setManualCopyCurrentPart(0);
+        setCopiedChunks(new Set());
       }
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
@@ -190,10 +194,11 @@ const handleExportFull = async () => {
     }
   };
 
-  const handleCopyPartToClipboard = async (part) => {
+  const handleCopyPartToClipboard = async (part, idx) => {
     try {
       await navigator.clipboard.writeText(part);
-      showStatus("success", "Part copied to clipboard!");
+      setCopiedChunks(prev => new Set([...prev, idx]));
+      showStatus("success", `Part ${idx + 1} copied ✅`);
     } catch {
       showStatus("error", "Failed to copy part — use manual select & copy");
     }
@@ -386,35 +391,42 @@ const handleExportFull = async () => {
            </Button>
           </div>
           {Array.isArray(showManualCopy) && showManualCopy.length > 1 ? (
-            <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ Backup is large — split into {showManualCopy.length} parts</p>
-                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Part {manualCopyCurrentPart + 1} / {showManualCopy.length}</p>
+            <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-3">
+              <div>
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1">⚠️ Backup is large — split into {showManualCopy.length} parts</p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">Copy each part in order, paste into a notes app before moving to the next part</p>
               </div>
-              <p className="text-xs text-amber-700 dark:text-amber-300">Copy this part, paste it somewhere safe, then tap Next</p>
-              <textarea
-                readOnly
-                value={showManualCopy[manualCopyCurrentPart]}
-                className="w-full h-32 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                onFocus={e => e.target.select()}
-              />
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => handleCopyPartToClipboard(showManualCopy[manualCopyCurrentPart])} className="flex-1">
-                  Copy Part
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setManualCopyCurrentPart(Math.max(0, manualCopyCurrentPart - 1))} disabled={manualCopyCurrentPart === 0} className="flex-1">
-                  Prev
-                </Button>
-                {manualCopyCurrentPart < showManualCopy.length - 1 ? (
-                  <Button size="sm" onClick={() => setManualCopyCurrentPart(manualCopyCurrentPart + 1)} className="flex-1">
-                    Next
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => setShowManualCopy(null)} className="flex-1">
-                    Done
-                  </Button>
-                )}
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {showManualCopy.map((part, idx) => {
+                  const isCopied = copiedChunks.has(idx);
+                  return (
+                    <div key={idx} className="rounded-lg border border-border/50 bg-card p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold">Part {idx + 1} of {showManualCopy.length}</p>
+                        {isCopied && <span className="text-xs font-semibold text-green-600 dark:text-green-400">✅ Copied</span>}
+                      </div>
+                      <textarea
+                        readOnly
+                        value={part}
+                        className="w-full h-20 px-2 py-1.5 rounded border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                        onFocus={e => e.target.select()}
+                      />
+                      <Button size="sm" onClick={() => handleCopyPartToClipboard(part, idx)} className="w-full text-xs">
+                        {isCopied ? "✅ Copied" : `Copy Part ${idx + 1}`}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
+              {copiedChunks.size === showManualCopy.length && (
+                <div className="flex items-center gap-2 rounded-lg bg-green-100/50 dark:bg-green-900/30 px-3 py-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <p className="text-xs font-semibold text-green-700 dark:text-green-400">All parts copied ✅</p>
+                </div>
+              )}
+              <Button size="sm" variant="outline" className="w-full" onClick={() => { setShowManualCopy(null); setCopiedChunks(new Set()); }}>
+                Done
+              </Button>
             </div>
           ) : showManualCopy && typeof showManualCopy === "string" ? (
             <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-2">
