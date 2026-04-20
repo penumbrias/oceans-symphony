@@ -161,6 +161,38 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       const now = new Date().toISOString();
       await handleSaveActivities();
 
+      // Fronting sync — only if the fronting section was opened
+      if (openSections.has("fronting")) {
+        const added = selectedAlters.filter(id => !currentFronterIds.includes(id));
+        const removed = currentFronterIds.filter(id => !selectedAlters.includes(id));
+
+        if (added.length > 0 || removed.length > 0) {
+          const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
+          const individualSessions = activeSessions.filter(s => s.alter_id);
+
+          // End sessions for removed alters
+          for (const alterId of removed) {
+            const session = individualSessions.find(s => s.alter_id === alterId);
+            if (session) {
+              await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: now });
+            }
+          }
+
+          // Create new sessions for added alters
+          for (const alterId of added) {
+            await base44.entities.FrontingSession.create({
+              alter_id: alterId,
+              is_primary: false,
+              start_time: now,
+              is_active: true,
+            });
+          }
+
+          queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+          queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+        }
+      }
+
       // EmotionCheckIn
       let checkInId = null;
       if (selectedEmotions.length > 0 || note.trim() || selectedAlters.length > 0) {
