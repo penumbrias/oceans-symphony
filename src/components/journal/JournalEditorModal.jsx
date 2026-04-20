@@ -124,7 +124,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
 
   return (
     <Dialog open={isOpenFinal} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingEntryFinal ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
         </DialogHeader>
@@ -169,7 +169,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
     ];
 
     return levels.map((level, li) => (
-      <div key={li} className={`flex flex-nowrap gap-1.5 overflow-x-auto pb-1 ${li > 0 ? `pl-3 border-l-2 ml-1 ${colors[li] || colors[colors.length - 1]}` : ""}`}>
+      <div key={li} className={`flex flex-wrap gap-1.5 ${li > 0 ? `pl-3 border-l-2 ml-1 ${colors[li] || colors[colors.length - 1]}` : ""}`}>
         {li === 0 && (
           <button type="button" onClick={() => setFolder(null)}
             className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${!folder ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>

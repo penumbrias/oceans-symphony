@@ -93,7 +93,7 @@ function AlterSelector({ selectedIds, onChange, alters }) {
         )}
       </div>
       {selectedIds.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 w-full">
           {selectedIds.map((alterId) => {
             const alter = activeAlters.find(a => a.id === alterId);
             return (
@@ -243,7 +243,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Activity Details</DialogTitle>
         </DialogHeader>
@@ -259,7 +259,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                   style={{ backgroundColor: color, color: getContrastColor(color) }}>
                   ✏️ Editing: {act.activity_name}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <div className="flex-1">
                     <label className="text-sm font-medium block mb-1">Start</label>
                     <input type="datetime-local" value={(editDataMap[act.id] || {}).startTimeStr || ""}
