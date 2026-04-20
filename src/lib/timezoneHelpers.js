@@ -1,4 +1,3 @@
-import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 
 /**
@@ -12,11 +11,47 @@ export function detectTimezone() {
 /**
  * Converts a local date string (YYYY-MM-DD) + time string (HH:MM)
  * to a UTC Date using the user's timezone.
- * Used for scheduled reminder evaluation.
+ * Uses Intl API to convert local → UTC.
  */
 export function zonedFireInstant(dateStr, hhmm, tz) {
-  const isoStr = `${dateStr}T${hhmm}:00`;
-  return zonedTimeToUtc(isoStr, tz);
+  // Parse date and time
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [h, mm] = hhmm.split(':').map(Number);
+  
+  // Create a local date in the target timezone
+  // Strategy: create a date, format it in the target tz, see the offset, adjust
+  const testDate = new Date(y, m - 1, d, h, mm, 0, 0);
+  
+  // Get the UTC offset for this timezone on this date
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(testDate);
+  const tzDate = {};
+  parts.forEach(p => { if (p.type !== 'literal') tzDate[p.type] = p.value; });
+  
+  // Calculate offset: what local time does UTC testDate represent in tz?
+  const tzTime = new Date(
+    parseInt(tzDate.year),
+    parseInt(tzDate.month) - 1,
+    parseInt(tzDate.day),
+    parseInt(tzDate.hour),
+    parseInt(tzDate.minute),
+    parseInt(tzDate.second)
+  ).getTime();
+  
+  const offset = testDate.getTime() - tzTime;
+  
+  // Now construct the actual UTC time: local time - offset = UTC
+  return new Date(testDate.getTime() - offset);
 }
 
 /**
@@ -24,8 +59,22 @@ export function zonedFireInstant(dateStr, hhmm, tz) {
  * Used to determine "what's today for this user"
  */
 export function getUserLocalDate(nowUtc, tz) {
-  const zonedNow = utcToZonedTime(nowUtc, tz);
-  return format(zonedNow, 'yyyy-MM-dd');
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  
+  const parts = formatter.formatToParts(nowUtc);
+  let year = '', month = '', day = '';
+  parts.forEach(p => {
+    if (p.type === 'year') year = p.value;
+    if (p.type === 'month') month = p.value;
+    if (p.type === 'day') day = p.value;
+  });
+  
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -33,8 +82,21 @@ export function getUserLocalDate(nowUtc, tz) {
  * Used for quiet hours and interval active_window checks.
  */
 export function getCurrentMinutesInZone(nowUtc, tz) {
-  const zonedNow = utcToZonedTime(nowUtc, tz);
-  return zonedNow.getHours() * 60 + zonedNow.getMinutes();
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(nowUtc);
+  let hour = 0, minute = 0;
+  parts.forEach(p => {
+    if (p.type === 'hour') hour = parseInt(p.value);
+    if (p.type === 'minute') minute = parseInt(p.value);
+  });
+  
+  return hour * 60 + minute;
 }
 
 /**
