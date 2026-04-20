@@ -5,6 +5,24 @@ import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, C
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { getFullDbDump, loadDbDump } from "@/lib/localDb";
+import pako from "pako";
+
+function compressBackup(data) {
+  const json = JSON.stringify(data);
+  const compressed = pako.deflate(json);
+  let binary = "";
+  compressed.forEach(b => binary += String.fromCharCode(b));
+  return "SYMPHONYZ:" + btoa(binary);
+}
+
+function decompressBackup(str) {
+  if (!str.startsWith("SYMPHONYZ:")) return JSON.parse(str);
+  const binary = atob(str.slice(10));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const json = pako.inflate(bytes, { to: "string" });
+  return JSON.parse(json);
+}
 
 const ENTITY_NAMES = [
   "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
@@ -16,12 +34,12 @@ const ENTITY_NAMES = [
 
 // Outside component — no state needed here
 async function downloadJson(data, filename) {
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: "application/json" });
+  const compressed = compressBackup(data);
+  const blob = new Blob([compressed], { type: "application/octet-stream" });
 
   // Try Web Share API (works on Android APK)
   if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: "application/json" });
+    const file = new File([blob], filename, { type: "application/octet-stream" });
     if (navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
@@ -31,7 +49,7 @@ async function downloadJson(data, filename) {
         if (e.name === "AbortError") {
           // User cancelled — try clipboard instead
           try {
-            await navigator.clipboard.writeText(json);
+            await navigator.clipboard.writeText(data);
             throw new Error("__clipboard_success__");
           } catch (clipErr) {
             if (clipErr.message === "__clipboard_success__") throw clipErr;
@@ -99,7 +117,7 @@ const handleExportFull = async () => {
   try {
     const exportData = await buildExportData();
     const date = new Date().toISOString().slice(0, 10);
-    await downloadJson(exportData, `symphony-backup-${date}.json`);
+    await downloadJson(exportData, `symphony-backup-${date}.sympbak`);
     showStatus("success", "Backup exported!");
   } catch (e) {
     if (e.message === "__clipboard_fallback__") {
@@ -118,13 +136,13 @@ const handleExportFull = async () => {
     setCopyLoading(true);
     try {
       const exportData = await buildExportData();
-      const json = JSON.stringify(exportData);
+      const compressed = compressBackup(exportData);
 
       let copied = false;
 
       // Try modern clipboard API
       try {
-        await navigator.clipboard.writeText(json);
+        await navigator.clipboard.writeText(compressed);
         copied = true;
       } catch {}
 
@@ -132,7 +150,7 @@ const handleExportFull = async () => {
       if (!copied) {
         try {
           const textarea = document.createElement("textarea");
-          textarea.value = json;
+          textarea.value = compressed;
           textarea.style.position = "fixed";
           textarea.style.top = "0";
           textarea.style.left = "0";
@@ -150,7 +168,7 @@ const handleExportFull = async () => {
         showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.");
       } else {
         // Both methods failed (common in Android WebView) — show manual copy fallback
-        setShowManualCopy(json);
+        setShowManualCopy(compressed);
       }
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
@@ -163,7 +181,7 @@ const handleExportFull = async () => {
     if (!pasteText.trim()) return;
     setImportLoading(true);
     try {
-      const parsed = JSON.parse(pasteText.trim());
+      const parsed = decompressBackup(pasteText.trim());
       await processImport(parsed);
       setShowPasteInput(false);
       setPasteText("");
@@ -221,7 +239,7 @@ const handleExportFull = async () => {
     setImportLoading(true);
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text);
+      const parsed = decompressBackup(text.trim());
       await processImport(parsed);
     } catch (e) {
       showStatus("error", `Import failed: ${e.message}`);
@@ -264,7 +282,7 @@ const handleExportFull = async () => {
             {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Download Backup</p>
-              <p className="text-xs text-muted-foreground font-normal">Save as JSON file</p>
+              <p className="text-xs text-muted-foreground font-normal">Compressed backup file</p>
             </div>
           </Button>
           <div className="flex gap-2">
@@ -322,12 +340,12 @@ const handleExportFull = async () => {
               <span className="text-xs font-medium">Replace All</span>
             </label>
           </div>
-          <input ref={fileInputRef} type="file" accept=".json,.txt" onChange={handleImportFromFile} className="hidden" />
+          <input ref={fileInputRef} type="file" accept=".json,.txt,.sympbak" onChange={handleImportFromFile} className="hidden" />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal">Symphony backup .JSON or .txt file</p>
+              <p className="text-xs text-muted-foreground font-normal">Symphony backup .sympbak, .JSON or .txt file</p>
             </div>
           </Button>
           {!showPasteInput ? (
@@ -340,8 +358,8 @@ const handleExportFull = async () => {
             </Button>
           ) : (
             <div className="space-y-2 rounded-xl border border-border/50 p-3">
-              <p className="text-sm font-medium">Paste your backup JSON here</p>
-              <textarea
+               <p className="text-sm font-medium">Paste your backup here</p>
+               <textarea
                 className="w-full h-32 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
                 placeholder="Paste your copied backup here..."
                 value={pasteText}
