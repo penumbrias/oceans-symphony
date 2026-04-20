@@ -304,6 +304,23 @@ export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includ
   });
 }
 
+// ── SECTION: CUSTOM STATUS NOTES ─────────────────────────────────────────────
+
+export function buildStatusNotesSection({ dateFrom, dateTo, emotionCheckIns }) {
+  const notes = emotionCheckIns
+    .filter(c => {
+      if (!c.note || !c.note.trim()) return false;
+      return inRange(c.timestamp || c.created_date, dateFrom, dateTo);
+    })
+    .sort((a, b) => new Date(a.timestamp || a.created_date) - new Date(b.timestamp || b.created_date));
+
+  return notes.map(c => ({
+    date: fmtDateTime(c.timestamp || c.created_date),
+    note: c.note.trim(),
+    emotions: (c.emotions || []).join(", ") || null,
+  }));
+}
+
 // ── SECTION: PATTERNS SUMMARY ─────────────────────────────────────────────────
 
 export function buildPatternsSummary({ systemName, dateFrom, dateTo, overview, frontingData, emotionData, symptomsData, diaryData }) {

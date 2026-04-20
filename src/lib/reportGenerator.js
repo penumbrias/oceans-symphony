@@ -376,6 +376,31 @@ function addDiarySection(doc, diaryData, y) {
   return y + 8;
 }
 
+// ── CUSTOM STATUS NOTES ───────────────────────────────────────────────────────
+
+function addStatusNotesSection(doc, statusNotes, y) {
+  if (!statusNotes || statusNotes.length === 0) return y;
+  y = checkPageBreak(doc, y, 30);
+  y = sectionHeader(doc, "Custom Status Notes", y);
+  statusNotes.forEach(entry => {
+    y = checkPageBreak(doc, y, 12);
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(entry.date, MARGIN + 2, y);
+    y += 5;
+    doc.setTextColor(50, 50, 50);
+    y = wrappedText(doc, `💬 ${entry.note}`, MARGIN + 4, y, CONTENT_W - 8, 4.5);
+    if (entry.emotions) {
+      doc.setTextColor(...MUTED);
+      doc.setFontSize(7.5);
+      doc.text(`Emotions: ${entry.emotions}`, MARGIN + 4, y);
+      y += 4.5;
+    }
+    y += 4;
+  });
+  return y + 4;
+}
+
 // ── PATTERNS SUMMARY ──────────────────────────────────────────────────────────
 
 function addPatternsSection(doc, summary, y) {
@@ -489,6 +514,17 @@ function formatAsPlainText({
         if (ev.emotions) text += `    Emotions: ${ev.emotions}\n`;
       });
     }
+    text += "\n";
+  }
+
+  // Custom Status Notes
+  if (sections.statusNotes?.length > 0) {
+    text += `CUSTOM STATUS NOTES\n${"--------".padEnd(60, "-")}\n`;
+    sections.statusNotes.forEach(entry => {
+      text += `\n  ${entry.date}\n`;
+      text += `  💬 ${entry.note}\n`;
+      if (entry.emotions) text += `    Emotions: ${entry.emotions}\n`;
+    });
     text += "\n";
   }
 
@@ -609,6 +645,9 @@ export async function generateTherapyReport({
   }
   if (enabledSections.has("emotions") && sections.emotions) {
     y = addEmotionSection(doc, sections.emotions, y);
+  }
+  if (sections.statusNotes?.length > 0) {
+    y = addStatusNotesSection(doc, sections.statusNotes, y);
   }
   if (enabledSections.has("symptoms") && sections.symptoms) {
     y = addSymptomsSection(doc, sections.symptoms, y);

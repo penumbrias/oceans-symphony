@@ -139,6 +139,12 @@ export default function TherapyReportPage() {
         mode: config.mode,
       });
 
+      const statusNotes = reportSections.buildStatusNotesSection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        emotionCheckIns,
+      });
+
       const patterns = reportSections.buildPatternsSummary({
         systemName: config.config.systemName,
         dateFrom: config.dateFrom,
@@ -176,6 +182,7 @@ export default function TherapyReportPage() {
         overview,
         fronting,
         emotions,
+        statusNotes,
         symptoms: symptomsData,
         activities: activitiesData,
         journals,
