@@ -20,7 +20,7 @@ const NODE_RADIUS = 28;
 
 function snapVal(v) { return Math.round(v / SNAP) * SNAP; }
 
-function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd, zoom }) {
+function AlterNode({ alter, isSelected, isRelMode, viewOnly, onTap, onDoubleTap, onDragEnd, zoom }) {
   const dragRef = useRef(null);
   const tapRef = useRef({ time: 0, timer: null });
   // Separate touch-tap detector to avoid interference with mouse events
@@ -144,7 +144,7 @@ function AlterNode({ alter, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd
         style={{ userSelect: "none" }}>
         {alter.name?.length > 14 ? alter.name.slice(0, 12) + "…" : alter.name}
       </text>
-      {alter.inner_world_locked && (
+      {alter.inner_world_locked && !viewOnly && (
         <text x={cx + NODE_RADIUS - 4} y={cy + NODE_RADIUS - 4} textAnchor="middle" fontSize={10} pointerEvents="none">🔒</text>
       )}
     </g>
@@ -655,6 +655,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                   alter={{ ...alter, inner_world_locked: alter.inner_world_locked || viewOnly }}
                   isSelected={selectedAlter?.id === alter.id}
                   isRelMode={relModeAlter?.id === alter.id}
+                  viewOnly={viewOnly}
                   zoom={transform.scale}
                   onTap={() => handleAlterTap(alter)}
                   onDoubleTap={() => handleAlterDoubleTap(alter)}
