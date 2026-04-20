@@ -225,7 +225,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       )}
 
       {/* Lock indicator */}
-      {is_locked && (
+      {is_locked && !viewOnly && (
         <text
           x={x + width - 12} y={y + 14}
           fontSize={12}
