@@ -374,13 +374,16 @@ const handleExportFull = async () => {
            <Button 
              variant="outline" 
              onClick={async () => {
-               try {
-                 const exportData = await buildExportData();
-                 setShowManualCopy(JSON.stringify(exportData));
-               } catch (e) {
-                 showStatus("error", `Export failed: ${e.message}`);
-               }
-             }}
+  try {
+    const exportData = await buildExportData();
+    const compressed = compressBackup(exportData);
+    const { parts } = splitBackupIntoParts(compressed);
+    setShowManualCopy(parts);
+    setCopiedChunks(new Set());
+  } catch (e) {
+    showStatus("error", `Export failed: ${e.message}`);
+  }
+}}
              className="flex-1 gap-2 justify-start"
            >
              <FileJson className="w-4 h-4" />
