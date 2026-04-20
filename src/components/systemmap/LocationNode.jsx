@@ -213,10 +213,10 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       {/* Resize handle (bottom-right) */}
       {!is_locked && !viewOnly && (
         <rect
-          x={x + width - 10} y={y + height - 10}
-          width={10} height={10}
+          x={x + width - 20} y={y + height - 20}
+          width={20} height={20}
           fill={borderColor}
-          opacity={0.6}
+          opacity={0.4}
           rx={2}
           style={{ cursor: "se-resize", touchAction: "none" }}
           onMouseDown={handleResizeDown}

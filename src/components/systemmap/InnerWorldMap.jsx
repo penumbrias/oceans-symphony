@@ -652,7 +652,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             {placedAlters.map(alter => (
               <g key={alter.id}>
                 <AlterNode
-                  alter={alter}
+                  alter={{ ...alter, inner_world_locked: alter.inner_world_locked || viewOnly }}
                   isSelected={selectedAlter?.id === alter.id}
                   isRelMode={relModeAlter?.id === alter.id}
                   zoom={transform.scale}
