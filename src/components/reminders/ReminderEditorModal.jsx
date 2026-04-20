@@ -388,6 +388,7 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
 }
 
 export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved }) {
+  const terms = useTerms();
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
   const [hasAutoResolve, setHasAutoResolve] = useState(false);
@@ -555,7 +556,6 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
 
           {/* Alter scope */}
           {(() => {
-            const terms = useTerms();
             const scopedAlter = alters.find(a => a.id === form.alter_id);
             const scopeSummary = !form.alter_id
               ? `For the whole ${terms.system}`
