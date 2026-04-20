@@ -188,6 +188,12 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
         <div>
           <p className="text-muted-foreground font-medium mb-1">Check-ins</p>
           <p className="font-semibold text-base">{checkInCount}</p>
+          {emotions.filter(e => e.note && e.note.trim()).length > 0 && (
+            <div className="mt-1.5">
+              <p className="text-muted-foreground font-medium mb-1">💬 Custom Statuses</p>
+              <p className="font-semibold text-base">{emotions.filter(e => e.note && e.note.trim()).length}</p>
+            </div>
+          )}
         </div>
 
         <div>
