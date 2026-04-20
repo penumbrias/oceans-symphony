@@ -156,7 +156,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const ry = isOval ? height / 2 : 8;
 
   return (
-    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }}>
+    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }} onMouseDown={is_locked ? handleMouseDown : undefined} onTouchStart={is_locked ? handleTouchStart : undefined}>
       <defs>
         {background_image_url && (
           <>
@@ -178,10 +178,11 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         stroke={borderColor}
         strokeWidth={isSelected ? 2.5 : 1.5}
         strokeDasharray={isSelected ? "6,3" : "none"}
-        onMouseDown={handleMouseDown}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        pointerEvents={is_locked ? "none" : "auto"}
+        onMouseDown={!is_locked ? handleMouseDown : undefined}
+        onTouchStart={!is_locked ? handleTouchStart : undefined}
+        onTouchMove={!is_locked ? handleTouchMove : undefined}
+        onTouchEnd={!is_locked ? handleTouchEnd : undefined}
       />
 
       {/* Name label */}
