@@ -267,13 +267,33 @@ const handleExportFull = async () => {
               <p className="text-xs text-muted-foreground font-normal">Save as JSON file</p>
             </div>
           </Button>
-          <Button variant="outline" onClick={handleCopyToClipboard} disabled={copyLoading} className="w-full gap-2 justify-start">
-            {copyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-            <div className="text-left">
-              <p className="font-medium">Copy Backup to Clipboard</p>
-              <p className="text-xs text-muted-foreground font-normal">Paste into notes, or drive and save as a .txt file to import</p>
-            </div>
-          </Button>
+          <div className="flex gap-2">
+           <Button variant="outline" onClick={handleCopyToClipboard} disabled={copyLoading} className="flex-1 gap-2 justify-start">
+             {copyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+             <div className="text-left">
+               <p className="font-medium">Copy to Clipboard</p>
+               <p className="text-xs text-muted-foreground font-normal">Copy backup</p>
+             </div>
+           </Button>
+           <Button 
+             variant="outline" 
+             onClick={async () => {
+               try {
+                 const exportData = await buildExportData();
+                 setShowManualCopy(JSON.stringify(exportData));
+               } catch (e) {
+                 showStatus("error", `Export failed: ${e.message}`);
+               }
+             }}
+             className="flex-1 gap-2 justify-start"
+           >
+             <FileJson className="w-4 h-4" />
+             <div className="text-left">
+               <p className="font-medium">View as Text</p>
+               <p className="text-xs text-muted-foreground font-normal">Manual copy</p>
+             </div>
+           </Button>
+          </div>
           {showManualCopy && (
             <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-2">
               <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ Clipboard unavailable — select all text below and copy manually (long-press → Select All → Copy)</p>
