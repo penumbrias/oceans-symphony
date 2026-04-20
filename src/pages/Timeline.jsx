@@ -100,6 +100,24 @@ export default function Timeline() {
     }
   }, [searchParams, jumpDate]);
 
+  // Highlight a specific status note badge from search
+  useEffect(() => {
+    const statusId = searchParams.get("highlightStatus");
+    if (!statusId) return;
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-status-id="${statusId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-yellow-400", "ring-inset", "animate-pulse", "rounded-md");
+        const clearTimer = setTimeout(() => {
+          el.classList.remove("ring-2", "ring-yellow-400", "ring-inset", "animate-pulse", "rounded-md");
+        }, 5000);
+        return () => clearTimeout(clearTimer);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchParams]);
+
   // Lazy load more days as user scrolls to bottom
   useEffect(() => {
     const sentinel = sentinelRef.current;

@@ -98,9 +98,9 @@ function ResizeHandle({ onDrag }) {
   );
 }
 
-function StatusNoteBadge({ note, topPx }) {
+function StatusNoteBadge({ note, topPx, id }) {
   return (
-    <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none" }}>
+    <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none" }} data-status-id={id}>
       <div className="mx-1 px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-muted-foreground leading-tight truncate w-full"
         style={{ fontSize: 9 }} title={note}>
         💬 {note}
@@ -1294,7 +1294,7 @@ export default function InfiniteTimeline({
                   return (
                     <div key={`status-note-${e.id || i}`} className="absolute pointer-events-none"
                       style={{ left: alterLeft, right: 0, top: 0, height: totalHeight }}>
-                      <StatusNoteBadge note={e.note} topPx={topPx} />
+                      <StatusNoteBadge note={e.note} topPx={topPx} id={e.id} />
                     </div>
                   );
                 })}

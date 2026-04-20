@@ -13,6 +13,7 @@ const TYPE_ICONS = {
   activity: "⚡",
   task: "☑️",
   emotion: "💜",
+  status: "💬",
   symptom: "💊",
   group: "👥",
   diarycard: "📖",
@@ -26,6 +27,7 @@ const TYPE_LABELS = {
   activity: "Activities",
   task: "Tasks",
   emotion: "Emotions",
+  status: "Custom Statuses",
   symptom: "Symptoms",
   group: "Groups",
   diarycard: "Diary Cards",
@@ -239,15 +241,33 @@ export default function GlobalSearch() {
       }
     });
 
-    // Emotion check-ins
+    // Emotion check-ins — split into "status" (has note) and "emotion" (no note)
     emotionCheckIns.forEach((e) => {
-      const textMatch = e.note?.toLowerCase().includes(q) || e.emotions?.some((em) => em.toLowerCase().includes(q));
-      const dateMatch = !textMatch && matchesDate(e.timestamp, q);
-      if (textMatch || dateMatch) {
+      const dateStr = e.timestamp ? new Date(e.timestamp).toISOString().split('T')[0] : null;
+      if (!dateStr) return;
+      const hasNote = !!(e.note && e.note.trim());
+      const noteMatch = hasNote && e.note.toLowerCase().includes(q);
+      const emotionMatch = e.emotions?.some((em) => em.toLowerCase().includes(q));
+      const dateMatch = !noteMatch && !emotionMatch && matchesDate(e.timestamp, q);
+
+      if (hasNote && (noteMatch || dateMatch)) {
+        // Status note result
+        results.push({
+          type: "status", id: e.id,
+          title: e.note.length > 60 ? e.note.slice(0, 60) + "…" : e.note,
+          subtitle: dateMatch
+            ? `📅 Matched date: ${formatDateLabel(e.timestamp)}`
+            : `${formatDateLabel(e.timestamp)}${e.emotions?.length ? " · " + e.emotions.join(", ") : ""}`,
+          path: `/timeline?date=${dateStr}&highlightStatus=${e.id}`,
+          dateMatch,
+        });
+      } else if (!hasNote && (emotionMatch || dateMatch)) {
+        // Plain emotion check-in result
         results.push({
           type: "emotion", id: e.id, title: "Emotion Check-In",
-          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(e.timestamp)}` : (e.note || e.emotions?.join(", ")),
-          path: `/timeline?date=${new Date(e.timestamp).toISOString().split('T')[0]}`, dateMatch,
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(e.timestamp)}` : e.emotions?.join(", "),
+          path: `/timeline?date=${dateStr}`,
+          dateMatch,
         });
       }
     });
@@ -390,7 +410,7 @@ export default function GlobalSearch() {
           )}
 
           {/* Results grouped by type */}
-          {["alter", "journal", "bulletin", "activity", "task", "emotion", "symptom", "group", "diarycard", "checkin"].map(
+          {["alter", "journal", "bulletin", "activity", "task", "emotion", "status", "symptom", "group", "diarycard", "checkin"].map(
             (type) => {
               const typeResults = groupedResults[type];
               if (!typeResults || typeResults.length === 0) return null;
