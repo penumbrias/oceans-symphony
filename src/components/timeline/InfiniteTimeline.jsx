@@ -100,7 +100,7 @@ function ResizeHandle({ onDrag }) {
 
 function StatusNoteBadge({ note, topPx, id, onClick }) {
   return (
-    <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none" }} data-status-id={id}>
+    <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none", pointerEvents: "auto" }} data-status-id={id}>
       <div className="mx-1 px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-muted-foreground leading-tight truncate w-full cursor-pointer hover:bg-muted hover:border-border transition-colors"
         style={{ fontSize: 9 }} title={note} onClick={onClick}>
         💬 {note}
