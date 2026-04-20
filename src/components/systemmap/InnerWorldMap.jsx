@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import { toast } from "sonner";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload, Edit
 } from "lucide-react";
@@ -696,21 +697,20 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               <Plus className="w-3 h-3" /> Location
             </Button>
           )}
-            <button onClick={() => setSnapToGrid(v => !v)}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-              <Grid className="w-3 h-3" /> Snap
-            </button>
-            <button onClick={() => setRelMode(m => m === 'all' ? 'selected' : m === 'selected' ? 'none' : 'all')}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${relMode !== 'none' ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
-              {relMode === 'all' ? <Eye className="w-3 h-3" /> : relMode === 'selected' ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-              {relMode === 'all' ? 'Rels: All' : relMode === 'selected' ? 'Rels: Selected' : 'Rels: Hidden'}
-            </button>
-            <button onClick={() => setShowAll(v => !v)}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${showAll ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
-              <Users className="w-3 h-3" />
-              {showAll ? 'Hide panel' : 'Unplaced'}
-            </button>
-          )}
+          <button onClick={() => setSnapToGrid(v => !v)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+            <Grid className="w-3 h-3" /> Snap
+          </button>
+          <button onClick={() => setRelMode(m => m === 'all' ? 'selected' : m === 'selected' ? 'none' : 'all')}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${relMode !== 'none' ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
+            {relMode === 'all' ? <Eye className="w-3 h-3" /> : relMode === 'selected' ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+            {relMode === 'all' ? 'Rels: All' : relMode === 'selected' ? 'Rels: Selected' : 'Rels: Hidden'}
+          </button>
+          <button onClick={() => setShowAll(v => !v)}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${showAll ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
+            <Users className="w-3 h-3" />
+            {showAll ? 'Hide panel' : 'Unplaced'}
+          </button>
         </div>
 
         {/* Zoom controls — bottom right */}
