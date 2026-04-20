@@ -63,6 +63,7 @@ export default function DataBackupRestore() {
   const [importMode, setImportMode] = useState("add");
   const [showPasteInput, setShowPasteInput] = useState(false);
   const [pasteText, setPasteText] = useState("");
+  const [showManualCopy, setShowManualCopy] = useState(null); // holds JSON string when clipboard fails
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
@@ -119,26 +120,40 @@ const handleExportFull = async () => {
       const exportData = await buildExportData();
       const json = JSON.stringify(exportData);
 
+      let copied = false;
+
+      // Try modern clipboard API
       try {
         await navigator.clipboard.writeText(json);
-        showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. Copied data must not be reformatted or changed in any way in order to import.");
-        return;
+        copied = true;
       } catch {}
 
-      const textarea = document.createElement("textarea");
-      textarea.value = json;
-      textarea.style.position = "fixed";
-      textarea.style.top = "0";
-      textarea.style.left = "0";
-      textarea.style.opacity = "0.01";
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc. Copied data must not be reformatted or changed in any way in order to import.");
+      // Try execCommand fallback
+      if (!copied) {
+        try {
+          const textarea = document.createElement("textarea");
+          textarea.value = json;
+          textarea.style.position = "fixed";
+          textarea.style.top = "0";
+          textarea.style.left = "0";
+          textarea.style.opacity = "0.01";
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          const ok = document.execCommand("copy");
+          document.body.removeChild(textarea);
+          if (ok) copied = true;
+        } catch {}
+      }
+
+      if (copied) {
+        showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.");
+      } else {
+        // Both methods failed (common in Android WebView) — show manual copy fallback
+        setShowManualCopy(json);
+      }
     } catch (e) {
-      showStatus("error", `Copy failed: ${e.message}`);
+      showStatus("error", `Export failed: ${e.message}`);
     } finally {
       setCopyLoading(false);
     }
@@ -259,6 +274,20 @@ const handleExportFull = async () => {
               <p className="text-xs text-muted-foreground font-normal">Paste into notes, or drive and save as a .txt file to import</p>
             </div>
           </Button>
+          {showManualCopy && (
+            <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-2">
+              <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ Clipboard unavailable — select all text below and copy manually (long-press → Select All → Copy)</p>
+              <textarea
+                readOnly
+                value={showManualCopy}
+                className="w-full h-32 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                onFocus={e => e.target.select()}
+              />
+              <Button size="sm" variant="outline" className="w-full" onClick={() => setShowManualCopy(null)}>
+                Done
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="space-y-2 pt-1">
