@@ -3,7 +3,7 @@ import { Lock, Edit2 } from "lucide-react";
 
 const MIN_SIZE = 80;
 
-export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, zoom = 1 }) {
+export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, viewOnly = false, zoom = 1 }) {
   const [dragging, setDragging] = useState(false);
   const [pressingId, setPressingId] = useState(false);
   const dragStart = useRef(null);
@@ -39,7 +39,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     }, 1000);
 
     const onMove = (ev) => {
-      if (!dragStart.current || is_locked) return;
+      if (!dragStart.current || is_locked || viewOnly) return;
       const dx = (ev.clientX - dragStart.current.mx) / zoom;
       const dy = (ev.clientY - dragStart.current.my) / zoom;
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
@@ -78,7 +78,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   };
 
   const handleTouchMove = (e) => {
-    if (!dragStart.current || is_locked) return;
+    if (!dragStart.current || is_locked || viewOnly) return;
     e.stopPropagation();
     const dx = (e.touches[0].clientX - dragStart.current.mx) / zoom;
     const dy = (e.touches[0].clientY - dragStart.current.my) / zoom;
@@ -102,7 +102,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   };
 
   const handleResizeDown = (e) => {
-    if (is_locked) {
+    if (is_locked || viewOnly) {
       e.stopPropagation();
       return;
     }
@@ -126,7 +126,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   };
 
   const handleResizeTouchStart = (e) => {
-    if (is_locked) {
+    if (is_locked || viewOnly) {
       e.stopPropagation();
       return;
     }
@@ -199,7 +199,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       </text>
 
       {/* Resize handle (bottom-right) */}
-      {!is_locked && (
+      {!is_locked && !viewOnly && (
         <rect
           x={x + width - 10} y={y + height - 10}
           width={10} height={10}
@@ -213,7 +213,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       )}
 
       {/* Lock indicator + edit button */}
-      {is_locked && (
+      {is_locked && !viewOnly && (
         <>
           <text
             x={x + width - 12} y={y + 14}

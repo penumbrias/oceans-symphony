@@ -5,7 +5,7 @@ import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import { toast } from "sonner";
 import {
-  ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload
+  ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload, Edit
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ColorPicker from "@/components/shared/ColorPicker";
@@ -301,6 +301,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [relMode, setRelMode] = useState('all'); // 'all' | 'selected' | 'none'
   const [showAll, setShowAll] = useState(true);
+  const [viewOnly, setViewOnly] = useState(false);
 
   const [selectedAlter, setSelectedAlter] = useState(null);
   const [relModeAlter, setRelModeAlter] = useState(null);
@@ -322,7 +323,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
 
   // Touch handlers
   const handleTouchStart = (e) => {
-    if (e.touches.length === 1) {
+    if (e.touches.length === 1 && !viewOnly) {
       panMovedRef.current = false;
       touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       setIsDragging(true);
@@ -384,7 +385,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
 
   // Pan handlers
   const handleMouseDown = (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || viewOnly) return;
     panMovedRef.current = false;
     setIsDragging(true);
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
@@ -626,11 +627,12 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                 location={loc}
                 isSelected={selectedLocation?.id === loc.id}
                 zoom={transform.scale}
+                viewOnly={viewOnly}
                 onSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); } }}
-                onDoubleSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); setEditingLocation(loc); } }}
-                onLongPress={() => { setSelectedLocation(loc); setEditingLocation(loc); }}
-                onEdit={() => { setSelectedLocation(loc); setEditingLocation(loc); }}
-                onUpdate={(fields) => updateLocation(loc, fields)}
+                onDoubleSelect={() => { if (!panMovedRef.current && !viewOnly) { setSelectedLocation(loc); setEditingLocation(loc); } }}
+                onLongPress={() => { if (!viewOnly) { setSelectedLocation(loc); setEditingLocation(loc); } }}
+                onEdit={() => { if (!viewOnly) { setSelectedLocation(loc); setEditingLocation(loc); } }}
+                onUpdate={(fields) => { if (!viewOnly) updateLocation(loc, fields); }}
                 onDelete={() => deleteLocation(loc)}
               />
             ))}
@@ -679,25 +681,36 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           </div>
         )}
 
-        {/* Toolbar — top right */}
-        <div className="absolute top-3 right-3 flex flex-col gap-1 z-20">
-          <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addLocation}>
-            <Plus className="w-3 h-3" /> Location
-          </Button>
-          <button onClick={() => setSnapToGrid(v => !v)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-            <Grid className="w-3 h-3" /> Snap
-          </button>
-          <button onClick={() => setRelMode(m => m === 'all' ? 'selected' : m === 'selected' ? 'none' : 'all')}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${relMode !== 'none' ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
-            {relMode === 'all' ? <Eye className="w-3 h-3" /> : relMode === 'selected' ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-            {relMode === 'all' ? 'Rels: All' : relMode === 'selected' ? 'Rels: Selected' : 'Rels: Hidden'}
-          </button>
-          <button onClick={() => setShowAll(v => !v)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${showAll ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
-            <Users className="w-3 h-3" />
-            {showAll ? 'Hide panel' : 'Unplaced'}
-          </button>
+        {/* View mode toggle */}
+        <button onClick={() => setViewOnly(v => !v)}
+          className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${viewOnly ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground hover:border-primary/30"}`}
+          title={viewOnly ? "Exit view mode" : "Enter view mode"}>
+          {viewOnly ? <Eye className="w-3 h-3" /> : <Edit className="w-3 h-3" />}
+          {viewOnly ? "View" : "Edit"}
+        </button>
+
+        {/* Toolbar — top right (below view toggle) */}
+        <div className="absolute top-11 right-3 flex flex-col gap-1 z-20">
+          {!viewOnly && (
+            <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addLocation}>
+              <Plus className="w-3 h-3" /> Location
+            </Button>
+          )}
+            <button onClick={() => setSnapToGrid(v => !v)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+              <Grid className="w-3 h-3" /> Snap
+            </button>
+            <button onClick={() => setRelMode(m => m === 'all' ? 'selected' : m === 'selected' ? 'none' : 'all')}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${relMode !== 'none' ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
+              {relMode === 'all' ? <Eye className="w-3 h-3" /> : relMode === 'selected' ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+              {relMode === 'all' ? 'Rels: All' : relMode === 'selected' ? 'Rels: Selected' : 'Rels: Hidden'}
+            </button>
+            <button onClick={() => setShowAll(v => !v)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors bg-card/90 backdrop-blur-sm ${showAll ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
+              <Users className="w-3 h-3" />
+              {showAll ? 'Hide panel' : 'Unplaced'}
+            </button>
+          )}
         </div>
 
         {/* Zoom controls — bottom right */}
@@ -714,7 +727,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
         </div>
 
         {/* Location edit sidebar */}
-        {editingLocation && (
+        {editingLocation && !viewOnly && (
           <div className="absolute right-3 top-56 bg-card border border-border rounded-xl p-3 space-y-2 w-56 z-20 shadow-lg max-h-[calc(100%-220px)] overflow-y-auto">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-foreground">Edit Location</p>
