@@ -89,12 +89,15 @@ export function SearchableSelect({
     : options;
 
   // Position check
+  const panelMaxHeight = 300;
   const handleOpen = useCallback(() => {
     if (disabled) return;
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setOpenAbove(spaceBelow < 280 && rect.top > 280);
+      // Only flip up if: insufficient room below AND sufficient room above
+      const insufficientBelow = rect.bottom + panelMaxHeight > window.innerHeight;
+      const sufficientAbove = rect.top > panelMaxHeight;
+      setOpenAbove(insufficientBelow && sufficientAbove);
     }
     setOpen(true);
     setQuery("");
@@ -215,32 +218,37 @@ export function SearchableSelect({
              "absolute left-0 right-0 z-[99999] rounded-lg border border-border bg-card shadow-lg",
              openAbove ? "bottom-full mb-1" : "top-full mt-1"
            )}
+           style={!openAbove && triggerRef.current ? {
+             maxHeight: Math.min(panelMaxHeight, Math.max(100, window.innerHeight - triggerRef.current.getBoundingClientRect().bottom - 8)) + 'px',
+             display: 'flex',
+             flexDirection: 'column'
+           } : undefined}
          >
-          {/* Search */}
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50">
-            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-            <input
-              ref={searchRef}
-              type="text"
-              value={query}
-              onChange={e => { setQuery(e.target.value); setActiveIdx(-1); }}
-              placeholder={searchPlaceholder}
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
-            />
-            {query && (
-              <button type="button" onMouseDown={e => { e.preventDefault(); setQuery(""); }}
-                className="text-muted-foreground hover:text-foreground">
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
+           {/* Search */}
+           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
+             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+             <input
+               ref={searchRef}
+               type="text"
+               value={query}
+               onChange={e => { setQuery(e.target.value); setActiveIdx(-1); }}
+               placeholder={searchPlaceholder}
+               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
+             />
+             {query && (
+               <button type="button" onMouseDown={e => { e.preventDefault(); setQuery(""); }}
+                 className="text-muted-foreground hover:text-foreground">
+                 <X className="w-3 h-3" />
+               </button>
+             )}
+           </div>
 
-          {/* List */}
-          <div
-            ref={listRef}
-            role="listbox"
-            className="max-h-[240px] overflow-y-auto py-1"
-          >
+           {/* List */}
+           <div
+             ref={listRef}
+             role="listbox"
+             className="overflow-y-auto py-1 flex-1 min-h-0"
+           >
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">{emptyMessage}</p>
             ) : (
@@ -376,8 +384,13 @@ export function SearchableMultiSelect({
         <div className={cn(
           "absolute left-0 right-0 z-[99999] rounded-lg border border-border bg-card shadow-lg",
           openAbove ? "bottom-full mb-1" : "top-full mt-1"
-        )}>
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50">
+        )}
+        style={!openAbove && triggerRef.current ? {
+          maxHeight: Math.min(panelMaxHeight, Math.max(100, window.innerHeight - triggerRef.current.getBoundingClientRect().bottom - 8)) + 'px',
+          display: 'flex',
+          flexDirection: 'column'
+        } : undefined}>
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
               ref={searchRef}
@@ -394,7 +407,7 @@ export function SearchableMultiSelect({
               </button>
             )}
           </div>
-          <div role="listbox" aria-multiselectable="true" className="max-h-[240px] overflow-y-auto py-1">
+          <div role="listbox" aria-multiselectable="true" className="overflow-y-auto py-1 flex-1 min-h-0">
             {filtered.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">{emptyMessage}</p>
             ) : (
