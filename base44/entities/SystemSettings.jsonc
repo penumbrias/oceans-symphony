@@ -1,0 +1,70 @@
+{
+  "name": "SystemSettings",
+  "type": "object",
+  "properties": {
+    "sp_token": {
+      "type": "string",
+      "description": "Simply Plural API token"
+    },
+    "sp_system_id": {
+      "type": "string",
+      "description": "Simply Plural system ID"
+    },
+    "system_name": {
+      "type": "string",
+      "description": "Name of the system"
+    },
+    "system_description": {
+      "type": "string",
+      "description": "Description of the system"
+    },
+    "last_sync": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last time data was synced from Simply Plural"
+    },
+    "term_system": {
+      "type": "string",
+      "description": "Custom term for 'system'"
+    },
+    "term_alter": {
+      "type": "string",
+      "description": "Custom term for 'alter'"
+    },
+    "term_switch": {
+      "type": "string",
+      "description": "Custom term for 'switch'"
+    },
+    "term_front": {
+      "type": "string",
+      "description": "Custom term for 'front/fronting'"
+    },
+    "diary_sections_schema": {
+      "type": "object",
+      "description": "User-configured diary card template schema. Internal data_keys are stable for analytics; only labels/order/enabled can change."
+    },
+    "quiet_hours": {
+      "type": "object",
+      "description": "Quiet hours config: { enabled: bool, start: 'HH:MM', end: 'HH:MM' }. If start > end, the window wraps midnight."
+    },
+    "navigation_config": {
+      "type": "object",
+      "description": "Navigation configuration for top and bottom bars"
+    }
+  },
+  "required": [],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

@@ -9,6 +9,7 @@ import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import MigrationBanner from "@/components/fronting/MigrationBanner";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { useRemindersScheduler } from "@/lib/remindersScheduler";
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
