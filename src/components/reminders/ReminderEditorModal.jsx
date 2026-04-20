@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, X, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "./snoozeHelpers";
+import SearchableSelect from "@/components/shared/SearchableSelect";
 import { registerPush, isPushEnabled } from "@/lib/pushRegistration";
 import { toast } from "sonner";
 
@@ -278,20 +279,20 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
           <>
             <div>
               <Label className="text-xs font-medium text-muted-foreground">Which alter</Label>
-              <div className="flex flex-wrap gap-2 mt-1.5 max-h-40 overflow-y-auto">
-                {alters.filter(a => !a.is_archived).map(a => (
-                  <button key={a.id} type="button"
-                    onClick={() => set("alter_id", a.id)}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs border transition-all ${
-                      config.alter_id === a.id ? "bg-primary text-white border-primary" : "bg-muted/30 text-muted-foreground border-border/40"
-                    }`}>
-                    {a.avatar_url
-                      ? <img src={a.avatar_url} className="w-4 h-4 rounded-full object-cover" />
-                      : <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }}>{a.name?.charAt(0)}</span>}
-                    {a.name}
-                  </button>
-                ))}
-              </div>
+              <SearchableSelect
+                className="mt-1.5"
+                value={config.alter_id || null}
+                onChange={id => set("alter_id", id)}
+                options={alters.filter(a => !a.is_archived).map(a => ({
+                  id: a.id,
+                  label: a.name,
+                  sublabel: a.alias || a.pronouns,
+                  avatar_url: a.avatar_url,
+                  color: a.color,
+                }))}
+                placeholder="Any alter"
+                allowClear
+              />
             </div>
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground w-28">Fire after</Label>
@@ -550,11 +551,20 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
               <>
                 <div>
                   <Label className="text-xs text-muted-foreground">Alter</Label>
-                  <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
-                    value={form.alter_id || ""} onChange={e => set("alter_id", e.target.value)}>
-                    <option value="">— select alter —</option>
-                    {alters.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <SearchableSelect
+                    className="mt-1"
+                    value={form.alter_id || null}
+                    onChange={id => set("alter_id", id || "")}
+                    options={alters.map(a => ({
+                      id: a.id,
+                      label: a.name,
+                      sublabel: a.alias || a.pronouns,
+                      avatar_url: a.avatar_url,
+                      color: a.color,
+                    }))}
+                    placeholder="— select alter —"
+                    allowClear
+                  />
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">When to fire</Label>
@@ -599,14 +609,17 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                       {ACTION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                     {action.action_type === "log_symptom" && (
-                      <select
-                        className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
-                        value={action.payload?.symptom_id || ""}
-                        onChange={e => updateAction({ payload: { symptom_id: e.target.value } })}
-                      >
-                        <option value="">— pick symptom —</option>
-                        {symptoms.filter(s => !s.is_archived).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                      </select>
+                      <SearchableSelect
+                        value={action.payload?.symptom_id || null}
+                        onChange={id => updateAction({ payload: { symptom_id: id } })}
+                        options={symptoms.filter(s => !s.is_archived).map(s => ({
+                          id: s.id,
+                          label: s.label,
+                          color: s.color,
+                        }))}
+                        placeholder="— pick symptom —"
+                        allowClear
+                      />
                     )}
                     {action.action_type === "open_route" && (
                       <Input
@@ -674,23 +687,35 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                   {rule.on === "symptom_checkin" && (
                     <div>
                       <Label className="text-xs text-muted-foreground">Which symptom</Label>
-                      <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
-                        value={rule.symptom_id || ""}
-                        onChange={e => setRule({ symptom_id: e.target.value })}>
-                        <option value="">— any symptom —</option>
-                        {symptoms.filter(s => !s.is_archived).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                      </select>
+                      <SearchableSelect
+                        className="mt-1"
+                        value={rule.symptom_id || null}
+                        onChange={id => setRule({ symptom_id: id })}
+                        options={symptoms.filter(s => !s.is_archived).map(s => ({
+                          id: s.id,
+                          label: s.label,
+                          color: s.color,
+                        }))}
+                        placeholder="— any symptom —"
+                        allowClear
+                      />
                     </div>
                   )}
                   {rule.on === "activity" && (
                     <div>
                       <Label className="text-xs text-muted-foreground">Which activity category</Label>
-                      <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
-                        value={rule.category_id || ""}
-                        onChange={e => setRule({ category_id: e.target.value })}>
-                        <option value="">— any category —</option>
-                        {activityCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
+                      <SearchableSelect
+                        className="mt-1"
+                        value={rule.category_id || null}
+                        onChange={id => setRule({ category_id: id })}
+                        options={activityCategories.map(c => ({
+                          id: c.id,
+                          label: c.name,
+                          color: c.color,
+                        }))}
+                        placeholder="— any category —"
+                        allowClear
+                      />
                     </div>
                   )}
                   <div className="flex items-center gap-2">
