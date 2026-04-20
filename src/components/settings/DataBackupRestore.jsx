@@ -81,7 +81,10 @@ export default function DataBackupRestore() {
   const [importMode, setImportMode] = useState("add");
   const [showPasteInput, setShowPasteInput] = useState(false);
   const [pasteText, setPasteText] = useState("");
-  const [showManualCopy, setShowManualCopy] = useState(null); // holds JSON string when clipboard fails
+  const [showManualCopy, setShowManualCopy] = useState(null); // holds parts array when clipboard fails
+  const [manualCopyCurrentPart, setManualCopyCurrentPart] = useState(0); // current part index
+  const [multiPartChunks, setMultiPartChunks] = useState([]); // for multi-part import
+  const [showMultiPartImport, setShowMultiPartImport] = useState(false);
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
@@ -132,6 +135,14 @@ const handleExportFull = async () => {
   }
 };
 
+  const splitBackupIntoParts = (backup, chunkSize = 50000) => {
+    const parts = [];
+    for (let i = 0; i < backup.length; i += chunkSize) {
+      parts.push(backup.slice(i, i + chunkSize));
+    }
+    return parts.length > 1 ? parts.map((part, idx) => `PART:${idx + 1}:${parts.length}:${part}`) : [backup];
+  };
+
   const handleCopyToClipboard = async () => {
     setCopyLoading(true);
     try {
@@ -167,8 +178,10 @@ const handleExportFull = async () => {
       if (copied) {
         showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.");
       } else {
-        // Both methods failed (common in Android WebView) — show manual copy fallback
-        setShowManualCopy(compressed);
+        // Both methods failed — split into parts
+        const parts = splitBackupIntoParts(compressed);
+        setShowManualCopy(parts);
+        setManualCopyCurrentPart(0);
       }
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
@@ -177,14 +190,74 @@ const handleExportFull = async () => {
     }
   };
 
+  const handleCopyPartToClipboard = async (part) => {
+    try {
+      await navigator.clipboard.writeText(part);
+      showStatus("success", "Part copied to clipboard!");
+    } catch {
+      showStatus("error", "Failed to copy part — use manual select & copy");
+    }
+  };
+
   const handleImportFromText = async () => {
     if (!pasteText.trim()) return;
     setImportLoading(true);
     try {
-      const parsed = decompressBackup(pasteText.trim());
+      const trimmed = pasteText.trim();
+      // Check if multi-part
+      if (trimmed.startsWith("PART:")) {
+        showStatus("error", "This is a multi-part backup. Use Multi-part paste mode instead.");
+        setImportLoading(false);
+        return;
+      }
+      const parsed = decompressBackup(trimmed);
       await processImport(parsed);
       setShowPasteInput(false);
       setPasteText("");
+    } catch (e) {
+      showStatus("error", `Import failed: ${e.message}`);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleMultiPartPasteAdd = async () => {
+    if (!pasteText.trim()) return;
+    try {
+      const trimmed = pasteText.trim();
+      if (!trimmed.startsWith("PART:")) {
+        showStatus("error", "This doesn't look like a multi-part backup (missing PART: prefix)");
+        return;
+      }
+      // Parse PART:X:Y:data
+      const match = trimmed.match(/^PART:(\d+):(\d+):/);
+      if (!match) {
+        showStatus("error", "Invalid part format");
+        return;
+      }
+      const [, partNum, totalParts] = match;
+      const data = trimmed.slice(match[0].length);
+      setMultiPartChunks(prev => {
+        const updated = [...prev];
+        updated[parseInt(partNum) - 1] = data;
+        return updated;
+      });
+      showStatus("success", `Part ${partNum}/${totalParts} added`);
+      setPasteText("");
+    } catch (e) {
+      showStatus("error", `Failed to add part: ${e.message}`);
+    }
+  };
+
+  const handleMultiPartImport = async () => {
+    if (!multiPartChunks.length || multiPartChunks.some(c => !c)) return;
+    setImportLoading(true);
+    try {
+      const reassembled = multiPartChunks.join("");
+      const parsed = decompressBackup(reassembled);
+      await processImport(parsed);
+      setShowMultiPartImport(false);
+      setMultiPartChunks([]);
     } catch (e) {
       showStatus("error", `Import failed: ${e.message}`);
     } finally {
@@ -312,7 +385,38 @@ const handleExportFull = async () => {
              </div>
            </Button>
           </div>
-          {showManualCopy && (
+          {Array.isArray(showManualCopy) && showManualCopy.length > 1 ? (
+            <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ Backup is large — split into {showManualCopy.length} parts</p>
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Part {manualCopyCurrentPart + 1} / {showManualCopy.length}</p>
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-300">Copy this part, paste it somewhere safe, then tap Next</p>
+              <textarea
+                readOnly
+                value={showManualCopy[manualCopyCurrentPart]}
+                className="w-full h-32 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                onFocus={e => e.target.select()}
+              />
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => handleCopyPartToClipboard(showManualCopy[manualCopyCurrentPart])} className="flex-1">
+                  Copy Part
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setManualCopyCurrentPart(Math.max(0, manualCopyCurrentPart - 1))} disabled={manualCopyCurrentPart === 0} className="flex-1">
+                  Prev
+                </Button>
+                {manualCopyCurrentPart < showManualCopy.length - 1 ? (
+                  <Button size="sm" onClick={() => setManualCopyCurrentPart(manualCopyCurrentPart + 1)} className="flex-1">
+                    Next
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => setShowManualCopy(null)} className="flex-1">
+                    Done
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : showManualCopy && typeof showManualCopy === "string" ? (
             <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-2">
               <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ Clipboard unavailable — select all text below and copy manually (long-press → Select All → Copy)</p>
               <textarea
@@ -325,7 +429,7 @@ const handleExportFull = async () => {
                 Done
               </Button>
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="space-y-2 pt-1">
@@ -348,15 +452,24 @@ const handleExportFull = async () => {
               <p className="text-xs text-muted-foreground font-normal">Symphony backup .sympbak, .JSON or .txt file</p>
             </div>
           </Button>
-          {!showPasteInput ? (
-            <Button variant="outline" onClick={() => setShowPasteInput(true)} className="w-full gap-2 justify-start">
-              <ClipboardPaste className="w-4 h-4" />
-              <div className="text-left">
-                <p className="font-medium">Paste Backup from Clipboard</p>
-                <p className="text-xs text-muted-foreground font-normal">Paste copied backup text</p>
-              </div>
-            </Button>
-          ) : (
+          {!showPasteInput && !showMultiPartImport ? (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowPasteInput(true)} className="flex-1 gap-2 justify-start">
+                <ClipboardPaste className="w-4 h-4" />
+                <div className="text-left">
+                  <p className="font-medium text-xs">Single-part</p>
+                  <p className="text-xs text-muted-foreground font-normal">Paste backup</p>
+                </div>
+              </Button>
+              <Button variant="outline" onClick={() => setShowMultiPartImport(true)} className="flex-1 gap-2 justify-start">
+                <ClipboardPaste className="w-4 h-4" />
+                <div className="text-left">
+                  <p className="font-medium text-xs">Multi-part</p>
+                  <p className="text-xs text-muted-foreground font-normal">Paste chunks</p>
+                </div>
+              </Button>
+            </div>
+          ) : showPasteInput ? (
             <div className="space-y-2 rounded-xl border border-border/50 p-3">
                <p className="text-sm font-medium">Paste your backup here</p>
                <textarea
@@ -373,7 +486,45 @@ const handleExportFull = async () => {
                 </Button>
               </div>
             </div>
-          )}
+          ) : showMultiPartImport ? (
+            <div className="space-y-2 rounded-xl border border-border/50 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Multi-part Import</p>
+                <p className="text-xs text-muted-foreground">{multiPartChunks.filter(Boolean).length} part(s) added</p>
+              </div>
+              <p className="text-xs text-muted-foreground">Paste each part in order. Import starts when all parts are present.</p>
+              <textarea
+                className="w-full h-24 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                placeholder="Paste part here (PART:X:Y:...)..."
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+              />
+              <Button size="sm" onClick={handleMultiPartPasteAdd} disabled={!pasteText.trim()} className="w-full">
+                Add Part
+              </Button>
+              {multiPartChunks.some(Boolean) && (
+                <div className="space-y-1.5 rounded-lg bg-muted/30 p-2">
+                  <p className="text-xs font-semibold text-muted-foreground">Parts collected:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {multiPartChunks.map((chunk, idx) => (
+                      <span key={idx} className={`px-2 py-1 rounded text-xs font-medium ${chunk ? "bg-green-100/50 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
+                        Part {idx + 1}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setShowMultiPartImport(false); setMultiPartChunks([]); setPasteText(""); }} className="flex-1">
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleMultiPartImport} disabled={!multiPartChunks.every(Boolean) || importLoading} className="flex-1">
+                  {importLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                  {importLoading ? "Importing..." : "Import All"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
           <p className="text-xs text-muted-foreground">
             {importMode === "replace"
               ? "⚠️ Replace All will delete existing data and import from backup."
