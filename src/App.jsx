@@ -106,12 +106,15 @@ function App() {
       // Auto-init unencrypted local db
       initLocalDb(null).catch(() => {});
     }
-    // Trigger migration of existing base64 avatars to local storage (happens silently)
-    if (isLocalMode() && isDbInitialized()) {
-      migrateBase64AvatarsToLocal().catch(() => {});
-    }
     return null;
   });
+
+  // Run migration after initial setup (in useEffect to ensure DB is ready)
+  useEffect(() => {
+    if (isLocalMode() && isDbInitialized() && !setupState) {
+      migrateBase64AvatarsToLocal().catch(() => {});
+    }
+  }, [setupState]);
 
 
 
