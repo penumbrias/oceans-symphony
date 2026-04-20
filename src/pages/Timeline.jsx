@@ -188,7 +188,10 @@ export default function Timeline() {
           const dayActivities = showActivities
             ? activities.filter((a) => {
                 const t = parseDate(a.timestamp);
-                return t >= dayStart && t <= dayEnd;
+                const tMs = t.getTime();
+                const duration = Math.max(a.duration_minutes || 0, 0);
+                const endMs = duration > 0 ? tMs + duration * 60 * 1000 : tMs + 1;
+                return endMs > dayStart.getTime() && tMs < dayEnd.getTime() + 1;
               })
             : [];
 

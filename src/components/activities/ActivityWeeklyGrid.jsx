@@ -177,14 +177,31 @@ if (isSameCell) {
 } else {
   const startH = pendingStart.hour + pendingStart.minute / 60;
   const endH = hour + minute / 60;
-  const isForward = startH <= endH;
-  onTimeRangeSelect(
-    pendingStart.date,
-    isForward ? pendingStart.hour : hour,
-    isForward ? hour : pendingStart.hour,
-    isForward ? pendingStart.minute : minute,
-    isForward ? minute : pendingStart.minute
-  );
+  const startDateStr = format(pendingStart.date, "yyyy-MM-dd");
+  const endDateStr = format(date, "yyyy-MM-dd");
+  const isDifferentDay = startDateStr !== endDateStr;
+
+  if (isDifferentDay) {
+    // Cross-day: always treat pendingStart as start, current cell as end
+    onTimeRangeSelect(
+      pendingStart.date,
+      pendingStart.hour,
+      hour,
+      pendingStart.minute,
+      minute,
+      date  // endDate
+    );
+  } else {
+    const isForward = startH <= endH;
+    onTimeRangeSelect(
+      pendingStart.date,
+      isForward ? pendingStart.hour : hour,
+      isForward ? hour : pendingStart.hour,
+      isForward ? pendingStart.minute : minute,
+      isForward ? minute : pendingStart.minute,
+      pendingStart.date  // endDate = same day
+    );
+  }
   setPendingStart(null);
 }
   }

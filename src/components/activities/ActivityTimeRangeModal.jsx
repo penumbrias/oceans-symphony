@@ -29,6 +29,7 @@ export default function ActivityTimeRangeModal({
   isOpen,
   onClose,
   startDate,
+  endDate: endDateProp,
   startHour,
   endHour, startMinute = 0,  
   endMinute = 0,
@@ -36,11 +37,15 @@ export default function ActivityTimeRangeModal({
   frontingHistory,
   onSave,
 }) {
+  // endDate defaults to startDate for same-day activities
+  const endDate = endDateProp || startDate;
+  const isCrossDay = startDate && endDate && format(startDate, "yyyy-MM-dd") !== format(endDate, "yyyy-MM-dd");
+
   const defaultStart = startDate && startHour !== undefined
-    ? toTimeString(startDate, Math.min(startHour, endHour ?? startHour))
+    ? toTimeString(startDate, Math.min(startHour, isCrossDay ? startHour : (endHour ?? startHour)))
     : "";
-  const defaultEnd = startDate && endHour != null
-    ? toTimeString(startDate, Math.max(startHour, endHour) + 1, endMinute)
+  const defaultEnd = endDate && endHour != null
+    ? toTimeString(endDate, endHour, endMinute)
     : "";
 
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
@@ -62,16 +67,16 @@ const [showNewActivity, setShowNewActivity] = useState(false);
   // Reset times when modal opens with new props
 useMemo(() => {
   if (startDate && startHour !== undefined) {
-    setStartTime(toTimeString(startDate, Math.min(startHour, endHour ?? startHour), startMinute));
+    setStartTime(toTimeString(startDate, startHour, startMinute));
     if (endHour != null) {
-  setEndTime(toTimeString(startDate, endHour, endMinute));
-} else {
-  setEndTime("");
-}
+      setEndTime(toTimeString(endDate || startDate, endHour, endMinute));
+    } else {
+      setEndTime("");
+    }
     setSelectedActivityCategories([]);
     setNotes("");
   }
-}, [startDate, startHour, endHour, startMinute, endMinute]);
+}, [startDate, endDate, startHour, endHour, startMinute, endMinute]);
 
   // Auto-populate alters from fronting history
   useMemo(() => {
@@ -95,12 +100,12 @@ useMemo(() => {
   }, [startDate, startHour, endHour, frontingHistory]);
 
   const durationMinutes = useMemo(() => {
-    if (!startDate || !startTime || !endTime) return 0; // 0 = no duration
+    if (!startDate || !startTime || !endTime) return 0;
     const s = parseTimeToDate(startDate, startTime);
-    const e = parseTimeToDate(startDate, endTime);
+    const e = parseTimeToDate(endDate || startDate, endTime);
     const diff = differenceInMinutes(e, s);
     return diff > 0 ? diff : 0;
-  }, [startDate, startTime, endTime]);
+  }, [startDate, endDate, startTime, endTime]);
 
   const handleToggleAlter = (alterId) => {
     setSelectedAlters((prev) =>
@@ -117,7 +122,7 @@ const handleSave = async () => {
 
   setIsLoading(true);
   const timestamp = parseTimeToDate(startDate, startTime);
-  const endDt = endTime ? parseTimeToDate(startDate, endTime) : null;
+  const endDt = endTime ? parseTimeToDate(endDate || startDate, endTime) : null;
 
   try {
     const catById = Object.fromEntries(activityCategories.map(c => [c.id, c]));
@@ -195,6 +200,9 @@ const handleCreateNewActivity = async () => {
             {startDate && (
               <div className="text-sm font-normal text-muted-foreground mt-1">
                 {format(startDate, "MMM d, yyyy")}
+                {isCrossDay && endDate && (
+                  <span className="ml-1 text-primary">→ {format(endDate, "MMM d")}</span>
+                )}
               </div>
             )}
           </DialogTitle>
@@ -210,7 +218,12 @@ const handleCreateNewActivity = async () => {
               </div>
               {endHour != null && (
                 <div className="flex-1">
-                  <label className="text-sm font-medium block mb-1">End time</label>
+                  <label className="text-sm font-medium block mb-1">
+                    End time
+                    {isCrossDay && endDate && (
+                      <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
+                    )}
+                  </label>
                   <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
                     className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
                 </div>

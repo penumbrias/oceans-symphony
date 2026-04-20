@@ -648,9 +648,22 @@ export default function InfiniteTimeline({
 
   const activityEntries = useMemo(() => {
     const raw = [];
+    const dayStartMs = dayStart.getTime();
+    const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+
     activities.forEach((act) => {
-      const startMins = Math.max(0, minutesInDay(parseDate(act.timestamp), dayStart));
-      const endMins = Math.min(24 * 60, startMins + Math.max(act.duration_minutes || 30, 5));
+      const actStart = parseDate(act.timestamp);
+      const actStartMs = actStart.getTime();
+      const duration = Math.max(act.duration_minutes || 0, 0);
+      const actEndMs = duration > 0 ? actStartMs + duration * 60 * 1000 : actStartMs + 30 * 60 * 1000;
+
+      // Skip if activity doesn't intersect this day at all
+      if (actEndMs <= dayStartMs || actStartMs >= dayEndMs) return;
+
+      // Clamp to this day's window
+      const startMins = Math.max(0, Math.round((actStartMs - dayStartMs) / 60000));
+      const endMins = Math.min(24 * 60, Math.round((actEndMs - dayStartMs) / 60000));
+
       const categoryIds = act.activity_category_ids && act.activity_category_ids.length > 0
         ? [...new Set(act.activity_category_ids)] : [null];
       categoryIds.forEach((catId) => {

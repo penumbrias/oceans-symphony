@@ -34,6 +34,7 @@ export default function ActivityTracker() {
   const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet("symphony_act_week_start", 0));
   const [selectedStartMinute, setSelectedStartMinute] = useState(0);
   const [selectedEndMinute, setSelectedEndMinute] = useState(0);
+  const [selectedEndDate, setSelectedEndDate] = useState(null);
 
   // Handle deep link highlight
   useDeepLinkHighlight("highlight", "activity-");
@@ -68,12 +69,13 @@ export default function ActivityTracker() {
     return unsub;
   }, [qc]);
 
-  const handleTimeRangeSelect = (date, startHour, endHour, startMinute = 0, endMinute = 0) => {
+  const handleTimeRangeSelect = (date, startHour, endHour, startMinute = 0, endMinute = 0, endDate = null) => {
     setSelectedDate(date);
     setSelectedStartHour(startHour);
     setSelectedEndHour(endHour);
     setSelectedStartMinute(startMinute);
     setSelectedEndMinute(endMinute);
+    setSelectedEndDate(endDate || date);
     setIsModalOpen(true);
   };
   const handleCloseModal = () => {
@@ -83,6 +85,7 @@ export default function ActivityTracker() {
     setSelectedEndHour(undefined);
     setSelectedStartMinute(0);
     setSelectedEndMinute(0);
+    setSelectedEndDate(null);
   };
   const handleActivityClick = (activityOrActivities) => {
     setSelectedActivity(activityOrActivities);
@@ -140,9 +143,10 @@ export default function ActivityTracker() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         startDate={selectedDate}
+        endDate={selectedEndDate}
         startHour={selectedStartHour}
         endHour={selectedEndHour}
-       startMinute={selectedStartMinute}
+        startMinute={selectedStartMinute}
         endMinute={selectedEndMinute}
         allActivities={activities}
         alters={alters}
