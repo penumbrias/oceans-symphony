@@ -71,7 +71,7 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
         <p className="text-sm font-semibold text-foreground truncate">{alter.name}</p>
         <p className="text-[11px] text-muted-foreground">
           {isPrimary ? `Primary · ` : `${coFronterLabel} · `}
-          {formatDistanceToNow(new Date(startTime), { addSuffix: false })}
+          {startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "—"}
         </p>
       </div>
     </div>
@@ -218,13 +218,13 @@ export default function CurrentFronters({ alters }) {
             const alterSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
             return (
               <FronterChip
-                key={alter.id}
-                alter={alter}
-                isPrimary={i === 0}
-                startTime={alterSession?.start_time || active.start_time}
-                onHold={handleSetPrimaryFromHold}
-                coFronterLabel={`Co-${terms.fronting}`}
-              />
+                 key={alter.id}
+                 alter={alter}
+                 isPrimary={i === 0}
+                 startTime={alterSession?.start_time}
+                 onHold={handleSetPrimaryFromHold}
+                 coFronterLabel={`Co-${terms.fronting}`}
+               />
             );
           })}
         </div>

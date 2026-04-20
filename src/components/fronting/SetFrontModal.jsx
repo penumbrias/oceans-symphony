@@ -174,21 +174,53 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
         const coIds = coFronterIds.filter((id) => id !== primaryId);
         const allSelectedIds = [primaryId, ...coIds].filter(Boolean);
 
-        // End all currently active sessions
-        for (const s of activeSessions) {
+        // Incremental session updates — preserve existing fronters' start times
+        const currentActiveAlterIds = activeSessions
+          .filter(s => s.alter_id)
+          .map(s => s.alter_id);
+        
+        const toRemove = currentActiveAlterIds.filter(id => !allSelectedIds.includes(id));
+        const toAdd = allSelectedIds.filter(id => !currentActiveAlterIds.includes(id));
+        const toKeep = allSelectedIds.filter(id => currentActiveAlterIds.includes(id));
+
+        // Handle legacy sessions (old format with primary_alter_id)
+        const legacySessions = activeSessions.filter(s => !s.alter_id && s.primary_alter_id);
+        for (const s of legacySessions) {
           await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
         }
+        // If legacy data contained alters still being selected, add them to "toAdd"
+        const legacyAlterIds = legacySessions.flatMap(s => [s.primary_alter_id, ...(s.co_fronter_ids || [])]).filter(Boolean);
+        const legacyStillSelected = legacyAlterIds.filter(id => allSelectedIds.includes(id) && !toAdd.includes(id) && !toKeep.includes(id));
+        toAdd.push(...legacyStillSelected);
 
-        // Create one record per selected alter (new model)
+        // 1. End sessions for removed fronters
+        for (const id of toRemove) {
+          const session = activeSessions.find(s => s.alter_id === id);
+          if (session) {
+            await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: now });
+          }
+        }
+
+        // 2. Create new sessions for added fronters
         let firstSessionId = null;
-        for (const alterId of allSelectedIds) {
+        for (const id of toAdd) {
           const newSession = await base44.entities.FrontingSession.create({
-            alter_id: alterId,
-            is_primary: alterId === primaryId,
+            alter_id: id,
+            is_primary: id === primaryId,
             start_time: now,
             is_active: true,
           });
           if (!firstSessionId) firstSessionId = newSession?.id || null;
+        }
+
+        // 3. Update is_primary on kept sessions if primary changed
+        for (const id of toKeep) {
+          const session = activeSessions.find(s => s.alter_id === id);
+          if (!session) continue;
+          const shouldBePrimary = id === primaryId;
+          if (session.is_primary !== shouldBePrimary) {
+            await base44.entities.FrontingSession.update(session.id, { is_primary: shouldBePrimary });
+          }
         }
 
         toast.success("✅ Front updated!");
