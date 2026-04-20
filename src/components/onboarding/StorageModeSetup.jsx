@@ -199,7 +199,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
                   <Lock className="w-6 h-6 text-primary" />
                 </div>
               : <img
-                  src="/oceans-symphony-logo.png"
+                  src="https://i.imgur.com/P79YnqQ.png"
                   className="w-12 h-12 object-contain rounded-full"
                   alt="Oceans Symphony"
                   onError={(e) => { e.target.style.display = 'none'; }}
