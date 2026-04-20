@@ -39,41 +39,10 @@ function FirstRunSetup({ onComplete }) {
     }
   };
 
+  // Auto-start local setup for APK (skip mode selection)
   if (step === "choose") {
-    return (
-      <div className="space-y-4">
-        <div className="grid gap-3">
-          <button
-            onClick={handleChooseLocal}
-            className="flex items-start gap-4 p-4 rounded-xl border-2 border-primary/40 bg-primary/5 hover:border-primary/80 transition-all text-left"
-          >
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <HardDrive className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">Local Only</p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                All data stays on this device. No account required. Optional high-security password encryption. Backup/export your data frequently - but <strong>use this method! much more secure!</strong>
-              </p>
-            </div>
-          </button>
-          <button
-            onClick={handleChooseCloud}
-            className="flex items-start gap-4 p-4 rounded-xl border-2 border-border/60 bg-muted/30 hover:border-border transition-all text-left"
-          >
-            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Cloud className="w-5 h-5 text-accent-foreground" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">Cloud Sync</p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Data synced to the cloud. Requires an account. Access from any device. Saves data on base44 servers - please do not use this! I really just use it for testing/app development. The app is most stable and secure in local.
-              </p>
-            </div>
-          </button>
-        </div>
-      </div>
-    );
+    handleChooseLocal();
+    return null;
   }
 
   return (
