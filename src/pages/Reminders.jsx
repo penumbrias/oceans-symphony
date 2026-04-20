@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { useEffect } from "react";
 import { useQueryClient as _useQC } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,9 @@ import RemindersOnboarding from "@/components/reminders/RemindersOnboarding";
 
 export default function Reminders() {
   const [tab, setTab] = useState("inbox");
+  const [helperDismissed, setHelperDismissed] = useState(() => {
+    return localStorage.getItem("reminders_helper_dismissed") === "true";
+  });
   const queryClient = useQueryClient();
 
   // Handle notification click deep-link: /reminders?act=<id>&action=<type>
@@ -72,6 +75,25 @@ export default function Reminders() {
               </button>
             ))}
           </div>
+
+          {!helperDismissed && (
+            <div className="flex items-start justify-between gap-3 px-3 py-2 bg-muted/20 rounded-lg border border-border/30">
+              <p className="text-xs text-muted-foreground">
+                {tab === "inbox"
+                  ? "Reminders that have fired and are waiting for you to act on them. Snoozed reminders live here until their wake time."
+                  : "Your reminder rules. Edit, pause, or delete. New instances are created automatically based on each rule's schedule."}
+              </p>
+              <button
+                onClick={() => {
+                  setHelperDismissed(true);
+                  localStorage.setItem("reminders_helper_dismissed", "true");
+                }}
+                className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {tab === "inbox" ? (
             <RemindersInbox />

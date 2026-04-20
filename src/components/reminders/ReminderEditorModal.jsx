@@ -97,24 +97,26 @@ function SnoozeAdder({ current, onAdd }) {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <Input type="number" min={1} value={value} onChange={e => setValue(e.target.value)}
-        placeholder="Amount" className="h-7 text-xs w-20" />
-      <select value={unit} onChange={e => setUnit(e.target.value)}
-        className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background">
-        <option value="minutes">min</option>
-        <option value="hours">hours</option>
-      </select>
-      <button type="button" onClick={handleAdd}
-        className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors flex items-center gap-1">
-        <Plus className="w-3 h-3" /> Add
-      </button>
+    <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex items-center gap-2">
+        <Input type="number" min={1} value={value} onChange={e => setValue(e.target.value)}
+          placeholder="Amount" className="h-7 text-xs w-20 min-w-0" />
+        <select value={unit} onChange={e => setUnit(e.target.value)}
+          className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background min-w-0 max-w-[80px]">
+          <option value="minutes">min</option>
+          <option value="hours">hours</option>
+        </select>
+        <button type="button" onClick={handleAdd}
+          className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors flex items-center gap-1 whitespace-nowrap">
+          <Plus className="w-3 h-3" /> Add
+        </button>
+      </div>
       <button type="button" onClick={() => onAdd("tomorrow")} disabled={current.includes("tomorrow")}
-        className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40">
+        className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40 whitespace-nowrap">
         + Tomorrow
       </button>
       <button type="button" onClick={() => onAdd("next_week")} disabled={current.includes("next_week")}
-        className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40">
+        className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40 whitespace-nowrap">
         + Next week
       </button>
     </div>
@@ -710,8 +712,8 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
 
           {/* Snooze options */}
           <Collapsible label="Snooze options">
-            <p className="text-xs text-muted-foreground mb-2">These are the snooze durations shown when you tap Snooze on this reminder's notification.</p>
-            <div className="flex flex-wrap gap-2 mb-3">
+            <p className="text-xs text-muted-foreground mb-3">These are the snooze durations shown when you tap Snooze on this reminder's notification.</p>
+            <div className="flex flex-wrap gap-2 mb-4">
               {(form.snooze_options || DEFAULT_SNOOZE_OPTIONS).map((opt, i) => (
                 <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/40 text-xs">
                   {formatSnoozeLabel(opt)}
