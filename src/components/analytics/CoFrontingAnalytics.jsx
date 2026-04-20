@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { startOfDay, endOfDay } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -7,8 +7,24 @@ import { Card } from "@/components/ui/card";
 const getAlterIdFromSession = (s) => s.alter_id || s.primary_alter_id;
 const getAllIdsFromSession = (s) => s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
 
+function MatrixPopover({ content, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+  return (
+    <div ref={ref} className="absolute z-50 bg-card border border-border rounded-lg shadow-lg p-3 text-xs min-w-[140px] pointer-events-auto"
+      style={{ top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: 4 }}>
+      {content}
+    </div>
+  );
+}
+
 export default function CoFrontingAnalytics({ sessions = [], alters = [], altersById = {}, from, to }) {
   const terms = useTerms();
+  const [activePopover, setActivePopover] = useState(null); // { key, content }
   const cofrontingLabel = terms.Cofronting;
 
   // Compute co-fronting pairs with overlap analysis
@@ -250,54 +266,102 @@ export default function CoFrontingAnalytics({ sessions = [], alters = [], alters
               {/* Column headers */}
               <div className="flex">
                 <div className="w-24 flex-shrink-0" />
-                {matrixAlters.map((a) => (
-                  <div
-                    key={`header-${a.id}`}
-                    className="w-12 h-12 flex items-center justify-center flex-shrink-0 text-xs font-semibold"
-                  >
+                {matrixAlters.map((a) => {
+                  const key = `header-${a.id}`;
+                  const isOpen = activePopover?.key === key;
+                  return (
                     <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                      style={{ backgroundColor: a.color || "#8b5cf6" }}
-                      title={a.name}
+                      key={key}
+                      className="w-12 h-12 flex items-center justify-center flex-shrink-0 relative"
+                      onClick={() => setActivePopover(isOpen ? null : { key })}
                     >
-                      {a.name?.charAt(0)?.toUpperCase()}
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                        style={{ backgroundColor: a.color || "#8b5cf6" }}
+                      >
+                        {a.name?.charAt(0)?.toUpperCase()}
+                      </div>
+                      {isOpen && (
+                        <MatrixPopover
+                          content={<span className="font-semibold text-foreground">{a.name}</span>}
+                          onClose={() => setActivePopover(null)}
+                        />
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Rows */}
               {matrixAlters.map((alterA) => (
                 <div key={`row-${alterA.id}`} className="flex">
-                  <div className="w-24 flex-shrink-0 flex items-center pr-2 text-xs font-medium text-foreground truncate">
-                    {alterA.name}
-                  </div>
+                  {/* Row label */}
+                  {(() => {
+                    const key = `rowlabel-${alterA.id}`;
+                    const isOpen = activePopover?.key === key;
+                    return (
+                      <div
+                        className="w-24 flex-shrink-0 flex items-center pr-2 relative cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => setActivePopover(isOpen ? null : { key })}
+                      >
+                        <span className="text-xs font-medium text-foreground truncate">{alterA.name}</span>
+                        {isOpen && (
+                          <MatrixPopover
+                            content={<span className="font-semibold text-foreground">{alterA.name}</span>}
+                            onClose={() => setActivePopover(null)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })()}
                   {matrixAlters.map((alterB) => {
                     const value = getCellValue(alterA.id, alterB.id);
                     const intensity = maxValue > 0 ? value / maxValue : 0;
                     const hours = Math.floor(value / 3600000);
                     const mins = Math.floor((value % 3600000) / 60000);
+                    const cellKey = `cell-${alterA.id}-${alterB.id}`;
+                    const isOpen = activePopover?.key === cellKey;
+                    const isSelf = alterA.id === alterB.id;
 
                     return (
                       <div
-                        key={`cell-${alterA.id}-${alterB.id}`}
-                        className="w-12 h-12 flex items-center justify-center flex-shrink-0 border border-border/20 text-xs font-semibold hover:border-border transition-colors cursor-help"
+                        key={cellKey}
+                        className="w-12 h-12 flex items-center justify-center flex-shrink-0 border border-border/20 text-xs font-semibold hover:border-border transition-colors relative cursor-pointer"
                         style={{
-                          backgroundColor:
-                            intensity > 0
-                              ? `rgba(59, 130, 246, ${Math.max(0.1, intensity)})`
-                              : "transparent",
+                          backgroundColor: intensity > 0
+                            ? `rgba(59, 130, 246, ${Math.max(0.1, intensity)})`
+                            : "transparent",
                         }}
-                        title={
-                          value > 0
-                            ? `${hours}h ${mins}m together`
-                            : "No overlap"
-                        }
+                        onClick={() => setActivePopover(isOpen ? null : { key: cellKey })}
                       >
                         {value > 0 && (
                           <span className="text-foreground text-xs">
                             {hours > 0 ? `${hours}h` : `${mins}m`}
                           </span>
+                        )}
+                        {isOpen && (
+                          <MatrixPopover
+                            content={
+                              isSelf ? (
+                                <span className="font-semibold text-foreground">{alterA.name}</span>
+                              ) : (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: alterA.color || "#8b5cf6" }} />
+                                    <span className="font-semibold text-foreground">{alterA.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: alterB.color || "#8b5cf6" }} />
+                                    <span className="font-semibold text-foreground">{alterB.name}</span>
+                                  </div>
+                                  <div className="pt-1 border-t border-border/40 text-muted-foreground">
+                                    {value > 0 ? `${hours}h ${mins}m together` : "No overlap"}
+                                  </div>
+                                </div>
+                              )
+                            }
+                            onClose={() => setActivePopover(null)}
+                          />
                         )}
                       </div>
                     );
