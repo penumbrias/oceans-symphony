@@ -17,7 +17,11 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     if (now - tapRef.current.time < 300) {
       clearTimeout(tapRef.current.timer);
       tapRef.current.time = 0;
-      onDoubleSelect?.();
+      if (is_locked) {
+        onLongPress?.();
+      } else {
+        onDoubleSelect?.();
+      }
     } else {
       tapRef.current.time = now;
       tapRef.current.timer = setTimeout(() => { onSelect(); }, 310);
@@ -156,7 +160,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const ry = isOval ? height / 2 : 8;
 
   return (
-    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }} onMouseDown={is_locked ? handleMouseDown : undefined} onTouchStart={is_locked ? handleTouchStart : undefined}>
+    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }} onMouseDown={handleMouseDown} onTouchStart={handleTouchStart}>
       <defs>
         {background_image_url && (
           <>
