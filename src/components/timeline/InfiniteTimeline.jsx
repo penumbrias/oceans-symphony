@@ -1304,13 +1304,13 @@ export default function InfiniteTimeline({
                    if (!e.note || !e.note.trim()) return false;
                    const mins = minutesInDay(parseDate(e.timestamp), dayStart);
                    return mins >= 0 && mins < 24 * 60;
-                 }).map((e, i) => {
-                   const mins = minutesInDay(parseDate(e.timestamp), dayStart);
+                 }).map((emotion, i) => {
+                   const mins = minutesInDay(parseDate(emotion.timestamp), dayStart);
                    const topPx = getTopPx(mins);
                    return (
-                     <div key={`status-note-${e.id || i}`} className="absolute pointer-events-none"
+                     <div key={`status-note-${emotion.id || i}`} className="absolute pointer-events-none"
                        style={{ left: alterLeft, right: 0, top: 0, height: totalHeight }}>
-                       <StatusNoteBadge note={e.note} topPx={topPx} id={e.id} onClick={(e) => { e.stopPropagation(); setStatusNotePopup({ note: e.note }); }} />
+                       <StatusNoteBadge note={emotion.note} topPx={topPx} id={emotion.id} onClick={(clickEvent) => { clickEvent.stopPropagation(); setStatusNotePopup({ note: emotion.note }); }} />
                      </div>
                    );
                  })}
