@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Bell, Plus } from "lucide-react";
+import { Bell } from "lucide-react";
+import { useEffect } from "react";
+import { useQueryClient as _useQC } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import RemindersInbox from "@/components/reminders/RemindersInbox";
@@ -11,6 +13,23 @@ import RemindersOnboarding from "@/components/reminders/RemindersOnboarding";
 export default function Reminders() {
   const [tab, setTab] = useState("inbox");
   const queryClient = useQueryClient();
+
+  // Handle notification click deep-link: /reminders?act=<id>&action=<type>
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const instanceId = params.get("act");
+    const action = params.get("action");
+    if (instanceId && action) {
+      import("@/api/base44Client").then(({ base44 }) => {
+        const statusMap = { dismiss: "dismissed", open_grounding: "acted", open_route: "acted", open_check_in: "acted", log_symptom: "acted" };
+        const status = statusMap[action] || "acted";
+        base44.entities.ReminderInstance.update(instanceId, { status, acted_action: action })
+          .then(() => queryClient.invalidateQueries({ queryKey: ["reminderInstances"] }));
+      });
+      // Clean URL
+      window.history.replaceState({}, "", "/reminders");
+    }
+  }, []);
 
   const { data: reminders = [], isLoading } = useQuery({
     queryKey: ["reminders"],

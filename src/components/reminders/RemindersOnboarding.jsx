@@ -1,76 +1,92 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { toast } from "sonner";
 
-const SUGGESTED = [
+const SEEDS = [
   {
-    title: "Morning check-in",
-    body: "Start the day with a quick emotional check-in.",
+    title: "How's today been?",
+    body: "A few minutes to reflect on the day.",
     category: "check_in",
     trigger_type: "scheduled",
-    trigger_config: { times: ["09:00"], days: [0,1,2,3,4,5,6] },
+    trigger_config: { times: ["20:00"], days: [0,1,2,3,4,5,6] },
     delivery_channels: ["in_app"],
+    inline_actions: [
+      { label: "Check in now", action_type: "open_check_in", payload: {} },
+      { label: "Tomorrow", action_type: "dismiss", payload: {} },
+    ],
     quiet_hours_respect: true,
-    inline_actions: [{ label: "Check in now", action_type: "open_check_in", payload: {} }],
     is_active: true,
     snooze_options: [10, 60, 240, "tomorrow"],
   },
   {
-    title: "Meds reminder",
-    body: "Time to take your medication.",
-    category: "meds",
-    trigger_type: "scheduled",
-    trigger_config: { times: ["08:00", "20:00"], days: [0,1,2,3,4,5,6] },
-    delivery_channels: ["in_app"],
-    quiet_hours_respect: true,
-    inline_actions: [{ label: "Taken ✓", action_type: "dismiss", payload: {} }],
-    is_active: true,
-    snooze_options: [10, 60, "tomorrow"],
-  },
-  {
-    title: "Grounding break",
-    body: "Pause and ground yourself for a moment.",
-    category: "grounding",
-    trigger_type: "interval",
-    trigger_config: { every_minutes: 240, active_window: { start: "09:00", end: "21:00" }, after_last: "fire" },
-    delivery_channels: ["in_app"],
-    quiet_hours_respect: true,
-    inline_actions: [{ label: "Open grounding", action_type: "open_grounding", payload: {} }],
-    is_active: true,
-    snooze_options: [10, 60, 240],
-  },
-  {
-    title: "Front update reminder",
-    body: "It's been a while — who's fronting right now?",
+    title: "Good morning 🤍",
+    body: "How are you landing into today?",
     category: "check_in",
     trigger_type: "contextual",
-    trigger_config: { on: "no_front_update", threshold_minutes: 180 },
+    trigger_config: { on: "sleep_ended", delay_minutes: 15 },
     delivery_channels: ["in_app"],
+    inline_actions: [
+      { label: "Check in", action_type: "open_check_in", payload: {} },
+    ],
     quiet_hours_respect: true,
-    inline_actions: [],
-    auto_resolve_rule: { on: "front_update" },
     is_active: true,
     snooze_options: [10, 60, 240, "tomorrow"],
   },
   {
-    title: "Evening wind-down",
-    body: "How did today go? A moment to reflect.",
-    category: "habit",
-    trigger_type: "scheduled",
-    trigger_config: { times: ["21:00"], days: [0,1,2,3,4,5,6] },
+    title: "Noticed something heavy",
+    body: "Would a grounding exercise help?",
+    category: "grounding",
+    trigger_type: "contextual",
+    trigger_config: { on: "emotion_logged", matches: ["anxious", "overwhelmed", "panic", "scared", "dissociated", "numb"], delay_minutes: 30 },
     delivery_channels: ["in_app"],
+    inline_actions: [
+      { label: "Try grounding", action_type: "open_grounding", payload: {} },
+      { label: "I'm okay", action_type: "dismiss", payload: {} },
+    ],
     quiet_hours_respect: true,
-    inline_actions: [{ label: "Journal", action_type: "open_route", payload: { path: "/journals" } }],
     is_active: true,
-    snooze_options: [10, 60, "tomorrow"],
+    snooze_options: [10, 60, 240, "tomorrow"],
+  },
+  {
+    title: "Checking in on the system",
+    body: "It's been a while since the front last updated. Who's here right now?",
+    category: "check_in",
+    trigger_type: "contextual",
+    trigger_config: { on: "no_front_update", threshold_minutes: 360 },
+    delivery_channels: ["in_app"],
+    inline_actions: [
+      { label: "Update front", action_type: "open_route", payload: { path: "/?openSetFront=1" } },
+    ],
+    quiet_hours_respect: true,
+    is_active: true,
+    snooze_options: [10, 60, 240, "tomorrow"],
+  },
+  {
+    title: "Water break",
+    body: "Have a sip, friend.",
+    category: "habit",
+    trigger_type: "interval",
+    trigger_config: { every_minutes: 180, active_window: { start: "09:00", end: "21:00" } },
+    delivery_channels: ["in_app"],
+    inline_actions: [],
+    quiet_hours_respect: true,
+    is_active: false, // off by default
+    snooze_options: [10, 60, 240, "tomorrow"],
   },
 ];
 
+const SEED_SUBTITLES = [
+  "Daily at 8pm",
+  "15 min after sleep ends",
+  "30 min after distress emotion",
+  "When front not updated for 6h",
+  "Every 3h (off by default)",
+];
+
 export default function RemindersOnboarding({ onDone }) {
-  const [enabled, setEnabled] = useState(new Set());
+  const [enabled, setEnabled] = useState(new Set([0, 1, 2, 3])); // 0-3 on by default, 4 off
   const [saving, setSaving] = useState(false);
 
   const toggle = (i) => {
@@ -82,50 +98,66 @@ export default function RemindersOnboarding({ onDone }) {
   };
 
   const handleEnable = async () => {
-    const toCreate = SUGGESTED.filter((_, i) => enabled.has(i));
-    if (!toCreate.length) { toast.error("Select at least one reminder"); return; }
     setSaving(true);
+    const toCreate = SEEDS.map((seed, i) => ({
+      ...seed,
+      is_active: enabled.has(i) ? seed.is_active !== false : false,
+    })).filter((_, i) => enabled.has(i));
+
+    if (!toCreate.length) {
+      setSaving(false);
+      onDone?.();
+      return;
+    }
+
     await base44.entities.Reminder.bulkCreate(toCreate);
     setSaving(false);
-    toast.success(`${toCreate.length} reminder${toCreate.length > 1 ? "s" : ""} enabled!`);
+    toast.success(`${toCreate.length} reminder${toCreate.length !== 1 ? "s" : ""} created!`);
     onDone?.();
   };
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="space-y-5 max-w-lg">
       <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5">
         <p className="text-lg font-semibold text-foreground mb-1">Welcome to Reminders 🔔</p>
-        <p className="text-sm text-muted-foreground">Select some starters to enable with one tap — you can customize or delete them anytime.</p>
+        <p className="text-sm text-muted-foreground">
+          Here are some gentle starters. Toggle any you'd like — you can customize or delete them anytime from the Manage tab.
+        </p>
       </div>
 
-      <div className="space-y-3">
-        {SUGGESTED.map((s, i) => {
-          const Icon = CATEGORY_ICONS[s.category];
+      <div className="space-y-2">
+        {SEEDS.map((seed, i) => {
+          const Icon = CATEGORY_ICONS[seed.category];
+          const on = enabled.has(i);
           return (
-            <div key={i}
+            <button
+              key={i}
+              type="button"
               onClick={() => toggle(i)}
-              className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
-                enabled.has(i) ? "border-primary bg-primary/5" : "border-border/50 bg-card hover:border-primary/40"
-              }`}>
+              className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
+                on ? "border-primary bg-primary/5" : "border-border/50 bg-card hover:border-primary/30"
+              }`}
+            >
               <span className="text-2xl flex-shrink-0">{Icon}</span>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-foreground">{s.title}</p>
-                <p className="text-xs text-muted-foreground">{s.body}</p>
+                <p className="font-semibold text-sm text-foreground leading-tight">{seed.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{seed.body}</p>
+                <p className="text-xs text-primary/70 mt-1">{SEED_SUBTITLES[i]}</p>
               </div>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                enabled.has(i) ? "bg-primary border-primary" : "border-border"
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                on ? "bg-primary border-primary" : "border-muted-foreground/40"
               }`}>
-                {enabled.has(i) && <div className="w-2 h-2 rounded-full bg-white" />}
+                {on && <div className="w-2 h-2 rounded-full bg-white" />}
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-1">
         <Button variant="outline" className="flex-1" onClick={() => onDone?.()}>Skip for now</Button>
-        <Button className="flex-1" onClick={handleEnable} disabled={saving || enabled.size === 0}>
-          {saving ? "Enabling…" : `Enable ${enabled.size > 0 ? enabled.size : ""} reminder${enabled.size !== 1 ? "s" : ""}`}
+        <Button className="flex-1" onClick={handleEnable} disabled={saving}>
+          {saving ? "Setting up…" : `Enable ${enabled.size} reminder${enabled.size !== 1 ? "s" : ""}`}
         </Button>
       </div>
     </div>

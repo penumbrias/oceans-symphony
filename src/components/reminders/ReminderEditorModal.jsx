@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Plus, X, ChevronDown, ChevronRight } from "lucide-react";
 import { CATEGORY_ICONS } from "./reminderHelpers";
+import { registerPush, isPushEnabled } from "@/lib/pushRegistration";
 import { toast } from "sonner";
 
 const CATEGORIES = ["check_in", "habit", "meds", "grounding", "appointment", "custom"];
@@ -279,9 +280,11 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handlePushRequest = async () => {
-    const perm = await Notification.requestPermission();
-    if (perm !== "granted") {
-      toast.error("Permission denied. Enable notifications in your browser settings.");
+    try {
+      await registerPush();
+      toast.success("Push notifications enabled!");
+    } catch (err) {
+      toast.error(err.message || "Could not enable push notifications.");
     }
   };
 

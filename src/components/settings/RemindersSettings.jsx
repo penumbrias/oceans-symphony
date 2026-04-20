@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Bell, BellOff } from "lucide-react";
+import { registerPush, unregisterPush, isPushEnabled } from "@/lib/pushRegistration";
 import { toast } from "sonner";
 
 export default function RemindersSettings() {
@@ -22,6 +24,12 @@ export default function RemindersSettings() {
   const [paused, setPaused] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+
+  useEffect(() => {
+    isPushEnabled().then(setPushEnabled).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!settings) return;
@@ -49,8 +57,42 @@ export default function RemindersSettings() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const handleTogglePush = async () => {
+    setPushLoading(true);
+    try {
+      if (pushEnabled) {
+        await unregisterPush();
+        setPushEnabled(false);
+        toast.success("Push notifications disabled.");
+      } else {
+        await registerPush();
+        setPushEnabled(true);
+        toast.success("Push notifications enabled!");
+      }
+    } catch (err) {
+      toast.error(err.message || "Could not toggle push notifications.");
+    }
+    setPushLoading(false);
+  };
+
   return (
     <div className="space-y-5">
+      {/* Browser push */}
+      <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            {pushEnabled ? <Bell className="w-4 h-4 text-primary" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+          </div>
+          <div>
+            <p className="font-semibold text-sm">Browser push notifications</p>
+            <p className="text-xs text-muted-foreground">{pushEnabled ? "Enabled — you'll get push alerts even when the app is closed" : "Disabled"}</p>
+          </div>
+        </div>
+        <Button size="sm" variant={pushEnabled ? "outline" : "default"} onClick={handleTogglePush} disabled={pushLoading}>
+          {pushLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : pushEnabled ? "Disable" : "Enable"}
+        </Button>
+      </div>
+
       {/* Pause all */}
       <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
         <div>
