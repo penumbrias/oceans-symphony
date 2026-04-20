@@ -308,6 +308,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [createRelModal, setCreateRelModal] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
+  const [viewingLocation, setViewingLocation] = useState(null);
   const [relPopover, setRelPopover] = useState(null); // { rel, x, y }
   const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
   const [showCreateRelModal, setShowCreateRelModal] = useState(false);
@@ -323,7 +324,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
 
   // Touch handlers
   const handleTouchStart = (e) => {
-    if (e.touches.length === 1 && !viewOnly) {
+    if (e.touches.length === 1) {
       panMovedRef.current = false;
       touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       setIsDragging(true);
@@ -385,7 +386,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
 
   // Pan handlers
   const handleMouseDown = (e) => {
-    if (e.button !== 0 || viewOnly) return;
+    if (e.button !== 0) return;
     panMovedRef.current = false;
     setIsDragging(true);
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
@@ -577,7 +578,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
       )}
 
       {/* Tap-to-place banner */}
-      {placingAlter && (
+      {placingAlter && !viewOnly && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
           <span>Tap map to place {placingAlter.name}</span>
           <button onClick={() => setPlacingAlter(null)} className="ml-1 hover:opacity-70">
@@ -628,9 +629,9 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                 isSelected={selectedLocation?.id === loc.id}
                 zoom={transform.scale}
                 viewOnly={viewOnly}
-                onSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); } }}
+                onSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); if (viewOnly) setViewingLocation(loc); } }}
                 onDoubleSelect={() => { if (!panMovedRef.current && !viewOnly) { setSelectedLocation(loc); setEditingLocation(loc); } }}
-                onLongPress={() => { if (!viewOnly) { setSelectedLocation(loc); setEditingLocation(loc); } }}
+                onLongPress={() => { if (viewOnly) { setViewingLocation(loc); } else { setSelectedLocation(loc); setEditingLocation(loc); } }}
                 onEdit={() => { if (!viewOnly) { setSelectedLocation(loc); setEditingLocation(loc); } }}
                 onUpdate={(fields) => { if (!viewOnly) updateLocation(loc, fields); }}
                 onDelete={() => deleteLocation(loc)}
@@ -659,16 +660,18 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                   onDoubleTap={() => handleAlterDoubleTap(alter)}
                   onDragEnd={(nx, ny) => saveAlterPosition(alter, nx, ny, snapToGrid)}
                 />
-                <g onClick={() => removeAlterFromCanvas(alter)} style={{ cursor: "pointer" }}>
-                  <circle
-                    cx={(alter.inner_world_x ?? 0) + NODE_RADIUS}
-                    cy={(alter.inner_world_y ?? 0) - NODE_RADIUS}
-                    r={12} fill="#ef4444" opacity={0.85} />
-                  <text
-                    x={(alter.inner_world_x ?? 0) + NODE_RADIUS}
-                    y={(alter.inner_world_y ?? 0) - NODE_RADIUS + 4}
-                    textAnchor="middle" fontSize={10} fill="white" pointerEvents="none">×</text>
-                </g>
+                {!viewOnly && (
+                  <g onClick={() => removeAlterFromCanvas(alter)} style={{ cursor: "pointer" }}>
+                    <circle
+                      cx={(alter.inner_world_x ?? 0) + NODE_RADIUS}
+                      cy={(alter.inner_world_y ?? 0) - NODE_RADIUS}
+                      r={12} fill="#ef4444" opacity={0.85} />
+                    <text
+                      x={(alter.inner_world_x ?? 0) + NODE_RADIUS}
+                      y={(alter.inner_world_y ?? 0) - NODE_RADIUS + 4}
+                      textAnchor="middle" fontSize={10} fill="white" pointerEvents="none">×</text>
+                  </g>
+                )}
               </g>
             ))}
           </g>
@@ -724,6 +727,28 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             <RotateCcw className="w-3.5 h-3.5" />
           </Button>
         </div>
+
+        {/* Location view modal (view mode) */}
+        {viewingLocation && viewOnly && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setViewingLocation(null)}>
+            <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm mx-4 space-y-3" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-foreground text-sm">{viewingLocation.name}</h3>
+                <button onClick={() => setViewingLocation(null)}><X className="w-4 h-4 text-muted-foreground" /></button>
+              </div>
+              {viewingLocation.description && (
+                <p className="text-xs text-muted-foreground">{viewingLocation.description}</p>
+              )}
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Shape</p>
+                <p className="text-xs text-foreground capitalize">{viewingLocation.shape || "rectangle"}</p>
+              </div>
+              {viewingLocation.background_image_url && (
+                <img src={viewingLocation.background_image_url} alt="location" className="w-full h-24 object-cover rounded border border-border" />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Location edit sidebar */}
         {editingLocation && !viewOnly && (

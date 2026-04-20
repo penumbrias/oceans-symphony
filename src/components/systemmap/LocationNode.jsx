@@ -26,6 +26,11 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
 
   const handleMouseDown = (e) => {
     e.stopPropagation();
+    if (viewOnly) {
+      // In view mode, just allow tap/double-tap
+      fireTap();
+      return;
+    }
     setDragging(true);
     dragStart.current = { mx: e.clientX, my: e.clientY, x, y, moved: false, startTime: Date.now() };
     setPressingId(true);
@@ -39,7 +44,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
     }, 1000);
 
     const onMove = (ev) => {
-      if (!dragStart.current || is_locked || viewOnly) return;
+      if (!dragStart.current || is_locked) return;
       const dx = (ev.clientX - dragStart.current.mx) / zoom;
       const dy = (ev.clientY - dragStart.current.my) / zoom;
       if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
@@ -64,6 +69,11 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
 
   const handleTouchStart = (e) => {
     e.stopPropagation();
+    if (viewOnly) {
+      // In view mode, just allow tap/double-tap
+      fireTap();
+      return;
+    }
     setDragging(true);
     dragStart.current = { mx: e.touches[0].clientX, my: e.touches[0].clientY, x, y, moved: false, startTime: Date.now() };
     setPressingId(true);
@@ -87,7 +97,9 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       clearTimeout(longPressRef.current);
       setPressingId(false);
     }
-    onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
+    if (!viewOnly) {
+      onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
+    }
   };
 
   const handleTouchEnd = (e) => {
@@ -178,11 +190,11 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         stroke={borderColor}
         strokeWidth={isSelected ? 2.5 : 1.5}
         strokeDasharray={isSelected ? "6,3" : "none"}
-        pointerEvents={is_locked ? "none" : "auto"}
-        onMouseDown={!is_locked ? handleMouseDown : undefined}
-        onTouchStart={!is_locked ? handleTouchStart : undefined}
-        onTouchMove={!is_locked ? handleTouchMove : undefined}
-        onTouchEnd={!is_locked ? handleTouchEnd : undefined}
+        pointerEvents={is_locked || viewOnly ? "none" : "auto"}
+        onMouseDown={!is_locked && !viewOnly ? handleMouseDown : undefined}
+        onTouchStart={!is_locked && !viewOnly ? handleTouchStart : undefined}
+        onTouchMove={!is_locked && !viewOnly ? handleTouchMove : undefined}
+        onTouchEnd={!is_locked && !viewOnly ? handleTouchEnd : undefined}
       />
 
       {/* Name label */}
