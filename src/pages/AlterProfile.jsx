@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { resolveImageUrl } from "@/lib/imageUrlResolver";
 
 import ProfileTab from "@/components/alters/profile/ProfileTab";
 import InfoTab from "@/components/alters/profile/InfoTab";
@@ -45,6 +46,7 @@ export default function AlterProfile() {
   const [tab, setTab] = useState("profile");
   const [editMode, setEditMode] = useState(false);
   const [showComposeMessage, setShowComposeMessage] = useState(false);
+  const [avatarSrc, setAvatarSrc] = useState(null);
   const saveRef = useRef(null);
 
   const { data: alter, isLoading } = useQuery({
@@ -56,6 +58,15 @@ export default function AlterProfile() {
     enabled: !!alterId,
     staleTime: 0,
   });
+
+  // Resolve avatar URL (local or external)
+  useEffect(() => {
+    if (alter?.avatar_url) {
+      resolveImageUrl(alter.avatar_url).then(setAvatarSrc);
+    } else {
+      setAvatarSrc(null);
+    }
+  }, [alter?.avatar_url]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -197,8 +208,8 @@ export default function AlterProfile() {
               className="w-14 h-14 rounded-xl border-2 border-border/60 overflow-hidden flex-shrink-0"
               style={{ backgroundColor: alterColor || "hsl(var(--muted))" }}
             >
-              {alter.avatar_url ? (
-                <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+              {avatarSrc ? (
+                <img src={avatarSrc} alt={alter.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}>
                   <User className="w-7 h-7" />

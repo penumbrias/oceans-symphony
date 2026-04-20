@@ -34,7 +34,7 @@ import TherapyReport from '@/pages/TherapyReport';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import Reminders from '@/pages/Reminders';
 import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
-import { isDbInitialized, initLocalDb } from '@/lib/localDb';
+import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal } from '@/lib/localDb';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 
 const AuthenticatedApp = () => {
@@ -105,6 +105,10 @@ function App() {
     if (isLocalMode() && !isDbInitialized()) {
       // Auto-init unencrypted local db
       initLocalDb(null).catch(() => {});
+    }
+    // Trigger migration of existing base64 avatars to local storage (happens silently)
+    if (isLocalMode() && isDbInitialized()) {
+      migrateBase64AvatarsToLocal().catch(() => {});
     }
     return null;
   });

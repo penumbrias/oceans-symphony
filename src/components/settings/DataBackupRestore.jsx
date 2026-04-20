@@ -5,6 +5,7 @@ import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, C
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { getFullDbDump, loadDbDump } from "@/lib/localDb";
+import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
 function compressBackup(data) {
@@ -106,11 +107,23 @@ export default function DataBackupRestore() {
         }
       }
     }
+    
+    // Include local images in the export
+    let localImages = {};
+    if (isLocalMode()) {
+      try {
+        localImages = await getAllLocalImages();
+      } catch (e) {
+        console.warn("Failed to export local images:", e);
+      }
+    }
+    
     return {
       __format: "symphony_backup",
       __version: 1,
       __exported_at: new Date().toISOString(),
       data: dump,
+      __local_images: localImages, // Images are keyed by ID, values are data URLs
     };
   };
 
@@ -276,6 +289,14 @@ const handleExportFull = async () => {
     }
 
     if (isLocalMode()) {
+      // Restore local images before loading DB dump
+      if (parsed.__local_images) {
+        try {
+          await restoreLocalImages(parsed.__local_images);
+        } catch (e) {
+          console.warn("Failed to restore local images:", e);
+        }
+      }
       await loadDbDump(parsed.data);
       showStatus("success", "Data restored! The app will reload.");
       setTimeout(() => window.location.reload(), 1200);

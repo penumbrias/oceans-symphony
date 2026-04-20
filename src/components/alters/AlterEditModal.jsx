@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
+import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage } from "@/lib/localImageStorage";
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) {
   const queryClient = useQueryClient();
@@ -90,7 +91,12 @@ const handleAvatarUpload = async (e) => {
         toast.warning(`Compressed to ${compressedSizeKB}KB — very large images may slow the app. Consider using a smaller image.`);
       }
 
-      setForm(f => ({ ...f, avatar_url: dataUrl }));
+      // Generate unique ID and store in local image storage
+      const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await saveLocalImage(imageId, dataUrl);
+      const localImageUrl = createLocalImageUrl(imageId);
+
+      setForm(f => ({ ...f, avatar_url: localImageUrl }));
       toast.success(`Avatar saved locally! (${compressedSizeKB}KB)`);
     } else {
       toast.error("Avatar upload requires cloud mode. Switch to cloud mode or paste an image URL instead.");
@@ -141,6 +147,11 @@ const handleAvatarUpload = async (e) => {
     if (!confirm(`Permanently delete ${alter?.name}? This cannot be undone. All data linked to this ${t.alter} will be removed.`)) return;
     setDeleting(true);
     try {
+      // Clean up local image if it exists
+      if (alter.avatar_url && isLocalImageUrl(alter.avatar_url)) {
+        const imageId = getLocalImageId(alter.avatar_url);
+        if (imageId) await deleteLocalImage(imageId);
+      }
       await base44.entities.Alter.delete(alter.id);
       toast.success(`🗑 ${t.Alter} deleted.`);
       queryClient.invalidateQueries({ queryKey: ["alters"] });

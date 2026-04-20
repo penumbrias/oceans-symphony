@@ -218,3 +218,31 @@ export async function loadDbDump(dump) {
   _db = dump;
   await saveDb();
 }
+
+// Migrate existing base64 avatar URLs to local image storage
+export async function migrateBase64AvatarsToLocal() {
+  const alters = getCollection('Alter');
+  if (!alters || Object.keys(alters).length === 0) return;
+
+  const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
+  
+  let migrated = 0;
+  for (const [alterId, alter] of Object.entries(alters)) {
+    if (alter.avatar_url && !isLocalImageUrl(alter.avatar_url) && alter.avatar_url.startsWith('data:')) {
+      // This is a base64 data URL — migrate it
+      const imageId = `avatar-migrated-${alterId}`;
+      try {
+        await saveLocalImage(imageId, alter.avatar_url);
+        alters[alterId].avatar_url = createLocalImageUrl(imageId);
+        migrated++;
+      } catch (e) {
+        console.warn(`Failed to migrate avatar for alter ${alterId}:`, e);
+      }
+    }
+  }
+  
+  if (migrated > 0) {
+    await saveDb();
+    console.log(`Migrated ${migrated} base64 avatars to local image storage`);
+  }
+}
