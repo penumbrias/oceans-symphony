@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Plus, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, X, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { registerPush, isPushEnabled } from "@/lib/pushRegistration";
 import { toast } from "sonner";
@@ -337,7 +337,6 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
   const [saving, setSaving] = useState(false);
   const [hasAlterScope, setHasAlterScope] = useState(false);
   const [hasAutoResolve, setHasAutoResolve] = useState(false);
-  const [newAction, setNewAction] = useState(null);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -528,44 +527,65 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
           <Collapsible label="Quick action buttons">
             <div className="space-y-2">
               {(form.inline_actions || []).map((action, i) => {
-                const opt = ACTION_TYPE_OPTIONS.find(o => o.value === action.action_type);
+                const updateAction = (fields) => {
+                  const updated = (form.inline_actions || []).map((a, j) => j === i ? { ...a, ...fields } : a);
+                  set("inline_actions", updated);
+                };
+                const removeAction = () => set("inline_actions", (form.inline_actions || []).filter((_, j) => j !== i));
+
                 return (
-                  <div key={i} className="flex items-center gap-2 p-2 bg-muted/20 rounded-lg text-xs">
-                    <span className="flex-1 truncate font-medium">{action.label}</span>
-                    <span className="text-muted-foreground truncate">{opt?.label || action.action_type}</span>
-                    <button type="button" onClick={() => set("inline_actions", (form.inline_actions || []).filter((_, j) => j !== i))}>
-                      <X className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                    </button>
+                  <div key={i} className="space-y-1.5 p-3 bg-muted/20 rounded-xl border border-border/30">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Button label, e.g. Try grounding"
+                        value={action.label || ""}
+                        className="h-7 text-xs flex-1"
+                        onChange={e => updateAction({ label: e.target.value })}
+                      />
+                      <button type="button" onClick={removeAction} className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <select
+                      className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
+                      value={action.action_type || "open_check_in"}
+                      onChange={e => updateAction({ action_type: e.target.value, payload: {} })}
+                    >
+                      {ACTION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                    {action.action_type === "log_symptom" && (
+                      <select
+                        className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
+                        value={action.payload?.symptom_id || ""}
+                        onChange={e => updateAction({ payload: { symptom_id: e.target.value } })}
+                      >
+                        <option value="">— pick symptom —</option>
+                        {symptoms.filter(s => !s.is_archived).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                      </select>
+                    )}
+                    {action.action_type === "open_route" && (
+                      <Input
+                        placeholder="/path (e.g. /analytics)"
+                        value={action.payload?.path || ""}
+                        className="h-7 text-xs"
+                        onChange={e => updateAction({ payload: { path: e.target.value } })}
+                      />
+                    )}
                   </div>
                 );
               })}
+
               {(form.inline_actions || []).length < 3 && (
-                <div className="space-y-2 p-3 bg-muted/10 rounded-lg border border-dashed border-border/40">
-                  <Input placeholder="Button label, e.g. Try grounding" value={newAction?.label || ""} className="h-7 text-xs"
-                    onChange={e => setNewAction(a => ({ ...(a || {}), label: e.target.value }))} />
-                  <select className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
-                    value={newAction?.action_type || "open_check_in"}
-                    onChange={e => setNewAction(a => ({ ...(a || {}), action_type: e.target.value, payload: {} }))}>
-                    {ACTION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                  {newAction?.action_type === "log_symptom" && (
-                    <select className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background w-full"
-                      value={newAction?.payload?.symptom_id || ""}
-                      onChange={e => setNewAction(a => ({ ...(a || {}), payload: { symptom_id: e.target.value } }))}>
-                      <option value="">— pick symptom —</option>
-                      {symptoms.filter(s => !s.is_archived).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                    </select>
-                  )}
-                  {newAction?.action_type === "open_route" && (
-                    <Input placeholder="/path (e.g. /analytics)" value={newAction?.payload?.path || ""} className="h-7 text-xs"
-                      onChange={e => setNewAction(a => ({ ...(a || {}), payload: { path: e.target.value } }))} />
-                  )}
-                  <Button size="sm" type="button" className="w-full h-7 text-xs" onClick={() => {
-                    if (!newAction?.label) return;
-                    set("inline_actions", [...(form.inline_actions || []), { label: newAction.label, action_type: newAction.action_type || "open_check_in", payload: newAction.payload || {} }]);
-                    setNewAction(null);
-                  }}>Add action</Button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => set("inline_actions", [...(form.inline_actions || []), { label: "", action_type: "open_check_in", payload: {} }])}
+                  className="w-full flex items-center justify-center gap-1.5 h-8 text-xs border border-dashed border-border/50 rounded-xl text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add action
+                </button>
+              )}
+              {(form.inline_actions || []).length >= 3 && (
+                <p className="text-xs text-muted-foreground text-center">Maximum 3 actions reached</p>
               )}
             </div>
           </Collapsible>
