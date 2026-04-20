@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, LayoutGrid, List, FileText, Heart } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, LayoutGrid, List, FileText, Heart, Bell } from "lucide-react";
+import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -24,7 +25,8 @@ function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
 
     "Tools": [
     { id: "therapy-report", label: "Therapy Report", icon: CheckSquare, path: "/therapy-report" },
-    { id: "support", label: "Support & Learn", icon: BookOpen, path: "/grounding" }],
+    { id: "support", label: "Support & Learn", icon: BookOpen, path: "/grounding" },
+    { id: "reminders", label: "Reminders", icon: Bell, path: "/reminders" }],
 
     "Analytics": [
     { id: "analytics", label: "Analytics", icon: BarChart2, path: "/analytics" },
@@ -54,13 +56,16 @@ function buildGridItems(altersLabel, frontLabel, systemLabel) {
   { id: "groups", label: "Groups", icon: Users, path: "/groups", color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
   { id: "tasks", label: "Daily Tasks", icon: CheckSquare, path: "/tasks", color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
 { id: "safety-plan", label: "Safety Plan", icon: Heart, path: "/safety-plan", color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
-  { id: "settings", label: "Settings", icon: Settings, path: "/settings", color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" }];
+  { id: "settings", label: "Settings", icon: Settings, path: "/settings", color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
+  { id: "reminders", label: "Reminders", icon: Bell, path: "/reminders", color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" }];
   
 }
 
 export default function QuickNavMenu() {
   const terms = useTerms();
   const [isGridLayout, setIsGridLayout] = useState(() => localStorage.getItem("nav_grid_layout") === "true");
+  const { data: pendingInstances = [] } = usePendingReminderInstances();
+  const pendingCount = pendingInstances.filter(i => i.status === "fired").length;
   
   const { data: systemSettingsData = [] } = useQuery({
     queryKey: ['systemSettings'],
@@ -122,8 +127,13 @@ export default function QuickNavMenu() {
             return (
               <Link key={item.path} to={item.path}>
                     <div className="bg-card px-3 py-1 rounded-2xl flex flex-col items-center gap-2 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
+                      <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
                         <Icon className="w-5 h-5" />
+                        {item.id === "reminders" && pendingCount > 0 && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                            {pendingCount > 9 ? "9+" : pendingCount}
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs font-medium text-foreground group-hover:text-primary transition-colors text-center">
                         {item.label}

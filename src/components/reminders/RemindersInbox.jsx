@@ -50,7 +50,10 @@ export default function RemindersInbox() {
     const reminder = reminderMap[instance.reminder_id];
     if (!reminder) return;
 
-    if (action.action_type === "open_route") {
+    if (action.action_type === "open_set_front") {
+      window.dispatchEvent(new CustomEvent("open-set-front"));
+      await updateInstance(instance.id, { status: "acted", acted_action: "open_set_front" });
+    } else if (action.action_type === "open_route") {
       navigate(action.payload?.path || "/");
       await updateInstance(instance.id, { status: "acted", acted_action: "open_route" });
     } else if (action.action_type === "log_symptom") {

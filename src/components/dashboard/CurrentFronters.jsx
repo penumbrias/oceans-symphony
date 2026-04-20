@@ -80,6 +80,12 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
 
 export default function CurrentFronters({ alters }) {
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setShowModal(true);
+    window.addEventListener("open-set-front", handler);
+    return () => window.removeEventListener("open-set-front", handler);
+  }, []);
   const [editingStatus, setEditingStatus] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [tempStatus, setTempStatus] = useState("");

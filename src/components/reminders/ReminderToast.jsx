@@ -68,7 +68,10 @@ export default function ReminderToast() {
   };
 
   const handleAction = async ({ instance, reminder }, action) => {
-    if (action.action_type === "open_route") {
+    if (action.action_type === "open_set_front") {
+      window.dispatchEvent(new CustomEvent("open-set-front"));
+      await updateInstance(instance.id, { status: "acted", acted_action: "open_set_front" });
+    } else if (action.action_type === "open_route") {
       navigate(action.payload?.path || "/");
       await updateInstance(instance.id, { status: "acted", acted_action: "open_route" });
     } else if (action.action_type === "open_grounding") {
@@ -99,7 +102,7 @@ export default function ReminderToast() {
   if (!visible.length) return null;
 
   return (
-    <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
+    <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
       {visible.slice(0, 3).map(({ instance, reminder }) => {
         const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
         const inlineActions = reminder.inline_actions || [];
@@ -109,7 +112,7 @@ export default function ReminderToast() {
 
         return (
           <div key={instance.id}
-            className="bg-card border border-border shadow-xl rounded-2xl p-4 space-y-3 animate-in slide-in-from-bottom-4 duration-300">
+            className="bg-card border border-border shadow-xl rounded-2xl p-4 space-y-3 animate-in slide-in-from-bottom-4 duration-300 pointer-events-auto">
             {/* Header */}
             <div className="flex items-start gap-3">
               <span className="text-xl flex-shrink-0 mt-0.5">{Icon}</span>
@@ -141,7 +144,7 @@ export default function ReminderToast() {
                         <MoreHorizontal className="w-3.5 h-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="z-[210]">
                       {moreActions.map((action, i) => (
                         <DropdownMenuItem key={i} onClick={() => handleAction({ instance, reminder }, action)}>
                           {action.label}
@@ -165,7 +168,7 @@ export default function ReminderToast() {
                     Snooze <ChevronDown className="w-3 h-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="z-[210]">
                   {snoozeOptions.map((opt, i) => (
                     <DropdownMenuItem key={i} onClick={() => handleSnooze({ instance, reminder }, opt)}>
                       {opt === "tomorrow" ? "Tomorrow morning" : opt < 60 ? `${opt} min` : `${opt / 60}h`}
