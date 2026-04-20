@@ -98,27 +98,12 @@ function ResizeHandle({ onDrag }) {
   );
 }
 
-function StatusNoteBadge({ note, topPx, id, onClick }) {
+function StatusNoteBadge({ note, topPx, id }) {
   return (
-    <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none", pointerEvents: "auto" }} data-status-id={id}>
-      <div className="mx-1 px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-muted-foreground leading-tight truncate w-full cursor-pointer hover:bg-muted hover:border-border transition-colors"
-        style={{ fontSize: 9 }} title={note} onClick={onClick}>
+    <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none" }} data-status-id={id}>
+      <div className="mx-1 px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-muted-foreground leading-tight truncate w-full"
+        style={{ fontSize: 9 }} title={note}>
         💬 {note}
-      </div>
-    </div>
-  );
-}
-
-function StatusNotePopup({ note, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-sm w-full mx-4"
-        onClick={e => e.stopPropagation()}>
-        <p className="text-sm font-semibold mb-2">Status Note</p>
-        <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{note}</p>
-        <button onClick={onClose} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-3 mt-3 border-t border-border/30">
-          Close
-        </button>
       </div>
     </div>
   );
@@ -520,7 +505,6 @@ export default function InfiniteTimeline({
   const [newSessionPopover, setNewSessionPopover] = useState(null);
   const [symptomSessionPopover, setSymptomSessionPopover] = useState(null); // { session, symptom, splitMins }
   const [symptomDetailModal, setSymptomDetailModal] = useState(null); // { session, symptom }
-  const [statusNotePopup, setStatusNotePopup] = useState(null); // { note }
   const longPressTargetRef = useRef(null);
 
   const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
@@ -1278,42 +1262,42 @@ export default function InfiniteTimeline({
 
                 {/* Legacy session notes */}
                 {sessions.flatMap((session) => {
-                   if (session.alter_id) return [];
-                   if (!session.note) return [];
-                   let notes = [];
-                   try {
-                     const parsed = JSON.parse(session.note);
-                     notes = Array.isArray(parsed) ? parsed : [{ text: session.note, timestamp: session.start_time }];
-                   } catch {
-                     notes = [{ text: session.note, timestamp: session.start_time }];
-                   }
-                   return notes.map((sn, i) => {
-                     const mins = Math.max(0, minutesInDay(parseDate(sn.timestamp), dayStart));
-                     const topPx = getTopPx(mins);
-                     return (
-                       <div key={`note-${session.id}-${i}`} className="absolute"
-                         style={{ left: alterLeft, right: 0, top: 0, height: totalHeight, pointerEvents: "none" }}>
-                         <StatusNoteBadge note={sn.text} topPx={topPx} onClick={(e) => { e.stopPropagation(); setStatusNotePopup({ note: sn.text }); }} />
-                       </div>
-                     );
-                   });
-                 })}
+                  if (session.alter_id) return [];
+                  if (!session.note) return [];
+                  let notes = [];
+                  try {
+                    const parsed = JSON.parse(session.note);
+                    notes = Array.isArray(parsed) ? parsed : [{ text: session.note, timestamp: session.start_time }];
+                  } catch {
+                    notes = [{ text: session.note, timestamp: session.start_time }];
+                  }
+                  return notes.map((sn, i) => {
+                    const mins = Math.max(0, minutesInDay(parseDate(sn.timestamp), dayStart));
+                    const topPx = getTopPx(mins);
+                    return (
+                      <div key={`note-${session.id}-${i}`} className="absolute"
+                        style={{ left: alterLeft, right: 0, top: 0, height: totalHeight, pointerEvents: "none" }}>
+                        <StatusNoteBadge note={sn.text} topPx={topPx} />
+                      </div>
+                    );
+                  });
+                })}
 
-                 {/* Status notes from EmotionCheckIn.note — render as badges in the alter area */}
-                 {emotions.filter(e => {
-                   if (!e.note || !e.note.trim()) return false;
-                   const mins = minutesInDay(parseDate(e.timestamp), dayStart);
-                   return mins >= 0 && mins < 24 * 60;
-                 }).map((emotion, i) => {
-                   const mins = minutesInDay(parseDate(emotion.timestamp), dayStart);
-                   const topPx = getTopPx(mins);
-                   return (
-                     <div key={`status-note-${emotion.id || i}`} className="absolute pointer-events-none"
-                       style={{ left: alterLeft, right: 0, top: 0, height: totalHeight }}>
-                       <StatusNoteBadge note={emotion.note} topPx={topPx} id={emotion.id} onClick={(clickEvent) => { clickEvent.stopPropagation(); setStatusNotePopup({ note: emotion.note }); }} />
-                     </div>
-                   );
-                 })}
+                {/* Status notes from EmotionCheckIn.note — render as badges in the alter area */}
+                {emotions.filter(e => {
+                  if (!e.note || !e.note.trim()) return false;
+                  const mins = minutesInDay(parseDate(e.timestamp), dayStart);
+                  return mins >= 0 && mins < 24 * 60;
+                }).map((e, i) => {
+                  const mins = minutesInDay(parseDate(e.timestamp), dayStart);
+                  const topPx = getTopPx(mins);
+                  return (
+                    <div key={`status-note-${e.id || i}`} className="absolute pointer-events-none"
+                      style={{ left: alterLeft, right: 0, top: 0, height: totalHeight }}>
+                      <StatusNoteBadge note={e.note} topPx={topPx} id={e.id} />
+                    </div>
+                  );
+                })}
 
               </div>
             </div>
@@ -1379,13 +1363,6 @@ export default function InfiniteTimeline({
           symptom={symptomDetailModal.symptom}
           session={symptomDetailModal.session}
           onClose={() => setSymptomDetailModal(null)}
-        />
-      )}
-
-      {statusNotePopup && (
-        <StatusNotePopup
-          note={statusNotePopup.note}
-          onClose={() => setStatusNotePopup(null)}
         />
       )}
     </div>
