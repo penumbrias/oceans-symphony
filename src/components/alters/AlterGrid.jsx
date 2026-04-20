@@ -80,22 +80,12 @@ export default function AlterGrid({ alters, currentSession = null }) {
           {showFolders ? "groups" : "groups"}
         </Button>
         <Button
-          variant={viewMode === "list" ? "default" : "outline"}
+          variant="ghost"
           size="sm"
-          onClick={() => setViewMode("list")} className="bg-primary text-primary-foreground px-1 text-xs font-medium rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow hover:bg-primary/90 h-9 gap-1.5"
-
-          title="List view">
-          
-          <List className="w-4 h-4" />
-        </Button>
-        <Button
-          variant={viewMode === "grid" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setViewMode("grid")} className="bg-background px-1 text-xs font-medium rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input shadow-sm hover:bg-accent hover:text-accent-foreground h-9 gap-1.5"
-
-          title="Grid view">
-          
-          <Grid3X3 className="w-4 h-4" />
+          onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
+          className="bg-card/50 text-muted-foreground px-1 text-xs font-light rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+          title={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}>
+          {viewMode === "list" ? <Grid3X3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
         </Button>
         <Button
           variant="ghost"
