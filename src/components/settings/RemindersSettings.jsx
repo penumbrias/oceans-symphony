@@ -59,6 +59,7 @@ export default function RemindersSettings() {
     queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
     setSaving(false);
     setSaved(true);
+    toast.success("Reminder settings saved");
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -104,7 +105,7 @@ export default function RemindersSettings() {
           <p className="font-semibold text-sm">Pause all reminders</p>
           <p className="text-xs text-muted-foreground">Temporarily silence every reminder</p>
         </div>
-        <Switch checked={paused} onCheckedChange={setPaused} />
+        <Switch checked={paused} onCheckedChange={v => { setPaused(v); toast(v ? "All reminders paused" : "Reminders resumed"); }} />
       </div>
 
       {/* Quiet hours */}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { CATEGORY_ICONS, triggerSummary } from "./reminderHelpers";
 import ReminderEditorModal from "./ReminderEditorModal";
+import { toast } from "sonner";
 
 export default function RemindersManage() {
   const queryClient = useQueryClient();
@@ -23,14 +24,17 @@ export default function RemindersManage() {
   };
 
   const handleToggle = async (r) => {
-    await base44.entities.Reminder.update(r.id, { is_active: !r.is_active });
+    const next = !r.is_active;
+    await base44.entities.Reminder.update(r.id, { is_active: next });
     invalidate();
+    toast(next ? "Reminder enabled" : "Reminder paused");
   };
 
   const handleDelete = async (r) => {
     if (!confirm(`Delete "${r.title}"?`)) return;
     await base44.entities.Reminder.delete(r.id);
     invalidate();
+    toast.success(`"${r.title}" deleted`);
   };
 
   const openNew = () => { setEditing(null); setEditorOpen(true); };

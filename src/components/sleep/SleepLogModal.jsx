@@ -82,6 +82,7 @@ const handleSave = async () => {
       activity_category_ids: [sleepCat.id],
     });
 
+    toast.success("Sleep logged!");
     setBedtime("");
     setWakeTime("");
     setQuality(5);
@@ -181,10 +182,11 @@ const handleSave = async () => {
             </Button>
             <Button
               onClick={handleSave}
+              loading={isLoading}
               disabled={isLoading}
               className="bg-primary hover:bg-primary/90"
             >
-              {isLoading ? "Saving..." : "Save Sleep"}
+              Save Sleep
             </Button>
           </div>
         </div>

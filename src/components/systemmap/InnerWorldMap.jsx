@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
+import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload
 } from "lucide-react";
@@ -911,6 +912,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                 await db.Alter.update(selectedAlter.id, { inner_world_locked: newLocked });
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
                 setSelectedAlter({ ...selectedAlter, inner_world_locked: newLocked });
+                toast(newLocked ? "Position locked" : "Position unlocked");
               }}
                 className={`h-7 px-2.5 rounded text-xs font-medium transition-colors ${
                   selectedAlter.inner_world_locked
@@ -973,12 +975,22 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
   const [customLabel, setCustomLabel] = useState(rel.custom_label || "");
   const [color, setColor] = useState(rel.color || "#6b7280");
   const [notes, setNotes] = useState(rel.notes || "");
+  const [saving, setSaving] = useState(false);
   const alterA = alterMap[rel.alter_id_a];
   const alterB = alterMap[rel.alter_id_b];
 
   const handleSave = async () => {
-    await base44.entities.AlterRelationship.update(rel.id, { direction, relationship_type: relType, custom_label: customLabel, color, notes });
-    onSaved();
+    if (saving) return;
+    setSaving(true);
+    try {
+      await base44.entities.AlterRelationship.update(rel.id, { direction, relationship_type: relType, custom_label: customLabel, color, notes });
+      toast.success("Relationship updated");
+      onSaved();
+    } catch (err) {
+      toast.error(err.message || "Failed to update");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1023,8 +1035,8 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
             className="w-full px-3 py-2 rounded-md border border-border bg-background text-sm resize-none" />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1" onClick={handleSave}>Save</Button>
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button className="flex-1" onClick={handleSave} loading={saving} disabled={saving}>Save</Button>
         </div>
       </div>
     </div>

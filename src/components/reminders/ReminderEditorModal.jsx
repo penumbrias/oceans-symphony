@@ -753,8 +753,8 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
           {/* Save */}
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button type="button" className="flex-1" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : existing ? "Save Changes" : "Create Reminder"}
+            <Button type="button" className="flex-1" onClick={handleSave} loading={saving} disabled={saving}>
+              {existing ? "Save Changes" : "Create Reminder"}
             </Button>
           </div>
         </div>

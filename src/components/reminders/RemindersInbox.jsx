@@ -91,8 +91,19 @@ export default function RemindersInbox() {
     await updateInstance(instance.id, { status: "fired", snoozed_until: null });
   };
 
-  const handleDone = (instance) => updateInstance(instance.id, { status: "acted", acted_action: "done" });
-  const handleDismiss = (instance) => updateInstance(instance.id, { status: "dismissed" });
+  const handleDone = async (instance) => {
+    await updateInstance(instance.id, { status: "acted", acted_action: "done" });
+    toast.success("Marked done");
+  };
+  const handleDismiss = async (instance) => {
+    await updateInstance(instance.id, { status: "dismissed" });
+    toast("Dismissed");
+  };
+  const handleSnoozeWithToast = async (instance, option) => {
+    await handleSnooze(instance, option);
+    const { formatSnoozeLabel } = await import("./snoozeHelpers");
+    toast(`Snoozed for ${formatSnoozeLabel(option)}`);
+  };
 
   return (
     <div className="space-y-4">
@@ -108,7 +119,7 @@ export default function RemindersInbox() {
             instance={instance}
             reminder={reminderMap[instance.reminder_id]}
             onAction={(action) => handleAction(instance, action)}
-            onSnooze={(opt) => handleSnooze(instance, opt)}
+            onSnooze={(opt) => handleSnoozeWithToast(instance, opt)}
             onUnsnooze={() => handleUnsnooze(instance)}
             onDone={() => handleDone(instance)}
             onDismiss={() => handleDismiss(instance)}

@@ -373,8 +373,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
                 <HelpCircle className="w-4 h-4 mr-2" />
                 Unsure
               </Button>
-              <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              <Button onClick={handleSave} loading={saving} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
                 Set {terms.Front}ers
               </Button>
             </div>

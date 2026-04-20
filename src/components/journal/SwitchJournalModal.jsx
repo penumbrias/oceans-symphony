@@ -85,20 +85,26 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
   const setSymptom = (key, val) => setSymptoms((s) => ({ ...s, [key]: val }));
 
   const handleSave = async () => {
+    if (saving) return;
     setSaving(true);
-    const content = buildContent({ trigger, before, after, symptoms, notes });
-    await base44.entities.JournalEntry.create({
-      title,
-      content: `## ${title} (${format(now, "MMMM d, yyyy · h:mm a")})\n\n${content}`,
-      entry_type: "switch_log",
-      tags: ["switch"],
-      author_alter_id: authorAlterId || "",
-      fronting_session_id: sessionId || "",
-      allowed_alter_ids: [],
-    });
-    toast.success("Switch journal saved!");
-    setSaving(false);
-    onClose();
+    try {
+      const content = buildContent({ trigger, before, after, symptoms, notes });
+      await base44.entities.JournalEntry.create({
+        title,
+        content: `## ${title} (${format(now, "MMMM d, yyyy · h:mm a")})\n\n${content}`,
+        entry_type: "switch_log",
+        tags: ["switch"],
+        author_alter_id: authorAlterId || "",
+        fronting_session_id: sessionId || "",
+        allowed_alter_ids: [],
+      });
+      toast.success("Switch journal saved!");
+      onClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to save journal");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -176,8 +182,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
           <Button variant="outline" onClick={onClose} className="flex-1">
             Skip
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
-            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          <Button onClick={handleSave} loading={saving} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
             Save Journal
           </Button>
         </div>

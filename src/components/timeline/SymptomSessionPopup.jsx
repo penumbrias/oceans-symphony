@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
+import { toast } from "sonner";
 
 export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
   const queryClient = useQueryClient();
@@ -27,40 +28,42 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
   }
 
   const handleAdjustStartTime = async () => {
+    if (saving) return;
     setSaving(true);
     try {
-      const newStartTime = timeToDate(adjustedStartTime);
-      await base44.entities.SymptomSession.update(session.id, {
-        start_time: newStartTime,
-      });
+      await base44.entities.SymptomSession.update(session.id, { start_time: timeToDate(adjustedStartTime) });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+      toast.success("Start time updated");
+      onClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to update");
     } finally {
       setSaving(false);
-      onClose();
     }
   };
 
   const handleAdjustEndTime = async () => {
+    if (saving) return;
     setSaving(true);
     try {
-      const newEndTime = timeToDate(adjustedEndTime);
-      await base44.entities.SymptomSession.update(session.id, {
-        end_time: newEndTime,
-      });
+      await base44.entities.SymptomSession.update(session.id, { end_time: timeToDate(adjustedEndTime) });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+      toast.success("End time updated");
+      onClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to update");
     } finally {
       setSaving(false);
-      onClose();
     }
   };
 
   const handleLogSeverity = async (severity) => {
+    if (saving) return;
     setSaving(true);
     try {
       const existingSnapshots = session.severity_snapshots || [];
-      const newSnapshots = [...existingSnapshots, { severity, timestamp: new Date().toISOString() }];
       await base44.entities.SymptomSession.update(session.id, {
-        severity_snapshots: newSnapshots,
+        severity_snapshots: [...existingSnapshots, { severity, timestamp: new Date().toISOString() }],
       });
       await base44.entities.SymptomCheckIn.create({
         symptom_id: session.symptom_id,
@@ -69,25 +72,31 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
       });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      toast.success(`Severity ${severity} logged`);
+      onClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to log");
     } finally {
       setSaving(false);
-      onClose();
     }
   };
 
   const handleEndSession = async () => {
+    if (saving) return;
     setSaving(true);
     try {
-      const newEndTime = timeToDate(adjustedEndTime || formatTimeValue(new Date()));
       await base44.entities.SymptomSession.update(session.id, {
-        end_time: newEndTime,
+        end_time: timeToDate(adjustedEndTime || formatTimeValue(new Date())),
         is_active: false,
       });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      toast.success("Session ended");
+      onClose();
+    } catch (err) {
+      toast.error(err.message || "Failed to end session");
     } finally {
       setSaving(false);
-      onClose();
     }
   };
 
