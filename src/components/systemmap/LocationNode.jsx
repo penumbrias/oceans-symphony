@@ -212,19 +212,22 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         />
       )}
 
-      {/* Lock indicator + edit button */}
-      {is_locked && !viewOnly && (
+      {/* Lock indicator */}
+      {is_locked && (
+        <text
+          x={x + width - 12} y={y + 14}
+          fontSize={12}
+          fill={color}
+          pointerEvents="none"
+          style={{ userSelect: "none" }}
+        >
+          🔒
+        </text>
+      )}
+
+      {/* Edit button */}
+      {!viewOnly && (
         <>
-          <text
-            x={x + width - 12} y={y + 14}
-            fontSize={12}
-            fill={color}
-            pointerEvents="none"
-            style={{ userSelect: "none" }}
-          >
-            🔒
-          </text>
-          {/* Edit button background */}
           <rect
             x={x + width - 32} y={y + 6}
             width={24} height={24}
@@ -235,7 +238,6 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
             onTouchStart={(e) => { e.stopPropagation(); onEdit?.(); }}
             style={{ cursor: "pointer", pointerEvents: "auto" }}
           />
-          {/* Edit icon */}
           <text
             x={x + width - 20} y={y + 22}
             textAnchor="middle"
