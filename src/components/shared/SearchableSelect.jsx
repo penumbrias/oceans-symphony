@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Check, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,11 +71,13 @@ export function SearchableSelect({
   const [query, setQuery] = useState("");
   const [openAbove, setOpenAbove] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
+  const [panelPos, setPanelPos] = useState(null);
 
   const triggerRef = useRef(null);
   const searchRef = useRef(null);
   const listRef = useRef(null);
   const containerRef = useRef(null);
+  const panelRef = useRef(null);
 
   const selected = options.find(o => o.id === value) || null;
 
@@ -88,17 +91,34 @@ export function SearchableSelect({
       })
     : options;
 
-  // Position check
   const panelMaxHeight = 300;
+
+  // Compute and update panel position
+  useEffect(() => {
+    if (!open) { setPanelPos(null); return; }
+    const updatePos = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const flipUp = spaceBelow < panelMaxHeight && rect.top > panelMaxHeight;
+      setPanelPos({
+        top: flipUp ? rect.top - Math.min(panelMaxHeight, rect.top - 8) - 4 : rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: flipUp ? Math.min(panelMaxHeight, rect.top - 8) : Math.min(panelMaxHeight, spaceBelow - 8),
+      });
+    };
+    updatePos();
+    window.addEventListener("scroll", updatePos, true);
+    window.addEventListener("resize", updatePos);
+    return () => {
+      window.removeEventListener("scroll", updatePos, true);
+      window.removeEventListener("resize", updatePos);
+    };
+  }, [open]);
+
   const handleOpen = useCallback(() => {
     if (disabled) return;
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      // Only flip up if: insufficient room below AND sufficient room above
-      const insufficientBelow = rect.bottom + panelMaxHeight > window.innerHeight;
-      const sufficientAbove = rect.top > panelMaxHeight;
-      setOpenAbove(insufficientBelow && sufficientAbove);
-    }
     setOpen(true);
     setQuery("");
     setActiveIdx(-1);
@@ -126,9 +146,9 @@ export function SearchableSelect({
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        handleClose();
-      }
+      if (triggerRef.current?.contains(e.target)) return;
+      if (panelRef.current?.contains(e.target)) return;
+      handleClose();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -211,63 +231,58 @@ export function SearchableSelect({
         </span>
       </button>
 
-      {/* Dropdown */}
-       {open && (
-         <div
-           className={cn(
-             "absolute left-0 right-0 z-[99999] rounded-lg border border-border bg-card shadow-lg",
-             openAbove ? "bottom-full mb-1" : "top-full mt-1"
-           )}
-           style={!openAbove && triggerRef.current ? {
-             maxHeight: Math.min(panelMaxHeight, Math.max(100, window.innerHeight - triggerRef.current.getBoundingClientRect().bottom - 8)) + 'px',
-             display: 'flex',
-             flexDirection: 'column'
-           } : undefined}
-         >
-           {/* Search */}
-           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
-             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-             <input
-               ref={searchRef}
-               type="text"
-               value={query}
-               onChange={e => { setQuery(e.target.value); setActiveIdx(-1); }}
-               placeholder={searchPlaceholder}
-               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
-             />
-             {query && (
-               <button type="button" onMouseDown={e => { e.preventDefault(); setQuery(""); }}
-                 className="text-muted-foreground hover:text-foreground">
-                 <X className="w-3 h-3" />
-               </button>
-             )}
-           </div>
-
-           {/* List */}
-           <div
-             ref={listRef}
-             role="listbox"
-             className="overflow-y-auto py-1 flex-1 min-h-0"
-           >
-            {filtered.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">{emptyMessage}</p>
-            ) : (
-              filtered.map((option, idx) => (
-                <div
-                  key={option.id}
-                  className={cn(activeIdx === idx && "bg-muted/30")}
-                >
-                  <OptionRow
-                    option={option}
-                    isSelected={option.id === value}
-                    onSelect={handleSelect}
-                    renderOption={renderOption}
-                  />
-                </div>
-              ))
+      {/* Dropdown portal */}
+      {open && panelPos && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
+          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight }}
+        >
+          {/* Search */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
+            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setActiveIdx(-1); }}
+              placeholder={searchPlaceholder}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
+            />
+            {query && (
+              <button type="button" onMouseDown={e => { e.preventDefault(); setQuery(""); }}
+                className="text-muted-foreground hover:text-foreground">
+                <X className="w-3 h-3" />
+              </button>
             )}
           </div>
-        </div>
+
+          {/* List */}
+          <div
+            ref={listRef}
+            role="listbox"
+            className="overflow-y-auto py-1 flex-1 min-h-0"
+          >
+           {filtered.length === 0 ? (
+             <p className="text-sm text-muted-foreground text-center py-6">{emptyMessage}</p>
+           ) : (
+             filtered.map((option, idx) => (
+               <div
+                 key={option.id}
+                 className={cn(activeIdx === idx && "bg-muted/30")}
+               >
+                 <OptionRow
+                   option={option}
+                   isSelected={option.id === value}
+                   onSelect={handleSelect}
+                   renderOption={renderOption}
+                 />
+               </div>
+             ))
+           )}
+         </div>
+       </div>,
+        document.body
       )}
     </div>
   );
@@ -288,10 +303,12 @@ export function SearchableMultiSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [openAbove, setOpenAbove] = useState(false);
+  const [panelPos, setPanelPos] = useState(null);
 
   const triggerRef = useRef(null);
   const searchRef = useRef(null);
   const containerRef = useRef(null);
+  const panelRef = useRef(null);
 
   const panelMaxHeight = 300;
   const selectedOptions = (value || []).map(id => options.find(o => o.id === id)).filter(Boolean);
@@ -303,15 +320,32 @@ export function SearchableMultiSelect({
       })
     : options;
 
+  // Compute and update panel position
+  useEffect(() => {
+    if (!open) { setPanelPos(null); return; }
+    const updatePos = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const flipUp = spaceBelow < panelMaxHeight && rect.top > panelMaxHeight;
+      setPanelPos({
+        top: flipUp ? rect.top - Math.min(panelMaxHeight, rect.top - 8) - 4 : rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: flipUp ? Math.min(panelMaxHeight, rect.top - 8) : Math.min(panelMaxHeight, spaceBelow - 8),
+      });
+    };
+    updatePos();
+    window.addEventListener("scroll", updatePos, true);
+    window.addEventListener("resize", updatePos);
+    return () => {
+      window.removeEventListener("scroll", updatePos, true);
+      window.removeEventListener("resize", updatePos);
+    };
+  }, [open]);
+
   const handleOpen = useCallback(() => {
     if (disabled) return;
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      // Only flip up if: insufficient room below AND sufficient room above
-      const insufficientBelow = rect.bottom + panelMaxHeight > window.innerHeight;
-      const sufficientAbove = rect.top > panelMaxHeight;
-      setOpenAbove(insufficientBelow && sufficientAbove);
-    }
     setOpen(true);
     setQuery("");
   }, [disabled]);
@@ -337,7 +371,9 @@ export function SearchableMultiSelect({
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) handleClose();
+      if (triggerRef.current?.contains(e.target)) return;
+      if (panelRef.current?.contains(e.target)) return;
+      handleClose();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -382,17 +418,13 @@ export function SearchableMultiSelect({
         <ChevronDown className={cn("w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform", open && "rotate-180")} />
       </button>
 
-      {/* Dropdown */}
-      {open && (
-        <div className={cn(
-          "absolute left-0 right-0 z-[99999] rounded-lg border border-border bg-card shadow-lg",
-          openAbove ? "bottom-full mb-1" : "top-full mt-1"
-        )}
-        style={!openAbove && triggerRef.current ? {
-          maxHeight: Math.min(panelMaxHeight, Math.max(100, window.innerHeight - triggerRef.current.getBoundingClientRect().bottom - 8)) + 'px',
-          display: 'flex',
-          flexDirection: 'column'
-        } : undefined}>
+      {/* Dropdown portal */}
+      {open && panelPos && createPortal(
+        <div
+          ref={panelRef}
+          className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
+          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight }}
+        >
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
@@ -425,7 +457,8 @@ export function SearchableMultiSelect({
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
