@@ -1,12 +1,14 @@
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 /**
  * Alter scope collapsible section for ReminderEditorModal.
  * Handles the "who is this reminder for?" UI and soft conflict warnings.
  */
 export default function AlterScopeSection({ form, set, alters }) {
+  const terms = useTerms();
   const nonArchivedAlters = alters.filter(a => !a.is_archived);
   const isSpecific = !!form.alter_id;
   const selectedAlter = alters.find(a => a.id === form.alter_id);
@@ -54,7 +56,7 @@ export default function AlterScopeSection({ form, set, alters }) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        By default, reminders fire for the whole system. You can tie a reminder to a specific alter — either as a label (so you know who it's for) or conditional on them being in the front.
+        By default, reminders fire for the whole {terms.system}. You can tie a reminder to a specific {terms.alter} — either as a label (so you know who it's for) or conditional on them being in the {terms.front}.
       </p>
 
       {/* Archived alter warning */}
@@ -79,7 +81,7 @@ export default function AlterScopeSection({ form, set, alters }) {
               onChange={() => { set("alter_id", null); set("alter_scope", null); set("alter_scope_catchup", false); }}
               className="accent-primary"
             />
-            <span className="text-sm">Whole system</span>
+            <span className="text-sm">Whole {terms.system}</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -89,7 +91,7 @@ export default function AlterScopeSection({ form, set, alters }) {
               onChange={() => { set("alter_id", ""); set("alter_scope", "always"); }}
               className="accent-primary"
             />
-            <span className="text-sm">A specific alter</span>
+            <span className="text-sm">A specific {terms.alter}</span>
           </label>
         </div>
       </div>
@@ -98,7 +100,7 @@ export default function AlterScopeSection({ form, set, alters }) {
       {isSpecific && (
         <div className="space-y-3 pl-5 border-l-2 border-border/40">
           <div>
-            <Label className="text-xs text-muted-foreground">Alter</Label>
+            <Label className="text-xs text-muted-foreground">{terms.Alter}</Label>
             <SearchableSelect
               className="mt-1"
               value={form.alter_id || null}
@@ -120,7 +122,7 @@ export default function AlterScopeSection({ form, set, alters }) {
                   color: selectedAlter.color,
                 }] : []),
               ]}
-              placeholder="— select alter —"
+              placeholder={`— select ${terms.alter} —`}
               allowClear
             />
           </div>
@@ -131,7 +133,7 @@ export default function AlterScopeSection({ form, set, alters }) {
             <div className="flex gap-2 mt-1.5">
               {[
                 { value: "always", label: "Always active" },
-                { value: "when_fronting", label: "Only when they're fronting" },
+                { value: "when_fronting", label: `Only when they're ${terms.fronting}` },
               ].map(opt => (
                 <button
                   key={opt.value}
@@ -149,12 +151,12 @@ export default function AlterScopeSection({ form, set, alters }) {
             </div>
             {form.alter_scope === "always" && (
               <p className="text-xs text-muted-foreground mt-1.5">
-                This reminder will fire normally — the alter label is just for organization.
+                This reminder will fire normally — the {terms.alter} label is just for organization.
               </p>
             )}
             {form.alter_scope === "when_fronting" && (
               <p className="text-xs text-muted-foreground mt-1.5">
-                This reminder pauses itself automatically when {selectedAlter?.name || "this alter"} isn't in the front. Good for alter-specific rituals or prompts.
+                This reminder pauses itself automatically when {selectedAlter?.name || `this ${terms.alter}`} isn't in the {terms.front}. Good for {terms.alter}-specific rituals or prompts.
               </p>
             )}
           </div>
@@ -169,7 +171,7 @@ export default function AlterScopeSection({ form, set, alters }) {
                 className="accent-primary mt-0.5"
               />
               <span className="text-xs text-muted-foreground">
-                If {selectedAlter?.name || "this alter"} wasn't fronting when this was due, fire the next time they take front (expires after 24h)
+                If {selectedAlter?.name || `this ${terms.alter}`} wasn't ${terms.fronting} when this was due, fire the next time they take {terms.front} (expires after 24h)
               </span>
             </label>
           )}

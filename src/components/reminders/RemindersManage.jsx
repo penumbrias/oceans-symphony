@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, AlertTriangle, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { CATEGORY_ICONS, triggerSummary } from "./reminderHelpers";
+import { useTerms } from "@/lib/useTerms";
 import ReminderEditorModal from "./ReminderEditorModal";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,7 @@ function AlterDot({ alter }) {
 }
 
 export default function RemindersManage() {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -85,10 +87,10 @@ export default function RemindersManage() {
 
   const filterLabel = () => {
     if (filterValue === "all") return "All reminders";
-    if (filterValue === "system") return "System-wide";
-    if (filterValue === "per_alter") return "Per-alter";
+    if (filterValue === "system") return `${terms.System}-wide`;
+    if (filterValue === "per_alter") return `Per-${terms.alter}`;
     const a = alterMap[filterValue];
-    return a ? `For ${a.name}` : "Specific alter";
+    return a ? `For ${a.name}` : `Specific ${terms.alter}`;
   };
 
   return (
@@ -102,9 +104,9 @@ export default function RemindersManage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => setFilterValue("all")}>All reminders</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterValue("system")}>System-wide</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setFilterValue("per_alter")}>Per-alter</DropdownMenuItem>
+             <DropdownMenuItem onClick={() => setFilterValue("all")}>All reminders</DropdownMenuItem>
+             <DropdownMenuItem onClick={() => setFilterValue("system")}>{terms.System}-wide</DropdownMenuItem>
+             <DropdownMenuItem onClick={() => setFilterValue("per_alter")}>Per-{terms.alter}</DropdownMenuItem>
             {scopedAlters.map(a => (
               <DropdownMenuItem key={a.id} onClick={() => setFilterValue(a.id)}>
                 <span className="flex items-center gap-2">

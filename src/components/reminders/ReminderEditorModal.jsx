@@ -13,15 +13,16 @@ import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "./snoozeHelpers";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import AlterScopeSection from "./AlterScopeSection";
 import { registerPush, isPushEnabled } from "@/lib/pushRegistration";
+import { useTerms } from "@/lib/useTerms";
 import { toast } from "sonner";
 
 const CATEGORIES = ["check_in", "habit", "meds", "grounding", "appointment", "custom"];
 const TRIGGER_TYPES = ["scheduled", "interval", "contextual", "event"];
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const CONTEXTUAL_ON = [
-  { value: "no_front_update", label: "Front not updated" },
+const CONTEXTUAL_ON_BASE = [
+  { value: "no_front_update", labelKey: "front" },
   { value: "emotion_logged", label: "Emotion logged" },
-  { value: "alter_fronts", label: "Alter fronts" },
+  { value: "alter_fronts", labelKey: "alter" },
   { value: "symptom_logged", label: "Symptom logged" },
   { value: "sleep_ended", label: "After sleep ends" },
 ];
@@ -29,7 +30,7 @@ const AUTO_RESOLVE_ON = [
   { value: "check_in", label: "Check-in saved" },
   { value: "symptom_checkin", label: "Symptom logged" },
   { value: "activity", label: "Activity logged" },
-  { value: "front_update", label: "Front updated" },
+  { value: "front_update", labelKey: "front" },
 ];
 const DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
 const BASE_EMOTIONS = ["happy", "content", "calm", "grateful", "hopeful", "excited", "proud", "loved", "safe", "sad", "anxious", "overwhelmed", "angry", "scared", "frustrated", "ashamed", "guilty", "lonely", "confused", "dissociated", "numb", "depressed", "panic", "terrified", "crisis", "unsafe", "frozen", "tired", "bored", "curious"];
@@ -148,8 +149,16 @@ function PillRow({ options, value, onChange, multi = false, labels }) {
 }
 
 function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = [], customEmotions = [] }) {
+  const terms = useTerms();
   const set = (key, val) => onChange({ ...config, [key]: val });
   const allEmotions = [...new Set([...BASE_EMOTIONS, ...customEmotions.map(e => e.name || e.label).filter(Boolean)])];
+
+  // Build contextual options with terminology
+  const CONTEXTUAL_ON = CONTEXTUAL_ON_BASE.map(o => {
+    if (o.labelKey === "front") return { ...o, label: `${terms.Front} not updated` };
+    if (o.labelKey === "alter") return { ...o, label: `${terms.Alter} ${terms.fronts}` };
+    return o;
+  });
 
   if (triggerType === "scheduled") {
     const times = config.times || ["09:00"];
@@ -282,7 +291,7 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
         {on === "alter_fronts" && (
           <>
             <div>
-              <Label className="text-xs font-medium text-muted-foreground">Which alter</Label>
+              <Label className="text-xs font-medium text-muted-foreground">Which {terms.alter}</Label>
               <SearchableSelect
                 className="mt-1.5"
                 value={config.alter_id || null}
@@ -294,7 +303,7 @@ function TriggerConfig({ triggerType, config, onChange, alters = [], symptoms = 
                   avatar_url: a.avatar_url,
                   color: a.color,
                 }))}
-                placeholder="Any alter"
+                placeholder={`Any ${terms.alter}`}
                 allowClear
               />
             </div>
@@ -546,14 +555,15 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
 
           {/* Alter scope */}
           {(() => {
+            const terms = useTerms();
             const scopedAlter = alters.find(a => a.id === form.alter_id);
             const scopeSummary = !form.alter_id
-              ? "For the whole system"
+              ? `For the whole ${terms.system}`
               : form.alter_scope === "when_fronting"
-                ? `For ${scopedAlter?.name || "…"}, only when fronting`
+                ? `For ${scopedAlter?.name || "…"}, only when ${terms.fronting}`
                 : `For ${scopedAlter?.name || "…"}, always active`;
             return (
-              <Collapsible label="Alter scope" summary={scopeSummary}>
+              <Collapsible label={`${terms.Alter} scope`} summary={scopeSummary}>
                 <AlterScopeSection form={form} set={set} alters={alters} />
               </Collapsible>
             );
