@@ -37,7 +37,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         onLongPress();
         if (navigator.vibrate) navigator.vibrate(50);
       }
-    }, 200);
+    }, 1000);
 
     const onMove = (ev) => {
       if (!dragStart.current) return;
@@ -76,7 +76,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         onLongPress();
         if (navigator.vibrate) navigator.vibrate(50);
       }
-    }, 200);
+    }, 1000);
   };
 
   const handleTouchMove = (e) => {
