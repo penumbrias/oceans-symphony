@@ -275,7 +275,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
         <div className="space-y-3">
           {/* Pill toggles — scrollable row on mobile */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
+          <div className="flex flex-wrap gap-1.5 pb-1">
             {PILLS.map(pill => {
               const PillIcon = pill.icon;
               return (
