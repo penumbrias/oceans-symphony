@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import ReminderInstanceCard from "./ReminderInstanceCard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { snoozeUntilDate } from "./snoozeHelpers";
 
 export default function RemindersInbox() {
@@ -13,6 +14,7 @@ export default function RemindersInbox() {
   const navigate = useNavigate();
   const [showHandled, setShowHandled] = useState(false);
   const [checkInOpen, setCheckInOpen] = useState(false);
+  const [setFrontOpen, setSetFrontOpen] = useState(false);
   const [pendingActInstance, setPendingActInstance] = useState(null);
 
   const { data: instances = [] } = useQuery({
@@ -60,7 +62,9 @@ export default function RemindersInbox() {
     const type = action.action_type;
 
     if (type === "open_set_front") {
-      window.dispatchEvent(new CustomEvent("open-set-front"));
+      setPendingActInstance(instance);
+      setSetFrontOpen(true);
+      return; // status updated on modal close
     } else if (type === "open_check_in") {
       setPendingActInstance(instance);
       setCheckInOpen(true);
@@ -176,6 +180,19 @@ export default function RemindersInbox() {
             setCheckInOpen(false);
             if (saved && pendingActInstance) {
               updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_check_in" });
+            }
+            setPendingActInstance(null);
+          }}
+        />
+      )}
+
+      {setFrontOpen && (
+        <SetFrontModal
+          open={setFrontOpen}
+          onClose={() => {
+            setSetFrontOpen(false);
+            if (pendingActInstance) {
+              updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_set_front" });
             }
             setPendingActInstance(null);
           }}

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { formatSnoozeLabel, snoozeUntilDate } from "./snoozeHelpers";
+import SetFrontModal from "@/components/fronting/SetFrontModal";
+import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +36,9 @@ export default function ReminderToast() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const reminderCacheRef = useRef({});
+  const [setFrontOpen, setSetFrontOpen] = useState(false);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [pendingActInstance, setPendingActInstance] = useState(null);
 
   // Load reminder data for each instance we need
   useEffect(() => {
@@ -71,9 +76,13 @@ export default function ReminderToast() {
   const handleAction = async ({ instance, reminder }, action) => {
     const type = action.action_type;
     if (type === "open_set_front") {
-      window.dispatchEvent(new CustomEvent("open-set-front"));
+      setPendingActInstance(instance);
+      setSetFrontOpen(true);
+      return; // status updated on modal close
     } else if (type === "open_check_in") {
-      window.dispatchEvent(new CustomEvent("open-check-in"));
+      setPendingActInstance(instance);
+      setCheckInOpen(true);
+      return; // status updated on modal close
     } else if (type === "open_grounding") {
       navigate("/grounding");
     } else if (type === "open_journal") {
@@ -106,7 +115,8 @@ export default function ReminderToast() {
   if (!visible.length) return null;
 
   return (
-    <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
+    <>
+      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
       {visible.slice(0, 3).map(({ instance, reminder }) => {
         const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
         const inlineActions = reminder.inline_actions || [];
@@ -188,6 +198,33 @@ export default function ReminderToast() {
           </div>
         );
       })}
-    </div>
+      </div>
+
+      {setFrontOpen && (
+        <SetFrontModal
+          open={setFrontOpen}
+          onClose={() => {
+            setSetFrontOpen(false);
+            if (pendingActInstance) {
+              updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_set_front" });
+            }
+            setPendingActInstance(null);
+          }}
+        />
+      )}
+
+      {checkInOpen && (
+        <QuickCheckInModal
+          isOpen={checkInOpen}
+          onClose={(saved) => {
+            setCheckInOpen(false);
+            if (saved && pendingActInstance) {
+              updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_check_in" });
+            }
+            setPendingActInstance(null);
+          }}
+        />
+      )}
+    </>
   );
 }
