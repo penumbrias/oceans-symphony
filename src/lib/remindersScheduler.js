@@ -1,6 +1,7 @@
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+import { zonedFireInstant, getUserLocalDate, getCurrentMinutesInZone } from "@/lib/timezoneHelpers";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -9,45 +10,43 @@ function parseHHMM(str) {
   return h * 60 + m;
 }
 
-function currentMinutes(now) {
-  return now.getHours() * 60 + now.getMinutes();
-}
-
 function inQuietWindow(minuteOfDay, start, end) {
   if (start <= end) return minuteOfDay >= start && minuteOfDay < end;
   return minuteOfDay >= start || minuteOfDay < end;
-}
-
-function isoAtHHMM(date, hhmm) {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date(date);
-  d.setHours(h, m, 0, 0);
-  return d;
 }
 
 const WINDOW = 60 * 1000;
 
 // ── client-side evaluator (mirrors backend logic, no push) ───────────────────
 
-function evaluateReminderDue(reminder, now, existingInstances, cachedData) {
+function evaluateReminderDue(reminder, now, existingInstances, cachedData, userTz = 'UTC') {
   const { trigger_type, trigger_config: cfg, last_fired_at } = reminder;
   const nowMs = now.getTime();
 
   if (trigger_type === "scheduled") {
     const times = cfg?.times || [];
     const days = cfg?.days;
-    const todayDow = now.getDay();
+    
+    // Get user's local date and day-of-week
+    const userLocalDate = getUserLocalDate(now, userTz);
+    const localNow = new Date(now);
+    // Note: in browser, we can use local time directly for day-of-week
+    // But for consistency with backend, use the userLocalDate
+    const [y, m, d] = userLocalDate.split('-').map(Number);
+    const localDateObj = new Date(y, m - 1, d);
+    const todayDow = localDateObj.getDay();
+    
     if (days && !days.includes(todayDow)) return null;
 
     for (const timeStr of times) {
-      const fireDate = isoAtHHMM(now, timeStr);
-      const diff = nowMs - fireDate.getTime();
+      const fireInstant = zonedFireInstant(userLocalDate, timeStr, userTz);
+      const diff = nowMs - fireInstant.getTime();
       if (diff >= 0 && diff < WINDOW) {
         const alreadyFired = existingInstances.some(i =>
           i.reminder_id === reminder.id &&
-          Math.abs(new Date(i.scheduled_for).getTime() - fireDate.getTime()) < WINDOW
+          Math.abs(new Date(i.scheduled_for).getTime() - fireInstant.getTime()) < WINDOW
         );
-        if (!alreadyFired) return { scheduled_for: fireDate.toISOString() };
+        if (!alreadyFired) return { scheduled_for: fireInstant.toISOString() };
       }
     }
     return null;
@@ -72,7 +71,7 @@ function evaluateReminderDue(reminder, now, existingInstances, cachedData) {
     if (cfg?.active_window) {
       const winStart = parseHHMM(cfg.active_window.start);
       const winEnd = parseHHMM(cfg.active_window.end);
-      if (!inQuietWindow(currentMinutes(now), winStart, winEnd)) return null;
+      if (!inQuietWindow(getCurrentMinutesInZone(now, userTz), winStart, winEnd)) return null;
     }
 
     return { scheduled_for: now.toISOString() };
@@ -322,15 +321,16 @@ export async function runClientScheduler(queryClient) {
     }
 
     for (const reminder of activeReminders) {
-      try {
-        // Skip if scoped to an archived alter
-        if (reminder.alter_id) {
-          const alter = alterMap[reminder.alter_id];
-          if (alter?.is_archived) continue;
-        }
+       try {
+         // Skip if scoped to an archived alter
+         if (reminder.alter_id) {
+           const alter = alterMap[reminder.alter_id];
+           if (alter?.is_archived) continue;
+         }
 
-        const due = evaluateReminderDue(reminder, now, recentInstances, cachedData);
-        if (!due) continue;
+         const userTz = settings.timezone || 'UTC';
+         const due = evaluateReminderDue(reminder, now, recentInstances, cachedData, userTz);
+         if (!due) continue;
 
         const autoResolved = checkAutoResolveClient(reminder, cachedData, due.scheduled_for);
         if (autoResolved) {
@@ -388,24 +388,32 @@ export async function runClientScheduler(queryClient) {
         }
 
         // Quiet hours — defer
-        if (reminder.quiet_hours_respect && quietHours.enabled) {
-          const qStart = parseHHMM(quietHours.start || "22:00");
-          const qEnd = parseHHMM(quietHours.end || "08:00");
-          if (inQuietWindow(currentMinutes(now), qStart, qEnd)) {
-            const d = new Date(now);
-            const [eh, em] = (quietHours.end || "08:00").split(":").map(Number);
-            d.setHours(eh, em, 0, 0);
-            if (d <= now) d.setDate(d.getDate() + 1);
-            const inst = await base44.entities.ReminderInstance.create({
-              reminder_id: reminder.id,
-              scheduled_for: d.toISOString(),
-              status: "pending",
-              delivery_attempted: [],
-            });
-            recentInstances.push(inst);
-            continue;
-          }
-        }
+         if (reminder.quiet_hours_respect && quietHours.enabled) {
+           const qStart = parseHHMM(quietHours.start || "22:00");
+           const qEnd = parseHHMM(quietHours.end || "08:00");
+           const userTz = settings.timezone || 'UTC';
+           if (inQuietWindow(getCurrentMinutesInZone(now, userTz), qStart, qEnd)) {
+             // Compute quiet end in user's timezone
+             const userLocalDate = getUserLocalDate(now, userTz);
+             const quietEndTime = quietHours.end || "08:00";
+             let deferredInstant = zonedFireInstant(userLocalDate, quietEndTime, userTz);
+             // If that time has already passed today, defer to tomorrow
+             if (deferredInstant <= now) {
+               const nextDay = new Date(userLocalDate);
+               nextDay.setDate(nextDay.getDate() + 1);
+               const nextDayStr = nextDay.toISOString().split('T')[0];
+               deferredInstant = zonedFireInstant(nextDayStr, quietEndTime, userTz);
+             }
+             const inst = await base44.entities.ReminderInstance.create({
+               reminder_id: reminder.id,
+               scheduled_for: deferredInstant.toISOString(),
+               status: "pending",
+               delivery_attempted: [],
+             });
+             recentInstances.push(inst);
+             continue;
+           }
+         }
 
         const inst = await base44.entities.ReminderInstance.create({
           reminder_id: reminder.id,

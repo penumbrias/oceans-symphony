@@ -35,9 +35,11 @@ import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import Reminders from '@/pages/Reminders';
 import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
 import { isDbInitialized, initLocalDb } from '@/lib/localDb';
+import { useTimezoneSync } from '@/lib/useTimezoneSync';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  useTimezoneSync();
 
   // Show loading screen while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {

@@ -159,6 +159,7 @@ export function getLevelFromTotalXP(totalXP) {
 
 export function getTodayString() {
   const d = new Date();
+  // Use local date components (not UTC)
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");

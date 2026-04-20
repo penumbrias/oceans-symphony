@@ -50,6 +50,10 @@
     "navigation_config": {
       "type": "object",
       "description": "Navigation configuration for top and bottom bars"
+    },
+    "timezone": {
+      "type": "string",
+      "description": "IANA timezone identifier (e.g. 'America/Los_Angeles'). Auto-detected on first load, can be manually overridden."
     }
   },
   "required": [],

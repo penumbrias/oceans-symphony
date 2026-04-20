@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Check, Loader2, Bell, BellOff, X, Plus } from "lucide-react";
 import { registerPush, unregisterPush, isPushEnabled } from "@/lib/pushRegistration";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "@/components/reminders/snoozeHelpers";
+import TimezoneSettings from "@/components/settings/TimezoneSettings";
 
 export default function RemindersSettings() {
   const queryClient = useQueryClient();
@@ -83,6 +84,9 @@ export default function RemindersSettings() {
 
   return (
     <div className="space-y-5">
+      {/* Timezone */}
+      <TimezoneSettings />
+
       {/* Browser push */}
       <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
         <div className="flex items-center gap-3">
