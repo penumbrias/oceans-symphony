@@ -208,27 +208,30 @@ function evaluateReminderDue(reminder, now, existingInstances, cachedData) {
   return null;
 }
 
-function checkAutoResolveClient(reminder, cachedData) {
+function checkAutoResolveClient(reminder, cachedData, fireTime) {
   const rule = reminder.auto_resolve_rule;
   if (!rule) return false;
-  const since = reminder.last_fired_at ? new Date(reminder.last_fired_at) : new Date(0);
+
+  const fireMs = fireTime ? new Date(fireTime).getTime() : Date.now();
+  const lookbackMs = (rule.lookback_minutes || 120) * 60 * 1000;
+  const windowStart = new Date(fireMs - lookbackMs);
 
   if (rule.on === "check_in") {
-    return (cachedData?.emotionCheckIns || []).some(i => new Date(i.timestamp || i.created_date) > since);
+    return (cachedData?.emotionCheckIns || []).some(i => new Date(i.timestamp || i.created_date) >= windowStart);
   }
   if (rule.on === "symptom_checkin") {
     return (cachedData?.symptomCheckIns || []).some(i =>
-      i.symptom_id === rule.symptom_id && new Date(i.timestamp || i.created_date) > since
+      i.symptom_id === rule.symptom_id && new Date(i.timestamp || i.created_date) >= windowStart
     );
   }
   if (rule.on === "activity") {
     return (cachedData?.activities || []).some(i =>
-      (i.activity_category_ids || []).includes(rule.category_id) && new Date(i.timestamp || i.created_date) > since
+      (i.activity_category_ids || []).includes(rule.category_id) && new Date(i.timestamp || i.created_date) >= windowStart
     );
   }
   if (rule.on === "front_update") {
     return (cachedData?.sessions || []).some(i =>
-      new Date(i.created_date) > since || (i.end_time && new Date(i.end_time) > since)
+      new Date(i.created_date) >= windowStart || (i.end_time && new Date(i.end_time) >= windowStart)
     );
   }
   return false;
@@ -272,12 +275,21 @@ export async function runClientScheduler(queryClient) {
     const cachedData = { emotionCheckIns, sessions, activities, symptomCheckIns };
     const newInstances = [];
 
+    // Re-fire snoozed instances whose snoozed_until has passed
+    const snoozedDue = (allInstances || []).filter(i =>
+      i.status === "snoozed" && i.snoozed_until && new Date(i.snoozed_until).getTime() <= nowMs
+    );
+    for (const inst of snoozedDue) {
+      await base44.entities.ReminderInstance.update(inst.id, { status: "fired", fired_at: now.toISOString() });
+      newInstances.push({ ...inst, status: "fired" });
+    }
+
     for (const reminder of activeReminders) {
       try {
         const due = evaluateReminderDue(reminder, now, recentInstances, cachedData);
         if (!due) continue;
 
-        const autoResolved = checkAutoResolveClient(reminder, cachedData);
+        const autoResolved = checkAutoResolveClient(reminder, cachedData, due.scheduled_for);
         if (autoResolved) {
           const inst = await base44.entities.ReminderInstance.create({
             reminder_id: reminder.id,
@@ -369,6 +381,23 @@ const PATH_TO_ACTION = {
   "/todo": "open_todo",
 };
 
+export async function runSnoozeOptionsMigration(defaultSnoozeOptions) {
+  const FLAG = "reminders_snooze_migration_v1_done";
+  if (localStorage.getItem(FLAG)) return;
+  try {
+    const reminders = await base44.entities.Reminder.list();
+    const defaults = defaultSnoozeOptions?.length ? defaultSnoozeOptions : [10, 60, 240, "tomorrow"];
+    for (const r of reminders || []) {
+      if (!r.snooze_options || !r.snooze_options.length) {
+        await base44.entities.Reminder.update(r.id, { snooze_options: defaults });
+      }
+    }
+    localStorage.setItem(FLAG, "1");
+  } catch (e) {
+    console.warn("[remindersScheduler] snooze migration error:", e.message);
+  }
+}
+
 export async function runReminderMigration() {
   const FLAG = "reminders_migration_v1_done";
   if (localStorage.getItem(FLAG)) return;
@@ -409,8 +438,11 @@ export function useRemindersScheduler() {
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    // Run migration once
+    // Run migrations once
     runReminderMigration();
+    base44.entities.SystemSettings.list().then(list => {
+      runSnoozeOptionsMigration(list?.[0]?.default_snooze_options);
+    }).catch(() => {});
     // Run immediately on mount
     runClientScheduler(queryClient);
 

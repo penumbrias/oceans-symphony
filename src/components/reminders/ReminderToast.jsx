@@ -6,6 +6,7 @@ import { X, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
+import { formatSnoozeLabel, snoozeUntilDate } from "./snoozeHelpers";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,15 +99,8 @@ export default function ReminderToast() {
     await updateInstance(instance.id, { status: "acted", acted_action: type });
   };
 
-  const handleSnooze = async ({ instance, reminder }, opt) => {
-    let until;
-    if (opt === "tomorrow") {
-      const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0);
-      until = d.toISOString();
-    } else {
-      until = new Date(Date.now() + opt * 60 * 1000).toISOString();
-    }
-    await updateInstance(instance.id, { status: "snoozed", snoozed_until: until });
+  const handleSnooze = async ({ instance }, opt) => {
+    await updateInstance(instance.id, { status: "snoozed", snoozed_until: snoozeUntilDate(opt) });
   };
 
   if (!visible.length) return null;
@@ -181,7 +175,7 @@ export default function ReminderToast() {
                 <DropdownMenuContent align="end" className="z-[210]">
                   {snoozeOptions.map((opt, i) => (
                     <DropdownMenuItem key={i} onClick={() => handleSnooze({ instance, reminder }, opt)}>
-                      {opt === "tomorrow" ? "Tomorrow morning" : opt < 60 ? `${opt} min` : `${opt / 60}h`}
+                      {formatSnoozeLabel(opt)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>

@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Plus, X, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { CATEGORY_ICONS } from "./reminderHelpers";
+import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "./snoozeHelpers";
 import { registerPush, isPushEnabled } from "@/lib/pushRegistration";
 import { toast } from "sonner";
 
@@ -59,20 +60,60 @@ const DEFAULT_FORM = {
   inline_actions: [],
   auto_resolve_rule: null,
   quiet_hours_respect: true,
-  snooze_options: [10, 60, 240, "tomorrow"],
+  snooze_options: DEFAULT_SNOOZE_OPTIONS,
   is_active: true,
 };
 
-function Collapsible({ label, children, defaultOpen = false }) {
+function Collapsible({ label, summary, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border border-border/40 rounded-xl overflow-hidden">
       <button type="button" onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-muted/20 hover:bg-muted/30 transition-colors text-left text-sm font-medium">
-        {label}
-        {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        className="w-full flex items-center justify-between px-4 py-3 bg-muted/20 hover:bg-muted/30 transition-colors text-left">
+        <span className="text-sm font-medium">{label}</span>
+        <div className="flex items-center gap-2">
+          {!open && summary && <span className="text-xs text-muted-foreground">{summary}</span>}
+          {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        </div>
       </button>
       {open && <div className="px-4 py-3 space-y-3 border-t border-border/30">{children}</div>}
+    </div>
+  );
+}
+
+function SnoozeAdder({ current, onAdd }) {
+  const [value, setValue] = useState("");
+  const [unit, setUnit] = useState("minutes");
+
+  const handleAdd = () => {
+    const num = parseInt(value);
+    if (!num || num < 1) return;
+    const mins = unit === "hours" ? num * 60 : num;
+    if (!current.includes(mins)) onAdd(mins);
+    setValue("");
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Input type="number" min={1} value={value} onChange={e => setValue(e.target.value)}
+        placeholder="Amount" className="h-7 text-xs w-20" />
+      <select value={unit} onChange={e => setUnit(e.target.value)}
+        className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background">
+        <option value="minutes">min</option>
+        <option value="hours">hours</option>
+      </select>
+      <button type="button" onClick={handleAdd}
+        className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors flex items-center gap-1">
+        <Plus className="w-3 h-3" /> Add
+      </button>
+      <button type="button" onClick={() => onAdd("tomorrow")} disabled={current.includes("tomorrow")}
+        className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40">
+        + Tomorrow
+      </button>
+      <button type="button" onClick={() => onAdd("next_week")} disabled={current.includes("next_week")}
+        className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40">
+        + Next week
+      </button>
     </div>
   );
 }
@@ -350,6 +391,10 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
     queryKey: ["customEmotions"],
     queryFn: () => base44.entities.CustomEmotion.list(),
   });
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
 
   useEffect(() => {
     if (existing) {
@@ -490,7 +535,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Respect quiet hours</p>
-              <p className="text-xs text-muted-foreground">Won't fire during your quiet window</p>
+              <p className="text-xs text-muted-foreground">Won't fire during your quiet window (configured in Settings → Reminders)</p>
             </div>
             <Switch checked={!!form.quiet_hours_respect} onCheckedChange={v => set("quiet_hours_respect", v)} />
           </div>
@@ -591,26 +636,93 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
           </Collapsible>
 
           {/* Auto-resolve */}
-          <Collapsible label="Auto-resolve rule">
+          <Collapsible
+            label="Auto-resolve"
+            summary={!hasAutoResolve ? "Off" : (() => {
+              const r = form.auto_resolve_rule;
+              if (!r) return "Off";
+              if (r.on === "check_in") return "Resolves when any check-in is logged";
+              if (r.on === "front_update") return "Resolves when front is updated";
+              if (r.on === "symptom_checkin") return "Resolves when symptom is logged";
+              if (r.on === "activity") return "Resolves when activity is logged";
+              return "Enabled";
+            })()}
+          >
+            <p className="text-xs text-muted-foreground">If this rule is satisfied before the reminder fires, it won't fire that cycle. Useful for reminders you might complete before the scheduled time — like a meds reminder that auto-clears if you log meds earlier.</p>
             <div className="flex items-center justify-between">
               <span className="text-sm">Enable auto-resolve</span>
-              <Switch checked={hasAutoResolve} onCheckedChange={setHasAutoResolve} />
+              <Switch checked={hasAutoResolve} onCheckedChange={v => {
+                setHasAutoResolve(v);
+                if (!v) set("auto_resolve_rule", null);
+                else set("auto_resolve_rule", { on: "check_in", lookback_minutes: 120 });
+              }} />
             </div>
-            {hasAutoResolve && (
-              <div>
-                <Label className="text-xs text-muted-foreground">Resolve when</Label>
-                <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
-                  value={form.auto_resolve_rule?.on || "check_in"}
-                  onChange={e => set("auto_resolve_rule", { on: e.target.value })}>
-                  {AUTO_RESOLVE_ON.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            )}
+            {hasAutoResolve && (() => {
+              const rule = form.auto_resolve_rule || { on: "check_in", lookback_minutes: 120 };
+              const setRule = (fields) => set("auto_resolve_rule", { ...rule, ...fields });
+              const defaultLookback = { check_in: 120, front_update: 240, symptom_checkin: 60, activity: 60 };
+              return (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Resolve when…</Label>
+                    <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
+                      value={rule.on || "check_in"}
+                      onChange={e => setRule({ on: e.target.value, lookback_minutes: defaultLookback[e.target.value] || 60, symptom_id: undefined, category_id: undefined })}>
+                      {AUTO_RESOLVE_ON.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  {rule.on === "symptom_checkin" && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Which symptom</Label>
+                      <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
+                        value={rule.symptom_id || ""}
+                        onChange={e => setRule({ symptom_id: e.target.value })}>
+                        <option value="">— any symptom —</option>
+                        {symptoms.filter(s => !s.is_archived).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {rule.on === "activity" && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Which activity category</Label>
+                      <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
+                        value={rule.category_id || ""}
+                        onChange={e => setRule({ category_id: e.target.value })}>
+                        <option value="">— any category —</option>
+                        {activityCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-36">Lookback window</Label>
+                    <Input type="number" min={5} value={rule.lookback_minutes || 60} className="h-8 text-sm w-24"
+                      onChange={e => setRule({ lookback_minutes: parseInt(e.target.value) })} />
+                    <span className="text-xs text-muted-foreground">minutes before fire</span>
+                  </div>
+                </div>
+              );
+            })()}
           </Collapsible>
 
           {/* Snooze options */}
           <Collapsible label="Snooze options">
-            <p className="text-xs text-muted-foreground">Current: {(form.snooze_options || []).map(o => o === "tomorrow" ? "Tomorrow" : `${o}m`).join(", ")}</p>
+            <p className="text-xs text-muted-foreground mb-2">These are the snooze durations shown when you tap Snooze on this reminder's notification.</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {(form.snooze_options || DEFAULT_SNOOZE_OPTIONS).map((opt, i) => (
+                <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/40 text-xs">
+                  {formatSnoozeLabel(opt)}
+                  <button type="button" onClick={() => set("snooze_options", (form.snooze_options || DEFAULT_SNOOZE_OPTIONS).filter((_, j) => j !== i))}
+                    className="text-muted-foreground hover:text-destructive">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <SnoozeAdder current={form.snooze_options || DEFAULT_SNOOZE_OPTIONS} onAdd={(opt) => set("snooze_options", [...(form.snooze_options || DEFAULT_SNOOZE_OPTIONS), opt])} />
+            <button type="button" onClick={() => set("snooze_options", DEFAULT_SNOOZE_OPTIONS)}
+              className="mt-2 text-xs text-muted-foreground hover:text-primary underline">
+              Reset to defaults
+            </button>
           </Collapsible>
 
           {/* Save */}

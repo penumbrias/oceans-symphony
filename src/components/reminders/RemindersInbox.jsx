@@ -2,11 +2,10 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronRight, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { formatDistanceToNow } from "date-fns";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import ReminderInstanceCard from "./ReminderInstanceCard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+import { snoozeUntilDate } from "./snoozeHelpers";
 
 export default function RemindersInbox() {
   const queryClient = useQueryClient();
@@ -28,12 +27,14 @@ export default function RemindersInbox() {
 
   const reminderMap = Object.fromEntries(reminders.map(r => [r.id, r]));
 
-  const active = instances.filter(i => ["fired", "pending", "snoozed"].includes(i.status))
-    .sort((a, b) => {
-      const aTime = a.fired_at || a.scheduled_for;
-      const bTime = b.fired_at || b.scheduled_for;
-      return new Date(bTime) - new Date(aTime);
-    });
+  const active = instances.filter(i => {
+    if (i.status === "snoozed") return true; // always show snoozed so user can unsnooze
+    return ["fired", "pending"].includes(i.status);
+  }).sort((a, b) => {
+    const aTime = a.fired_at || a.scheduled_for;
+    const bTime = b.fired_at || b.scheduled_for;
+    return new Date(bTime) - new Date(aTime);
+  });
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const handled = instances
@@ -83,16 +84,11 @@ export default function RemindersInbox() {
   };
 
   const handleSnooze = async (instance, option) => {
-    let until;
-    if (option === "tomorrow") {
-      const d = new Date();
-      d.setDate(d.getDate() + 1);
-      d.setHours(9, 0, 0, 0);
-      until = d.toISOString();
-    } else {
-      until = new Date(Date.now() + option * 60 * 1000).toISOString();
-    }
-    await updateInstance(instance.id, { status: "snoozed", snoozed_until: until });
+    await updateInstance(instance.id, { status: "snoozed", snoozed_until: snoozeUntilDate(option) });
+  };
+
+  const handleUnsnooze = async (instance) => {
+    await updateInstance(instance.id, { status: "fired", snoozed_until: null });
   };
 
   const handleDone = (instance) => updateInstance(instance.id, { status: "acted", acted_action: "done" });
@@ -113,6 +109,7 @@ export default function RemindersInbox() {
             reminder={reminderMap[instance.reminder_id]}
             onAction={(action) => handleAction(instance, action)}
             onSnooze={(opt) => handleSnooze(instance, opt)}
+            onUnsnooze={() => handleUnsnooze(instance)}
             onDone={() => handleDone(instance)}
             onDismiss={() => handleDismiss(instance)}
           />

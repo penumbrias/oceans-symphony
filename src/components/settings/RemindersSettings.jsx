@@ -6,8 +6,9 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Check, Loader2, Bell, BellOff } from "lucide-react";
+import { Check, Loader2, Bell, BellOff, X, Plus } from "lucide-react";
 import { registerPush, unregisterPush, isPushEnabled } from "@/lib/pushRegistration";
+import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "@/components/reminders/snoozeHelpers";
 
 export default function RemindersSettings() {
   const queryClient = useQueryClient();
@@ -21,6 +22,9 @@ export default function RemindersSettings() {
   const [quietStart, setQuietStart] = useState("22:00");
   const [quietEnd, setQuietEnd] = useState("08:00");
   const [paused, setPaused] = useState(false);
+  const [defaultSnooze, setDefaultSnooze] = useState(DEFAULT_SNOOZE_OPTIONS);
+  const [snoozeAddValue, setSnoozeAddValue] = useState("");
+  const [snoozeAddUnit, setSnoozeAddUnit] = useState("minutes");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -37,6 +41,7 @@ export default function RemindersSettings() {
     setQuietStart(qh.start || "22:00");
     setQuietEnd(qh.end || "08:00");
     setPaused(!!settings.reminders_paused);
+    setDefaultSnooze(settings.default_snooze_options || DEFAULT_SNOOZE_OPTIONS);
   }, [settings]);
 
   const save = async () => {
@@ -44,6 +49,7 @@ export default function RemindersSettings() {
     const data = {
       quiet_hours: { enabled: quietEnabled, start: quietStart, end: quietEnd },
       reminders_paused: paused,
+      default_snooze_options: defaultSnooze,
     };
     if (settings?.id) {
       await base44.entities.SystemSettings.update(settings.id, data);
@@ -111,18 +117,68 @@ export default function RemindersSettings() {
           <Switch checked={quietEnabled} onCheckedChange={setQuietEnabled} />
         </div>
         {quietEnabled && (
-          <div className="flex items-center gap-3 pl-1">
-            <div>
-              <Label className="text-xs text-muted-foreground">From</Label>
-              <Input type="time" value={quietStart} onChange={e => setQuietStart(e.target.value)} className="h-8 text-sm w-32 mt-1" />
+          <>
+            <div className="flex items-center gap-3 pl-1">
+              <div>
+                <Label className="text-xs text-muted-foreground">From</Label>
+                <Input type="time" value={quietStart} onChange={e => setQuietStart(e.target.value)} className="h-8 text-sm w-32 mt-1" />
+              </div>
+              <span className="text-sm text-muted-foreground mt-4">to</span>
+              <div>
+                <Label className="text-xs text-muted-foreground">Until</Label>
+                <Input type="time" value={quietEnd} onChange={e => setQuietEnd(e.target.value)} className="h-8 text-sm w-32 mt-1" />
+              </div>
             </div>
-            <span className="text-sm text-muted-foreground mt-4">to</span>
-            <div>
-              <Label className="text-xs text-muted-foreground">Until</Label>
-              <Input type="time" value={quietEnd} onChange={e => setQuietEnd(e.target.value)} className="h-8 text-sm w-32 mt-1" />
-            </div>
-          </div>
+            <p className="text-xs text-muted-foreground pl-1">Quiet hours can cross midnight. A window of 10:00 PM → 8:00 AM covers overnight.</p>
+          </>
         )}
+      </div>
+
+      {/* Default snooze options */}
+      <div className="space-y-3">
+        <div>
+          <p className="font-semibold text-sm">Default snooze options</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Applied to new reminders. Each reminder can override these.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {defaultSnooze.map((opt, i) => (
+            <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border/40 text-xs">
+              {formatSnoozeLabel(opt)}
+              <button type="button" onClick={() => setDefaultSnooze(prev => prev.filter((_, j) => j !== i))}
+                className="text-muted-foreground hover:text-destructive">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Input type="number" min={1} value={snoozeAddValue} onChange={e => setSnoozeAddValue(e.target.value)}
+            placeholder="Amount" className="h-7 text-xs w-20" />
+          <select value={snoozeAddUnit} onChange={e => setSnoozeAddUnit(e.target.value)}
+            className="h-7 text-xs border border-border/50 rounded-lg px-2 bg-background">
+            <option value="minutes">min</option>
+            <option value="hours">hours</option>
+          </select>
+          <button type="button" onClick={() => {
+            const num = parseInt(snoozeAddValue);
+            if (!num || num < 1) return;
+            const mins = snoozeAddUnit === "hours" ? num * 60 : num;
+            if (!defaultSnooze.includes(mins)) setDefaultSnooze(prev => [...prev, mins]);
+            setSnoozeAddValue("");
+          }} className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Add
+          </button>
+          <button type="button" onClick={() => { if (!defaultSnooze.includes("tomorrow")) setDefaultSnooze(p => [...p, "tomorrow"]); }}
+            disabled={defaultSnooze.includes("tomorrow")}
+            className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40">
+            + Tomorrow
+          </button>
+          <button type="button" onClick={() => { if (!defaultSnooze.includes("next_week")) setDefaultSnooze(p => [...p, "next_week"]); }}
+            disabled={defaultSnooze.includes("next_week")}
+            className="h-7 px-2 text-xs border border-dashed border-border/50 rounded-lg hover:border-primary/50 hover:text-primary transition-colors disabled:opacity-40">
+            + Next week
+          </button>
+        </div>
       </div>
 
       <Button size="sm" onClick={save} disabled={saving || saved}
