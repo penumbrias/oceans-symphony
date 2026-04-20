@@ -135,8 +135,7 @@ export default function RemindersInbox() {
               onDismiss={() => handleDismiss(instance)}
             />
           );
-        }
-        ))
+        })
       )}
 
       {handled.length > 0 && (
@@ -161,8 +160,7 @@ export default function RemindersInbox() {
                     readOnly
                   />
                 );
-              }
-              ))}
+              })}
             </div>
           )}
         </div>
