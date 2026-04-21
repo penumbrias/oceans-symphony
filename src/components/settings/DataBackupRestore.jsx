@@ -342,20 +342,31 @@ const handleExportFull = async () => {
         const count = await migrateBase64AvatarsToLocal();
         setMigrateResult({ type: "success", message: `Done! Migrated ${count} avatar(s) to local storage.` });
       } else {
-        // Cloud mode: upload base64 avatars via UploadFile integration
-        const alters = await base44.entities.Alter.list();
+        // Cloud mode: scan all entities/fields for base64 data URLs and upload them
         let migrated = 0;
-        for (const alter of alters) {
-          if (alter.avatar_url && alter.avatar_url.startsWith("data:")) {
-            const res = await fetch(alter.avatar_url);
-            const blob = await res.blob();
-            const file = new File([blob], `avatar-${alter.id}.jpg`, { type: blob.type || "image/jpeg" });
-            const { file_url } = await base44.integrations.Core.UploadFile({ file });
-            await base44.entities.Alter.update(alter.id, { avatar_url: file_url });
-            migrated++;
+        for (const entityName of ENTITY_NAMES) {
+          let records = [];
+          try { records = await base44.entities[entityName].list(); } catch { continue; }
+          for (const record of records) {
+            const updates = {};
+            for (const [field, value] of Object.entries(record)) {
+              if (typeof value === "string" && value.startsWith("data:")) {
+                try {
+                  const res = await fetch(value);
+                  const blob = await res.blob();
+                  const file = new File([blob], `${entityName}-${record.id}-${field}.jpg`, { type: blob.type || "image/jpeg" });
+                  const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                  updates[field] = file_url;
+                  migrated++;
+                } catch {}
+              }
+            }
+            if (Object.keys(updates).length > 0) {
+              await base44.entities[entityName].update(record.id, updates);
+            }
           }
         }
-        setMigrateResult({ type: "success", message: `Done! Migrated ${migrated} avatar(s) to hosted URLs.` });
+        setMigrateResult({ type: "success", message: `Done! Migrated ${migrated} image(s) to hosted URLs.` });
       }
     } catch (e) {
       setMigrateResult({ type: "error", message: `Migration failed: ${e.message}` });
@@ -419,8 +430,8 @@ const handleExportFull = async () => {
           <Button variant="outline" onClick={handleMigrateAvatars} disabled={migratingAvatars} className="w-full gap-2 justify-start">
             {migratingAvatars ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
             <div className="text-left">
-              <p className="font-medium">Migrate Avatar Images</p>
-              <p className="text-xs text-muted-foreground font-normal">Convert base64 avatars to hosted URLs</p>
+              <p className="font-medium">Migrate All Images</p>
+              <p className="text-xs text-muted-foreground font-normal">Convert any base64 images to hosted URLs</p>
             </div>
           </Button>
         </div>

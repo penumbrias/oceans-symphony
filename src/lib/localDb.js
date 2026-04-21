@@ -219,30 +219,37 @@ export async function loadDbDump(dump) {
   await saveDb();
 }
 
-// Migrate existing base64 avatar URLs to local image storage
+// Migrate ALL base64 data URLs in any entity field to local image storage
 export async function migrateBase64AvatarsToLocal() {
-  const alters = getCollection('Alter');
-  if (!alters || Object.keys(alters).length === 0) return;
-
+  const db = getDb();
   const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
-  
+
   let migrated = 0;
-  for (const [alterId, alter] of Object.entries(alters)) {
-    if (alter.avatar_url && !isLocalImageUrl(alter.avatar_url) && alter.avatar_url.startsWith('data:')) {
-      // This is a base64 data URL — migrate it
-      const imageId = `avatar-migrated-${alterId}`;
-      try {
-        await saveLocalImage(imageId, alter.avatar_url);
-        alters[alterId].avatar_url = createLocalImageUrl(imageId);
-        migrated++;
-      } catch (e) {
-        console.warn(`Failed to migrate avatar for alter ${alterId}:`, e);
+
+  for (const [entityName, collection] of Object.entries(db)) {
+    if (!collection || typeof collection !== 'object') continue;
+    for (const [recordId, record] of Object.entries(collection)) {
+      if (!record || typeof record !== 'object') continue;
+      let changed = false;
+      for (const [field, value] of Object.entries(record)) {
+        if (typeof value === 'string' && value.startsWith('data:') && !isLocalImageUrl(value)) {
+          const imageId = `migrated-${entityName}-${recordId}-${field}`;
+          try {
+            await saveLocalImage(imageId, value);
+            db[entityName][recordId][field] = createLocalImageUrl(imageId);
+            changed = true;
+            migrated++;
+          } catch (e) {
+            console.warn(`Failed to migrate ${entityName}.${recordId}.${field}:`, e);
+          }
+        }
       }
     }
   }
-  
+
   if (migrated > 0) {
     await saveDb();
-    console.log(`Migrated ${migrated} base64 avatars to local image storage`);
+    console.log(`Migrated ${migrated} base64 image(s) to local image storage`);
   }
+  return migrated;
 }
