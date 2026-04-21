@@ -55,32 +55,34 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
             const canUp = rowIdx > 0;
             const canDown = flatIdx + COLS < totalItems;
 
+            // Text alignment per column
+            const labelAlign = colIdx === 0 ? "text-left" : colIdx === 1 ? "text-center" : "text-right";
+
             return (
-              <div key={item} className="relative rounded-lg border border-border/50 bg-card p-1 flex flex-col items-center gap-0.5 min-h-[5.5rem]">
+              <div key={item} className="relative rounded-lg border border-border/50 bg-card flex flex-col min-h-[5.5rem]">
                 {/* Top: up arrow */}
-                <div className="w-full flex justify-center h-5">
-                  {canUp && (
-                    <button onClick={() => swapItems(flatIdx, flatIdx - COLS)} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors">
-                      <ArrowUp className="w-4 h-4" />
-                    </button>
-                  )}
+                <div className="flex justify-center pt-1">
+                  {canUp
+                    ? <button onClick={() => swapItems(flatIdx, flatIdx - COLS)} className="p-1 text-muted-foreground hover:text-foreground transition-colors"><ArrowUp className="w-4 h-4" /></button>
+                    : <div className="h-6 w-6" />
+                  }
                 </div>
 
-                {/* Middle row: left | label | right */}
-                <div className="flex items-center gap-1 w-full justify-between flex-1">
-                  <div className="w-5 flex justify-center flex-shrink-0">
+                {/* Middle row: left arrow | label | right arrow */}
+                <div className="flex items-center w-full flex-1 px-1">
+                  <div className="w-6 flex-shrink-0 flex justify-center">
                     {canLeft && (
-                      <button onClick={() => swapItems(flatIdx, flatIdx - 1)} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <button onClick={() => swapItems(flatIdx, flatIdx - 1)} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
                         <ArrowLeft className="w-4 h-4" />
                       </button>
                     )}
                   </div>
-                  <span className="text-[11px] font-semibold text-foreground text-center leading-tight flex-1 break-words hyphens-auto px-0.5">
+                  <span className={`text-[11px] font-semibold text-foreground leading-tight flex-1 break-words hyphens-auto ${labelAlign}`}>
                     {page?.label || item}
                   </span>
-                  <div className="w-5 flex justify-center flex-shrink-0">
+                  <div className="w-6 flex-shrink-0 flex justify-center">
                     {canRight && (
-                      <button onClick={() => swapItems(flatIdx, flatIdx + 1)} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <button onClick={() => swapItems(flatIdx, flatIdx + 1)} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     )}
@@ -88,18 +90,17 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
                 </div>
 
                 {/* Bottom: down arrow */}
-                <div className="w-full flex justify-center h-5">
-                  {canDown && (
-                    <button onClick={() => swapItems(flatIdx, flatIdx + COLS)} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors">
-                      <ArrowDown className="w-4 h-4" />
-                    </button>
-                  )}
+                <div className="flex justify-center pb-1">
+                  {canDown
+                    ? <button onClick={() => swapItems(flatIdx, flatIdx + COLS)} className="p-1 text-muted-foreground hover:text-foreground transition-colors"><ArrowDown className="w-4 h-4" /></button>
+                    : <div className="h-6 w-6" />
+                  }
                 </div>
 
                 {/* Remove button */}
                 <button
                   onClick={() => onToggle(item)}
-                  className="absolute top-0.5 right-0.5 text-muted-foreground hover:text-destructive transition-colors"
+                  className="absolute top-0.5 right-0.5 p-0.5 text-muted-foreground hover:text-destructive transition-colors"
                   title="Remove"
                 >
                   <X className="w-3 h-3" />
