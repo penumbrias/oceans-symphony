@@ -4,30 +4,111 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Navigation, Save, Loader2, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
+import { Navigation, Save, Loader2, ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X } from "lucide-react";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 
 function ActiveItem({ label, checked, onToggle, onMoveUp, onMoveDown, isFirst, isLast }) {
   return (
     <div className="flex items-center gap-3 p-2 rounded-lg bg-card border border-border/50">
       <div className="flex flex-col gap-0.5">
-        <button
-          onClick={onMoveUp}
-          disabled={isFirst}
-          className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed"
-        >
+        <button onClick={onMoveUp} disabled={isFirst} className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed">
           <ArrowUp className="w-3 h-3" />
         </button>
-        <button
-          onClick={onMoveDown}
-          disabled={isLast}
-          className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed"
-        >
+        <button onClick={onMoveDown} disabled={isLast} className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed">
           <ArrowDown className="w-3 h-3" />
         </button>
       </div>
       <span className="flex-1 text-sm text-foreground">{label}</span>
       <Checkbox checked={checked} onCheckedChange={onToggle} />
+    </div>
+  );
+}
+
+// 3-column grid editor for Dashboard Grid
+function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
+  const COLS = 3;
+  // Pad to a multiple of 3 with nulls for layout
+  const rows = [];
+  for (let i = 0; i < checkedItems.length; i += COLS) {
+    rows.push(checkedItems.slice(i, i + COLS));
+  }
+
+  const totalItems = checkedItems.length;
+
+  const swapItems = (idxA, idxB) => {
+    if (idxA < 0 || idxB < 0 || idxA >= totalItems || idxB >= totalItems) return;
+    onMove(idxA, idxB);
+  };
+
+  return (
+    <div className="space-y-1">
+      {rows.map((row, rowIdx) => (
+        <div key={rowIdx} className="grid grid-cols-3 gap-1">
+          {Array.from({ length: COLS }).map((_, colIdx) => {
+            const item = row[colIdx];
+            const flatIdx = rowIdx * COLS + colIdx;
+            if (!item) return <div key={colIdx} className="rounded-lg border border-dashed border-border/30 h-16 opacity-30" />;
+
+            const page = ALL_PAGES.find(p => p.id === item);
+            const canLeft = colIdx > 0;
+            const canRight = colIdx < COLS - 1 && flatIdx + 1 < totalItems;
+            const canUp = rowIdx > 0;
+            const canDown = flatIdx + COLS < totalItems;
+
+            return (
+              <div key={item} className="relative rounded-lg border border-border/50 bg-card p-1 flex flex-col items-center gap-1 min-h-[4rem]">
+                {/* Top: up arrow */}
+                <div className="w-full flex justify-center h-4">
+                  {canUp && (
+                    <button onClick={() => swapItems(flatIdx, flatIdx - COLS)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      <ArrowUp className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Middle row: left | label | right */}
+                <div className="flex items-center gap-1 w-full justify-between">
+                  <div className="w-4 flex justify-center flex-shrink-0">
+                    {canLeft && (
+                      <button onClick={() => swapItems(flatIdx, flatIdx - 1)} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <ArrowLeft className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-foreground text-center leading-tight flex-1 truncate px-0.5">
+                    {page?.label || item}
+                  </span>
+                  <div className="w-4 flex justify-center flex-shrink-0">
+                    {canRight && (
+                      <button onClick={() => swapItems(flatIdx, flatIdx + 1)} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bottom: down arrow */}
+                <div className="w-full flex justify-center h-4">
+                  {canDown && (
+                    <button onClick={() => swapItems(flatIdx, flatIdx + COLS)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Remove button */}
+                <button
+                  onClick={() => onToggle(item)}
+                  className="absolute top-0.5 right-0.5 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Remove"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -66,6 +147,15 @@ export default function NavigationSettings({ settings }) {
       const targetIndex = index + direction;
       if (targetIndex < 0 || targetIndex >= list.length) return prev;
       [list[index], list[targetIndex]] = [list[targetIndex], list[index]];
+      return { ...prev, [location]: list };
+    });
+  };
+
+  const handleSwap = (location, idxA, idxB) => {
+    setConfig(prev => {
+      const list = [...prev[location]];
+      if (idxA < 0 || idxB < 0 || idxA >= list.length || idxB >= list.length) return prev;
+      [list[idxA], list[idxB]] = [list[idxB], list[idxA]];
       return { ...prev, [location]: list };
     });
   };
@@ -121,24 +211,35 @@ export default function NavigationSettings({ settings }) {
 
               {isOpen && (
                 <div className="px-4 py-3 border-t border-border bg-muted/5 space-y-3">
-                  <div className="space-y-2">
-                    {checkedItems.map((pageId, index) => {
-                      const page = ALL_PAGES.find(p => p.id === pageId);
-                      if (!page) return null;
-                      return (
-                        <ActiveItem
-                          key={page.id}
-                          label={page.label}
-                          checked
-                          onToggle={() => handleToggle(location, page.id)}
-                          onMoveUp={() => handleMove(location, index, -1)}
-                          onMoveDown={() => handleMove(location, index, 1)}
-                          isFirst={index === 0}
-                          isLast={index === checkedItems.length - 1}
-                        />
-                      );
-                    })}
-                  </div>
+                  {location === "dashboardGrid" ? (
+                    <>
+                      <p className="text-xs text-muted-foreground">Mirrors the 3-column grid on the dashboard. Use arrows to swap positions.</p>
+                      <DashboardGridEditor
+                        checkedItems={checkedItems}
+                        onMove={(idxA, idxB) => handleSwap(location, idxA, idxB)}
+                        onToggle={(pageId) => handleToggle(location, pageId)}
+                      />
+                    </>
+                  ) : (
+                    <div className="space-y-2">
+                      {checkedItems.map((pageId, index) => {
+                        const page = ALL_PAGES.find(p => p.id === pageId);
+                        if (!page) return null;
+                        return (
+                          <ActiveItem
+                            key={page.id}
+                            label={page.label}
+                            checked
+                            onToggle={() => handleToggle(location, page.id)}
+                            onMoveUp={() => handleMove(location, index, -1)}
+                            onMoveDown={() => handleMove(location, index, 1)}
+                            isFirst={index === 0}
+                            isLast={index === checkedItems.length - 1}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {uncheckedItems.length > 0 && (
                     <div className="space-y-2 mt-3 pt-3 border-t border-border/30">
