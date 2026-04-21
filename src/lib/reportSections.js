@@ -314,11 +314,24 @@ export function buildStatusNotesSection({ dateFrom, dateTo, emotionCheckIns }) {
     })
     .sort((a, b) => new Date(a.timestamp || a.created_date) - new Date(b.timestamp || b.created_date));
 
-  return notes.map(c => ({
-    date: fmtDateTime(c.timestamp || c.created_date),
-    note: c.note.trim(),
-    emotions: (c.emotions || []).join(", ") || null,
-  }));
+  return notes.flatMap(c => {
+    let entries = [];
+    try {
+      const parsed = JSON.parse(c.note);
+      entries = Array.isArray(parsed)
+        ? parsed.map(n => ({ text: n.text || "", timestamp: n.timestamp || c.timestamp || c.created_date }))
+        : [{ text: c.note, timestamp: c.timestamp || c.created_date }];
+    } catch {
+      entries = [{ text: c.note, timestamp: c.timestamp || c.created_date }];
+    }
+    return entries
+      .filter(n => n.text.trim())
+      .map(n => ({
+        date: fmtDateTime(n.timestamp),
+        note: n.text.trim(),
+        emotions: (c.emotions || []).join(", ") || null,
+      }));
+  });
 }
 
 // ── SECTION: PATTERNS SUMMARY ─────────────────────────────────────────────────

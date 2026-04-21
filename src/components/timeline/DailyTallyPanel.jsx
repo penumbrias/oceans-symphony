@@ -188,12 +188,24 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
         <div>
           <p className="text-muted-foreground font-medium mb-1">Check-ins</p>
           <p className="font-semibold text-base">{checkInCount}</p>
-          {emotions.filter(e => e.note && e.note.trim()).length > 0 && (
-            <div className="mt-1.5">
-              <p className="text-muted-foreground font-medium mb-1">💬 Custom Statuses</p>
-              <p className="font-semibold text-base">{emotions.filter(e => e.note && e.note.trim()).length}</p>
-            </div>
-          )}
+          {(() => {
+            const dayStatuses = emotions.filter(e => {
+              if (!e.note || !e.note.trim()) return false;
+              const t = parseDate(e.timestamp);
+              if (t < dayStart || t > dayEnd) return false;
+              try {
+                const parsed = JSON.parse(e.note);
+                return Array.isArray(parsed) ? parsed.some(n => n.text?.trim()) : true;
+              } catch { return true; }
+            });
+            if (dayStatuses.length === 0) return null;
+            return (
+              <div className="mt-1.5">
+                <p className="text-muted-foreground font-medium mb-1">💬 Custom Statuses</p>
+                <p className="font-semibold text-base">{dayStatuses.length}</p>
+              </div>
+            );
+          })()}
         </div>
 
         <div>
