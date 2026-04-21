@@ -1,0 +1,49 @@
+{
+  "name": "Poll",
+  "type": "object",
+  "properties": {
+    "question": {
+      "type": "string",
+      "description": "The poll question"
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of poll options"
+    },
+    "created_by_alter_id": {
+      "type": "string",
+      "description": "ID of the alter who created this poll"
+    },
+    "is_closed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the poll is closed"
+    },
+    "votes": {
+      "type": "object",
+      "description": "Object where keys are option indices (as strings), values are arrays of alter IDs who voted for that option"
+    }
+  },
+  "required": [
+    "question",
+    "options",
+    "created_by_alter_id"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
