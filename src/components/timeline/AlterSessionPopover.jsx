@@ -66,12 +66,7 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
             <p className="text-xs text-muted-foreground">Duration</p>
             <p className="font-semibold text-primary">{formatDuration(durationMins)}</p>
           </div>
-          {session.note && (
-            <div>
-              <p className="text-xs text-muted-foreground">Status note</p>
-              <p className="italic text-muted-foreground">{session.note}</p>
-            </div>
-          )}
+
           <Button size="sm" variant="outline" className="w-full" onClick={onEdit}>
             Edit session
           </Button>
