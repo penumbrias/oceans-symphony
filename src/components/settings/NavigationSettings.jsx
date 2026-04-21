@@ -77,23 +77,23 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
                 </div>
 
                 {/* Middle row: left | label | right */}
-                <div className="flex items-center w-full px-1 flex-1">
-                  <div className="w-5 flex-shrink-0 flex justify-center">
+                <div className="flex items-center w-full flex-1 overflow-hidden">
+                  <div className="w-4 flex-shrink-0 flex items-center justify-center">
                     {canLeft
-                      ? <button onClick={() => swap(flatIdx, flatIdx - 1)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowLeft className="w-3 h-3" /></button>
-                      : <div className="w-4 h-4" />}
+                      ? <button onClick={() => swap(flatIdx, flatIdx - 1)} className="flex items-center justify-center text-muted-foreground hover:text-foreground"><ArrowLeft className="w-3 h-3" /></button>
+                      : null}
                   </div>
 
-                  <div className={`flex-1 flex ${justifyLabel}`}>
-                    <span className={`text-[10px] font-semibold text-foreground leading-tight ${textAlign}`}>
+                  <div className={`flex-1 flex ${justifyLabel} overflow-hidden px-0.5`}>
+                    <span className={`text-[10px] font-semibold text-foreground leading-tight truncate ${textAlign}`}>
                       {label}
                     </span>
                   </div>
 
-                  <div className="w-5 flex-shrink-0 flex justify-center">
+                  <div className="w-4 flex-shrink-0 flex items-center justify-center">
                     {canRight
-                      ? <button onClick={() => swap(flatIdx, flatIdx + 1)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowRight className="w-3 h-3" /></button>
-                      : <div className="w-4 h-4" />}
+                      ? <button onClick={() => swap(flatIdx, flatIdx + 1)} className="flex items-center justify-center text-muted-foreground hover:text-foreground"><ArrowRight className="w-3 h-3" /></button>
+                      : null}
                   </div>
                 </div>
 
