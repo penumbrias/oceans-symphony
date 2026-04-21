@@ -340,7 +340,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {/* Fronting */}
           {openSections.has("fronting") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
-              <p className="text-sm font-medium">Who's {terms.fronting}? <span className="text-muted-foreground font-normal hidden">(optional)</span></p>
+              <p className="text-sm font-medium">Who's {terms.fronting}? </p>
               <div className="relative">
                 <Input placeholder={`Type ${terms.alter} name...`} value={alterInput}
               onChange={(e) => setAlterInput(e.target.value)} className="text-sm" />
