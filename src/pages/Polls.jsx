@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -431,11 +431,19 @@ function PollDetailView({ poll, alters, onBack, currentFronterIds = [] }) {
 export default function Polls() {
   const [selectedPoll, setSelectedPoll] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: polls = [], isLoading: pollsLoading } = useQuery({
     queryKey: ["polls"],
     queryFn: () => base44.entities.Poll.list("-created_date"),
   });
+
+  useEffect(() => {
+    const unsubscribe = base44.entities.Poll.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ["polls"] });
+    });
+    return unsubscribe;
+  }, [queryClient]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -474,7 +482,7 @@ export default function Polls() {
         {selectedPoll ? (
           <div key="detail">
             <PollDetailView
-              poll={selectedPoll}
+              poll={polls.find(p => p.id === selectedPoll.id) || selectedPoll}
               alters={activeAlters}
               onBack={() => setSelectedPoll(null)}
               currentFronterIds={currentFronterIds}
