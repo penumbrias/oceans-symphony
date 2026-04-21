@@ -1293,7 +1293,7 @@ export default function InfiniteTimeline({
                     const topPx = getTopPx(mins);
                     return (
                       <div key={`note-${session.id}-${i}`} className="absolute"
-                        style={{ left: alterLeft, right: 0, top: 0, height: totalHeight, pointerEvents: "none" }}>
+                        style={{ left: Math.max(0, alterLeft - 20), right: 0, top: 0, height: totalHeight }}>
                         <StatusNoteBadge note={sn.text} topPx={topPx} />
                       </div>
                     );
@@ -1319,7 +1319,7 @@ export default function InfiniteTimeline({
                     const topPx = getTopPx(mins);
                     return [(
                       <div key={`status-note-${e.id || i}-${j}`} className="absolute"
-                        style={{ left: alterLeft, right: 0, top: 0, height: totalHeight }}>
+                        style={{ left: Math.max(0, alterLeft - 20), right: 0, top: 0, height: totalHeight }}>
                         <StatusNoteBadge note={entry.text} topPx={topPx} id={e.id} />
                       </div>
                     )];
