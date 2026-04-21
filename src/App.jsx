@@ -33,7 +33,7 @@ import ManageCheckIn from '@/pages/ManageCheckIn';
 import TherapyReport from '@/pages/TherapyReport';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import Reminders from '@/pages/Reminders';
-import Polls from '@/pages/Polls';
+import Polls from '@/pages/Polls.jsx';
 import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal } from '@/lib/localDb';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
