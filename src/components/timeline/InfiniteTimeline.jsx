@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -99,13 +99,30 @@ function ResizeHandle({ onDrag }) {
 }
 
 function StatusNoteBadge({ note, topPx, id }) {
+  const [open, setOpen] = React.useState(false);
   return (
-    <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none" }} data-status-id={id}>
-      <div className="mx-1 px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-muted-foreground leading-tight truncate w-full"
-        style={{ fontSize: 9 }} title={note}>
-        💬 {note}
+    <>
+      <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none" }} data-status-id={id}>
+        <div
+          className="mx-1 px-1.5 py-0.5 rounded-md bg-muted/80 border border-border/60 text-muted-foreground leading-tight truncate w-full cursor-pointer hover:bg-muted transition-colors"
+          style={{ fontSize: 9 }}
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        >
+          💬 {note}
+        </div>
       </div>
-    </div>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setOpen(false)}>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
+            <p className="text-xs text-muted-foreground mb-2">💬 Custom Status</p>
+            <p className="text-sm text-foreground whitespace-pre-wrap">{note}</p>
+            <button onClick={() => setOpen(false)} className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1301,7 +1318,7 @@ export default function InfiniteTimeline({
                     if (mins < 0 || mins >= 24 * 60) return [];
                     const topPx = getTopPx(mins);
                     return [(
-                      <div key={`status-note-${e.id || i}-${j}`} className="absolute pointer-events-none"
+                      <div key={`status-note-${e.id || i}-${j}`} className="absolute"
                         style={{ left: alterLeft, right: 0, top: 0, height: totalHeight }}>
                         <StatusNoteBadge note={entry.text} topPx={topPx} id={e.id} />
                       </div>
