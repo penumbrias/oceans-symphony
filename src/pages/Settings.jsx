@@ -141,6 +141,8 @@ export default function Settings() {
             className="text-primary underline hover:text-primary/80 cursor-pointer">
             Template gallery →
           </span>
+          <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+                className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
         </p>
       </div>
 
