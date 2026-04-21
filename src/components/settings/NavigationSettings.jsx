@@ -114,7 +114,7 @@ export default function NavigationSettings({ settings }) {
               >
                 <div className="flex items-center justify-between w-full">
                   <span className="font-semibold text-sm text-foreground">{sectionLabel}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{count}/{maxLen}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{count}</span>
                 </div>
                 {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
               </button>
