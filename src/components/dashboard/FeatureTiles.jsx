@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { CheckSquare, Calendar, Activity, BookOpen, GitBranch, BarChart3, Heart, Moon, Settings, Layers } from "lucide-react";
+import { CheckSquare, Calendar, Activity, BookOpen, GitBranch, BarChart3, Heart, Moon, Settings, Layers, Vote } from "lucide-react";
 
 const features = [
   {
@@ -65,6 +65,13 @@ const features = [
     icon: Heart,
     color: "bg-red-500/10 text-red-600 dark:text-red-400",
     description: "Daily check-in ritual",
+  },
+  {
+    name: "Polls",
+    path: "/polls",
+    icon: Vote,
+    color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    description: "Community votes",
   },
   {
     name: "Settings",
