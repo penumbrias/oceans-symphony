@@ -56,42 +56,42 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
             const canDown = flatIdx + COLS < totalItems;
 
             return (
-              <div key={item} className="relative rounded-lg border border-border/50 bg-card p-1 flex flex-col items-center gap-1 min-h-[4rem]">
+              <div key={item} className="relative rounded-lg border border-border/50 bg-card p-1 flex flex-col items-center gap-0.5 min-h-[5.5rem]">
                 {/* Top: up arrow */}
-                <div className="w-full flex justify-center h-4">
+                <div className="w-full flex justify-center h-5">
                   {canUp && (
-                    <button onClick={() => swapItems(flatIdx, flatIdx - COLS)} className="text-muted-foreground hover:text-foreground transition-colors">
-                      <ArrowUp className="w-3 h-3" />
+                    <button onClick={() => swapItems(flatIdx, flatIdx - COLS)} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <ArrowUp className="w-4 h-4" />
                     </button>
                   )}
                 </div>
 
                 {/* Middle row: left | label | right */}
-                <div className="flex items-center gap-1 w-full justify-between">
-                  <div className="w-4 flex justify-center flex-shrink-0">
+                <div className="flex items-center gap-1 w-full justify-between flex-1">
+                  <div className="w-5 flex justify-center flex-shrink-0">
                     {canLeft && (
-                      <button onClick={() => swapItems(flatIdx, flatIdx - 1)} className="text-muted-foreground hover:text-foreground transition-colors">
-                        <ArrowLeft className="w-3 h-3" />
+                      <button onClick={() => swapItems(flatIdx, flatIdx - 1)} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                        <ArrowLeft className="w-4 h-4" />
                       </button>
                     )}
                   </div>
-                  <span className="text-xs font-medium text-foreground text-center leading-tight flex-1 truncate px-0.5">
+                  <span className="text-[11px] font-semibold text-foreground text-center leading-tight flex-1 break-words hyphens-auto px-0.5">
                     {page?.label || item}
                   </span>
-                  <div className="w-4 flex justify-center flex-shrink-0">
+                  <div className="w-5 flex justify-center flex-shrink-0">
                     {canRight && (
-                      <button onClick={() => swapItems(flatIdx, flatIdx + 1)} className="text-muted-foreground hover:text-foreground transition-colors">
-                        <ArrowRight className="w-3 h-3" />
+                      <button onClick={() => swapItems(flatIdx, flatIdx + 1)} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                        <ArrowRight className="w-4 h-4" />
                       </button>
                     )}
                   </div>
                 </div>
 
                 {/* Bottom: down arrow */}
-                <div className="w-full flex justify-center h-4">
+                <div className="w-full flex justify-center h-5">
                   {canDown && (
-                    <button onClick={() => swapItems(flatIdx, flatIdx + COLS)} className="text-muted-foreground hover:text-foreground transition-colors">
-                      <ArrowDown className="w-3 h-3" />
+                    <button onClick={() => swapItems(flatIdx, flatIdx + COLS)} className="p-0.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <ArrowDown className="w-4 h-4" />
                     </button>
                   )}
                 </div>
@@ -102,7 +102,7 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
                   className="absolute top-0.5 right-0.5 text-muted-foreground hover:text-destructive transition-colors"
                   title="Remove"
                 >
-                  <X className="w-2.5 h-2.5" />
+                  <X className="w-3 h-3" />
                 </button>
               </div>
             );
@@ -193,8 +193,10 @@ export default function NavigationSettings({ settings }) {
           const count = config[location]?.length || 0;
           const isOpen = openSection === location;
           const sectionLabel = location === "topBar" ? "Top Navigation Bar" : location === "bottomBar" ? "Mobile Bottom Bar" : "Dashboard Grid";
+          const isDashboard = location === "dashboardGrid";
           const checkedItems = config[location] || [];
-          const uncheckedItems = ALL_PAGES.filter(p => !checkedItems.includes(p.id));
+          const availablePages = isDashboard ? ALL_PAGES.filter(p => p.id !== "home") : ALL_PAGES;
+          const uncheckedItems = availablePages.filter(p => !checkedItems.includes(p.id));
 
           return (
             <div key={location} className="border border-border rounded-lg overflow-hidden">
@@ -243,7 +245,7 @@ export default function NavigationSettings({ settings }) {
 
                   {uncheckedItems.length > 0 && (
                     <div className="space-y-2 mt-3 pt-3 border-t border-border/30">
-                      {uncheckedItems.map(page => (
+                      {uncheckedItems.filter(p => !(isDashboard && p.id === "home")).map(page => (
                         <div key={page.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 opacity-60">
                           <div className="w-4 h-4" />
                           <span className="flex-1 text-sm text-muted-foreground">{page.label}</span>
