@@ -140,10 +140,10 @@ export default function Settings() {
           <span onClick={() => window.open("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1", "_blank")}
             className="text-primary underline hover:text-primary/80 cursor-pointer">
             Template gallery →
-          </span>
+          </span><p>
           <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
                 className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
-        </p>
+        </p></p>
       </div>
 
       {/* Quick Nav */}
