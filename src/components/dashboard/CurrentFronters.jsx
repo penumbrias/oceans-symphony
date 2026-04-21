@@ -112,7 +112,7 @@ export default function CurrentFronters({ alters }) {
       const raw = active.note;
       if (raw) {
         const parsed = JSON.parse(raw);
-        const text = Array.isArray(parsed) ? (parsed[0]?.text || "") : raw;
+        const text = Array.isArray(parsed) ? (parsed[parsed.length - 1]?.text || "") : raw;
         setStatusText(text);
         setTempStatus(text);
       } else {
@@ -153,12 +153,17 @@ export default function CurrentFronters({ alters }) {
     const note = tempStatus.trim();
     setStatusText(note);
     setEditingStatus(false);
-    // Persist the note to all active fronting sessions
+    // Persist the note — append to existing notes array to preserve history
     try {
       const nowIso = new Date().toISOString();
-      const noteEntry = JSON.stringify([{ text: note, timestamp: nowIso }]);
       for (const s of activeSessions) {
-        await base44.entities.FrontingSession.update(s.id, { note: noteEntry });
+        let existing = [];
+        try {
+          const parsed = JSON.parse(s.note || "[]");
+          existing = Array.isArray(parsed) ? parsed : [];
+        } catch {}
+        const updated = [...existing, { text: note, timestamp: nowIso }];
+        await base44.entities.FrontingSession.update(s.id, { note: JSON.stringify(updated) });
       }
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     } catch {}
