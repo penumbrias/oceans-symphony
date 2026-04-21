@@ -37,6 +37,7 @@ export const DEFAULT_CONFIG = {
   "journals",
   "tasks",
   "groups",
+  "polls",
   "settings",
   "safety-plan",
   "home",
