@@ -13,6 +13,42 @@ import {
   getEmotionsForSlot,
 } from "./activityHelpers";
 
+function EmotionPills({ emotions }) {
+  if (!emotions || emotions.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {emotions.map((em, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[10px] font-medium"
+          style={{ backgroundColor: emotionColor(em) }}
+        >
+          {em}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function SymptomPills({ symptomIds, symptomsMap }) {
+  if (!symptomIds || symptomIds.length === 0) return null;
+  const symptoms = symptomIds.map(id => symptomsMap[id]).filter(Boolean);
+  if (symptoms.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {symptoms.map(s => (
+        <span
+          key={s.id}
+          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border"
+          style={{ borderColor: s.color || "#94a3b8", color: s.color || "#94a3b8", backgroundColor: (s.color || "#94a3b8") + "22" }}
+        >
+          {s.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 const INTERVAL = 60;
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -62,31 +98,20 @@ function AlterAvatar({ alterId, alters }) {
 }
 
 // Tall color block for timed activities
-function ActivityBlock({ activity, getColor, alters, emotions, alterIds }) {
+function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptomsMap }) {
   const color = getColor(activity);
+  const allEmotions = [...new Set([...(activity.emotions || []), ...emotions])];
   return (
     <div
       className="rounded-lg overflow-hidden relative w-full"
       style={{ backgroundColor: color, minHeight: 72 }}
     >
-      {/* Alter avatars + emotion dots — top right, tightly stacked */}
-      {(alterIds.length > 0 || emotions.length > 0) && (
-        <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10">
-          {alterIds.length > 0 && (
-            <div className="flex -space-x-1">
-              {alterIds.slice(0, 4).map(id => <AlterAvatar key={id} alterId={id} alters={alters} />)}
-            </div>
-          )}
-          {emotions.length > 0 && (
-            <div className="flex gap-0.5 flex-wrap justify-end max-w-[60px]">
-              {emotions.slice(0, 4).map((em, i) => (
-                <div key={i} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: emotionColor(em) }} title={em} />
-              ))}
-            </div>
-          )}
+      {alterIds.length > 0 && (
+        <div className="absolute top-2 right-2 flex -space-x-1 z-10">
+          {alterIds.slice(0, 4).map(id => <AlterAvatar key={id} alterId={id} alters={alters} />)}
         </div>
       )}
-      <div className="p-3 pr-14">
+      <div className="p-3 pr-12">
         <p className="font-bold text-white text-base leading-snug break-words max-w-full">{activity.activity_name}</p>
         {activity.duration_minutes > 0 && (
           <p className="text-white/75 text-xs mt-0.5">{activity.duration_minutes}m</p>
@@ -94,19 +119,28 @@ function ActivityBlock({ activity, getColor, alters, emotions, alterIds }) {
         {activity.notes && (
           <p className="text-white/65 text-xs italic mt-1 leading-snug break-words">{activity.notes}</p>
         )}
+        {allEmotions.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {allEmotions.map((em, i) => (
+              <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[10px] font-medium bg-black/20">
+                {em}
+              </span>
+            ))}
+          </div>
+        )}
+        <SymptomPills symptomIds={activity.symptom_ids} symptomsMap={symptomsMap} />
       </div>
     </div>
   );
 }
 
 // Small colored pill for logged (no-duration) activities
-function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAlterIds = [] }) {
+function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAlterIds = [], symptomsMap = {} }) {
   const color = getColor(activity);
-  // Merge emotions/alters from the activity itself + slot-level
   const emotions = [...new Set([...(activity.emotions || []), ...slotEmotions])];
   const alterIds = [...new Set([...(activity.fronting_alter_ids || []), ...slotAlterIds])];
   return (
-    <div className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-1">
       <div
         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full self-start"
         style={{ backgroundColor: color }}
@@ -117,17 +151,20 @@ function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAl
             {alterIds.slice(0, 3).map(id => <AlterAvatar key={id} alterId={id} alters={alters} />)}
           </div>
         )}
-        {emotions.length > 0 && (
-          <div className="flex gap-0.5">
-            {emotions.slice(0, 3).map((em, i) => (
-              <div key={i} className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: emotionColor(em) }} title={em} />
-            ))}
-          </div>
-        )}
       </div>
       {activity.notes && (
         <p className="text-xs text-muted-foreground italic leading-snug pl-1 break-words">{activity.notes}</p>
       )}
+      {emotions.length > 0 && (
+        <div className="flex flex-wrap gap-1 pl-1">
+          {emotions.map((em, i) => (
+            <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-white text-[10px] font-medium" style={{ backgroundColor: emotionColor(em) }}>
+              {em}
+            </span>
+          ))}
+        </div>
+      )}
+      <SymptomPills symptomIds={activity.symptom_ids} symptomsMap={symptomsMap} />
     </div>
   );
 }
@@ -149,6 +186,15 @@ export default function ActivityDayView({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+  });
+  const symptomsMap = useMemo(() => {
+    const m = {};
+    symptoms.forEach(s => { m[s.id] = s; });
+    return m;
+  }, [symptoms]);
 
   const catById = useMemo(() => {
     const m = {};
@@ -199,11 +245,14 @@ export default function ActivityDayView({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Swipe-down to close
+  // Swipe-down to close — only when scrolled to top
   const touchStartY = useRef(null);
+  const scrollRef = useRef(null);
   const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
   const handleTouchEnd = (e) => {
-    if (touchStartY.current !== null && e.changedTouches[0].clientY - touchStartY.current > 80) onClose();
+    const scrollTop = scrollRef.current?.scrollTop ?? 0;
+    const delta = e.changedTouches[0].clientY - (touchStartY.current ?? 0);
+    if (scrollTop === 0 && delta > 80) onClose();
     touchStartY.current = null;
   };
 
@@ -253,7 +302,7 @@ export default function ActivityDayView({
       </div>
 
       {/* Scrollable timeline */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="pb-32">
 
           {/* Full-day empty state */}
@@ -354,10 +403,11 @@ export default function ActivityDayView({
                         alters={alters}
                         emotions={emotions}
                         alterIds={alterIds}
+                        symptomsMap={symptomsMap}
                       />
                     ))}
                     {logged.map(a => (
-                      <LoggedPill key={a.id} activity={a} getColor={getColor} alters={alters} slotEmotions={emotions} slotAlterIds={alterIds} />
+                      <LoggedPill key={a.id} activity={a} getColor={getColor} alters={alters} slotEmotions={emotions} slotAlterIds={alterIds} symptomsMap={symptomsMap} />
                     ))}
                   </div>
                 </div>
