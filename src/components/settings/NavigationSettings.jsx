@@ -27,84 +27,82 @@ function ActiveItem({ label, checked, onToggle, onMoveUp, onMoveDown, isFirst, i
 // 3-column grid editor for Dashboard Grid
 function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
   const COLS = 3;
-  // Pad to a multiple of 3 with nulls for layout
+  const totalItems = checkedItems.length;
+
   const rows = [];
-  for (let i = 0; i < checkedItems.length; i += COLS) {
+  for (let i = 0; i < totalItems; i += COLS) {
     rows.push(checkedItems.slice(i, i + COLS));
   }
 
-  const totalItems = checkedItems.length;
-
-  const swapItems = (idxA, idxB) => {
-    if (idxA < 0 || idxB < 0 || idxA >= totalItems || idxB >= totalItems) return;
-    onMove(idxA, idxB);
+  const swap = (a, b) => {
+    if (a < 0 || b < 0 || a >= totalItems || b >= totalItems) return;
+    onMove(a, b);
   };
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {rows.map((row, rowIdx) => (
-        <div key={rowIdx} className="grid grid-cols-3 gap-1">
+        <div key={rowIdx} className="grid grid-cols-3 gap-1.5">
           {Array.from({ length: COLS }).map((_, colIdx) => {
             const item = row[colIdx];
             const flatIdx = rowIdx * COLS + colIdx;
-            if (!item) return <div key={colIdx} className="rounded-lg border border-dashed border-border/30 h-16 opacity-30" />;
+            if (!item) return <div key={colIdx} className="rounded-lg border border-dashed border-border/20 h-20" />;
 
             const page = ALL_PAGES.find(p => p.id === item);
-            const canLeft = colIdx > 0;
-            const canRight = colIdx < COLS - 1 && flatIdx + 1 < totalItems;
-            const canUp = rowIdx > 0;
-            const canDown = flatIdx + COLS < totalItems;
+            const label = page?.label || item;
 
-            // Text alignment per column
-            const labelAlign = colIdx === 0 ? "text-left" : colIdx === 1 ? "text-center" : "text-right";
+            const canUp    = rowIdx > 0;
+            const canDown  = flatIdx + COLS < totalItems;
+            const canLeft  = colIdx > 0;
+            const canRight = colIdx < COLS - 1 && flatIdx + 1 < totalItems;
+
+            const textAlign = colIdx === 0 ? "text-left" : colIdx === 1 ? "text-center" : "text-right";
+            const justifyLabel = colIdx === 0 ? "justify-start" : colIdx === 1 ? "justify-center" : "justify-end";
 
             return (
-              <div key={item} className="relative rounded-lg border border-border/50 bg-card flex flex-col min-h-[5.5rem]">
-                {/* Top: up arrow */}
-                <div className="flex justify-center pt-1">
-                  {canUp
-                    ? <button onClick={() => swapItems(flatIdx, flatIdx - COLS)} className="p-1 text-muted-foreground hover:text-foreground transition-colors"><ArrowUp className="w-4 h-4" /></button>
-                    : <div className="h-6 w-6" />
-                  }
-                </div>
-
-                {/* Middle row: left arrow | label | right arrow */}
-                <div className="flex items-center w-full flex-1 px-1">
-                  <div className="w-6 flex-shrink-0 flex justify-center">
-                    {canLeft && (
-                      <button onClick={() => swapItems(flatIdx, flatIdx - 1)} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  <span className={`text-[11px] font-semibold text-foreground leading-tight flex-1 break-words hyphens-auto ${labelAlign}`}>
-                    {page?.label || item}
-                  </span>
-                  <div className="w-6 flex-shrink-0 flex justify-center">
-                    {canRight && (
-                      <button onClick={() => swapItems(flatIdx, flatIdx + 1)} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Bottom: down arrow */}
-                <div className="flex justify-center pb-1">
-                  {canDown
-                    ? <button onClick={() => swapItems(flatIdx, flatIdx + COLS)} className="p-1 text-muted-foreground hover:text-foreground transition-colors"><ArrowDown className="w-4 h-4" /></button>
-                    : <div className="h-6 w-6" />
-                  }
-                </div>
-
-                {/* Remove button */}
+              <div key={item} className="relative rounded-lg border border-border/50 bg-card flex flex-col items-center h-20">
+                {/* Remove */}
                 <button
                   onClick={() => onToggle(item)}
-                  className="absolute top-0.5 right-0.5 p-0.5 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Remove"
+                  className="absolute top-0.5 right-0.5 p-0.5 text-muted-foreground hover:text-destructive transition-colors z-10"
                 >
                   <X className="w-3 h-3" />
                 </button>
+
+                {/* Up */}
+                <div className="h-5 flex items-center justify-center">
+                  {canUp
+                    ? <button onClick={() => swap(flatIdx, flatIdx - COLS)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowUp className="w-3 h-3" /></button>
+                    : <div className="w-4 h-4" />}
+                </div>
+
+                {/* Middle row: left | label | right */}
+                <div className="flex items-center w-full px-1 flex-1">
+                  <div className="w-5 flex-shrink-0 flex justify-center">
+                    {canLeft
+                      ? <button onClick={() => swap(flatIdx, flatIdx - 1)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowLeft className="w-3 h-3" /></button>
+                      : <div className="w-4 h-4" />}
+                  </div>
+
+                  <div className={`flex-1 flex ${justifyLabel}`}>
+                    <span className={`text-[10px] font-semibold text-foreground leading-tight ${textAlign}`}>
+                      {label}
+                    </span>
+                  </div>
+
+                  <div className="w-5 flex-shrink-0 flex justify-center">
+                    {canRight
+                      ? <button onClick={() => swap(flatIdx, flatIdx + 1)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowRight className="w-3 h-3" /></button>
+                      : <div className="w-4 h-4" />}
+                  </div>
+                </div>
+
+                {/* Down */}
+                <div className="h-5 flex items-center justify-center">
+                  {canDown
+                    ? <button onClick={() => swap(flatIdx, flatIdx + COLS)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowDown className="w-3 h-3" /></button>
+                    : <div className="w-4 h-4" />}
+                </div>
               </div>
             );
           })}
