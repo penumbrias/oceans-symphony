@@ -1,10 +1,10 @@
 import React, { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste } from "lucide-react";
+import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
-import { getFullDbDump, loadDbDump } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, migrateBase64AvatarsToLocal } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
@@ -86,6 +86,8 @@ export default function DataBackupRestore() {
   const [copiedChunks, setCopiedChunks] = useState(new Set()); // tracks which parts have been copied
   const [multiPartChunks, setMultiPartChunks] = useState([]); // for multi-part import
   const [showMultiPartImport, setShowMultiPartImport] = useState(false);
+  const [migratingAvatars, setMigratingAvatars] = useState(false);
+  const [migrateResult, setMigrateResult] = useState(null);
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
@@ -332,6 +334,36 @@ const handleExportFull = async () => {
     }
   };
 
+  const handleMigrateAvatars = async () => {
+    setMigratingAvatars(true);
+    setMigrateResult(null);
+    try {
+      if (isLocalMode()) {
+        const count = await migrateBase64AvatarsToLocal();
+        setMigrateResult({ type: "success", message: `Done! Migrated ${count} avatar(s) to local storage.` });
+      } else {
+        // Cloud mode: upload base64 avatars via UploadFile integration
+        const alters = await base44.entities.Alter.list();
+        let migrated = 0;
+        for (const alter of alters) {
+          if (alter.avatar_url && alter.avatar_url.startsWith("data:")) {
+            const res = await fetch(alter.avatar_url);
+            const blob = await res.blob();
+            const file = new File([blob], `avatar-${alter.id}.jpg`, { type: blob.type || "image/jpeg" });
+            const { file_url } = await base44.integrations.Core.UploadFile({ file });
+            await base44.entities.Alter.update(alter.id, { avatar_url: file_url });
+            migrated++;
+          }
+        }
+        setMigrateResult({ type: "success", message: `Done! Migrated ${migrated} avatar(s) to hosted URLs.` });
+      }
+    } catch (e) {
+      setMigrateResult({ type: "error", message: `Migration failed: ${e.message}` });
+    } finally {
+      setMigratingAvatars(false);
+    }
+  };
+
   const handleImportFromFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -374,6 +406,24 @@ const handleExportFull = async () => {
             {status.message}
           </div>
         )}
+
+        <div className="space-y-2 pb-3 border-b border-border/40">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Avatar Migration</p>
+          <p className="text-xs text-muted-foreground">If avatars were uploaded on Android, they may be stored as large base64 strings that bloat backups. Run this once to migrate them to proper URLs.</p>
+          {migrateResult && (
+            <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${migrateResult.type === "success" ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-destructive/5 text-destructive"}`}>
+              {migrateResult.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+              {migrateResult.message}
+            </div>
+          )}
+          <Button variant="outline" onClick={handleMigrateAvatars} disabled={migratingAvatars} className="w-full gap-2 justify-start">
+            {migratingAvatars ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+            <div className="text-left">
+              <p className="font-medium">Migrate Avatar Images</p>
+              <p className="text-xs text-muted-foreground font-normal">Convert base64 avatars to hosted URLs</p>
+            </div>
+          </Button>
+        </div>
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
