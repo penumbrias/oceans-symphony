@@ -9,6 +9,13 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { useTerms } from "@/lib/useTerms";
+import { formatInTimeZone } from "date-fns-tz";
+
+// Returns an ISO string in the user's detected local timezone (not hardcoded)
+function nowLocalIso() {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return formatInTimeZone(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+}
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -162,64 +169,58 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
       const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
 
       if (isUnsure) {
+        const now = nowLocalIso();
         for (const s of activeSessions) {
-          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: new Date().toISOString() });
+          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
         }
         toast.success("✅ Front cleared");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         onClose();
       } else {
-        const now = new Date().toISOString();
+        const now = nowLocalIso();
         const coIds = coFronterIds.filter((id) => id !== primaryId);
         const allSelectedIds = [primaryId, ...coIds].filter(Boolean);
 
-        // Incremental session updates — preserve existing fronters' start times
-        const currentActiveAlterIds = activeSessions
-          .filter(s => s.alter_id)
-          .map(s => s.alter_id);
-        
-        const toRemove = currentActiveAlterIds.filter(id => !allSelectedIds.includes(id));
-        const toAdd = allSelectedIds.filter(id => !currentActiveAlterIds.includes(id));
-        const toKeep = allSelectedIds.filter(id => currentActiveAlterIds.includes(id));
+        // Build desired state: alter_id -> is_primary
+        const desiredMap = {};
+        for (const id of allSelectedIds) {
+          desiredMap[id] = id === primaryId;
+        }
 
         // Handle legacy sessions (old format with primary_alter_id)
         const legacySessions = activeSessions.filter(s => !s.alter_id && s.primary_alter_id);
         for (const s of legacySessions) {
           await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
         }
-        // If legacy data contained alters still being selected, add them to "toAdd"
-        const legacyAlterIds = legacySessions.flatMap(s => [s.primary_alter_id, ...(s.co_fronter_ids || [])]).filter(Boolean);
-        const legacyStillSelected = legacyAlterIds.filter(id => allSelectedIds.includes(id) && !toAdd.includes(id) && !toKeep.includes(id));
-        toAdd.push(...legacyStillSelected);
 
-        // 1. End sessions for removed fronters
-        for (const id of toRemove) {
-          const session = activeSessions.find(s => s.alter_id === id);
-          if (session) {
+        const newModelSessions = activeSessions.filter(s => s.alter_id);
+
+        // 1. End sessions for alters who are removed OR whose is_primary status changed
+        for (const session of newModelSessions) {
+          const desiredPrimary = desiredMap[session.alter_id];
+          const isStillPresent = session.alter_id in desiredMap;
+          const primaryStatusChanged = isStillPresent && session.is_primary !== desiredPrimary;
+
+          if (!isStillPresent || primaryStatusChanged) {
             await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: now });
           }
         }
 
-        // 2. Create new sessions for added fronters
+        // 2. Create new sessions for alters who are new OR whose status changed (old session was ended above)
         let firstSessionId = null;
-        for (const id of toAdd) {
-          const newSession = await base44.entities.FrontingSession.create({
-            alter_id: id,
-            is_primary: id === primaryId,
-            start_time: now,
-            is_active: true,
-          });
-          if (!firstSessionId) firstSessionId = newSession?.id || null;
-        }
+        for (const id of allSelectedIds) {
+          const existingSession = newModelSessions.find(s => s.alter_id === id);
+          const statusUnchanged = existingSession && existingSession.is_primary === desiredMap[id];
 
-        // 3. Update is_primary on kept sessions if primary changed
-        for (const id of toKeep) {
-          const session = activeSessions.find(s => s.alter_id === id);
-          if (!session) continue;
-          const shouldBePrimary = id === primaryId;
-          if (session.is_primary !== shouldBePrimary) {
-            await base44.entities.FrontingSession.update(session.id, { is_primary: shouldBePrimary });
+          if (!statusUnchanged) {
+            const newSession = await base44.entities.FrontingSession.create({
+              alter_id: id,
+              is_primary: desiredMap[id],
+              start_time: now,
+              is_active: true,
+            });
+            if (!firstSessionId) firstSessionId = newSession?.id || null;
           }
         }
 
