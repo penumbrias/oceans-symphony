@@ -1262,7 +1262,7 @@ export default function InfiniteTimeline({
 
                 {/* Legacy session notes */}
                 {sessions.flatMap((session) => {
-                  if (session.alter_id) return [];
+
                   if (!session.note) return [];
                   let notes = [];
                   try {
