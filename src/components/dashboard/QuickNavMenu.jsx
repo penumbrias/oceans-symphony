@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, LayoutGrid, List, FileText, Heart, Bell } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, LayoutGrid, List, FileText, Heart, Bell, Vote } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -58,7 +58,8 @@ function buildGridItems(altersLabel, frontLabel, systemLabel) {
 { id: "safety-plan", label: "Safety Plan", icon: Heart, path: "/safety-plan", color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
   { id: "settings", label: "Settings", icon: Settings, path: "/settings", color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
   { id: "reminders", label: "Reminders", icon: Bell, path: "/reminders", color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" }];
-  
+  { id: "reminders", label: "Reminders", icon: Bell, path: "/reminders", color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
+{ id: "polls", label: "Polls", icon: Vote, path: "/polls", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" }];
 }
 
 export default function QuickNavMenu() {
