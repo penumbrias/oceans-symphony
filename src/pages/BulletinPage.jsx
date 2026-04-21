@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -33,6 +33,9 @@ function renderContent(content, alters) {
 export default function BulletinPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [highlightedCommentId, setHighlightedCommentId] = useState(null);
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetCommentId = urlParams.get("commentId");
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -53,6 +56,18 @@ export default function BulletinPage() {
     queryKey: ["bulletinComments", id],
     queryFn: () => base44.entities.BulletinComment.filter({ bulletin_id: id }, "created_date"),
   });
+
+  // Scroll to and highlight a specific comment when navigated from search
+  useEffect(() => {
+    if (!targetCommentId || comments.length === 0) return;
+    setHighlightedCommentId(targetCommentId);
+    setTimeout(() => {
+      const el = document.getElementById(`comment-${targetCommentId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    const timer = setTimeout(() => setHighlightedCommentId(null), 4000);
+    return () => clearTimeout(timer);
+  }, [targetCommentId, comments.length]);
 
   const bulletin = bulletins.find(b => b.id === id);
   const activeSession = sessions.find(s => s.is_active);
@@ -145,6 +160,7 @@ export default function BulletinPage() {
           onRefresh={refetchComments}
           maxDepth={null}
           isFullPage={true}
+          highlightedCommentId={highlightedCommentId}
         />
       </div>
     </div>

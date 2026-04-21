@@ -167,7 +167,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   );
 }
 
-function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters, currentAlterId, frontingAlterIds, onRefresh, isFullPage, pendingDeletes, onDeleteTap, onUndoDelete }) {
+function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters, currentAlterId, frontingAlterIds, onRefresh, isFullPage, pendingDeletes, onDeleteTap, onUndoDelete, highlightedCommentId }) {
   const qc = useQueryClient();
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [showReactPicker, setShowReactPicker] = useState(false);
@@ -211,9 +211,11 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
     );
   }
 
+  const isHighlighted = highlightedCommentId === comment.id;
+
   return (
-    <div className={`${depth > 0 ? "pl-4 border-l border-border/30" : ""}`}>
-      <div className="py-2">
+    <div id={`comment-${comment.id}`} className={`${depth > 0 ? "pl-4 border-l border-border/30" : ""}`}>
+      <div className={`py-2 rounded-lg transition-all duration-500 ${isHighlighted ? "bg-primary/10 ring-2 ring-primary/40 px-2" : ""}`}>
         <div className="flex items-start justify-between gap-1 mb-1">
           <div className="flex items-center gap-0.5 flex-1 min-w-0">
             {hasChildren && (
@@ -290,6 +292,7 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
           pendingDeletes={pendingDeletes}
           onDeleteTap={onDeleteTap}
           onUndoDelete={onUndoDelete}
+          highlightedCommentId={highlightedCommentId}
         />
       ))}
 
@@ -304,7 +307,7 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   );
 }
 
-export default function BulletinCommentThread({ comments, bulletinId, alters, currentAlterId, frontingAlterIds, onRefresh, maxDepth = 2, isFullPage = false }) {
+export default function BulletinCommentThread({ comments, bulletinId, alters, currentAlterId, frontingAlterIds, onRefresh, maxDepth = 2, isFullPage = false, highlightedCommentId = null }) {
   const [sortOrder, setSortOrder] = useState("oldest");
   const [pendingDeletes, setPendingDeletes] = useState({});
   const [deleteTapCounts, setDeleteTapCounts] = useState({});
@@ -405,6 +408,7 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
           pendingDeletes={pendingDeletes}
           onDeleteTap={handleDeleteTap}
           onUndoDelete={handleUndoDelete}
+          highlightedCommentId={highlightedCommentId}
         />
       ))}
     </div>

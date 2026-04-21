@@ -169,6 +169,13 @@ export default function GlobalSearch() {
     enabled: searchFocused,
   });
 
+  const { data: bulletinComments = [] } = useQuery({
+    queryKey: ["searchBulletinComments"],
+    queryFn: () => base44.entities.BulletinComment.list("-created_date", 200),
+    staleTime: 5 * 60 * 1000,
+    enabled: searchFocused,
+  });
+
   // Perform search
   const searchResults = useMemo(() => {
     if (!query.trim() || query.length < 2) return [];
@@ -209,7 +216,20 @@ export default function GlobalSearch() {
         results.push({
           type: "bulletin", id: b.id, title: "Bulletin",
           subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(b.created_date)}` : b.content?.slice(0, 60),
-          path: `/?bulletinId=${b.id}`, dateMatch,
+          path: `/bulletin/${b.id}`, dateMatch,
+        });
+      }
+    });
+
+    // Bulletin comments
+    bulletinComments.forEach((c) => {
+      const textMatch = c.content?.toLowerCase().includes(q);
+      const dateMatch = !textMatch && matchesDate(c.created_date, q);
+      if (textMatch || dateMatch) {
+        results.push({
+          type: "bulletin", id: c.id, title: "Bulletin Comment",
+          subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(c.created_date)}` : c.content?.slice(0, 60),
+          path: `/bulletin/${c.bulletin_id}?commentId=${c.id}`, dateMatch,
         });
       }
     });
@@ -320,6 +340,7 @@ export default function GlobalSearch() {
     alters,
     journals,
     bulletins,
+    bulletinComments,
     activities,
     tasks,
     emotionCheckIns,
