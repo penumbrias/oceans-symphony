@@ -424,31 +424,42 @@ function EmotionBubble({ entry, topPx, expanded, onTap }) {
       {expanded ? (
         <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm text-right">
           <p className="text-xs text-muted-foreground mb-1 font-medium">{timeStr}</p>
-          <div className="flex flex-wrap gap-0.5 justify-end">
-            {emotions.map((em) => (
-              <span key={em} className="px-1.5 py-0.5 rounded-full text-white font-medium"
-                style={{ fontSize: 9, backgroundColor: emotionColor(em) }}>{em}</span>
-            ))}
-          </div>
+          {emotions.length > 0 && (
+            <div className="flex flex-wrap gap-0.5 justify-end">
+              {emotions.map((em) => (
+                <span key={em} className="px-1.5 py-0.5 rounded-full text-white font-medium"
+                  style={{ fontSize: 9, backgroundColor: emotionColor(em) }}>{em}</span>
+              ))}
+            </div>
+          )}
           {note && <p className="text-xs text-muted-foreground italic mt-1 text-right">{note}</p>}
         </div>
       ) : (
         <div className="relative">
-          {note && <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>}
-          <div className="flex gap-0.5 flex-wrap justify-end">
-            {emotions.slice(0, 4).map((em) => (
-              <div key={em} className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
-                style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }} title={em}>
-                <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
+          {emotions.length > 0 ? (
+            <>
+              {note && <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>}
+              <div className="flex gap-0.5 flex-wrap justify-end">
+                {emotions.slice(0, 4).map((em) => (
+                  <div key={em} className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
+                    style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }} title={em}>
+                    <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
+                  </div>
+                ))}
+                {emotions.length > 4 && (
+                  <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
+                    style={{ width: 18, height: 18 }}>
+                    <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 4}</span>
+                  </div>
+                )}
               </div>
-            ))}
-            {emotions.length > 4 && (
-              <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
-                style={{ width: 18, height: 18 }}>
-                <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 4}</span>
-              </div>
-            )}
-          </div>
+            </>
+          ) : note ? (
+            <div className="rounded-full border-2 border-border/60 bg-card/90 flex items-center justify-center flex-shrink-0"
+              style={{ width: 22, height: 22 }} title={note}>
+              <span style={{ fontSize: 12 }}>💭</span>
+            </div>
+          ) : null}
         </div>
       )}
     </div>
