@@ -418,11 +418,12 @@ const TYPE_META = {
   symptom_checkin: { icon: "💊" },
 };
 
-function EmotionBubble({ entry, topPx, onTap }) {
+function EmotionBubble({ entry, topPx, onTap, onDoubleTap }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
+  const tap = useDoubleTap(onTap, onDoubleTap);
   return (
-    <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={onTap}>
+    <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
       <div className="relative">
         {emotions.length > 0 ? (
           <>
@@ -1187,6 +1188,7 @@ export default function InfiniteTimeline({
                         entry={entry}
                         topPx={entry.adjustedTop}
                         onTap={() => setDetailPopup({ type: "emotion", entry })}
+                        onDoubleTap={() => navigate(`/checkin-log?id=${entry.id}`)}
                       />
                     ))}
                   </div>

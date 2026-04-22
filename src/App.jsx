@@ -34,6 +34,7 @@ import TherapyReport from '@/pages/TherapyReport';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import Reminders from '@/pages/Reminders';
 import Polls from '@/pages/Polls.jsx';
+import CheckInLog from '@/pages/CheckInLog';
 import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal } from '@/lib/localDb';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
@@ -93,6 +94,7 @@ const AuthenticatedApp = () => {
         <Route path="/therapy-report" element={<TherapyReport />} />
         <Route path="/reminders" element={<Reminders />} />
         <Route path="/polls" element={<Polls />} />
+        <Route path="/checkin-log" element={<CheckInLog />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
