@@ -32,6 +32,7 @@ export const DEFAULT_CONFIG = {
   "support",
   "checkin-log",
   "sleep",
+
   "timeline",
   "system-map",
   "journals",

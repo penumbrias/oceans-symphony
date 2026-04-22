@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, ClipboardList, GitBranch, LayoutGrid, List, FileText, Heart, Bell, Vote } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, LayoutGrid, List, FileText, Heart, Bell, Vote } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -18,7 +18,7 @@ function buildNavGroups(altersLabel, systemLabel, frontLabel, switchLabel) {
 
     "Tracking": [
     { id: "daily-tasks", label: "Daily Tasks", icon: CheckSquare, path: "/tasks" },
-    { id: "diary-cards", label: "Diary Cards", icon: ClipboardList, path: "/diary" },
+    { id: "checkin-log", label: "Check-In Log", icon: Heart, path: "/checkin-log" },
     { id: "activities", label: "Activities", icon: Zap, path: "/activities" },
     { id: "sleep", label: "Sleep", icon: Activity, path: "/sleep" },
     { id: "checkin", label: `${systemLabel} Check-In`, icon: Sparkles, path: "/system-checkin" }],
@@ -47,7 +47,7 @@ function buildGridItems(altersLabel, frontLabel, systemLabel) {
   { id: "analytics", label: "Analytics", icon: BarChart2, path: "/analytics", color: "bg-green-500/15 text-green-600 dark:text-green-400" },
   { id: "therapy-report", label: "Therapy Report", icon: FileText, path: "/therapy-report", color: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
   { id: "support", label: "Support & Learn", icon: Heart, path: "/grounding", color: "bg-red-500/15 text-red-600 dark:text-red-400" },
-  { id: "diary-cards", label: "Diary Cards", icon: ClipboardList, path: "/diary", color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
+  { id: "checkin-log", label: "Check-In Log", icon: Heart, path: "/checkin-log", color: "bg-pink-500/15 text-pink-600 dark:text-pink-400" },
   { id: "sleep", label: "Sleep", icon: Activity, path: "/sleep", color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
   { id: "timeline", label: "Timeline", icon: Clock, path: "/timeline", color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
   { id: "system-map", label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map", color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
