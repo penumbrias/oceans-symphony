@@ -121,7 +121,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
     }
   }, [open]);
 
-  const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
+  const activeAlters = useMemo(() => (alters || []).filter((a) => !a.is_archived), [alters]);
   const filtered = activeAlters.filter((a) =>
   a.name?.toLowerCase().includes(search.toLowerCase())
   );
