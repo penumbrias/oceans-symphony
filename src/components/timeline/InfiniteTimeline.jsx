@@ -13,7 +13,6 @@ import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, symptom: 56, alter: 40 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
-const EXPANDED_EXTRA = 100;
 const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
 
 function lsGet(key, fallback) {
@@ -364,14 +363,25 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
   );
 }
 
-function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expanded, notes, onTap, onDoubleTap }) {
+function DetailPopup({ title, icon, timeStr, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
+        <p className="text-xs text-muted-foreground mb-2">{icon} {timeStr}</p>
+        {children}
+        <button onClick={onClose} className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground transition-colors">
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes, onTap, onDoubleTap, timeStr }) {
   const sz = 26;
   const tap = useDoubleTap(onTap, onDoubleTap);
   const touchFiredRef = useRef(false);
-  const handleTouchEnd = (e) => {
-    touchFiredRef.current = true;
-    onTap?.();
-  };
+  const handleTouchEnd = (e) => { touchFiredRef.current = true; onTap?.(); };
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
@@ -386,16 +396,9 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, expand
       <div className="text-center leading-tight mt-0.5 px-0.5"
         style={{ fontSize: 8, color, maxWidth: 54, wordBreak: "break-word" }}>
         {activityName}
-        {mergedCount > 1 && !expanded && <span className="opacity-60"> ×{mergedCount}</span>}
+        {mergedCount > 1 && <span className="opacity-60"> ×{mergedCount}</span>}
       </div>
-      {expanded && (
-        <div className="mt-1 mx-1 p-1.5 rounded-lg border text-left w-full"
-          style={{ backgroundColor: `${color}18`, borderColor: `${color}40`, maxWidth: 120 }}>
-          {mergedCount > 1 && <p className="text-xs text-muted-foreground leading-tight">{mergedCount} instances</p>}
-          {notes && <p className="text-xs leading-tight mt-0.5" style={{ color, wordBreak: "break-word" }}>{notes}</p>}
-        </div>
-      )}
-      {!expanded && heightPx > sz + 30 && (
+      {heightPx > sz + 30 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
           height: Math.max(heightPx - sz - 26, 4),
           background: `linear-gradient(to bottom, ${color}, ${color}40)`,
@@ -415,63 +418,46 @@ const TYPE_META = {
   symptom_checkin: { icon: "💊" },
 };
 
-function EmotionBubble({ entry, topPx, expanded, onTap }) {
+function EmotionBubble({ entry, topPx, onTap }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
-  const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
   return (
     <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={onTap}>
-      {expanded ? (
-        <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm text-right">
-          <p className="text-xs text-muted-foreground mb-1 font-medium">{timeStr}</p>
-          {emotions.length > 0 && (
-            <div className="flex flex-wrap gap-0.5 justify-end">
-              {emotions.map((em) => (
-                <span key={em} className="px-1.5 py-0.5 rounded-full text-white font-medium"
-                  style={{ fontSize: 9, backgroundColor: emotionColor(em) }}>{em}</span>
+      <div className="relative">
+        {emotions.length > 0 ? (
+          <>
+            {note && <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>}
+            <div className="flex gap-0.5 flex-wrap justify-end">
+              {emotions.slice(0, 4).map((em) => (
+                <div key={em} className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
+                  style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }} title={em}>
+                  <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
+                </div>
               ))}
+              {emotions.length > 4 && (
+                <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
+                  style={{ width: 18, height: 18 }}>
+                  <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 4}</span>
+                </div>
+              )}
             </div>
-          )}
-          {note && <p className="text-xs text-muted-foreground italic mt-1 text-right">{note}</p>}
-        </div>
-      ) : (
-        <div className="relative">
-          {emotions.length > 0 ? (
-            <>
-              {note && <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>}
-              <div className="flex gap-0.5 flex-wrap justify-end">
-                {emotions.slice(0, 4).map((em) => (
-                  <div key={em} className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
-                    style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }} title={em}>
-                    <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
-                  </div>
-                ))}
-                {emotions.length > 4 && (
-                  <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
-                    style={{ width: 18, height: 18 }}>
-                    <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 4}</span>
-                  </div>
-                )}
-              </div>
-            </>
-          ) : note ? (
-            <div className="rounded-full border-2 border-border/60 bg-card/90 flex items-center justify-center flex-shrink-0"
-              style={{ width: 22, height: 22 }} title={note}>
-              <span style={{ fontSize: 12 }}>💭</span>
-            </div>
-          ) : null}
-        </div>
-      )}
+          </>
+        ) : note ? (
+          <div className="rounded-full border-2 border-border/60 bg-card/90 flex items-center justify-center flex-shrink-0"
+            style={{ width: 22, height: 22 }} title={note}>
+            <span style={{ fontSize: 12 }}>💭</span>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
+function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
   const meta = TYPE_META[entry.type] || { icon: "•" };
   const isTaskDone = entry.type === "task_done";
-  const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
-  const showLabel = !expanded && colWidth >= EVENT_DETAIL_MIN_WIDTH;
+  const showLabel = colWidth >= EVENT_DETAIL_MIN_WIDTH;
   const shortLabel =
     entry.type === 'checkin' ? 'Check-In' :
     entry.type === 'journal' ? (entry.label || 'Journal') :
@@ -479,24 +465,7 @@ function EventEntry({ entry, topPx, expanded, onTap, onDoubleTap, colWidth }) {
     (entry.label || 'Task');
   return (
     <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
-      {expanded ? (
-        <div className="rounded-lg border border-border/60 bg-card/90 px-2 py-1.5 shadow-sm">
-          <p className="text-xs text-muted-foreground leading-tight mb-1 font-medium">{meta.icon} {timeStr}</p>
-          {entry.type === "journal" && <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.label}</p>}
-          {entry.type === "checkin" && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
-          {entry.type === "bulletin" && <p className="text-xs text-muted-foreground leading-tight line-clamp-3">{entry.data.content}</p>}
-          {(entry.type === "task" || entry.type === "task_done") && <p className="text-xs text-muted-foreground leading-tight">{entry.label}</p>}
-          {entry.type === "symptom_checkin" && (
-            <div className="flex flex-col gap-0.5 mt-0.5">
-              {(entry.data.items || []).map(({ symptom, checkIn }, i) => (
-                <span key={i} className="text-xs leading-tight" style={{ color: symptom?.color || "#8b5cf6" }}>
-                  {symptom?.label || "?"}{checkIn.severity != null ? ` · ${checkIn.severity}` : ""}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : showLabel ? (
+      {showLabel ? (
         <div className="flex items-center gap-1 rounded-full border shadow-sm bg-card border-border/60 px-1.5 py-0.5 hover:scale-105 transition-transform"
           style={{ maxWidth: colWidth - 8 }} title={entry.label}>
           <span style={{ fontSize: 11 }}>{meta.icon}</span>
@@ -530,7 +499,7 @@ export default function InfiniteTimeline({
   }, [categories]);
 
   const [collapsed, setCollapsed] = useState(!hasData);
-  const [expandedKeys, setExpandedKeys] = useState(new Set());
+  const [detailPopup, setDetailPopup] = useState(null); // { type, entry }
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
   const [showTally, setShowTally] = useState(false);
   const [showRowSlider, setShowRowSlider] = useState(false);
@@ -561,14 +530,6 @@ export default function InfiniteTimeline({
   const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
-
-  const toggleExpand = useCallback((key) => {
-    setExpandedKeys((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  }, []);
 
   const dragCol = useCallback((col, delta) => {
     setColWidths((prev) => ({ ...prev, [col]: Math.max(30, prev[col] + delta) }));
@@ -800,28 +761,15 @@ export default function InfiniteTimeline({
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
   }, [journals, checkIns, bulletins, tasks, symptomCheckIns, symptomMap, dayStart]);
 
-  const checkInEntries = useMemo(() => [...emotionEntries, ...eventEntries], [emotionEntries, eventEntries]);
-
-  const expandedPositions = useMemo(() => {
-    const positions = [];
-    [...activityEntries, ...checkInEntries].forEach((entry) => {
-      if (expandedKeys.has(entry.key)) {
-        positions.push({ mins: entry.startMins ?? entry.mins, extraHeight: EXPANDED_EXTRA });
-      }
-    });
-    return positions.sort((a, b) => a.mins - b.mins);
-  }, [expandedKeys, activityEntries, checkInEntries]);
-
   const getTopPx = useCallback((mins) => {
-    const extra = expandedPositions.filter((p) => p.mins < mins).reduce((s, p) => s + p.extraHeight, 0);
-    return (mins / 60) * rowH + extra;
-  }, [expandedPositions, rowH]);
+    return (mins / 60) * rowH;
+  }, [rowH]);
 
   const getRangePx = useCallback((startMins, endMins) => {
     return getTopPx(endMins) - getTopPx(startMins);
   }, [getTopPx]);
 
-  const totalHeight = 24 * rowH + expandedPositions.reduce((s, p) => s + p.extraHeight, 0);
+  const totalHeight = 24 * rowH;
 
   const MIN_EMOTION_GAP = 22;
   const MIN_EVENT_GAP = 26;
@@ -829,24 +777,22 @@ export default function InfiniteTimeline({
   const emotionPositioned = useMemo(() => {
     let minNext = -Infinity;
     return emotionEntries.map((entry) => {
-      const expanded = expandedKeys.has(entry.key);
       const raw = getTopPx(entry.mins);
       const top = Math.max(raw, minNext);
-      minNext = top + (expanded ? EXPANDED_EXTRA : MIN_EMOTION_GAP);
+      minNext = top + MIN_EMOTION_GAP;
       return { ...entry, adjustedTop: top };
     });
-  }, [emotionEntries, getTopPx, expandedKeys]);
+  }, [emotionEntries, getTopPx]);
 
   const eventPositioned = useMemo(() => {
     let minNext = -Infinity;
     return eventEntries.map((entry) => {
-      const expanded = expandedKeys.has(entry.key);
       const raw = getTopPx(entry.mins);
       const top = Math.max(raw, minNext);
-      minNext = top + (expanded ? EXPANDED_EXTRA : MIN_EVENT_GAP);
+      minNext = top + MIN_EVENT_GAP;
       return { ...entry, adjustedTop: top };
     });
-  }, [eventEntries, getTopPx, expandedKeys]);
+  }, [eventEntries, getTopPx]);
 
   const sortedSymptomSessions = useMemo(() => {
     return [...symptomSessions].sort((a, b) => {
@@ -1145,24 +1091,24 @@ export default function InfiniteTimeline({
                   <div key={`acol-${colIdx}`} className="absolute"
                     style={{ left: colIdx * colWidths.activity, top: 0, width: colWidths.activity, height: totalHeight }}>
                     {col.map((entry) => {
-                      const topPx = getTopPx(entry.startMins);
-                      const heightPx = getRangePx(entry.startMins, entry.endMins);
-                      const isExpanded = expandedKeys.has(entry.key);
-                      const dateStr = format(day, "yyyy-MM-dd");
-                      return (
-                        <ActivityBar
-                          key={entry.key}
-                          activityName={entry.displayName}
-                          color={entry.categoryColor || "hsl(var(--primary))"}
-                          mergedCount={entry.mergedCount}
-                          topPx={topPx}
-                          heightPx={heightPx}
-                          expanded={isExpanded}
-                          notes={entry.activity.notes}
-                          onTap={() => toggleExpand(entry.key)}
-                          onDoubleTap={() => navigate(`/activities?date=${dateStr}&highlight=${entry.activity.id}`)}
-                        />
-                      );
+                     const topPx = getTopPx(entry.startMins);
+                     const heightPx = getRangePx(entry.startMins, entry.endMins);
+                     const dateStr = format(day, "yyyy-MM-dd");
+                     const timeStr = formatMins(entry.startMins);
+                     return (
+                       <ActivityBar
+                         key={entry.key}
+                         activityName={entry.displayName}
+                         color={entry.categoryColor || "hsl(var(--primary))"}
+                         mergedCount={entry.mergedCount}
+                         topPx={topPx}
+                         heightPx={heightPx}
+                         notes={entry.activity.notes}
+                         timeStr={timeStr}
+                         onTap={() => setDetailPopup({ type: "activity", entry })}
+                         onDoubleTap={() => navigate(`/activities?date=${dateStr}&highlight=${entry.activity.id}`)}
+                       />
+                     );
                     })}
                   </div>
                 ))}
@@ -1197,8 +1143,8 @@ export default function InfiniteTimeline({
                            topPx={topPx}
                            heightPx={heightPx}
                            rowH={rowH}
-                           expanded={expandedKeys.has(barKey)}
-                           onTap={() => toggleExpand(barKey)}
+                           expanded={false}
+                           onTap={() => setSymptomDetailModal({ session, symptom })}
                            onLongPress={() => setSymptomDetailModal({ session, symptom })}
                            onDoubleTap={() => setSymptomSessionPopover({ session, symptom, splitMins: entry.startMins })}
                          />
@@ -1219,9 +1165,8 @@ export default function InfiniteTimeline({
                         key={entry.key}
                         entry={entry}
                         topPx={entry.adjustedTop}
-                        expanded={expandedKeys.has(entry.key)}
                         colWidth={eventColWidth}
-                        onTap={() => toggleExpand(entry.key)}
+                        onTap={() => setDetailPopup({ type: "event", entry })}
                         onDoubleTap={() => {
                           if (entry.type === "journal") navigate(`/journals?id=${entry.id}`);
                           else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
@@ -1241,9 +1186,7 @@ export default function InfiniteTimeline({
                         key={entry.key}
                         entry={entry}
                         topPx={entry.adjustedTop}
-                        expanded={expandedKeys.has(entry.key)}
-                        colWidth={emotionColWidth}
-                        onTap={() => toggleExpand(entry.key)}
+                        onTap={() => setDetailPopup({ type: "emotion", entry })}
                       />
                     ))}
                   </div>
@@ -1387,6 +1330,63 @@ export default function InfiniteTimeline({
           onClose={() => setSymptomDetailModal(null)}
         />
       )}
+
+      {detailPopup?.type === "activity" && (() => {
+        const { entry } = detailPopup;
+        const color = entry.categoryColor || "hsl(var(--primary))";
+        return (
+          <DetailPopup icon="🏃" timeStr={formatMins(entry.startMins)} onClose={() => setDetailPopup(null)}>
+            <p className="text-sm font-semibold" style={{ color }}>{entry.displayName}</p>
+            {entry.mergedCount > 1 && <p className="text-xs text-muted-foreground mt-1">{entry.mergedCount} instances</p>}
+            {entry.activity.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{entry.activity.notes}</p>}
+            {!entry.activity.notes && entry.mergedCount <= 1 && <p className="text-xs text-muted-foreground mt-1 italic">No notes</p>}
+          </DetailPopup>
+        );
+      })()}
+
+      {detailPopup?.type === "emotion" && (() => {
+        const { entry } = detailPopup;
+        const emotions = entry.data.emotions || [];
+        const note = entry.data.note;
+        const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+        return (
+          <DetailPopup icon="💭" timeStr={timeStr} onClose={() => setDetailPopup(null)}>
+            {emotions.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {emotions.map((em) => (
+                  <span key={em} className="px-2 py-0.5 rounded-full text-white text-xs font-medium"
+                    style={{ backgroundColor: emotionColor(em) }}>{em}</span>
+                ))}
+              </div>
+            )}
+            {note && <p className="text-sm text-foreground whitespace-pre-wrap">{note}</p>}
+            {emotions.length === 0 && !note && <p className="text-xs text-muted-foreground italic">No details</p>}
+          </DetailPopup>
+        );
+      })()}
+
+      {detailPopup?.type === "event" && (() => {
+        const { entry } = detailPopup;
+        const meta = TYPE_META[entry.type] || { icon: "•" };
+        const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+        return (
+          <DetailPopup icon={meta.icon} timeStr={timeStr} onClose={() => setDetailPopup(null)}>
+            {entry.type === "journal" && <p className="text-sm font-semibold">{entry.label}</p>}
+            {entry.type === "checkin" && <p className="text-sm font-semibold">System Check-In</p>}
+            {entry.type === "bulletin" && <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">{entry.data.content}</p>}
+            {(entry.type === "task" || entry.type === "task_done") && <p className="text-sm font-semibold">{entry.label}</p>}
+            {entry.type === "symptom_checkin" && (
+              <div className="space-y-1">
+                {(entry.data.items || []).map(({ symptom, checkIn }, i) => (
+                  <p key={i} className="text-sm" style={{ color: symptom?.color || "#8b5cf6" }}>
+                    {symptom?.label || "?"}{checkIn.severity != null ? ` · severity ${checkIn.severity}` : ""}
+                  </p>
+                ))}
+              </div>
+            )}
+          </DetailPopup>
+        );
+      })()}
     </div>
   );
 }
