@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { parseDate } from "@/lib/dateUtils";
-import { startOfDay, endOfDay } from "date-fns";
+import { startOfDay, endOfDay, format } from "date-fns";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -292,7 +292,7 @@ export default function DailyTallyPanel({
             </button>
           )}
           {quickCheckInCount > 0 && (
-            <button onClick={() => navigate(`/manage-checkin`)} className="text-primary hover:underline text-left">
+            <button onClick={() => navigate(`/checkin-log?date=${format(dayStart, 'yyyy-MM-dd')}`)} className="text-primary hover:underline text-left">
               {quickCheckInCount} quick check-in{quickCheckInCount !== 1 ? "s" : ""}
             </button>
           )}

@@ -239,20 +239,16 @@ export default function Timeline() {
             return (created >= dayStart && created <= dayEnd) || (completed && completed >= dayStart && completed <= dayEnd);
           });
 
-          const daySymptomSessions = showSymptoms
-            ? symptomSessions.filter(s => {
-                const start = parseDate(s.start_time);
-                const end = s.end_time ? parseDate(s.end_time) : new Date();
-                return start <= dayEnd && end >= dayStart;
-              })
-            : [];
+          const daySymptomSessions = symptomSessions.filter(s => {
+            const start = parseDate(s.start_time);
+            const end = s.end_time ? parseDate(s.end_time) : new Date();
+            return start <= dayEnd && end >= dayStart;
+          });
 
-          const daySymptomCheckIns = showSymptoms
-            ? symptomCheckIns.filter(s => {
-                const t = parseDate(s.timestamp);
-                return t >= dayStart && t <= dayEnd;
-              })
-            : [];
+          const daySymptomCheckIns = symptomCheckIns.filter(s => {
+            const t = parseDate(s.timestamp);
+            return t >= dayStart && t <= dayEnd;
+          });
 
           const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0;
 
