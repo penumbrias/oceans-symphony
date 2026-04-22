@@ -15,7 +15,7 @@ function emotionColor(name) {
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
 
-export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters, checkIns = [], tasks = [] }) {
+export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters, checkIns = [], tasks = [], allSessions = [] }) {
   const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const dayEnd = useMemo(() => endOfDay(day), [day]);
@@ -34,7 +34,7 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
     return Object.entries(tally).sort((a, b) => b[1] - a[1]);
   }, [emotions, dayStart, dayEnd]);
 
-  // Fronter tally with total time
+  // Fronter tally with total time — supports both new (alter_id) and legacy (primary_alter_id) models
   const fronterTally = useMemo(() => {
     const tally = {};
     sessions.forEach((s) => {
@@ -46,11 +46,18 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
       
       if (sessionStart < sessionEnd) {
         const mins = Math.round((sessionEnd - sessionStart) / 60000);
-        const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-        ids.forEach((id) => {
-          if (!tally[id]) tally[id] = 0;
-          tally[id] += mins;
-        });
+        // New individual model
+        if (s.alter_id) {
+          if (!tally[s.alter_id]) tally[s.alter_id] = 0;
+          tally[s.alter_id] += mins;
+        } else {
+          // Legacy grouped model
+          const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+          ids.forEach((id) => {
+            if (!tally[id]) tally[id] = 0;
+            tally[id] += mins;
+          });
+        }
       }
     });
     
@@ -87,13 +94,22 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
     }).length;
   }, [journals, dayStart, dayEnd]);
 
-  // Check-in count
-  const checkInCount = useMemo(() => {
+  // Check-in count — System Check-Ins + Emotion/Quick Check-Ins
+  const systemCheckInCount = useMemo(() => {
     return checkIns.filter((c) => {
       const t = parseDate(c.created_date);
       return t >= dayStart && t <= dayEnd;
     }).length;
   }, [checkIns, dayStart, dayEnd]);
+
+  const quickCheckInCount = useMemo(() => {
+    return emotions.filter((e) => {
+      const t = parseDate(e.timestamp);
+      return t >= dayStart && t <= dayEnd;
+    }).length;
+  }, [emotions, dayStart, dayEnd]);
+
+  const checkInCount = systemCheckInCount + quickCheckInCount;
 
   // Tasks: created and completed on this day
   const taskStats = useMemo(() => {
@@ -187,25 +203,15 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
 
         <div>
           <p className="text-muted-foreground font-medium mb-1">Check-ins</p>
-          <p className="font-semibold text-base">{checkInCount}</p>
-          {(() => {
-            const dayStatuses = emotions.filter(e => {
-              if (!e.note || !e.note.trim()) return false;
-              const t = parseDate(e.timestamp);
-              if (t < dayStart || t > dayEnd) return false;
-              try {
-                const parsed = JSON.parse(e.note);
-                return Array.isArray(parsed) ? parsed.some(n => n.text?.trim()) : true;
-              } catch { return true; }
-            });
-            if (dayStatuses.length === 0) return null;
-            return (
-              <div className="mt-1.5">
-                <p className="text-muted-foreground font-medium mb-1">💬 Custom Statuses</p>
-                <p className="font-semibold text-base">{dayStatuses.length}</p>
-              </div>
-            );
-          })()}
+          <div className="space-y-0.5">
+            {quickCheckInCount > 0 && (
+              <p className="text-xs"><span className="font-semibold">{quickCheckInCount}</span> <span className="text-muted-foreground">quick</span></p>
+            )}
+            {systemCheckInCount > 0 && (
+              <p className="text-xs"><span className="font-semibold">{systemCheckInCount}</span> <span className="text-muted-foreground">system</span></p>
+            )}
+            {checkInCount === 0 && <span className="text-muted-foreground italic">None</span>}
+          </div>
         </div>
 
         <div>
@@ -216,9 +222,14 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
                 {journalCount} journal{journalCount !== 1 ? "s" : ""}
               </button>
             )}
-            {checkInCount > 0 && (
+            {quickCheckInCount > 0 && (
+              <button onClick={() => navigate(`/manage-checkin`)} className="block text-primary hover:underline text-left">
+                {quickCheckInCount} quick check-in{quickCheckInCount !== 1 ? "s" : ""}
+              </button>
+            )}
+            {systemCheckInCount > 0 && (
               <button onClick={() => navigate(`/system-checkin`)} className="block text-primary hover:underline text-left">
-                {checkInCount} check-in{checkInCount !== 1 ? "s" : ""}
+                {systemCheckInCount} system check-in{systemCheckInCount !== 1 ? "s" : ""}
               </button>
             )}
             {taskStats.created > 0 && (
@@ -226,7 +237,7 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
                 {taskStats.completed}/{taskStats.created} to-do{taskStats.created !== 1 ? "s" : ""}
               </button>
             )}
-            {journalCount === 0 && checkInCount === 0 && taskStats.created === 0 && (
+            {journalCount === 0 && quickCheckInCount === 0 && systemCheckInCount === 0 && taskStats.created === 0 && (
               <span className="text-muted-foreground italic">None</span>
             )}
           </div>
