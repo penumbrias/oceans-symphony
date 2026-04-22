@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { parseDate } from "@/lib/dateUtils";
 import { startOfDay, endOfDay } from "date-fns";
@@ -15,10 +15,16 @@ function emotionColor(name) {
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
 
-export default function DailyTallyPanel({ day, sessions, activities, emotions, journals, alters, checkIns = [], tasks = [], allSessions = [] }) {
+export default function DailyTallyPanel({
+  day, sessions, activities, emotions, journals, alters,
+  checkIns = [], tasks = [], symptoms = [], symptomSessions = [],
+}) {
   const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const dayEnd = useMemo(() => endOfDay(day), [day]);
+
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const [showAllStatuses, setShowAllStatuses] = useState(false);
 
   // Emotion tally
   const emotionTally = useMemo(() => {
@@ -26,51 +32,36 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
     emotions.forEach((e) => {
       const t = parseDate(e.timestamp);
       if (t >= dayStart && t <= dayEnd) {
-        (e.emotions || []).forEach((em) => {
-          tally[em] = (tally[em] || 0) + 1;
-        });
+        (e.emotions || []).forEach((em) => { tally[em] = (tally[em] || 0) + 1; });
       }
     });
     return Object.entries(tally).sort((a, b) => b[1] - a[1]);
   }, [emotions, dayStart, dayEnd]);
 
-  // Fronter tally with total time — supports both new (alter_id) and legacy (primary_alter_id) models
+  // Fronter tally
   const fronterTally = useMemo(() => {
     const tally = {};
     sessions.forEach((s) => {
       const start = parseDate(s.start_time);
       const end = s.end_time ? parseDate(s.end_time) : new Date();
-      
       const sessionStart = Math.max(start, dayStart);
       const sessionEnd = Math.min(end, dayEnd);
-      
       if (sessionStart < sessionEnd) {
         const mins = Math.round((sessionEnd - sessionStart) / 60000);
-        // New individual model
         if (s.alter_id) {
           if (!tally[s.alter_id]) tally[s.alter_id] = 0;
           tally[s.alter_id] += mins;
         } else {
-          // Legacy grouped model
           const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-          ids.forEach((id) => {
-            if (!tally[id]) tally[id] = 0;
-            tally[id] += mins;
-          });
+          ids.forEach((id) => { if (!tally[id]) tally[id] = 0; tally[id] += mins; });
         }
       }
     });
-    
     return Object.entries(tally)
-      .map(([alterId, mins]) => ({
-        alterId,
-        mins,
-        alter: alters.find((a) => a.id === alterId),
-      }))
+      .map(([alterId, mins]) => ({ alterId, mins, alter: (alters || []).find((a) => a.id === alterId) }))
       .sort((a, b) => b.mins - a.mins);
   }, [sessions, dayStart, dayEnd, alters]);
 
-  // Total switch count
   const switchCount = useMemo(() => {
     return sessions.filter((s) => {
       const start = parseDate(s.start_time);
@@ -78,15 +69,6 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
     }).length;
   }, [sessions, dayStart, dayEnd]);
 
-  // Activity count
-  const activityCount = useMemo(() => {
-    return activities.filter((a) => {
-      const t = parseDate(a.timestamp);
-      return t >= dayStart && t <= dayEnd;
-    }).length;
-  }, [activities, dayStart, dayEnd]);
-
-  // Journal count
   const journalCount = useMemo(() => {
     return journals.filter((j) => {
       const t = parseDate(j.created_date);
@@ -94,7 +76,6 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
     }).length;
   }, [journals, dayStart, dayEnd]);
 
-  // Check-in count — System Check-Ins + Emotion/Quick Check-Ins
   const systemCheckInCount = useMemo(() => {
     return checkIns.filter((c) => {
       const t = parseDate(c.created_date);
@@ -111,7 +92,6 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
 
   const checkInCount = systemCheckInCount + quickCheckInCount;
 
-  // Tasks: created and completed on this day
   const taskStats = useMemo(() => {
     const dayTasks = tasks.filter((t) => {
       const created = parseDate(t.created_date);
@@ -120,8 +100,7 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
     });
     const completedCount = dayTasks.filter((t) => t.completed && parseDate(t.completed_date) >= dayStart && parseDate(t.completed_date) <= dayEnd).length;
     const createdCount = dayTasks.filter((t) => parseDate(t.created_date) >= dayStart && parseDate(t.created_date) <= dayEnd).length;
-    const completionPercent = createdCount > 0 ? Math.round((completedCount / createdCount) * 100) : 0;
-    return { created: createdCount, completed: completedCount, percent: completionPercent };
+    return { created: createdCount, completed: completedCount };
   }, [tasks, dayStart, dayEnd]);
 
   // Unique activities
@@ -130,33 +109,78 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
       const t = parseDate(a.timestamp);
       return t >= dayStart && t <= dayEnd;
     });
-    const names = [...new Set(dayActs.map((a) => a.activity_name))];
-    return names;
+    return [...new Set(dayActs.map((a) => a.activity_name))];
   }, [activities, dayStart, dayEnd]);
 
-  const avgSwitchTime = useMemo(() => {
-    if (switchCount === 0) return 0;
-    const totalMins = fronterTally.reduce((sum, f) => sum + f.mins, 0);
-    return Math.round(totalMins / switchCount);
-  }, [switchCount, fronterTally]);
+  // Custom status notes from emotions
+  const customStatuses = useMemo(() => {
+    const statuses = [];
+    emotions.forEach((e) => {
+      const t = parseDate(e.timestamp);
+      if (t < dayStart || t > dayEnd) return;
+      if (!e.note || !e.note.trim()) return;
+      try {
+        const parsed = JSON.parse(e.note);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(n => { if (n.text?.trim()) statuses.push(n.text.trim()); });
+        } else {
+          statuses.push(e.note.trim());
+        }
+      } catch {
+        statuses.push(e.note.trim());
+      }
+    });
+    return statuses;
+  }, [emotions, dayStart, dayEnd]);
+
+  // Active symptom sessions this day
+  const activeSymptoms = useMemo(() => {
+    const symptomMap = {};
+    symptoms.forEach(s => { symptomMap[s.id] = s; });
+    const seen = new Set();
+    const result = [];
+    symptomSessions.forEach(ss => {
+      const start = parseDate(ss.start_time);
+      const end = ss.end_time ? parseDate(ss.end_time) : new Date();
+      const sessionStart = Math.max(start, dayStart);
+      const sessionEnd = Math.min(end, dayEnd);
+      if (sessionStart < sessionEnd && !seen.has(ss.symptom_id)) {
+        seen.add(ss.symptom_id);
+        const symptom = symptomMap[ss.symptom_id];
+        if (symptom) result.push(symptom);
+      }
+    });
+    return result;
+  }, [symptomSessions, symptoms, dayStart, dayEnd]);
+
+  const ACTIVITY_INITIAL = 4;
+  const STATUS_INITIAL = 3;
 
   return (
-    <div className="px-4 py-3 bg-muted/20 border-t border-border/40 space-y-2 text-xs">
+    <div className="px-4 py-3 bg-muted/20 border-t border-border/40 space-y-3 text-xs">
+
+      {/* Row 1: Activities + Switches/Fronters */}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <p className="text-muted-foreground font-medium mb-1">Activities</p>
           <div className="flex flex-wrap gap-1">
             {uniqueActivities.length > 0 ? (
-              uniqueActivities.slice(0, 6).map((name) => (
-                <div key={name} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium text-xs">
-                  {name}
-                </div>
-              ))
+              <>
+                {(showAllActivities ? uniqueActivities : uniqueActivities.slice(0, ACTIVITY_INITIAL)).map((name) => (
+                  <div key={name} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium text-xs">
+                    {name}
+                  </div>
+                ))}
+                {uniqueActivities.length > ACTIVITY_INITIAL && (
+                  <button
+                    onClick={() => setShowAllActivities(v => !v)}
+                    className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-xs hover:bg-muted/80 transition-colors">
+                    {showAllActivities ? "Less" : `+${uniqueActivities.length - ACTIVITY_INITIAL} more`}
+                  </button>
+                )}
+              </>
             ) : (
               <span className="text-muted-foreground italic">None</span>
-            )}
-            {uniqueActivities.length > 6 && (
-              <span className="text-muted-foreground text-xs">+{uniqueActivities.length - 6} more</span>
             )}
           </div>
         </div>
@@ -171,9 +195,8 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
             <div className="space-y-0.5">
               {fronterTally.length > 0 ? (
                 fronterTally.map(({ alter, mins }) => (
-                  <div key={alter?.id} className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: alter?.color || "#9333ea" }} />
+                  <div key={alter?.id || mins} className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter?.color || "#9333ea" }} />
                     <span className="truncate text-xs">{alter?.name || "Unknown"}</span>
                     <span className="text-muted-foreground text-xs">{Math.round(mins / 60)}h</span>
                   </div>
@@ -184,7 +207,10 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
             </div>
           </div>
         </div>
+      </div>
 
+      {/* Row 2: Emotions + Check-ins */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <p className="text-muted-foreground font-medium mb-1">Emotions</p>
           <div className="flex flex-wrap gap-1">
@@ -213,36 +239,79 @@ export default function DailyTallyPanel({ day, sessions, activities, emotions, j
             {checkInCount === 0 && <span className="text-muted-foreground italic">None</span>}
           </div>
         </div>
+      </div>
 
+      {/* Row 3: Symptoms + Custom Statuses */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <p className="text-muted-foreground font-medium mb-1">Entries</p>
-          <div className="space-y-1 text-xs">
-            {journalCount > 0 && (
-              <button onClick={() => navigate(`/journals`)} className="block text-primary hover:underline text-left">
-                {journalCount} journal{journalCount !== 1 ? "s" : ""}
-              </button>
-            )}
-            {quickCheckInCount > 0 && (
-              <button onClick={() => navigate(`/manage-checkin`)} className="block text-primary hover:underline text-left">
-                {quickCheckInCount} quick check-in{quickCheckInCount !== 1 ? "s" : ""}
-              </button>
-            )}
-            {systemCheckInCount > 0 && (
-              <button onClick={() => navigate(`/system-checkin`)} className="block text-primary hover:underline text-left">
-                {systemCheckInCount} system check-in{systemCheckInCount !== 1 ? "s" : ""}
-              </button>
-            )}
-            {taskStats.created > 0 && (
-              <button onClick={() => navigate(`/todo`)} className="block text-primary hover:underline text-left">
-                {taskStats.completed}/{taskStats.created} to-do{taskStats.created !== 1 ? "s" : ""}
-              </button>
-            )}
-            {journalCount === 0 && quickCheckInCount === 0 && systemCheckInCount === 0 && taskStats.created === 0 && (
+          <p className="text-muted-foreground font-medium mb-1">Symptoms</p>
+          <div className="flex flex-wrap gap-1">
+            {activeSymptoms.length > 0 ? (
+              activeSymptoms.map((s) => (
+                <div key={s.id} className="px-1.5 py-0.5 rounded text-white font-medium text-xs"
+                  style={{ backgroundColor: s.color || "#8b5cf6" }}>
+                  {s.label}
+                </div>
+              ))
+            ) : (
               <span className="text-muted-foreground italic">None</span>
             )}
           </div>
         </div>
+
+        <div>
+          <p className="text-muted-foreground font-medium mb-1">💬 Custom Statuses</p>
+          {customStatuses.length > 0 ? (
+            <div className="space-y-1">
+              {(showAllStatuses ? customStatuses : customStatuses.slice(0, STATUS_INITIAL)).map((text, i) => (
+                <p key={i} className="text-xs text-foreground leading-tight line-clamp-2 border-l-2 border-primary/40 pl-1.5">
+                  {text}
+                </p>
+              ))}
+              {customStatuses.length > STATUS_INITIAL && (
+                <button
+                  onClick={() => setShowAllStatuses(v => !v)}
+                  className="text-xs text-primary hover:underline transition-colors">
+                  {showAllStatuses ? "Show less" : `+${customStatuses.length - STATUS_INITIAL} more`}
+                </button>
+              )}
+            </div>
+          ) : (
+            <span className="text-muted-foreground italic">None</span>
+          )}
+        </div>
       </div>
+
+      {/* Row 4: Entries */}
+      <div>
+        <p className="text-muted-foreground font-medium mb-1">Entries</p>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          {journalCount > 0 && (
+            <button onClick={() => navigate(`/journals`)} className="text-primary hover:underline text-left">
+              {journalCount} journal{journalCount !== 1 ? "s" : ""}
+            </button>
+          )}
+          {quickCheckInCount > 0 && (
+            <button onClick={() => navigate(`/manage-checkin`)} className="text-primary hover:underline text-left">
+              {quickCheckInCount} quick check-in{quickCheckInCount !== 1 ? "s" : ""}
+            </button>
+          )}
+          {systemCheckInCount > 0 && (
+            <button onClick={() => navigate(`/system-checkin`)} className="text-primary hover:underline text-left">
+              {systemCheckInCount} system check-in{systemCheckInCount !== 1 ? "s" : ""}
+            </button>
+          )}
+          {taskStats.created > 0 && (
+            <button onClick={() => navigate(`/todo`)} className="text-primary hover:underline text-left">
+              {taskStats.completed}/{taskStats.created} to-do{taskStats.created !== 1 ? "s" : ""}
+            </button>
+          )}
+          {journalCount === 0 && quickCheckInCount === 0 && systemCheckInCount === 0 && taskStats.created === 0 && (
+            <span className="text-muted-foreground italic">None</span>
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }
