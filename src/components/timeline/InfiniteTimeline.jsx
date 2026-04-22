@@ -1318,31 +1318,7 @@ export default function InfiniteTimeline({
                   });
                 })}
 
-                {/* Status notes from EmotionCheckIn.note — parse JSON array and render each entry */}
-                {emotions.flatMap((e, i) => {
-                  if (!e.note || !e.note.trim()) return [];
-                  let noteEntries = [];
-                  try {
-                    const parsed = JSON.parse(e.note);
-                    noteEntries = Array.isArray(parsed)
-                      ? parsed.map(n => ({ text: n.text || "", timestamp: n.timestamp || e.timestamp }))
-                      : [{ text: e.note, timestamp: e.timestamp }];
-                  } catch {
-                    noteEntries = [{ text: e.note, timestamp: e.timestamp }];
-                  }
-                  return noteEntries.flatMap((entry, j) => {
-                    if (!entry.text.trim()) return [];
-                    const mins = minutesInDay(parseDate(entry.timestamp || e.timestamp), dayStart);
-                    if (mins < 0 || mins >= 24 * 60) return [];
-                    const topPx = getTopPx(mins);
-                    return [(
-                      <div key={`status-note-${e.id || i}-${j}`} className="absolute"
-                        style={{ left: Math.max(0, alterLeft - 20), right: 0, top: 0, height: totalHeight }}>
-                        <StatusNoteBadge note={entry.text} topPx={topPx} id={e.id} />
-                      </div>
-                    )];
-                  });
-                })}
+
 
               </div>
             </div>
