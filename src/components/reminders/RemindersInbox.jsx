@@ -189,6 +189,7 @@ export default function RemindersInbox() {
       {setFrontOpen && (
         <SetFrontModal
           open={setFrontOpen}
+          alters={alters}
           onClose={() => {
             setSetFrontOpen(false);
             if (pendingActInstance) {
