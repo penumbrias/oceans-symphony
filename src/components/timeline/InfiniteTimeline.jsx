@@ -418,35 +418,33 @@ const TYPE_META = {
   symptom_checkin: { icon: "💊" },
 };
 
-function EmotionBubble({ entry, topPx, onTap, onDoubleTap }) {
+function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
   const tap = useDoubleTap(onTap, onDoubleTap);
   return (
-    <div className="absolute right-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+    <div className="absolute right-0 left-0 cursor-pointer z-10 px-1" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
       <div className="relative">
         {emotions.length > 0 ? (
-          <>
-            {note && <div className="absolute -top-1.5 -right-1 z-20 pointer-events-none" style={{ fontSize: 9 }}>💭</div>}
-            <div className="flex gap-0.5 flex-wrap justify-end">
-              {emotions.slice(0, 4).map((em) => (
-                <div key={em} className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0"
-                  style={{ width: 18, height: 18, backgroundColor: emotionColor(em) }} title={em}>
-                  <span className="text-white font-bold" style={{ fontSize: 8 }}>{em.charAt(0).toUpperCase()}</span>
-                </div>
-              ))}
-              {emotions.length > 4 && (
-                <div className="rounded-full border-2 border-background flex items-center justify-center flex-shrink-0 bg-muted"
-                  style={{ width: 18, height: 18 }}>
-                  <span className="text-muted-foreground font-bold" style={{ fontSize: 7 }}>+{emotions.length - 4}</span>
-                </div>
-              )}
-            </div>
-          </>
+          <div className="flex flex-col gap-px">
+            {note && <span style={{ fontSize: 8 }} className="text-muted-foreground leading-none">💭</span>}
+            {emotions.slice(0, 3).map((em) => (
+              <div key={em} className="flex items-center gap-0.5 overflow-hidden" title={em}>
+                <div className="rounded-full flex-shrink-0 border border-background"
+                  style={{ width: 7, height: 7, backgroundColor: emotionColor(em) }} />
+                <span className="font-medium truncate" style={{ fontSize: 9, color: emotionColor(em), maxWidth: "100%", lineHeight: "1.1" }}>
+                  {em}
+                </span>
+              </div>
+            ))}
+            {emotions.length > 3 && (
+              <span className="text-muted-foreground" style={{ fontSize: 8 }}>+{emotions.length - 3}</span>
+            )}
+          </div>
         ) : note ? (
-          <div className="rounded-full border-2 border-border/60 bg-card/90 flex items-center justify-center flex-shrink-0"
-            style={{ width: 22, height: 22 }} title={note}>
-            <span style={{ fontSize: 12 }}>💭</span>
+          <div className="rounded border border-border/60 bg-card/90 flex items-center justify-center px-1"
+            style={{ height: 16 }} title={note}>
+            <span style={{ fontSize: 10 }}>💭</span>
           </div>
         ) : null}
       </div>
@@ -459,6 +457,37 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   const meta = TYPE_META[entry.type] || { icon: "•" };
   const isTaskDone = entry.type === "task_done";
   const showLabel = colWidth >= EVENT_DETAIL_MIN_WIDTH;
+
+  // Special rendering for symptom check-ins: list up to 3 symptoms ranked by severity
+  if (entry.type === "symptom_checkin") {
+    const items = (entry.data.items || [])
+      .slice()
+      .sort((a, b) => (b.checkIn.severity ?? -1) - (a.checkIn.severity ?? -1))
+      .slice(0, 3);
+    return (
+      <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+        <div className="flex flex-col gap-px" style={{ maxWidth: colWidth - 8 }}>
+          {items.map(({ symptom, checkIn }, i) => {
+            const color = symptom?.color || "#8b5cf6";
+            return (
+              <div key={i} className="flex items-center gap-0.5 overflow-hidden" title={symptom?.label}>
+                <div className="rounded-full flex-shrink-0 border border-background"
+                  style={{ width: 7, height: 7, backgroundColor: color }} />
+                <span className="font-medium truncate" style={{ fontSize: 9, color, lineHeight: "1.1", maxWidth: "100%" }}>
+                  {symptom?.label || "?"}
+                  {checkIn.severity != null ? <span style={{ opacity: 0.7 }}> {checkIn.severity}</span> : null}
+                </span>
+              </div>
+            );
+          })}
+          {(entry.data.items || []).length > 3 && (
+            <span className="text-muted-foreground" style={{ fontSize: 8 }}>+{entry.data.items.length - 3}</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const shortLabel =
     entry.type === 'checkin' ? 'Check-In' :
     entry.type === 'journal' ? (entry.label || 'Journal') :
@@ -1187,6 +1216,7 @@ export default function InfiniteTimeline({
                         key={entry.key}
                         entry={entry}
                         topPx={entry.adjustedTop}
+                        colWidth={emotionColWidth_actual}
                         onTap={() => setDetailPopup({ type: "emotion", entry })}
                         onDoubleTap={() => navigate(`/checkin-log?id=${entry.id}`)}
                       />
