@@ -257,7 +257,7 @@ export default function SetFrontModal({ open, onClose, alters, currentSession })
               <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground text-xs">Unsure</span> :
 
               [...selectedIds].map((id) => {
-                const a = alters.find((x) => x.id === id);
+                const a = (alters || []).find((x) => x.id === id);
                 if (!a) return null;
                 return (
                   <span
