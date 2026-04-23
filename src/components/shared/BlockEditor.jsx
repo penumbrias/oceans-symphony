@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-import InternalLinkPicker, { buildInternalLinkBlock } from "@/components/shared/InternalLinkPicker";
 
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
@@ -42,8 +41,7 @@ export function blocksToHTML(blocks) {
       }
       case "divider":
         return `<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />`;
-      case "internal-link":
-        return `<a data-internal-link="1" data-entity-type="${block.entityType}" data-entity-id="${block.entityId}" data-route="${encodeURIComponent(block.route || '')}" href="${block.route || '#'}" style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;border:1.5px solid hsl(var(--border));background:hsl(var(--muted));text-decoration:none;color:hsl(var(--foreground));font-size:0.8rem;max-width:100%;overflow:hidden;">🔗 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${block.label || "Link"}</span><span style="color:hsl(var(--muted-foreground));font-size:0.7rem;flex-shrink:0;">${block.entityType || ""}</span></a>`;
+
       case "raw":
         return block.content || "";
       default:
@@ -113,13 +111,6 @@ export function htmlToBlocks(html) {
       const altMatch = trimmed.match(/img src="[^"]*" alt="([^"]*)"/);
       const sizeMatch = trimmed.match(/width:(\d+)px/);
       blocks.push({ id: uid(), type: "img-solo", src: srcMatch?.[1] || "", alt: altMatch?.[1] || "", size: sizeMatch ? parseInt(sizeMatch[1]) : 240, align: alignMatch?.[1] || "left", cropped: trimmed.includes('object-fit:cover') });
-    } else if (trimmed.startsWith('<a data-internal-link=')) {
-      const entityType = (trimmed.match(/data-entity-type="([^"]*)"/) || [])[1] || "";
-      const entityId   = (trimmed.match(/data-entity-id="([^"]*)"/)   || [])[1] || "";
-      const route      = decodeURIComponent((trimmed.match(/data-route="([^"]*)"/) || [])[1] || "");
-      const labelMatch = trimmed.match(/white-space:nowrap;">([^<]*)<\/span>/);
-      const label = labelMatch ? labelMatch[1] : "Link";
-      blocks.push({ id: uid(), type: "internal-link", entityType, entityId, route, label });
     } else if (trimmed.startsWith('<div class="bio-text">')) {
       const content = trimmed.replace(/^<div class="bio-text">/, "").replace(/<\/div>$/, "");
       blocks.push({ id: uid(), type: "text", content });
@@ -450,7 +441,7 @@ function RawBlock({ block, onChange }) {
   );
 }
 
-const blockLabel = (type) => ({ text: "Text", "img-left": "Image · Text", "img-solo": "Image", "img-right": "Text · Image", gallery: "Gallery", divider: "Divider", raw: "Raw HTML", "internal-link": "Internal Link" }[type] || type);
+const blockLabel = (type) => ({ text: "Text", "img-left": "Image · Text", "img-solo": "Image", "img-right": "Text · Image", gallery: "Gallery", divider: "Divider", raw: "Raw HTML" }[type] || type);
 
 const BLOCK_DEFAULTS = {
   text: { content: "" },
@@ -467,7 +458,6 @@ export default function BlockEditor({ value, onChange }) {
     return parsed.length ? parsed : [{ id: uid(), type: "text", content: "" }];
   });
   const [showAddMenu, setShowAddMenu] = useState(false);
-  const [showLinkPicker, setShowLinkPicker] = useState(false);
   const internalChangeRef = useRef(false);
 
   // Sync from external value changes (e.g. undo, discard, link insert from parent)
@@ -494,32 +484,18 @@ export default function BlockEditor({ value, onChange }) {
     setBlocks(bs => [...bs, { id: uid(), type, ...BLOCK_DEFAULTS[type] }]);
   }, []);
 
-  const handleInsertLink = useCallback((item) => {
-    const linkBlock = buildInternalLinkBlock(item);
-    setBlocks(bs => [...bs, { ...linkBlock, id: uid() }]);
-    setShowLinkPicker(false);
-  }, []);
-
   return (
     <div className="space-y-2">
       <div className="space-y-2">
         {blocks.map((block, i) => (
           <BlockShell key={block.id} index={i} total={blocks.length} label={blockLabel(block.type)}
             onMoveUp={() => moveBlock(block.id, -1)} onMoveDown={() => moveBlock(block.id, 1)} onDelete={() => deleteBlock(block.id)}>
-            {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} onInsertLink={() => setShowLinkPicker(true)} />}
+            {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {block.type === "img-solo" && <ImgSoloBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-            {(block.type === "img-left" || block.type === "img-right") && <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} onInsertLink={() => setShowLinkPicker(true)} />}
+            {(block.type === "img-left" || block.type === "img-right") && <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {block.type === "gallery" && <GalleryBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {block.type === "divider" && <DividerBlock />}
             {block.type === "raw" && <RawBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-            {block.type === "internal-link" && (
-              <div className="px-3 py-3 flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-muted text-sm max-w-full overflow-hidden">
-                  🔗 <span className="flex-1 truncate">{block.label || "Link"}</span>
-                  <span className="text-xs text-muted-foreground flex-shrink-0">{block.entityType}</span>
-                </span>
-              </div>
-            )}
           </BlockShell>
         ))}
       </div>
@@ -528,7 +504,6 @@ export default function BlockEditor({ value, onChange }) {
         <Plus className="w-4 h-4" /> Add block
       </button>
       {showAddMenu && <AddBlockMenu onAdd={addBlock} onClose={() => setShowAddMenu(false)} />}
-      {showLinkPicker && <InternalLinkPicker onSelect={handleInsertLink} onClose={() => setShowLinkPicker(false)} />}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
-import InternalLinkPicker, { buildInternalLinkBlock } from "@/components/shared/InternalLinkPicker";
+
 
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
@@ -153,7 +153,6 @@ export default function BioEditor({ value, onChange }) {
   const [editorMode, setEditorMode] = useState(hasBlocks ? "simple" : "plain");
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
-  const [showLinkPicker, setShowLinkPicker] = useState(false);
   const [currentHTML, setCurrentHTML] = useState(value || "");
   const historyRef = useRef({ stack: [value || ""], index: 0 });
   const taRef = useRef(null);
@@ -200,14 +199,6 @@ export default function BioEditor({ value, onChange }) {
       toast.success(`Imported ${blocks.length} block${blocks.length !== 1 ? "s" : ""}!`);
     }
   }, [handleChange]);
-
-  const handleInsertLink = useCallback((item) => {
-    const linkBlock = buildInternalLinkBlock(item);
-    const blocks = htmlToBlocks(currentHTML);
-    const updated = [...blocks, { ...linkBlock, id: `b_${Date.now()}` }];
-    handleChange(blocksToHTML(updated));
-    setEditorMode("simple");
-  }, [currentHTML, handleChange]);
 
   const handleBlockChange = useCallback((id, patch) => {
     if (patch.__remove) {
@@ -269,7 +260,7 @@ export default function BioEditor({ value, onChange }) {
             placeholder="Write a bio..."
             className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
             spellCheck={false} />
-          <MiniToolbar onInsert={insert} onInsertLink={() => setShowLinkPicker(true)} />
+          <MiniToolbar onInsert={insert} />
         </div>
       ) : editorMode === "simple" ? (
         <SimplePreview
@@ -282,12 +273,6 @@ export default function BioEditor({ value, onChange }) {
 
       {showImport && <ImportSPModal onImport={handleImport} onClose={() => setShowImport(false)} />}
       {showHTMLPreview && <HTMLPreviewModal html={currentHTML} onClose={() => setShowHTMLPreview(false)} />}
-      {showLinkPicker && (
-        <InternalLinkPicker
-          onSelect={handleInsertLink}
-          onClose={() => setShowLinkPicker(false)}
-        />
-      )}
     </div>
   );
 }

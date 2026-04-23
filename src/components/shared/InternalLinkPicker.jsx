@@ -26,14 +26,19 @@ function buildRoute(item) {
   }
 }
 
-export function buildInternalLinkBlock(item) {
-  return {
-    type: "internal-link",
-    entityType: item.type,
-    entityId: item.id,
-    label: item.name,
-    route: buildRoute(item),
-  };
+const TYPE_EMOJI = {
+  alter: "👤",
+  journal: "📓",
+  folder: "📁",
+  checkin: "💙",
+  location: "🗺️",
+};
+
+export function buildInternalLinkHTML(item) {
+  const route = buildRoute(item);
+  const emoji = TYPE_EMOJI[item.type] || "🔗";
+  const display = `${emoji} ${item.name}`;
+  return `<a data-internal-link="${route}" style="color:hsl(var(--primary));text-decoration:underline;cursor:pointer;">${display}</a>`;
 }
 
 export default function InternalLinkPicker({ onSelect, onClose }) {
@@ -161,7 +166,7 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => { onSelect(item); onClose(); }}
+                      onClick={() => { onSelect(buildInternalLinkHTML(item)); onClose(); }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors text-left">
                       <span className={`flex-shrink-0 ${meta.color}`}>{meta.icon}</span>
                       <span className="flex-1 text-sm text-foreground truncate">{item.name}</span>

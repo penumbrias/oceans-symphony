@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { HexColorPicker } from "react-colorful";
 import { X, ChevronDown } from "lucide-react";
+import InternalLinkPicker, { buildInternalLinkHTML } from "@/components/shared/InternalLinkPicker";
 
 export const PRESET_COLORS = [
   "#ff4d4d","#ff85a1","#ff1493","#c0392b",
@@ -122,6 +123,7 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
     try { return localStorage.getItem("os_toolbar_advanced") === "true"; } catch { return false; }
   });
   const [showFontPicker, setShowFontPicker] = useState(false);
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
   const savedSelection = useRef(null);
 
   const toggleAdvanced = () => {
@@ -179,14 +181,18 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
         {btn("—", '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
         {sep}
         {btn("🔗", '<a href="https://">', "</a>", "Link")}
-        {onInsertLink && (
-          <button type="button" title="Insert internal link"
-            onMouseDown={e => e.preventDefault()}
-            onClick={onInsertLink}
-            className="h-6 px-1 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold flex-shrink-0">
-            🧩
-          </button>
-        )}
+        <button type="button" title="Insert internal link"
+          onMouseDown={e => e.preventDefault()}
+          onClick={() => {
+            const ta = document.activeElement;
+            if (ta && (ta.tagName === "TEXTAREA" || ta.tagName === "INPUT")) {
+              savedSelection.current = { el: ta, start: ta.selectionStart, end: ta.selectionEnd };
+            }
+            setShowLinkPicker(true);
+          }}
+          className="h-6 px-1 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold flex-shrink-0">
+          🧩
+        </button>
         {btn("✎", '<span data-edit="true">', "</span>", "Make editable in Simple mode")}
         {sep}
         {/* Text color */}
@@ -277,6 +283,18 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
       )}
 
       {colorModal && <ColorPickerModal mode={colorModal} onApply={applyColor} onClose={() => setColorModal(null)} />}
+      {showLinkPicker && (
+        <InternalLinkPicker
+          onSelect={(html) => {
+            const s = savedSelection.current;
+            if (s) { s.el.focus(); s.el.setSelectionRange(s.start, s.end); }
+            onInsert(html, "");
+            savedSelection.current = null;
+            setShowLinkPicker(false);
+          }}
+          onClose={() => { savedSelection.current = null; setShowLinkPicker(false); }}
+        />
+      )}
     </>
   );
 }
