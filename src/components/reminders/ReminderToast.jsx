@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const SESSION_KEY = "symphony_shown_toast_ids";
+// Map of instanceId -> snoozed_until ISO string (so we know when to re-show)
+const SNOOZE_KEY = "symphony_snoozed_until";
 
 function getShownIds() {
   try { return new Set(JSON.parse(sessionStorage.getItem(SESSION_KEY) || "[]")); }
@@ -27,10 +29,31 @@ function addShownId(id) {
   ids.add(id);
   sessionStorage.setItem(SESSION_KEY, JSON.stringify([...ids]));
 }
-function removeShownId(id) {
-  const ids = getShownIds();
-  ids.delete(id);
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify([...ids]));
+function getSnoozedUntil() {
+  try { return JSON.parse(sessionStorage.getItem(SNOOZE_KEY) || "{}"); }
+  catch { return {}; }
+}
+function setSnoozedUntil(id, until) {
+  const map = getSnoozedUntil();
+  map[id] = until;
+  sessionStorage.setItem(SNOOZE_KEY, JSON.stringify(map));
+}
+function clearSnoozedUntil(id) {
+  const map = getSnoozedUntil();
+  delete map[id];
+  sessionStorage.setItem(SNOOZE_KEY, JSON.stringify(map));
+}
+// Returns true if this instance id is currently snoozed (snooze not yet expired)
+function isSnoozedInSession(id) {
+  const map = getSnoozedUntil();
+  const until = map[id];
+  if (!until) return false;
+  if (new Date(until) <= new Date()) {
+    // Snooze expired — clear it
+    clearSnoozedUntil(id);
+    return false;
+  }
+  return true;
 }
 
 const DEFAULT_SNOOZE = [10, 60, 240, "tomorrow"];
@@ -48,7 +71,11 @@ export default function ReminderToast() {
   // Load reminder data for each instance we need
   useEffect(() => {
     const shownIds = getShownIds();
-    const newOnes = pendingInstances.filter(i => !shownIds.has(i.id) && i.status === "fired");
+    const newOnes = pendingInstances.filter(i =>
+      !shownIds.has(i.id) &&
+      !isSnoozedInSession(i.id) &&
+      i.status === "fired"
+    );
     if (!newOnes.length) return;
 
     Promise.all(newOnes.map(async inst => {
@@ -114,9 +141,11 @@ export default function ReminderToast() {
   };
 
   const handleSnooze = async ({ instance }, opt) => {
-    removeShownId(instance.id);
-    await updateInstance(instance.id, { status: "snoozed", snoozed_until: snoozeUntilDate(opt) });
-    queryClient.invalidateQueries({ queryKey: ["reminderInstances", "pending"] });
+    const until = snoozeUntilDate(opt);
+    // Mark in session storage so we suppress this toast until snooze expires,
+    // even if the query briefly returns it as "fired" before the DB update propagates.
+    setSnoozedUntil(instance.id, until);
+    await updateInstance(instance.id, { status: "snoozed", snoozed_until: until });
   };
 
   if (!visible.length) return null;
