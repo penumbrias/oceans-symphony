@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -9,7 +9,7 @@ import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { snoozeUntilDate } from "./snoozeHelpers";
 
-export default function RemindersInbox() {
+export default function RemindersInbox({ autoTriggerAction = null }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [showHandled, setShowHandled] = useState(false);
@@ -35,6 +35,16 @@ export default function RemindersInbox() {
 
   const reminderMap = Object.fromEntries(reminders.map(r => [r.id, r]));
   const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
+
+  // Fire deep-link action once instances are loaded
+  useEffect(() => {
+    if (!autoTriggerAction || !instances.length) return;
+    const { instanceId, actionType } = autoTriggerAction;
+    const instance = instances.find(i => i.id === instanceId);
+    if (!instance) return;
+    // Trigger the action as if the user tapped it
+    handleAction(instance, { action_type: actionType });
+  }, [autoTriggerAction, instances]);
 
   const active = instances.filter(i => {
     if (i.status === "snoozed") return true; // always show snoozed so user can unsnooze
@@ -74,9 +84,11 @@ export default function RemindersInbox() {
     } else if (type === "open_journal") {
       navigate("/journals");
     } else if (type === "open_diary") {
-      navigate("/diary");
+      navigate("/checkin-log");
     } else if (type === "open_symptom_check_in") {
-      navigate("/diary?openSymptoms=1");
+      setPendingActInstance(instance);
+      setCheckInOpen(true);
+      return; // status updated on modal close
     } else if (type === "open_system_map") {
       navigate("/system-map");
     } else if (type === "open_timeline") {
@@ -86,7 +98,9 @@ export default function RemindersInbox() {
     } else if (type === "open_route") {
       navigate(action.payload?.path || "/");
     } else if (type === "log_symptom") {
-      await base44.entities.SymptomCheckIn.create({ symptom_id: action.payload?.symptom_id, timestamp: new Date().toISOString() });
+      setPendingActInstance(instance);
+      setCheckInOpen(true);
+      return; // open check-in modal so user can log symptoms with context
     } else if (type === "dismiss") {
       await updateInstance(instance.id, { status: "dismissed" });
       return;

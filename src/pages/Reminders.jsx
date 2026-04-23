@@ -1,10 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Bell, X } from "lucide-react";
-import { useEffect } from "react";
-import { useQueryClient as _useQC } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import RemindersInbox from "@/components/reminders/RemindersInbox";
 import RemindersManage from "@/components/reminders/RemindersManage";
@@ -15,22 +12,27 @@ export default function Reminders() {
   const [helperDismissed, setHelperDismissed] = useState(() => {
     return localStorage.getItem("reminders_helper_dismissed") === "true";
   });
+  const [autoTriggerAction, setAutoTriggerAction] = useState(null);
   const queryClient = useQueryClient();
 
   // Handle notification click deep-link: /reminders?act=<id>&action=<type>
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const instanceId = params.get("act");
-    const action = params.get("action");
-    if (instanceId && action) {
-      import("@/api/base44Client").then(({ base44 }) => {
-        const statusMap = { dismiss: "dismissed", open_grounding: "acted", open_route: "acted", open_check_in: "acted", log_symptom: "acted" };
-        const status = statusMap[action] || "acted";
-        base44.entities.ReminderInstance.update(instanceId, { status, acted_action: action })
-          .then(() => queryClient.invalidateQueries({ queryKey: ["reminderInstances"] }));
-      });
-      // Clean URL
+    const actionType = params.get("action");
+    if (instanceId && actionType) {
+      // Update the instance status
+      const statusMap = { dismiss: "dismissed" };
+      const status = statusMap[actionType] || "acted";
+      base44.entities.ReminderInstance.update(instanceId, { status, acted_action: actionType })
+        .then(() => queryClient.invalidateQueries({ queryKey: ["reminderInstances"] }));
+      // Clean URL and switch to inbox tab
       window.history.replaceState({}, "", "/reminders");
+      setTab("inbox");
+      // Pass action to inbox so it can trigger the correct behavior
+      if (actionType !== "dismiss") {
+        setAutoTriggerAction({ instanceId, actionType });
+      }
     }
   }, []);
 
@@ -96,7 +98,7 @@ export default function Reminders() {
           )}
 
           {tab === "inbox" ? (
-            <RemindersInbox />
+            <RemindersInbox autoTriggerAction={autoTriggerAction} />
           ) : (
             <RemindersManage />
           )}
