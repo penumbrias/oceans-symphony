@@ -27,6 +27,11 @@ function addShownId(id) {
   ids.add(id);
   sessionStorage.setItem(SESSION_KEY, JSON.stringify([...ids]));
 }
+function removeShownId(id) {
+  const ids = getShownIds();
+  ids.delete(id);
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify([...ids]));
+}
 
 const DEFAULT_SNOOZE = [10, 60, 240, "tomorrow"];
 
@@ -109,7 +114,9 @@ export default function ReminderToast() {
   };
 
   const handleSnooze = async ({ instance }, opt) => {
+    removeShownId(instance.id);
     await updateInstance(instance.id, { status: "snoozed", snoozed_until: snoozeUntilDate(opt) });
+    queryClient.invalidateQueries({ queryKey: ["reminderInstances", "pending"] });
   };
 
   if (!visible.length) return null;

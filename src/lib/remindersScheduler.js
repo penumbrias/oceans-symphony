@@ -454,10 +454,13 @@ export function usePendingReminderInstances() {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // last hour
       const all = await base44.entities.ReminderInstance.list("-scheduled_for", 200);
-      return (all || []).filter(i =>
-        (i.status === "fired" || i.status === "pending") &&
-        (i.scheduled_for || "") >= cutoff
-      );
+      return (all || []).filter(i => {
+        if (i.status === "snoozed") {
+          return i.snoozed_until && new Date(i.snoozed_until).getTime() <= Date.now();
+        }
+        return (i.status === "fired" || i.status === "pending") &&
+          (i.scheduled_for || "") >= cutoff;
+      });
     },
     refetchInterval: 60000,
     staleTime: 30000,
