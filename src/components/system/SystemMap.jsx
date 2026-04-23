@@ -17,6 +17,7 @@ const REL_TITLES = { simple: 'Simple', detailed: 'Detailed', selected: 'Selected
 
 const SystemMap = ({ relationships = [] }) => {
   const svgRef = useRef(null);
+  const hasAutoFit = useRef(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -242,6 +243,13 @@ const SystemMap = ({ relationships = [] }) => {
 
     setNodes([...alterNodes, ...groupNodes]);
 
+    // Auto-fit on first load only
+    if (!hasAutoFit.current && alterNodes.length > 0) {
+      hasAutoFit.current = true;
+      // Defer one frame so svgRef has measured dimensions
+      requestAnimationFrame(() => fitToNodes(alterNodes));
+    }
+
     const newLinks = [];
 
     // Membership links — only when groups visible
@@ -299,7 +307,32 @@ const SystemMap = ({ relationships = [] }) => {
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     setTransform(t => ({ ...t, scale: Math.max(0.5, Math.min(3, t.scale * delta)) }));
   };
-  const handleReset = () => setTransform({ x: 0, y: 0, scale: 1 });
+  const fitToNodes = (nodeList) => {
+    if (!nodeList.length || !svgRef.current) return;
+    const padding = 40;
+    const svgWidth = svgRef.current.clientWidth || 600;
+    const svgHeight = svgRef.current.clientHeight || 400;
+    const xs = nodeList.map(n => n.x);
+    const ys = nodeList.map(n => n.y);
+    const minX = Math.min(...xs) - 40; // account for node radius
+    const maxX = Math.max(...xs) + 40;
+    const minY = Math.min(...ys) - 40;
+    const maxY = Math.max(...ys) + 40;
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    if (contentWidth <= 0 || contentHeight <= 0) return;
+    const scaleX = (svgWidth - padding * 2) / contentWidth;
+    const scaleY = (svgHeight - padding * 2) / contentHeight;
+    const scale = Math.min(scaleX, scaleY, 1);
+    const x = (svgWidth - contentWidth * scale) / 2 - minX * scale;
+    const y = (svgHeight - contentHeight * scale) / 2 - minY * scale;
+    setTransform({ x, y, scale });
+  };
+
+  const handleReset = () => {
+    const alterNodes = nodes.filter(n => n.type === "alter");
+    if (alterNodes.length) fitToNodes(alterNodes);
+  };
   const handleZoom = (dir) => setTransform(t => ({
     ...t, scale: Math.max(0.5, Math.min(3, t.scale * (dir === "in" ? 1.2 : 0.85)))
   }));
