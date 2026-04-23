@@ -310,6 +310,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
   const [viewingLocation, setViewingLocation] = useState(null);
+  const [resolvedEditBgUrl, setResolvedEditBgUrl] = useState(null);
   const [relPopover, setRelPopover] = useState(null); // { rel, x, y }
   const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
   const [showCreateRelModal, setShowCreateRelModal] = useState(false);
@@ -461,6 +462,15 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Resolve local-image:// URL for the editing location's background
+  useEffect(() => {
+    const url = editingLocation?.background_image_url;
+    if (!url) { setResolvedEditBgUrl(null); return; }
+    import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
+      resolveImageUrl(url).then(setResolvedEditBgUrl);
+    });
+  }, [editingLocation?.background_image_url]);
+
   const saveAlterPosition = useCallback(async (alter, nx, ny, snap) => {
     let fx = nx, fy = ny;
     if (snap) { fx = snapVal(nx); fy = snapVal(ny); }
@@ -545,17 +555,35 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     saveAlterPosition(alter, nx, ny, snapToGrid);
   };
 
-  const handleBgImageFile = (e) => {
+  const handleBgImageFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !editingLocation) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const v = ev.target.result;
-      setEditingLocation(l => ({ ...l, background_image_url: v }));
-      updateLocation(editingLocation, { background_image_url: v });
-    };
-    reader.readAsDataURL(file);
     e.target.value = "";
+    const compressImage = (f, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(f);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+    const dataUrl = await compressImage(file);
+    let imageUrl = dataUrl;
+    if (isLocalMode()) {
+      const { saveLocalImage: save, createLocalImageUrl: makeUrl } = await import("@/lib/localImageStorage");
+      const imageId = `location-bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await save(imageId, dataUrl);
+      imageUrl = makeUrl(imageId);
+    }
+    setEditingLocation(l => ({ ...l, background_image_url: imageUrl }));
+    updateLocation(editingLocation, { background_image_url: imageUrl });
   };
 
   const sortedLocations = useMemo(() => [...locations].sort((a, b) => (a.order || 0) - (b.order || 0)), [locations]);
@@ -779,7 +807,8 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                 <p className="text-xs text-foreground capitalize">{viewingLocation.shape || "rectangle"}</p>
               </div>
               {viewingLocation.background_image_url && (
-                <img src={viewingLocation.background_image_url} alt="location" className="w-full h-24 object-cover rounded border border-border" />
+                <img src={viewingLocation.background_image_url} alt="location" className="w-full h-24 object-cover rounded border border-border"
+                  onError={e => { import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => resolveImageUrl(viewingLocation.background_image_url).then(r => { if (r) e.target.src = r; })); }} />
               )}
             </div>
           </div>
@@ -852,7 +881,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               </button>
               <input ref={bgFileRef} type="file" accept="image/*" hidden onChange={handleBgImageFile} />
               {editingLocation.background_image_url && (
-                <img src={editingLocation.background_image_url} alt="bg preview"
+                <img src={resolvedEditBgUrl || editingLocation.background_image_url} alt="bg preview"
                   className="w-full h-16 object-cover rounded border border-border" />
               )}
             </div>

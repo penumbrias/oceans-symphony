@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import { isLocalMode } from "@/lib/storageMode";
+import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
@@ -70,8 +72,8 @@ export function htmlToBlocks(html) {
     try {
       const blocks = JSON.parse(decodeURIComponent(match[1]));
       if (Array.isArray(blocks) && blocks.length) {
-        // Re-extract base64 srcs from rendered img tags
-        const imgSrcs = [...html.matchAll(/<img src="(data:[^"]+)"/g)].map(m => m[1]);
+        // Re-extract data: or local-image: srcs from rendered img tags (for __local_img__ placeholders)
+        const imgSrcs = [...html.matchAll(/<img src="((?:data:|local-image:\/\/)[^"]+)"/g)].map(m => m[1]);
         let imgIdx = 0;
         const restore = (src) => src === "__local_img__" ? (imgSrcs[imgIdx++] || "") : src;
         return blocks.map(b => {
@@ -147,7 +149,13 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
         img.src = url;
       });
       const dataUrl = await compressImage(file);
-      setSrc(dataUrl);
+      if (isLocalMode()) {
+        const imageId = `block-img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        setSrc(createLocalImageUrl(imageId));
+      } else {
+        setSrc(dataUrl);
+      }
       toast.success("Image ready!");
     } catch (err) {
       toast.error("Failed to process image");

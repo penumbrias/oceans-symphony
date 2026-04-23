@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -388,22 +388,51 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
   const bgFileRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState(location);
+  const [resolvedBgUrl, setResolvedBgUrl] = useState(null);
   const queryClient = useQueryClient();
 
   const parentLoc = getParentLocation(location);
   const subLocs = getSubLocations(location.id);
   const altersInLoc = getAltersInLocation(location.id);
 
-  const handleBgImageFile = (e) => {
+  // Resolve local-image:// URLs for rendering
+  useEffect(() => {
+    const url = editData.background_image_url;
+    if (!url) { setResolvedBgUrl(null); return; }
+    import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
+      resolveImageUrl(url).then(setResolvedBgUrl);
+    });
+  }, [editData.background_image_url]);
+
+  const handleBgImageFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const v = ev.target.result;
-      setEditData(l => ({ ...l, background_image_url: v }));
-    };
-    reader.readAsDataURL(file);
     e.target.value = '';
+    const compressImage = (f, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(f);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+    const dataUrl = await compressImage(file);
+    const { isLocalMode } = await import("@/lib/storageMode");
+    let imageUrl = dataUrl;
+    if (isLocalMode()) {
+      const { saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");
+      const imageId = `location-bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await saveLocalImage(imageId, dataUrl);
+      imageUrl = createLocalImageUrl(imageId);
+    }
+    setEditData(l => ({ ...l, background_image_url: imageUrl }));
   };
 
   const handleSave = async () => {
@@ -424,7 +453,7 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
           className="relative h-40 flex items-end p-4"
           style={{
             backgroundColor: editData.color || "#6366f1",
-            backgroundImage: editData.background_image_url ? `url(${editData.background_image_url})` : "none",
+            backgroundImage: resolvedBgUrl ? `url(${resolvedBgUrl})` : "none",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -513,7 +542,7 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
                 {editData.background_image_url && (
                    <div className="relative">
                      <img
-                       src={editData.background_image_url}
+                       src={resolvedBgUrl || editData.background_image_url}
                        alt="background preview"
                        className="w-full h-24 object-cover rounded border border-border"
                      />
