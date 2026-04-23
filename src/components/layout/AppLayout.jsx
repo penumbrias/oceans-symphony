@@ -12,6 +12,7 @@ import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import ReminderToast from "@/components/reminders/ReminderToast";
 import { Bell } from "lucide-react";
+import useSwipeBack from "@/hooks/useSwipeBack";
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
@@ -94,6 +95,7 @@ const handleNotifClick = (mentionLog) => {
   }, [location.pathname]);
 
   const canGoBack = historyDepth > 0 && !isTabRoot(location.pathname);
+  const { indicatorVisible, indicatorProgress } = useSwipeBack();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -247,6 +249,22 @@ const handleNotifClick = (mentionLog) => {
           </div>
       </nav>
       
+      {/* Swipe-back indicator overlay */}
+      {indicatorVisible && (
+        <div
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-[200] pointer-events-none flex items-center justify-center"
+          style={{
+            opacity: indicatorProgress,
+            transform: `translateY(-50%) translateX(${(indicatorProgress - 1) * 20}px)`,
+            transition: indicatorProgress === 0 ? `opacity ${400}ms ease, transform ${400}ms ease` : "none",
+          }}
+        >
+          <div className="w-10 h-10 rounded-full bg-foreground/20 backdrop-blur flex items-center justify-center shadow-lg">
+            <ChevronLeft className="w-5 h-5 text-foreground" />
+          </div>
+        </div>
+      )}
+
       <MigrationBanner />
       <FloatingGroundingButton />
       <ReminderToast />
