@@ -262,7 +262,9 @@ export async function runClientScheduler(queryClient) {
     });
 
     const cutoff = nowMs - 25 * 60 * 60 * 1000;
+    // Include snoozed instances regardless of age so they block duplicate creation
     const recentInstances = (allInstances || []).filter(i =>
+      i.status === "snoozed" ||
       new Date(i.created_date || 0).getTime() >= cutoff
     );
 
@@ -285,8 +287,11 @@ export async function runClientScheduler(queryClient) {
       i.status === "snoozed" && i.snoozed_until && new Date(i.snoozed_until).getTime() <= nowMs
     );
     for (const inst of snoozedDue) {
-      await base44.entities.ReminderInstance.update(inst.id, { status: "fired", fired_at: now.toISOString() });
-      newInstances.push({ ...inst, status: "fired" });
+      await base44.entities.ReminderInstance.update(inst.id, { status: "fired", fired_at: now.toISOString(), scheduled_for: now.toISOString() });
+      const refired = { ...inst, status: "fired", scheduled_for: now.toISOString() };
+      newInstances.push(refired);
+      // Add to recentInstances so evaluateReminderDue won't create a duplicate for this reminder
+      recentInstances.push(refired);
     }
 
     // Check pending catchup instances — fire if their alter is now fronting
@@ -454,13 +459,13 @@ export function usePendingReminderInstances() {
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // last hour
       const all = await base44.entities.ReminderInstance.list("-scheduled_for", 200);
-      return (all || []).filter(i => {
-        if (i.status === "snoozed") {
-          return i.snoozed_until && new Date(i.snoozed_until).getTime() <= Date.now();
-        }
-        return (i.status === "fired" || i.status === "pending") &&
-          (i.scheduled_for || "") >= cutoff;
-      });
+      // Only return truly "fired" instances — snoozed ones stay hidden until the
+      // scheduler promotes them back to "fired". This prevents duplicates and
+      // prevents snoozed toasts from reappearing before snooze expires.
+      return (all || []).filter(i =>
+        i.status === "fired" &&
+        (i.scheduled_for || "") >= cutoff
+      );
     },
     refetchInterval: 60000,
     staleTime: 30000,
