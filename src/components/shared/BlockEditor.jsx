@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import InternalLinkPicker, { buildInternalLinkBlock } from "@/components/shared/InternalLinkPicker";
 
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
@@ -263,7 +264,7 @@ function BlockShell({ index, total, onMoveUp, onMoveDown, onDelete, label, child
   );
 }
 
-function TextBlock({ block, onChange }) {
+function TextBlock({ block, onChange, onInsertLink }) {
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, block.content || "", v => onChange({ ...block, content: v }));
   return (
@@ -272,12 +273,12 @@ function TextBlock({ block, onChange }) {
         placeholder="Write something…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
         spellCheck={false} />
-      <MiniToolbar onInsert={insert} />
+      <MiniToolbar onInsert={insert} onInsertLink={onInsertLink} />
     </div>
   );
 }
 
-function ImgTextBlock({ block, onChange }) {
+function ImgTextBlock({ block, onChange, onInsertLink }) {
   const [imgModal, setImgModal] = useState(false);
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, block.text || "", v => onChange({ ...block, text: v }));
@@ -308,7 +309,7 @@ function ImgTextBlock({ block, onChange }) {
         placeholder="Text beside the image…"
         className="w-full min-h-[100px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed"
         spellCheck={false} />
-      <MiniToolbar onInsert={insert} />
+      <MiniToolbar onInsert={insert} onInsertLink={onInsertLink} />
     </div>
   );
   return (
@@ -466,6 +467,7 @@ export default function BlockEditor({ value, onChange }) {
     return parsed.length ? parsed : [{ id: uid(), type: "text", content: "" }];
   });
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
   const internalChangeRef = useRef(false);
 
   // Sync from external value changes (e.g. undo, discard, link insert from parent)
@@ -492,15 +494,21 @@ export default function BlockEditor({ value, onChange }) {
     setBlocks(bs => [...bs, { id: uid(), type, ...BLOCK_DEFAULTS[type] }]);
   }, []);
 
+  const handleInsertLink = useCallback((item) => {
+    const linkBlock = buildInternalLinkBlock(item);
+    setBlocks(bs => [...bs, { ...linkBlock, id: uid() }]);
+    setShowLinkPicker(false);
+  }, []);
+
   return (
     <div className="space-y-2">
       <div className="space-y-2">
         {blocks.map((block, i) => (
           <BlockShell key={block.id} index={i} total={blocks.length} label={blockLabel(block.type)}
             onMoveUp={() => moveBlock(block.id, -1)} onMoveDown={() => moveBlock(block.id, 1)} onDelete={() => deleteBlock(block.id)}>
-            {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
+            {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} onInsertLink={() => setShowLinkPicker(true)} />}
             {block.type === "img-solo" && <ImgSoloBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-            {(block.type === "img-left" || block.type === "img-right") && <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
+            {(block.type === "img-left" || block.type === "img-right") && <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} onInsertLink={() => setShowLinkPicker(true)} />}
             {block.type === "gallery" && <GalleryBlock block={block} onChange={b => updateBlock(block.id, b)} />}
             {block.type === "divider" && <DividerBlock />}
             {block.type === "raw" && <RawBlock block={block} onChange={b => updateBlock(block.id, b)} />}
@@ -520,6 +528,7 @@ export default function BlockEditor({ value, onChange }) {
         <Plus className="w-4 h-4" /> Add block
       </button>
       {showAddMenu && <AddBlockMenu onAdd={addBlock} onClose={() => setShowAddMenu(false)} />}
+      {showLinkPicker && <InternalLinkPicker onSelect={handleInsertLink} onClose={() => setShowLinkPicker(false)} />}
     </div>
   );
 }
