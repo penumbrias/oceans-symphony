@@ -5,8 +5,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-import { isLocalMode } from "@/lib/storageMode";
-import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+
 
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
@@ -127,15 +126,23 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
   const [src, setSrc] = useState(initial.src || "");
   const [alt, setAlt] = useState(initial.alt || "");
   const [uploading, setUploading] = useState(false);
+  const [resolvedSrc, setResolvedSrc] = useState(initial.src || "");
   const fileRef = useRef(null);
+
+  useEffect(() => {
+    if (!src) { setResolvedSrc(""); return; }
+    import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
+      resolveImageUrl(src).then(r => setResolvedSrc(r || src));
+    });
+  }, [src]);
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
     try {
-      const compressImage = (file, maxWidth = 800, quality = 0.8) => new Promise((resolve, reject) => {
+      const compressImage = (f, maxWidth = 800, quality = 0.8) => new Promise((resolve, reject) => {
         const img = new window.Image();
-        const url = URL.createObjectURL(file);
+        const url = URL.createObjectURL(f);
         img.onload = () => {
           const canvas = document.createElement("canvas");
           let { width, height } = img;
@@ -149,10 +156,12 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
         img.src = url;
       });
       const dataUrl = await compressImage(file);
-      if (isLocalMode()) {
+      const { isLocalMode: checkLocalMode } = await import("@/lib/storageMode");
+      if (checkLocalMode()) {
+        const { saveLocalImage: save, createLocalImageUrl: makeUrl } = await import("@/lib/localImageStorage");
         const imageId = `block-img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await saveLocalImage(imageId, dataUrl);
-        setSrc(createLocalImageUrl(imageId));
+        await save(imageId, dataUrl);
+        setSrc(makeUrl(imageId));
       } else {
         setSrc(dataUrl);
       }
@@ -183,7 +192,7 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
         </div>
         {src && (
           <div className="rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center overflow-hidden" style={{ minHeight: 80 }}>
-            <img src={src} alt={alt} className="max-h-32 max-w-full object-contain rounded" onError={e => e.target.style.display = "none"} />
+            <img src={resolvedSrc || src} alt={alt} className="max-h-32 max-w-full object-contain rounded" onError={e => e.target.style.display = "none"} />
           </div>
         )}
         <div className="space-y-1">

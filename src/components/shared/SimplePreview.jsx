@@ -1,11 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
+import { resolveImageUrl } from "@/lib/imageUrlResolver";
 
 export default function SimplePreview({ blocks, onBlockChange, readOnly = false }) {
   const navigate = useNavigate();
   const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
+  // Map of local-image:// URL -> resolved data URL for rendering
+  const [resolvedImages, setResolvedImages] = useState({});
+
+  useEffect(() => {
+    // Collect all image srcs from blocks that need resolution
+    const srcs = new Set();
+    for (const block of blocks) {
+      if (block.src?.startsWith("local-image://")) srcs.add(block.src);
+      if (block.images) block.images.forEach(i => { if (i.src?.startsWith("local-image://")) srcs.add(i.src); });
+    }
+    if (!srcs.size) return;
+    let cancelled = false;
+    Promise.all([...srcs].map(async url => {
+      const resolved = await resolveImageUrl(url);
+      return [url, resolved];
+    })).then(pairs => {
+      if (cancelled) return;
+      setResolvedImages(prev => {
+        const next = { ...prev };
+        pairs.forEach(([url, resolved]) => { if (resolved) next[url] = resolved; });
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+  }, [blocks]);
+
+  // Resolve a src for rendering (falls back to original if not yet resolved)
+  const resolveSrc = (src) => (src?.startsWith("local-image://") ? resolvedImages[src] || "" : src);
 
   const handleClick = (e, block, field) => {
     // Check for internal link clicks (works in both read-only and edit mode)
@@ -100,7 +129,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
               <div key={block.id} className="flex gap-3 items-start"
                 style={{ flexDirection: isLeft ? "row" : "row-reverse" }}>
                 {block.src && (
-                  <img src={block.src} alt={block.alt || ""}
+                  <img src={resolveSrc(block.src)} alt={block.alt || ""}
                     style={block.cropped
                       ? { width: block.size || 120, height: block.size || 120, objectFit: "cover", borderRadius: 8, flexShrink: 0 }
                       : { width: block.size || 120, height: "auto", borderRadius: 8, flexShrink: 0 }} />
@@ -121,7 +150,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
               : { marginLeft: 0, marginRight: "auto" };
             return (
               <div key={block.id} style={{ margin: "8px 0", width: "100%" }}>
-                <img src={block.src} alt={block.alt || ""}
+                <img src={resolveSrc(block.src)} alt={block.alt || ""}
                   style={{ display: "block", width: block.size || 240, height: block.cropped ? block.size || 240 : "auto", objectFit: block.cropped ? "cover" : undefined, borderRadius: 8, maxWidth: "100%", ...marginStyle }} />
               </div>
             );
