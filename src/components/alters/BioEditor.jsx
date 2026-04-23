@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
-import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Link } from "lucide-react";
+import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
@@ -155,40 +155,37 @@ export default function BioEditor({ value, onChange }) {
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
   const [showLinkPicker, setShowLinkPicker] = useState(false);
   const [currentHTML, setCurrentHTML] = useState(value || "");
-  const [history, setHistory] = useState([value || ""]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  const historyRef = useRef({ stack: [value || ""], index: 0 });
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, currentHTML, (v) => handleChange(v));
 
   const previewBlocks = useMemo(() => htmlToBlocks(currentHTML), [currentHTML]);
 
   const handleChange = useCallback((html) => {
+    const h = historyRef.current;
+    h.stack = h.stack.slice(0, h.index + 1);
+    h.stack.push(html);
+    if (h.stack.length > MAX_HISTORY) h.stack.shift();
+    else h.index++;
     setCurrentHTML(html);
     onChange(html);
-    setHistory(prev => {
-      const newHistory = prev.slice(0, historyIndex + 1);
-      newHistory.push(html);
-      if (newHistory.length > MAX_HISTORY) newHistory.shift();
-      return newHistory;
-    });
-    setHistoryIndex(prev => Math.min(prev + 1, MAX_HISTORY - 1));
-  }, [historyIndex, onChange]);
+  }, [onChange]);
 
   const handleUndo = () => {
-    if (historyIndex <= 0) return;
-    const newIndex = historyIndex - 1;
-    const prev = history[newIndex];
-    setHistoryIndex(newIndex);
+    const h = historyRef.current;
+    if (h.index <= 0) return;
+    h.index--;
+    const prev = h.stack[h.index];
     setCurrentHTML(prev);
     onChange(prev);
     toast("Undone");
   };
 
   const handleDiscard = () => {
-    setCurrentHTML(originalValue.current);
-    onChange(originalValue.current);
-    setHistory([originalValue.current]);
-    setHistoryIndex(0);
+    const orig = originalValue.current;
+    historyRef.current = { stack: [orig], index: 0 };
+    setCurrentHTML(orig);
+    onChange(orig);
     toast("Changes discarded");
   };
 
@@ -222,7 +219,7 @@ export default function BioEditor({ value, onChange }) {
     }
   }, [currentHTML, handleChange]);
 
-  const canUndo = historyIndex > 0;
+  const canUndo = historyRef.current.index > 0;
   const hasChanges = currentHTML !== originalValue.current;
 
   return (
@@ -243,11 +240,6 @@ export default function BioEditor({ value, onChange }) {
           <button type="button" onClick={() => setShowHTMLPreview(true)}
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
             <Eye className="w-3 h-3" /> Preview
-          </button>
-          <button type="button" onClick={() => setShowLinkPicker(true)}
-            title="Insert internal link"
-            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-            <Link className="w-3 h-3" />
           </button>
           <button type="button" onClick={() => setShowImport(true)}
             className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
@@ -277,7 +269,7 @@ export default function BioEditor({ value, onChange }) {
             placeholder="Write a bio..."
             className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
             spellCheck={false} />
-          <MiniToolbar onInsert={insert} />
+          <MiniToolbar onInsert={insert} onInsertLink={() => setShowLinkPicker(true)} />
         </div>
       ) : editorMode === "simple" ? (
         <SimplePreview

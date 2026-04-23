@@ -116,7 +116,7 @@ export function useTextareaInsert(ref, value, onChange) {
   }, [ref, value, onChange]);
 }
 
-export function MiniToolbar({ onInsert }) {
+export function MiniToolbar({ onInsert, onInsertLink }) {
   const [colorModal, setColorModal] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(() => {
     try { return localStorage.getItem("os_toolbar_advanced") === "true"; } catch { return false; }
@@ -179,6 +179,14 @@ export function MiniToolbar({ onInsert }) {
         {btn("—", '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
         {sep}
         {btn("🔗", '<a href="https://">', "</a>", "Link")}
+        {onInsertLink && (
+          <button type="button" title="Insert internal link"
+            onMouseDown={e => e.preventDefault()}
+            onClick={onInsertLink}
+            className="h-6 px-1 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold flex-shrink-0">
+            🧩
+          </button>
+        )}
         {btn("✎", '<span data-edit="true">', "</span>", "Make editable in Simple mode")}
         {sep}
         {/* Text color */}
