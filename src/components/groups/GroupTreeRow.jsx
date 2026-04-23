@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import GroupMembersModal from "./GroupMembersModal";
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
 
 export default function GroupTreeRow({
   group,
@@ -38,6 +39,7 @@ export default function GroupTreeRow({
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const autoExpandTimeoutRef = useRef(null);
   const isCreatingSubgroup = creatingSubgroupFor === group.id;
 
@@ -140,12 +142,19 @@ export default function GroupTreeRow({
         {/* Color dot + name */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {isSelected && (
-            <input
-              type="color"
-              value={group.color || "#9333ea"}
-              onChange={(e) => onChangeColor(group.id, e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              className="w-6 h-6 rounded cursor-pointer flex-shrink-0 border-0"
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowColorPicker(true); }}
+              className="w-6 h-6 rounded-md border-2 border-border cursor-pointer flex-shrink-0 hover:ring-2 hover:ring-primary transition-all"
+              style={{ backgroundColor: group.color || "#9333ea" }}
+            />
+          )}
+          {showColorPicker && (
+            <ColorPickerModal
+              color={group.color || "#9333ea"}
+              label="Group Color"
+              onSave={(hex) => onChangeColor(group.id, hex)}
+              onClose={() => setShowColorPicker(false)}
             />
           )}
           {!isSelected && group.color && (
