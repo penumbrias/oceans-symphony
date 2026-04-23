@@ -10,6 +10,10 @@ import { HexColorPicker } from "react-colorful";
 import BioEditor from "@/components/alters/BioEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
+import { isLocalMode } from "@/lib/storageMode";
+import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { resolveImageUrl } from "@/lib/imageUrlResolver";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -48,6 +52,7 @@ function AvatarModal({ src, onSave, onClose }) {
   const [url, setUrl] = useState(src || "");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
+  const resolvedPreview = useResolvedAvatarUrl(url);
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -69,7 +74,13 @@ function AvatarModal({ src, onSave, onClose }) {
         img.src = u;
       });
       const dataUrl = await compressImage(file);
-      setUrl(dataUrl);
+      if (isLocalMode()) {
+        const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        setUrl(createLocalImageUrl(imageId));
+      } else {
+        setUrl(dataUrl);
+      }
       toast.success("Image ready!");
     } catch { toast.error("Failed to process image"); }
     finally { setUploading(false); e.target.value = ""; }
@@ -84,7 +95,7 @@ function AvatarModal({ src, onSave, onClose }) {
         </div>
         {url && (
           <div className="flex justify-center">
-            <img src={url} alt="preview" className="w-24 h-24 rounded-2xl object-cover border-2 border-border" onError={e => e.target.style.display = "none"} />
+            <img src={resolvedPreview || url} alt="preview" className="w-24 h-24 rounded-2xl object-cover border-2 border-border" onError={e => e.target.style.display = "none"} />
           </div>
         )}
         <div className="flex gap-2">
@@ -202,32 +213,32 @@ useEffect(() => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploadingBg(true);
     try {
-      let localMode = false;
-      try { const { isLocalMode } = await import("@/lib/storageMode"); localMode = !!isLocalMode(); } catch {}
-      if (localMode) {
-        const sizeMB = file.size / (1024 * 1024);
-        const compressImage = (file, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
-          const img = new window.Image();
-          const url = URL.createObjectURL(file);
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            let { width, height } = img;
-            if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-            canvas.width = width; canvas.height = height;
-            canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-            URL.revokeObjectURL(url);
-            resolve(canvas.toDataURL("image/jpeg", quality));
-          };
-          img.onerror = reject;
-          img.src = url;
-        });
-        if (sizeMB > 1) toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
-        const dataUrl = await compressImage(file);
-        setBgField(BG_IMAGE_KEY, dataUrl);
-        toast.success("Background image saved!");
+      const sizeMB = file.size / (1024 * 1024);
+      const compressImage = (file, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+      if (sizeMB > 1) toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
+      const dataUrl = await compressImage(file);
+      if (isLocalMode()) {
+        const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        setBgField(BG_IMAGE_KEY, createLocalImageUrl(imageId));
       } else {
-        toast.error("Background upload requires cloud mode. Paste a URL instead.");
+        setBgField(BG_IMAGE_KEY, dataUrl);
       }
+      toast.success("Background image saved!");
     } catch (err) {
       toast.error("Failed to process background image");
     } finally { setUploadingBg(false); e.target.value = ""; }
@@ -246,6 +257,20 @@ useEffect(() => {
   const hasBg = viewBgColor || viewBgImage;
   const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
 
+  // Resolve background image URLs (may be local-image:// in local mode)
+  const [resolvedViewBgImage, setResolvedViewBgImage] = useState(viewBgImage);
+  const [resolvedEditBgImage, setResolvedEditBgImage] = useState(bgImage);
+
+  useEffect(() => {
+    if (!viewBgImage) { setResolvedViewBgImage(""); return; }
+    resolveImageUrl(viewBgImage).then(r => setResolvedViewBgImage(r || "")).catch(() => setResolvedViewBgImage(""));
+  }, [viewBgImage]);
+
+  useEffect(() => {
+    if (!bgImage) { setResolvedEditBgImage(""); return; }
+    resolveImageUrl(bgImage).then(r => setResolvedEditBgImage(r || "")).catch(() => setResolvedEditBgImage(""));
+  }, [bgImage]);
+
   // ── VIEW MODE ──
   if (!editMode) {
     return (
@@ -255,7 +280,7 @@ useEffect(() => {
             {hasBg && (
               <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
                 {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
-                {viewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${viewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
+                {viewBgImage && resolvedViewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedViewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
               </div>
             )}
             <div className={`relative flex gap-4 items-start ${hasBg ? "p-4" : ""}`}>
@@ -432,7 +457,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         {/* Compact bg preview */}
         <div className="relative w-full h-12 rounded-lg overflow-hidden border border-border/40 bg-muted/20">
           {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
-          {bgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${bgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />}
+          {bgImage && resolvedEditBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedEditBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />}
           <div className="absolute inset-0 flex items-center justify-center gap-3">
             <span className="text-sm font-semibold" style={{ color: headerTextColor || "hsl(var(--foreground)/0.6)" }}>{form.name || "Name"}</span>
             <span className="text-xs" style={{ color: headerTextColor ? `${headerTextColor}cc` : "hsl(var(--muted-foreground))" }}>{form.pronouns || "they/them"}</span>
