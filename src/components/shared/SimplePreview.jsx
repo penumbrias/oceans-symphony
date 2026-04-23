@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
 
 export default function SimplePreview({ blocks, onBlockChange, readOnly = false }) {
+  const navigate = useNavigate();
   const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
 
@@ -113,6 +115,27 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
               <div key={block.id} style={{ margin: "8px 0", width: "100%" }}>
                 <img src={block.src} alt={block.alt || ""}
                   style={{ display: "block", width: block.size || 240, height: block.cropped ? block.size || 240 : "auto", objectFit: block.cropped ? "cover" : undefined, borderRadius: 8, maxWidth: "100%", ...marginStyle }} />
+              </div>
+            );
+          }
+
+          if (block.type === "internal-link") {
+            return (
+              <div key={block.id} className="flex items-center gap-2 py-0.5">
+                <button
+                  type="button"
+                  onClick={() => { if (readOnly && block.route) navigate(block.route); }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-muted text-sm max-w-full overflow-hidden transition-colors ${readOnly ? "hover:bg-muted/70 cursor-pointer" : "cursor-default"}`}
+                >
+                  🔗 <span className="flex-1 truncate">{block.label || "Link"}</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">{block.entityType}</span>
+                </button>
+                {!readOnly && onBlockChange && (
+                  <button type="button" onClick={() => onBlockChange(block.id, { __remove: true })}
+                    className="w-5 h-5 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 text-xs">
+                    ✕
+                  </button>
+                )}
               </div>
             );
           }

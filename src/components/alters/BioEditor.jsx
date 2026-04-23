@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
-import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw } from "lucide-react";
+import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Link } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
+import InternalLinkPicker, { buildInternalLinkBlock } from "@/components/shared/InternalLinkPicker";
 
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
@@ -152,6 +153,7 @@ export default function BioEditor({ value, onChange }) {
   const [editorMode, setEditorMode] = useState(hasBlocks ? "simple" : "plain");
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
   const [currentHTML, setCurrentHTML] = useState(value || "");
   const [history, setHistory] = useState([value || ""]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -202,6 +204,24 @@ export default function BioEditor({ value, onChange }) {
     }
   }, [handleChange]);
 
+  const handleInsertLink = useCallback((item) => {
+    const linkBlock = buildInternalLinkBlock(item);
+    const blocks = htmlToBlocks(currentHTML);
+    const updated = [...blocks, { ...linkBlock, id: `b_${Date.now()}` }];
+    handleChange(blocksToHTML(updated));
+    setEditorMode("simple");
+  }, [currentHTML, handleChange]);
+
+  const handleBlockChange = useCallback((id, patch) => {
+    if (patch.__remove) {
+      const blocks = htmlToBlocks(currentHTML).filter(b => b.id !== id);
+      handleChange(blocksToHTML(blocks.length ? blocks : []));
+    } else {
+      const updated = htmlToBlocks(currentHTML).map(b => b.id === id ? { ...b, ...patch } : b);
+      handleChange(blocksToHTML(updated));
+    }
+  }, [currentHTML, handleChange]);
+
   const canUndo = historyIndex > 0;
   const hasChanges = currentHTML !== originalValue.current;
 
@@ -223,6 +243,11 @@ export default function BioEditor({ value, onChange }) {
           <button type="button" onClick={() => setShowHTMLPreview(true)}
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
             <Eye className="w-3 h-3" /> Preview
+          </button>
+          <button type="button" onClick={() => setShowLinkPicker(true)}
+            title="Insert internal link"
+            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+            <Link className="w-3 h-3" />
           </button>
           <button type="button" onClick={() => setShowImport(true)}
             className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
@@ -257,10 +282,7 @@ export default function BioEditor({ value, onChange }) {
       ) : editorMode === "simple" ? (
         <SimplePreview
           blocks={previewBlocks}
-          onBlockChange={(id, patch) => {
-            const updated = previewBlocks.map(b => b.id === id ? { ...b, ...patch } : b);
-            handleChange(blocksToHTML(updated));
-          }}
+          onBlockChange={handleBlockChange}
         />
       ) : (
         <BlockEditor value={currentHTML} onChange={handleChange} />
@@ -268,6 +290,12 @@ export default function BioEditor({ value, onChange }) {
 
       {showImport && <ImportSPModal onImport={handleImport} onClose={() => setShowImport(false)} />}
       {showHTMLPreview && <HTMLPreviewModal html={currentHTML} onClose={() => setShowHTMLPreview(false)} />}
+      {showLinkPicker && (
+        <InternalLinkPicker
+          onSelect={handleInsertLink}
+          onClose={() => setShowLinkPicker(false)}
+        />
+      )}
     </div>
   );
 }
