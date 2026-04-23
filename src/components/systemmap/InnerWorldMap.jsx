@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { localEntities } from "@/api/base44Client";
+import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload, Edit
@@ -887,8 +888,21 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               </button>
               <input ref={bgFileRef} type="file" accept="image/*" hidden onChange={handleBgImageFile} />
               {editingLocation.background_image_url && (
-                <img src={resolvedEditBgUrl || editingLocation.background_image_url} alt="bg preview"
-                  className="w-full h-16 object-cover rounded border border-border" />
+                <div className="relative">
+                  <img src={resolvedEditBgUrl || editingLocation.background_image_url} alt="bg preview"
+                    className="w-full h-16 object-cover rounded border border-border" />
+                  <div className="absolute bottom-1 left-1">
+                    <LocalImageFixer
+                      value={editingLocation.background_image_url}
+                      maxWidth={1200}
+                      quality={0.8}
+                      onFixed={(url) => {
+                        setEditingLocation(l => ({ ...l, background_image_url: url }));
+                        updateLocation(editingLocation, { background_image_url: url });
+                      }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
 

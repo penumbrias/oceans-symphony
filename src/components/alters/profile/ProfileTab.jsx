@@ -14,6 +14,7 @@ import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import LocalImageFixer from "@/components/shared/LocalImageFixer";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -256,12 +257,41 @@ useEffect(() => {
                 {viewBgImage && resolvedViewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedViewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
               </div>
             )}
+            {viewBgImage?.startsWith("data:") && (
+              <div className="absolute top-2 right-2 z-10">
+                <LocalImageFixer
+                  value={viewBgImage}
+                  maxWidth={1200}
+                  quality={0.8}
+                  label="⚠️ Fix background"
+                  onFixed={async (url) => {
+                    await base44.entities.Alter.update(alter.id, {
+                      custom_fields: { ...alter.custom_fields, [BG_IMAGE_KEY]: url }
+                    });
+                    queryClient.invalidateQueries({ queryKey: ["alters"] });
+                  }}
+                />
+              </div>
+            )}
             <div className={`relative flex gap-4 items-start ${hasBg ? "p-4" : ""}`}>
-              <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
-                {alter.avatar_url
-                  ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                  : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
+              <div className="relative">
+                <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
+                  style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
+                  {alter.avatar_url
+                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                    : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
+                </div>
+                <div className="absolute -bottom-2 left-0 right-0 flex justify-center">
+                  <LocalImageFixer
+                    value={alter.avatar_url}
+                    maxWidth={400}
+                    quality={0.85}
+                    onFixed={async (url) => {
+                      await base44.entities.Alter.update(alter.id, { avatar_url: url });
+                      queryClient.invalidateQueries({ queryKey: ["alters"] });
+                    }}
+                  />
+                </div>
               </div>
               <div className="flex-1 min-w-0 space-y-1">
                 <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>

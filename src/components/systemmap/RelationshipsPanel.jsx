@@ -7,6 +7,7 @@ import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelations
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
+import LocalImageFixer from "@/components/shared/LocalImageFixer";
 
 export function AlterAvatar({ alter, size = 24 }) {
   if (!alter) return <div className="rounded-full bg-muted flex-shrink-0" style={{ width: size, height: size }} />;
@@ -552,6 +553,14 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
                      >
                        <X className="w-3 h-3" />
                      </button>
+                     <div className="absolute bottom-1 left-1">
+                       <LocalImageFixer
+                         value={editData.background_image_url}
+                         maxWidth={1200}
+                         quality={0.8}
+                         onFixed={(url) => setEditData(l => ({ ...l, background_image_url: url }))}
+                       />
+                     </div>
                    </div>
                  )}
                 </div>

@@ -12,6 +12,7 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage } from "@/lib/localImageStorage";
+import LocalImageFixer from "@/components/shared/LocalImageFixer";
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) {
   const queryClient = useQueryClient();
@@ -213,7 +214,15 @@ const handleAvatarUpload = async (e) => {
               <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
             </div>
             {form.avatar_url && (
-              <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />
+              <div className="flex items-center gap-2">
+                <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />
+                <LocalImageFixer
+                  value={form.avatar_url}
+                  maxWidth={400}
+                  quality={0.85}
+                  onFixed={(url) => set("avatar_url", url)}
+                />
+              </div>
             )}
           </div>
 
