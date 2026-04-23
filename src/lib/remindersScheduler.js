@@ -333,6 +333,15 @@ export async function runClientScheduler(queryClient) {
            if (alter?.is_archived) continue;
          }
 
+         // Skip if this reminder is currently snoozed (any snoozed instance still active)
+         const isSnoozed = (allInstances || []).some(i =>
+           i.reminder_id === reminder.id &&
+           i.status === "snoozed" &&
+           i.snoozed_until &&
+           new Date(i.snoozed_until).getTime() > nowMs
+         );
+         if (isSnoozed) continue;
+
          const userTz = settings.timezone || 'UTC';
          const due = evaluateReminderDue(reminder, now, recentInstances, cachedData, userTz);
          if (!due) continue;
