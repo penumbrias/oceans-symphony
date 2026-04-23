@@ -219,10 +219,62 @@ export async function loadDbDump(dump) {
   await saveDb();
 }
 
-// Migrate ALL base64 data URLs in any entity field to local image storage
+// Recursive walker: traverses any value deeply and migrates all data: URLs to local image storage
+async function walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl) {
+  if (typeof value === 'string') {
+    // Direct data: URL
+    if (value.startsWith('data:') && !isLocalImageUrl(value)) {
+      const imageId = `migrated-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await saveLocalImage(imageId, value);
+      return { changed: true, value: createLocalImageUrl(imageId) };
+    }
+    // data: URLs embedded inside HTML src attributes
+    if (value.includes('src="data:image')) {
+      let changed = false;
+      let result = value;
+      const matches = [...value.matchAll(/src="(data:image\/[^"]+)"/g)];
+      for (const match of matches) {
+        const dataUrl = match[1];
+        const imageId = `migrated-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        const localUrl = createLocalImageUrl(imageId);
+        result = result.replace(match[0], `src="${localUrl}"`);
+        changed = true;
+      }
+      return { changed, value: result };
+    }
+    return { changed: false, value };
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const result = [];
+    for (const item of value) {
+      const r = await walkAndMigrate(item, saveLocalImage, createLocalImageUrl, isLocalImageUrl);
+      if (r.changed) changed = true;
+      result.push(r.value);
+    }
+    return { changed, value: result };
+  }
+  if (value && typeof value === 'object') {
+    let changed = false;
+    const result = {};
+    for (const [k, v] of Object.entries(value)) {
+      const r = await walkAndMigrate(v, saveLocalImage, createLocalImageUrl, isLocalImageUrl);
+      if (r.changed) changed = true;
+      result[k] = r.value;
+    }
+    return { changed, value: result };
+  }
+  return { changed: false, value };
+}
+
+// Migrate ALL base64 data URLs in any entity field to local image storage (deep recursive)
 export async function migrateBase64AvatarsToLocal() {
   const db = getDb();
   const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
+
+  const totalRecords = Object.values(db).reduce((sum, col) => sum + (col && typeof col === 'object' ? Object.keys(col).length : 0), 0);
+  console.log(`[migrateBase64AvatarsToLocal] Scanning ${totalRecords} total records across ${Object.keys(db).length} collections...`);
 
   let migrated = 0;
 
@@ -230,26 +282,35 @@ export async function migrateBase64AvatarsToLocal() {
     if (!collection || typeof collection !== 'object') continue;
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;
-      let changed = false;
+      let recordChanged = false;
+      const updatedRecord = { ...record };
+
       for (const [field, value] of Object.entries(record)) {
-        if (typeof value === 'string' && value.startsWith('data:') && !isLocalImageUrl(value)) {
-          const imageId = `migrated-${entityName}-${recordId}-${field}`;
-          try {
-            await saveLocalImage(imageId, value);
-            db[entityName][recordId][field] = createLocalImageUrl(imageId);
-            changed = true;
+        // Skip built-in metadata fields that will never contain images
+        if (['id', 'created_date', 'updated_date', 'created_by'].includes(field)) continue;
+        try {
+          const r = await walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl);
+          if (r.changed) {
+            updatedRecord[field] = r.value;
+            recordChanged = true;
             migrated++;
-          } catch (e) {
-            console.warn(`Failed to migrate ${entityName}.${recordId}.${field}:`, e);
           }
+        } catch (e) {
+          console.warn(`[migrateBase64AvatarsToLocal] Failed on ${entityName}.${recordId}.${field}:`, e);
         }
+      }
+
+      if (recordChanged) {
+        db[entityName][recordId] = updatedRecord;
       }
     }
   }
 
   if (migrated > 0) {
     await saveDb();
-    console.log(`Migrated ${migrated} base64 image(s) to local image storage`);
+    console.log(`[migrateBase64AvatarsToLocal] Migrated ${migrated} base64 image(s) to local image storage`);
+  } else {
+    console.log(`[migrateBase64AvatarsToLocal] No base64 images found — nothing to migrate`);
   }
   return migrated;
 }
