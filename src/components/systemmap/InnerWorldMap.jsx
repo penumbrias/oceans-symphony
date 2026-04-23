@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
+import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { localEntities } from "@/api/base44Client";
 import { toast } from "sonner";
 import {
@@ -311,6 +312,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const [editingLocation, setEditingLocation] = useState(null);
   const [viewingLocation, setViewingLocation] = useState(null);
   const [resolvedEditBgUrl, setResolvedEditBgUrl] = useState(null);
+  const [resolvedViewBgUrl, setResolvedViewBgUrl] = useState(null);
   const [relPopover, setRelPopover] = useState(null); // { rel, x, y }
   const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
   const [showCreateRelModal, setShowCreateRelModal] = useState(false);
@@ -466,10 +468,15 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   useEffect(() => {
     const url = editingLocation?.background_image_url;
     if (!url) { setResolvedEditBgUrl(null); return; }
-    import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
-      resolveImageUrl(url).then(setResolvedEditBgUrl);
-    });
+    resolveImageUrl(url).then(setResolvedEditBgUrl);
   }, [editingLocation?.background_image_url]);
+
+  // Resolve local-image:// URL for the viewing location's background
+  useEffect(() => {
+    const url = viewingLocation?.background_image_url;
+    if (!url) { setResolvedViewBgUrl(null); return; }
+    resolveImageUrl(url).then(setResolvedViewBgUrl);
+  }, [viewingLocation?.background_image_url]);
 
   const saveAlterPosition = useCallback(async (alter, nx, ny, snap) => {
     let fx = nx, fy = ny;
@@ -807,8 +814,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                 <p className="text-xs text-foreground capitalize">{viewingLocation.shape || "rectangle"}</p>
               </div>
               {viewingLocation.background_image_url && (
-                <img src={viewingLocation.background_image_url} alt="location" className="w-full h-24 object-cover rounded border border-border"
-                  onError={e => { import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => resolveImageUrl(viewingLocation.background_image_url).then(r => { if (r) e.target.src = r; })); }} />
+                <img src={resolvedViewBgUrl || viewingLocation.background_image_url} alt="location" className="w-full h-24 object-cover rounded border border-border" />
               )}
             </div>
           </div>
