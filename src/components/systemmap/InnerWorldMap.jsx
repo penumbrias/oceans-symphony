@@ -288,6 +288,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const lastPinchRef = useRef(null);
   const touchStartPos = useRef(null);
   const justSelectedRef = useRef(false);
+  const hasAutoFit = useRef(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -419,7 +420,40 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
   const handleZoom = (dir) => setTransform(t => ({
     ...t, scale: Math.max(0.2, Math.min(4, t.scale * (dir === "in" ? 1.2 : 0.85)))
   }));
-  const handleReset = () => setTransform({ x: 0, y: 0, scale: 1 });
+
+  const fitToPlacedAlters = useCallback((altersToFit) => {
+    if (!altersToFit.length || !svgRef.current) return;
+    const padding = 60;
+    const svgWidth = svgRef.current.clientWidth || 600;
+    const svgHeight = svgRef.current.clientHeight || 400;
+    const xs = altersToFit.map(a => a.inner_world_x);
+    const ys = altersToFit.map(a => a.inner_world_y);
+    const minX = Math.min(...xs) - NODE_RADIUS;
+    const maxX = Math.max(...xs) + NODE_RADIUS;
+    const minY = Math.min(...ys) - NODE_RADIUS;
+    const maxY = Math.max(...ys) + NODE_RADIUS + 16; // extra for label
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    if (contentWidth <= 0 || contentHeight <= 0) return;
+    const scaleX = (svgWidth - padding * 2) / contentWidth;
+    const scaleY = (svgHeight - padding * 2) / contentHeight;
+    const scale = Math.min(scaleX, scaleY, 1);
+    const x = (svgWidth - contentWidth * scale) / 2 - minX * scale;
+    const y = (svgHeight - contentHeight * scale) / 2 - minY * scale;
+    setTransform({ x, y, scale });
+  }, []);
+
+  const handleReset = () => {
+    if (placedAlters.length) fitToPlacedAlters(placedAlters);
+    else setTransform({ x: 0, y: 0, scale: 1 });
+  };
+
+  // Auto-fit once on first load when placed alters are available
+  useEffect(() => {
+    if (hasAutoFit.current || placedAlters.length === 0) return;
+    hasAutoFit.current = true;
+    requestAnimationFrame(() => fitToPlacedAlters(placedAlters));
+  }, [placedAlters, fitToPlacedAlters]);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") setRelModeAlter(null); };
