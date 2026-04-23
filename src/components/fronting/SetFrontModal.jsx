@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3 } from "lucide-react";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { useTerms } from "@/lib/useTerms";
 import { formatInTimeZone } from "date-fns-tz";
@@ -66,9 +66,17 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
 
 }
 
-export default function SetFrontModal({ open, onClose, alters, currentSession }) {
+export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
+
+  // Always fetch alters internally so the modal is never dependent on caller passing fresh data
+  const { data: fetchedAlters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+    enabled: open,
+  });
+  const alters = altersProp?.length ? altersProp : fetchedAlters;
   const [search, setSearch] = useState("");
   // Derive current fronter state from active sessions (new individual model)
   // currentSession may be a single session record; fetch all active sessions to initialize properly
