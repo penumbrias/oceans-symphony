@@ -466,8 +466,19 @@ export default function BlockEditor({ value, onChange }) {
     return parsed.length ? parsed : [{ id: uid(), type: "text", content: "" }];
   });
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const internalChangeRef = useRef(false);
 
-  useEffect(() => { onChange(blocksToHTML(blocks)); }, [blocks]);
+  // Sync from external value changes (e.g. undo, discard, link insert from parent)
+  useEffect(() => {
+    if (internalChangeRef.current) { internalChangeRef.current = false; return; }
+    const parsed = htmlToBlocks(value || "");
+    setBlocks(parsed.length ? parsed : [{ id: uid(), type: "text", content: "" }]);
+  }, [value]);
+
+  useEffect(() => {
+    internalChangeRef.current = true;
+    onChange(blocksToHTML(blocks));
+  }, [blocks]);
 
   const updateBlock = useCallback((id, patch) => setBlocks(bs => bs.map(b => b.id === id ? { ...b, ...patch } : b)), []);
   const deleteBlock = useCallback((id) => setBlocks(bs => { const next = bs.filter(b => b.id !== id); return next.length ? next : [{ id: uid(), type: "text", content: "" }]; }), []);
