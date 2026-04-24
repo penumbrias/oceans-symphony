@@ -21,7 +21,7 @@ const SystemMap = ({ relationships = [] }) => {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [dragDistance, setDragDistance] = useState(0);
+  const dragDistanceRef = useRef(0);
   const [nodes, setNodes] = useState([]);
   const [links, setLinks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -299,7 +299,7 @@ const SystemMap = ({ relationships = [] }) => {
     if (e.button !== 0) return;
     setIsDragging(true);
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
-    setDragDistance(0);
+    dragDistanceRef.current = 0;
   };
   const lastPinchRef = useRef(null);
   const handleTouchStart = (e) => {
@@ -331,7 +331,7 @@ const SystemMap = ({ relationships = [] }) => {
     const dist = Math.sqrt(
       (e.clientX - (dragStart.x + transform.x)) ** 2 + (e.clientY - (dragStart.y + transform.y)) ** 2
     );
-    setDragDistance(dist);
+    dragDistanceRef.current = dist;
     setTransform(t => ({ ...t, x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }));
   };
   const handleMouseUp = () => setIsDragging(false);
@@ -566,10 +566,10 @@ const SystemMap = ({ relationships = [] }) => {
                     strokeWidth={node.isSelected ? 3 : node.isCofronter ? 2 : 0}
                     style={{ cursor: node.type === "alter" ? "pointer" : "default" }}
                     onClick={() => {
-                      if (node.type === "alter" && dragDistance < 5) {
-                        const clicked = alters.find((a) => a.id === node.id);
-                        setSelectedAlter(prev => prev?.id === clicked?.id ? null : clicked);
-                      }
+                     if (node.type === "alter" && dragDistanceRef.current < 5) {
+                       const clicked = alters.find((a) => a.id === node.id);
+                       setSelectedAlter(prev => prev?.id === clicked?.id ? null : clicked);
+                     }
                     }}
                   />
                   {node.avatar && node.type === "alter" && (
@@ -581,10 +581,10 @@ const SystemMap = ({ relationships = [] }) => {
                       clipPath={`url(#clip-circle-${node.id})`}
                       style={{ cursor: "pointer" }}
                       onClick={() => {
-                        if (dragDistance < 5) {
-                          const clicked = alters.find((a) => a.id === node.id);
-                          setSelectedAlter(prev => prev?.id === clicked?.id ? null : clicked);
-                        }
+                       if (dragDistanceRef.current < 5) {
+                         const clicked = alters.find((a) => a.id === node.id);
+                         setSelectedAlter(prev => prev?.id === clicked?.id ? null : clicked);
+                       }
                       }}
                     />
                   )}
@@ -611,25 +611,24 @@ const SystemMap = ({ relationships = [] }) => {
           </g>
         </svg>
 
-        {/* Time mode toggle — top left */}
-        <div className="absolute top-3 left-3 flex gap-0.5 bg-card/90 backdrop-blur border border-border rounded-lg p-0.5">
-          {[
-            { id: 'total', label: 'All' },
-            { id: 'primary', label: '⭐' },
-            { id: 'cofronting', label: '👥' },
-          ].map(opt => (
-            <button key={opt.id} onClick={() => setTimeMode(opt.id)}
-              title={{ total: 'Total front time', primary: 'Primary front time', cofronting: 'Co-fronting time' }[opt.id]}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                timeMode === opt.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Zoom + Rels controls — right side, compact vertical stack */}
+        {/* Zoom + Rels controls + Time mode toggle — top right, compact vertical stack */}
         <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-center">
+          {/* Time mode toggle */}
+          <div className="flex gap-0.5 bg-card/90 backdrop-blur border border-border rounded-lg p-0.5">
+            {[
+              { id: 'total', label: 'All' },
+              { id: 'primary', label: '⭐' },
+              { id: 'cofronting', label: '👥' },
+            ].map(opt => (
+              <button key={opt.id} onClick={() => setTimeMode(opt.id)}
+                title={{ total: 'Total front time', primary: 'Primary front time', cofronting: 'Co-fronting time' }[opt.id]}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                  timeMode === opt.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
           {/* Rels cycle button — icon only with colored dot indicator */}
           <button
             onClick={cycleRelMode}
