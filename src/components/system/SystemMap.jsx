@@ -347,6 +347,9 @@ const SystemMap = ({ relationships = [] }) => {
     }
     lastPinchRef.current = null;
     if (!isDraggingRef.current || e.touches.length !== 1) return;
+    const dx = e.touches[0].clientX - (dragStartRef.current.x + transformRef.current.x);
+    const dy = e.touches[0].clientY - (dragStartRef.current.y + transformRef.current.y);
+    dragDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
     setTransform(t => ({ ...t, x: e.touches[0].clientX - dragStartRef.current.x, y: e.touches[0].clientY - dragStartRef.current.y }));
   }, []);
 
@@ -583,6 +586,12 @@ const SystemMap = ({ relationships = [] }) => {
                     style={{ cursor: node.type === "alter" ? "pointer" : "default" }}
                     onMouseDown={(e) => { e.stopPropagation(); dragDistanceRef.current = 0; isDraggingRef.current = false; }}
                     onClick={() => node.type === "alter" && handleNodeClick(node.id)}
+                    onTouchEnd={(e) => {
+                      if (node.type !== "alter") return;
+                      e.stopPropagation();
+                      e.preventDefault();
+                      if (dragDistanceRef.current <= 8) handleNodeClick(node.id);
+                    }}
                   />
                   {node.avatar && node.type === "alter" && (
                     <image
@@ -594,6 +603,11 @@ const SystemMap = ({ relationships = [] }) => {
                       style={{ cursor: "pointer" }}
                       onMouseDown={(e) => { e.stopPropagation(); dragDistanceRef.current = 0; isDraggingRef.current = false; }}
                       onClick={() => handleNodeClick(node.id)}
+                      onTouchEnd={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (dragDistanceRef.current <= 8) handleNodeClick(node.id);
+                      }}
                     />
                   )}
                   <text x={node.x} y={node.y - 10}
