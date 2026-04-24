@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card } from "@/components/ui/card";
@@ -38,6 +38,9 @@ export default function ActivityFrequencyChart({ activities = [], categories = [
     return Object.values(stats).sort((a, b) => b.count - a.count);
   }, [activities, categories, from, to]);
 
+  const [chartTab, setChartTab] = useState("frequency");
+  const hasDuration = activityStats.some(a => a.duration > 0);
+
   if (activityStats.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -46,93 +49,68 @@ export default function ActivityFrequencyChart({ activities = [], categories = [
     );
   }
 
+  const tabs = [
+    ["frequency", "Count"],
+    ...(hasDuration ? [["duration", "Hours"]] : []),
+    ["distribution", "Share"],
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Frequency Chart */}
       <Card className="p-4">
-        <h3 className="text-sm font-semibold mb-4">Activity Frequency</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={activityStats} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-            <YAxis
-              dataKey="name"
-              type="category"
-              width={90}
-              tick={{ fontSize: 11 }}
-              stroke="hsl(var(--muted-foreground))"
-              tickFormatter={(v) => v && v.length > 10 ? v.slice(0, 10) + "…" : v}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "6px"
-              }}
-              formatter={(value) => [value, "Count"]}
-            />
-            <Bar dataKey="count" fill="hsl(var(--primary))" />
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
+        <div className="flex gap-1 mb-4 p-1 bg-muted/30 rounded-lg w-fit">
+          {tabs.map(([id, label]) => (
+            <button key={id} onClick={() => setChartTab(id)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                chartTab === id ? "bg-background shadow-sm text-foreground" : "text-muted-foreground"
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
 
-      {/* Duration Total */}
-      {activityStats.some(a => a.duration > 0) && (
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold mb-4">Total Duration by Activity (hours)</h3>
+        {chartTab === "frequency" && (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={activityStats} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-              <YAxis
-                dataKey="name"
-                type="category"
-                width={90}
-                tick={{ fontSize: 11 }}
+              <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 11 }}
                 stroke="hsl(var(--muted-foreground))"
-                tickFormatter={(v) => v && v.length > 10 ? v.slice(0, 10) + "…" : v}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "6px"
-                }}
-                formatter={(value) => [(value / 60).toFixed(1), "Hours"]}
-              />
+                tickFormatter={(v) => v && v.length > 10 ? v.slice(0, 10) + "…" : v} />
+              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }}
+                formatter={(value) => [value, "Count"]} />
+              <Bar dataKey="count" fill="hsl(var(--primary))" />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+
+        {chartTab === "duration" && (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={activityStats} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
+              <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 11 }}
+                stroke="hsl(var(--muted-foreground))"
+                tickFormatter={(v) => v && v.length > 10 ? v.slice(0, 10) + "…" : v} />
+              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }}
+                formatter={(value) => [(value / 60).toFixed(1), "Hours"]} />
               <Bar dataKey="duration" fill="hsl(var(--accent))" />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
-      )}
+        )}
 
-      {/* Distribution Pie */}
-      <Card className="p-4">
-        <h3 className="text-sm font-semibold mb-4">Activity Distribution</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={activityStats}
-              dataKey="count"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              label
-            >
-              {activityStats.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "6px"
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+        {chartTab === "distribution" && (
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie data={activityStats} dataKey="count" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                {activityStats.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "6px" }} />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
       </Card>
 
       {/* Stats table */}
@@ -142,10 +120,7 @@ export default function ActivityFrequencyChart({ activities = [], categories = [
           {activityStats.map((stat, idx) => (
             <div key={idx} className="flex items-center justify-between p-2 bg-muted/30 rounded text-sm">
               <div className="flex items-center gap-2 flex-1">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: stat.color || COLORS[idx % COLORS.length] }}
-                />
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stat.color || COLORS[idx % COLORS.length] }} />
                 <span className="font-medium">{stat.name}</span>
               </div>
               <div className="flex gap-4 text-xs text-muted-foreground">

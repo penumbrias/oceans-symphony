@@ -24,27 +24,31 @@ function formatDur(ms) {
   return parts.join(" ") || "< 1 Minute";
 }
 
-export default function AlterStatRow({ alter, stat, mode, maxStat }) {
+export default function AlterStatRow({ alter, stat, mode, maxStat, primaryMs = 0, cofrontingMs = 0, totalMs = 0 }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const barWidth = maxStat > 0 ? (stat / maxStat) * 100 : 0;
 
   let label = "";
-  if (mode === "total") label = `Fronted for ${formatDur(stat)}`;
+  if (mode === "total")      label = `Fronted for ${formatDur(stat)}`;
+  else if (mode === "primary")    label = `Primary fronter for ${formatDur(stat)}`;
+  else if (mode === "cofronting") label = `Co-fronted for ${formatDur(stat)}`;
   else if (mode === "average") label = `Fronted on average for ${formatDur(stat)}`;
-  else if (mode === "max") label = `Fronted at most ${formatDur(stat)}`;
-  else if (mode === "min") label = `Fronted for at least ${formatDur(stat)}`;
+  else if (mode === "max")   label = `Fronted at most ${formatDur(stat)}`;
+  else if (mode === "min")   label = `Fronted for at least ${formatDur(stat)}`;
   else if (mode === "count") label = `Fronted ${stat} time${stat !== 1 ? "s" : ""}`;
+
+  const showSplit = totalMs > 0 && (primaryMs > 0 || cofrontingMs > 0);
+  const primaryPct = totalMs > 0 ? (primaryMs / totalMs) * 100 : 0;
+  const coPct = totalMs > 0 ? (cofrontingMs / totalMs) * 100 : 0;
+  const soloPct = Math.max(0, 100 - primaryPct - coPct);
 
   return (
     <div className="relative flex items-center gap-3 px-4 py-3 bg-card rounded-xl border border-border/40 overflow-hidden">
       {/* Progress bar background */}
       <div
         className="absolute left-0 top-0 h-full opacity-10 transition-all"
-        style={{
-          width: `${barWidth}%`,
-          backgroundColor: bg || "hsl(var(--primary))",
-        }}
+        style={{ width: `${barWidth}%`, backgroundColor: bg || "hsl(var(--primary))" }}
       />
       {/* Color accent stripe on right */}
       {bg && (
@@ -71,6 +75,18 @@ export default function AlterStatRow({ alter, stat, mode, maxStat }) {
         </p>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
+
+      {/* Split bar at bottom */}
+      {showSplit && (
+        <div className="absolute bottom-0 left-0 right-0 h-1 flex overflow-hidden rounded-b-xl">
+          <div title={`Solo: ${Math.round(soloPct)}%`}
+            style={{ width: `${soloPct}%`, backgroundColor: bg ? `${bg}60` : "hsl(var(--muted))" }} />
+          <div title={`Primary: ${Math.round(primaryPct)}%`}
+            style={{ width: `${primaryPct}%`, backgroundColor: "#f59e0b" }} />
+          <div title={`Co-fronting: ${Math.round(coPct)}%`}
+            style={{ width: `${coPct}%`, backgroundColor: bg || "hsl(var(--primary))" }} />
+        </div>
+      )}
     </div>
   );
 }

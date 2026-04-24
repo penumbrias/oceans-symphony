@@ -25,6 +25,7 @@ export default function DailyTallyPanel({
 
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [showAllStatuses, setShowAllStatuses] = useState(false);
+  const [frontingView, setFrontingView] = useState("total"); // "total" | "primary" | "cofronting"
 
   // Emotion tally
   const emotionTally = useMemo(() => {
@@ -40,26 +41,31 @@ export default function DailyTallyPanel({
 
   // Fronter tally
   const fronterTally = useMemo(() => {
-    const tally = {};
+    const tally = {}; // alterId -> { total, primary, cofronting }
     sessions.forEach((s) => {
       const start = parseDate(s.start_time);
       const end = s.end_time ? parseDate(s.end_time) : new Date();
       const sessionStart = Math.max(start, dayStart);
       const sessionEnd = Math.min(end, dayEnd);
-      if (sessionStart < sessionEnd) {
-        const mins = Math.round((sessionEnd - sessionStart) / 60000);
-        if (s.alter_id) {
-          if (!tally[s.alter_id]) tally[s.alter_id] = 0;
-          tally[s.alter_id] += mins;
-        } else {
-          const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-          ids.forEach((id) => { if (!tally[id]) tally[id] = 0; tally[id] += mins; });
-        }
+      if (sessionStart >= sessionEnd) return;
+      const mins = Math.round((sessionEnd - sessionStart) / 60000);
+      if (s.alter_id) {
+        if (!tally[s.alter_id]) tally[s.alter_id] = { total: 0, primary: 0, cofronting: 0 };
+        tally[s.alter_id].total += mins;
+        if (s.is_primary) tally[s.alter_id].primary += mins;
+      } else {
+        const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+        ids.forEach((id) => {
+          if (!tally[id]) tally[id] = { total: 0, primary: 0, cofronting: 0 };
+          tally[id].total += mins;
+          if (s.primary_alter_id === id) tally[id].primary += mins;
+          else tally[id].cofronting += mins;
+        });
       }
     });
     return Object.entries(tally)
-      .map(([alterId, mins]) => ({ alterId, mins, alter: (alters || []).find((a) => a.id === alterId) }))
-      .sort((a, b) => b.mins - a.mins);
+      .map(([alterId, times]) => ({ alterId, ...times, alter: (alters || []).find((a) => a.id === alterId) }))
+      .sort((a, b) => b.total - a.total);
   }, [sessions, dayStart, dayEnd, alters]);
 
   const switchCount = useMemo(() => {
@@ -191,16 +197,41 @@ export default function DailyTallyPanel({
             <p className="text-2xl font-bold text-primary">{switchCount}</p>
           </div>
           <div className="flex-1">
-            <p className="text-muted-foreground font-medium mb-1">Fronters</p>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-muted-foreground font-medium text-xs">Fronters</p>
+              <div className="flex gap-0.5 bg-muted/40 rounded-full p-0.5">
+                {[{ id: "total", label: "All" }, { id: "primary", label: "⭐" }, { id: "cofronting", label: "co" }].map(opt => (
+                  <button key={opt.id} onClick={() => setFrontingView(opt.id)}
+                    className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium transition-colors ${
+                      frontingView === opt.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-0.5">
               {fronterTally.length > 0 ? (
-                fronterTally.map(({ alter, mins }) => (
-                  <div key={alter?.id || mins} className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter?.color || "#9333ea" }} />
-                    <span className="truncate text-xs">{alter?.name || "Unknown"}</span>
-                    <span className="text-muted-foreground text-xs">{Math.round(mins / 60)}h</span>
-                  </div>
-                ))
+                fronterTally
+                  .filter(({ total, primary, cofronting }) => {
+                    if (frontingView === "primary") return primary > 0;
+                    if (frontingView === "cofronting") return cofronting > 0;
+                    return true;
+                  })
+                  .map(({ alter, total, primary, cofronting }) => {
+                    const mins = frontingView === "primary" ? primary
+                      : frontingView === "cofronting" ? cofronting
+                      : total;
+                    return (
+                      <div key={alter?.id || total} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter?.color || "#9333ea" }} />
+                        <span className="truncate text-xs">{alter?.name || "Unknown"}</span>
+                        <span className="text-muted-foreground text-xs ml-auto">
+                          {mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}m`}
+                        </span>
+                      </div>
+                    );
+                  })
               ) : (
                 <span className="text-muted-foreground italic">None</span>
               )}

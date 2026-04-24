@@ -286,6 +286,7 @@ function AlterRelationshipsSection({ alter, relationships, alterMap }) {
 export default function InnerWorldMap({ alters: allAlters, relationships, onRefreshRelationships }) {
   const queryClient = useQueryClient();
   const svgRef = useRef(null);
+  const mapContainerRef = useRef(null);
   const bgFileRef = useRef(null);
   const lastPinchRef = useRef(null);
   const touchStartPos = useRef(null);
@@ -415,6 +416,26 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     if (!svg) return;
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => svg.removeEventListener("wheel", handleWheel);
+  }, []);
+
+  // Prevent page scroll and browser pinch-zoom inside the map container
+  useEffect(() => {
+    const el = mapContainerRef.current;
+    if (!el) return;
+    const preventScroll = (e) => e.preventDefault();
+    el.addEventListener("wheel", preventScroll, { passive: false });
+    el.addEventListener("touchmove", preventScroll, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", preventScroll);
+      el.removeEventListener("touchmove", preventScroll);
+    };
+  }, []);
+
+  // Prevent browser-level pinch zoom while map is mounted
+  useEffect(() => {
+    const prevent = (e) => { if (e.touches?.length > 1) e.preventDefault(); };
+    document.addEventListener("touchstart", prevent, { passive: false });
+    return () => document.removeEventListener("touchstart", prevent);
   }, []);
 
   useEffect(() => {
@@ -658,7 +679,8 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
       )}
 
       {/* SVG Canvas */}
-      <div className="relative flex-1 min-w-0 h-full bg-card overflow-hidden"
+      <div ref={mapContainerRef} className="relative flex-1 min-w-0 h-full bg-card overflow-hidden"
+        style={{ touchAction: "none" }}
         style={{ backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
         <svg
           ref={svgRef}

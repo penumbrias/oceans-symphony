@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { motion } from "framer-motion";
 import { subDays, startOfDay, endOfDay } from "date-fns";
-import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer, ChevronLeft } from "lucide-react";
+import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer, ChevronLeft, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
 import AlterStatRow from "@/components/analytics/AlterStatRow";
@@ -25,11 +25,13 @@ import JournalAnalytics from "@/components/analytics/JournalAnalytics";
 import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 
 const MODES = [
-  { id: "total", label: "Total", icon: Clock },
-  { id: "average", label: "Average", icon: Timer },
-  { id: "max", label: "Max", icon: TrendingUp },
-  { id: "min", label: "Min", icon: TrendingDown },
-  { id: "count", label: "Count", icon: Hash },
+  { id: "total",      label: "Total",    icon: Clock },
+  { id: "primary",    label: "Primary",  icon: Star },
+  { id: "cofronting", label: "Co-front", icon: Users },
+  { id: "average",    label: "Average",  icon: Timer },
+  { id: "max",        label: "Max",      icon: TrendingUp },
+  { id: "min",        label: "Min",      icon: TrendingDown },
+  { id: "count",      label: "Count",    icon: Hash },
 ];
 
 function computeStats(sessions, alters, from, to) {
@@ -41,21 +43,44 @@ function computeStats(sessions, alters, from, to) {
   });
   const alterMap = {};
   for (const alter of alters) {
-    alterMap[alter.id] = { alter, total: 0, sessions: [], count: 0 };
+    alterMap[alter.id] = { alter, total: 0, primary: 0, cofronting: 0, sessions: [], count: 0 };
   }
   for (const s of filtered) {
-    const ids = s.alter_id
-      ? [s.alter_id]
-      : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
     const start = new Date(s.start_time).getTime();
     const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
     const dur = Math.max(end - start, 0);
-    for (const id of ids) {
-      if (!alterMap[id]) continue;
-      alterMap[id].total += dur;
-      alterMap[id].sessions.push(dur);
-      alterMap[id].count += 1;
+    if (s.alter_id) {
+      if (!alterMap[s.alter_id]) continue;
+      alterMap[s.alter_id].total += dur;
+      alterMap[s.alter_id].sessions.push(dur);
+      alterMap[s.alter_id].count += 1;
+      if (s.is_primary) alterMap[s.alter_id].primary += dur;
+    } else {
+      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+      for (const id of ids) {
+        if (!alterMap[id]) continue;
+        alterMap[id].total += dur;
+        alterMap[id].sessions.push(dur);
+        alterMap[id].count += 1;
+        if (s.primary_alter_id === id) alterMap[id].primary += dur;
+        else alterMap[id].cofronting += dur;
+      }
     }
+  }
+  // For new individual model: compute co-fronting time via overlaps
+  const individualSessions = filtered.filter(s => s.alter_id);
+  for (const s of individualSessions) {
+    const id = s.alter_id;
+    if (!alterMap[id]) continue;
+    const sStart = new Date(s.start_time).getTime();
+    const sEnd = s.end_time ? new Date(s.end_time).getTime() : Date.now();
+    const hasOverlap = individualSessions.some(other => {
+      if (other.id === s.id || other.alter_id === id) return false;
+      const oStart = new Date(other.start_time).getTime();
+      const oEnd = other.end_time ? new Date(other.end_time).getTime() : Date.now();
+      return oStart < sEnd && oEnd > sStart;
+    });
+    if (hasOverlap) alterMap[id].cofronting += (sEnd - sStart);
   }
   return { alterMap, filtered };
 }
@@ -79,10 +104,10 @@ function SectionGrid({ terms, onSelect }) {
         <button
           key={s.id}
           onClick={() => onSelect(s.id)}
-          className="bg-card border border-border/50 rounded-xl p-4 text-left hover:bg-muted/30 hover:border-primary/30 transition-all active:scale-[0.98] space-y-1"
+          className="bg-card border border-border/50 rounded-xl p-4 text-left hover:bg-muted/30 hover:border-primary/40 hover:shadow-sm transition-all active:scale-[0.98] space-y-1.5 group"
         >
-          <span className="text-2xl">{s.emoji}</span>
-          <p className="font-semibold text-sm text-foreground">{s.label}</p>
+          <span className="text-2xl group-hover:scale-110 transition-transform inline-block">{s.emoji}</span>
+          <p className="font-semibold text-sm text-foreground leading-tight">{s.label}</p>
           <p className="text-xs text-muted-foreground leading-snug">{s.desc}</p>
         </button>
       ))}
@@ -175,11 +200,13 @@ export default function Analytics() {
       .filter((d) => d.count > 0)
       .map((d) => {
         let stat = 0;
-        if (mode === "total") stat = d.total;
-        else if (mode === "average") stat = d.sessions.length ? d.total / d.sessions.length : 0;
-        else if (mode === "max") stat = d.sessions.length ? Math.max(...d.sessions) : 0;
-        else if (mode === "min") stat = d.sessions.length ? Math.min(...d.sessions) : 0;
-        else if (mode === "count") stat = d.count;
+        if (mode === "total")           stat = d.total;
+        else if (mode === "primary")    stat = d.primary;
+        else if (mode === "cofronting") stat = d.cofronting;
+        else if (mode === "average")    stat = d.sessions.length ? d.total / d.sessions.length : 0;
+        else if (mode === "max")        stat = d.sessions.length ? Math.max(...d.sessions) : 0;
+        else if (mode === "min")        stat = d.sessions.length ? Math.min(...d.sessions) : 0;
+        else if (mode === "count")      stat = d.count;
         return { alter: d.alter, stat };
       })
       .sort((a, b) => b.stat - a.stat);
@@ -285,11 +312,19 @@ export default function Analytics() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {rows.map(({ alter, stat }) => (
-                    <motion.div key={alter.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-                      <AlterStatRow alter={alter} stat={stat} mode={mode} maxStat={maxStat} />
-                    </motion.div>
-                  ))}
+                  {rows.map(({ alter, stat }) => {
+                    const d = alterMap[alter.id];
+                    return (
+                      <motion.div key={alter.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
+                        <AlterStatRow
+                          alter={alter} stat={stat} mode={mode} maxStat={maxStat}
+                          primaryMs={d?.primary || 0}
+                          cofrontingMs={d?.cofronting || 0}
+                          totalMs={d?.total || 0}
+                        />
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
 
