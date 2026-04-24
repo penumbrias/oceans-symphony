@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,16 +8,37 @@ import { decryptContent } from "@/lib/encryption";
 import { Edit2, Lock, AlertCircle, Loader2, BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
+async function resolveLocalImagesInHtml(html) {
+  if (!html || !html.includes("local-image://")) return html;
+  const { resolveImageUrl } = await import("@/lib/imageUrlResolver");
+  const matches = [...new Set([...html.matchAll(/src="(local-image:\/\/[^"]+)"/g)].map(m => m[1]))];
+  if (!matches.length) return html;
+  const resolved = await Promise.all(matches.map(url => resolveImageUrl(url).catch(() => null)));
+  let result = html;
+  matches.forEach((url, i) => {
+    if (resolved[i]) result = result.replaceAll(`src="${url}"`, `src="${resolved[i]}"`);
+  });
+  return result;
+}
+
 export default function JournalViewModal({ open, onClose, entry, altersById, onEdit }) {
   const [decryptPassword, setDecryptPassword] = useState("");
   const [decryptedContent, setDecryptedContent] = useState(null);
   const [decryptError, setDecryptError] = useState("");
   const [decrypting, setDecrypting] = useState(false);
+  const [resolvedHtml, setResolvedHtml] = useState(null);
+
+  useEffect(() => {
+    if (!open) { setResolvedHtml(null); return; }
+    const content = decryptedContent ?? entry?.content;
+    if (!content) { setResolvedHtml(null); return; }
+    resolveLocalImagesInHtml(content).then(setResolvedHtml);
+  }, [open, entry?.content, decryptedContent]);
 
   if (!entry) return null;
 
   const isEncrypted = entry.is_encrypted && decryptedContent === null;
-  const displayContent = decryptedContent ?? entry.content;
+  const displayContent = resolvedHtml ?? decryptedContent ?? entry.content;
   const author = altersById?.[entry.author_alter_id];
 
   const handleDecrypt = async () => {
@@ -37,6 +58,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
     setDecryptPassword("");
     setDecryptedContent(null);
     setDecryptError("");
+    setResolvedHtml(null);
     onClose();
   };
 
