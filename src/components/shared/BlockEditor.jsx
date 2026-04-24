@@ -10,6 +10,19 @@ import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar"
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
 
+// Hook: resolves a local-image:// src to a displayable data URL
+function useResolvedSrc(src) {
+  const [resolved, setResolved] = useState(null);
+  useEffect(() => {
+    if (!src) { setResolved(null); return; }
+    if (!src.startsWith("local-image://")) { setResolved(src); return; }
+    import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
+      resolveImageUrl(src).then(r => setResolved(r || null)).catch(() => setResolved(null));
+    });
+  }, [src]);
+  return resolved || src || "";
+}
+
 // Strips src from img tags in rendered HTML — replaced with data-img-id for size reduction.
 // The rendered HTML is only a fallback; SimplePreview resolves images at render time.
 function stripImgSrcs(html) {
@@ -143,15 +156,8 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
   const [src, setSrc] = useState(initial.src || "");
   const [alt, setAlt] = useState(initial.alt || "");
   const [uploading, setUploading] = useState(false);
-  const [resolvedSrc, setResolvedSrc] = useState(initial.src || "");
   const fileRef = useRef(null);
-
-  useEffect(() => {
-    if (!src) { setResolvedSrc(""); return; }
-    import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
-      resolveImageUrl(src).then(r => setResolvedSrc(r || src));
-    });
-  }, [src]);
+  const resolvedSrc = useResolvedSrc(src);
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -308,12 +314,13 @@ function ImgTextBlock({ block, onChange, onInsertLink }) {
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, block.text || "", v => onChange({ ...block, text: v }));
   const isLeft = block.type === "img-left";
+  const resolvedSrc = useResolvedSrc(block.src);
   const imgSlot = (
     <div className="flex flex-col gap-2 p-3 flex-shrink-0" style={{ width: 164 }}>
       <button type="button" onClick={() => setImgModal(true)}
         className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center" style={{ minHeight: 80 }}>
         {block.src ? (
-          <img src={block.src} alt={block.alt || ""} style={block.cropped ? { width: "100%", height: block.size || 120, objectFit: "cover" } : { width: "100%", height: "auto" }} onError={e => e.target.style.display = "none"} />
+          <img src={resolvedSrc} alt={block.alt || ""} style={block.cropped ? { width: "100%", height: block.size || 120, objectFit: "cover" } : { width: "100%", height: "auto" }} onError={e => e.target.style.display = "none"} />
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground py-4"><Image className="w-5 h-5" /><span className="text-xs">Add image</span></div>
         )}
@@ -348,6 +355,7 @@ function ImgTextBlock({ block, onChange, onInsertLink }) {
 
 function ImgSoloBlock({ block, onChange }) {
   const [imgModal, setImgModal] = useState(false);
+  const resolvedSrc = useResolvedSrc(block.src);
   return (
     <>
       <div className="p-3 space-y-3">
@@ -360,7 +368,7 @@ function ImgSoloBlock({ block, onChange }) {
           }}>
           <button type="button" onClick={() => setImgModal(true)} className="contents">
             {block.src ? (
-              <img src={block.src} alt={block.alt || ""}
+              <img src={resolvedSrc} alt={block.alt || ""}
                 style={block.cropped
                   ? { width: "100%", maxWidth: block.size || 240, height: block.size || 240, objectFit: "cover" }
                   : { maxWidth: "100%", height: "auto", maxHeight: 240 }}
@@ -399,6 +407,35 @@ function ImgSoloBlock({ block, onChange }) {
   );
 }
 
+// Small component so each gallery image can independently resolve its src
+function GalleryImageThumb({ img, index, maxHeight, onEdit, onToggleCrop, onRemove, canRemove }) {
+  const resolvedSrc = useResolvedSrc(img.src);
+  return (
+    <div className="flex flex-col gap-1 flex-shrink-0">
+      <button type="button" onClick={onEdit}
+        className="rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
+        style={img.src ? (img.cropped ? { width: maxHeight, height: maxHeight } : { maxWidth: 200, minWidth: 40 }) : { width: 72, height: 72 }}>
+        {img.src ? (
+          <img src={resolvedSrc} alt={img.alt || ""} style={img.cropped ? { width: maxHeight, height: maxHeight, objectFit: "cover" } : { maxHeight, width: "auto", height: "auto", maxWidth: 200 }} onError={e => e.target.style.display = "none"} />
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-muted-foreground p-3"><Image className="w-4 h-4" /><span className="text-xs">{index + 1}</span></div>
+        )}
+      </button>
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={onToggleCrop}
+          className={`flex-1 flex items-center justify-center gap-1 text-xs py-0.5 rounded-md border transition-colors ${img.cropped ? "border-primary/40 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-primary/30"}`}>
+          <Crop className="w-2.5 h-2.5" />{img.cropped ? "Crop" : "Natural"}
+        </button>
+        {canRemove && (
+          <button type="button" onClick={onRemove} className="w-5 h-5 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function GalleryBlock({ block, onChange }) {
   const [activeIdx, setActiveIdx] = useState(null);
   const images = block.images || [{ src: "", alt: "", cropped: false }, { src: "", alt: "", cropped: false }];
@@ -414,28 +451,11 @@ function GalleryBlock({ block, onChange }) {
       </div>
       <div className="flex flex-wrap gap-2">
         {images.map((img, i) => (
-          <div key={i} className="flex flex-col gap-1 flex-shrink-0">
-            <button type="button" onClick={() => setActiveIdx(i)}
-              className="rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden bg-muted/20 flex items-center justify-center"
-              style={img.src ? (img.cropped ? { width: maxHeight, height: maxHeight } : { maxWidth: 200, minWidth: 40 }) : { width: 72, height: 72 }}>
-              {img.src ? (
-                <img src={img.src} alt={img.alt || ""} style={img.cropped ? { width: maxHeight, height: maxHeight, objectFit: "cover" } : { maxHeight, width: "auto", height: "auto", maxWidth: 200 }} onError={e => e.target.style.display = "none"} />
-              ) : (
-                <div className="flex flex-col items-center gap-1 text-muted-foreground p-3"><Image className="w-4 h-4" /><span className="text-xs">{i + 1}</span></div>
-              )}
-            </button>
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={() => updateImage(i, { cropped: !img.cropped })}
-                className={`flex-1 flex items-center justify-center gap-1 text-xs py-0.5 rounded-md border transition-colors ${img.cropped ? "border-primary/40 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-primary/30"}`}>
-                <Crop className="w-2.5 h-2.5" />{img.cropped ? "Crop" : "Natural"}
-              </button>
-              {images.length > 1 && (
-                <button type="button" onClick={() => removeImage(i)} className="w-5 h-5 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
+          <GalleryImageThumb key={i} img={img} index={i} maxHeight={maxHeight}
+            onEdit={() => setActiveIdx(i)}
+            onToggleCrop={() => updateImage(i, { cropped: !img.cropped })}
+            onRemove={() => removeImage(i)}
+            canRemove={images.length > 1} />
         ))}
         {images.length < 6 && (
           <button type="button" onClick={addImage} className="rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-muted/10 flex items-center justify-center text-muted-foreground hover:text-primary flex-shrink-0" style={{ width: 48, height: 72 }}>
