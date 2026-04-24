@@ -157,7 +157,7 @@ export default function ReminderToast() {
 
   return (
     <>
-      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
+      <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0" style={{ zIndex: openModals.length ? 150 : 200 }}>
       {visible.slice(0, 3).map(({ instance, reminder }) => {
         const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
         const inlineActions = reminder.inline_actions || [];
