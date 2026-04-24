@@ -80,8 +80,10 @@ export default function TimeOfDayFronters({ sessions, alters }) {
 
   const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
 
+  const [viewMode, setViewMode] = useState("total"); // "total" | "primary" | "cofronting"
+
   const periodData = useMemo(() => {
-    const durations = {}; // { alterId: ms }
+    const totals = {};   // alterId -> { total, primary, cofronting }
 
     for (const s of sessions) {
       const hour = getHours(new Date(s.start_time));
@@ -92,69 +94,100 @@ export default function TimeOfDayFronters({ sessions, alters }) {
       const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
       const duration = Math.max(end - start, 0);
 
-      const ids = s.alter_id
-        ? [s.alter_id]
-        : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-      for (const id of ids) {
-        durations[id] = (durations[id] || 0) + duration;
+      if (s.alter_id) {
+        if (!totals[s.alter_id]) totals[s.alter_id] = { total: 0, primary: 0, cofronting: 0 };
+        totals[s.alter_id].total += duration;
+        if (s.is_primary) totals[s.alter_id].primary += duration;
+      } else {
+        const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+        for (const id of ids) {
+          if (!totals[id]) totals[id] = { total: 0, primary: 0, cofronting: 0 };
+          totals[id].total += duration;
+          if (s.primary_alter_id === id) totals[id].primary += duration;
+          else totals[id].cofronting += duration;
+        }
       }
     }
 
-    return Object.entries(durations)
-      .map(([id, duration]) => ({ alter: altersById[id], duration }))
+    return Object.entries(totals)
+      .map(([id, times]) => ({ alter: altersById[id], ...times }))
       .filter((d) => d.alter)
-      .sort((a, b) => b.duration - a.duration);
+      .sort((a, b) => b.total - a.total);
   }, [sessions, altersById, activePeriod]);
 
   const current = PERIODS.find((p) => p.id === activePeriod);
   const periodLabel = activePeriod; // "morning", "day", etc.
 
+  const displayedData = periodData.filter(d => {
+    if (viewMode === "primary") return d.primary > 0;
+    if (viewMode === "cofronting") return d.cofronting > 0;
+    return true;
+  });
+
   return (
     <div>
       {/* Results */}
-      {periodData.length === 0 ? (
+      {displayedData.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <p className="text-muted-foreground text-sm">No {terms.fronting} data during this time</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {periodData.map(({ alter, duration }) => (
-            <AlterRow key={alter.id} alter={alter} duration={duration} periodLabel={periodLabel} />
-          ))}
+          {displayedData.map(({ alter, total, primary, cofronting }) => {
+            const duration = viewMode === "primary" ? primary : viewMode === "cofronting" ? cofronting : total;
+            return <AlterRow key={alter.id} alter={alter} duration={duration} periodLabel={periodLabel} />;
+          })}
         </div>
       )}
 
-      {/* Period label above tabs */}
-      <div className="mt-8 flex justify-center">
-        <span className="text-sm font-semibold text-primary/80 bg-primary/10 px-4 py-1.5 rounded-full">
-          {current.label}
-        </span>
-      </div>
-
-      {/* Icon tab bar */}
-      <div className="mt-3 flex justify-around items-center bg-card border border-border/50 rounded-xl p-2">
-        {PERIODS.map((p) => {
-          const Icon = p.icon;
-          const isActive = p.id === activePeriod;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setActivePeriod(p.id)}
-              className={`flex items-center justify-center w-12 h-12 rounded-xl transition-all ${
-                isActive ? "bg-primary/15" : "hover:bg-muted/50"
-              }`}
-            >
-              <Icon
-                className={`w-5 h-5 transition-colors ${isActive ? p.color : "text-muted-foreground"}`}
-              />
+      {/* Period + view mode selectors at bottom */}
+      <div className="mt-8 space-y-3">
+        {/* View mode toggle */}
+        <div className="flex justify-center gap-1 p-1 bg-muted/30 rounded-xl w-fit mx-auto">
+          {[
+            { id: "total", label: "All" },
+            { id: "primary", label: "⭐ Primary" },
+            { id: "cofronting", label: "👥 Co-front" },
+          ].map(opt => (
+            <button key={opt.id} onClick={() => setViewMode(opt.id)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                viewMode === opt.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              {opt.label}
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </div>
 
-      <p className="text-center text-xs text-primary font-semibold uppercase tracking-wider mt-2">
-        Time of {terms.fronting}
-      </p>
+        {/* Period label */}
+        <div className="flex justify-center">
+          <span className="text-sm font-semibold text-primary/80 bg-primary/10 px-4 py-1.5 rounded-full">
+            {current.label}
+          </span>
+        </div>
+
+        {/* Icon tab bar */}
+        <div className="flex justify-around items-center bg-card border border-border/50 rounded-xl p-2">
+          {PERIODS.map((p) => {
+            const Icon = p.icon;
+            const isActive = p.id === activePeriod;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setActivePeriod(p.id)}
+                className={`flex items-center justify-center w-12 h-12 rounded-xl transition-all ${
+                  isActive ? "bg-primary/15" : "hover:bg-muted/50"
+                }`}
+              >
+                <Icon className={`w-5 h-5 transition-colors ${isActive ? p.color : "text-muted-foreground"}`} />
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-center text-xs text-primary font-semibold uppercase tracking-wider">
+          Time of {terms.fronting}
+        </p>
+      </div>
     </div>
   );
 }

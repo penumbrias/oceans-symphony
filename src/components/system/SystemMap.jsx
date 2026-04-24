@@ -284,12 +284,28 @@ const SystemMap = ({ relationships = [] }) => {
     setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
     setDragDistance(0);
   };
+  const lastPinchRef = useRef(null);
   const handleTouchStart = (e) => {
     if (e.touches.length !== 1) return;
+    e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.touches[0].clientX - transform.x, y: e.touches[0].clientY - transform.y });
   };
   const handleTouchMove = (e) => {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (lastPinchRef.current !== null) {
+        const delta = dist / lastPinchRef.current;
+        setTransform(t => ({ ...t, scale: Math.max(0.5, Math.min(3, t.scale * delta)) }));
+      }
+      lastPinchRef.current = dist;
+      return;
+    }
+    lastPinchRef.current = null;
     if (!isDragging || e.touches.length !== 1) return;
     setTransform(t => ({ ...t, x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y }));
   };
@@ -348,8 +364,8 @@ const SystemMap = ({ relationships = [] }) => {
     if (!svg) return;
     svg.addEventListener("mousemove", handleMouseMove);
     svg.addEventListener("mouseup", handleMouseUp);
-    svg.addEventListener("touchstart", handleTouchStart);
-    svg.addEventListener("touchmove", handleTouchMove);
+    svg.addEventListener("touchstart", handleTouchStart, { passive: false });
+    svg.addEventListener("touchmove", handleTouchMove, { passive: false });
     svg.addEventListener("touchend", handleMouseUp);
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
