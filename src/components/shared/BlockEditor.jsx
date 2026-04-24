@@ -10,6 +10,17 @@ import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar"
 let _id = 0;
 const uid = () => `b_${Date.now()}_${_id++}`;
 
+// Strips src from img tags in rendered HTML — replaced with data-img-id for size reduction.
+// The rendered HTML is only a fallback; SimplePreview resolves images at render time.
+function stripImgSrcs(html) {
+  return html.replace(/<img\s+src="([^"]*)"([^>]*)>/g, (match, src, rest) => {
+    // Extract local image ID if present
+    const localMatch = src.match(/^local-image:\/\/(.+)$/);
+    const imgId = localMatch ? localMatch[1] : "";
+    return `<img data-img-id="${imgId}"${rest}>`;
+  });
+}
+
 export function blocksToHTML(blocks) {
   const inner = blocks.map(block => {
     switch (block.type) {
@@ -21,12 +32,12 @@ export function blocksToHTML(blocks) {
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
 </div>`;
       case "img-solo": {
-  const align = block.align || "left";
-  const marginStyle = align === "center" ? "margin-left:auto;margin-right:auto;" : align === "right" ? "margin-left:auto;margin-right:0;" : "margin-left:0;margin-right:auto;";
-  return `<div style="margin:8px 0;">
+        const align = block.align || "left";
+        const marginStyle = align === "center" ? "margin-left:auto;margin-right:auto;" : align === "right" ? "margin-left:auto;margin-right:0;" : "margin-left:0;margin-right:auto;";
+        return `<div style="margin:8px 0;">
   <img src="${block.src || ""}" alt="${block.alt || ""}" style="display:block;width:${block.size || 240}px;${block.cropped ? `height:${block.size || 240}px;object-fit:cover;` : "height:auto;"}border-radius:8px;max-width:100%;${marginStyle}" />
 </div>`;
-}
+      }
       case "img-right":
         return `<div style="display:flex;gap:14px;align-items:flex-start;margin:8px 0;flex-wrap:wrap;">
   <div style="flex:1;min-width:160px;">${block.text || ""}</div>
@@ -42,36 +53,42 @@ export function blocksToHTML(blocks) {
       }
       case "divider":
         return `<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />`;
-
       case "raw":
         return block.content || "";
       default:
         return "";
     }
   }).join("\n");
-  const blocksForJSON = blocks.map(b => {
-    const strip = (src) => src?.startsWith("data:") ? "__local_img__" : src;
-    if (b.type === "img-left" || b.type === "img-right" || b.type === "img-solo") {
-      return { ...b, src: strip(b.src) };
-    }
-    if (b.type === "gallery") {
-      return { ...b, images: (b.images || []).map(i => ({ ...i, src: strip(i.src) })) };
-    }
-    return b;
-  });
 
-  const json = encodeURIComponent(JSON.stringify(blocksForJSON));
-  return `<div data-blocks="${json}" style="width:100%;display:block;">${inner}</div>`;
+  // Strip src attributes from rendered HTML — saves significant space
+  const strippedInner = stripImgSrcs(inner);
+
+  // Store blocks JSON in a script tag (no URI encoding bloat)
+  const blocksJson = JSON.stringify(blocks);
+  return `<div data-blocks-v2="1" style="width:100%;display:block;">${strippedInner}</div><script type="application/json" data-blocks-json="1">${blocksJson}</script>`;
 }
 
 export function htmlToBlocks(html) {
   if (!html || !html.trim()) return [];
-  const match = html.match(/data-blocks="([^"]*)"/);
-  if (match) {
+
+  // New format: JSON stored in a <script data-blocks-json> tag (no URI encoding)
+  const scriptMatch = html.match(/<script[^>]+data-blocks-json[^>]*>([\s\S]*?)<\/script>/);
+  if (scriptMatch) {
     try {
-      const blocks = JSON.parse(decodeURIComponent(match[1]));
+      const blocks = JSON.parse(scriptMatch[1]);
       if (Array.isArray(blocks) && blocks.length) {
-        // Re-extract data: or local-image: srcs from rendered img tags (for __local_img__ placeholders)
+        return blocks.map(b => ({ ...b, id: uid() }));
+      }
+    } catch {}
+  }
+
+  // Legacy format: URI-encoded JSON in data-blocks attribute
+  const attrMatch = html.match(/data-blocks="([^"]*)"/);
+  if (attrMatch) {
+    try {
+      const blocks = JSON.parse(decodeURIComponent(attrMatch[1]));
+      if (Array.isArray(blocks) && blocks.length) {
+        // Re-extract local-image: or data: srcs from rendered img tags (for __local_img__ placeholders)
         const imgSrcs = [...html.matchAll(/<img src="((?:data:|local-image:\/\/)[^"]+)"/g)].map(m => m[1]);
         let imgIdx = 0;
         const restore = (src) => src === "__local_img__" ? (imgSrcs[imgIdx++] || "") : src;

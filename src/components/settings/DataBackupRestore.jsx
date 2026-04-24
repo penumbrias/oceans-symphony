@@ -94,6 +94,8 @@ export default function DataBackupRestore() {
     setTimeout(() => setStatus(null), 5000);
   };
 
+  const [sizeWarning, setSizeWarning] = useState(null);
+
   const buildExportData = async () => {
     let dump;
     if (isLocalMode()) {
@@ -120,13 +122,23 @@ export default function DataBackupRestore() {
       }
     }
     
-    return {
+    const exportData = {
       __format: "symphony_backup",
       __version: 1,
       __exported_at: new Date().toISOString(),
       data: dump,
-      __local_images: localImages, // Images are keyed by ID, values are data URLs
+      __local_images: localImages,
     };
+
+    // Size warning — check before compression
+    const rawSize = JSON.stringify(exportData).length;
+    if (rawSize > 500 * 1024) {
+      setSizeWarning(`Your backup is large (${(rawSize / 1024).toFixed(0)}KB). Run "Migrate All Images" first to reduce size.`);
+    } else {
+      setSizeWarning(null);
+    }
+
+    return exportData;
   };
 
   // Inside component — needs setExportLoading, buildExportData, showStatus
@@ -435,6 +447,13 @@ const handleExportFull = async () => {
             </div>
           </Button>
         </div>
+
+        {sizeWarning && (
+          <div className="flex items-start gap-2 rounded-xl px-3 py-2 text-sm bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-400/40">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{sizeWarning}</span>
+          </div>
+        )}
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>

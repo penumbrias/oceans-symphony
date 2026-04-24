@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
@@ -7,34 +7,38 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
   const navigate = useNavigate();
   const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
-  // Map of local-image:// URL -> resolved data URL for rendering
+  // Map ref: local-image:// URL -> resolved data URL. Keyed by URL so resolution only happens once.
+  const resolvedRef = useRef({});
   const [resolvedImages, setResolvedImages] = useState({});
 
   useEffect(() => {
-    // Collect all image srcs from blocks that need resolution
-    const srcs = new Set();
+    // Collect all local-image:// srcs that haven't been resolved yet
+    const unresolved = new Set();
     for (const block of blocks) {
-      if (block.src?.startsWith("local-image://")) srcs.add(block.src);
-      if (block.images) block.images.forEach(i => { if (i.src?.startsWith("local-image://")) srcs.add(i.src); });
+      if (block.src?.startsWith("local-image://") && !resolvedRef.current[block.src]) unresolved.add(block.src);
+      if (block.images) block.images.forEach(i => {
+        if (i.src?.startsWith("local-image://") && !resolvedRef.current[i.src]) unresolved.add(i.src);
+      });
     }
-    if (!srcs.size) return;
+    if (!unresolved.size) return;
     let cancelled = false;
-    Promise.all([...srcs].map(async url => {
+    Promise.all([...unresolved].map(async url => {
       const resolved = await resolveImageUrl(url);
       return [url, resolved];
     })).then(pairs => {
       if (cancelled) return;
-      setResolvedImages(prev => {
-        const next = { ...prev };
-        pairs.forEach(([url, resolved]) => { if (resolved) next[url] = resolved; });
-        return next;
-      });
+      pairs.forEach(([url, resolved]) => { if (resolved) resolvedRef.current[url] = resolved; });
+      setResolvedImages({ ...resolvedRef.current });
     });
     return () => { cancelled = true; };
   }, [blocks]);
 
-  // Resolve a src for rendering (falls back to original if not yet resolved)
-  const resolveSrc = (src) => (src?.startsWith("local-image://") ? resolvedImages[src] || "" : src);
+  // Resolve a src for rendering — uses ref cache, falls back to empty string while loading
+  const resolveSrc = (src) => {
+    if (!src) return "";
+    if (!src.startsWith("local-image://")) return src;
+    return resolvedRef.current[src] || resolvedImages[src] || "";
+  };
 
   const handleClick = (e, block, field) => {
     // Check for internal link clicks (works in both read-only and edit mode)
