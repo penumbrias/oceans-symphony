@@ -11,7 +11,7 @@ import { SymptomBar, SymptomDetailModal } from "@/components/timeline/SymptomBar
 import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 56, eventCol: 60, emotionCol: 60, symptom: 56, alter: 40 };
+const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 44 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
 const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
 
@@ -856,21 +856,26 @@ export default function InfiniteTimeline({
     return cols;
   }, [sortedSymptomSessions, dayStart, isToday]);
 
-  const numActivityCols = showActivities ? Math.max(1, activityColumns.length) : 0;
-  const activityAreaWidth = numActivityCols * colWidths.activity;
-  const eventColWidth_actual = showCheckIns ? eventColWidth : 0;
-  const emotionColWidth_actual = showEmotions ? emotionColWidth : 0;
-  const eventColLeft = activityAreaWidth;
-  const emotionColLeft = eventColLeft + eventColWidth_actual;
-  const checkInAreaWidth = eventColWidth_actual + emotionColWidth_actual;
-  const numSymptomCols = showSymptoms ? Math.max(1, symptomColumns.length) : 0;
-  const symptomAreaWidth = numSymptomCols * colWidths.symptom;
-  const symptomLeft = activityAreaWidth + checkInAreaWidth;
   const numAlterCols = Math.max(1, alterColumns.length);
   const alterAreaWidth = numAlterCols * colWidths.alter;
-  const timeLeft = symptomLeft + (showSymptoms ? symptomAreaWidth : 0);
-  const alterLeft = timeLeft + LABEL_WIDTH;
-  const totalWidth = timeLeft + LABEL_WIDTH + alterAreaWidth;
+
+  // Collapse empty columns to zero width
+  const numActivityCols = showActivities && activityEntries.length > 0 ? Math.max(1, activityColumns.length) : 0;
+  const activityAreaWidth = numActivityCols * colWidths.activity;
+
+  const numSymptomCols = showSymptoms && symptomSessions.length > 0 ? Math.max(1, symptomColumns.length) : 0;
+  const symptomAreaWidth = numSymptomCols * colWidths.symptom;
+
+  const eventColWidth_actual = showCheckIns && eventEntries.length > 0 ? eventColWidth : 0;
+  const emotionColWidth_actual = showEmotions && emotionEntries.length > 0 ? emotionColWidth : 0;
+
+  // New column order: [time label | alters | symptoms | events | emotions | activities]
+  const alterLeft = LABEL_WIDTH;
+  const symptomLeft = alterLeft + alterAreaWidth;
+  const eventColLeft = symptomLeft + symptomAreaWidth;
+  const emotionColLeft = eventColLeft + eventColWidth_actual;
+  const activityLeft = emotionColLeft + emotionColWidth_actual;
+  const totalWidth = activityLeft + activityAreaWidth;
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
   const handleSplitSave = async (action, splitMins) => {
@@ -1050,35 +1055,41 @@ export default function InfiniteTimeline({
 
           <div style={{ minWidth: totalWidth }}>
             <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
-              {showActivities && (
+              {/* Time label spacer */}
+              <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
+              {/* Alters — always shown */}
+              <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
+                <Users className="w-3.5 h-3.5 inline" />
+                <ResizeHandle onDrag={(d) => dragCol("alter", d / numAlterCols)} />
+              </div>
+              {/* Symptoms — only if data exists */}
+              {numSymptomCols > 0 && (
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: symptomAreaWidth }}>
+                  <span className="text-xs text-muted-foreground opacity-60">⚡</span>
+                  <ResizeHandle onDrag={(d) => dragCol("symptom", d / numSymptomCols)} />
+                </div>
+              )}
+              {/* Events — only if data exists */}
+              {eventColWidth_actual > 0 && (
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth_actual }}>
+                  <BookOpen className="w-3.5 h-3.5 inline" />
+                  <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
+                </div>
+              )}
+              {/* Emotions — only if data exists */}
+              {emotionColWidth_actual > 0 && (
+                <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth_actual }}>
+                  <Heart className="w-3.5 h-3.5 inline" />
+                  <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
+                </div>
+              )}
+              {/* Activities — only if data exists */}
+              {numActivityCols > 0 && (
                 <div className="text-center py-1 relative flex-shrink-0" style={{ width: activityAreaWidth }}>
                   <Activity className="w-3.5 h-3.5 inline" />
                   <ResizeHandle onDrag={(d) => dragCol("activity", d / numActivityCols)} />
                 </div>
               )}
-              {showCheckIns && (
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: eventColWidth, zIndex: 2, position: 'relative' }}>
-                  <BookOpen className="w-3.5 h-3.5 inline" />
-                  <ResizeHandle onDrag={(d) => dragCol("eventCol", d)} />
-                </div>
-              )}
-              {showEmotions && (
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: emotionColWidth, zIndex: 1, position: 'relative' }}>
-                  <Heart className="w-3.5 h-3.5 inline" />
-                  <ResizeHandle onDrag={(d) => dragCol("emotionCol", d)} />
-                </div>
-              )}
-              {showSymptoms && (
-                <div className="text-center py-1 relative flex-shrink-0" style={{ width: symptomAreaWidth }}>
-                  <span className="text-xs text-muted-foreground opacity-60">⚡</span>
-                  <ResizeHandle onDrag={(d) => dragCol("symptom", d / Math.max(1, numSymptomCols))} />
-                </div>
-              )}
-              <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
-              <div className="text-center py-1 relative flex-shrink-0" style={{ width: alterAreaWidth }}>
-                <Users className="w-3.5 h-3.5 inline" />
-                <ResizeHandle onDrag={(d) => dragCol("alter", d / numAlterCols)} />
-              </div>
             </div>
 
             <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
@@ -1094,7 +1105,6 @@ export default function InfiniteTimeline({
                       {isCurrentHour && (
                         <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
                       )}
-                      <div className="flex-shrink-0" style={{ width: timeLeft }} />
                       <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-1 text-right" style={{ width: LABEL_WIDTH }}>
                         {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
                       </div>
@@ -1117,9 +1127,9 @@ export default function InfiniteTimeline({
                   );
                 })()}
 
-                {showActivities && activityColumns.map((col, colIdx) => (
+                {numActivityCols > 0 && activityColumns.map((col, colIdx) => (
                   <div key={`acol-${colIdx}`} className="absolute"
-                    style={{ left: colIdx * colWidths.activity, top: 0, width: colWidths.activity, height: totalHeight }}>
+                    style={{ left: activityLeft + colIdx * colWidths.activity, top: 0, width: colWidths.activity, height: totalHeight }}>
                     {col.map((entry) => {
                      const topPx = getTopPx(entry.startMins);
                      const heightPx = getRangePx(entry.startMins, entry.endMins);
@@ -1143,17 +1153,24 @@ export default function InfiniteTimeline({
                   </div>
                 ))}
 
-                {showCheckIns && (
+                {/* Divider: time label | alters */}
+                <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
+                  style={{ left: LABEL_WIDTH, height: totalHeight }} />
+                {numSymptomCols > 0 && (
+                  <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
+                    style={{ left: symptomLeft, height: totalHeight }} />
+                )}
+                {eventColWidth_actual > 0 && (
                   <div className="absolute top-0 bottom-0 border-l border-border/30 pointer-events-none"
                     style={{ left: eventColLeft, height: totalHeight }} />
                 )}
-                {showEmotions && (
+                {emotionColWidth_actual > 0 && (
                   <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
                     style={{ left: emotionColLeft, height: totalHeight }} />
                 )}
-                {showSymptoms && (
+                {numActivityCols > 0 && (
                   <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
-                    style={{ left: symptomLeft, height: totalHeight }} />
+                    style={{ left: activityLeft, height: totalHeight }} />
                 )}
 
                 {showSymptoms && symptomColumns.map((col, colIdx) => (
@@ -1185,11 +1202,8 @@ export default function InfiniteTimeline({
 
 
 
-                <div className="absolute top-0 bottom-0 border-l border-border/40 pointer-events-none"
-                  style={{ left: timeLeft, height: totalHeight }} />
-
-                {showCheckIns && (
-                  <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth, height: totalHeight }}>
+                {eventColWidth_actual > 0 && (
+                  <div className="absolute" style={{ left: eventColLeft, top: 0, width: eventColWidth_actual, height: totalHeight }}>
                     {eventPositioned.map((entry) => (
                       <EventEntry
                         key={entry.key}
@@ -1209,7 +1223,7 @@ export default function InfiniteTimeline({
                   </div>
                 )}
 
-                {showEmotions && (
+                {emotionColWidth_actual > 0 && (
                   <div className="absolute" style={{ left: emotionColLeft, top: 0, width: emotionColWidth_actual, height: totalHeight }}>
                     {emotionPositioned.map((entry) => (
                       <EmotionBubble
