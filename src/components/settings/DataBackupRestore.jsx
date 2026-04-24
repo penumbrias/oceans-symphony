@@ -430,6 +430,13 @@ const handleExportFull = async () => {
           </div>
         )}
 
+        {sizeWarning && (
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-300/50">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {sizeWarning}
+          </div>
+        )}
+
         <div className="space-y-2 pb-3 border-b border-border/40">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Avatar Migration</p>
           <p className="text-xs text-muted-foreground">If avatars were uploaded on Android, they may be stored as large base64 strings that bloat backups. Run this once to migrate them to proper URLs.</p>
@@ -447,13 +454,6 @@ const handleExportFull = async () => {
             </div>
           </Button>
         </div>
-
-        {sizeWarning && (
-          <div className="flex items-start gap-2 rounded-xl px-3 py-2 text-sm bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-400/40">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>{sizeWarning}</span>
-          </div>
-        )}
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>

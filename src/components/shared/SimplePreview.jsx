@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
@@ -7,38 +7,34 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
   const navigate = useNavigate();
   const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
-  // Map ref: local-image:// URL -> resolved data URL. Keyed by URL so resolution only happens once.
-  const resolvedRef = useRef({});
+  // Map of local-image:// URL -> resolved data URL for rendering
   const [resolvedImages, setResolvedImages] = useState({});
 
   useEffect(() => {
-    // Collect all local-image:// srcs that haven't been resolved yet
-    const unresolved = new Set();
+    // Collect all image srcs from blocks that need resolution
+    const srcs = new Set();
     for (const block of blocks) {
-      if (block.src?.startsWith("local-image://") && !resolvedRef.current[block.src]) unresolved.add(block.src);
-      if (block.images) block.images.forEach(i => {
-        if (i.src?.startsWith("local-image://") && !resolvedRef.current[i.src]) unresolved.add(i.src);
-      });
+      if (block.src?.startsWith("local-image://")) srcs.add(block.src);
+      if (block.images) block.images.forEach(i => { if (i.src?.startsWith("local-image://")) srcs.add(i.src); });
     }
-    if (!unresolved.size) return;
+    if (!srcs.size) return;
     let cancelled = false;
-    Promise.all([...unresolved].map(async url => {
+    Promise.all([...srcs].map(async url => {
       const resolved = await resolveImageUrl(url);
       return [url, resolved];
     })).then(pairs => {
       if (cancelled) return;
-      pairs.forEach(([url, resolved]) => { if (resolved) resolvedRef.current[url] = resolved; });
-      setResolvedImages({ ...resolvedRef.current });
+      setResolvedImages(prev => {
+        const next = { ...prev };
+        pairs.forEach(([url, resolved]) => { if (resolved) next[url] = resolved; });
+        return next;
+      });
     });
     return () => { cancelled = true; };
   }, [blocks]);
 
-  // Resolve a src for rendering — uses ref cache, falls back to empty string while loading
-  const resolveSrc = (src) => {
-    if (!src) return "";
-    if (!src.startsWith("local-image://")) return src;
-    return resolvedRef.current[src] || resolvedImages[src] || "";
-  };
+  // Resolve a src for rendering (falls back to original if not yet resolved)
+  const resolveSrc = (src) => (src?.startsWith("local-image://") ? resolvedImages[src] || "" : src);
 
   const handleClick = (e, block, field) => {
     // Check for internal link clicks (works in both read-only and edit mode)
@@ -160,7 +156,26 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
             );
           }
 
-          const html = blocksToHTML([block]).replace(/^<div data-blocks="[^"]*" style="[^"]*">/, "").replace(/^<div data-blocks="[^"]*">/, "").replace(/<\/div>$/, "");
+          // gallery block — render with resolved srcs
+          if (block.type === "gallery") {
+            const images = (block.images || []).filter(i => i.src);
+            const maxH = block.maxHeight || 160;
+            return (
+              <div key={block.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "8px 0", flexWrap: "wrap" }}>
+                {images.map((img, idx) => (
+                  <img key={idx} src={resolveSrc(img.src)} alt={img.alt || ""}
+                    style={img.cropped
+                      ? { height: maxH, width: maxH, objectFit: "cover", borderRadius: 8, flexShrink: 0 }
+                      : { maxHeight: maxH, width: "auto", height: "auto", borderRadius: 8, flexShrink: 0 }} />
+                ))}
+              </div>
+            );
+          }
+
+          // fallback for divider / raw / unknown — strip script tag before rendering
+          const rawHtml = blocksToHTML([block]);
+          const html = rawHtml.replace(/<script[^>]+data-blocks-json[^>]*>[\s\S]*?<\/script>/g, "")
+            .replace(/^<div[^>]*>/, "").replace(/<\/div>$/, "");
           return (
             <div key={block.id}
               onClick={(e) => !readOnly && handleClick(e, block, "content")}
