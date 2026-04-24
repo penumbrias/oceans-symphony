@@ -203,7 +203,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             title: `Check-in - ${new Date().toLocaleDateString()}`,
             content: note,
             entry_type: "personal",
-            tags: ["checkin"]
+            tags: ["checkin"],
+            folder: "Check-In Journals"
           });
           journalEntryId = entry.id;
         }
