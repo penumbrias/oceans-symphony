@@ -92,7 +92,11 @@ export default function ReminderToast() {
     })).then(results => {
       const valid = results.filter(Boolean);
       valid.forEach(({ instance }) => addShownId(instance.id));
-      setVisible(prev => [...prev, ...valid]);
+      setVisible(prev => {
+        const existingReminderIds = new Set(prev.map(v => v.reminder.id));
+        const deduped = valid.filter(v => !existingReminderIds.has(v.reminder.id));
+        return [...prev, ...deduped];
+      });
     });
   }, [pendingInstances]);
 
