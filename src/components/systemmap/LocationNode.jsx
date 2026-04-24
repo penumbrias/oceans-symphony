@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Lock, Edit2 } from "lucide-react";
 
 const MIN_SIZE = 80;
@@ -11,6 +11,15 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const longPressRef = useRef(null);
 
   const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked } = location;
+
+  const [resolvedBgUrl, setResolvedBgUrl] = useState(background_image_url || null);
+  useEffect(() => {
+    if (!background_image_url) { setResolvedBgUrl(null); return; }
+    if (!background_image_url.startsWith("local-image://")) { setResolvedBgUrl(background_image_url); return; }
+    import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
+      resolveImageUrl(background_image_url).then(url => setResolvedBgUrl(url || background_image_url));
+    });
+  }, [background_image_url]);
 
   const fireTap = () => {
     const now = Date.now();
@@ -170,13 +179,13 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   return (
     <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }} onMouseDown={is_locked ? handleMouseDown : undefined} onTouchStart={is_locked ? handleTouchStart : undefined}>
       <defs>
-        {background_image_url && (
+        {resolvedBgUrl && (
           <>
             <clipPath id={`loc-clip-${location.id}`}>
               <rect x={x} y={y} width={width} height={height} rx={rx} ry={ry} />
             </clipPath>
             <pattern id={`loc-bg-${location.id}`} patternUnits="userSpaceOnUse" x={x} y={y} width={width} height={height}>
-              <image href={background_image_url} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid slice" opacity={background_opacity ?? 0.7} />
+              <image href={resolvedBgUrl || background_image_url} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid slice" opacity={background_opacity ?? 0.7} />
             </pattern>
           </>
         )}
@@ -186,7 +195,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       <rect
         x={x} y={y} width={width} height={height}
         rx={rx} ry={ry}
-        fill={background_image_url ? `url(#loc-bg-${location.id})` : fill}
+        fill={resolvedBgUrl ? `url(#loc-bg-${location.id})` : fill}
         stroke={borderColor}
         strokeWidth={isSelected ? 2.5 : 1.5}
         strokeDasharray={isSelected ? "6,3" : "none"}
