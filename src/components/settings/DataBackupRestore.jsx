@@ -1,7 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon } from "lucide-react";
+import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { getFullDbDump, loadDbDump, migrateBase64AvatarsToLocal } from "@/lib/localDb";
@@ -31,6 +31,22 @@ const ENTITY_NAMES = [
   "Symptom", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
   "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
   "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
+];
+
+const EXPORT_CATEGORIES = [
+  { id: "alters",    label: "Alters & Profiles",       entities: ["Alter", "CustomField"],                                    desc: "Bios, avatars, custom fields" },
+  { id: "fronting",  label: "Fronting History",         entities: ["FrontingSession"],                                         desc: "Switch history" },
+  { id: "journals",  label: "Journals",                 entities: ["JournalEntry"],                                            desc: "Journal entries" },
+  { id: "checkins",  label: "Check-ins & Emotions",     entities: ["EmotionCheckIn", "SystemCheckIn"],                         desc: "Emotion & system check-ins" },
+  { id: "bulletin",  label: "Bulletin Board",           entities: ["Bulletin", "BulletinComment"],                             desc: "Posts and comments" },
+  { id: "tracking",  label: "Daily Tracking",           entities: ["DiaryCard", "DailyProgress", "ActivityGoal", "DailyTaskTemplate"], desc: "Diary cards, goals, templates" },
+  { id: "activities",label: "Activities & Sleep",       entities: ["Activity", "Sleep"],                                       desc: "Activity logs and sleep records" },
+  { id: "tasks",     label: "Tasks",                    entities: ["Task"],                                                    desc: "To-do list" },
+  { id: "symptoms",  label: "Symptoms",                 entities: ["Symptom"],                                                 desc: "Symptom definitions" },
+  { id: "groups",    label: "Groups",                   entities: ["Group"],                                                   desc: "Alter groups" },
+  { id: "settings",  label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory"],    desc: "App settings, custom emotions" },
+  { id: "notes",     label: "Notes & Messages",         entities: ["AlterNote", "AlterMessage", "MentionLog"],                desc: "Notes, DMs, mentions" },
+  { id: "images",    label: "Local Images",             entities: [],                                                          desc: "Uploaded images (local mode only)", isImages: true },
 ];
 
 // Outside component — no state needed here
@@ -95,8 +111,16 @@ export default function DataBackupRestore() {
   };
 
   const [sizeWarning, setSizeWarning] = useState(null);
+  const [selectiveOpen, setSelectiveOpen] = useState(false);
+  const [selectedCats, setSelectedCats] = useState(() => new Set(EXPORT_CATEGORIES.map(c => c.id)));
+  const [catSizes, setCatSizes] = useState(null); // { catId: sizeKB } — lazy loaded
 
-  const buildExportData = async () => {
+  // Fetch and cache the full dump + images once
+  const fullDumpRef = useRef(null);
+  const fullImagesRef = useRef(null);
+
+  const fetchFullDump = useCallback(async () => {
+    if (fullDumpRef.current) return { dump: fullDumpRef.current, images: fullImagesRef.current };
     let dump;
     if (isLocalMode()) {
       dump = getFullDbDump();
@@ -111,23 +135,70 @@ export default function DataBackupRestore() {
         }
       }
     }
-    
-    // Include local images in the export
-    let localImages = {};
+    let images = {};
     if (isLocalMode()) {
-      try {
-        localImages = await getAllLocalImages();
-      } catch (e) {
-        console.warn("Failed to export local images:", e);
+      try { images = await getAllLocalImages(); } catch {}
+    }
+    fullDumpRef.current = dump;
+    fullImagesRef.current = images;
+    return { dump, images };
+  }, []);
+
+  const computeCatSizes = useCallback(async () => {
+    if (catSizes) return;
+    const { dump, images } = await fetchFullDump();
+    const sizes = {};
+    for (const cat of EXPORT_CATEGORIES) {
+      if (cat.isImages) {
+        sizes[cat.id] = Math.round(JSON.stringify(images).length / 1024);
+      } else {
+        let total = 0;
+        for (const e of cat.entities) {
+          if (dump[e]) total += JSON.stringify(dump[e]).length;
+        }
+        sizes[cat.id] = Math.round(total / 1024);
       }
     }
-    
+    setCatSizes(sizes);
+  }, [catSizes, fetchFullDump]);
+
+  const handleToggleSelectiveOpen = () => {
+    setSelectiveOpen(v => {
+      if (!v) computeCatSizes(); // lazy compute on first open
+      return !v;
+    });
+  };
+
+  const allSelected = selectedCats.size === EXPORT_CATEGORIES.length;
+  const toggleAll = () => setSelectedCats(allSelected ? new Set() : new Set(EXPORT_CATEGORIES.map(c => c.id)));
+  const toggleCat = (id) => setSelectedCats(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const buildExportData = async (overrideSelectedCats) => {
+    const activeCats = overrideSelectedCats ?? selectedCats;
+    const { dump, images } = await fetchFullDump();
+
+    // Build filtered dump
+    const filteredDump = {};
+    for (const cat of EXPORT_CATEGORIES) {
+      if (!cat.isImages && activeCats.has(cat.id)) {
+        for (const e of cat.entities) {
+          if (dump[e] !== undefined) filteredDump[e] = dump[e];
+        }
+      }
+    }
+
+    const imagesExport = activeCats.has("images") ? images : {};
+
     const exportData = {
       __format: "symphony_backup",
       __version: 1,
       __exported_at: new Date().toISOString(),
-      data: dump,
-      __local_images: localImages,
+      data: filteredDump,
+      __local_images: imagesExport,
     };
 
     // Size warning — check before compression
@@ -457,11 +528,50 @@ const handleExportFull = async () => {
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
+
+          {/* Selective export collapsible */}
+          <div className="rounded-xl border border-border/50 overflow-hidden">
+            <button type="button" onClick={handleToggleSelectiveOpen}
+              className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-muted/30 transition-colors">
+              <span className="text-muted-foreground">Advanced: Choose what to export</span>
+              {selectiveOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+            </button>
+            {selectiveOpen && (
+              <div className="px-3 pb-3 pt-1 space-y-2 border-t border-border/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">
+                    {selectedCats.size} of {EXPORT_CATEGORIES.length} categories selected
+                    {catSizes && ` · ~${EXPORT_CATEGORIES.filter(c => selectedCats.has(c.id)).reduce((sum, c) => sum + (catSizes[c.id] || 0), 0)}KB`}
+                  </span>
+                  <button type="button" onClick={toggleAll} className="text-xs text-primary font-medium hover:underline">
+                    {allSelected ? "Deselect All" : "Select All"}
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {EXPORT_CATEGORIES.map(cat => (
+                    <label key={cat.id} className="flex items-center gap-2.5 py-1.5 px-1 rounded-lg hover:bg-muted/20 cursor-pointer">
+                      <input type="checkbox" checked={selectedCats.has(cat.id)} onChange={() => toggleCat(cat.id)}
+                        className="w-4 h-4 rounded accent-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-medium">{cat.label}</span>
+                          {cat.isImages && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">⚠️</span>}
+                          {catSizes && <span className="text-xs text-muted-foreground ml-auto">{catSizes[cat.id] || 0}KB</span>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{cat.isImages ? "Excluding this means images won't transfer" : cat.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start">
             {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Download Backup</p>
-              <p className="text-xs text-muted-foreground font-normal">Compressed backup file</p>
+              <p className="text-xs text-muted-foreground font-normal">{selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length ? `${selectedCats.size} categories selected` : "All data, compressed"}</p>
             </div>
           </Button>
           <div className="flex gap-2">
