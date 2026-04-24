@@ -242,11 +242,7 @@ export default function ReminderToast() {
       </div>}
 
       {openModals.map((modal) => (
-        <div
-          key={modal.key}
-          className="fixed inset-0 z-[300] flex items-center justify-center"
-          style={{ pointerEvents: "auto" }}
-        >
+        <div key={modal.key}>
           {modal.type === "set_front" ? (
             <SetFrontModal
               open={true}
