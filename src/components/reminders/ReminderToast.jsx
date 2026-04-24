@@ -64,9 +64,10 @@ export default function ReminderToast() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const reminderCacheRef = useRef({});
-  const [setFrontOpen, setSetFrontOpen] = useState(false);
-  const [checkInOpen, setCheckInOpen] = useState(false);
-  const [pendingActInstance, setPendingActInstance] = useState(null);
+  // Each opened modal is tracked independently so dismissing/acting on other
+  // toasts doesn't close modals that are already open.
+  // openModals: array of { key, type, instance, reminder }
+  const [openModals, setOpenModals] = useState([]);
 
   // Load reminder data for each instance we need
   useEffect(() => {
@@ -108,12 +109,10 @@ export default function ReminderToast() {
   const handleAction = async ({ instance, reminder }, action) => {
     const type = action.action_type;
     if (type === "open_set_front") {
-      setPendingActInstance(instance);
-      setSetFrontOpen(true);
+      setOpenModals(prev => [...prev, { key: `${instance.id}-${Date.now()}`, type: "set_front", instance, reminder }]);
       return; // status updated on modal close
     } else if (type === "open_check_in") {
-      setPendingActInstance(instance);
-      setCheckInOpen(true);
+      setOpenModals(prev => [...prev, { key: `${instance.id}-${Date.now()}`, type: "check_in", instance, reminder }]);
       return; // status updated on modal close
     } else if (type === "open_grounding") {
       navigate("/grounding");
@@ -236,31 +235,25 @@ export default function ReminderToast() {
       })}
       </div>
 
-      {setFrontOpen && (
+      {openModals.map(modal => modal.type === "set_front" ? (
         <SetFrontModal
-          open={setFrontOpen}
+          key={modal.key}
+          open={true}
           onClose={() => {
-            setSetFrontOpen(false);
-            if (pendingActInstance) {
-              updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_set_front" });
-            }
-            setPendingActInstance(null);
+            setOpenModals(prev => prev.filter(m => m.key !== modal.key));
+            updateInstance(modal.instance.id, { status: "acted", acted_action: "open_set_front" });
           }}
         />
-      )}
-
-      {checkInOpen && (
+      ) : (
         <QuickCheckInModal
-          isOpen={checkInOpen}
-          onClose={(saved) => {
-            setCheckInOpen(false);
-            if (saved && pendingActInstance) {
-              updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_check_in" });
-            }
-            setPendingActInstance(null);
+          key={modal.key}
+          isOpen={true}
+          onClose={() => {
+            setOpenModals(prev => prev.filter(m => m.key !== modal.key));
+            updateInstance(modal.instance.id, { status: "acted", acted_action: "open_check_in" });
           }}
         />
-      )}
+      ))}
     </>
   );
 }
