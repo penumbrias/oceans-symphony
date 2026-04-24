@@ -237,24 +237,30 @@ export default function ReminderToast() {
       })}
       </div>
 
-      {openModals.map(modal => modal.type === "set_front" ? (
-        <SetFrontModal
+      {openModals.map((modal) => (
+        <div
           key={modal.key}
-          open={true}
-          onClose={() => {
-            setOpenModals(prev => prev.filter(m => m.key !== modal.key));
-            updateInstance(modal.instance.id, { status: "acted", acted_action: "open_set_front" });
-          }}
-        />
-      ) : (
-        <QuickCheckInModal
-          key={modal.key}
-          isOpen={true}
-          onClose={() => {
-            setOpenModals(prev => prev.filter(m => m.key !== modal.key));
-            updateInstance(modal.instance.id, { status: "acted", acted_action: "open_check_in" });
-          }}
-        />
+          className="fixed inset-0 z-[300] flex items-center justify-center"
+          style={{ pointerEvents: "auto" }}
+        >
+          {modal.type === "set_front" ? (
+            <SetFrontModal
+              open={true}
+              onClose={() => {
+                setOpenModals(prev => prev.filter(m => m.key !== modal.key));
+                updateInstance(modal.instance.id, { status: "acted", acted_action: "open_set_front" });
+              }}
+            />
+          ) : (
+            <QuickCheckInModal
+              isOpen={true}
+              onClose={() => {
+                setOpenModals(prev => prev.filter(m => m.key !== modal.key));
+                updateInstance(modal.instance.id, { status: "acted", acted_action: "open_check_in" });
+              }}
+            />
+          )}
+        </div>
       ))}
     </>
   );
