@@ -449,13 +449,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                           <p className="text-sm font-medium truncate">{a.name}</p>
                           {a.pronouns && <p className="text-xs text-muted-foreground truncate">{a.pronouns}</p>}
                         </div>
-                        {isSelected && (
-                          <button onClick={e => { e.stopPropagation(); setAsPrimary(a.id); }}
-                            title="Set as primary"
-                            className={`p-1 rounded-md transition-colors ${isPrimary ? "text-amber-500" : "text-muted-foreground hover:text-amber-400"}`}>
+                        <button onClick={e => { e.stopPropagation(); if (isSelected) setAsPrimary(a.id); }}
+                            title={isPrimary ? "Primary fronter (tap to unset)" : isSelected ? "Set as primary" : "Select first"}
+                            className={`p-1 rounded-md transition-colors flex-shrink-0 ${
+                              isPrimary ? "text-amber-500" : isSelected ? "text-muted-foreground hover:text-amber-400" : "text-muted-foreground/30"
+                            }`}>
                             <Star className={`w-4 h-4 ${isPrimary ? "fill-amber-500" : ""}`} />
                           </button>
-                        )}
                       </div>
                     );
                   })}
