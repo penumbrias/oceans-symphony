@@ -110,10 +110,12 @@ export default function ReminderToast() {
     const type = action.action_type;
     if (type === "open_set_front") {
       setOpenModals(prev => [...prev, { key: `${instance.id}-${Date.now()}`, type: "set_front", instance, reminder }]);
-      return; // status updated on modal close
+      dismiss(instance.id);
+      return;
     } else if (type === "open_check_in") {
       setOpenModals(prev => [...prev, { key: `${instance.id}-${Date.now()}`, type: "check_in", instance, reminder }]);
-      return; // status updated on modal close
+      dismiss(instance.id);
+      return;
     } else if (type === "open_grounding") {
       navigate("/grounding");
     } else if (type === "open_journal") {
@@ -147,7 +149,7 @@ export default function ReminderToast() {
     await updateInstance(instance.id, { status: "snoozed", snoozed_until: until });
   };
 
-  if (!visible.length) return null;
+  if (!visible.length && !openModals.length) return null;
 
   return (
     <>
