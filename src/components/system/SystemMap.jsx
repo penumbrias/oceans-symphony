@@ -34,6 +34,7 @@ const SystemMap = ({ relationships = [] }) => {
   const [showArchived, setShowArchived] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
   const [relDisplayMode, setRelDisplayMode] = useState('simple');
+  const [timeMode, setTimeMode] = useState('total'); // 'total' | 'primary' | 'cofronting'
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -50,22 +51,38 @@ const SystemMap = ({ relationships = [] }) => {
     queryFn: () => db.FrontingSession.list(),
   });
 
-  // Total fronting duration per alter (ms)
-  const frontingTime = useMemo(() => {
-    const time = {};
+  // Fronting duration per alter broken down by total / primary / cofronting (ms)
+  const frontingTimeAll = useMemo(() => {
+    const time = {}; // alterId -> { total, primary, cofronting }
     frontingSessions.forEach((session) => {
       const endTime = session.end_time ? new Date(session.end_time) : new Date();
       const startTime = new Date(session.start_time);
       const duration = endTime - startTime;
-      const ids = session.alter_id
-        ? [session.alter_id]
-        : [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-      ids.forEach((id) => {
-        time[id] = (time[id] || 0) + duration;
-      });
+      if (session.alter_id) {
+        if (!time[session.alter_id]) time[session.alter_id] = { total: 0, primary: 0, cofronting: 0 };
+        time[session.alter_id].total += duration;
+        if (session.is_primary) time[session.alter_id].primary += duration;
+      } else {
+        const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+        ids.forEach((id) => {
+          if (!time[id]) time[id] = { total: 0, primary: 0, cofronting: 0 };
+          time[id].total += duration;
+          if (session.primary_alter_id === id) time[id].primary += duration;
+          else time[id].cofronting += duration;
+        });
+      }
     });
     return time;
   }, [frontingSessions]);
+
+  // Convenience: the currently active time metric per alter
+  const frontingTime = useMemo(() => {
+    const result = {};
+    Object.entries(frontingTimeAll).forEach(([id, times]) => {
+      result[id] = times[timeMode] ?? times.total;
+    });
+    return result;
+  }, [frontingTimeAll, timeMode]);
 
   // Co-fronting duration between pairs (ms)
   const cofrontingTime = useMemo(() => {
@@ -593,6 +610,23 @@ const SystemMap = ({ relationships = [] }) => {
             })}
           </g>
         </svg>
+
+        {/* Time mode toggle — top left */}
+        <div className="absolute top-3 left-3 flex gap-0.5 bg-card/90 backdrop-blur border border-border rounded-lg p-0.5">
+          {[
+            { id: 'total', label: 'All' },
+            { id: 'primary', label: '⭐' },
+            { id: 'cofronting', label: '👥' },
+          ].map(opt => (
+            <button key={opt.id} onClick={() => setTimeMode(opt.id)}
+              title={{ total: 'Total front time', primary: 'Primary front time', cofronting: 'Co-fronting time' }[opt.id]}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                timeMode === opt.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
 
         {/* Zoom + Rels controls — right side, compact vertical stack */}
         <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-center">
