@@ -156,12 +156,12 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
         img.src = url;
       });
       const dataUrl = await compressImage(file);
-      const { isLocalMode: checkLocalMode } = await import("@/lib/storageMode");
-      if (checkLocalMode()) {
-        const { saveLocalImage: save, createLocalImageUrl: makeUrl } = await import("@/lib/localImageStorage");
+      const { isLocalMode } = await import("@/lib/storageMode");
+      if (isLocalMode()) {
+        const { saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");
         const imageId = `block-img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        await save(imageId, dataUrl);
-        setSrc(makeUrl(imageId));
+        await saveLocalImage(imageId, dataUrl);
+        setSrc(createLocalImageUrl(imageId));
       } else {
         setSrc(dataUrl);
       }
