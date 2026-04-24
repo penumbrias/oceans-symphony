@@ -23,18 +23,24 @@ function useResolvedSrc(src) {
   return resolved || src || "";
 }
 
-// Strips src from img tags in rendered HTML — replaced with data-img-id for size reduction.
-// The rendered HTML is only a fallback; SimplePreview resolves images at render time.
-function stripImgSrcs(html) {
-  return html.replace(/<img\s+src="([^"]*)"([^>]*)>/g, (match, src, rest) => {
-    // Extract local image ID if present
-    const localMatch = src.match(/^local-image:\/\/(.+)$/);
-    const imgId = localMatch ? localMatch[1] : "";
-    return `<img data-img-id="${imgId}"${rest}>`;
-  });
-}
-
 export function blocksToHTML(blocks) {
+  const strip = (src) => {
+    if (!src) return src;
+    if (src.startsWith("data:")) return "__local_img__";
+    if (src.startsWith("local-image://")) return `__local_img_id__:${src.replace("local-image://", "")}`;
+    return src;
+  };
+
+  const blocksForJSON = blocks.map(b => {
+    if (b.type === "img-left" || b.type === "img-right" || b.type === "img-solo") {
+      return { ...b, src: strip(b.src) };
+    }
+    if (b.type === "gallery") {
+      return { ...b, images: (b.images || []).map(i => ({ ...i, src: strip(i.src) })) };
+    }
+    return b;
+  });
+
   const inner = blocks.map(block => {
     switch (block.type) {
       case "text":
@@ -73,38 +79,26 @@ export function blocksToHTML(blocks) {
     }
   }).join("\n");
 
-  // Strip src attributes from rendered HTML — saves significant space
-  const strippedInner = stripImgSrcs(inner);
-
-  // Store blocks JSON in a script tag (no URI encoding bloat)
-  const blocksJson = JSON.stringify(blocks);
-  return `<div data-blocks-v2="1" style="width:100%;display:block;">${strippedInner}</div><script type="application/json" data-blocks-json="1">${blocksJson}</script>`;
+  return `<div data-blocks="${encodeURIComponent(JSON.stringify(blocksForJSON))}" style="width:100%;display:block;">${inner}</div>`;
 }
 
 export function htmlToBlocks(html) {
   if (!html || !html.trim()) return [];
 
-  // New format: JSON stored in a <script data-blocks-json> tag (no URI encoding)
-  const scriptMatch = html.match(/<script[^>]+data-blocks-json[^>]*>([\s\S]*?)<\/script>/);
-  if (scriptMatch) {
-    try {
-      const blocks = JSON.parse(scriptMatch[1]);
-      if (Array.isArray(blocks) && blocks.length) {
-        return blocks.map(b => ({ ...b, id: uid() }));
-      }
-    } catch {}
-  }
-
-  // Legacy format: URI-encoded JSON in data-blocks attribute
+  // Primary format: URI-encoded JSON in data-blocks attribute
   const attrMatch = html.match(/data-blocks="([^"]*)"/);
   if (attrMatch) {
     try {
       const blocks = JSON.parse(decodeURIComponent(attrMatch[1]));
       if (Array.isArray(blocks) && blocks.length) {
-        // Re-extract local-image: or data: srcs from rendered img tags (for __local_img__ placeholders)
-        const imgSrcs = [...html.matchAll(/<img src="((?:data:|local-image:\/\/)[^"]+)"/g)].map(m => m[1]);
+        // Re-extract data: srcs from rendered img tags (for __local_img__ placeholders)
+        const imgSrcs = [...html.matchAll(/<img src="(data:[^"]+)"/g)].map(m => m[1]);
         let imgIdx = 0;
-        const restore = (src) => src === "__local_img__" ? (imgSrcs[imgIdx++] || "") : src;
+        const restore = (src) => {
+          if (src === "__local_img__") return imgSrcs[imgIdx++] || "";
+          if (src?.startsWith("__local_img_id__:")) return `local-image://${src.replace("__local_img_id__:", "")}`;
+          return src;
+        };
         return blocks.map(b => {
           const id = uid();
           if (b.type === "img-left" || b.type === "img-right" || b.type === "img-solo") {
