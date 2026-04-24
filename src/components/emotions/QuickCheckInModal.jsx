@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText } from "lucide-react";
+import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -32,8 +32,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   // Feeling
   const [selectedEmotions, setSelectedEmotions] = useState([]);
   // Fronting
-  const [selectedAlters, setSelectedAlters] = useState([]);
-  const [alterInput, setAlterInput] = useState("");
+  const [primaryId, setPrimaryId] = useState("");
+  const [coFronterIds, setCoFronterIds] = useState([]);
+  const [alterSearch, setAlterSearch] = useState("");
   // Activity
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [activityDuration, setActivityDuration] = useState("");
@@ -63,14 +64,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
 
-  const filteredAlters = useMemo(() => {
-    if (!alterInput.trim()) return [];
-    return activeAlters.filter(
-      (a) => !selectedAlters.includes(a.id) && (
-      a.name.toLowerCase().includes(alterInput.toLowerCase()) ||
-      a.alias?.toLowerCase().includes(alterInput.toLowerCase()))
-    );
-  }, [alterInput, activeAlters, selectedAlters]);
+
 
   const toggleSection = (id) => {
     setOpenSections((prev) => {
@@ -85,7 +79,28 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       const initial = new Set(["feeling"]);
       if (initialSection) initial.add(initialSection);
       setOpenSections(initial);
-      if (currentFronterIds.length > 0) setSelectedAlters(currentFronterIds.filter(Boolean));
+      // Load current active sessions to pre-populate fronting state
+      base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
+        const newModel = active.filter(s => s.alter_id);
+        if (newModel.length > 0) {
+          const primarySess = newModel.find(s => s.is_primary);
+          const coSessions = newModel.filter(s => !s.is_primary);
+          setPrimaryId(primarySess?.alter_id || "");
+          setCoFronterIds(coSessions.map(s => s.alter_id));
+        } else if (active.length > 0) {
+          const s = active[0];
+          setPrimaryId(s.primary_alter_id || "");
+          setCoFronterIds(s.co_fronter_ids || []);
+        } else if (currentFronterIds.length > 0) {
+          setPrimaryId(currentFronterIds[0] || "");
+          setCoFronterIds(currentFronterIds.slice(1));
+        }
+      }).catch(() => {
+        if (currentFronterIds.length > 0) {
+          setPrimaryId(currentFronterIds[0] || "");
+          setCoFronterIds(currentFronterIds.slice(1));
+        }
+      });
       seedSymptomDefaults();
     } else {
       resetForm();
@@ -94,8 +109,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
   const resetForm = () => {
     setSelectedEmotions([]);
-    setSelectedAlters([]);
-    setAlterInput("");
+    setPrimaryId("");
+    setCoFronterIds([]);
+    setAlterSearch("");
     setSelectedActivityCategories([]);
     setActivityDuration("");
     setNewActivityName("");
@@ -103,6 +119,38 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setDiaryData({});
     setNote("");
     symptomGetterRef.current = null;
+  };
+
+  // Derived: all selected alter IDs
+  const selectedAlterIds = useMemo(() => {
+    const ids = new Set(coFronterIds);
+    if (primaryId) ids.add(primaryId);
+    return ids;
+  }, [primaryId, coFronterIds]);
+
+  // Derive flat array for legacy uses (activity logging, etc.)
+  const selectedAlters = useMemo(() => [...selectedAlterIds], [selectedAlterIds]);
+
+  const toggleAlter = (id) => {
+    if (primaryId === id) {
+      setPrimaryId("");
+      return;
+    }
+    if (coFronterIds.includes(id)) {
+      setCoFronterIds(coFronterIds.filter(x => x !== id));
+    } else {
+      setCoFronterIds([...coFronterIds, id]);
+      if (!primaryId) setPrimaryId(id);
+    }
+  };
+
+  const setAsPrimary = (id) => {
+    if (primaryId === id) {
+      setPrimaryId("");
+      return;
+    }
+    setCoFronterIds([...coFronterIds.filter(x => x !== id), primaryId].filter(Boolean));
+    setPrimaryId(id);
   };
 
   const addCustomEmotionMutation = useMutation({
@@ -145,7 +193,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     const symptomCheckIns = symptomGetterRef.current ? symptomGetterRef.current() : [];
     const hasData =
     selectedEmotions.length > 0 ||
-    selectedAlters.length > 0 ||
+    selectedAlterIds.size > 0 ||
     selectedActivityCategories.length > 0 ||
     note.trim().length > 0 ||
     symptomCheckIns.length > 0 ||
@@ -163,34 +211,44 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
       // Fronting sync — only if the fronting section was opened
       if (openSections.has("fronting")) {
-        const added = selectedAlters.filter((id) => !currentFronterIds.includes(id));
-        const removed = currentFronterIds.filter((id) => !selectedAlters.includes(id));
+        const allSelectedIds = [...selectedAlterIds];
+        const desiredMap = {}; // alterId -> is_primary
+        for (const id of allSelectedIds) desiredMap[id] = id === primaryId;
 
-        if (added.length > 0 || removed.length > 0) {
-          const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-          const individualSessions = activeSessions.filter((s) => s.alter_id);
+        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
 
-          // End sessions for removed alters
-          for (const alterId of removed) {
-            const session = individualSessions.find((s) => s.alter_id === alterId);
-            if (session) {
-              await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: now });
-            }
+        // End legacy sessions
+        for (const s of activeSessions.filter(s => !s.alter_id && s.primary_alter_id)) {
+          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+        }
+
+        const newModelSessions = activeSessions.filter(s => s.alter_id);
+
+        // End sessions for removed alters or those whose primary status changed
+        for (const session of newModelSessions) {
+          const isStillPresent = session.alter_id in desiredMap;
+          const primaryChanged = isStillPresent && session.is_primary !== desiredMap[session.alter_id];
+          if (!isStillPresent || primaryChanged) {
+            await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: now });
           }
+        }
 
-          // Create new sessions for added alters
-          for (const alterId of added) {
+        // Create sessions for new alters or those whose primary status changed
+        for (const id of allSelectedIds) {
+          const existing = newModelSessions.find(s => s.alter_id === id);
+          const statusUnchanged = existing && existing.is_primary === desiredMap[id];
+          if (!statusUnchanged) {
             await base44.entities.FrontingSession.create({
-              alter_id: alterId,
-              is_primary: false,
+              alter_id: id,
+              is_primary: desiredMap[id],
               start_time: now,
-              is_active: true
+              is_active: true,
             });
           }
-
-          queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-          queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         }
+
+        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       }
 
       // EmotionCheckIn
@@ -341,54 +399,67 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {/* Fronting */}
           {openSections.has("fronting") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
-              <p className="text-sm font-medium">Who's {terms.fronting}? </p>
-              <div className="relative">
-                <Input placeholder={`Type ${terms.alter} name...`} value={alterInput}
-              onChange={(e) => setAlterInput(e.target.value)} className="text-sm" />
-                {filteredAlters.length > 0 &&
-              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-10 max-h-32 overflow-y-auto">
-                    {filteredAlters.map((alter) =>
-                <button key={alter.id} onClick={() => {setSelectedAlters((prev) => [...prev, alter.id]);setAlterInput("");}}
-                className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm">
-                        {alter.avatar_url ?
-                  <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" /> :
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: alter.color || "#8b5cf6" }}>{alter.name?.charAt(0)}</div>
-                  }
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{alter.name}</p>
-                          {alter.alias && <p className="text-xs text-muted-foreground">{alter.alias}</p>}
-                        </div>
-                      </button>
-                )}
-                  </div>
-              }
-              </div>
-              {selectedAlters.length > 0 &&
-            <div className="grid grid-cols-4 gap-2">
-                  {selectedAlters.map((alterId) => {
-                const alter = activeAlters.find((a) => a.id === alterId);
-                return (
-                  <div key={alterId} className="relative group">
-                        <div className="aspect-square rounded-lg bg-muted overflow-hidden">
-                          {alter?.avatar_url ?
-                      <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" /> :
-                      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
-                                <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>{alter?.name?.charAt(0)}</span>
-                              </div>
-                      }
-                        </div>
-                        <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <button onClick={() => setSelectedAlters((prev) => prev.filter((id) => id !== alterId))}
-                      className="bg-destructive text-destructive-foreground rounded-full p-1">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <p className="text-xs font-medium text-center mt-1 truncate">{alter?.alias || alter?.name}</p>
-                      </div>);
+              <p className="text-sm font-medium">Who's {terms.fronting}?</p>
 
-              })}
+              {/* Selected chips */}
+              {selectedAlterIds.size > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {[...selectedAlterIds].map(id => {
+                    const a = activeAlters.find(x => x.id === id);
+                    if (!a) return null;
+                    return (
+                      <span key={id}
+                        className="px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1 border"
+                        style={{ backgroundColor: a.color ? `${a.color}20` : undefined, borderColor: a.color || undefined }}>
+                        {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
+                        <button onClick={() => setAsPrimary(id)} className="hover:underline" title="Set as primary">{a.name}</button>
+                        <button onClick={() => toggleAlter(id)} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
-            }
+              )}
+              <p className="text-xs text-muted-foreground">Tap name to make primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary</p>
+
+              {/* Search */}
+              <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
+                onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
+
+              {/* Alter list */}
+              <div className="max-h-40 overflow-y-auto space-y-1">
+                {activeAlters
+                  .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
+                  .map(a => {
+                    const isSelected = selectedAlterIds.has(a.id);
+                    const isPrimary = primaryId === a.id;
+                    return (
+                      <div key={a.id} onClick={() => toggleAlter(a.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all ${
+                          isSelected ? "border-primary/60 bg-primary/5" : "border-border/50 bg-card hover:bg-muted/30"
+                        }`}>
+                        <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
+                          style={{ backgroundColor: a.color || "hsl(var(--muted))" }}>
+                          {a.avatar_url
+                            ? <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                            : <User className="w-4 h-4 text-white/70" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{a.name}</p>
+                          {a.pronouns && <p className="text-xs text-muted-foreground truncate">{a.pronouns}</p>}
+                        </div>
+                        {isSelected && (
+                          <button onClick={e => { e.stopPropagation(); setAsPrimary(a.id); }}
+                            title="Set as primary"
+                            className={`p-1 rounded-md transition-colors ${isPrimary ? "text-amber-500" : "text-muted-foreground hover:text-amber-400"}`}>
+                            <Star className={`w-4 h-4 ${isPrimary ? "fill-amber-500" : ""}`} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           }
 
