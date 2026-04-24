@@ -1,27 +1,33 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import { ZoomIn, ZoomOut, RotateCcw, X, ChevronUp, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
 
-const REL_MODES = ['simple', 'detailed', 'selected', 'none'];
-const REL_LABELS = { simple: 'S', detailed: 'D', selected: '1', none: '–' };
-const REL_TITLES = { simple: 'Simple', detailed: 'Detailed', selected: 'Selected', none: 'Hidden' };
+const REL_MODES = ['none', 'simple', 'detailed', 'selected'];
+const REL_TITLES = { simple: 'Simple', detailed: 'Detailed', selected: 'Selected only', none: 'Hidden' };
+
+const TIME_MODES = [
+  { id: 'total', label: 'All Time' },
+  { id: 'primary', label: '⭐ Primary' },
+  { id: 'cofronting', label: '👥 Co-front' },
+];
 
 const SystemMap = ({ relationships = [] }) => {
   const svgRef = useRef(null);
   const hasAutoFit = useRef(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
   const dragDistanceRef = useRef(0);
+  const lastPinchRef = useRef(null);
+
   const [nodes, setNodes] = useState([]);
   const [links, setLinks] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -34,7 +40,11 @@ const SystemMap = ({ relationships = [] }) => {
   const [showArchived, setShowArchived] = useState(false);
   const [showGroups, setShowGroups] = useState(false);
   const [relDisplayMode, setRelDisplayMode] = useState('simple');
-  const [timeMode, setTimeMode] = useState('total'); // 'total' | 'primary' | 'cofronting'
+  const [timeMode, setTimeMode] = useState('total');
+
+  // Keep transform in a ref so event handlers always see current value without re-registering
+  const transformRef = useRef(transform);
+  useEffect(() => { transformRef.current = transform; }, [transform]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -53,7 +63,7 @@ const SystemMap = ({ relationships = [] }) => {
 
   // Fronting duration per alter broken down by total / primary / cofronting (ms)
   const frontingTimeAll = useMemo(() => {
-    const time = {}; // alterId -> { total, primary, cofronting }
+    const time = {};
     frontingSessions.forEach((session) => {
       const endTime = session.end_time ? new Date(session.end_time) : new Date();
       const startTime = new Date(session.start_time);
@@ -62,6 +72,7 @@ const SystemMap = ({ relationships = [] }) => {
         if (!time[session.alter_id]) time[session.alter_id] = { total: 0, primary: 0, cofronting: 0 };
         time[session.alter_id].total += duration;
         if (session.is_primary) time[session.alter_id].primary += duration;
+        else time[session.alter_id].cofronting += duration;
       } else {
         const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
         ids.forEach((id) => {
@@ -75,7 +86,6 @@ const SystemMap = ({ relationships = [] }) => {
     return time;
   }, [frontingSessions]);
 
-  // Convenience: the currently active time metric per alter
   const frontingTime = useMemo(() => {
     const result = {};
     Object.entries(frontingTimeAll).forEach(([id, times]) => {
@@ -84,7 +94,6 @@ const SystemMap = ({ relationships = [] }) => {
     return result;
   }, [frontingTimeAll, timeMode]);
 
-  // Co-fronting duration between pairs (ms)
   const cofrontingTime = useMemo(() => {
     const map = {};
     const addOverlap = (idA, idB, overlap) => {
@@ -126,7 +135,7 @@ const SystemMap = ({ relationships = [] }) => {
     let result = alters.filter(a => showArchived ? true : !a.is_archived);
     if (selectedGroup) {
       const group = groups.find((g) => g.id === selectedGroup);
-      if (group && group.member_sp_ids) {
+      if (group?.member_sp_ids) {
         result = result.filter((a) => group.member_sp_ids.includes(a.sp_id));
       }
     }
@@ -158,7 +167,7 @@ const SystemMap = ({ relationships = [] }) => {
         }
         const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
         const radius = minRadius + (1 - timeRatio) * (maxRadius - minRadius);
-        const angle = ((idx - 1) / (altersSorted.length - 1)) * Math.PI * 2;
+        const angle = ((idx - 1) / Math.max(altersSorted.length - 1, 1)) * Math.PI * 2;
         positions[alter.id] = {
           x: centerX + Math.cos(angle) * radius,
           y: centerY + Math.sin(angle) * radius,
@@ -168,17 +177,16 @@ const SystemMap = ({ relationships = [] }) => {
     }
 
     positions[selectedAlter.id] = { x: centerX, y: centerY };
-    const selectedTotalTime = frontingTime[selectedAlter.id] || 1;
     const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
+    const selectedTotalTime = frontingTime[selectedAlter.id] || 1;
     const withRatios = otherAlters.map((alter) => {
       const sharedTime = cofrontingTime[selectedAlter.id]?.[alter.id] || 0;
-      const cofrontRatio = sharedTime / selectedTotalTime;
-      return { alter, cofrontRatio };
+      return { alter, cofrontRatio: sharedTime / selectedTotalTime };
     });
     withRatios.sort((a, b) => b.cofrontRatio - a.cofrontRatio);
     withRatios.forEach((item, idx) => {
-      const radius = minRadius + (1 - item.cofrontRatio) * (maxRadius - minRadius);
-      const angle = (idx / withRatios.length) * Math.PI * 2;
+      const radius = minRadius + (1 - Math.min(item.cofrontRatio, 1)) * (maxRadius - minRadius);
+      const angle = (idx / Math.max(withRatios.length, 1)) * Math.PI * 2;
       positions[item.alter.id] = {
         x: centerX + Math.cos(angle) * radius,
         y: centerY + Math.sin(angle) * radius,
@@ -187,30 +195,23 @@ const SystemMap = ({ relationships = [] }) => {
     return positions;
   }, [filteredAlters, selectedAlter, frontingTime, cofrontingTime]);
 
-  // Group positions: centroid of member alter positions; size based on avg fronting time
   const groupData = useMemo(() => {
     if (!showGroups) return [];
     const centerX = 600;
     const centerY = 400;
     const maxAlterTime = Math.max(...filteredAlters.map(a => frontingTime[a.id] || 0), 1);
-    const result = [];
-
-    groups
+    return groups
       .filter((g) => filteredAlters.some((a) => a.groups?.some((ag) => ag.id === g.id)))
-      .forEach((group) => {
+      .map((group) => {
         const members = filteredAlters.filter(a => a.groups?.some(ag => ag.id === group.id));
-        if (members.length === 0) return;
+        if (!members.length) return null;
         const sumX = members.reduce((s, a) => s + (nodePositions[a.id]?.x ?? centerX), 0);
         const sumY = members.reduce((s, a) => s + (nodePositions[a.id]?.y ?? centerY), 0);
-        const avgX = sumX / members.length;
-        const avgY = sumY / members.length;
         const avgFrontTime = members.reduce((s, a) => s + (frontingTime[a.id] || 0), 0) / members.length;
-        const sizeRatio = avgFrontTime / maxAlterTime; // 0–1
-        const radius = 28 + sizeRatio * 22; // 28–50
-        result.push({ group, x: avgX, y: avgY, radius });
-      });
-
-    return result;
+        const sizeRatio = avgFrontTime / maxAlterTime;
+        return { group, x: sumX / members.length, y: sumY / members.length, radius: 28 + sizeRatio * 22 };
+      })
+      .filter(Boolean);
   }, [showGroups, groups, filteredAlters, nodePositions, frontingTime]);
 
   useEffect(() => {
@@ -218,12 +219,33 @@ const SystemMap = ({ relationships = [] }) => {
       const sorted = Object.entries(cofrontingTime[selectedAlter.id])
         .sort((a, b) => b[1] - a[1])
         .slice(0, cofronterCount);
-      const ids = sorted.map(([id]) => id);
-      setCofronters(alters.filter((a) => ids.includes(a.id)));
+      setCofronters(alters.filter((a) => sorted.some(([id]) => id === a.id)));
     } else {
       setCofronters([]);
     }
   }, [selectedAlter, cofrontingTime, cofronterCount, alters]);
+
+  const fitToNodes = useCallback((nodeList) => {
+    if (!nodeList.length || !svgRef.current) return;
+    const padding = 40;
+    const svgWidth = svgRef.current.clientWidth || 600;
+    const svgHeight = svgRef.current.clientHeight || 400;
+    const xs = nodeList.map(n => n.x);
+    const ys = nodeList.map(n => n.y);
+    const minX = Math.min(...xs) - 40;
+    const maxX = Math.max(...xs) + 40;
+    const minY = Math.min(...ys) - 40;
+    const maxY = Math.max(...ys) + 40;
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    if (contentWidth <= 0 || contentHeight <= 0) return;
+    const scaleX = (svgWidth - padding * 2) / contentWidth;
+    const scaleY = (svgHeight - padding * 2) / contentHeight;
+    const scale = Math.min(scaleX, scaleY, 1);
+    const x = (svgWidth - contentWidth * scale) / 2 - minX * scale;
+    const y = (svgHeight - contentHeight * scale) / 2 - minY * scale;
+    setTransform({ x, y, scale });
+  }, []);
 
   // Build nodes and links
   useEffect(() => {
@@ -253,23 +275,18 @@ const SystemMap = ({ relationships = [] }) => {
       label: group.name,
       type: "group",
       color: group.color || "#6366f1",
-      x,
-      y,
-      radius,
+      x, y, radius,
     }));
 
-    setNodes([...alterNodes, ...groupNodes]);
+    const allNodes = [...alterNodes, ...groupNodes];
+    setNodes(allNodes);
 
-    // Auto-fit on first load only
     if (!hasAutoFit.current && alterNodes.length > 0) {
       hasAutoFit.current = true;
-      // Defer one frame so svgRef has measured dimensions
       requestAnimationFrame(() => fitToNodes(alterNodes));
     }
 
     const newLinks = [];
-
-    // Membership links — only when groups visible
     if (showGroups) {
       filteredAlters.forEach((alter) => {
         if (alter.groups && Array.isArray(alter.groups)) {
@@ -281,8 +298,6 @@ const SystemMap = ({ relationships = [] }) => {
         }
       });
     }
-
-    // Co-fronting links
     filteredAlters.forEach((alter) => {
       Object.entries(cofrontingTime[alter.id] || {}).forEach(([otherId, duration]) => {
         if (alter.id < otherId && filteredAlters.some((a) => a.id === otherId)) {
@@ -290,31 +305,39 @@ const SystemMap = ({ relationships = [] }) => {
         }
       });
     });
-
     setLinks(newLinks);
-  }, [filteredAlters, groupData, showGroups, selectedAlter, cofrontingTime, nodePositions]);
+  }, [filteredAlters, groupData, showGroups, selectedAlter, cofrontingTime, nodePositions, fitToNodes]);
 
-  // Pan handlers
-  const handleMouseDown = (e) => {
+  // Stable event handlers using refs so they don't cause re-registration on every render
+  const handleMouseDown = useCallback((e) => {
     if (e.button !== 0) return;
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+    isDraggingRef.current = true;
+    dragStartRef.current = { x: e.clientX - transformRef.current.x, y: e.clientY - transformRef.current.y };
     dragDistanceRef.current = 0;
-  };
-  const lastPinchRef = useRef(null);
-  const handleTouchStart = (e) => {
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDraggingRef.current) return;
+    const dx = e.clientX - (dragStartRef.current.x + transformRef.current.x);
+    const dy = e.clientY - (dragStartRef.current.y + transformRef.current.y);
+    dragDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
+    setTransform(t => ({ ...t, x: e.clientX - dragStartRef.current.x, y: e.clientY - dragStartRef.current.y }));
+  }, []);
+
+  const handleMouseUp = useCallback(() => { isDraggingRef.current = false; }, []);
+
+  const handleTouchStart = useCallback((e) => {
     if (e.touches.length !== 1) return;
     e.preventDefault();
-    setIsDragging(true);
-    setDragStart({ x: e.touches[0].clientX - transform.x, y: e.touches[0].clientY - transform.y });
-  };
-  const handleTouchMove = (e) => {
+    isDraggingRef.current = true;
+    dragStartRef.current = { x: e.touches[0].clientX - transformRef.current.x, y: e.touches[0].clientY - transformRef.current.y };
+    dragDistanceRef.current = 0;
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
     e.preventDefault();
     if (e.touches.length === 2) {
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
+      const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       if (lastPinchRef.current !== null) {
         const delta = dist / lastPinchRef.current;
         setTransform(t => ({ ...t, scale: Math.max(0.5, Math.min(3, t.scale * delta)) }));
@@ -323,58 +346,15 @@ const SystemMap = ({ relationships = [] }) => {
       return;
     }
     lastPinchRef.current = null;
-    if (!isDragging || e.touches.length !== 1) return;
-    setTransform(t => ({ ...t, x: e.touches[0].clientX - dragStart.x, y: e.touches[0].clientY - dragStart.y }));
-  };
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    const dist = Math.sqrt(
-      (e.clientX - (dragStart.x + transform.x)) ** 2 + (e.clientY - (dragStart.y + transform.y)) ** 2
-    );
-    dragDistanceRef.current = dist;
-    setTransform(t => ({ ...t, x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }));
-  };
-  const handleMouseUp = () => setIsDragging(false);
-  const handleWheel = (e) => {
+    if (!isDraggingRef.current || e.touches.length !== 1) return;
+    setTransform(t => ({ ...t, x: e.touches[0].clientX - dragStartRef.current.x, y: e.touches[0].clientY - dragStartRef.current.y }));
+  }, []);
+
+  const handleWheel = useCallback((e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     setTransform(t => ({ ...t, scale: Math.max(0.5, Math.min(3, t.scale * delta)) }));
-  };
-  const fitToNodes = (nodeList) => {
-    if (!nodeList.length || !svgRef.current) return;
-    const padding = 40;
-    const svgWidth = svgRef.current.clientWidth || 600;
-    const svgHeight = svgRef.current.clientHeight || 400;
-    const xs = nodeList.map(n => n.x);
-    const ys = nodeList.map(n => n.y);
-    const minX = Math.min(...xs) - 40; // account for node radius
-    const maxX = Math.max(...xs) + 40;
-    const minY = Math.min(...ys) - 40;
-    const maxY = Math.max(...ys) + 40;
-    const contentWidth = maxX - minX;
-    const contentHeight = maxY - minY;
-    if (contentWidth <= 0 || contentHeight <= 0) return;
-    const scaleX = (svgWidth - padding * 2) / contentWidth;
-    const scaleY = (svgHeight - padding * 2) / contentHeight;
-    const scale = Math.min(scaleX, scaleY, 1);
-    const x = (svgWidth - contentWidth * scale) / 2 - minX * scale;
-    const y = (svgHeight - contentHeight * scale) / 2 - minY * scale;
-    setTransform({ x, y, scale });
-  };
-
-  const handleReset = () => {
-    const alterNodes = nodes.filter(n => n.type === "alter");
-    if (alterNodes.length) fitToNodes(alterNodes);
-  };
-  const handleZoom = (dir) => setTransform(t => ({
-    ...t, scale: Math.max(0.5, Math.min(3, t.scale * (dir === "in" ? 1.2 : 0.85)))
-  }));
-  const cycleRelMode = () => {
-    setRelDisplayMode(m => {
-      const idx = REL_MODES.indexOf(m);
-      return REL_MODES[(idx + 1) % REL_MODES.length];
-    });
-  };
+  }, []);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -393,7 +373,33 @@ const SystemMap = ({ relationships = [] }) => {
       svg.removeEventListener("touchend", handleMouseUp);
       svg.removeEventListener("wheel", handleWheel);
     };
-  }, [isDragging, transform]);
+  }, [handleMouseMove, handleMouseUp, handleTouchStart, handleTouchMove, handleWheel]);
+
+  const handleNodeClick = useCallback((alterId) => {
+    if (dragDistanceRef.current > 5) return;
+    const clicked = alters.find((a) => a.id === alterId);
+    setSelectedAlter(prev => prev?.id === alterId ? null : clicked);
+  }, [alters]);
+
+  const handleReset = () => {
+    const alterNodes = nodes.filter(n => n.type === "alter");
+    if (alterNodes.length) fitToNodes(alterNodes);
+  };
+  const handleZoom = (dir) => setTransform(t => ({
+    ...t, scale: Math.max(0.5, Math.min(3, t.scale * (dir === "in" ? 1.2 : 0.85)))
+  }));
+  const cycleRelMode = () => {
+    setRelDisplayMode(m => {
+      const idx = REL_MODES.indexOf(m);
+      return REL_MODES[(idx + 1) % REL_MODES.length];
+    });
+  };
+  const cycleTimeMode = () => {
+    setTimeMode(m => {
+      const idx = TIME_MODES.findIndex(t => t.id === m);
+      return TIME_MODES[(idx + 1) % TIME_MODES.length].id;
+    });
+  };
 
   const formatDuration = (ms) => {
     if (!ms) return "0h";
@@ -404,9 +410,33 @@ const SystemMap = ({ relationships = [] }) => {
 
   const alterNodeCount = nodes.filter(n => n.type === "alter").length;
   const groupNodeCount = nodes.filter(n => n.type === "group").length;
+  const currentTimeMode = TIME_MODES.find(t => t.id === timeMode);
 
   return (
     <div className="relative w-full h-full bg-gradient-to-br from-card to-muted/20 rounded-lg border border-border overflow-hidden flex flex-col">
+
+      {/* Time mode toggle — above the map, outside SVG */}
+      <div className="flex-shrink-0 flex items-center justify-between px-3 pt-2 pb-1.5 border-b border-border/40">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {selectedAlter && (
+            <span className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary rounded-full font-medium">
+              <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: selectedAlter.color || "#8b5cf6" }} />
+              {selectedAlter.name} selected
+              <button onClick={() => setSelectedAlter(null)} className="ml-0.5 hover:text-destructive transition-colors">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {!selectedAlter && <span>Click an alter to center it</span>}
+        </div>
+        <button
+          onClick={cycleTimeMode}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
+          title="Cycle time mode"
+        >
+          {currentTimeMode?.label}
+        </button>
+      </div>
 
       {/* SVG map — fills all available space */}
       <div className="flex-1 relative min-h-0">
@@ -417,7 +447,7 @@ const SystemMap = ({ relationships = [] }) => {
         >
           <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
 
-            {/* Links */}
+            {/* Co-fronting + membership links */}
             {links.map((link, idx) => {
               const sourceNode = nodes.find((n) => n.id === link.source);
               const targetNode = nodes.find((n) => n.id === link.target);
@@ -439,54 +469,20 @@ const SystemMap = ({ relationships = [] }) => {
             })}
 
             {/* Relationship lines */}
-            {relDisplayMode !== 'none' && (() => {
+            {relDisplayMode !== 'none' && relationships.length > 0 && (() => {
               const visibleRels = relDisplayMode === 'selected'
                 ? relationships.filter(r => r.alter_id_a === selectedAlter?.id || r.alter_id_b === selectedAlter?.id)
                 : relationships;
               if (visibleRels.length === 0) return null;
               const NODE_R = 35;
+
+              // Build pair groups for offset calculation
               const pairGroups = {};
               visibleRels.forEach(rel => {
                 const key = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
                 if (!pairGroups[key]) pairGroups[key] = [];
                 pairGroups[key].push(rel);
               });
-
-              if (relDisplayMode === 'simple') {
-                return (
-                  <g>
-                    {visibleRels.map(rel => {
-                      const nodeA = nodes.find(n => n.id === rel.alter_id_a);
-                      const nodeB = nodes.find(n => n.id === rel.alter_id_b);
-                      if (!nodeA || !nodeB) return null;
-                      const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
-                      const pairRels = pairGroups[pairKey] || [rel];
-                      const relIndex = pairRels.findIndex(r => r.id === rel.id);
-                      const offset = (relIndex - (pairRels.length - 1) / 2) * 10;
-                      const dx = nodeB.x - nodeA.x, dy = nodeB.y - nodeA.y;
-                      const len = Math.sqrt(dx * dx + dy * dy) || 1;
-                      const ox = (-dy / len) * offset, oy = (dx / len) * offset;
-                      const x1 = nodeA.x + ox, y1 = nodeA.y + oy;
-                      const x2 = nodeB.x + ox, y2 = nodeB.y + oy;
-                      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-                      const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
-                      return (
-                        <g key={`rel-${rel.id}`}>
-                          <line x1={x1} y1={y1} x2={x2} y2={y2}
-                            stroke={rel.color || "#6b7280"} strokeWidth={1.5}
-                            strokeDasharray="6,3" opacity={0.7}>
-                            <title>{label}</title>
-                          </line>
-                          <text x={mx} y={my - 6} textAnchor="middle" fontSize={9}
-                            fill={rel.color || "#6b7280"} opacity={0.9} pointerEvents="none">
-                            {label}
-                          </text>
-                        </g>
-                      );
-                    })}
-                  </g>
-                );
-              }
 
               const lines = [];
               visibleRels.forEach(rel => {
@@ -497,47 +493,67 @@ const SystemMap = ({ relationships = [] }) => {
                 const pairRels = pairGroups[pairKey] || [rel];
                 const relIndex = pairRels.findIndex(r => r.id === rel.id);
                 const baseOffset = (relIndex - (pairRels.length - 1) / 2) * 10;
-                const ax = nodeA.x, ay = nodeA.y, bx = nodeB.x, by = nodeB.y;
-                const dx = bx - ax, dy = by - ay;
+                const dx = nodeB.x - nodeA.x, dy = nodeB.y - nodeA.y;
                 const len = Math.sqrt(dx * dx + dy * dy) || 1;
                 const perpX = -dy / len, perpY = dx / len;
                 const color = rel.color || "#6b7280";
-                const markerId = `smarrow-${rel.id}`;
-                if (rel.direction === "bidirectional") {
-                  const biOff = 5;
-                  const markerIdB = `smarrow-${rel.id}-b`;
-                  const ox1 = perpX * (baseOffset + biOff), oy1 = perpY * (baseOffset + biOff);
-                  const ox2 = perpX * (baseOffset - biOff), oy2 = perpY * (baseOffset - biOff);
+                const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
+                const markerId = `rel-arrow-${rel.id}`;
+
+                if (relDisplayMode === 'simple') {
+                  const ox = perpX * baseOffset, oy = perpY * baseOffset;
+                  const x1 = nodeA.x + ox, y1 = nodeA.y + oy;
+                  const x2 = nodeB.x + ox, y2 = nodeB.y + oy;
                   lines.push(
-                    <React.Fragment key={`rel-${rel.id}`}>
-                      <defs>
-                        <marker id={markerId} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
-                          <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
-                        </marker>
-                        <marker id={markerIdB} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
-                          <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
-                        </marker>
-                      </defs>
-                      <line x1={ax+ox1} y1={ay+oy1} x2={bx+ox1} y2={by+oy1}
-                        stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
-                      <line x1={bx+ox2} y1={by+oy2} x2={ax+ox2} y2={ay+oy2}
-                        stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerIdB})`} />
-                    </React.Fragment>
+                    <g key={`rel-${rel.id}`}>
+                      <line x1={x1} y1={y1} x2={x2} y2={y2}
+                        stroke={color} strokeWidth={1.5} strokeDasharray="6,3" opacity={0.7} />
+                      <text x={(x1+x2)/2} y={(y1+y2)/2 - 6} textAnchor="middle" fontSize={9}
+                        fill={color} opacity={0.9} pointerEvents="none">
+                        {label}
+                      </text>
+                    </g>
                   );
                 } else {
-                  const [lx1, ly1, lx2, ly2] = rel.direction === "b_to_a" ? [bx, by, ax, ay] : [ax, ay, bx, by];
-                  const ox = perpX * baseOffset, oy = perpY * baseOffset;
-                  lines.push(
-                    <React.Fragment key={`rel-${rel.id}`}>
-                      <defs>
-                        <marker id={markerId} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
-                          <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
-                        </marker>
-                      </defs>
-                      <line x1={lx1+ox} y1={ly1+oy} x2={lx2+ox} y2={ly2+oy}
-                        stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
-                    </React.Fragment>
-                  );
+                  // detailed / selected: arrows
+                  if (rel.direction === "bidirectional") {
+                    const biOff = 5;
+                    const markerIdB = `rel-arrow-${rel.id}-b`;
+                    const ox1 = perpX * (baseOffset + biOff), oy1 = perpY * (baseOffset + biOff);
+                    const ox2 = perpX * (baseOffset - biOff), oy2 = perpY * (baseOffset - biOff);
+                    lines.push(
+                      <React.Fragment key={`rel-${rel.id}`}>
+                        <defs>
+                          <marker id={markerId} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
+                          </marker>
+                          <marker id={markerIdB} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
+                          </marker>
+                        </defs>
+                        <line x1={nodeA.x+ox1} y1={nodeA.y+oy1} x2={nodeB.x+ox1} y2={nodeB.y+oy1}
+                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
+                        <line x1={nodeB.x+ox2} y1={nodeB.y+oy2} x2={nodeA.x+ox2} y2={nodeA.y+oy2}
+                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerIdB})`} />
+                      </React.Fragment>
+                    );
+                  } else {
+                    const [lx1, ly1, lx2, ly2] = rel.direction === "b_to_a"
+                      ? [nodeB.x, nodeB.y, nodeA.x, nodeA.y]
+                      : [nodeA.x, nodeA.y, nodeB.x, nodeB.y];
+                    const ox = perpX * baseOffset, oy = perpY * baseOffset;
+                    lines.push(
+                      <React.Fragment key={`rel-${rel.id}`}>
+                        <defs>
+                          <marker id={markerId} markerWidth="8" markerHeight="6" refX={NODE_R + 6} refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
+                          </marker>
+                        </defs>
+                        <line x1={lx1+ox} y1={ly1+oy} x2={lx2+ox} y2={ly2+oy}
+                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
+                      </React.Fragment>
+                    );
+                  }
                 }
               });
               return <g>{lines}</g>;
@@ -565,12 +581,8 @@ const SystemMap = ({ relationships = [] }) => {
                     stroke={node.isSelected ? "white" : node.isCofronter ? "hsl(var(--accent))" : "transparent"}
                     strokeWidth={node.isSelected ? 3 : node.isCofronter ? 2 : 0}
                     style={{ cursor: node.type === "alter" ? "pointer" : "default" }}
-                    onClick={() => {
-                     if (node.type === "alter" && dragDistanceRef.current < 5) {
-                       const clicked = alters.find((a) => a.id === node.id);
-                       setSelectedAlter(prev => prev?.id === clicked?.id ? null : clicked);
-                     }
-                    }}
+                    onMouseDown={(e) => { e.stopPropagation(); dragDistanceRef.current = 0; isDraggingRef.current = false; }}
+                    onClick={() => node.type === "alter" && handleNodeClick(node.id)}
                   />
                   {node.avatar && node.type === "alter" && (
                     <image
@@ -580,15 +592,11 @@ const SystemMap = ({ relationships = [] }) => {
                       preserveAspectRatio="xMidYMid slice"
                       clipPath={`url(#clip-circle-${node.id})`}
                       style={{ cursor: "pointer" }}
-                      onClick={() => {
-                       if (dragDistanceRef.current < 5) {
-                         const clicked = alters.find((a) => a.id === node.id);
-                         setSelectedAlter(prev => prev?.id === clicked?.id ? null : clicked);
-                       }
-                      }}
+                      onMouseDown={(e) => { e.stopPropagation(); dragDistanceRef.current = 0; isDraggingRef.current = false; }}
+                      onClick={() => handleNodeClick(node.id)}
                     />
                   )}
-                  <text x={node.x} y={node.y - (node.type === "group" ? 10 : 10)}
+                  <text x={node.x} y={node.y - 10}
                     textAnchor="middle" fontSize="13" fontWeight="600"
                     fill="white" pointerEvents="none">
                     {node.label.length > 12 ? node.label.slice(0, 10) + "…" : node.label}
@@ -611,25 +619,8 @@ const SystemMap = ({ relationships = [] }) => {
           </g>
         </svg>
 
-        {/* Zoom + Rels controls + Time mode toggle — top right, compact vertical stack */}
+        {/* Zoom + Rels controls — right side */}
         <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-center">
-          {/* Time mode toggle */}
-          <div className="flex gap-0.5 bg-card/90 backdrop-blur border border-border rounded-lg p-0.5">
-            {[
-              { id: 'total', label: 'All' },
-              { id: 'primary', label: '⭐' },
-              { id: 'cofronting', label: '👥' },
-            ].map(opt => (
-              <button key={opt.id} onClick={() => setTimeMode(opt.id)}
-                title={{ total: 'Total front time', primary: 'Primary front time', cofronting: 'Co-fronting time' }[opt.id]}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                  timeMode === opt.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          {/* Rels cycle button — icon only with colored dot indicator */}
           <button
             onClick={cycleRelMode}
             title={`Relationships: ${REL_TITLES[relDisplayMode]}`}
@@ -646,25 +637,16 @@ const SystemMap = ({ relationships = [] }) => {
               relDisplayMode === 'selected' ? 'bg-amber-500' : 'bg-muted-foreground'
             }`} />
           </button>
-          <button
-            onClick={() => handleZoom("in")}
-            title="Zoom in"
-            className="w-8 h-8 rounded-lg border border-border bg-card/90 text-foreground hover:bg-muted/60 transition-colors flex items-center justify-center"
-          >
+          <button onClick={() => handleZoom("in")} title="Zoom in"
+            className="w-8 h-8 rounded-lg border border-border bg-card/90 text-foreground hover:bg-muted/60 transition-colors flex items-center justify-center">
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={() => handleZoom("out")}
-            title="Zoom out"
-            className="w-8 h-8 rounded-lg border border-border bg-card/90 text-foreground hover:bg-muted/60 transition-colors flex items-center justify-center"
-          >
+          <button onClick={() => handleZoom("out")} title="Zoom out"
+            className="w-8 h-8 rounded-lg border border-border bg-card/90 text-foreground hover:bg-muted/60 transition-colors flex items-center justify-center">
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={handleReset}
-            title="Reset view"
-            className="w-8 h-8 rounded-lg border border-border bg-card/90 text-foreground hover:bg-muted/60 transition-colors flex items-center justify-center"
-          >
+          <button onClick={handleReset} title="Reset view"
+            className="w-8 h-8 rounded-lg border border-border bg-card/90 text-foreground hover:bg-muted/60 transition-colors flex items-center justify-center">
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -695,59 +677,41 @@ const SystemMap = ({ relationships = [] }) => {
 
       {/* Bottom filter bar + expandable panel */}
       <div className="flex-shrink-0 border-t border-border bg-card/95 backdrop-blur">
-        {/* Panel content — expands upward */}
         {panelOpen && (
           <div className="p-3 space-y-3 border-b border-border max-h-[50vh] overflow-y-auto overflow-x-hidden w-full">
 
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Show Archived</label>
-              <button
-                onClick={() => setShowArchived(v => !v)}
-                className={`w-10 h-5 rounded-full transition-colors ${showArchived ? "bg-primary" : "bg-muted"} relative flex-shrink-0`}
-              >
+              <button onClick={() => setShowArchived(v => !v)}
+                className={`w-10 h-5 rounded-full transition-colors ${showArchived ? "bg-primary" : "bg-muted"} relative flex-shrink-0`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${showArchived ? "left-5" : "left-0.5"}`} />
               </button>
             </div>
 
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Show Groups</label>
-              <button
-                onClick={() => setShowGroups(v => !v)}
-                className={`w-10 h-5 rounded-full transition-colors ${showGroups ? "bg-primary" : "bg-muted"} relative flex-shrink-0`}
-              >
+              <button onClick={() => setShowGroups(v => !v)}
+                className={`w-10 h-5 rounded-full transition-colors ${showGroups ? "bg-primary" : "bg-muted"} relative flex-shrink-0`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${showGroups ? "left-5" : "left-0.5"}`} />
               </button>
             </div>
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Search</label>
-              <div className="w-full overflow-hidden">
-                <Input
-                  placeholder="Search by name or alias..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="text-sm w-full min-w-0"
-                />
-              </div>
+              <Input placeholder="Search by name or alias..." value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)} className="text-sm w-full min-w-0" />
             </div>
 
             <div>
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Filter by Group</label>
               <div className="flex flex-wrap gap-1.5">
-                <Badge
-                  variant={selectedGroup ? "outline" : "secondary"}
-                  className="cursor-pointer text-xs"
-                  onClick={() => setSelectedGroup(null)}
-                >
-                  All
-                </Badge>
+                <Badge variant={selectedGroup ? "outline" : "secondary"} className="cursor-pointer text-xs"
+                  onClick={() => setSelectedGroup(null)}>All</Badge>
                 {groups.map((group) => (
-                  <Badge
-                    key={group.id}
+                  <Badge key={group.id}
                     variant={selectedGroup === group.id ? "default" : "outline"}
                     className="cursor-pointer text-xs"
-                    onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}
-                  >
+                    onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}>
                     {group.name}
                   </Badge>
                 ))}
@@ -766,20 +730,16 @@ const SystemMap = ({ relationships = [] }) => {
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <label className="text-xs text-muted-foreground">Show top</label>
-                  <input
-                    type="number" min="1" max="30" value={cofronterCount}
+                  <input type="number" min="1" max="30" value={cofronterCount}
                     onChange={(e) => setCofronterCount(Math.max(1, parseInt(e.target.value) || 10))}
-                    className="w-14 h-7 px-2 border border-border rounded text-xs bg-background"
-                  />
+                    className="w-14 h-7 px-2 border border-border rounded text-xs bg-background" />
                 </div>
                 {cofronters.length > 0 && (
                   <div className="bg-muted/30 rounded p-2 max-h-40 overflow-y-auto space-y-1">
                     {cofronters.map((alter) => (
                       <div key={alter.id} className="text-xs text-foreground flex items-center justify-between">
                         <span>{alter.name}</span>
-                        <span className="text-muted-foreground">
-                          {formatDuration(cofrontingTime[selectedAlter.id]?.[alter.id])}
-                        </span>
+                        <span className="text-muted-foreground">{formatDuration(cofrontingTime[selectedAlter.id]?.[alter.id])}</span>
                       </div>
                     ))}
                   </div>
@@ -789,11 +749,8 @@ const SystemMap = ({ relationships = [] }) => {
           </div>
         )}
 
-        {/* Trigger bar */}
-        <button
-          onClick={() => setPanelOpen(!panelOpen)}
-          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors"
-        >
+        <button onClick={() => setPanelOpen(!panelOpen)}
+          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
             Filters & Search
