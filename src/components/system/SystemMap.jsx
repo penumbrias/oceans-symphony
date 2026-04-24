@@ -152,22 +152,18 @@ const SystemMap = ({ relationships = [] }) => {
     const positions = {};
     const centerX = 600;
     const centerY = 400;
-    const maxRadius = 320;
-    const minRadius = 80;
 
     if (!selectedAlter) {
       const altersSorted = [...filteredAlters].sort(
         (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
       );
       const maxTime = altersSorted.length > 0 ? (frontingTime[altersSorted[0].id] || 1) : 1;
+      const minRadius = 20;
+      const maxRadius = 320;
       altersSorted.forEach((alter, idx) => {
-        if (idx === 0) {
-          positions[alter.id] = { x: centerX, y: centerY };
-          return;
-        }
         const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
         const radius = minRadius + (1 - timeRatio) * (maxRadius - minRadius);
-        const angle = ((idx - 1) / Math.max(altersSorted.length - 1, 1)) * Math.PI * 2;
+        const angle = (idx / altersSorted.length) * Math.PI * 2;
         positions[alter.id] = {
           x: centerX + Math.cos(angle) * radius,
           y: centerY + Math.sin(angle) * radius,
@@ -176,6 +172,8 @@ const SystemMap = ({ relationships = [] }) => {
       return positions;
     }
 
+    const minRadius = 20;
+    const maxRadius = 320;
     positions[selectedAlter.id] = { x: centerX, y: centerY };
     const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
     const selectedTotalTime = frontingTime[selectedAlter.id] || 1;
