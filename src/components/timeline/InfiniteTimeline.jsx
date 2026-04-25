@@ -101,11 +101,11 @@ function StatusNoteBadge({ note, topPx, id }) {
   const [open, setOpen] = React.useState(false);
   return (
     <>
-      <div className="absolute left-0 right-0 z-10 flex items-start" style={{ top: topPx, userSelect: "none" }} data-status-id={id}>
+      <div className="absolute left-0 right-0 z-10 flex items-start pointer-events-none" style={{ top: topPx, userSelect: "none" }} data-status-id={id}>
         <div className="mx-1 flex items-center gap-1" style={{ fontSize: 9 }}>
           {/* Only the icon is clickable — rest is pointer-events-none so alters behind are tappable */}
           <button
-            className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded bg-muted/90 border border-border/60 hover:bg-muted transition-colors cursor-pointer"
+            className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded bg-muted/90 border border-border/60 hover:bg-muted transition-colors cursor-pointer pointer-events-auto"
             style={{ fontSize: 10 }}
             onClick={(e) => { e.stopPropagation(); setOpen(true); }}
           >
