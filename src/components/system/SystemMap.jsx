@@ -157,33 +157,44 @@ const SystemMap = ({ relationships = [] }) => {
       const altersSorted = [...filteredAlters].sort(
         (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
       );
-      const maxTime = altersSorted.length > 0 ? (frontingTime[altersSorted[0].id] || 1) : 1;
+      const n = altersSorted.length;
+      const maxTime = n > 0 ? (frontingTime[altersSorted[0].id] || 1) : 1;
       const nodeR = 38;
       const minRadius = 20;
-      // Expand the ring so all nodes fit on the outermost orbit without needing collision pushes
-      const minRadiusForCount = altersSorted.length > 1
-        ? (nodeR * 2 * altersSorted.length) / (2 * Math.PI)
-        : 0;
-      const maxRadius = Math.max(320, minRadiusForCount);
-      altersSorted.forEach((alter, idx) => {
+
+      // Compute each alter's ideal radius based on fronting time
+      // Use a provisional maxRadius to get radii, then we'll scale if needed
+      const provisionalMax = 320;
+      const radii = altersSorted.map(alter => {
         const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
-        const radius = minRadius + (1 - timeRatio) * (maxRadius - minRadius);
-        const angle = (idx / altersSorted.length) * Math.PI * 2;
+        return minRadius + (1 - timeRatio) * (provisionalMax - minRadius);
+      });
+
+      // Total arc length needed = n nodes * diameter each
+      // Arc length at radius r for angle dθ = r * dθ, so dθ = (2*nodeR) / r
+      // Sum of all dθ must equal 2π — if it doesn't, scale radii up uniformly
+      const totalAngleNeeded = radii.reduce((sum, r) => sum + (nodeR * 2) / r, 0);
+      const scale = totalAngleNeeded > 2 * Math.PI ? totalAngleNeeded / (2 * Math.PI) : 1;
+      const scaledRadii = radii.map(r => r * scale);
+
+      // Place nodes: accumulate angle proportional to arc at each radius
+      let currentAngle = -Math.PI / 2; // start at top
+      altersSorted.forEach((alter, idx) => {
+        const r = scaledRadii[idx];
+        const halfAngle = nodeR / r; // half the arc taken by this node
+        currentAngle += halfAngle; // move to center of this node
         positions[alter.id] = {
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
+          x: centerX + Math.cos(currentAngle) * r,
+          y: centerY + Math.sin(currentAngle) * r,
         };
+        currentAngle += halfAngle; // advance past this node
       });
       return positions;
     }
 
     const nodeR = 38;
     const minRadius = 20;
-    const otherCount = filteredAlters.filter(a => a.id !== selectedAlter.id).length;
-    const minRadiusForCount = otherCount > 1
-      ? (nodeR * 2 * otherCount) / (2 * Math.PI)
-      : 0;
-    const maxRadius = Math.max(320, minRadiusForCount);
+    const provisionalMax = 320;
     positions[selectedAlter.id] = { x: centerX, y: centerY };
     const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
     const selectedTotalTime = frontingTime[selectedAlter.id] || 1;
@@ -192,13 +203,25 @@ const SystemMap = ({ relationships = [] }) => {
       return { alter, cofrontRatio: sharedTime / selectedTotalTime };
     });
     withRatios.sort((a, b) => b.cofrontRatio - a.cofrontRatio);
+
+    // Compute radii, then scale uniformly if nodes don't fit around the circumference
+    const radii = withRatios.map(item =>
+      minRadius + (1 - Math.min(item.cofrontRatio, 1)) * (provisionalMax - minRadius)
+    );
+    const totalAngleNeeded = radii.reduce((sum, r) => sum + (nodeR * 2) / r, 0);
+    const scale = totalAngleNeeded > 2 * Math.PI ? totalAngleNeeded / (2 * Math.PI) : 1;
+    const scaledRadii = radii.map(r => r * scale);
+
+    let currentAngle = -Math.PI / 2;
     withRatios.forEach((item, idx) => {
-      const radius = minRadius + (1 - Math.min(item.cofrontRatio, 1)) * (maxRadius - minRadius);
-      const angle = (idx / Math.max(withRatios.length, 1)) * Math.PI * 2;
+      const r = scaledRadii[idx];
+      const halfAngle = nodeR / r;
+      currentAngle += halfAngle;
       positions[item.alter.id] = {
-        x: centerX + Math.cos(angle) * radius,
-        y: centerY + Math.sin(angle) * radius,
+        x: centerX + Math.cos(currentAngle) * r,
+        y: centerY + Math.sin(currentAngle) * r,
       };
+      currentAngle += halfAngle;
     });
     return positions;
   }, [filteredAlters, selectedAlter, frontingTime, cofrontingTime]);
