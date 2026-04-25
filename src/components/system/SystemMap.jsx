@@ -186,8 +186,12 @@ const SystemMap = ({ relationships = [] }) => {
       if (n === 0) return;
 
       // Compute each item's target radius using square-root scale for better sensitivity
+      // Anyone with any time at all gets at least a small inward offset from the outer ring
       const itemsWithR = items.map(item => {
-        const ratio = Math.sqrt((getTime(item) || 0) / maxTime);
+        const t = getTime(item) || 0;
+        const raw = Math.sqrt(t / maxTime);
+        // If they have any time, ensure ratio is at least 0.08 so they're visibly inside the outermost ring
+        const ratio = t > 0 ? Math.max(raw, 0.08) : 0;
         const r = minRadius + (1 - ratio) * (maxRadius - minRadius);
         return { item, r };
       });
