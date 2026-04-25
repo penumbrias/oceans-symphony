@@ -169,6 +169,31 @@ const SystemMap = ({ relationships = [] }) => {
           y: centerY + Math.sin(angle) * radius,
         };
       });
+      // Collision resolution: push overlapping nodes apart
+      const nodeR = 38; // node radius + small gap
+      const ids = altersSorted.map(a => a.id);
+      for (let iter = 0; iter < 30; iter++) {
+        let moved = false;
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            const a = positions[ids[i]];
+            const b = positions[ids[j]];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+            const minDist = nodeR * 2;
+            if (dist < minDist) {
+              const push = (minDist - dist) / 2;
+              const nx = (dx / dist) * push;
+              const ny = (dy / dist) * push;
+              positions[ids[i]] = { x: a.x - nx, y: a.y - ny };
+              positions[ids[j]] = { x: b.x + nx, y: b.y + ny };
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break;
+      }
       return positions;
     }
 
@@ -190,6 +215,31 @@ const SystemMap = ({ relationships = [] }) => {
         y: centerY + Math.sin(angle) * radius,
       };
     });
+    // Collision resolution
+    const nodeR = 38;
+    const ids = Object.keys(positions);
+    for (let iter = 0; iter < 30; iter++) {
+      let moved = false;
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = positions[ids[i]];
+          const b = positions[ids[j]];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+          const minDist = nodeR * 2;
+          if (dist < minDist) {
+            const push = (minDist - dist) / 2;
+            const nx = (dx / dist) * push;
+            const ny = (dy / dist) * push;
+            positions[ids[i]] = { x: a.x - nx, y: a.y - ny };
+            positions[ids[j]] = { x: b.x + nx, y: b.y + ny };
+            moved = true;
+          }
+        }
+      }
+      if (!moved) break;
+    }
     return positions;
   }, [filteredAlters, selectedAlter, frontingTime, cofrontingTime]);
 
