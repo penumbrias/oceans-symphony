@@ -165,13 +165,8 @@ export default function TourModal({ open, onClose }) {
 
         {/* Header gradient */}
         <div className={`bg-gradient-to-br ${current.color} px-6 pt-6 pb-4`}>
-          <div className='flex items-start justify-between'>
-            <div className='text-4xl mb-3'>
-              {typeof current.icon === 'string' ? current.icon : current.icon}
-            </div>
-            <button onClick={onClose} className='text-muted-foreground hover:text-foreground transition-colors p-1'>
-              <X className='w-4 h-4' />
-            </button>
+          <div className='text-4xl mb-3'>
+            {typeof current.icon === 'string' ? current.icon : current.icon}
           </div>
           <h2 className='text-xl font-bold text-foreground leading-tight'>{current.title}</h2>
           <p className='text-sm text-primary font-medium mt-0.5'>{current.subtitle}</p>
