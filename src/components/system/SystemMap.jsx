@@ -159,21 +159,42 @@ const SystemMap = ({ relationships = [] }) => {
       const n = items.length;
       if (n === 0) return;
       const maxNodeR = 35;
+
+      // Compute raw radius for each item
       const radii = items.map(item => {
         const ratio = (getTime(item) || 0) / maxTime;
         return minRadius + (1 - ratio) * (maxRadius - minRadius);
       });
-      const minR = Math.min(...radii);
-      const maxFitNodeR = (minR * Math.PI) / n;
-      const nodeR = Math.min(maxNodeR, Math.max(maxFitNodeR, 32));
+
+      // Group items by quantized ring (round radius to nearest 20px bucket)
+      const BUCKET = 20;
+      const rings = {};
       items.forEach((item, idx) => {
-        const r = radii[idx];
-        const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
-        positions[item.id] = {
-          x: centerX + Math.cos(angle) * r,
-          y: centerY + Math.sin(angle) * r,
-          nodeR,
-        };
+        const bucket = Math.round(radii[idx] / BUCKET) * BUCKET;
+        if (!rings[bucket]) rings[bucket] = [];
+        rings[bucket].push({ item, r: radii[idx] });
+      });
+
+      // Compute nodeR based on the most-constrained ring
+      let tightest = Infinity;
+      Object.entries(rings).forEach(([bucket, members]) => {
+        const r = Number(bucket);
+        const fit = (r * Math.PI) / members.length;
+        if (fit < tightest) tightest = fit;
+      });
+      const nodeR = Math.min(maxNodeR, Math.max(tightest, 32));
+
+      // Place each ring's members evenly around the full 360°
+      Object.entries(rings).forEach(([, members]) => {
+        const count = members.length;
+        members.forEach(({ item, r }, idx) => {
+          const angle = (idx / count) * Math.PI * 2 - Math.PI / 2;
+          positions[item.id] = {
+            x: centerX + Math.cos(angle) * r,
+            y: centerY + Math.sin(angle) * r,
+            nodeR,
+          };
+        });
       });
     };
 
