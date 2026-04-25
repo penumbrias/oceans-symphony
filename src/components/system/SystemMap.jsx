@@ -158,72 +158,68 @@ const SystemMap = ({ relationships = [] }) => {
     const place = (items, getTime, maxTime) => {
       const n = items.length;
       if (n === 0) return;
-      const NODE_R = 32; // node radius
+      const NODE_DIAMETER = 68; // minimum px between node centers to avoid overlap
       const maxNodeR = 35;
 
-      // Step 1: compute each item's ideal orbital radius
+      // Step 1: compute each item's ideal radius from its fronting time
       const entries = items.map(item => {
         const ratio = (getTime(item) || 0) / maxTime;
         const idealR = minRadius + (1 - ratio) * (maxRadius - minRadius);
         return { item, idealR };
       });
 
-      // Step 2: sort by ideal radius (innermost first)
+      // Step 2: bucket items into rings. Items within NODE_DIAMETER of each other
+      // (radially) share a ring. Sort innermost first, then greedily assign rings.
       entries.sort((a, b) => a.idealR - b.idealR);
 
-      // Step 3: place each item. Track placed positions as {x, y} to check distance.
-      const placed = []; // { item, x, y, r }
-
+      const rings = []; // [{ r, members[] }]
       for (const entry of entries) {
-        let r = entry.idealR;
-        // Pick a starting angle based on index to distribute evenly as a seed
-        const seedAngle = (placed.length / n) * Math.PI * 2 - Math.PI / 2;
-        let angle = seedAngle;
-        let found = false;
-        const STEP = 0.05; // radians per attempt
-        const MAX_ATTEMPTS = Math.ceil((Math.PI * 2) / STEP) * 8; // up to 8 full laps
-
-        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-          const x = centerX + Math.cos(angle) * r;
-          const y = centerY + Math.sin(angle) * r;
-          // Check distance from all placed nodes
-          const tooClose = placed.some(p => {
-            const dx = p.x - x, dy = p.y - y;
-            return Math.sqrt(dx * dx + dy * dy) < NODE_R * 2;
-          });
-          if (!tooClose) {
-            placed.push({ item: entry.item, x, y, r });
-            found = true;
-            break;
-          }
-          // Alternate: try rotating angle clockwise/counterclockwise, then expand r
-          const lap = Math.floor(attempt / Math.ceil((Math.PI * 2) / STEP));
-          const direction = (attempt % 2 === 0 ? 1 : -1);
-          angle = seedAngle + direction * (Math.ceil(attempt / 2) * STEP);
-          // After each full lap, expand radius slightly
-          r = entry.idealR + lap * NODE_R * 0.5;
-        }
-
-        if (!found) {
-          // Fallback: just place at ideal radius at seed angle
-          placed.push({ item: entry.item, x: centerX + Math.cos(seedAngle) * entry.idealR, y: centerY + Math.sin(seedAngle) * entry.idealR, r: entry.idealR });
+        const existing = rings.find(ring => Math.abs(ring.r - entry.idealR) < NODE_DIAMETER);
+        if (existing) {
+          existing.members.push(entry.item);
+        } else {
+          rings.push({ r: entry.idealR, members: [entry.item] });
         }
       }
 
-      // Step 4: assign positions — nodeR shrinks only if the tightest spacing demands it
-      const minDist = placed.length > 1
-        ? Math.min(...placed.flatMap((p, i) =>
-            placed.slice(i + 1).map(q => {
-              const dx = p.x - q.x, dy = p.y - q.y;
-              return Math.sqrt(dx * dx + dy * dy);
-            })
-          ))
-        : NODE_R * 2;
-      const nodeR = Math.min(maxNodeR, Math.max(Math.floor(minDist / 2) - 1, 20));
+      // Step 3: for each ring, check if its members can fit without overlapping.
+      // If not, split overflow members to a new ring just outside.
+      const finalRings = [];
+      for (const ring of rings) {
+        const circumference = ring.r * Math.PI * 2;
+        const maxFit = Math.max(1, Math.floor(circumference / NODE_DIAMETER));
+        if (ring.members.length <= maxFit) {
+          finalRings.push(ring);
+        } else {
+          // Split: keep maxFit on this ring, push the rest to a new ring outside
+          finalRings.push({ r: ring.r, members: ring.members.slice(0, maxFit) });
+          const overflow = ring.members.slice(maxFit);
+          // Find a clear radius for the overflow ring
+          let newR = ring.r + NODE_DIAMETER;
+          while (finalRings.some(fr => Math.abs(fr.r - newR) < NODE_DIAMETER)) {
+            newR += NODE_DIAMETER;
+          }
+          finalRings.push({ r: newR, members: overflow });
+        }
+      }
 
-      placed.forEach(({ item, x, y }) => {
-        positions[item.id] = { x, y, nodeR };
-      });
+      // Step 4: for each final ring, spread members evenly across full 360°
+      for (const ring of finalRings) {
+        const count = ring.members.length;
+        // Per-ring nodeR: fit the ring's circumference, capped at maxNodeR
+        const circumference = ring.r * Math.PI * 2;
+        const fitR = Math.floor(circumference / (count * 2));
+        const nodeR = Math.min(maxNodeR, Math.max(fitR, 20));
+
+        ring.members.forEach((item, idx) => {
+          const angle = (idx / count) * Math.PI * 2 - Math.PI / 2;
+          positions[item.id] = {
+            x: centerX + Math.cos(angle) * ring.r,
+            y: centerY + Math.sin(angle) * ring.r,
+            nodeR,
+          };
+        });
+      }
     };
 
     if (!selectedAlter) {
