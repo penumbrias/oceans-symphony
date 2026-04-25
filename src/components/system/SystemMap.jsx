@@ -94,14 +94,23 @@ const SystemMap = ({ relationships = [] }) => {
     return result;
   }, [frontingTimeAll, timeMode]);
 
-  const cofrontingTime = useMemo(() => {
+  // cofrontingTime[idA][idB] = { total, primary, cofronting } ms of overlap
+  const cofrontingTimeAll = useMemo(() => {
     const map = {};
-    const addOverlap = (idA, idB, overlap) => {
+    const addOverlap = (idA, idB, overlap, aPrimary, bPrimary) => {
       if (!idA || !idB || idA === idB) return;
       if (!map[idA]) map[idA] = {};
       if (!map[idB]) map[idB] = {};
-      map[idA][idB] = (map[idA][idB] || 0) + overlap;
-      map[idB][idA] = (map[idB][idA] || 0) + overlap;
+      if (!map[idA][idB]) map[idA][idB] = { total: 0, primary: 0, cofronting: 0 };
+      if (!map[idB][idA]) map[idB][idA] = { total: 0, primary: 0, cofronting: 0 };
+      map[idA][idB].total += overlap;
+      map[idB][idA].total += overlap;
+      // "primary" = time idA was primary while co-fronting with idB
+      if (aPrimary) map[idA][idB].primary += overlap;
+      if (bPrimary) map[idB][idA].primary += overlap;
+      // "cofronting" = time idA was co-fronter (not primary) while with idB
+      if (!aPrimary) map[idA][idB].cofronting += overlap;
+      if (!bPrimary) map[idB][idA].cofronting += overlap;
     };
     const individualSessions = frontingSessions.filter(s => s.alter_id);
     for (let i = 0; i < individualSessions.length; i++) {
@@ -115,7 +124,7 @@ const SystemMap = ({ relationships = [] }) => {
         const bEnd = b.end_time ? new Date(b.end_time).getTime() : Date.now();
         const overlapStart = Math.max(aStart, bStart);
         const overlapEnd = Math.min(aEnd, bEnd);
-        if (overlapEnd > overlapStart) addOverlap(a.alter_id, b.alter_id, overlapEnd - overlapStart);
+        if (overlapEnd > overlapStart) addOverlap(a.alter_id, b.alter_id, overlapEnd - overlapStart, a.is_primary, b.is_primary);
       }
     }
     const legacySessions = frontingSessions.filter(s => !s.alter_id && s.primary_alter_id);
@@ -125,11 +134,27 @@ const SystemMap = ({ relationships = [] }) => {
       const duration = end - start;
       const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
       for (let i = 0; i < ids.length; i++) {
-        for (let j = i + 1; j < ids.length; j++) addOverlap(ids[i], ids[j], duration);
+        for (let j = i + 1; j < ids.length; j++) {
+          const aPrimary = ids[i] === s.primary_alter_id;
+          const bPrimary = ids[j] === s.primary_alter_id;
+          addOverlap(ids[i], ids[j], duration, aPrimary, bPrimary);
+        }
       }
     });
     return map;
   }, [frontingSessions]);
+
+  // Flatten cofrontingTime to the selected timeMode key
+  const cofrontingTime = useMemo(() => {
+    const result = {};
+    Object.entries(cofrontingTimeAll).forEach(([idA, peers]) => {
+      result[idA] = {};
+      Object.entries(peers).forEach(([idB, times]) => {
+        result[idA][idB] = times[timeMode] ?? times.total;
+      });
+    });
+    return result;
+  }, [cofrontingTimeAll, timeMode]);
 
   const filteredAlters = useMemo(() => {
     let result = alters.filter(a => showArchived ? true : !a.is_archived);
