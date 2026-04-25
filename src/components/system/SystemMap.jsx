@@ -154,27 +154,51 @@ const SystemMap = ({ relationships = [] }) => {
     const centerY = 400;
     const minRadius = 60;
     const maxRadius = 320;
+    const maxNodeR = 35;
 
     const place = (items, getTime, maxTime) => {
       const n = items.length;
       if (n === 0) return;
-      const maxNodeR = 35;
-      const radii = items.map(item => {
+
+      // Compute each item's target radius based on its stat
+      const itemsWithR = items.map(item => {
         const ratio = (getTime(item) || 0) / maxTime;
-        return minRadius + (1 - ratio) * (maxRadius - minRadius);
+        const r = minRadius + (1 - ratio) * (maxRadius - minRadius);
+        return { item, r };
       });
-      const minR = Math.min(...radii);
+
+      // Determine node size: constrained by the tightest ring
+      const minR = Math.min(...itemsWithR.map(x => x.r));
       const maxFitNodeR = (minR * Math.PI) / n;
       const nodeR = Math.min(maxNodeR, Math.max(maxFitNodeR, 32));
-      items.forEach((item, idx) => {
-        const r = radii[idx];
-        const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
-        positions[item.id] = {
-          x: centerX + Math.cos(angle) * r,
-          y: centerY + Math.sin(angle) * r,
-          nodeR,
-        };
-      });
+
+      // Group items by ring (bucket radii within nodeR of each other)
+      // Sort by radius so we can bucket them
+      const sorted = [...itemsWithR].sort((a, b) => a.r - b.r);
+      const rings = []; // each ring: { r, items[] }
+      for (const entry of sorted) {
+        const last = rings[rings.length - 1];
+        if (last && Math.abs(entry.r - last.r) <= nodeR * 1.5) {
+          last.items.push(entry);
+          // Average the ring radius
+          last.r = last.items.reduce((s, x) => s + x.r, 0) / last.items.length;
+        } else {
+          rings.push({ r: entry.r, items: [entry] });
+        }
+      }
+
+      // For each ring, distribute items evenly around the circumference
+      for (const ring of rings) {
+        const count = ring.items.length;
+        ring.items.forEach(({ item }, idx) => {
+          const angle = (idx / count) * Math.PI * 2 - Math.PI / 2;
+          positions[item.id] = {
+            x: centerX + Math.cos(angle) * ring.r,
+            y: centerY + Math.sin(angle) * ring.r,
+            nodeR,
+          };
+        });
+      }
     };
 
     if (!selectedAlter) {
