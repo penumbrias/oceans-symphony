@@ -210,14 +210,15 @@ const SystemMap = ({ relationships = [] }) => {
       // Compute each item's target radius
       const radii = ordered.map(item => getRadius(item));
 
-      // Start with full-size nodes, initial angle assignment
+      // Start with full-size nodes
       let effectiveNodeR = nodeR;
       const angles = ordered.map((_, idx) => (idx / n) * Math.PI * 2 - Math.PI / 2);
 
-      // Run bumper simulation with current node size, then check if shrinking is needed
+      // Run angular bumper: nodes push each other along their own orbit (radius stays fixed).
+      // Runs many iterations until fully settled or no more progress.
       const runBumper = (nr) => {
         const a = [...angles];
-        for (let iter = 0; iter < 80; iter++) {
+        for (let iter = 0; iter < 300; iter++) {
           let moved = false;
           for (let i = 0; i < n; i++) {
             for (let j = i + 1; j < n; j++) {
@@ -225,12 +226,14 @@ const SystemMap = ({ relationships = [] }) => {
               const xj = Math.cos(a[j]) * radii[j], yj = Math.sin(a[j]) * radii[j];
               const dx = xj - xi, dy = yj - yi;
               const dist = Math.sqrt(dx * dx + dy * dy);
-              const minDist = nr * 2.1;
-              if (dist < minDist && dist > 0.01) {
-                const overlap = (minDist - dist) / 2;
-                const nudge = overlap / Math.max(radii[i], radii[j], 1) * 0.5;
-                a[i] -= nudge;
-                a[j] += nudge;
+              const minDist = nr * 2.05;
+              if (dist < minDist && dist > 0.001) {
+                const overlap = minDist - dist;
+                // Angular nudge: proportional to overlap, inversely to radius so larger orbits move less
+                const nudgeI = (overlap / Math.max(radii[i], 1)) * 0.6;
+                const nudgeJ = (overlap / Math.max(radii[j], 1)) * 0.6;
+                a[i] -= nudgeI;
+                a[j] += nudgeJ;
                 moved = true;
               }
             }
@@ -240,7 +243,7 @@ const SystemMap = ({ relationships = [] }) => {
         return a;
       };
 
-      // Check if any two nodes still overlap after bumping with a given node size
+      // After bumping, check if ANY pair still physically overlaps (geometry is impossible)
       const hasOverlap = (a, nr) => {
         for (let i = 0; i < n; i++) {
           for (let j = i + 1; j < n; j++) {
@@ -253,10 +256,13 @@ const SystemMap = ({ relationships = [] }) => {
         return false;
       };
 
-      // Try full size first; if still overlapping after bumping, shrink incrementally
+      // 1. Try bumping at full node size — angular freedom should resolve most cases
       let finalAngles = runBumper(effectiveNodeR);
-      while (effectiveNodeR > 12 && hasOverlap(finalAngles, effectiveNodeR)) {
-        effectiveNodeR -= 2;
+
+      // 2. Only shrink if bumping truly couldn't resolve overlaps (geometry impossible at this size)
+      //    Shrink 1px at a time, re-bump, until no overlap remains
+      while (effectiveNodeR > 10 && hasOverlap(finalAngles, effectiveNodeR)) {
+        effectiveNodeR -= 1;
         finalAngles = runBumper(effectiveNodeR);
       }
 
