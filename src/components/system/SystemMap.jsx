@@ -157,12 +157,15 @@ const SystemMap = ({ relationships = [] }) => {
 
     const place = (items, getTime, maxTime) => {
       const n = items.length;
-      if (n === 0) return 35;
+      if (n === 0) return;
+      const maxNodeR = 35;
       const radii = items.map(item => {
         const ratio = (getTime(item) || 0) / maxTime;
         return minRadius + (1 - ratio) * (maxRadius - minRadius);
       });
-      const nodeR = Math.min(35, (2 * Math.PI * minRadius) / (n * 2.4));
+      const minR = Math.min(...radii);
+      const maxFitNodeR = (minR * Math.PI) / n;
+      const nodeR = Math.min(maxNodeR, Math.max(maxFitNodeR, 8));
       items.forEach((item, idx) => {
         const r = radii[idx];
         const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
@@ -172,7 +175,6 @@ const SystemMap = ({ relationships = [] }) => {
           nodeR,
         };
       });
-      return nodeR;
     };
 
     if (!selectedAlter) {
