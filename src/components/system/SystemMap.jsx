@@ -165,7 +165,7 @@ const SystemMap = ({ relationships = [] }) => {
       });
       const minR = Math.min(...radii);
       const maxFitNodeR = (minR * Math.PI) / n;
-      const nodeR = Math.min(maxNodeR, Math.max(maxFitNodeR, 8));
+      const nodeR = Math.min(maxNodeR, Math.max(maxFitNodeR, 28));
       items.forEach((item, idx) => {
         const r = radii[idx];
         const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
