@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X, Upload, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { DEFAULT_RELATIONSHIP_TYPES } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
+import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 
 export function AlterAvatar({ alter, size = 24 }) {
   if (!alter) return <div className="rounded-full bg-muted flex-shrink-0" style={{ width: size, height: size }} />;
@@ -114,6 +115,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [open, setOpen] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(null); // location detail modal
+  const [managingTypes, setManagingTypes] = useState(false);
 
   const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
   const locationMap = Object.fromEntries(locations.map(l => [l.id, l]));
@@ -235,6 +237,15 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
               <Button size="sm" className="text-xs h-8" onClick={() => setCreating(true)}>
                 <Plus className="w-3 h-3 mr-1" /> Add Relationship
               </Button>
+            )}
+            {(filterMode === "all" || filterMode === "relationships") && (
+              <button
+                onClick={() => setManagingTypes(true)}
+                className="flex items-center gap-1 h-8 px-2.5 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                title="Manage relationship types"
+              >
+                <Settings2 className="w-3 h-3" /> Types
+              </button>
             )}
           </div>
 
@@ -374,6 +385,20 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
               <Button variant="outline" size="sm" className="flex-1" onClick={() => setConfirmDelete(null)}>Cancel</Button>
               <Button variant="destructive" size="sm" className="flex-1" onClick={() => handleDelete(confirmDelete)}>Delete</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {managingTypes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 pb-16 sm:pb-0" onClick={() => setManagingTypes(false)}>
+          <div className="w-full max-w-sm mx-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-white">Manage Relationship Types</span>
+              <button onClick={() => setManagingTypes(false)} className="text-white/70 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <RelationshipTypesManager />
           </div>
         </div>
       )}
