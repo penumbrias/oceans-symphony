@@ -185,9 +185,9 @@ const SystemMap = ({ relationships = [] }) => {
       const n = items.length;
       if (n === 0) return;
 
-      // Compute each item's target radius based on its stat
+      // Compute each item's target radius using square-root scale for better sensitivity
       const itemsWithR = items.map(item => {
-        const ratio = (getTime(item) || 0) / maxTime;
+        const ratio = Math.sqrt((getTime(item) || 0) / maxTime);
         const r = minRadius + (1 - ratio) * (maxRadius - minRadius);
         return { item, r };
       });
