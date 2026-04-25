@@ -51,8 +51,8 @@ export default function PeriodReview({ frequency, templates, allProgress }) {
       <div className="overflow-x-auto rounded-xl border border-border/50 bg-card">
         <table className="text-xs w-full border-collapse">
           <thead>
-            <tr className="border-b border-border/40">
-              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground min-w-[120px] sticky left-0 bg-card z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]">
+            <tr className="border-b border-border/40" style={{ background: "var(--color-surface)" }}>
+              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground min-w-[120px] sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]" style={{ background: "var(--color-surface)" }}>
                 Task
               </th>
               {pageKeys.map(key => (
@@ -70,12 +70,14 @@ export default function PeriodReview({ frequency, templates, allProgress }) {
           <tbody>
             {activeTasks.map((task, idx) => {
               const totalDone = pageKeys.filter(k => progressMap[k]?.has(task.id)).length;
+              const rowBg = idx % 2 === 0 ? "var(--color-surface)" : "var(--color-bg)";
               return (
                 <tr
                   key={task.id}
-                  className={`border-b border-border/20 last:border-0 ${idx % 2 === 0 ? "bg-card" : "bg-muted/10"}`}
+                  className="border-b border-border/20 last:border-0"
+                  style={{ background: rowBg }}
                 >
-                  <td className={`px-3 py-2 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)] ${idx % 2 === 0 ? "bg-card" : "bg-muted/10"}`}>
+                  <td className="px-3 py-2 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]" style={{ background: rowBg }}>
                     <div className="font-medium text-foreground truncate max-w-[160px]">
                       {applyTerms(task.title, terms)}
                     </div>
@@ -104,8 +106,8 @@ export default function PeriodReview({ frequency, templates, allProgress }) {
           </tbody>
           {/* Footer: completion % per period */}
           <tfoot>
-            <tr className="border-t border-border/40 bg-muted/20">
-              <td className="px-3 py-2 text-[10px] font-semibold text-muted-foreground sticky left-0 bg-muted/20 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]">
+            <tr className="border-t border-border/40" style={{ background: "var(--color-muted)" }}>
+              <td className="px-3 py-2 text-[10px] font-semibold text-muted-foreground sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]" style={{ background: "var(--color-muted)" }}>
                 Completion
               </td>
               {pageKeys.map(key => {
