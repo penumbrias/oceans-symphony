@@ -1,412 +1,183 @@
 import React, { useState, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { Coffee, Sun, Sunset, Moon, User } from "lucide-react";
+import { getHours } from "date-fns";
+import { Link } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { motion } from "framer-motion";
-import { subDays, startOfDay, endOfDay } from "date-fns";
-import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer, ChevronLeft, Star, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import DateRangePicker from "@/components/analytics/DateRangePicker";
-import AlterStatRow from "@/components/analytics/AlterStatRow";
-import ActivityHeatmap from "@/components/analytics/ActivityHeatmap";
-import TimeOfDayFronters from "@/components/analytics/TimeOfDayFronters";
-import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
-import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
-import ActivityFrequencyChart from "@/components/analytics/ActivityFrequencyChart";
-import AlterActivityMatrix from "@/components/analytics/AlterActivityMatrix";
-import ActivityTrendsChart from "@/components/analytics/ActivityTrendsChart";
-import ActivityTimeOfDayChart from "@/components/analytics/ActivityTimeOfDayChart";
-import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline";
-import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
-import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive";
-import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
-import SleepAnalytics from "@/components/analytics/SleepAnalytics";
-import JournalAnalytics from "@/components/analytics/JournalAnalytics";
-import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 
-const MODES = [
-  { id: "total",      label: "Total",    icon: Clock },
-  { id: "primary",    label: "Primary",  icon: Star },
-  { id: "cofronting", label: "Co-front", icon: Users },
-  { id: "average",    label: "Average",  icon: Timer },
-  { id: "max",        label: "Max",      icon: TrendingUp },
-  { id: "min",        label: "Min",      icon: TrendingDown },
-  { id: "count",      label: "Count",    icon: Hash },
+const PERIOD_DEFS = [
+  { id: "morning", labelPrefix: "Morning", icon: Coffee, range: [5, 11], color: "text-amber-400" },
+  { id: "day",     labelPrefix: "Day",     icon: Sun,    range: [12, 17], color: "text-yellow-400" },
+  { id: "evening", labelPrefix: "Evening", icon: Sunset, range: [18, 21], color: "text-orange-400" },
+  { id: "night",   labelPrefix: "Night",   icon: Moon,   range: [22, 4],  color: "text-blue-400" },
 ];
 
-function computeStats(sessions, alters, from, to) {
-  const fromMs = startOfDay(from).getTime();
-  const toMs = endOfDay(to).getTime();
-  const filtered = sessions.filter((s) => {
-    const st = new Date(s.start_time).getTime();
-    return st >= fromMs && st <= toMs;
-  });
-  const alterMap = {};
-  for (const alter of alters) {
-    alterMap[alter.id] = { alter, total: 0, primary: 0, cofronting: 0, sessions: [], count: 0 };
-  }
-  for (const s of filtered) {
-    const start = new Date(s.start_time).getTime();
-    const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
-    const dur = Math.max(end - start, 0);
-    if (s.alter_id) {
-      if (!alterMap[s.alter_id]) continue;
-      alterMap[s.alter_id].total += dur;
-      alterMap[s.alter_id].sessions.push(dur);
-      alterMap[s.alter_id].count += 1;
-      if (s.is_primary) alterMap[s.alter_id].primary += dur;
-    } else {
-      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-      for (const id of ids) {
-        if (!alterMap[id]) continue;
-        alterMap[id].total += dur;
-        alterMap[id].sessions.push(dur);
-        alterMap[id].count += 1;
-        if (s.primary_alter_id === id) alterMap[id].primary += dur;
-        else alterMap[id].cofronting += dur;
+function getContrastColor(hex) {
+  if (!hex) return "#ffffff";
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
+}
+
+function inPeriod(hour, range) {
+  const [start, end] = range;
+  if (start <= end) return hour >= start && hour <= end;
+  return hour >= start || hour <= end;
+}
+
+function formatDuration(ms) {
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function AlterRow({ alter, duration, periodLabel }) {
+  const bg = alter.color || null;
+  const text = bg ? getContrastColor(bg) : null;
+
+  return (
+    <Link to={`/alter/${alter.id}`}>
+      <div className="flex items-center gap-3 px-3 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-all cursor-pointer"
+        style={{ borderLeftColor: bg || "transparent", borderLeftWidth: bg ? 3 : 1 }}
+      >
+        <div
+          className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
+          style={{ backgroundColor: bg || "hsl(var(--muted))" }}
+        >
+          {alter.avatar_url ? (
+            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+          ) : (
+            <User className="w-5 h-5" style={{ color: text || "hsl(var(--muted-foreground))" }} />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">
+            {alter.name}
+            {alter.pronouns && (
+              <span className="text-muted-foreground font-normal"> ‹ {alter.pronouns} ›</span>
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {formatDuration(duration)} during the {periodLabel}
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export default function TimeOfDayFronters({ sessions, alters }) {
+  const terms = useTerms();
+  const PERIODS = PERIOD_DEFS.map(p => ({ ...p, label: `${p.labelPrefix} ${terms.alters}` }));
+  const [activePeriod, setActivePeriod] = useState("morning");
+  const [viewMode, setViewMode] = useState("total");
+
+  const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
+
+  const periodData = useMemo(() => {
+    const totals = {};
+
+    for (const s of sessions) {
+      const hour = getHours(new Date(s.start_time));
+      const period = PERIODS.find((p) => inPeriod(hour, p.range));
+      if (!period || period.id !== activePeriod) continue;
+
+      const start = new Date(s.start_time).getTime();
+      const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
+      const duration = Math.max(end - start, 0);
+
+      if (s.alter_id) {
+        if (!totals[s.alter_id]) totals[s.alter_id] = { total: 0, primary: 0, cofronting: 0 };
+        totals[s.alter_id].total += duration;
+        if (s.is_primary) totals[s.alter_id].primary += duration;
+      } else {
+        const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+        for (const id of ids) {
+          if (!totals[id]) totals[id] = { total: 0, primary: 0, cofronting: 0 };
+          totals[id].total += duration;
+          if (s.primary_alter_id === id) totals[id].primary += duration;
+          else totals[id].cofronting += duration;
+        }
       }
     }
-  }
-  // For new individual model: compute co-fronting time via overlaps
-  const individualSessions = filtered.filter(s => s.alter_id);
-  for (const s of individualSessions) {
-    const id = s.alter_id;
-    if (!alterMap[id]) continue;
-    const sStart = new Date(s.start_time).getTime();
-    const sEnd = s.end_time ? new Date(s.end_time).getTime() : Date.now();
-    const hasOverlap = individualSessions.some(other => {
-      if (other.id === s.id || other.alter_id === id) return false;
-      const oStart = new Date(other.start_time).getTime();
-      const oEnd = other.end_time ? new Date(other.end_time).getTime() : Date.now();
-      return oStart < sEnd && oEnd > sStart;
-    });
-    if (hasOverlap) alterMap[id].cofronting += (sEnd - sStart);
-  }
-  return { alterMap, filtered };
-}
 
-// Landing page section cards
-function SectionGrid({ terms, onSelect }) {
-  const sections = [
-    { id: "alters", emoji: "🧑‍🤝‍🧑", label: `${terms.System} Members`, desc: "Fronting time and patterns" },
-    { id: "activities", emoji: "⚡", label: "Activities", desc: "What you've been doing" },
-    { id: "emotions", emoji: "💜", label: "Emotions", desc: "Mood and check-in trends" },
-    { id: "symptoms", emoji: "💊", label: "Symptoms", desc: "Symptom and habit tracking" },
-    { id: "diary", emoji: "📔", label: "Daily Log", desc: "Diary card summaries" },
-    { id: "sleep", emoji: "😴", label: "Sleep", desc: "Sleep patterns" },
-    { id: "journals", emoji: "📖", label: "Journals", desc: "Writing activity" },
-    { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: "Who fronts together" },
-  ];
+    return Object.entries(totals)
+      .map(([id, times]) => ({ alter: altersById[id], ...times }))
+      .filter((d) => d.alter)
+      .sort((a, b) => b.total - a.total);
+  }, [sessions, altersById, activePeriod]);
+
+  const current = PERIODS.find((p) => p.id === activePeriod);
+  const periodLabel = activePeriod;
+
+  const displayedData = periodData.filter(d => {
+    if (viewMode === "primary") return d.primary > 0;
+    if (viewMode === "cofronting") return d.cofronting > 0;
+    return true;
+  });
 
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {sections.map((s) => (
-        <button
-          key={s.id}
-          onClick={() => onSelect(s.id)}
-          className="bg-card border border-border/50 rounded-xl p-4 text-left hover:bg-muted/30 hover:border-primary/40 hover:shadow-sm transition-all active:scale-[0.98] space-y-1.5 group"
-        >
-          <span className="text-2xl group-hover:scale-110 transition-transform inline-block">{s.emoji}</span>
-          <p className="font-semibold text-sm text-foreground leading-tight">{s.label}</p>
-          <p className="text-xs text-muted-foreground leading-snug">{s.desc}</p>
-        </button>
-      ))}
-    </div>
-  );
-}
+    <div className="space-y-4">
+      {/* Controls — NOW AT TOP */}
+      <div className="space-y-3">
+        {/* Icon tab bar */}
+        <div className="flex justify-around items-center bg-card border border-border/50 rounded-xl p-2">
+          {PERIODS.map((p) => {
+            const Icon = p.icon;
+            const isActive = p.id === activePeriod;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setActivePeriod(p.id)}
+                className={`flex items-center justify-center w-12 h-12 rounded-xl transition-all ${
+                  isActive ? "bg-primary/15" : "hover:bg-muted/50"
+                }`}
+              >
+                <Icon className={`w-5 h-5 transition-colors ${isActive ? p.color : "text-muted-foreground"}`} />
+              </button>
+            );
+          })}
+        </div>
 
-export default function Analytics() {
-  const terms = useTerms();
-  const [activeSection, setActiveSection] = useState(null);
-  const [from, setFrom] = useState(subDays(new Date(), 30));
-  const [to, setTo] = useState(new Date());
-  const [mode, setMode] = useState("total");
-  const [topTab, setTopTab] = useState("stats");
-  const [activitySubTab, setActivitySubTab] = useState("overview");
+        {/* Period label */}
+        <div className="flex justify-center">
+          <span className="text-sm font-semibold text-primary/80 bg-primary/10 px-4 py-1.5 rounded-full">
+            {current.label}
+          </span>
+        </div>
 
-  const ACTIVITY_SUB_TABS = [
-    { id: "overview", label: "Overview" },
-    { id: "trends", label: "Trends" },
-    { id: "alters", label: `${terms.Alter} × Activity` },
-    { id: "deep", label: "Deep Dive" },
-  ];
-
-  const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
-  });
-  const { data: alters = [] } = useQuery({
-    queryKey: ["alters"],
-    queryFn: () => base44.entities.Alter.list(),
-  });
-  const { data: cards = [] } = useQuery({
-    queryKey: ["diaryCards"],
-    queryFn: () => base44.entities.DiaryCard.list("-created_date", 500),
-  });
-  const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list(),
-  });
-  const { data: activityCategories = [] } = useQuery({
-    queryKey: ["activityCategories"],
-    queryFn: () => base44.entities.ActivityCategory.list(),
-  });
-  const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
-  });
-  const { data: systemCheckIns = [] } = useQuery({
-    queryKey: ["systemCheckIns"],
-    queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 500),
-  });
-  const { data: symptomSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
-    queryFn: () => base44.entities.SymptomSession.list("-start_time", 1000),
-  });
-  const { data: symptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 1000),
-  });
-  const { data: symptoms = [] } = useQuery({
-    queryKey: ["symptoms"],
-    queryFn: () => base44.entities.Symptom.list(),
-  });
-  const { data: sleepRecords = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list("-date", 500),
-  });
-  const { data: journals = [] } = useQuery({
-    queryKey: ["journals"],
-    queryFn: () => base44.entities.JournalEntry.list("-created_date", 500),
-  });
-  const { data: bulletins = [] } = useQuery({
-    queryKey: ["bulletins"],
-    queryFn: () => base44.entities.Bulletin.list("-created_date", 500),
-  });
-
-  const altersById = useMemo(() => {
-    const map = {};
-    alters.forEach((a) => { map[a.id] = a; });
-    return map;
-  }, [alters]);
-
-  const { alterMap, filtered } = useMemo(
-    () => computeStats(sessions, alters, from, to),
-    [sessions, alters, from, to]
-  );
-
-  const rows = useMemo(() => {
-    return Object.values(alterMap)
-      .filter((d) => d.count > 0)
-      .map((d) => {
-        let stat = 0;
-        if (mode === "total")           stat = d.total;
-        else if (mode === "primary")    stat = d.primary;
-        else if (mode === "cofronting") stat = d.cofronting;
-        else if (mode === "average")    stat = d.sessions.length ? d.total / d.sessions.length : 0;
-        else if (mode === "max")        stat = d.sessions.length ? Math.max(...d.sessions) : 0;
-        else if (mode === "min")        stat = d.sessions.length ? Math.min(...d.sessions) : 0;
-        else if (mode === "count")      stat = d.count;
-        return { alter: d.alter, stat };
-      })
-      .sort((a, b) => b.stat - a.stat);
-  }, [alterMap, mode]);
-
-  const maxStat = rows.length > 0 ? rows[0].stat : 1;
-
-  if (sessionsLoading) {
-    return (
-      <div className="flex items-center justify-center py-32">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        {/* View mode toggle */}
+        <div className="flex justify-center gap-1 p-1 bg-muted/30 rounded-xl w-fit mx-auto">
+          {[
+            { id: "total", label: "All" },
+            { id: "primary", label: "⭐ Primary" },
+            { id: "cofronting", label: "👥 Co-front" },
+          ].map(opt => (
+            <button key={opt.id} onClick={() => setViewMode(opt.id)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                viewMode === opt.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
-    );
-  }
 
-  const SECTION_LABELS = {
-    alters: `${terms.System} Members`,
-    activities: "Activities",
-    emotions: "Emotions",
-    symptoms: "Symptoms",
-    diary: "Daily Log",
-    sleep: "Sleep",
-    journals: "Journals",
-    cofronting: terms.Cofronting,
-  };
-
-  return (
-    <div className="space-y-5">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        {activeSection ? (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => setActiveSection(null)}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <p className="text-xs text-muted-foreground">Analytics</p>
-              <h1 className="font-display text-xl font-semibold leading-tight">{SECTION_LABELS[activeSection]}</h1>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <BarChart2 className="w-6 h-6 text-primary" />
-            <div>
-              <h1 className="font-display text-3xl font-semibold text-foreground">Analytics</h1>
-              <p className="text-muted-foreground text-sm">Track {terms.system} and wellness data over time</p>
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Global Date Range — always visible */}
-      <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-
-      {/* Landing grid */}
-      {!activeSection && <SectionGrid terms={terms} onSelect={setActiveSection} />}
-
-      {/* ── MEMBERS ── */}
-      {activeSection === "alters" && (
-        <div className="space-y-4">
-          {/* Sub-tab pills */}
-          <div className="flex gap-2">
-            {[{ id: "stats", label: "Stats" }, { id: "timeofday", label: "Time of Day" }].map((t) => (
-              <button key={t.id} onClick={() => setTopTab(t.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                  topTab === t.id
-                    ? "bg-primary text-primary-foreground border-transparent"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {topTab === "stats" && (
-            <>
-              <div className="mb-4">
-                <ActivityHeatmap sessions={filtered} from={from} to={to} />
-              </div>
-
-              {/* Mode pills — horizontal scroll */}
-              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                {MODES.map((m) => {
-                  const Icon = m.icon;
-                  return (
-                    <button key={m.id} onClick={() => setMode(m.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border flex-shrink-0 transition-all ${
-                        mode === m.id
-                          ? "bg-primary text-primary-foreground border-transparent"
-                          : "border-border text-muted-foreground hover:text-foreground"
-                      }`}>
-                      <Icon className="w-3.5 h-3.5" />
-                      {m.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {rows.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <BarChart2 className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                  <p className="text-muted-foreground text-sm">No {terms.fronting} data in this date range.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {rows.map(({ alter, stat }) => {
-                    const d = alterMap[alter.id];
-                    return (
-                      <motion.div key={alter.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-                        <AlterStatRow
-                          alter={alter} stat={stat} mode={mode} maxStat={maxStat}
-                          primaryMs={d?.primary || 0}
-                          cofrontingMs={d?.cofronting || 0}
-                          totalMs={d?.total || 0}
-                        />
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="mt-4">
-                <AlterFrontingTimeline sessions={filtered} alters={alters} from={from} to={to} />
-              </div>
-            </>
-          )}
-
-          {topTab === "timeofday" && (
-            <TimeOfDayFronters sessions={filtered} alters={alters} />
-          )}
+      {/* Results */}
+      {displayedData.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <p className="text-muted-foreground text-sm">No {terms.fronting} data during this time</p>
         </div>
-      )}
-
-      {/* ── ACTIVITIES ── */}
-      {activeSection === "activities" && (
-        <div className="space-y-4">
-          {/* Sub-tab pill row — horizontal scroll */}
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {ACTIVITY_SUB_TABS.map((t) => (
-              <button key={t.id} onClick={() => setActivitySubTab(t.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium border flex-shrink-0 transition-all ${
-                  activitySubTab === t.id
-                    ? "bg-primary text-primary-foreground border-transparent"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {activitySubTab === "overview" && (
-            <div className="space-y-6">
-              <ActivitySummaryCards activities={activities} categories={activityCategories} from={from} to={to} />
-              <ActivityFrequencyChart activities={activities} categories={activityCategories} from={from} to={to} />
-              <ActivityTimeOfDayChart activities={activities} categories={activityCategories} from={from} to={to} />
-            </div>
-          )}
-          {activitySubTab === "trends" && (
-            <ActivityTrendsChart activities={activities} categories={activityCategories} from={from} to={to} />
-          )}
-          {activitySubTab === "alters" && (
-            <AlterActivityMatrix activities={activities} categories={activityCategories} alters={alters} from={from} to={to} />
-          )}
-          {activitySubTab === "deep" && (
-            <AlterActivityDeepDive
-              activities={activities} categories={activityCategories} alters={alters}
-              emotionCheckIns={emotionCheckIns} checkIns={systemCheckIns} from={from} to={to}
-            />
-          )}
+      ) : (
+        <div className="space-y-2">
+          {displayedData.map(({ alter, total, primary, cofronting }) => {
+            const duration = viewMode === "primary" ? primary : viewMode === "cofronting" ? cofronting : total;
+            return <AlterRow key={alter.id} alter={alter} duration={duration} periodLabel={periodLabel} />;
+          })}
         </div>
-      )}
-
-      {/* ── DIARY ── */}
-      {activeSection === "diary" && (
-        <DiaryAnalytics cards={cards} altersById={altersById} from={from} to={to} />
-      )}
-
-      {/* ── EMOTIONS ── */}
-      {activeSection === "emotions" && (
-        <EmotionAnalytics from={from} to={to} />
-      )}
-
-      {/* ── SYMPTOMS ── */}
-      {activeSection === "symptoms" && (
-        <SymptomAnalytics startDate={from} endDate={to} symptomSessions={symptomSessions} symptomCheckIns={symptomCheckIns} symptoms={symptoms} />
-      )}
-
-      {/* ── SLEEP ── */}
-      {activeSection === "sleep" && (
-        <SleepAnalytics sleepRecords={sleepRecords} from={from} to={to} />
-      )}
-
-      {/* ── JOURNALS ── */}
-      {activeSection === "journals" && (
-        <JournalAnalytics journals={journals} bulletins={bulletins} alters={alters} from={from} to={to} />
-      )}
-
-      {/* ── CO-FRONTING ── */}
-      {activeSection === "cofronting" && (
-        <CoFrontingAnalytics sessions={sessions} alters={alters} altersById={altersById} from={from} to={to} />
       )}
     </div>
   );
