@@ -160,39 +160,72 @@ const SystemMap = ({ relationships = [] }) => {
       if (n === 0) return;
       const maxNodeR = 35;
 
-      // Compute raw radius for each item
-      const radii = items.map(item => {
+      // Compute ideal radius for each item based on fronting time
+      const withRadii = items.map(item => {
         const ratio = (getTime(item) || 0) / maxTime;
-        return minRadius + (1 - ratio) * (maxRadius - minRadius);
+        const r = minRadius + (1 - ratio) * (maxRadius - minRadius);
+        return { item, r };
       });
 
-      // Group items by quantized ring (round radius to nearest 20px bucket)
-      const BUCKET = 20;
-      const rings = {};
-      items.forEach((item, idx) => {
-        const bucket = Math.round(radii[idx] / BUCKET) * BUCKET;
-        if (!rings[bucket]) rings[bucket] = [];
-        rings[bucket].push({ item, r: radii[idx] });
+      // Sort by radius so we process rings from innermost out
+      withRadii.sort((a, b) => a.r - b.r);
+
+      // Greedily assign each item to a ring — items are placed on their ideal
+      // radius unless that radius is already so crowded that they'd overlap,
+      // in which case we nudge the radius outward just enough to fit.
+      // Each ring tracks the angular slots it has consumed.
+      const rings = []; // [{ r, members: [] }]
+
+      const NODE_DIAMETER = 32 * 2; // conservative diameter for overlap check
+
+      for (const { item, r: idealR } of withRadii) {
+        let placed = false;
+
+        // Try to fit on an existing ring that is close to idealR
+        for (const ring of rings) {
+          if (Math.abs(ring.r - idealR) > NODE_DIAMETER) continue;
+          // How many can fit on this ring without overlap?
+          const maxFit = Math.floor((ring.r * Math.PI * 2) / NODE_DIAMETER);
+          if (ring.members.length < maxFit) {
+            ring.members.push(item);
+            placed = true;
+            break;
+          }
+        }
+
+        if (!placed) {
+          // Find a ring radius that can fit: start at idealR, expand outward if needed
+          let tryR = idealR;
+          // If existing rings block this slot, push outward
+          for (const ring of rings) {
+            if (Math.abs(ring.r - tryR) < NODE_DIAMETER) {
+              tryR = ring.r + NODE_DIAMETER;
+            }
+          }
+          rings.push({ r: tryR, members: [item] });
+        }
+      }
+
+      // Sort rings by radius for consistent output
+      rings.sort((a, b) => a.r - b.r);
+
+      // Compute per-ring nodeR (fit within ring circumference)
+      rings.forEach(ring => {
+        const count = ring.members.length;
+        const circumference = ring.r * Math.PI * 2;
+        const fitR = circumference / (count * 2); // radius = half diameter slot
+        ring.nodeR = Math.min(maxNodeR, Math.max(fitR, 32));
       });
 
-      // Compute nodeR based on the most-constrained ring
-      let tightest = Infinity;
-      Object.entries(rings).forEach(([bucket, members]) => {
-        const r = Number(bucket);
-        const fit = (r * Math.PI) / members.length;
-        if (fit < tightest) tightest = fit;
-      });
-      const nodeR = Math.min(maxNodeR, Math.max(tightest, 32));
-
-      // Place each ring's members evenly around the full 360°
-      Object.entries(rings).forEach(([, members]) => {
-        const count = members.length;
-        members.forEach(({ item, r }, idx) => {
+      // Place members evenly around each ring
+      rings.forEach(ring => {
+        const count = ring.members.length;
+        ring.members.forEach((item, idx) => {
           const angle = (idx / count) * Math.PI * 2 - Math.PI / 2;
           positions[item.id] = {
-            x: centerX + Math.cos(angle) * r,
-            y: centerY + Math.sin(angle) * r,
-            nodeR,
+            x: centerX + Math.cos(angle) * ring.r,
+            y: centerY + Math.sin(angle) * ring.r,
+            nodeR: ring.nodeR,
           };
         });
       });
