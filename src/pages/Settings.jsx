@@ -11,6 +11,7 @@ import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
+import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
@@ -189,6 +190,9 @@ export default function Settings() {
         {/* ── ALTERS & FIELDS ── */}
         <Section id="alters" icon="👥" label="Alters & Fields">
           <CustomFieldsManager />
+          <div className="border-t border-border/30 pt-4">
+            <RelationshipTypesManager />
+          </div>
           <div className="border-t border-border/30 pt-4">
             <ArchivedAltersManager />
           </div>

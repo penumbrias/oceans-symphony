@@ -1,24 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { DEFAULT_RELATIONSHIP_TYPES } from "@/lib/relationshipTypes";
 
-export const RELATIONSHIP_PRESETS = [
-  { type: "Friends", color: "#3b82f6" },
-  { type: "Close friends", color: "#8b5cf6" },
-  { type: "Romantic", color: "#ec4899" },
-  { type: "Family", color: "#f59e0b" },
-  { type: "Rivals", color: "#ef4444" },
-  { type: "Conflicted", color: "#f97316" },
-  { type: "Protects", color: "#10b981" },
-  { type: "Protected by", color: "#10b981" },
-  { type: "Created by", color: "#6366f1" },
-  { type: "Split from", color: "#a855f7" },
-  { type: "Caretaker of", color: "#14b8a6" },
-  { type: "Avoids", color: "#6b7280" },
-  { type: "Doesn't know", color: "#9ca3af" },
-  { type: "Custom", color: "#6b7280" },
-];
+// Kept for backward compat with RelationshipsPanel import
+export const RELATIONSHIP_PRESETS = DEFAULT_RELATIONSHIP_TYPES.map(t => ({ type: t.label, color: t.color }));
+
+function useRelationshipTypes() {
+  const { data = [] } = useQuery({
+    queryKey: ["relationshipTypes"],
+    queryFn: async () => {
+      const all = await base44.entities.RelationshipType.list();
+      if (all.length === 0) return DEFAULT_RELATIONSHIP_TYPES.map((t, i) => ({ ...t, id: i, order: i }));
+      return all.filter(t => !t.is_archived).sort((a, b) => (a.order || 0) - (b.order || 0));
+    },
+  });
+  return data;
+}
 
 // Cycles: a_to_b → b_to_a → bidirectional → a_to_b
 const DIRECTION_CYCLE = ["a_to_b", "b_to_a", "bidirectional"];
@@ -100,19 +101,27 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
 }
 
 export default function CreateRelationshipModal({ alterA: initialAlterA, allAlters = [], alterB: initialAlterB, onSave, onClose }) {
+  const relTypes = useRelationshipTypes();
   const [selectedAlterA, setSelectedAlterA] = useState(initialAlterA || null);
   const [selectedAlterB, setSelectedAlterB] = useState(initialAlterB || null);
   const [direction, setDirection] = useState("bidirectional");
-  const [relType, setRelType] = useState("Friends");
-  const [customLabel, setCustomLabel] = useState("");
+  const [relType, setRelType] = useState("");
   const [color, setColor] = useState("#3b82f6");
   const [notes, setNotes] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
 
-  const handleTypeChange = (type) => {
-    setRelType(type);
-    const preset = RELATIONSHIP_PRESETS.find(p => p.type === type);
-    if (preset) setColor(preset.color);
+  // Set default type once loaded
+  useEffect(() => {
+    if (relTypes.length > 0 && !relType) {
+      setRelType(relTypes[0].label);
+      setColor(relTypes[0].color || "#3b82f6");
+    }
+  }, [relTypes]);
+
+  const handleTypeChange = (label) => {
+    setRelType(label);
+    const found = relTypes.find(t => t.label === label);
+    if (found) setColor(found.color || "#6b7280");
   };
 
   const cycleDirection = () => {
@@ -126,7 +135,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
       alter_id_a: selectedAlterA.id,
       alter_id_b: selectedAlterB.id,
       relationship_type: relType,
-      custom_label: relType === "Custom" ? customLabel : "",
+      custom_label: "",
       direction,
       color,
       notes,
@@ -177,17 +186,10 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Type</p>
           <select value={relType} onChange={e => handleTypeChange(e.target.value)}
             className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm">
-            {RELATIONSHIP_PRESETS.map(p => (
-              <option key={p.type} value={p.type}>{p.type}</option>
+            {relTypes.map(t => (
+              <option key={t.id || t.label} value={t.label}>{t.label}</option>
             ))}
           </select>
-          {relType === "Custom" && (
-            <input
-              value={customLabel} onChange={e => setCustomLabel(e.target.value)}
-              placeholder="Enter custom label..."
-              className="mt-2 w-full h-9 px-3 rounded-md border border-border bg-background text-sm"
-            />
-          )}
         </div>
 
         {/* Color */}
@@ -227,7 +229,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button className="flex-1" onClick={handleSave}
-            disabled={!selectedAlterA || !selectedAlterB || (relType === "Custom" && !customLabel.trim())}>
+            disabled={!selectedAlterA || !selectedAlterB || !relType}>
             Save
           </Button>
         </div>

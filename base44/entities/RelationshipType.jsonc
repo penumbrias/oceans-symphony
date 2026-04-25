@@ -1,0 +1,46 @@
+{
+  "name": "RelationshipType",
+  "type": "object",
+  "properties": {
+    "label": {
+      "type": "string",
+      "description": "Display name of the relationship type"
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color for this relationship type"
+    },
+    "is_archived": {
+      "type": "boolean",
+      "default": false,
+      "description": "Soft delete flag"
+    },
+    "order": {
+      "type": "number",
+      "default": 0,
+      "description": "Display order"
+    },
+    "is_default": {
+      "type": "boolean",
+      "default": false,
+      "description": "True for preset types seeded on first load"
+    }
+  },
+  "required": [
+    "label"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

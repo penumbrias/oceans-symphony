@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
-import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
-import { useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import CreateRelationshipModal from "./CreateRelationshipModal";
+import { DEFAULT_RELATIONSHIP_TYPES } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
@@ -35,9 +35,23 @@ function RelTypeLabel({ rel }) {
 function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
   const [direction, setDirection] = useState(rel.direction);
   const [relType, setRelType] = useState(rel.relationship_type);
-  const [customLabel, setCustomLabel] = useState(rel.custom_label || "");
   const [color, setColor] = useState(rel.color || "#6b7280");
   const [notes, setNotes] = useState(rel.notes || "");
+
+  const { data: relTypes = [] } = useQuery({
+    queryKey: ["relationshipTypes"],
+    queryFn: async () => {
+      const all = await base44.entities.RelationshipType.list();
+      if (all.length === 0) return DEFAULT_RELATIONSHIP_TYPES.map((t, i) => ({ ...t, id: i, order: i }));
+      return all.filter(t => !t.is_archived).sort((a, b) => (a.order || 0) - (b.order || 0));
+    },
+  });
+
+  const handleTypeChange = (label) => {
+    setRelType(label);
+    const found = relTypes.find(t => t.label === label);
+    if (found) setColor(found.color || "#6b7280");
+  };
 
   const alterA = alterMap[rel.alter_id_a];
   const alterB = alterMap[rel.alter_id_b];
@@ -65,17 +79,12 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Type</p>
-          <select value={relType} onChange={e => setRelType(e.target.value)}
+          <select value={relType} onChange={e => handleTypeChange(e.target.value)}
             className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm">
-            {RELATIONSHIP_PRESETS.map(p => (
-              <option key={p.type} value={p.type}>{p.type}</option>
+            {relTypes.map(t => (
+              <option key={t.id || t.label} value={t.label}>{t.label}</option>
             ))}
           </select>
-          {relType === "Custom" && (
-            <input value={customLabel} onChange={e => setCustomLabel(e.target.value)}
-              placeholder="Custom label..."
-              className="mt-2 w-full h-9 px-3 rounded-md border border-border bg-background text-sm" />
-          )}
         </div>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Color</p>
@@ -88,7 +97,7 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1" onClick={() => onSave({ direction, relationship_type: relType, custom_label: customLabel, color, notes })}>Save</Button>
+          <Button className="flex-1" onClick={() => onSave({ direction, relationship_type: relType, custom_label: "", color, notes })}>Save</Button>
         </div>
       </div>
     </div>
