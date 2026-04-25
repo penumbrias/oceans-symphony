@@ -158,8 +158,13 @@ const SystemMap = ({ relationships = [] }) => {
         (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
       );
       const maxTime = altersSorted.length > 0 ? (frontingTime[altersSorted[0].id] || 1) : 1;
+      const nodeR = 38;
       const minRadius = 20;
-      const maxRadius = 320;
+      // Expand the ring so all nodes fit on the outermost orbit without needing collision pushes
+      const minRadiusForCount = altersSorted.length > 1
+        ? (nodeR * 2 * altersSorted.length) / (2 * Math.PI)
+        : 0;
+      const maxRadius = Math.max(320, minRadiusForCount);
       altersSorted.forEach((alter, idx) => {
         const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
         const radius = minRadius + (1 - timeRatio) * (maxRadius - minRadius);
@@ -170,7 +175,6 @@ const SystemMap = ({ relationships = [] }) => {
         };
       });
       // Collision resolution: push overlapping nodes apart tangentially (preserve radial distance)
-      const nodeR = 38;
       const ids = altersSorted.map(a => a.id);
       // Pre-compute each node's target radius from center so we can reproject after each push
       const targetRadii = {};
@@ -212,8 +216,13 @@ const SystemMap = ({ relationships = [] }) => {
       return positions;
     }
 
+    const nodeR = 38;
     const minRadius = 20;
-    const maxRadius = 320;
+    const otherCount = filteredAlters.filter(a => a.id !== selectedAlter.id).length;
+    const minRadiusForCount = otherCount > 1
+      ? (nodeR * 2 * otherCount) / (2 * Math.PI)
+      : 0;
+    const maxRadius = Math.max(320, minRadiusForCount);
     positions[selectedAlter.id] = { x: centerX, y: centerY };
     const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
     const selectedTotalTime = frontingTime[selectedAlter.id] || 1;
@@ -231,7 +240,6 @@ const SystemMap = ({ relationships = [] }) => {
       };
     });
     // Collision resolution: tangential push to preserve radial distance
-    const nodeR = 38;
     const ids = Object.keys(positions);
     const targetRadii = {};
     ids.forEach(id => {
