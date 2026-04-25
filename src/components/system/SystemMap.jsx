@@ -152,125 +152,45 @@ const SystemMap = ({ relationships = [] }) => {
     const positions = {};
     const centerX = 600;
     const centerY = 400;
+    const minRadius = 60;
+    const maxRadius = 320;
 
-    if (!selectedAlter) {
-      const altersSorted = [...filteredAlters].sort(
-        (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
-      );
-      const maxTime = altersSorted.length > 0 ? (frontingTime[altersSorted[0].id] || 1) : 1;
-      const minRadius = 20;
-      const maxRadius = 320;
-      altersSorted.forEach((alter, idx) => {
-        const timeRatio = (frontingTime[alter.id] || 0) / maxTime;
-        const radius = minRadius + (1 - timeRatio) * (maxRadius - minRadius);
-        const angle = (idx / altersSorted.length) * Math.PI * 2;
-        positions[alter.id] = {
-          x: centerX + Math.cos(angle) * radius,
-          y: centerY + Math.sin(angle) * radius,
+    const place = (items, getTime, maxTime) => {
+      const n = items.length;
+      if (n === 0) return 35;
+      const radii = items.map(item => {
+        const ratio = (getTime(item) || 0) / maxTime;
+        return minRadius + (1 - ratio) * (maxRadius - minRadius);
+      });
+      const nodeR = Math.min(35, (2 * Math.PI * minRadius) / (n * 2.4));
+      items.forEach((item, idx) => {
+        const r = radii[idx];
+        const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
+        positions[item.id] = {
+          x: centerX + Math.cos(angle) * r,
+          y: centerY + Math.sin(angle) * r,
+          nodeR,
         };
       });
-      // Collision resolution: push overlapping nodes apart tangentially (preserve radial distance)
-      const nodeR = 38;
-      const ids = altersSorted.map(a => a.id);
-      // Pre-compute each node's target radius from center so we can reproject after each push
-      const targetRadii = {};
-      ids.forEach(id => {
-        const p = positions[id];
-        const dx = p.x - centerX, dy = p.y - centerY;
-        targetRadii[id] = Math.sqrt(dx * dx + dy * dy) || 1;
-      });
-      for (let iter = 0; iter < 60; iter++) {
-        let moved = false;
-        for (let i = 0; i < ids.length; i++) {
-          for (let j = i + 1; j < ids.length; j++) {
-            const a = positions[ids[i]];
-            const b = positions[ids[j]];
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
-            const minDist = nodeR * 2;
-            if (dist < minDist) {
-              const push = (minDist - dist) / 2;
-              const nx = (dx / dist) * push;
-              const ny = (dy / dist) * push;
-              positions[ids[i]] = { x: a.x - nx, y: a.y - ny };
-              positions[ids[j]] = { x: b.x + nx, y: b.y + ny };
-              // Reproject both nodes back to their target radius from center
-              [ids[i], ids[j]].forEach(id => {
-                const p = positions[id];
-                const pdx = p.x - centerX, pdy = p.y - centerY;
-                const pdist = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
-                const r = targetRadii[id];
-                positions[id] = { x: centerX + (pdx / pdist) * r, y: centerY + (pdy / pdist) * r };
-              });
-              moved = true;
-            }
-          }
-        }
-        if (!moved) break;
-      }
-      return positions;
+      return nodeR;
+    };
+
+    if (!selectedAlter) {
+      const sorted = [...filteredAlters].sort(
+        (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
+      );
+      const maxTime = sorted.length > 0 ? (frontingTime[sorted[0].id] || 1) : 1;
+      place(sorted, a => frontingTime[a.id], maxTime);
+    } else {
+      positions[selectedAlter.id] = { x: centerX, y: centerY, nodeR: 35 };
+      const others = filteredAlters.filter(a => a.id !== selectedAlter.id);
+      const withRatios = others
+        .map(a => ({ ...a, cotime: cofrontingTime[selectedAlter.id]?.[a.id] || 0 }))
+        .sort((a, b) => b.cotime - a.cotime);
+      const maxCotime = withRatios.length > 0 ? (withRatios[0].cotime || 1) : 1;
+      place(withRatios, a => a.cotime, maxCotime);
     }
 
-    const minRadius = 20;
-    const maxRadius = 320;
-    positions[selectedAlter.id] = { x: centerX, y: centerY };
-    const otherAlters = filteredAlters.filter((a) => a.id !== selectedAlter.id);
-    const selectedTotalTime = frontingTime[selectedAlter.id] || 1;
-    const withRatios = otherAlters.map((alter) => {
-      const sharedTime = cofrontingTime[selectedAlter.id]?.[alter.id] || 0;
-      return { alter, cofrontRatio: sharedTime / selectedTotalTime };
-    });
-    withRatios.sort((a, b) => b.cofrontRatio - a.cofrontRatio);
-    withRatios.forEach((item, idx) => {
-      const radius = minRadius + (1 - Math.min(item.cofrontRatio, 1)) * (maxRadius - minRadius);
-      const angle = (idx / Math.max(withRatios.length, 1)) * Math.PI * 2;
-      positions[item.alter.id] = {
-        x: centerX + Math.cos(angle) * radius,
-        y: centerY + Math.sin(angle) * radius,
-      };
-    });
-    // Collision resolution: tangential push to preserve radial distance
-    const nodeR = 38;
-    const ids = Object.keys(positions);
-    const targetRadii = {};
-    ids.forEach(id => {
-      if (id === selectedAlter.id) { targetRadii[id] = 0; return; }
-      const p = positions[id];
-      const dx = p.x - centerX, dy = p.y - centerY;
-      targetRadii[id] = Math.sqrt(dx * dx + dy * dy) || 1;
-    });
-    for (let iter = 0; iter < 60; iter++) {
-      let moved = false;
-      for (let i = 0; i < ids.length; i++) {
-        for (let j = i + 1; j < ids.length; j++) {
-          const a = positions[ids[i]];
-          const b = positions[ids[j]];
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
-          const minDist = nodeR * 2;
-          if (dist < minDist) {
-            const push = (minDist - dist) / 2;
-            const nx = (dx / dist) * push;
-            const ny = (dy / dist) * push;
-            positions[ids[i]] = { x: a.x - nx, y: a.y - ny };
-            positions[ids[j]] = { x: b.x + nx, y: b.y + ny };
-            // Reproject back to target radius (skip center node)
-            [ids[i], ids[j]].forEach(id => {
-              if (targetRadii[id] === 0) return;
-              const p = positions[id];
-              const pdx = p.x - centerX, pdy = p.y - centerY;
-              const pdist = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
-              const r = targetRadii[id];
-              positions[id] = { x: centerX + (pdx / pdist) * r, y: centerY + (pdy / pdist) * r };
-            });
-            moved = true;
-          }
-        }
-      }
-      if (!moved) break;
-    }
     return positions;
   }, [filteredAlters, selectedAlter, frontingTime, cofrontingTime]);
 
@@ -333,7 +253,7 @@ const SystemMap = ({ relationships = [] }) => {
     const centerY = 400;
 
     const alterNodes = filteredAlters.map((alter) => {
-      const pos = nodePositions[alter.id] || { x: centerX, y: centerY };
+      const pos = nodePositions[alter.id] || { x: centerX, y: centerY, nodeR: 35 };
       return {
         id: alter.id,
         label: alter.alias || alter.name,
@@ -343,7 +263,7 @@ const SystemMap = ({ relationships = [] }) => {
         color: alter.color || "#8b5cf6",
         x: pos.x,
         y: pos.y,
-        radius: 35,
+        radius: pos.nodeR ?? 35,
         isSelected: selectedAlter?.id === alter.id,
         isCofronter: selectedAlter ? (cofrontingTime[selectedAlter.id]?.[alter.id] || 0) > 0 : false,
       };
