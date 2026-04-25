@@ -210,47 +210,60 @@ const SystemMap = ({ relationships = [] }) => {
       // Compute each item's target radius
       const radii = ordered.map(item => getRadius(item));
 
-      // Determine effective node size based on average radius of all nodes
-      const avgRadius = radii.reduce((s, r) => s + r, 0) / radii.length;
-      const circumference = 2 * Math.PI * avgRadius;
-      const effectiveNodeR = Math.min(nodeR, Math.max(22, circumference / (n * 2.2)));
-
-      // Initial angle assignment
+      // Start with full-size nodes, initial angle assignment
+      let effectiveNodeR = nodeR;
       const angles = ordered.map((_, idx) => (idx / n) * Math.PI * 2 - Math.PI / 2);
 
-      // Iterative angular separation bumper: push overlapping nodes apart angularly
-      // while keeping their radius fixed
-      for (let iter = 0; iter < 80; iter++) {
-        let moved = false;
-        for (let i = 0; i < n; i++) {
-          for (let j = i + 1; j < n; j++) {
-            const rI = radii[i], rJ = radii[j];
-            const aI = angles[i], aJ = angles[j];
-            const xi = Math.cos(aI) * rI, yi = Math.sin(aI) * rI;
-            const xj = Math.cos(aJ) * rJ, yj = Math.sin(aJ) * rJ;
-            const dx = xj - xi, dy = yj - yi;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const minDist = effectiveNodeR * 2.1;
-            if (dist < minDist && dist > 0.01) {
-              // Push both nodes apart angularly
-              const overlap = (minDist - dist) / 2;
-              // Nudge angles: move i backward, j forward
-              const nudge = overlap / Math.max(rI, rJ, 1) * 0.5;
-              angles[i] -= nudge;
-              angles[j] += nudge;
-              moved = true;
+      // Run bumper simulation with current node size, then check if shrinking is needed
+      const runBumper = (nr) => {
+        const a = [...angles];
+        for (let iter = 0; iter < 80; iter++) {
+          let moved = false;
+          for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+              const xi = Math.cos(a[i]) * radii[i], yi = Math.sin(a[i]) * radii[i];
+              const xj = Math.cos(a[j]) * radii[j], yj = Math.sin(a[j]) * radii[j];
+              const dx = xj - xi, dy = yj - yi;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const minDist = nr * 2.1;
+              if (dist < minDist && dist > 0.01) {
+                const overlap = (minDist - dist) / 2;
+                const nudge = overlap / Math.max(radii[i], radii[j], 1) * 0.5;
+                a[i] -= nudge;
+                a[j] += nudge;
+                moved = true;
+              }
             }
           }
+          if (!moved) break;
         }
-        if (!moved) break;
+        return a;
+      };
+
+      // Check if any two nodes still overlap after bumping with a given node size
+      const hasOverlap = (a, nr) => {
+        for (let i = 0; i < n; i++) {
+          for (let j = i + 1; j < n; j++) {
+            const xi = Math.cos(a[i]) * radii[i], yi = Math.sin(a[i]) * radii[i];
+            const xj = Math.cos(a[j]) * radii[j], yj = Math.sin(a[j]) * radii[j];
+            const dx = xj - xi, dy = yj - yi;
+            if (Math.sqrt(dx * dx + dy * dy) < nr * 2.0) return true;
+          }
+        }
+        return false;
+      };
+
+      // Try full size first; if still overlapping after bumping, shrink incrementally
+      let finalAngles = runBumper(effectiveNodeR);
+      while (effectiveNodeR > 12 && hasOverlap(finalAngles, effectiveNodeR)) {
+        effectiveNodeR -= 2;
+        finalAngles = runBumper(effectiveNodeR);
       }
 
       ordered.forEach((item, idx) => {
-        const r = radii[idx];
-        const angle = angles[idx];
         positions[item.id] = {
-          x: centerX + Math.cos(angle) * r,
-          y: centerY + Math.sin(angle) * r,
+          x: centerX + Math.cos(finalAngles[idx]) * radii[idx],
+          y: centerY + Math.sin(finalAngles[idx]) * radii[idx],
           nodeR: effectiveNodeR,
         };
       });
