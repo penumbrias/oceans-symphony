@@ -52,7 +52,7 @@ export default function PeriodReview({ frequency, templates, allProgress }) {
         <table className="text-xs w-full border-collapse">
           <thead>
             <tr className="border-b border-border/40">
-              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground min-w-[120px] sticky left-0 bg-card z-10">
+              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground min-w-[120px] sticky left-0 bg-card z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]">
                 Task
               </th>
               {pageKeys.map(key => (
@@ -73,9 +73,9 @@ export default function PeriodReview({ frequency, templates, allProgress }) {
               return (
                 <tr
                   key={task.id}
-                  className={`border-b border-border/20 last:border-0 ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
+                  className={`border-b border-border/20 last:border-0 ${idx % 2 === 0 ? "bg-card" : "bg-muted/10"}`}
                 >
-                  <td className="px-3 py-2 sticky left-0 bg-inherit z-10">
+                  <td className={`px-3 py-2 sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)] ${idx % 2 === 0 ? "bg-card" : "bg-muted/10"}`}>
                     <div className="font-medium text-foreground truncate max-w-[160px]">
                       {applyTerms(task.title, terms)}
                     </div>
@@ -105,7 +105,7 @@ export default function PeriodReview({ frequency, templates, allProgress }) {
           {/* Footer: completion % per period */}
           <tfoot>
             <tr className="border-t border-border/40 bg-muted/20">
-              <td className="px-3 py-2 text-[10px] font-semibold text-muted-foreground sticky left-0 bg-muted/20 z-10">
+              <td className="px-3 py-2 text-[10px] font-semibold text-muted-foreground sticky left-0 bg-muted/20 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]">
                 Completion
               </td>
               {pageKeys.map(key => {
