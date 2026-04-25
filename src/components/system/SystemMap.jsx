@@ -152,90 +152,45 @@ const SystemMap = ({ relationships = [] }) => {
     const positions = {};
     const centerX = 600;
     const centerY = 400;
-    const minRadius = 80;
-    const maxRadius = 340;
-    const NODE_DIAMETER = 72; // minimum distance between node centers to avoid overlap
+    const minRadius = 60;
+    const maxRadius = 320;
 
-    const place = (items, getTime) => {
-      if (items.length === 0) return;
-
-      const maxTime = Math.max(...items.map(a => getTime(a) || 0), 1);
-
-      // Assign each item its ideal radius (most time = closest to center)
-      // Use sqrt scaling so differences aren't too extreme
-      const withRadius = items.map(a => {
-        const t = getTime(a) || 0;
-        const ratio = t / maxTime; // 1 = most time (center), 0 = least time (outer)
-        const r = minRadius + (1 - Math.sqrt(ratio)) * (maxRadius - minRadius);
-        return { item: a, idealR: r };
+    const place = (items, getTime, maxTime) => {
+      const n = items.length;
+      if (n === 0) return;
+      const maxNodeR = 35;
+      const radii = items.map(item => {
+        const ratio = (getTime(item) || 0) / maxTime;
+        return minRadius + (1 - ratio) * (maxRadius - minRadius);
       });
-
-      // Group items that are very close in radius into "bands" to spread angularly
-      // Sort by idealR ascending
-      withRadius.sort((a, b) => a.idealR - b.idealR);
-
-      // Cluster into bands: items within NODE_DIAMETER of each other share a band
-      const bands = [];
-      let currentBand = [withRadius[0]];
-      for (let i = 1; i < withRadius.length; i++) {
-        const prev = withRadius[i - 1];
-        const curr = withRadius[i];
-        if (curr.idealR - prev.idealR < NODE_DIAMETER * 0.6) {
-          currentBand.push(curr);
-        } else {
-          bands.push(currentBand);
-          currentBand = [curr];
-        }
-      }
-      bands.push(currentBand);
-
-      // For each band, check if they'd overlap at their average radius.
-      // If so, spread them to multiple sub-rings spaced NODE_DIAMETER apart.
-      for (const band of bands) {
-        const avgR = band.reduce((s, b) => s + b.idealR, 0) / band.length;
-        const circumference = avgR * Math.PI * 2;
-        const maxFit = Math.max(1, Math.floor(circumference / NODE_DIAMETER));
-
-        if (band.length <= maxFit) {
-          // All fit on a single ring at avgR — spread evenly
-          band.forEach(({ item }, idx) => {
-            const angle = (idx / band.length) * Math.PI * 2 - Math.PI / 2;
-            positions[item.id] = {
-              x: centerX + Math.cos(angle) * avgR,
-              y: centerY + Math.sin(angle) * avgR,
-              nodeR: 28,
-            };
-          });
-        } else {
-          // Too many for one ring — split into sub-rings, innermost first
-          const subRings = [];
-          let remaining = [...band];
-          let r = avgR;
-          while (remaining.length > 0) {
-            const cap = Math.max(1, Math.floor((r * Math.PI * 2) / NODE_DIAMETER));
-            subRings.push({ r, members: remaining.splice(0, cap) });
-            r += NODE_DIAMETER;
-          }
-          for (const ring of subRings) {
-            ring.members.forEach(({ item }, idx) => {
-              const angle = (idx / ring.members.length) * Math.PI * 2 - Math.PI / 2;
-              positions[item.id] = {
-                x: centerX + Math.cos(angle) * ring.r,
-                y: centerY + Math.sin(angle) * ring.r,
-                nodeR: 28,
-              };
-            });
-          }
-        }
-      }
+      const minR = Math.min(...radii);
+      const maxFitNodeR = (minR * Math.PI) / n;
+      const nodeR = Math.min(maxNodeR, Math.max(maxFitNodeR, 32));
+      items.forEach((item, idx) => {
+        const r = radii[idx];
+        const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
+        positions[item.id] = {
+          x: centerX + Math.cos(angle) * r,
+          y: centerY + Math.sin(angle) * r,
+          nodeR,
+        };
+      });
     };
 
     if (!selectedAlter) {
-      place(filteredAlters, a => frontingTime[a.id]);
+      const sorted = [...filteredAlters].sort(
+        (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
+      );
+      const maxTime = sorted.length > 0 ? (frontingTime[sorted[0].id] || 1) : 1;
+      place(sorted, a => frontingTime[a.id], maxTime);
     } else {
       positions[selectedAlter.id] = { x: centerX, y: centerY, nodeR: 35 };
       const others = filteredAlters.filter(a => a.id !== selectedAlter.id);
-      place(others, a => cofrontingTime[selectedAlter.id]?.[a.id] || 0);
+      const withRatios = others
+        .map(a => ({ ...a, cotime: cofrontingTime[selectedAlter.id]?.[a.id] || 0 }))
+        .sort((a, b) => b.cotime - a.cotime);
+      const maxCotime = withRatios.length > 0 ? (withRatios[0].cotime || 1) : 1;
+      place(withRatios, a => a.cotime, maxCotime);
     }
 
     return positions;
