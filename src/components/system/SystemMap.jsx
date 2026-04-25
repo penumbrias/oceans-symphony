@@ -169,10 +169,17 @@ const SystemMap = ({ relationships = [] }) => {
           y: centerY + Math.sin(angle) * radius,
         };
       });
-      // Collision resolution: push overlapping nodes apart
-      const nodeR = 38; // node radius + small gap
+      // Collision resolution: push overlapping nodes apart tangentially (preserve radial distance)
+      const nodeR = 38;
       const ids = altersSorted.map(a => a.id);
-      for (let iter = 0; iter < 30; iter++) {
+      // Pre-compute each node's target radius from center so we can reproject after each push
+      const targetRadii = {};
+      ids.forEach(id => {
+        const p = positions[id];
+        const dx = p.x - centerX, dy = p.y - centerY;
+        targetRadii[id] = Math.sqrt(dx * dx + dy * dy) || 1;
+      });
+      for (let iter = 0; iter < 60; iter++) {
         let moved = false;
         for (let i = 0; i < ids.length; i++) {
           for (let j = i + 1; j < ids.length; j++) {
@@ -188,6 +195,14 @@ const SystemMap = ({ relationships = [] }) => {
               const ny = (dy / dist) * push;
               positions[ids[i]] = { x: a.x - nx, y: a.y - ny };
               positions[ids[j]] = { x: b.x + nx, y: b.y + ny };
+              // Reproject both nodes back to their target radius from center
+              [ids[i], ids[j]].forEach(id => {
+                const p = positions[id];
+                const pdx = p.x - centerX, pdy = p.y - centerY;
+                const pdist = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
+                const r = targetRadii[id];
+                positions[id] = { x: centerX + (pdx / pdist) * r, y: centerY + (pdy / pdist) * r };
+              });
               moved = true;
             }
           }
@@ -215,10 +230,17 @@ const SystemMap = ({ relationships = [] }) => {
         y: centerY + Math.sin(angle) * radius,
       };
     });
-    // Collision resolution
+    // Collision resolution: tangential push to preserve radial distance
     const nodeR = 38;
     const ids = Object.keys(positions);
-    for (let iter = 0; iter < 30; iter++) {
+    const targetRadii = {};
+    ids.forEach(id => {
+      if (id === selectedAlter.id) { targetRadii[id] = 0; return; }
+      const p = positions[id];
+      const dx = p.x - centerX, dy = p.y - centerY;
+      targetRadii[id] = Math.sqrt(dx * dx + dy * dy) || 1;
+    });
+    for (let iter = 0; iter < 60; iter++) {
       let moved = false;
       for (let i = 0; i < ids.length; i++) {
         for (let j = i + 1; j < ids.length; j++) {
@@ -234,6 +256,15 @@ const SystemMap = ({ relationships = [] }) => {
             const ny = (dy / dist) * push;
             positions[ids[i]] = { x: a.x - nx, y: a.y - ny };
             positions[ids[j]] = { x: b.x + nx, y: b.y + ny };
+            // Reproject back to target radius (skip center node)
+            [ids[i], ids[j]].forEach(id => {
+              if (targetRadii[id] === 0) return;
+              const p = positions[id];
+              const pdx = p.x - centerX, pdy = p.y - centerY;
+              const pdist = Math.sqrt(pdx * pdx + pdy * pdy) || 1;
+              const r = targetRadii[id];
+              positions[id] = { x: centerX + (pdx / pdist) * r, y: centerY + (pdy / pdist) * r };
+            });
             moved = true;
           }
         }
