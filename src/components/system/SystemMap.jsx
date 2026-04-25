@@ -207,14 +207,50 @@ const SystemMap = ({ relationships = [] }) => {
       // Order angularly by co-fronting similarity
       const ordered = getCoTime ? orderByCoFrontSimilarity(items, getCoTime) : items;
 
-      // Assign each item its individual radius (linear % of max = direct distance from center)
+      // Compute each item's target radius
+      const radii = ordered.map(item => getRadius(item));
+
+      // Determine effective node size: if too crowded at minRadius, shrink nodes
+      const circumference = 2 * Math.PI * minRadius;
+      const effectiveNodeR = Math.min(nodeR, Math.max(10, circumference / (n * 2.2)));
+
+      // Initial angle assignment
+      const angles = ordered.map((_, idx) => (idx / n) * Math.PI * 2 - Math.PI / 2);
+
+      // Iterative angular separation bumper: push overlapping nodes apart angularly
+      // while keeping their radius fixed
+      for (let iter = 0; iter < 80; iter++) {
+        let moved = false;
+        for (let i = 0; i < n; i++) {
+          for (let j = i + 1; j < n; j++) {
+            const rI = radii[i], rJ = radii[j];
+            const aI = angles[i], aJ = angles[j];
+            const xi = Math.cos(aI) * rI, yi = Math.sin(aI) * rI;
+            const xj = Math.cos(aJ) * rJ, yj = Math.sin(aJ) * rJ;
+            const dx = xj - xi, dy = yj - yi;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = effectiveNodeR * 2.1;
+            if (dist < minDist && dist > 0.01) {
+              // Push both nodes apart angularly
+              const overlap = (minDist - dist) / 2;
+              // Nudge angles: move i backward, j forward
+              const nudge = overlap / Math.max(rI, rJ, 1) * 0.5;
+              angles[i] -= nudge;
+              angles[j] += nudge;
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break;
+      }
+
       ordered.forEach((item, idx) => {
-        const r = getRadius(item);
-        const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
+        const r = radii[idx];
+        const angle = angles[idx];
         positions[item.id] = {
           x: centerX + Math.cos(angle) * r,
           y: centerY + Math.sin(angle) * r,
-          nodeR,
+          nodeR: effectiveNodeR,
         };
       });
     };
