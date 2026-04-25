@@ -159,12 +159,74 @@ export function getLevelFromTotalXP(totalXP) {
 
 export function getTodayString() {
   const d = new Date();
-  // Use local date components (not UTC)
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
+
+/** ISO week number (Mon-based) */
+function getISOWeek(d) {
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+}
+
+/** Period key for a given frequency, based on current local time */
+export function getPeriodKey(frequency, date) {
+  const d = date ? new Date(date) : new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  if (frequency === "daily") return `${yyyy}-${mm}-${dd}`;
+  if (frequency === "weekly") return `${yyyy}-W${String(getISOWeek(d)).padStart(2, "0")}`;
+  if (frequency === "monthly") return `${yyyy}-${mm}`;
+  if (frequency === "yearly") return `${yyyy}`;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/** Human-readable label for a period key */
+export function formatPeriodKey(key) {
+  if (!key) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+    const d = new Date(key + "T00:00:00");
+    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  }
+  if (/^\d{4}-W\d{2}$/.test(key)) {
+    const [year, week] = key.split("-W");
+    return `Week ${week}, ${year}`;
+  }
+  if (/^\d{4}-\d{2}$/.test(key)) {
+    const [year, month] = key.split("-");
+    const d = new Date(Number(year), Number(month) - 1, 1);
+    return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  }
+  if (/^\d{4}$/.test(key)) return `Year ${key}`;
+  return key;
+}
+
+/** Generate the last N period keys for a given frequency (most recent first) */
+export function getRecentPeriodKeys(frequency, count = 12) {
+  const keys = [];
+  const d = new Date();
+  for (let i = 0; i < count; i++) {
+    keys.push(getPeriodKey(frequency, d));
+    if (frequency === "daily") d.setDate(d.getDate() - 1);
+    else if (frequency === "weekly") d.setDate(d.getDate() - 7);
+    else if (frequency === "monthly") d.setMonth(d.getMonth() - 1);
+    else if (frequency === "yearly") d.setFullYear(d.getFullYear() - 1);
+  }
+  return keys;
+}
+
+export const FREQUENCY_LABELS = {
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+};
 
 /**
  * Replace terminology tokens in task titles/descriptions.

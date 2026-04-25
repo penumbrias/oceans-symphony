@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES } from "@/lib/dailyTaskSystem";
+import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS } from "@/lib/dailyTaskSystem";
 import { Plus, GripVertical, Pencil, Trash2, RotateCcw, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ const EMPTY_FORM = {
   title: "",
   description: "",
   points: 3,
+  frequency: "daily",
   mode: "MANUAL",
   is_active: true,
   sort_order: 0,
@@ -42,6 +43,18 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
             onChange={(e) => set("description", e.target.value)}
             placeholder="Optional description"
           />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Frequency</label>
+          <select
+            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            value={form.frequency || "daily"}
+            onChange={(e) => set("frequency", e.target.value)}
+          >
+            {Object.entries(FREQUENCY_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground">Points</label>
@@ -125,6 +138,7 @@ export default function TaskTemplateManager({ templates, onClose }) {
       title: form.title,
       description: form.description,
       points: form.points,
+      frequency: form.frequency || "daily",
       mode: form.mode,
       is_active: form.is_active,
       auto_trigger: form.mode === "AUTO" ? form.auto_trigger : null,
@@ -138,6 +152,7 @@ export default function TaskTemplateManager({ templates, onClose }) {
   const handleAdd = async (form) => {
     await base44.entities.DailyTaskTemplate.create({
       ...form,
+      frequency: form.frequency || "daily",
       sort_order: templates.length,
       auto_trigger: form.mode === "AUTO" ? form.auto_trigger : null,
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
@@ -173,7 +188,7 @@ export default function TaskTemplateManager({ templates, onClose }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-lg">Manage Daily Tasks</h2>
+        <h2 className="font-semibold text-lg">Manage Tasks</h2>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
           <X className="w-5 h-5" />
         </button>
@@ -198,6 +213,7 @@ export default function TaskTemplateManager({ templates, onClose }) {
                   <span className={`text-xs px-1.5 py-0.5 rounded-full border font-medium ${t.mode === "AUTO" ? "border-blue-400/50 text-blue-500" : "border-border text-muted-foreground"}`}>
                     {t.mode}
                   </span>
+                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium capitalize">{t.frequency || "daily"}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{t.points} pts</span>
                   {!t.is_active && <span className="text-xs text-muted-foreground">hidden</span>}
                 </div>

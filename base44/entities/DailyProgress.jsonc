@@ -1,0 +1,55 @@
+{
+  "name": "DailyProgress",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of this progress record (YYYY-MM-DD) \u2014 used for daily tasks"
+    },
+    "period_key": {
+      "type": "string",
+      "description": "Period identifier for non-daily tasks: week = YYYY-Www, month = YYYY-MM, year = YYYY"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "yearly"
+      ],
+      "default": "daily",
+      "description": "Which frequency bucket this record belongs to"
+    },
+    "completed_task_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs of tasks completed in this period"
+    },
+    "xp_earned": {
+      "type": "number",
+      "default": 0,
+      "description": "Total XP earned in this period"
+    }
+  },
+  "required": [
+    "date"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
