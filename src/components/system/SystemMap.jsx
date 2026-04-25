@@ -177,77 +177,76 @@ const SystemMap = ({ relationships = [] }) => {
     const positions = {};
     const centerX = 600;
     const centerY = 400;
-    const minRadius = 60;
+    const minRadius = 50;
     const maxRadius = 320;
-    const maxNodeR = 35;
+    const nodeR = 32;
 
-    const place = (items, getTime, maxTime) => {
+    // Order items angularly by co-fronting similarity using a greedy nearest-neighbor chain.
+    // Items that co-front more with each other end up angularly adjacent.
+    const orderByCoFrontSimilarity = (items, getCoTime) => {
+      if (items.length <= 1) return items;
+      const remaining = [...items];
+      const ordered = [remaining.splice(0, 1)[0]];
+      while (remaining.length > 0) {
+        const last = ordered[ordered.length - 1];
+        let bestIdx = 0;
+        let bestScore = -1;
+        remaining.forEach((item, idx) => {
+          const score = getCoTime(last, item);
+          if (score > bestScore) { bestScore = score; bestIdx = idx; }
+        });
+        ordered.push(remaining.splice(bestIdx, 1)[0]);
+      }
+      return ordered;
+    };
+
+    const place = (items, getRadius, getCoTime) => {
       const n = items.length;
       if (n === 0) return;
 
-      // Compute each item's target radius using square-root scale for better sensitivity
-      // Anyone with any time at all gets at least a small inward offset from the outer ring
-      const itemsWithR = items.map(item => {
-        const t = getTime(item) || 0;
-        const raw = Math.sqrt(t / maxTime);
-        // If they have any time, ensure ratio is at least 0.08 so they're visibly inside the outermost ring
-        const ratio = t > 0 ? Math.max(raw, 0.08) : 0;
-        const r = minRadius + (1 - ratio) * (maxRadius - minRadius);
-        return { item, r };
+      // Order angularly by co-fronting similarity
+      const ordered = getCoTime ? orderByCoFrontSimilarity(items, getCoTime) : items;
+
+      // Assign each item its individual radius (linear % of max = direct distance from center)
+      ordered.forEach((item, idx) => {
+        const r = getRadius(item);
+        const angle = (idx / n) * Math.PI * 2 - Math.PI / 2;
+        positions[item.id] = {
+          x: centerX + Math.cos(angle) * r,
+          y: centerY + Math.sin(angle) * r,
+          nodeR,
+        };
       });
-
-      // Determine node size: constrained by the tightest ring
-      const minR = Math.min(...itemsWithR.map(x => x.r));
-      const maxFitNodeR = (minR * Math.PI) / n;
-      const nodeR = Math.min(maxNodeR, Math.max(maxFitNodeR, 32));
-
-      // Group items by ring (bucket radii within nodeR of each other)
-      // Sort by radius so we can bucket them
-      const sorted = [...itemsWithR].sort((a, b) => a.r - b.r);
-      const rings = []; // each ring: { r, items[] }
-      for (const entry of sorted) {
-        const last = rings[rings.length - 1];
-        if (last && Math.abs(entry.r - last.r) <= nodeR * 1.5) {
-          last.items.push(entry);
-          // Average the ring radius
-          last.r = last.items.reduce((s, x) => s + x.r, 0) / last.items.length;
-        } else {
-          rings.push({ r: entry.r, items: [entry] });
-        }
-      }
-
-      // For each ring, distribute items evenly around the circumference
-      for (const ring of rings) {
-        const count = ring.items.length;
-        ring.items.forEach(({ item }, idx) => {
-          const angle = (idx / count) * Math.PI * 2 - Math.PI / 2;
-          positions[item.id] = {
-            x: centerX + Math.cos(angle) * ring.r,
-            y: centerY + Math.sin(angle) * ring.r,
-            nodeR,
-          };
-        });
-      }
     };
 
     if (!selectedAlter) {
-      const sorted = [...filteredAlters].sort(
-        (a, b) => (frontingTime[b.id] || 0) - (frontingTime[a.id] || 0)
-      );
-      const maxTime = sorted.length > 0 ? (frontingTime[sorted[0].id] || 1) : 1;
-      place(sorted, a => frontingTime[a.id], maxTime);
+      const maxTime = Math.max(...filteredAlters.map(a => frontingTime[a.id] || 0), 1);
+      // Angular order: alters that co-front most with each other sit adjacent
+      const getCoTime = (a, b) => cofrontingTimeAll[a.id]?.[b.id]?.total || 0;
+      // Radius: linear percentage of max fronting time (more time = closer to center)
+      const getRadius = (a) => {
+        const t = frontingTime[a.id] || 0;
+        const ratio = t / maxTime; // 1 = most time = closest to center
+        return maxRadius - ratio * (maxRadius - minRadius);
+      };
+      place(filteredAlters, getRadius, getCoTime);
     } else {
       positions[selectedAlter.id] = { x: centerX, y: centerY, nodeR: 35 };
       const others = filteredAlters.filter(a => a.id !== selectedAlter.id);
-      const withRatios = others
-        .map(a => ({ ...a, cotime: cofrontingTime[selectedAlter.id]?.[a.id] || 0 }))
-        .sort((a, b) => b.cotime - a.cotime);
-      const maxCotime = withRatios.length > 0 ? (withRatios[0].cotime || 1) : 1;
-      place(withRatios, a => a.cotime, maxCotime);
+      const maxCotime = Math.max(...others.map(a => cofrontingTime[selectedAlter.id]?.[a.id] || 0), 1);
+      // Radius: linear % of max co-fronting time with selected alter
+      const getRadius = (a) => {
+        const t = cofrontingTime[selectedAlter.id]?.[a.id] || 0;
+        const ratio = t / maxCotime;
+        return maxRadius - ratio * (maxRadius - minRadius);
+      };
+      // Angular order: alters that co-front most with EACH OTHER sit adjacent
+      const getCoTime = (a, b) => cofrontingTimeAll[a.id]?.[b.id]?.total || 0;
+      place(others, getRadius, getCoTime);
     }
 
     return positions;
-  }, [filteredAlters, selectedAlter, frontingTime, cofrontingTime]);
+  }, [filteredAlters, selectedAlter, frontingTime, frontingTimeAll, cofrontingTime, cofrontingTimeAll]);
 
   const groupData = useMemo(() => {
     if (!showGroups) return [];
