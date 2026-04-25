@@ -267,11 +267,10 @@ export default function Analytics() {
       {/* ── MEMBERS ── */}
       {activeSection === "alters" && (
         <div className="space-y-4">
-
+          <TimeOfDayFronters sessions={filtered} alters={alters} />
 
           {topTab === "stats" && (
             <>
-              <TimeOfDayFronters sessions={filtered} alters={alters} />
 
               <div className="mb-4">
                 <ActivityHeatmap sessions={filtered} from={from} to={to} />
