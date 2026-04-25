@@ -281,6 +281,10 @@ export default function Analytics() {
             ))}
           </div>
 
+          {topTab === "timeofday" && (
+            <TimeOfDayFronters sessions={filtered} alters={alters} />
+          )}
+
           {topTab === "stats" && (
             <>
               <div className="mb-4">
@@ -332,10 +336,6 @@ export default function Analytics() {
                 <AlterFrontingTimeline sessions={filtered} alters={alters} from={from} to={to} />
               </div>
             </>
-          )}
-
-          {topTab === "timeofday" && (
-            <TimeOfDayFronters sessions={filtered} alters={alters} />
           )}
         </div>
       )}
