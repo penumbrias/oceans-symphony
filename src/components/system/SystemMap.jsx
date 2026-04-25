@@ -210,9 +210,10 @@ const SystemMap = ({ relationships = [] }) => {
       // Compute each item's target radius
       const radii = ordered.map(item => getRadius(item));
 
-      // Determine effective node size: if too crowded at minRadius, shrink nodes
-      const circumference = 2 * Math.PI * minRadius;
-      const effectiveNodeR = Math.min(nodeR, Math.max(10, circumference / (n * 2.2)));
+      // Determine effective node size based on average radius of all nodes
+      const avgRadius = radii.reduce((s, r) => s + r, 0) / radii.length;
+      const circumference = 2 * Math.PI * avgRadius;
+      const effectiveNodeR = Math.min(nodeR, Math.max(22, circumference / (n * 2.2)));
 
       // Initial angle assignment
       const angles = ordered.map((_, idx) => (idx / n) * Math.PI * 2 - Math.PI / 2);
