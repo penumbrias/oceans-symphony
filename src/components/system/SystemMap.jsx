@@ -158,49 +158,35 @@ const SystemMap = ({ relationships = [] }) => {
     const place = (items, getTime, maxTime) => {
       const n = items.length;
       if (n === 0) return;
-      const NODE_DIAMETER = 68; // min px between centers
+      const NODE_DIAMETER = 68;
       const maxNodeR = 35;
 
-      // Step 1: compute ideal radius per item from fronting time
-      const entries = items.map(item => {
-        const ratio = (getTime(item) || 0) / maxTime;
-        const idealR = minRadius + (1 - ratio) * (maxRadius - minRadius);
-        return { item, idealR };
-      });
+      // How many items fit on a ring of radius r?
+      const capacity = (r) => Math.max(1, Math.floor((r * Math.PI * 2) / NODE_DIAMETER));
 
-      // Step 2: figure out how many rings we need to fit all n items
-      // Start with the outer ring (maxRadius) and work inward.
-      // Each ring can hold floor(circumference / NODE_DIAMETER) items.
-      // We assign items sorted by their ideal radius to the ring closest to them.
-      entries.sort((a, b) => b.idealR - a.idealR); // outermost first
+      // Sort by fronting time descending (most fronting = innermost = smallest radius)
+      const sorted = [...items].sort((a, b) => (getTime(b) || 0) - (getTime(a) || 0));
 
-      // Build candidate ring radii: evenly spaced from maxRadius inward
-      // spaced by NODE_DIAMETER so rings don't bleed into each other
-      const candidateRings = [];
-      for (let r = maxRadius; r >= minRadius; r -= NODE_DIAMETER) {
-        candidateRings.push({ r, members: [] });
-      }
-      if (candidateRings.length === 0) candidateRings.push({ r: maxRadius, members: [] });
+      // Build rings from outermost inward. Fill outermost ring first, then next, etc.
+      // Ring radii are spaced NODE_DIAMETER apart so nodes on adjacent rings can't overlap.
+      const rings = [];
+      let remaining = [...sorted];
+      let r = maxRadius;
 
-      // Assign each item to the nearest candidate ring that still has capacity
-      for (const entry of entries) {
-        // Find nearest ring with space
-        const sorted = [...candidateRings].sort((a, b) =>
-          Math.abs(a.r - entry.idealR) - Math.abs(b.r - entry.idealR)
-        );
-        for (const ring of sorted) {
-          const circumference = ring.r * Math.PI * 2;
-          const maxFit = Math.max(1, Math.floor(circumference / NODE_DIAMETER));
-          if (ring.members.length < maxFit) {
-            ring.members.push(entry.item);
-            break;
-          }
+      while (remaining.length > 0) {
+        const cap = capacity(r);
+        const members = remaining.splice(0, cap);
+        rings.push({ r, members });
+        r = Math.max(minRadius, r - NODE_DIAMETER);
+        // If we've hit minRadius and still have items, keep them all on minRadius
+        if (r === minRadius && remaining.length > 0) {
+          rings.push({ r: minRadius, members: remaining });
+          break;
         }
       }
 
-      // Step 3: spread each ring's members evenly across full 360°
-      for (const ring of candidateRings) {
-        if (ring.members.length === 0) continue;
+      // Spread each ring's members evenly across 360°
+      for (const ring of rings) {
         const count = ring.members.length;
         const circumference = ring.r * Math.PI * 2;
         const fitR = Math.floor(circumference / (count * 2));
