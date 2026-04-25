@@ -125,23 +125,9 @@ export default function TimeOfDayFronters({ sessions, alters }) {
   });
 
   return (
-    <div>
-      {/* Results */}
-      {displayedData.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-muted-foreground text-sm">No {terms.fronting} data during this time</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {displayedData.map(({ alter, total, primary, cofronting }) => {
-            const duration = viewMode === "primary" ? primary : viewMode === "cofronting" ? cofronting : total;
-            return <AlterRow key={alter.id} alter={alter} duration={duration} periodLabel={periodLabel} />;
-          })}
-        </div>
-      )}
-
-      {/* Period + view mode selectors at bottom */}
-      <div className="mt-8 space-y-3">
+    <div className="space-y-4">
+      {/* Controls — NOW AT TOP */}
+      <div className="space-y-3">
         {/* View mode toggle */}
         <div className="flex justify-center gap-1 p-1 bg-muted/30 rounded-xl w-fit mx-auto">
           {[
@@ -188,6 +174,21 @@ export default function TimeOfDayFronters({ sessions, alters }) {
           Time of {terms.fronting}
         </p>
       </div>
+
+      {/* Results */}
+      {displayedData.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <p className="text-muted-foreground text-sm">No {terms.fronting} data during this time</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {displayedData.map(({ alter, total, primary, cofronting }) => {
+            const duration = viewMode === "primary" ? primary : viewMode === "cofronting" ? cofronting : total;
+            return <AlterRow key={alter.id} alter={alter} duration={duration} periodLabel={periodLabel} />;
+          })}
+        </div>
+      )}
+
     </div>
   );
 }
