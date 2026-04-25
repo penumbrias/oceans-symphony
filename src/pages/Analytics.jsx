@@ -267,26 +267,12 @@ export default function Analytics() {
       {/* ── MEMBERS ── */}
       {activeSection === "alters" && (
         <div className="space-y-4">
-          {/* Sub-tab pills */}
-          <div className="flex gap-2">
-            {[{ id: "stats", label: "Stats" }, { id: "timeofday", label: "Time of Day" }].map((t) => (
-              <button key={t.id} onClick={() => setTopTab(t.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                  topTab === t.id
-                    ? "bg-primary text-primary-foreground border-transparent"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}>
-                {t.label}
-              </button>
-            ))}
-          </div>
 
-          {topTab === "timeofday" && (
-            <TimeOfDayFronters sessions={filtered} alters={alters} />
-          )}
 
           {topTab === "stats" && (
             <>
+              <TimeOfDayFronters sessions={filtered} alters={alters} />
+
               <div className="mb-4">
                 <ActivityHeatmap sessions={filtered} from={from} to={to} />
               </div>
