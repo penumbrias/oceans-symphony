@@ -158,55 +158,50 @@ const SystemMap = ({ relationships = [] }) => {
     const place = (items, getTime, maxTime) => {
       const n = items.length;
       if (n === 0) return;
-      const NODE_DIAMETER = 68; // minimum px between node centers to avoid overlap
+      const NODE_DIAMETER = 68; // min px between centers
       const maxNodeR = 35;
 
-      // Step 1: compute each item's ideal radius from its fronting time
+      // Step 1: compute ideal radius per item from fronting time
       const entries = items.map(item => {
         const ratio = (getTime(item) || 0) / maxTime;
         const idealR = minRadius + (1 - ratio) * (maxRadius - minRadius);
         return { item, idealR };
       });
 
-      // Step 2: bucket items into rings. Items within NODE_DIAMETER of each other
-      // (radially) share a ring. Sort innermost first, then greedily assign rings.
-      entries.sort((a, b) => a.idealR - b.idealR);
+      // Step 2: figure out how many rings we need to fit all n items
+      // Start with the outer ring (maxRadius) and work inward.
+      // Each ring can hold floor(circumference / NODE_DIAMETER) items.
+      // We assign items sorted by their ideal radius to the ring closest to them.
+      entries.sort((a, b) => b.idealR - a.idealR); // outermost first
 
-      const rings = []; // [{ r, members[] }]
+      // Build candidate ring radii: evenly spaced from maxRadius inward
+      // spaced by NODE_DIAMETER so rings don't bleed into each other
+      const candidateRings = [];
+      for (let r = maxRadius; r >= minRadius; r -= NODE_DIAMETER) {
+        candidateRings.push({ r, members: [] });
+      }
+      if (candidateRings.length === 0) candidateRings.push({ r: maxRadius, members: [] });
+
+      // Assign each item to the nearest candidate ring that still has capacity
       for (const entry of entries) {
-        const existing = rings.find(ring => Math.abs(ring.r - entry.idealR) < NODE_DIAMETER);
-        if (existing) {
-          existing.members.push(entry.item);
-        } else {
-          rings.push({ r: entry.idealR, members: [entry.item] });
-        }
-      }
-
-      // Step 3: for each ring, check if its members can fit without overlapping.
-      // If not, split overflow members to a new ring just outside.
-      const finalRings = [];
-      for (const ring of rings) {
-        const circumference = ring.r * Math.PI * 2;
-        const maxFit = Math.max(1, Math.floor(circumference / NODE_DIAMETER));
-        if (ring.members.length <= maxFit) {
-          finalRings.push(ring);
-        } else {
-          // Split: keep maxFit on this ring, push the rest to a new ring outside
-          finalRings.push({ r: ring.r, members: ring.members.slice(0, maxFit) });
-          const overflow = ring.members.slice(maxFit);
-          // Find a clear radius for the overflow ring
-          let newR = ring.r + NODE_DIAMETER;
-          while (finalRings.some(fr => Math.abs(fr.r - newR) < NODE_DIAMETER)) {
-            newR += NODE_DIAMETER;
+        // Find nearest ring with space
+        const sorted = [...candidateRings].sort((a, b) =>
+          Math.abs(a.r - entry.idealR) - Math.abs(b.r - entry.idealR)
+        );
+        for (const ring of sorted) {
+          const circumference = ring.r * Math.PI * 2;
+          const maxFit = Math.max(1, Math.floor(circumference / NODE_DIAMETER));
+          if (ring.members.length < maxFit) {
+            ring.members.push(entry.item);
+            break;
           }
-          finalRings.push({ r: newR, members: overflow });
         }
       }
 
-      // Step 4: for each final ring, spread members evenly across full 360°
-      for (const ring of finalRings) {
+      // Step 3: spread each ring's members evenly across full 360°
+      for (const ring of candidateRings) {
+        if (ring.members.length === 0) continue;
         const count = ring.members.length;
-        // Per-ring nodeR: fit the ring's circumference, capped at maxNodeR
         const circumference = ring.r * Math.PI * 2;
         const fitR = Math.floor(circumference / (count * 2));
         const nodeR = Math.min(maxNodeR, Math.max(fitR, 20));
