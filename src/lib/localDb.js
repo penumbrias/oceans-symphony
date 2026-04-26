@@ -447,12 +447,14 @@ async function _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, i
           return { changed: false, value };
         }
         const blob = await response.blob();
-        const dataUrl = await new Promise((resolve, reject) => {
+        let dataUrl = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
           reader.onerror = reject;
           reader.readAsDataURL(blob);
         });
+        const { compressImageDataUrl } = await import('./localImageStorage.js');
+        dataUrl = await compressImageDataUrl(dataUrl);
         const imageId = `cached-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         onResult('migrated');

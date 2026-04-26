@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
 import { getFullDbDump, loadDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
-import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
+import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
 function compressBackup(data) {
@@ -110,6 +110,9 @@ export default function DataBackupRestore() {
   const [cachingUrls, setCachingUrls] = useState(false);
   const [cacheUrlResult, setCacheUrlResult] = useState(null);
   const [cacheUrlProgress, setCacheUrlProgress] = useState(null);
+  const [recompressing, setRecompressing] = useState(false);
+  const [recompressResult, setRecompressResult] = useState(null);
+  const [recompressProgress, setRecompressProgress] = useState(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugJson, setDebugJson] = useState(null);
   const [debugLoading, setDebugLoading] = useState(false);
@@ -397,6 +400,26 @@ const handleExportFull = async () => {
     }
   };
 
+  const handleRecompressImages = async () => {
+    setRecompressing(true);
+    setRecompressResult(null);
+    setRecompressProgress({ processed: 0, total: 0, savedKB: 0 });
+    try {
+      const result = await recompressAllStoredImages(512, 0.82, (p) => setRecompressProgress({ ...p }));
+      setRecompressResult({
+        type: "success",
+        message: `Done! Processed ${result.processed} image(s), saved ~${result.savedKB}KB.`,
+      });
+      fullDumpRef.current = null;
+      fullImagesRef.current = null;
+    } catch (e) {
+      setRecompressResult({ type: "error", message: `Failed: ${e.message}` });
+    } finally {
+      setRecompressing(false);
+      setRecompressProgress(null);
+    }
+  };
+
   const handleImportFromFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -470,6 +493,30 @@ const handleExportFull = async () => {
               </div>
             </Button>
           </div>
+
+        <div className="space-y-2 pb-3 border-b border-border/40">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recompress Stored Images</p>
+          <p className="text-xs text-muted-foreground">Resize and re-encode all locally stored images to 512px max / JPEG 82%. Run this once to shrink backup size if images are large.</p>
+          {recompressResult && (
+            <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${recompressResult.type === "success" ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-destructive/5 text-destructive"}`}>
+              {recompressResult.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+              {recompressResult.message}
+            </div>
+          )}
+          <Button variant="outline" onClick={handleRecompressImages} disabled={recompressing} className="w-full gap-2 justify-start">
+            {recompressing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+            <div className="text-left">
+              <p className="font-medium">Recompress Images</p>
+              {recompressing && recompressProgress ? (
+                <p className="text-xs text-muted-foreground font-normal">
+                  {recompressProgress.processed}/{recompressProgress.total} · saved {recompressProgress.savedKB}KB so far
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground font-normal">Shrinks backup size · irreversible</p>
+              )}
+            </div>
+          </Button>
+        </div>
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>

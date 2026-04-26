@@ -121,3 +121,65 @@ export async function restoreLocalImages(imagesMap) {
     console.warn('restoreLocalImages failed:', e);
   }
 }
+
+// Resize + re-encode a data URL to JPEG. Returns original if it's an SVG,
+// already small enough, or if canvas fails. maxDim caps the longer edge.
+export async function compressImageDataUrl(dataUrl, maxDim = 512, quality = 0.82) {
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return dataUrl;
+  if (dataUrl.startsWith('data:image/svg')) return dataUrl;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      const longest = Math.max(width, height);
+      if (longest > maxDim) {
+        const scale = maxDim / longest;
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+// Re-encode every image already in IDB. Skips SVGs and anything that doesn't
+// shrink. onProgress({ processed, total, savedKB }) called after each entry.
+export async function recompressAllStoredImages(maxDim = 512, quality = 0.82, onProgress) {
+  const idb = await getIdb();
+  const keys = await new Promise((resolve, reject) => {
+    const tx = idb.transaction([STORE_NAME], 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAllKeys();
+    req.onerror = reject;
+    req.onsuccess = () => resolve(req.result);
+  });
+
+  let processed = 0;
+  let savedKB = 0;
+
+  for (const key of keys) {
+    const current = await getLocalImage(key);
+    if (typeof current === 'string' && current.startsWith('data:') && !current.startsWith('data:image/svg')) {
+      try {
+        const compressed = await compressImageDataUrl(current, maxDim, quality);
+        if (compressed.length < current.length) {
+          savedKB += Math.round((current.length - compressed.length) / 1024);
+          await saveLocalImage(key, compressed);
+        }
+      } catch {}
+    }
+    processed++;
+    onProgress?.({ processed, total: keys.length, savedKB });
+  }
+
+  return { processed, savedKB };
+}
