@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
-import { getFullDbDump, loadDbDump, migrateBase64AvatarsToLocal, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
@@ -107,8 +107,6 @@ export default function DataBackupRestore() {
   const [copiedChunks, setCopiedChunks] = useState(new Set()); // tracks which parts have been copied
   const [multiPartChunks, setMultiPartChunks] = useState([]); // for multi-part import
   const [showMultiPartImport, setShowMultiPartImport] = useState(false);
-  const [migratingAvatars, setMigratingAvatars] = useState(false);
-  const [migrateResult, setMigrateResult] = useState(null);
   const [cachingUrls, setCachingUrls] = useState(false);
   const [cacheUrlResult, setCacheUrlResult] = useState(null);
   const [cacheUrlProgress, setCacheUrlProgress] = useState(null);
@@ -215,7 +213,7 @@ const handleExportFull = async () => {
   try {
     const exportData = await buildExportData();
     const date = new Date().toISOString().slice(0, 10);
-    await downloadJson(exportData, `symphony-backup-${date}.sympbak`);
+    await downloadJson(exportData, `symphony-backup-${date}.json`);
     showStatus("success", "Backup exported!");
   } catch (e) {
     if (e.message === "__clipboard_fallback__") {
@@ -379,19 +377,6 @@ const handleExportFull = async () => {
     setTimeout(() => window.location.reload(), 1200);
   };
 
-  const handleMigrateAvatars = async () => {
-    setMigratingAvatars(true);
-    setMigrateResult(null);
-    try {
-      const count = await migrateBase64AvatarsToLocal();
-      setMigrateResult({ type: "success", message: `Done! Migrated ${count} image(s) to local storage.` });
-    } catch (e) {
-      setMigrateResult({ type: "error", message: `Migration failed: ${e.message}` });
-    } finally {
-      setMigratingAvatars(false);
-    }
-  };
-
   const handleCacheUrlImages = async () => {
     setCachingUrls(true);
     setCacheUrlResult(null);
@@ -461,24 +446,6 @@ const handleExportFull = async () => {
             {sizeWarning}
           </div>
         )}
-
-        <div className="space-y-2 pb-3 border-b border-border/40">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Avatar Migration</p>
-          <p className="text-xs text-muted-foreground">If avatars were uploaded on Android, they may be stored as large base64 strings that bloat backups. Run this once to migrate them to proper URLs.</p>
-          {migrateResult && (
-            <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${migrateResult.type === "success" ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-destructive/5 text-destructive"}`}>
-              {migrateResult.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-              {migrateResult.message}
-            </div>
-          )}
-          <Button variant="outline" onClick={handleMigrateAvatars} disabled={migratingAvatars} className="w-full gap-2 justify-start">
-            {migratingAvatars ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
-            <div className="text-left">
-              <p className="font-medium">Migrate All Images</p>
-              <p className="text-xs text-muted-foreground font-normal">Convert any base64 images to local storage</p>
-            </div>
-          </Button>
-        </div>
 
         <div className="space-y-2 pb-3 border-b border-border/40">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cache URL Images Offline</p>
@@ -648,7 +615,7 @@ const handleExportFull = async () => {
               <span className="text-xs font-medium">Replace All</span>
             </label>
           </div>
-          <input ref={fileInputRef} type="file" accept=".json,.txt,.sympbak" onChange={handleImportFromFile} className="hidden" />
+          <input ref={fileInputRef} type="file" accept=".json,.txt" onChange={handleImportFromFile} className="hidden" />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">

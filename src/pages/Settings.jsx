@@ -228,12 +228,8 @@ export default function Settings() {
           <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-3 text-sm text-muted-foreground">
             <p className="font-semibold text-foreground">🔐 Privacy & Data Notice</p>
             <div className="space-y-1">
-              <p className="font-medium text-foreground">☁️ Cloud Mode <strong>(not recommended)</strong></p>
-              <p>Your data is stored on Base44's servers with row-level security. It is <strong>not end-to-end encrypted</strong> — as the developer I technically have server access. I am committed to never accessing your data.</p>
-            </div>
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">🔒 Local Mode <strong>(recommended)</strong></p>
-              <p>Local mode stores all data on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
+              <p className="font-medium text-foreground">🔒 Local Mode</p>
+              <p>All data is stored on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
             </div>
             <div className="space-y-1">
               <p className="font-medium text-foreground">💾 Backups</p>
