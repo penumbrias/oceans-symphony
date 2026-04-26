@@ -58,6 +58,8 @@ self.addEventListener('fetch', (event) => {
     url.pathname.endsWith('.ico') ||
     url.pathname.endsWith('.woff2') ||
     url.pathname.endsWith('.woff') ||
+    url.pathname.endsWith('.ttf') ||
+    url.pathname.endsWith('.otf') ||
     url.pathname === '/manifest.json'
   ) {
     event.respondWith(
@@ -99,7 +101,13 @@ self.addEventListener('fetch', (event) => {
         const networkFetch = fetch(request).then((response) => {
           if (response.ok) cache.put(request, response.clone());
           return response;
-        }).catch(() => cached);
+        }).catch(() => {
+          // Return cached version if available, otherwise a graceful offline response
+          return cached || new Response('Offline — resource not yet cached.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        });
         return cached || networkFetch;
       })
     )

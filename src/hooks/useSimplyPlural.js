@@ -6,8 +6,11 @@ export function useFronters(token, systemId) {
     queryKey: ["sp-fronters", systemId],
     queryFn: () => getFronters(token, systemId),
     enabled: !!token && !!systemId,
-    refetchInterval: 30000, // refresh every 30s
+    refetchInterval: 30000,
     initialData: { members: [], custom: [] },
+    // These are real network requests — only run when online, don't retry
+    networkMode: 'online',
+    retry: 0,
   });
 }
 
@@ -17,5 +20,7 @@ export function useFrontHistory(token, systemId) {
     queryFn: () => getFrontHistory(token, systemId),
     enabled: !!token && !!systemId,
     initialData: [],
+    networkMode: 'online',
+    retry: 0,
   });
 }
