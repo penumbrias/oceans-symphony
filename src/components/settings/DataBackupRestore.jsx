@@ -2,8 +2,6 @@ import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { isLocalMode } from "@/lib/storageMode";
 import { getFullDbDump, loadDbDump, migrateBase64AvatarsToLocal, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import pako from "pako";
@@ -135,24 +133,9 @@ export default function DataBackupRestore() {
 
   const fetchFullDump = useCallback(async () => {
     if (fullDumpRef.current) return { dump: fullDumpRef.current, images: fullImagesRef.current };
-    let dump;
-    if (isLocalMode()) {
-      dump = getFullDbDump();
-    } else {
-      dump = {};
-      for (const name of ENTITY_NAMES) {
-        try { dump[name] = await base44.entities[name].list(); } catch {}
-      }
-      for (const name of ENTITY_NAMES) {
-        if (Array.isArray(dump[name])) {
-          dump[name] = Object.fromEntries(dump[name].map((r) => [r.id, r]));
-        }
-      }
-    }
+    const dump = getFullDbDump();
     let images = {};
-    if (isLocalMode()) {
-      try { images = await getAllLocalImages(); } catch {}
-    }
+    try { images = await getAllLocalImages(); } catch {}
     fullDumpRef.current = dump;
     fullImagesRef.current = images;
     return { dump, images };
@@ -386,85 +369,22 @@ const handleExportFull = async () => {
     if (parsed.__format !== "symphony_backup" || !parsed.data) {
       throw new Error("Unknown format. Expected Symphony backup.");
     }
-
-    if (isLocalMode()) {
-      // Restore local images before loading DB dump
-      if (parsed.__local_images) {
-        try {
-          await restoreLocalImages(parsed.__local_images);
-        } catch (e) {
-          console.warn("Failed to restore local images:", e);
-        }
+    if (parsed.__local_images) {
+      try { await restoreLocalImages(parsed.__local_images); } catch (e) {
+        console.warn("Failed to restore local images:", e);
       }
-      await loadDbDump(parsed.data);
-      showStatus("success", "Data restored! The app will reload.");
-      setTimeout(() => window.location.reload(), 1200);
-    } else {
-      if (importMode === "replace") {
-        for (const entityName of ENTITY_NAMES) {
-          try {
-            let hasMore = true;
-            while (hasMore) {
-              const records = await base44.entities[entityName].list();
-              if (records.length === 0) {
-                hasMore = false;
-              } else {
-                for (const record of records) {
-                  await base44.entities[entityName].delete(record.id);
-                }
-              }
-            }
-          } catch {}
-        }
-      }
-
-      let count = 0;
-      for (const [entityName, recordsMap] of Object.entries(parsed.data)) {
-        if (!ENTITY_NAMES.includes(entityName)) continue;
-        const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap || {});
-        for (const record of records) {
-          const { id, ...data } = record;
-          try { await base44.entities[entityName].create(data); count++; } catch {}
-        }
-      }
-      showStatus("success", `${importMode === "replace" ? "Replaced" : "Imported"} ${count} records.`);
     }
+    await loadDbDump(parsed.data);
+    showStatus("success", "Data restored! The app will reload.");
+    setTimeout(() => window.location.reload(), 1200);
   };
 
   const handleMigrateAvatars = async () => {
     setMigratingAvatars(true);
     setMigrateResult(null);
     try {
-      if (isLocalMode()) {
-        const count = await migrateBase64AvatarsToLocal();
-        setMigrateResult({ type: "success", message: `Done! Migrated ${count} avatar(s) to local storage.` });
-      } else {
-        // Cloud mode: scan all entities/fields for base64 data URLs and upload them
-        let migrated = 0;
-        for (const entityName of ENTITY_NAMES) {
-          let records = [];
-          try { records = await base44.entities[entityName].list(); } catch { continue; }
-          for (const record of records) {
-            const updates = {};
-            for (const [field, value] of Object.entries(record)) {
-              if (typeof value === "string" && value.startsWith("data:")) {
-                try {
-                  const res = await fetch(value);
-                  const blob = await res.blob();
-                  const file = new File([blob], `${entityName}-${record.id}-${field}.jpg`, { type: blob.type || "image/jpeg" });
-                  const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                  updates[field] = file_url;
-                  migrated++;
-                } catch {}
-              }
-            }
-            if (Object.keys(updates).length > 0) {
-              await base44.entities[entityName].update(record.id, updates);
-            }
-          }
-        }
-        setMigrateResult({ type: "success", message: `Done! Migrated ${migrated} image(s) to hosted URLs.` });
-      }
+      const count = await migrateBase64AvatarsToLocal();
+      setMigrateResult({ type: "success", message: `Done! Migrated ${count} image(s) to local storage.` });
     } catch (e) {
       setMigrateResult({ type: "error", message: `Migration failed: ${e.message}` });
     } finally {
@@ -555,13 +475,12 @@ const handleExportFull = async () => {
             {migratingAvatars ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Migrate All Images</p>
-              <p className="text-xs text-muted-foreground font-normal">Convert any base64 images to hosted URLs</p>
+              <p className="text-xs text-muted-foreground font-normal">Convert any base64 images to local storage</p>
             </div>
           </Button>
         </div>
 
-        {isLocalMode() && (
-          <div className="space-y-2 pb-3 border-b border-border/40">
+        <div className="space-y-2 pb-3 border-b border-border/40">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cache URL Images Offline</p>
             <p className="text-xs text-muted-foreground">Download any images stored as external URLs (e.g. avatars pasted as links) into local storage so they display offline.</p>
             {cacheUrlResult && (
@@ -584,7 +503,6 @@ const handleExportFull = async () => {
               </div>
             </Button>
           </div>
-        )}
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
