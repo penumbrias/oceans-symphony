@@ -389,3 +389,100 @@ export async function migrateBase64AvatarsToLocal() {
 export async function getRawIdbDump() {
   return getDb();
 }
+
+// Fetch external https:// image URLs, store them in IDB, and rewrite the DB record.
+// Requires network. Skips URLs that aren't images (wrong Content-Type) or fail to fetch.
+// onProgress({ migrated, failed, skipped }) is called after each URL attempt.
+export async function migrateHttpImagesToLocal(onProgress) {
+  const db = getDb();
+  const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
+
+  let migrated = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  const report = (type) => {
+    if (type === 'migrated') migrated++;
+    else if (type === 'failed') failed++;
+    else skipped++;
+    onProgress?.({ migrated, failed, skipped });
+  };
+
+  for (const [entityName, collection] of Object.entries(db)) {
+    if (!collection || typeof collection !== 'object') continue;
+    for (const [recordId, record] of Object.entries(collection)) {
+      if (!record || typeof record !== 'object') continue;
+      let recordChanged = false;
+      const updatedRecord = { ...record };
+      for (const [field, value] of Object.entries(record)) {
+        if (['id', 'created_date', 'updated_date', 'created_by'].includes(field)) continue;
+        try {
+          const r = await _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, report);
+          if (r.changed) {
+            updatedRecord[field] = r.value;
+            recordChanged = true;
+          }
+        } catch {}
+      }
+      if (recordChanged) db[entityName][recordId] = updatedRecord;
+    }
+  }
+
+  if (migrated > 0) await saveDb();
+  return { migrated, failed, skipped };
+}
+
+async function _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult) {
+  if (typeof value === 'string') {
+    if (isLocalImageUrl(value) || value.startsWith('data:') || value.startsWith('local-image://')) {
+      return { changed: false, value };
+    }
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      try {
+        const response = await fetch(value, { mode: 'cors' });
+        if (!response.ok) { onResult('failed'); return { changed: false, value }; }
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.startsWith('image/')) {
+          onResult('skipped');
+          return { changed: false, value };
+        }
+        const blob = await response.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const imageId = `cached-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        onResult('migrated');
+        return { changed: true, value: createLocalImageUrl(imageId) };
+      } catch {
+        onResult('failed');
+        return { changed: false, value };
+      }
+    }
+    return { changed: false, value };
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const result = [];
+    for (const item of value) {
+      const r = await _walkAndMigrateHttp(item, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult);
+      if (r.changed) changed = true;
+      result.push(r.value);
+    }
+    return { changed, value: result };
+  }
+  if (value && typeof value === 'object') {
+    let changed = false;
+    const result = {};
+    for (const [k, v] of Object.entries(value)) {
+      const r = await _walkAndMigrateHttp(v, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult);
+      if (r.changed) changed = true;
+      result[k] = r.value;
+    }
+    return { changed, value: result };
+  }
+  return { changed: false, value };
+}

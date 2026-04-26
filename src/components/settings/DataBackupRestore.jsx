@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
-import { getFullDbDump, loadDbDump, migrateBase64AvatarsToLocal, getRawIdbDump } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, migrateBase64AvatarsToLocal, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
@@ -111,6 +111,9 @@ export default function DataBackupRestore() {
   const [showMultiPartImport, setShowMultiPartImport] = useState(false);
   const [migratingAvatars, setMigratingAvatars] = useState(false);
   const [migrateResult, setMigrateResult] = useState(null);
+  const [cachingUrls, setCachingUrls] = useState(false);
+  const [cacheUrlResult, setCacheUrlResult] = useState(null);
+  const [cacheUrlProgress, setCacheUrlProgress] = useState(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugJson, setDebugJson] = useState(null);
   const [debugLoading, setDebugLoading] = useState(false);
@@ -469,6 +472,26 @@ const handleExportFull = async () => {
     }
   };
 
+  const handleCacheUrlImages = async () => {
+    setCachingUrls(true);
+    setCacheUrlResult(null);
+    setCacheUrlProgress({ migrated: 0, failed: 0, skipped: 0 });
+    try {
+      const result = await migrateHttpImagesToLocal((progress) => {
+        setCacheUrlProgress({ ...progress });
+      });
+      setCacheUrlResult({
+        type: "success",
+        message: `Done! Cached ${result.migrated} image(s) locally.${result.failed > 0 ? ` ${result.failed} could not be fetched (CORS or offline).` : ""}`,
+      });
+    } catch (e) {
+      setCacheUrlResult({ type: "error", message: `Failed: ${e.message}` });
+    } finally {
+      setCachingUrls(false);
+      setCacheUrlProgress(null);
+    }
+  };
+
   const handleImportFromFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -536,6 +559,32 @@ const handleExportFull = async () => {
             </div>
           </Button>
         </div>
+
+        {isLocalMode() && (
+          <div className="space-y-2 pb-3 border-b border-border/40">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cache URL Images Offline</p>
+            <p className="text-xs text-muted-foreground">Download any images stored as external URLs (e.g. avatars pasted as links) into local storage so they display offline.</p>
+            {cacheUrlResult && (
+              <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${cacheUrlResult.type === "success" ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-destructive/5 text-destructive"}`}>
+                {cacheUrlResult.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                {cacheUrlResult.message}
+              </div>
+            )}
+            <Button variant="outline" onClick={handleCacheUrlImages} disabled={cachingUrls} className="w-full gap-2 justify-start">
+              {cachingUrls ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+              <div className="text-left">
+                <p className="font-medium">Cache Images for Offline</p>
+                {cachingUrls && cacheUrlProgress ? (
+                  <p className="text-xs text-muted-foreground font-normal">
+                    {cacheUrlProgress.migrated} cached · {cacheUrlProgress.failed} failed · {cacheUrlProgress.skipped} skipped
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground font-normal">Requires network · saves images locally</p>
+                )}
+              </div>
+            </Button>
+          </div>
+        )}
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
