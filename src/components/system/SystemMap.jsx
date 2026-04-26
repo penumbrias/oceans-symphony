@@ -292,14 +292,11 @@ const SystemMap = ({ relationships = [] }) => {
       // Denominator: X's total front time across all modes (never mode-filtered)
       const xTotalTime = frontingTimeAll[selectedAlter.id]?.total || 1;
 
-      // distance = (Y's co-front time with X in current mode / X's total time) × maxRadius
-      // e.g. 40% overlap → 0.4 × maxRadius from center.
-      // Numerator uses timeMode (total / primary / cofronting) for Y's exclusive role.
-      // Clamp to minRadius so no alter sits directly on top of the selected node.
+      // 0% overlap → maxRadius (edge); 100% overlap → minRadius (center).
       const getRadius = (a) => {
         const overlap = cofrontingTime[selectedAlter.id]?.[a.id] || 0;
         const ratio = Math.min(1, overlap / xTotalTime);
-        return Math.max(minRadius, ratio * maxRadius);
+        return maxRadius - ratio * (maxRadius - minRadius);
       };
       // Angular order: alters that co-front most with EACH OTHER sit adjacent
       const getCoTime = (a, b) => cofrontingTimeAll[a.id]?.[b.id]?.total || 0;
