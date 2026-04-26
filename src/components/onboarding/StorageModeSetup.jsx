@@ -168,7 +168,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
                   <Lock className="w-6 h-6 text-primary" />
                 </div>
               : <img
-                  src="/logo.svg"
+                  src="/logo.png"
                   className="w-12 h-12 object-contain"
                   alt="Oceans Symphony"
                 />

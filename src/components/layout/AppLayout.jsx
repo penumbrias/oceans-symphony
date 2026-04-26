@@ -131,7 +131,7 @@ const handleNotifClick = (mentionLog) => {
         <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Symphony home">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <img src="/logo.svg" className="w-7 h-7 object-contain" alt="logo" />
+              <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
             </div>
             <span className="font-display text-lg font-semibold tracking-tight text-foreground">Symphony</span>
             <OfflineReadyBadge />
@@ -200,7 +200,7 @@ const handleNotifClick = (mentionLog) => {
 
         <Link to="/" className="flex items-center gap-2 select-none min-h-[44px] px-2" aria-label="Symphony home">
             <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <img src="/logo.svg" className="w-6 h-6 object-contain" alt="logo" />
+              <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
             </div>
             <span className="font-display text-base font-semibold text-foreground">Oceans Symphony</span>
             <OfflineReadyBadge />
