@@ -1,18 +1,23 @@
-// Helper to resolve image URLs (local or external) to displayable data
+// Resolves avatar/image URLs to something an <img> tag can consume.
+// /local-image/[id]  → returned as-is; the Service Worker serves it from IDB.
+// local-image://[id] → legacy format; resolved directly from IDB as a data URL.
+// Everything else    → returned as-is (http/https/data URLs).
+
 import { isLocalImageUrl, getLocalImageId, getLocalImage } from './localImageStorage';
 
-// Cache resolved images in memory to avoid repeated IndexedDB lookups
 const _cache = new Map();
 
 export async function resolveImageUrl(url) {
   if (!url) return null;
-  
-  // Check cache first
-  if (_cache.has(url)) {
-    return _cache.get(url);
+  if (_cache.has(url)) return _cache.get(url);
+
+  // New SW-interceptable path — browser handles it natively
+  if (url.startsWith('/local-image/')) {
+    _cache.set(url, url);
+    return url;
   }
 
-  // If it's a local image URL, fetch from IndexedDB
+  // Legacy custom-protocol URL — resolve directly from IDB
   if (isLocalImageUrl(url)) {
     const imageId = getLocalImageId(url);
     if (imageId) {
@@ -25,17 +30,11 @@ export async function resolveImageUrl(url) {
     return null;
   }
 
-  // External URL — return as-is (http://, https://, data:, etc.)
+  // External / data URL — pass through
   _cache.set(url, url);
   return url;
 }
 
-// Preload and cache an image URL
-export async function preloadImageUrl(url) {
-  return resolveImageUrl(url);
-}
-
-// Clear the URL cache (e.g., on logout)
 export function clearImageCache() {
   _cache.clear();
 }

@@ -34,7 +34,7 @@ import Reminders from '@/pages/Reminders';
 import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
 import { isEncryptionEnabled } from '@/lib/storageMode';
-import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal } from '@/lib/localDb';
+import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal, migrateLocalImageUrlScheme } from '@/lib/localDb';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
 
@@ -106,6 +106,8 @@ function App() {
   useEffect(() => {
     if (setupState === null && isDbInitialized()) {
       migrateBase64AvatarsToLocal().catch(() => {});
+      // Rewrite legacy local-image:// URLs to /local-image/ so the SW can serve them
+      migrateLocalImageUrlScheme().catch(() => {});
     }
   }, [setupState]);
 

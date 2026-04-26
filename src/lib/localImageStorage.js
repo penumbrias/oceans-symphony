@@ -1,6 +1,6 @@
-// Local image storage management — stores compressed images in IndexedDB
-// Avatars are referenced via 'local-image://unique-id' in entities
-// This keeps backup data clean while preserving all image data
+// Local image storage — stores images as data-URL strings in IndexedDB.
+// Referenced via /local-image/[id] (relative HTTP path the SW can intercept).
+// Legacy local-image:// URLs are also recognised for backwards compat.
 
 const DB_NAME = 'symphony_images';
 const STORE_NAME = 'images';
@@ -22,7 +22,6 @@ async function getIdb() {
   });
 }
 
-// Save image data (from canvas.toDataURL or file blob)
 export async function saveLocalImage(id, imageData) {
   try {
     const idb = await getIdb();
@@ -34,13 +33,11 @@ export async function saveLocalImage(id, imageData) {
       req.onsuccess = () => resolve();
     });
   } catch (e) {
-    console.warn('Failed to save image to IndexedDB, falling back to data URL:', e);
-    // Fallback: return imageData as-is for in-memory use
+    console.warn('saveLocalImage: IDB unavailable:', e);
     return Promise.resolve();
   }
 }
 
-// Retrieve image data by ID
 export async function getLocalImage(id) {
   try {
     const idb = await getIdb();
@@ -52,12 +49,11 @@ export async function getLocalImage(id) {
       req.onsuccess = () => resolve(req.result || null);
     });
   } catch (e) {
-    console.warn('Failed to retrieve image from IndexedDB:', e);
+    console.warn('getLocalImage: IDB unavailable:', e);
     return null;
   }
 }
 
-// Delete image by ID
 export async function deleteLocalImage(id) {
   try {
     const idb = await getIdb();
@@ -69,61 +65,59 @@ export async function deleteLocalImage(id) {
       req.onsuccess = () => resolve();
     });
   } catch (e) {
-    console.warn('Failed to delete image from IndexedDB:', e);
+    console.warn('deleteLocalImage: IDB unavailable:', e);
     return Promise.resolve();
   }
 }
 
-// Check if URL is a local image reference
+// Accepts both /local-image/[id] (current) and local-image://[id] (legacy)
 export function isLocalImageUrl(url) {
-  return url && url.startsWith('local-image://');
+  return url && (url.startsWith('/local-image/') || url.startsWith('local-image://'));
 }
 
-// Extract ID from local image URL
 export function getLocalImageId(url) {
-  return url?.replace('local-image://', '') || null;
+  if (!url) return null;
+  if (url.startsWith('/local-image/')) return decodeURIComponent(url.slice('/local-image/'.length));
+  if (url.startsWith('local-image://')) return url.slice('local-image://'.length);
+  return null;
 }
 
-// Create a local image URL from ID
+// Always produce the SW-interceptable path
 export function createLocalImageUrl(id) {
-  return `local-image://${id}`;
+  return `/local-image/${encodeURIComponent(id)}`;
 }
 
-// Get all images from local storage (for backup)
 export async function getAllLocalImages() {
   try {
     const idb = await getIdb();
     return new Promise((resolve, reject) => {
       const tx = idb.transaction([STORE_NAME], 'readonly');
       const store = tx.objectStore(STORE_NAME);
-      const req = store.getAll();
-      req.onerror = () => reject(new Error('Failed to get all images'));
-      req.onsuccess = () => {
-        const images = {};
-        const keys = req.result;
-        // Need to fetch keys separately
-        const keyReq = store.getAllKeys();
-        keyReq.onsuccess = () => {
-          keyReq.result.forEach((key, idx) => {
-            images[key] = req.result[idx];
-          });
+      const images = {};
+      const keyReq = store.getAllKeys();
+      keyReq.onerror = () => reject(new Error('Failed to get keys'));
+      keyReq.onsuccess = () => {
+        const keys = keyReq.result;
+        const valReq = store.getAll();
+        valReq.onerror = () => reject(new Error('Failed to get values'));
+        valReq.onsuccess = () => {
+          keys.forEach((key, i) => { images[key] = valReq.result[i]; });
           resolve(images);
         };
       };
     });
   } catch (e) {
-    console.warn('Failed to get all images:', e);
+    console.warn('getAllLocalImages: IDB unavailable:', e);
     return {};
   }
 }
 
-// Restore images from backup (for import)
 export async function restoreLocalImages(imagesMap) {
   try {
     for (const [id, imageData] of Object.entries(imagesMap || {})) {
       await saveLocalImage(id, imageData);
     }
   } catch (e) {
-    console.warn('Failed to restore images:', e);
+    console.warn('restoreLocalImages failed:', e);
   }
 }

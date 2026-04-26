@@ -251,6 +251,56 @@ export function getFullDbDump() {
   return { ...getDb() };
 }
 
+// Rewrites every local-image:// URL in the DB to /local-image/[id]
+// so the Service Worker can intercept them. Safe to run on every startup —
+// exits fast once all URLs are already in the new format.
+function rewriteLocalImageUrls(value) {
+  if (typeof value === 'string') {
+    if (value.startsWith('local-image://')) {
+      return { changed: true, value: `/local-image/${value.slice('local-image://'.length)}` };
+    }
+    return { changed: false, value };
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const result = value.map((item) => {
+      const r = rewriteLocalImageUrls(item);
+      if (r.changed) changed = true;
+      return r.value;
+    });
+    return { changed, value: result };
+  }
+  if (value && typeof value === 'object') {
+    let changed = false;
+    const result = {};
+    for (const [k, v] of Object.entries(value)) {
+      const r = rewriteLocalImageUrls(v);
+      if (r.changed) changed = true;
+      result[k] = r.value;
+    }
+    return { changed, value: result };
+  }
+  return { changed: false, value };
+}
+
+export async function migrateLocalImageUrlScheme() {
+  const db = getDb();
+  let migrated = 0;
+  for (const [entityName, collection] of Object.entries(db)) {
+    if (!collection || typeof collection !== 'object') continue;
+    for (const [recordId, record] of Object.entries(collection)) {
+      if (!record || typeof record !== 'object') continue;
+      const { changed, value } = rewriteLocalImageUrls(record);
+      if (changed) {
+        db[entityName][recordId] = value;
+        migrated++;
+      }
+    }
+  }
+  if (migrated > 0) await saveDb();
+  return migrated;
+}
+
 export async function loadDbDump(dump) {
   _db = dump;
   await saveDb();
