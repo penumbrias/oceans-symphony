@@ -2,7 +2,7 @@
 // Cache-First for static assets; Stale-While-Revalidate for navigation
 // IndexedDB pass-through for /local-image/ avatar requests
 
-const CACHE_NAME = 'oceans-symphony-v2';
+const CACHE_NAME = 'oceans-symphony-v3';
 
 // ── Default avatar returned when an image ID isn't found in IDB ──
 const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
@@ -68,7 +68,7 @@ function defaultAvatarResponse() {
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(['/', '/manifest.json']))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(['/', '/manifest.json', '/offline.html', '/icon-192.png', '/icon-512.png']))
   );
 });
 
@@ -138,6 +138,8 @@ self.addEventListener('fetch', (event) => {
   if (
     url.pathname.endsWith('.svg') ||
     url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.jpg') ||
+    url.pathname.endsWith('.jpeg') ||
     url.pathname.endsWith('.ico') ||
     url.pathname.endsWith('.woff2') ||
     url.pathname.endsWith('.woff') ||
@@ -168,7 +170,7 @@ self.addEventListener('fetch', (event) => {
           const networkFetch = fetch(request).then((response) => {
             if (response.ok) cache.put('/', response.clone());
             return response;
-          });
+          }).catch(() => cached || caches.match('/offline.html'));
           return cached || networkFetch;
         })
       )
@@ -183,12 +185,7 @@ self.addEventListener('fetch', (event) => {
         const networkFetch = fetch(request).then((response) => {
           if (response.ok) cache.put(request, response.clone());
           return response;
-        }).catch(() => {
-          return cached || new Response('Offline — resource not yet cached.', {
-            status: 503,
-            headers: { 'Content-Type': 'text/plain' },
-          });
-        });
+        }).catch(() => cached || caches.match('/offline.html'));
         return cached || networkFetch;
       })
     )
