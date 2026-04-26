@@ -1,7 +1,7 @@
 {
   "name": "Oceans Symphony",
   "short_name": "Oceans",
-  "description": "A local-first plural system tracking app — all data lives on your device.",
+  "description": "A local-first companion app built for dissociative systems. Track alters, fronting, journals, emotions, and more — all data lives on your device.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -19,6 +19,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-home.jpg",
+      "sizes": "1079x2045",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Home dashboard with fronting status and feature grid"
+    },
+    {
+      "src": "/screenshot-support.jpg",
+      "sizes": "1079x2048",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Quick support — grounding techniques and safety tools"
+    },
+    {
+      "src": "/screenshot-onboarding.jpg",
+      "sizes": "1079x2048",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Welcome tour introducing Oceans Symphony"
     }
   ],
   "categories": ["health", "lifestyle", "utilities"],
