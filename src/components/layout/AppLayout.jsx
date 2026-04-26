@@ -109,7 +109,7 @@ const handleNotifClick = (mentionLog) => {
     navigate(mentionLog.navigate_path);
   } else {
     navigate(mentionLog.navigate_path || "/", {
-      state: { highlightId: mentionLog.source_id }
+      state: { highlightBulletinId: mentionLog.source_id }
     });
   }
 };

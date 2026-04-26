@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ function getContrastColor(hex) {
 function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
   const bg = alter.color || null;
   const text = bg ? getContrastColor(bg) : null;
+  const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
+  const [imgError, setImgError] = useState(false);
   return (
     <div
       onClick={onToggle}
@@ -38,13 +41,13 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
       "border-primary/60 bg-primary/5" :
       "border-border/50 bg-card hover:bg-muted/30"}`
       }>
-      
+
       <div
         className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
         style={{ backgroundColor: bg || "hsl(var(--muted))" }}>
-        
-        {alter.avatar_url ?
-        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" /> :
+
+        {resolvedUrl && !imgError ?
+        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} /> :
 
         <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />
         }
@@ -368,7 +371,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                       }}>
                       
                         {a.avatar_url ?
-                      <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" /> :
+                      <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} /> :
 
                       <User className="w-6 h-6 text-white/70" />
                       }

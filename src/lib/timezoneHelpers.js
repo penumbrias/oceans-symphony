@@ -1,5 +1,3 @@
-import { format } from 'date-fns';
-
 /**
  * Detects user's timezone from the browser.
  * Returns IANA timezone string (e.g. "America/Los_Angeles")

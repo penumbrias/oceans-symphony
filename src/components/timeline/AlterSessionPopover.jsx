@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { base44 } from "@/api/base44Client";
@@ -31,6 +32,8 @@ function localDatetimeToISO(val) {
 }
 
 export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
+  const infoResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [infoImgError, setInfoImgError] = useState(false);
   if (!session) return null;
   const start = parseDate(session.start_time);
   const end = session.end_time ? parseDate(session.end_time) : null;
@@ -41,8 +44,8 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
       <DialogContent className="max-w-xs">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {alter?.avatar_url
-              ? <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
+            {infoResolvedUrl && !infoImgError
+              ? <img src={infoResolvedUrl} alt={alter?.name} className="w-6 h-6 rounded-full object-cover" onError={() => setInfoImgError(true)} />
               : <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
                   style={{ backgroundColor: alter?.color || "#9333ea" }}>
                   {alter?.name?.charAt(0)?.toUpperCase()}
@@ -77,6 +80,8 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
 }
 
 export function AlterSessionEdit({ session, alter, onClose }) {
+  const editResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [editImgError, setEditImgError] = useState(false);
   const queryClient = useQueryClient();
   const [startVal, setStartVal] = useState(toLocalDatetimeValue(session?.start_time));
   const [endVal, setEndVal] = useState(toLocalDatetimeValue(session?.end_time));
@@ -146,8 +151,8 @@ const handleSave = async () => {
       <DialogContent className="max-w-xs">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {alter?.avatar_url
-              ? <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
+            {editResolvedUrl && !editImgError
+              ? <img src={editResolvedUrl} alt={alter?.name} className="w-6 h-6 rounded-full object-cover" onError={() => setEditImgError(true)} />
               : <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
                   style={{ backgroundColor: alter?.color || "#9333ea" }}>
                   {alter?.name?.charAt(0)?.toUpperCase()}

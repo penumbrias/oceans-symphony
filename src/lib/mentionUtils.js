@@ -1,5 +1,4 @@
 import { base44 } from "@/api/base44Client";
-import { format } from "date-fns";
 
 export function extractMentionedIds(content, alters) {
   const mentioned = new Set();

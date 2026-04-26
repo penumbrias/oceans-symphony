@@ -417,7 +417,7 @@ if (isSameCell) {
                         <div className="w-5 h-5 rounded-full border border-border overflow-hidden flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: alter?.color || "#9333ea" }}>
                           {alter?.avatar_url
-                            ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
+                            ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
                             : <span className="font-bold text-white" style={{ fontSize: 8 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
                           }
                         </div>
@@ -618,7 +618,7 @@ if (isSameCell) {
                                   style={{ width: isExpanded ? 14 : 10, height: isExpanded ? 14 : 10, backgroundColor: alter?.color || "rgba(255,255,255,0.3)" }}
                                   title={alter?.name}>
                                   {alter?.avatar_url
-                                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
                                     : <span className="font-bold text-white" style={{ fontSize: 6 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>
                                   }
                                 </div>
@@ -637,7 +637,7 @@ if (isSameCell) {
                                   style={{ width: Math.min(rowH * 0.35, 18), height: Math.min(rowH * 0.35, 18), backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }}
                                   title={alter?.name}>
                                   {alter?.avatar_url
-                                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
                                     : <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
                                   }
                                 </div>
@@ -696,7 +696,7 @@ if (isSameCell) {
                                       <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
                                         style={{ backgroundColor: a.color || "#fff" }}>
                                         {a.avatar_url
-                                          ? <img src={a.avatar_url} className="w-full h-full object-cover" />
+                                          ? <img src={a.avatar_url} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
                                           : <span style={{ fontSize: 5 }} className="flex items-center justify-center h-full font-bold">{a.name?.charAt(0)}</span>
                                         }
                                       </div>

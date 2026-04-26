@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format } from "date-fns";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -83,14 +84,16 @@ function buildSegments(getSlotData) {
 
 function AlterAvatar({ alterId, alters }) {
   const alter = alters.find(a => a.id === alterId);
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
   return (
     <div
       className="w-5 h-5 rounded-full border-2 border-white/80 overflow-hidden flex items-center justify-center flex-shrink-0"
       style={{ backgroundColor: alter?.color || "#9333ea" }}
       title={alter?.name}
     >
-      {alter?.avatar_url
-        ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
+      {resolvedUrl && !imgError
+        ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
         : <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
       }
     </div>

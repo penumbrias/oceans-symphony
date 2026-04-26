@@ -520,8 +520,12 @@ const SystemMap = ({ relationships = [] }) => {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
-  const alterNodeCount = nodes.filter(n => n.type === "alter").length;
-  const groupNodeCount = nodes.filter(n => n.type === "group").length;
+  const alterNodeCount = useMemo(() => nodes.filter(n => n.type === "alter").length, [nodes]);
+  const groupNodeCount = useMemo(() => nodes.filter(n => n.type === "group").length, [nodes]);
+  const maxCofrontStrength = useMemo(
+    () => Math.max(...links.filter(l => l.type === "cofronting").map(l => l.strength || 1), 1),
+    [links]
+  );
   const currentTimeMode = TIME_MODES.find(t => t.id === timeMode);
 
   return (
@@ -565,15 +569,14 @@ const SystemMap = ({ relationships = [] }) => {
               const targetNode = nodes.find((n) => n.id === link.target);
               if (!sourceNode || !targetNode) return null;
               const isCofronting = link.type === "cofronting";
-              const maxStrength = Math.max(...links.filter(l => l.type === "cofronting").map(l => l.strength || 1), 1);
-              const opacity = isCofronting ? 0.15 + (link.strength / maxStrength) * 0.55 : 0.3;
+              const opacity = isCofronting ? 0.15 + (link.strength / maxCofrontStrength) * 0.55 : 0.3;
               return (
                 <line
                   key={`link-${idx}`}
                   x1={sourceNode.x} y1={sourceNode.y}
                   x2={targetNode.x} y2={targetNode.y}
                   stroke={isCofronting ? "hsl(var(--accent))" : "hsl(var(--muted-foreground))"}
-                  strokeWidth={isCofronting ? Math.max(0.5, Math.min(3, (link.strength / maxStrength) * 3)) : 1.5}
+                  strokeWidth={isCofronting ? Math.max(0.5, Math.min(3, (link.strength / maxCofrontStrength) * 3)) : 1.5}
                   opacity={opacity}
                   strokeDasharray={link.type === "membership" ? "5,5" : "0"}
                 />

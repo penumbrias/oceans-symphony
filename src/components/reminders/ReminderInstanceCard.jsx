@@ -1,8 +1,10 @@
 import { formatDistanceToNow, format } from "date-fns";
 import { Clock, ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "./snoozeHelpers";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +20,8 @@ const STATUS_LABELS = {
 };
 
 function AlterAvatar({ alter, categoryIcon }) {
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
   if (!alter) {
     return (
       <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -31,8 +35,8 @@ function AlterAvatar({ alter, categoryIcon }) {
       className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 border-2 overflow-hidden"
       style={{ borderColor }}
     >
-      {alter.avatar_url ? (
-        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+      {resolvedUrl && !imgError ? (
+        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
       ) : (
         <div
           className="w-full h-full flex items-center justify-center text-white text-sm font-bold"

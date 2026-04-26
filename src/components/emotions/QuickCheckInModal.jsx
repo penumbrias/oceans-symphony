@@ -442,7 +442,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                         <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
                           style={{ backgroundColor: a.color || "hsl(var(--muted))" }}>
                           {a.avatar_url
-                            ? <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                            ? <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
                             : <User className="w-4 h-4 text-white/70" />}
                         </div>
                         <div className="flex-1 min-w-0">

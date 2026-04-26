@@ -14,8 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 function AlterDot({ alter }) {
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
   if (!alter) return null;
   const color = alter.color || "#3B82F6";
   return (
@@ -23,8 +26,8 @@ function AlterDot({ alter }) {
       className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 border-2 overflow-hidden"
       style={{ borderColor: color, backgroundColor: color }}
     >
-      {alter.avatar_url ? (
-        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+      {resolvedUrl && !imgError ? (
+        <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
       ) : (
         alter.name?.[0]?.toUpperCase() || "?"
       )}

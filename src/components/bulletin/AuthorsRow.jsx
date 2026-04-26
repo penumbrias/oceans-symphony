@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { User } from "lucide-react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -15,14 +16,16 @@ function getContrastColor(hex) {
 function AlterAvatar({ alter, size = "md" }) {
   const sz = size === "sm" ? "w-5 h-5" : "w-7 h-7";
   const iconSz = size === "sm" ? "w-3 h-3" : "w-4 h-4";
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
   return (
     <div
       className={`${sz} rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30`}
       style={{ backgroundColor: alter?.color || "hsl(var(--muted))" }}
       title={alter?.name}
     >
-      {alter?.avatar_url ? (
-        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+      {resolvedUrl && !imgError ? (
+        <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
       ) : (
         <User className={iconSz} style={{ color: getContrastColor(alter?.color) }} />
       )}

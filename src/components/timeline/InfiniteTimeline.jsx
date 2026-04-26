@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import AlterAvatarInline from "@/components/shared/AlterAvatar";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -135,6 +137,8 @@ function StatusNoteBadge({ note, topPx, id }) {
 function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress }) {
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
   const lpRef = useRef(null);
   const touchFiredRef = useRef(false);
 
@@ -170,8 +174,8 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
           boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
         }}
         title={alter?.name + (isPrimary ? " (primary)" : "")}>
-        {alter?.avatar_url
-          ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
+        {resolvedUrl && !imgError
+          ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
           : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
       </div>
       {heightPx > sz + 4 && (
@@ -188,6 +192,8 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
 
 function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
   const [adjustedMins, setAdjustedMins] = useState(splitMins);
+  const splitResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [splitImgError, setSplitImgError] = useState(false);
   const isPrimary = session?.alter_id
     ? (session?.is_primary ?? false)
     : session?.primary_alter_id === alter?.id;
@@ -209,8 +215,8 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
       <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2">
-          {alter?.avatar_url
-            ? <img src={alter.avatar_url} alt={alter.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+          {splitResolvedUrl && !splitImgError
+            ? <img src={splitResolvedUrl} alt={alter?.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" onError={() => setSplitImgError(true)} />
             : <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                 style={{ backgroundColor: alter?.color || "#9333ea" }}>
                 {alter?.name?.charAt(0)?.toUpperCase()}
@@ -325,13 +331,7 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
                 className={`w-full text-left px-2 py-1.5 rounded-md text-sm flex items-center gap-2 transition-colors ${
                   selectedAlterId === a.id ? "bg-primary/15 text-primary" : "hover:bg-muted/50"
                 }`}>
-                {a.avatar_url
-                  ? <img src={a.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
-                  : <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: a.color || "#9333ea", fontSize: 9 }}>
-                      {a.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                }
+                <AlterAvatarInline alter={a} size="xs" />
                 <span className="truncate">{a.name}</span>
               </button>
             ))}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
@@ -34,6 +35,8 @@ function directionLabel(direction, nameA, nameB) {
 function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const selectedResolvedUrl = useResolvedAvatarUrl(selected?.avatar_url);
+  const [selectedImgError, setSelectedImgError] = useState(false);
 
   const filtered = allAlters.filter(a =>
     a.id !== excludeId &&
@@ -48,8 +51,8 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
         className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted/30 transition-colors text-left">
         {selected ? (
           <>
-            {selected.avatar_url ? (
-              <img src={selected.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+            {selectedResolvedUrl && !selectedImgError ? (
+              <img src={selectedResolvedUrl} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={() => setSelectedImgError(true)} />
             ) : (
               <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
                 style={{ backgroundColor: selected.color || "#8b5cf6" }}>
@@ -82,7 +85,7 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
                   onClick={() => { onSelect(alter); setOpen(false); setSearch(""); }}
                   className="w-full flex items-center gap-2 px-3 py-2 border-b border-border/30 hover:bg-muted/40 transition-colors text-left">
                   {alter.avatar_url ? (
-                    <img src={alter.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                    <img src={alter.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
                   ) : (
                     <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
                       style={{ backgroundColor: alter.color || "#8b5cf6" }}>
