@@ -86,13 +86,31 @@ const SystemMap = ({ relationships = [] }) => {
     return time;
   }, [frontingSessions]);
 
+  // For co-fronting mode: actual time each alter spent fronting alongside at least one other alter.
+  // Derived from pairwise overlaps so it reflects real simultaneous presence, not just "is_primary=false".
+  const frontingCofrontTime = useMemo(() => {
+    const result = {};
+    Object.entries(cofrontingTimeAll).forEach(([id, peers]) => {
+      result[id] = Object.values(peers).reduce((sum, times) => sum + times.total, 0);
+    });
+    return result;
+  }, [cofrontingTimeAll]);
+
   const frontingTime = useMemo(() => {
     const result = {};
     Object.entries(frontingTimeAll).forEach(([id, times]) => {
-      result[id] = times[timeMode] ?? times.total;
+      result[id] = timeMode === 'cofronting'
+        ? (frontingCofrontTime[id] ?? 0)
+        : (times[timeMode] ?? times.total);
     });
+    // Include alters that only appear in cofrontingTimeAll (had overlaps but no solo sessions)
+    if (timeMode === 'cofronting') {
+      Object.keys(frontingCofrontTime).forEach(id => {
+        if (!(id in result)) result[id] = frontingCofrontTime[id];
+      });
+    }
     return result;
-  }, [frontingTimeAll, timeMode]);
+  }, [frontingTimeAll, frontingCofrontTime, timeMode]);
 
   // cofrontingTime[idA][idB] = { total, primary, cofronting } ms of overlap
   const cofrontingTimeAll = useMemo(() => {
@@ -144,13 +162,15 @@ const SystemMap = ({ relationships = [] }) => {
     return map;
   }, [frontingSessions]);
 
-  // Flatten cofrontingTime to the selected timeMode key
+  // Flatten cofrontingTime to the selected timeMode key.
+  // In co-fronting mode, use total overlap time (not "A was non-primary while with B")
+  // so the link weights reflect actual simultaneous presence regardless of role.
   const cofrontingTime = useMemo(() => {
     const result = {};
     Object.entries(cofrontingTimeAll).forEach(([idA, peers]) => {
       result[idA] = {};
       Object.entries(peers).forEach(([idB, times]) => {
-        result[idA][idB] = times[timeMode] ?? times.total;
+        result[idA][idB] = timeMode === 'cofronting' ? times.total : (times[timeMode] ?? times.total);
       });
     });
     return result;
