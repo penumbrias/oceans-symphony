@@ -1,31 +1,30 @@
-import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
-import { isLocalMode } from '@/lib/storageMode';
+// Local-first client — no cloud, no base44 SDK.
+// All data lives in the browser's IndexedDB.
+
 import { createLocalDbEntities, createLocalAuth } from '@/lib/localDb';
 
-const { appId, token, functionsVersion, appBaseUrl } = appParams;
-
-const cloudClient = createClient({
-  appId,
-  token,
-  functionsVersion,
-  serverUrl: '',
-  requiresAuth: false,
-  appBaseUrl
-});
-
-// Smart proxy: routes to local or cloud depending on storage mode
 export const localEntities = createLocalDbEntities();
 const localAuth = createLocalAuth();
 
-export const base44 = new Proxy(cloudClient, {
-  get(target, prop) {
-    if (isLocalMode()) {
-      if (prop === 'entities') return localEntities;
-      if (prop === 'auth') return localAuth;
-      if (prop === 'integrations') return target.integrations; // integrations still work via cloud
-      if (prop === 'functions') return target.functions;
-    }
-    return target[prop];
-  }
-});
+const localFunctions = {
+  invoke: async (name, _args) => {
+    // Cloud functions are not available in local mode.
+    // Callers that need local equivalents handle it themselves.
+    throw new Error(`Cloud function "${name}" is not available in local-first mode.`);
+  },
+};
+
+const localIntegrations = {
+  Core: {
+    UploadFile: async () => {
+      throw new Error('Cloud file upload is not available in local-first mode.');
+    },
+  },
+};
+
+export const base44 = {
+  entities: localEntities,
+  auth: localAuth,
+  functions: localFunctions,
+  integrations: localIntegrations,
+};

@@ -52,16 +52,8 @@ const FONTS = [
   { label: "Tajawal", value: "Tajawal, sans-serif" },
 ];
 
-// Inject Google Fonts
-const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Poppins&family=Nunito&family=Raleway&family=Playfair+Display&family=Lora&family=Merriweather&family=Fira+Code&family=Space+Mono&family=Caveat&family=Dancing+Script&family=Pacifico&family=Satisfy&family=Righteous&family=Lobster&family=Bungee&family=Orbitron&family=Press+Start+2P&family=VT323&family=Noto+Sans&family=Noto+Serif&family=Sawarabi+Mincho&family=Nanum+Gothic&family=Amiri&family=Tajawal&display=swap";
-
-if (typeof document !== "undefined" && !document.getElementById("os-google-fonts")) {
-  const link = document.createElement("link");
-  link.id = "os-google-fonts";
-  link.rel = "stylesheet";
-  link.href = GOOGLE_FONTS_URL;
-  document.head.appendChild(link);
-}
+// Editor fonts are bundled locally — no Google Fonts CDN
+import '@/lib/editorFonts.js';
 
 export function ColorPickerModal({ mode, onApply, onClose }) {
   const isFg = mode === "fg";

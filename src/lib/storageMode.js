@@ -1,5 +1,5 @@
-// Storage mode management — persisted in localStorage
-// mode: 'cloud' | 'local' | null (first run)
+// Storage mode — always local-first.
+// Cloud mode has been removed; all data lives in the browser's IndexedDB.
 
 const KEYS = {
   mode: 'symphony_storage_mode',
@@ -8,10 +8,18 @@ const KEYS = {
   localUser: 'symphony_local_user',
 };
 
-export const isFirstRun = () => !localStorage.getItem(KEYS.mode);
-export const getMode = () => localStorage.getItem(KEYS.mode);
-export const isLocalMode = () => getMode() === 'local';
-export const setMode = (mode) => localStorage.setItem(KEYS.mode, mode);
+// Auto-set local mode on first run so no onboarding screen is shown
+export const isFirstRun = () => {
+  if (!localStorage.getItem(KEYS.mode)) {
+    localStorage.setItem(KEYS.mode, 'local');
+    return false;
+  }
+  return false;
+};
+
+export const getMode = () => 'local';
+export const isLocalMode = () => true;
+export const setMode = () => localStorage.setItem(KEYS.mode, 'local');
 
 export const isEncryptionEnabled = () => localStorage.getItem(KEYS.encEnabled) === 'true';
 export const setEncryptionEnabled = (v) => localStorage.setItem(KEYS.encEnabled, v ? 'true' : 'false');

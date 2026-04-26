@@ -7,6 +7,26 @@ import SetFrontModal from "@/components/fronting/SetFrontModal";
 
 const MIGRATION_DISMISSED_KEY = "os_session_migration_done";
 
+// Local implementation of the cloud function "migrateSessionsToIndividual".
+// Converts legacy sessions (primary_alter_id + co_fronter_ids) into individual
+// per-alter sessions (each with a single alter_id field).
+async function runLocalMigration(sessions) {
+  for (const session of sessions) {
+    if (!session.primary_alter_id || session.alter_id) continue;
+    const alters = [session.primary_alter_id, ...(session.co_fronter_ids || [])];
+    for (const alterId of alters) {
+      await base44.entities.FrontingSession.create({
+        alter_id: alterId,
+        start_time: session.start_time,
+        end_time: session.end_time,
+        is_active: session.is_active || false,
+        notes: session.notes || "",
+      });
+    }
+    await base44.entities.FrontingSession.delete(session.id);
+  }
+}
+
 export default function MigrationBanner() {
   const queryClient = useQueryClient();
   const [migrating, setMigrating] = useState(false);
@@ -27,15 +47,14 @@ export default function MigrationBanner() {
     enabled: !done,
   });
 
-  // Check if any legacy sessions exist
-  const hasLegacy = sessions.some(s => s.primary_alter_id && !s.alter_id);
+  const legacySessions = sessions.filter(s => s.primary_alter_id && !s.alter_id);
 
-  if (done || !hasLegacy) return null;
+  if (done || legacySessions.length === 0) return null;
 
   const handleMigrate = async () => {
     setMigrating(true);
     try {
-      await base44.functions.invoke("migrateSessionsToIndividual", {});
+      await runLocalMigration(legacySessions);
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       localStorage.setItem(MIGRATION_DISMISSED_KEY, "true");
@@ -63,13 +82,13 @@ export default function MigrationBanner() {
           </div>
 
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Oceans-Symphony is updating how fronting history is stored. This is a one-time process that will preserve all your data.
+            Oceans Symphony is updating how fronting history is stored. This is a one-time process that will preserve all your data.
             After migration completes, you'll need to re-set who is currently fronting.
           </p>
 
           <div className="bg-muted/30 rounded-lg p-3 text-xs text-muted-foreground space-y-1">
             <p>✓ All fronting history is preserved</p>
-            <p>✓ Notes are migrated to Emotion Check-Ins</p>
+            <p>✓ Runs entirely on your device — no cloud needed</p>
             <p>✓ This takes only a moment</p>
           </div>
 

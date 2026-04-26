@@ -1,0 +1,26 @@
+{
+  "name": "Oceans Symphony",
+  "short_name": "Symphony",
+  "description": "A local-first plural system tracking app — all data lives on your device.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0E17",
+  "theme_color": "#38BDF8",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["health", "lifestyle", "utilities"],
+  "lang": "en"
+}

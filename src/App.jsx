@@ -6,7 +6,6 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import AppLayout from '@/components/layout/AppLayout';
 import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
@@ -31,20 +30,19 @@ import SafetyPlan from '@/pages/SafetyPlan';
 import BulletinPage from '@/pages/BulletinPage';
 import ManageCheckIn from '@/pages/ManageCheckIn';
 import TherapyReport from '@/pages/TherapyReport';
-import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import Reminders from '@/pages/Reminders';
 import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
-import { isFirstRun, isLocalMode, isEncryptionEnabled } from '@/lib/storageMode';
+import { isEncryptionEnabled } from '@/lib/storageMode';
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal } from '@/lib/localDb';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
+import UnlockScreen from '@/components/onboarding/UnlockScreen';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth } = useAuth();
   useTimezoneSync();
 
-  // Show loading screen while checking app public settings or auth
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
         <div className="flex flex-col items-center gap-3">
@@ -55,18 +53,6 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
-      navigateToLogin();
-      return null;
-    }
-  }
-
-  // Render the main app
   return (
     <Routes>
       <Route element={<AppLayout />}>
@@ -103,44 +89,54 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  // 'loading' while IndexedDB initializes, 'unlock' if encryption is set, null when ready
   const [setupState, setSetupState] = useState(() => {
-    if (isFirstRun()) return 'first_run';
-    if (isLocalMode() && isEncryptionEnabled() && !isDbInitialized()) return 'unlock';
-    if (isLocalMode() && !isDbInitialized()) {
-      // Auto-init unencrypted local db
-      initLocalDb(null).catch(() => {});
-    }
-    return null;
+    if (isEncryptionEnabled() && !isDbInitialized()) return 'unlock';
+    return 'loading';
   });
 
-  // Run migration after initial setup (in useEffect to ensure DB is ready)
   useEffect(() => {
-    if (isLocalMode() && isDbInitialized() && !setupState) {
+    if (setupState === 'loading') {
+      initLocalDb(null)
+        .then(() => setSetupState(null))
+        .catch(() => setSetupState(null));
+    }
+  }, [setupState]);
+
+  useEffect(() => {
+    if (setupState === null && isDbInitialized()) {
       migrateBase64AvatarsToLocal().catch(() => {});
     }
   }, [setupState]);
 
+  if (setupState === 'loading') {
+    return (
+      <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
+  if (setupState === 'unlock') {
+    return (
+      <ThemeProvider>
+        <UnlockScreen onUnlock={() => setSetupState(null)} />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClientInstance}>
         <AuthProvider>
           <Router>
-            {setupState ? (
-              <StorageModeSetup mode={setupState} onComplete={() => {
-                setSetupState(null);
-                window.location.href = "/";
-              }} />
-            ) : (
-              <AuthenticatedApp />
-            )}
+            <AuthenticatedApp />
           </Router>
           <Toaster />
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
-  )
+  );
 }
 
 export default App
