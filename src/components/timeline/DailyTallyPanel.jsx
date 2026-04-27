@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { parseDate } from "@/lib/dateUtils";
 import { startOfDay, endOfDay, format } from "date-fns";
-import { ChevronRight, BookOpen, Heart, Activity, MessageSquare, CheckSquare, Zap, Users } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -18,19 +18,23 @@ function fmtMins(mins) {
   if (mins >= 60) return `${Math.round(mins / 60)}h`;
   return `${mins}m`;
 }
-function fmtTime(date) {
-  return format(date, "h:mm a");
+
+function SectionLabel({ children }) {
+  return <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{children}</p>;
 }
 
-const TYPE_META = {
-  journal:        { icon: BookOpen,      color: "#8b5cf6", label: "Journal" },
-  checkin:        { icon: Heart,         color: "#f43f5e", label: "Check-In" },
-  system_checkin: { icon: Users,         color: "#3b82f6", label: "System Check-In" },
-  activity:       { icon: Activity,      color: "#22c55e", label: "Activity" },
-  bulletin:       { icon: MessageSquare, color: "#f59e0b", label: "Bulletin" },
-  task:           { icon: CheckSquare,   color: "#14b8a6", label: "Task" },
-  symptom:        { icon: Zap,           color: "#ec4899", label: "Symptom" },
-};
+function NavRow({ label, sublabel, route, navigate }) {
+  return (
+    <button
+      onClick={() => navigate(route)}
+      className="w-full flex items-center gap-1 text-left hover:bg-muted/40 px-1.5 py-0.5 rounded transition-colors -mx-1.5"
+    >
+      <span className="text-xs text-foreground truncate flex-1">{label}</span>
+      {sublabel && <span className="text-[10px] text-muted-foreground flex-shrink-0">{sublabel}</span>}
+      <ChevronRight className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />
+    </button>
+  );
+}
 
 export default function DailyTallyPanel({
   day, sessions, activities, emotions, journals, alters,
@@ -46,7 +50,7 @@ export default function DailyTallyPanel({
 
   const catMap = useMemo(() => Object.fromEntries((categories || []).map(c => [c.id, c])), [categories]);
 
-  // ── Summary data ──────────────────────────────────────────────────────────
+  // ── Fronting ─────────────────────────────────────────────────────────────
   const switchCount = useMemo(() => sessions.filter(s => inDay(parseDate(s.start_time))).length, [sessions, dayStart, dayEnd]);
 
   const fronterTally = useMemo(() => {
@@ -78,6 +82,12 @@ export default function DailyTallyPanel({
       .sort((a, b) => b.total - a.total);
   }, [sessions, dayStart, dayEnd, alters]);
 
+  // ── Activities ────────────────────────────────────────────────────────────
+  const dayActivities = useMemo(() =>
+    activities.filter(a => inDay(parseDate(a.timestamp)))
+  , [activities, dayStart, dayEnd]);
+
+  // ── Emotions ──────────────────────────────────────────────────────────────
   const emotionTally = useMemo(() => {
     const tally = {};
     emotions.filter(e => inDay(parseDate(e.timestamp))).forEach(e => {
@@ -86,109 +96,64 @@ export default function DailyTallyPanel({
     return Object.entries(tally).sort((a, b) => b[1] - a[1]);
   }, [emotions, dayStart, dayEnd]);
 
-  // ── Chronological entry log ───────────────────────────────────────────────
-  const dayEntries = useMemo(() => {
-    const entries = [];
+  const dayEmotions = useMemo(() => emotions.filter(e => inDay(parseDate(e.timestamp))), [emotions, dayStart, dayEnd]);
+  const dayCheckIns = useMemo(() => checkIns.filter(c => inDay(parseDate(c.created_date))), [checkIns, dayStart, dayEnd]);
 
-    journals.forEach(j => {
-      const t = parseDate(j.created_date);
-      if (!inDay(t)) return;
-      entries.push({
-        time: t, type: "journal", id: j.id,
-        title: j.title || "Journal Entry",
-        subtitle: j.entry_type ? `${j.entry_type} · ${j.folder || ""}`.replace(/ · $/, "") : "",
-        route: `/journals?id=${j.id}`,
-      });
-    });
+  // ── Journals ──────────────────────────────────────────────────────────────
+  const dayJournals = useMemo(() => journals.filter(j => inDay(parseDate(j.created_date))), [journals, dayStart, dayEnd]);
 
-    emotions.forEach(e => {
-      const t = parseDate(e.timestamp);
-      if (!inDay(t)) return;
-      const emotionList = (e.emotions || []).slice(0, 4).join(", ");
-      entries.push({
-        time: t, type: "checkin", id: e.id,
-        title: "Quick Check-In",
-        subtitle: emotionList || (e.note ? e.note.slice(0, 60) : "No emotions logged"),
-        route: `/checkin-log?id=${e.id}`,
-      });
-    });
+  // ── Bulletins ─────────────────────────────────────────────────────────────
+  const dayBulletins = useMemo(() => bulletins.filter(b => inDay(parseDate(b.created_date))), [bulletins, dayStart, dayEnd]);
 
-    checkIns.forEach(c => {
-      const t = parseDate(c.created_date);
-      if (!inDay(t)) return;
-      entries.push({
-        time: t, type: "system_checkin", id: c.id,
-        title: "System Check-In",
-        subtitle: c.title || "",
-        route: `/system-checkin`,
-      });
-    });
+  // ── Tasks ─────────────────────────────────────────────────────────────────
+  const dayTasks = useMemo(() => tasks.filter(t => inDay(parseDate(t.created_date))), [tasks, dayStart, dayEnd]);
 
-    activities.forEach(a => {
-      const t = parseDate(a.timestamp);
-      if (!inDay(t)) return;
-      const catNames = (a.activity_category_ids || []).map(id => catMap[id]?.name).filter(Boolean).join(", ");
-      entries.push({
-        time: t, type: "activity", id: a.id,
-        title: a.activity_name || catNames || "Activity",
-        subtitle: [
-          a.duration_minutes ? `${a.duration_minutes} min` : "",
-          a.notes?.slice(0, 50),
-        ].filter(Boolean).join(" · ") || "",
-        route: `/activities`,
-      });
-    });
-
-    bulletins.forEach(b => {
-      const t = parseDate(b.created_date);
-      if (!inDay(t)) return;
-      entries.push({
-        time: t, type: "bulletin", id: b.id,
-        title: b.title || "Bulletin",
-        subtitle: b.content?.slice(0, 70) || "",
-        route: `/bulletin/${b.id}`,
-      });
-    });
-
-    tasks.filter(t => inDay(parseDate(t.created_date))).forEach(t => {
-      entries.push({
-        time: parseDate(t.created_date), type: "task", id: t.id,
-        title: t.title || "Task",
-        subtitle: t.completed ? "✓ Completed" : "In progress",
-        route: `/todo`,
-      });
-    });
-
-    // Unique symptom sessions starting this day
-    const seenSymptoms = new Set();
-    const symptomMap = Object.fromEntries((symptoms || []).map(s => [s.id, s]));
-    symptomSessions.forEach(ss => {
+  // ── Symptoms ──────────────────────────────────────────────────────────────
+  const symptomMap = useMemo(() => Object.fromEntries((symptoms || []).map(s => [s.id, s])), [symptoms]);
+  const daySymptomSessions = useMemo(() => {
+    const seen = new Set();
+    return symptomSessions.filter(ss => {
       const t = parseDate(ss.start_time);
-      if (!inDay(t) || seenSymptoms.has(ss.symptom_id)) return;
-      seenSymptoms.add(ss.symptom_id);
-      const sym = symptomMap[ss.symptom_id];
-      entries.push({
-        time: t, type: "symptom", id: ss.id,
-        title: sym?.name || sym?.label || "Symptom",
-        subtitle: ss.end_time ? `Ended ${fmtTime(parseDate(ss.end_time))}` : "Ongoing",
-        route: null,
-      });
+      if (!inDay(t) || seen.has(ss.symptom_id)) return false;
+      seen.add(ss.symptom_id);
+      return true;
     });
-
-    return entries.sort((a, b) => a.time - b.time);
-  }, [journals, emotions, checkIns, activities, bulletins, tasks, symptomSessions, symptoms, catMap, dayStart, dayEnd]);
+  }, [symptomSessions, dayStart, dayEnd]);
 
   return (
-    <div className="px-4 py-3 bg-muted/20 border-t border-border/40 space-y-4 text-xs">
+    <div className="px-4 py-3 bg-muted/20 border-t border-border/40 text-xs space-y-3">
 
-      {/* ── Fronting summary ── */}
-      {fronterTally.length > 0 && (
+      {/* ── Row 1: Activities | Switches | Fronting ── */}
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3">
+
+        {/* Activities */}
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <p className="text-muted-foreground font-medium">Fronting</p>
-            <span className="text-muted-foreground">·</span>
-            <span className="font-semibold text-primary">{switchCount} switch{switchCount !== 1 ? "es" : ""}</span>
-            <div className="flex gap-0.5 bg-muted/40 rounded-full p-0.5 ml-auto">
+          <SectionLabel>Activities</SectionLabel>
+          {dayActivities.length === 0 ? (
+            <p className="text-muted-foreground italic">None</p>
+          ) : (
+            <div className="space-y-0.5">
+              {dayActivities.map(a => {
+                const catNames = (a.activity_category_ids || []).map(id => catMap[id]?.name).filter(Boolean).join(", ");
+                const name = a.activity_name || catNames || "Activity";
+                const sub = a.duration_minutes ? `${a.duration_minutes}m` : "";
+                return <NavRow key={a.id} label={name} sublabel={sub} route="/activities" navigate={navigate} />;
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Switches */}
+        <div className="text-center flex flex-col items-center pt-0.5">
+          <SectionLabel>Switches</SectionLabel>
+          <span className="text-3xl font-bold text-primary leading-none">{switchCount}</span>
+        </div>
+
+        {/* Fronting */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <SectionLabel>Fronters</SectionLabel>
+            <div className="flex gap-0.5 bg-muted/40 rounded-full p-0.5">
               {[{ id: "total", label: "All" }, { id: "primary", label: "⭐" }, { id: "cofronting", label: "co" }].map(opt => (
                 <button key={opt.id} onClick={() => setFrontingView(opt.id)}
                   className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium transition-colors ${frontingView === opt.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
@@ -197,84 +162,129 @@ export default function DailyTallyPanel({
               ))}
             </div>
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {fronterTally
-              .filter(({ primary, cofronting }) => {
-                if (frontingView === "primary") return primary > 0;
-                if (frontingView === "cofronting") return cofronting > 0;
-                return true;
-              })
-              .map(({ alter, alterId, total, primary, cofronting }) => {
-                const mins = frontingView === "primary" ? primary : frontingView === "cofronting" ? cofronting : total;
-                return (
-                  <div key={alterId} className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter?.color || "#9333ea" }} />
-                    <span className="text-xs">{alter?.name || "Unknown"}</span>
-                    <span className="text-muted-foreground text-xs">{fmtMins(mins)}</span>
-                  </div>
-                );
-              })}
-          </div>
+          {fronterTally.length === 0 ? (
+            <p className="text-muted-foreground italic">None</p>
+          ) : (
+            <div className="space-y-0.5">
+              {fronterTally
+                .filter(({ primary, cofronting }) => {
+                  if (frontingView === "primary") return primary > 0;
+                  if (frontingView === "cofronting") return cofronting > 0;
+                  return true;
+                })
+                .map(({ alter, alterId, total, primary, cofronting }) => {
+                  const mins = frontingView === "primary" ? primary : frontingView === "cofronting" ? cofronting : total;
+                  return (
+                    <div key={alterId} className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter?.color || "#9333ea" }} />
+                      <span className="flex-1 truncate">{alter?.name || "Unknown"}</span>
+                      <span className="text-muted-foreground tabular-nums">{fmtMins(mins)}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* ── Emotion chips ── */}
-      {emotionTally.length > 0 && (
-        <div>
-          <p className="text-muted-foreground font-medium mb-1.5">Emotions</p>
+      {/* ── Emotions ── */}
+      <div>
+        <SectionLabel>Emotions</SectionLabel>
+        {emotionTally.length === 0 ? (
+          <p className="text-muted-foreground italic">None</p>
+        ) : (
           <div className="flex flex-wrap gap-1">
-            {emotionTally.slice(0, 6).map(([em, count]) => (
+            {emotionTally.slice(0, 8).map(([em, count]) => (
               <span key={em} className="px-1.5 py-0.5 rounded text-white font-medium text-xs flex items-center gap-1"
                 style={{ backgroundColor: emotionColor(em) }}>
                 {em}{count > 1 && <span className="opacity-75">×{count}</span>}
               </span>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* ── Row 2: Check-ins | Symptoms ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <SectionLabel>Check-ins</SectionLabel>
+          {dayEmotions.length === 0 && dayCheckIns.length === 0 ? (
+            <p className="text-muted-foreground italic">None</p>
+          ) : (
+            <div className="space-y-0.5">
+              {dayEmotions.length > 0 && (
+                <NavRow label={`${dayEmotions.length} quick`} route="/checkin-log" navigate={navigate} />
+              )}
+              {dayCheckIns.length > 0 && (
+                <NavRow label={`${dayCheckIns.length} system`} route="/system-checkin" navigate={navigate} />
+              )}
+            </div>
+          )}
+        </div>
+        <div>
+          <SectionLabel>Symptoms</SectionLabel>
+          {daySymptomSessions.length === 0 ? (
+            <p className="text-muted-foreground italic">None</p>
+          ) : (
+            <div className="space-y-0.5">
+              {daySymptomSessions.map(ss => {
+                const sym = symptomMap[ss.symptom_id];
+                const name = sym?.name || sym?.label || "Symptom";
+                const sub = ss.end_time ? `ended ${format(parseDate(ss.end_time), "h:mm a")}` : "ongoing";
+                return (
+                  <p key={ss.id} className="text-xs text-foreground">
+                    {name} <span className="text-muted-foreground">· {sub}</span>
+                  </p>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Journals ── */}
+      {dayJournals.length > 0 && (
+        <div>
+          <SectionLabel>Journals</SectionLabel>
+          <div className="space-y-0.5">
+            {dayJournals.map(j => (
+              <NavRow
+                key={j.id}
+                label={j.title || "Journal Entry"}
+                sublabel={j.entry_type || ""}
+                route={`/journals?id=${j.id}`}
+                navigate={navigate}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      {/* ── Day log ── */}
-      <div>
-        <p className="text-muted-foreground font-medium mb-1.5">Day Log <span className="font-normal text-muted-foreground/60">({dayEntries.length})</span></p>
-        {dayEntries.length === 0 ? (
-          <p className="text-muted-foreground italic">No entries recorded</p>
-        ) : (
-          <div className="space-y-0.5">
-            {dayEntries.map((entry) => {
-              const meta = TYPE_META[entry.type];
-              const Icon = meta?.icon;
-              const isClickable = !!entry.route;
-              const Row = isClickable ? "button" : "div";
-              return (
-                <Row
-                  key={`${entry.type}-${entry.id}`}
-                  onClick={isClickable ? () => navigate(entry.route) : undefined}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${
-                    isClickable ? "hover:bg-muted/50 cursor-pointer active:bg-muted/70" : ""
-                  }`}
-                >
-                  <span className="text-[10px] text-muted-foreground/60 w-14 flex-shrink-0 tabular-nums">
-                    {fmtTime(entry.time)}
-                  </span>
-                  {Icon && (
-                    <span className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${meta.color}25` }}>
-                      <Icon className="w-3 h-3" style={{ color: meta.color }} />
-                    </span>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-foreground truncate block leading-tight">{entry.title}</span>
-                    {entry.subtitle && (
-                      <span className="text-muted-foreground text-[10px] truncate block leading-tight">{entry.subtitle}</span>
-                    )}
-                  </div>
-                  {isClickable && <ChevronRight className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />}
-                </Row>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* ── Tasks | Bulletins ── */}
+      {(dayTasks.length > 0 || dayBulletins.length > 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          {dayTasks.length > 0 && (
+            <div>
+              <SectionLabel>Tasks</SectionLabel>
+              <NavRow
+                label={`${dayTasks.filter(t => t.completed).length}/${dayTasks.length} done`}
+                route="/todo"
+                navigate={navigate}
+              />
+            </div>
+          )}
+          {dayBulletins.length > 0 && (
+            <div>
+              <SectionLabel>Bulletins</SectionLabel>
+              <div className="space-y-0.5">
+                {dayBulletins.map(b => (
+                  <NavRow key={b.id} label={b.title || "Bulletin"} route={`/bulletin/${b.id}`} navigate={navigate} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   );
