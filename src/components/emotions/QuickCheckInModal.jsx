@@ -24,7 +24,7 @@ const PILLS = [
 { id: "note", label: "Note", icon: FileText }];
 
 
-export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null }) {
+export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null, retroTimestamp = null }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
@@ -210,7 +210,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
     setSaving(true);
     try {
-      const now = new Date().toISOString();
+      const now = retroTimestamp || new Date().toISOString();
       await handleSaveActivities();
 
       // Fronting sync — if fronting section was opened at any point (even if later collapsed)
