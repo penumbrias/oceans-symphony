@@ -111,6 +111,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
   const [relType, setRelType] = useState("");
   const [color, setColor] = useState("#3b82f6");
   const [notes, setNotes] = useState("");
+  const [strength, setStrength] = useState(3);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Set default type once loaded
@@ -142,6 +143,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
       direction,
       color,
       notes,
+      strength,
     });
   };
 
@@ -193,6 +195,23 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
               <option key={t.id || t.label} value={t.label}>{t.label}</option>
             ))}
           </select>
+        </div>
+
+        {/* Strength */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+            Strength <span className="font-normal normal-case text-muted-foreground/70">{["", "Very Weak", "Weak", "Moderate", "Strong", "Very Strong"][strength]}</span>
+          </p>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map(v => (
+              <button key={v} onClick={() => setStrength(v)}
+                className={`flex-1 h-8 rounded-lg border-2 text-xs font-bold transition-all ${
+                  v <= strength ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary/50"
+                }`}>
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Color */}

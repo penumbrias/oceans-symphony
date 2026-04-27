@@ -617,6 +617,7 @@ const SystemMap = ({ relationships = [] }) => {
                 const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
                 const markerId = `rel-arrow-${rel.id}`;
 
+                const relStrokeW = Math.max(0.75, (rel.strength || 3) * 0.6);
                 if (relDisplayMode === 'simple') {
                   const ox = perpX * baseOffset, oy = perpY * baseOffset;
                   const x1 = nodeA.x + ox, y1 = nodeA.y + oy;
@@ -624,7 +625,7 @@ const SystemMap = ({ relationships = [] }) => {
                   lines.push(
                     <g key={`rel-${rel.id}`}>
                       <line x1={x1} y1={y1} x2={x2} y2={y2}
-                        stroke={color} strokeWidth={1.5} strokeDasharray="6,3" opacity={0.7} />
+                        stroke={color} strokeWidth={relStrokeW} strokeDasharray="6,3" opacity={0.7} />
                       <text x={(x1+x2)/2} y={(y1+y2)/2 - 6} textAnchor="middle" fontSize={9}
                         fill={color} opacity={0.9} pointerEvents="none">
                         {label}
@@ -649,9 +650,9 @@ const SystemMap = ({ relationships = [] }) => {
                           </marker>
                         </defs>
                         <line x1={nodeA.x+ox1} y1={nodeA.y+oy1} x2={nodeB.x+ox1} y2={nodeB.y+oy1}
-                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
+                          stroke={color} strokeWidth={relStrokeW} opacity={0.75} markerEnd={`url(#${markerId})`} />
                         <line x1={nodeB.x+ox2} y1={nodeB.y+oy2} x2={nodeA.x+ox2} y2={nodeA.y+oy2}
-                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerIdB})`} />
+                          stroke={color} strokeWidth={relStrokeW} opacity={0.75} markerEnd={`url(#${markerIdB})`} />
                       </React.Fragment>
                     );
                   } else {
@@ -667,7 +668,7 @@ const SystemMap = ({ relationships = [] }) => {
                           </marker>
                         </defs>
                         <line x1={lx1+ox} y1={ly1+oy} x2={lx2+ox} y2={ly2+oy}
-                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
+                          stroke={color} strokeWidth={relStrokeW} opacity={0.75} markerEnd={`url(#${markerId})`} />
                       </React.Fragment>
                     );
                   }

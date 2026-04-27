@@ -1351,6 +1351,7 @@ export default function InfiniteTimeline({
           day={day} sessions={sessions} activities={activities} emotions={emotions}
           journals={journals} checkIns={checkIns} tasks={tasks} alters={alters}
           symptoms={symptoms} symptomSessions={symptomSessions}
+          bulletins={bulletins} categories={categories}
         />
       )}
 
