@@ -49,6 +49,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const [saving, setSaving] = useState(false);
   const [showGroundingPrompt, setShowGroundingPrompt] = useState(false);
 
+  // datetime-local input value — defaults to retroTimestamp or now
+  const toDatetimeLocal = (iso) => {
+    const d = iso ? new Date(iso) : new Date();
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const [entryTime, setEntryTime] = useState(() => toDatetimeLocal(retroTimestamp));
+
   const HIGH_DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
 
   const symptomGetterRef = useRef(null);
@@ -78,6 +86,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
   useEffect(() => {
     if (isOpen) {
+      setEntryTime(toDatetimeLocal(retroTimestamp));
       const initial = new Set(["feeling"]);
       if (initialSection) initial.add(initialSection);
       setOpenSections(initial);
@@ -210,7 +219,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
     setSaving(true);
     try {
-      const now = retroTimestamp || new Date().toISOString();
+      const now = entryTime ? new Date(entryTime).toISOString() : new Date().toISOString();
       await handleSaveActivities();
 
       // Fronting sync — if fronting section was opened at any point (even if later collapsed)
@@ -365,7 +374,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             <Heart className="w-5 h-5 text-destructive" />
             Quick Check-In
           </DialogTitle>
-          <DialogDescription>Track your emotions, activities, and state</DialogDescription>
+          <DialogDescription className="flex items-center gap-2 pt-1">
+            <input
+              type="datetime-local"
+              value={entryTime}
+              onChange={e => setEntryTime(e.target.value)}
+              className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
+            />
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">

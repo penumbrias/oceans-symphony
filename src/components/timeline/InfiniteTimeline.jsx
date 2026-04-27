@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate } from "@/lib/dateUtils";
-import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, BarChart3, Heart, Activity, Users, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
 import { SymptomBar, SymptomDetailModal } from "@/components/timeline/SymptomBar";
@@ -364,14 +364,14 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
   );
 }
 
-function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onSymptom, onClose }) {
+function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onClose }) {
   const h = Math.floor(startMins / 60) % 12 || 12;
   const m = startMins % 60;
   const period = Math.floor(startMins / 60) < 12 ? "am" : "pm";
   const timeStr = `${h}:${String(m).padStart(2, "0")}${period}`;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 pb-6" onClick={onClose}>
-      <div className="bg-card rounded-xl border border-border shadow-xl p-4 max-w-xs w-full mx-4 space-y-3" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-card rounded-xl border border-border shadow-xl p-4 max-w-xs w-full mx-4 mb-24 space-y-3" onClick={e => e.stopPropagation()}>
         <p className="text-sm font-semibold text-center">Add entry at {timeStr}</p>
         <div className="space-y-2">
           <button onClick={onFrontSession} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
@@ -385,76 +385,11 @@ function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onSymptom, onC
             <Heart className="w-5 h-5 text-rose-400 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">Quick Check-In</p>
-              <p className="text-xs text-muted-foreground">Log emotions, activities, or a note</p>
-            </div>
-          </button>
-          <button onClick={onSymptom} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
-            <Zap className="w-5 h-5 text-yellow-400 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium">Symptom / Habit Session</p>
-              <p className="text-xs text-muted-foreground">Log a symptom session with start/end time</p>
+              <p className="text-xs text-muted-foreground">Log emotions, activities, symptoms, or a note</p>
             </div>
           </button>
         </div>
         <button onClick={onClose} className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
-      </div>
-    </div>
-  );
-}
-
-function RetroSymptomPopup({ startMins, dayStart, symptoms, onClose, onSave }) {
-  const minsToTime = (mins) => {
-    const h = Math.floor(Math.max(0, Math.min(1439, mins)) / 60);
-    const m = Math.max(0, Math.min(1439, mins)) % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-  };
-  const [startTime, setStartTime] = useState(minsToTime(startMins));
-  const [endTime, setEndTime] = useState("");
-  const [stillActive, setStillActive] = useState(false);
-  const [selectedSymptomId, setSelectedSymptomId] = useState("");
-  const [search, setSearch] = useState("");
-  const filtered = symptoms.filter(s => !search || s.name?.toLowerCase().includes(search.toLowerCase()));
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3" onClick={e => e.stopPropagation()}>
-        <p className="text-sm font-semibold">New Symptom Session</p>
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-1">Start time</p>
-            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-              className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-muted-foreground mb-1">End time</p>
-            <input type="time" value={stillActive ? "" : endTime} onChange={e => setEndTime(e.target.value)}
-              disabled={stillActive} className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm disabled:opacity-40" />
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <input type="checkbox" id="still-active-symp" checked={stillActive} onChange={e => setStillActive(e.target.checked)} className="w-4 h-4 accent-primary" />
-          <label htmlFor="still-active-symp" className="text-xs text-muted-foreground cursor-pointer">Still ongoing</label>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Which symptom / habit?</p>
-          <input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm mb-1.5" />
-          <div className="max-h-32 overflow-y-auto space-y-1 border border-border rounded-lg p-1.5 bg-muted/20">
-            {filtered.map(s => (
-              <button key={s.id} onClick={() => setSelectedSymptomId(s.id)}
-                className={`w-full text-left px-2 py-1.5 rounded-md text-sm transition-colors ${selectedSymptomId === s.id ? "bg-primary/15 text-primary" : "hover:bg-muted/50"}`}>
-                {s.name}
-              </button>
-            ))}
-            {filtered.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1 italic">No symptoms found</p>}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 px-3 py-2 text-sm rounded-lg border border-border text-muted-foreground hover:bg-muted/50 transition-colors">Cancel</button>
-          <button disabled={!selectedSymptomId} onClick={() => onSave({ startTime, endTime: stillActive ? null : endTime, symptomId: selectedSymptomId })}
-            className="flex-1 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
-            Save
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -636,7 +571,6 @@ export default function InfiniteTimeline({
   const [newSessionPopover, setNewSessionPopover] = useState(null);
   const [retroPickerState, setRetroPickerState] = useState(null); // { startMins } — type picker
   const [retroCheckIn, setRetroCheckIn] = useState(null); // { startMins } — QuickCheckInModal
-  const [retroSymptoms, setRetroSymptoms] = useState(null); // { startMins } — symptom session
   const [symptomSessionPopover, setSymptomSessionPopover] = useState(null); // { session, symptom, splitMins }
   const [symptomDetailModal, setSymptomDetailModal] = useState(null); // { session, symptom }
   const longPressTargetRef = useRef(null);
@@ -1089,30 +1023,6 @@ export default function InfiniteTimeline({
     setNewSessionPopover(null);
   };
 
-  const handleRetroSymptomSave = async ({ startTime, endTime, symptomId }) => {
-    try {
-      const startDate = new Date(dayStart);
-      const [sh, sm] = startTime.split(":").map(Number);
-      startDate.setHours(sh, sm, 0, 0);
-      let endDate = null;
-      if (endTime) {
-        endDate = new Date(dayStart);
-        const [eh, em] = endTime.split(":").map(Number);
-        endDate.setHours(eh, em, 0, 0);
-      }
-      await base44.entities.SymptomSession.create({
-        symptom_id: symptomId,
-        start_time: startDate.toISOString(),
-        end_time: endDate?.toISOString() || null,
-        is_active: !endDate,
-      });
-      queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
-    } catch (err) {
-      console.error("Create symptom session failed", err);
-    }
-    setRetroSymptoms(null);
-  };
-
   const startAreaLongPress = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
@@ -1217,7 +1127,9 @@ export default function InfiniteTimeline({
             </div>
 
             <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-              <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
+              <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}
+                onMouseDown={startAreaLongPress} onMouseUp={cancelAreaLongPress} onMouseLeave={cancelAreaLongPress}
+                onTouchStart={startAreaLongPress} onTouchEnd={cancelAreaLongPress}>
 
                 {HOURS.map((h) => {
                   const top = getTopPx(h * 60);
@@ -1365,11 +1277,6 @@ export default function InfiniteTimeline({
                 <div
                   className="absolute"
                   style={{ left: alterLeft, top: 0, width: alterAreaWidth, height: totalHeight, zIndex: 1 }}
-                  onMouseDown={startAreaLongPress}
-                  onMouseUp={cancelAreaLongPress}
-                  onMouseLeave={cancelAreaLongPress}
-                  onTouchStart={startAreaLongPress}
-                  onTouchEnd={cancelAreaLongPress}
                 >
                   {alterColumns.map((col, colIdx) => (
                     <div key={`col-${colIdx}`} className="absolute"
@@ -1506,7 +1413,6 @@ export default function InfiniteTimeline({
           startMins={retroPickerState.startMins}
           onFrontSession={() => { setNewSessionPopover({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
           onCheckIn={() => { setRetroCheckIn({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
-          onSymptom={() => { setRetroSymptoms({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
           onClose={() => setRetroPickerState(null)}
         />
       )}
@@ -1523,16 +1429,6 @@ export default function InfiniteTimeline({
           />
         );
       })()}
-
-      {retroSymptoms && (
-        <RetroSymptomPopup
-          startMins={retroSymptoms.startMins}
-          dayStart={dayStart}
-          symptoms={symptoms}
-          onClose={() => setRetroSymptoms(null)}
-          onSave={handleRetroSymptomSave}
-        />
-      )}
 
       {detailPopup?.type === "activity" && (() => {
         const { entry } = detailPopup;
