@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3 } from "lucide-react";
+import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowUpDown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
@@ -108,6 +108,27 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const [newSessionId, setNewSessionId] = useState(null);
   const [isUnsure, setIsUnsure] = useState(false);
   const [viewMode, setViewMode] = useState("list");
+  const [sortBy, setSortBy] = useState("alpha"); // "alpha" | "most" | "least"
+
+  const { data: allSessions = [] } = useQuery({
+    queryKey: ["frontSessionsAll"],
+    queryFn: () => base44.entities.FrontingSession.filter({}),
+    enabled: open && sortBy !== "alpha",
+    staleTime: 60000,
+  });
+
+  const alterFrontTotals = useMemo(() => {
+    if (sortBy === "alpha") return {};
+    const totals = {};
+    for (const s of allSessions) {
+      if (!s.alter_id) continue;
+      const dur = s.end_time && s.start_time
+        ? new Date(s.end_time) - new Date(s.start_time)
+        : 0;
+      totals[s.alter_id] = (totals[s.alter_id] || 0) + dur;
+    }
+    return totals;
+  }, [allSessions, sortBy]);
 
   // Sync state when modal opens — load actual active sessions to populate current front
   useEffect(() => {
@@ -133,9 +154,12 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   }, [open]);
 
   const activeAlters = useMemo(() => (alters || []).filter((a) => !a.is_archived), [alters]);
-  const filtered = activeAlters.filter((a) =>
-  a.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const list = activeAlters.filter((a) => a.name?.toLowerCase().includes(search.toLowerCase()));
+    if (sortBy === "most") return [...list].sort((a, b) => (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0));
+    if (sortBy === "least") return [...list].sort((a, b) => (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0));
+    return list;
+  }, [activeAlters, search, sortBy, alterFrontTotals]);
 
   const selectedIds = useMemo(() => {
     const ids = new Set(coFronterIds);
@@ -313,8 +337,13 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9" />
-              
             </div>
+            <button
+              onClick={() => setSortBy(s => s === "alpha" ? "most" : s === "most" ? "least" : "alpha")}
+              title={sortBy === "alpha" ? "Sort: A→Z" : sortBy === "most" ? "Sort: Most fronted" : "Sort: Least fronted"}
+              className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
+              <ArrowUpDown className="w-4 h-4" />
+            </button>
             <div className="flex gap-1 bg-muted/50 rounded-md p-1">
               <button
                 onClick={() => setViewMode("list")}
@@ -403,6 +432,14 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
             <div className="flex gap-2">
               <Button
+                variant="outline"
+                onClick={() => { setPrimaryId(""); setCoFronterIds([]); setIsUnsure(false); }}
+                disabled={saving}
+                title="Clear all selected fronters"
+                className="flex-shrink-0 px-3">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+              <Button
                 variant={isUnsure ? "default" : "outline"}
                 onClick={() => {
                   setIsUnsure(!isUnsure);
@@ -413,7 +450,6 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 }}
                 disabled={saving}
                 className="flex-1">
-                
                 <HelpCircle className="w-4 h-4 mr-2" />
                 Unsure
               </Button>

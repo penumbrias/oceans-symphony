@@ -59,7 +59,7 @@ const SEEDS = [
      trigger_config: { on: "no_front_update", threshold_minutes: 360 },
      delivery_channels: ["in_app"],
      inline_actions: [
-       { label: "Update front", action_type: "open_route", payload: { path: "/?openSetFront=1" } },
+       { label: "Update front", action_type: "open_set_front", payload: {} },
      ],
      quiet_hours_respect: true,
      is_active: true,

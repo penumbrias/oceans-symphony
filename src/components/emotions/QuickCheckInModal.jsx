@@ -28,6 +28,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
+  const [hadFrontingOpen, setHadFrontingOpen] = useState(false);
 
   // Feeling
   const [selectedEmotions, setSelectedEmotions] = useState([]);
@@ -72,6 +73,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+    if (id === "fronting") setHadFrontingOpen(true);
   };
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       const initial = new Set(["feeling"]);
       if (initialSection) initial.add(initialSection);
       setOpenSections(initial);
+      if (initialSection === "fronting") setHadFrontingOpen(true);
       // Load current active sessions to pre-populate fronting state
       base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
         const newModel = active.filter(s => s.alter_id);
@@ -118,6 +121,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setShowNewActivity(false);
     setDiaryData({});
     setNote("");
+    setHadFrontingOpen(false);
     symptomGetterRef.current = null;
   };
 
@@ -209,8 +213,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       const now = new Date().toISOString();
       await handleSaveActivities();
 
-      // Fronting sync — only if the fronting section was opened
-      if (openSections.has("fronting")) {
+      // Fronting sync — if fronting section was opened at any point (even if later collapsed)
+      if (hadFrontingOpen || openSections.has("fronting")) {
         const allSelectedIds = [...selectedAlterIds];
         const desiredMap = {}; // alterId -> is_primary
         for (const id of allSelectedIds) desiredMap[id] = id === primaryId;
