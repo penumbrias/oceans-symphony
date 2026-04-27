@@ -271,11 +271,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         let journalEntryId = null;
         if (note && wordCount > 50) {
           const entry = await base44.entities.JournalEntry.create({
-            title: `Check-in - ${new Date().toLocaleDateString()}`,
+            title: `Check-in - ${new Date(now).toLocaleDateString()}`,
             content: note,
             entry_type: "personal",
             tags: ["checkin"],
-            folder: "Check-In Journals"
+            folder: "Check-In Journals",
+            created_date: now,
           });
           journalEntryId = entry.id;
         }
