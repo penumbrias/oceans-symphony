@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Offline — Oceans Symphony</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      background: #0A0E17;
+      color: #e2e8f0;
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      padding: 2rem;
+    }
+    img { width: 72px; height: 72px; border-radius: 16px; opacity: 0.9; }
+    h1 { font-size: 1.25rem; font-weight: 600; }
+    p { font-size: 0.875rem; color: #94a3b8; max-width: 280px; line-height: 1.5; }
+    button {
+      margin-top: 0.5rem;
+      padding: 0.6rem 1.5rem;
+      background: #38BDF8;
+      color: #0A0E17;
+      border: none;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <img src="/icon-192.png" alt="Oceans Symphony" />
+  <h1>You're offline</h1>
+  <p>Oceans Symphony stores all your data on-device, but the app shell needs to load at least once while online.</p>
+  <button onclick="location.reload()">Try again</button>
+</body>
+</html>

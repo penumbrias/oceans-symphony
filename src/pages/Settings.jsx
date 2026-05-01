@@ -18,8 +18,7 @@ import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
-import { isLocalMode } from "@/lib/storageMode";
-import { Palette, Save, Loader2, LogOut, Trash2, ChevronDown, Zap, Check } from "lucide-react";
+import { Palette, Save, Loader2, ChevronDown, Zap, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -59,9 +58,6 @@ export default function Settings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const terms = useTerms();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteInput, setDeleteInput] = useState("");
-  const [deleted, setDeleted] = useState(false);
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
@@ -96,25 +92,6 @@ export default function Settings() {
     finally { setSaving(false); }
   };
 
-  const handleSignOut = () => base44.auth.logout("/");
-
-  const handleDeleteAccount = async () => {
-    if (deleteInput.trim().toLowerCase() !== "delete my account") return;
-    const entities = [
-      "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
-      "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
-      "Symptom", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
-      "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
-      "MentionLog", "ActivityGoal", "Group",
-    ];
-    for (const name of entities) {
-      try {
-        const records = await base44.entities[name].list();
-        for (const r of records) await base44.entities[name].delete(r.id);
-      } catch {}
-    }
-    setDeleted(true);
-  };
 
   const scrollTo = (id) => {
     const el = document.getElementById(id);
@@ -228,12 +205,8 @@ export default function Settings() {
           <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-3 text-sm text-muted-foreground">
             <p className="font-semibold text-foreground">🔐 Privacy & Data Notice</p>
             <div className="space-y-1">
-              <p className="font-medium text-foreground">☁️ Cloud Mode <strong>(not recommended)</strong></p>
-              <p>Your data is stored on Base44's servers with row-level security. It is <strong>not end-to-end encrypted</strong> — as the developer I technically have server access. I am committed to never accessing your data.</p>
-            </div>
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">🔒 Local Mode <strong>(recommended)</strong></p>
-              <p>Local mode stores all data on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
+              <p className="font-medium text-foreground">🔒 Local Mode</p>
+              <p>All data is stored on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
             </div>
             <div className="space-y-1">
               <p className="font-medium text-foreground">💾 Backups</p>
@@ -259,44 +232,6 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── ACCOUNT (cloud only) ── */}
-        {!isLocalMode() && (
-          <Section id="account" icon="🔑" label="Account">
-            <Button onClick={handleSignOut} variant="outline" className="w-full gap-2">
-              <LogOut className="w-4 h-4" /> Sign Out
-            </Button>
-            {!showDeleteConfirm && !deleted && (
-              <Button onClick={() => setShowDeleteConfirm(true)} variant="ghost"
-                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 gap-2">
-                <Trash2 className="w-4 h-4" /> Delete My Account
-              </Button>
-            )}
-            {showDeleteConfirm && !deleted && (
-              <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
-                <p className="text-sm font-semibold text-destructive">⚠️ This is permanent</p>
-                <p className="text-xs text-muted-foreground">All your system data will be permanently deleted. This cannot be undone.</p>
-                <p className="text-xs font-medium">Type <span className="font-mono bg-muted px-1 rounded">delete my account</span> to confirm:</p>
-                <Input value={deleteInput} onChange={e => setDeleteInput(e.target.value)}
-                  placeholder="delete my account" className="h-8 text-sm border-destructive/40" />
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => { setShowDeleteConfirm(false); setDeleteInput(""); }} className="flex-1">Cancel</Button>
-                  <Button size="sm" onClick={handleDeleteAccount}
-                    disabled={deleteInput.trim().toLowerCase() !== "delete my account"}
-                    className="flex-1 bg-destructive hover:bg-destructive/90 text-white">
-                    Delete Everything
-                  </Button>
-                </div>
-              </div>
-            )}
-            {deleted && (
-              <div className="rounded-xl border border-green-500/40 bg-green-500/5 p-4 text-center space-y-2">
-                <p className="text-sm font-semibold text-green-600">✅ Account data deleted</p>
-                <p className="text-xs text-muted-foreground">All your data has been removed.</p>
-                <Button size="sm" onClick={handleSignOut} variant="outline" className="w-full">Sign Out Now</Button>
-              </div>
-            )}
-          </Section>
-        )}
 
       </div>
     </motion.div>

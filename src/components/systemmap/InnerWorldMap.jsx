@@ -643,7 +643,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                         : "border-border/50 bg-muted/20 hover:bg-muted/40 active:cursor-grabbing"
                     }`}>
                     {alter.avatar_url ? (
-                      <img src={alter.avatar_url} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                      <img src={alter.avatar_url} className="w-6 h-6 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
                     ) : (
                       <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
                         style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 10 }}>
@@ -1036,7 +1036,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {selectedAlter.avatar_url ? (
-                  <img src={selectedAlter.avatar_url} className="w-8 h-8 rounded-full object-cover" />
+                  <img src={selectedAlter.avatar_url} className="w-8 h-8 rounded-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
                 ) : (
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
                     style={{ backgroundColor: selectedAlter.color || "#8b5cf6", fontSize: 12 }}>

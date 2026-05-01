@@ -8,6 +8,7 @@ import { format, addMinutes } from "date-fns";
 import { toast } from "sonner";
 import { Trash2, Loader2, X } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+import AlterAvatar from "@/components/shared/AlterAvatar";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 
@@ -75,14 +76,7 @@ function AlterSelector({ selectedIds, onChange, alters }) {
                 onClick={() => { onChange([...selectedIds, alter.id]); setInput(""); }}
                 className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm transition-colors"
               >
-                {alter.avatar_url ? (
-                  <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
-                ) : (
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: alter.color || "#8b5cf6" }}>
-                    {alter.name?.charAt(0)}
-                  </div>
-                )}
+                <AlterAvatar alter={alter} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{alter.name}</p>
                   {alter.alias && <p className="text-xs text-muted-foreground">{alter.alias}</p>}

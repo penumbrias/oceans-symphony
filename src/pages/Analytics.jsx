@@ -234,7 +234,7 @@ export default function Analytics() {
   };
 
   return (
-    <div className="space-y-5">
+    <div data-tour="analytics-charts" className="space-y-5">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         {activeSection ? (

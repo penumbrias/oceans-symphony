@@ -172,6 +172,33 @@ export default function DailyTasks() {
     return { streak, bestStreak: Math.max(best, streak) };
   }, [allProgress, todayXP, TODAY, activeFreq]);
 
+  const toggleHistoryTask = async (taskId, periodKey, currentDone) => {
+    const record = allProgress.find(p =>
+      (p.frequency === activeFreq || (!p.frequency && activeFreq === "daily")) &&
+      (p.period_key === periodKey || (activeFreq === "daily" && p.date === periodKey))
+    );
+    const existing = new Set(record?.completed_task_ids || []);
+    currentDone ? existing.delete(taskId) : existing.add(taskId);
+    const newIds = [...existing];
+    const newXP = templates.filter(t => t.is_active && (t.frequency || "daily") === activeFreq)
+      .reduce((sum, t) => existing.has(t.id) ? sum + (t.points || 0) : sum, 0);
+    if (record) {
+      queryClient.setQueryData(["dailyProgress"], old =>
+        Array.isArray(old) ? old.map(p => p.id === record.id ? { ...p, completed_task_ids: newIds, xp_earned: newXP } : p) : old
+      );
+      await base44.entities.DailyProgress.update(record.id, { completed_task_ids: newIds, xp_earned: newXP });
+    } else {
+      await base44.entities.DailyProgress.create({
+        date: periodKey,
+        period_key: periodKey,
+        frequency: activeFreq,
+        completed_task_ids: newIds,
+        xp_earned: newXP,
+      });
+    }
+    queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
+  };
+
   const toggleManual = async (templateId) => {
     const task = templates.find(t => t.id === templateId);
     if (!task || task.mode !== "MANUAL") return;
@@ -336,6 +363,7 @@ export default function DailyTasks() {
               frequency={activeFreq}
               templates={templates}
               allProgress={allProgress}
+              onToggleTask={toggleHistoryTask}
             />
           </motion.div>
         ) : (

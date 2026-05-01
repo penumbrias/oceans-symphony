@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { format, differenceInMinutes } from "date-fns";
 import { Activity, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AlterAvatarInline from "@/components/shared/AlterAvatar";
 
 export default function TimelineItem({ item, alters, allItems }) {
   const [expandedSwitch, setExpandedSwitch] = useState(false);
@@ -105,13 +106,7 @@ export default function TimelineItem({ item, alters, allItems }) {
                   style={{ backgroundColor: color }}
                   title={alter?.name}
                 >
-                  {alter?.avatar_url ? (
-                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-xs font-bold text-white">
-                      {alter?.name?.charAt(0)?.toUpperCase() || "?"}
-                    </span>
-                  )}
+                  <AlterAvatarInline alter={alter} size="w-full h-full" rounded="none" />
                 </div>
                 {/* Vertical duration line */}
                 <div

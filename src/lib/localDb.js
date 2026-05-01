@@ -1,14 +1,60 @@
-// Local-first database backed by localStorage.
+// Local-first database backed by IndexedDB (via idb).
 // Provides the same API as base44.entities so all existing code works without changes.
+// Falls back to migrating existing localStorage data on first run.
 
+import { openDB } from 'idb';
 import { encryptData, decryptData, generateSalt, deriveKey } from './localEncryption';
 import { isEncryptionEnabled, getEncSalt, setEncSalt } from './storageMode';
 
+const IDB_NAME = 'oceans_symphony';
+const IDB_VERSION = 1;
+const IDB_STORE = 'keyval';
 const STORAGE_KEY = 'symphony_local_data';
 const FAKE_USER_EMAIL = 'local@symphony.app';
 
 let _db = null;       // in-memory: { EntityName: { id: record } }
 let _encKey = null;   // CryptoKey when encryption is active
+let _idbPromise = null;
+
+function getIdb() {
+  if (!_idbPromise) {
+    _idbPromise = openDB(IDB_NAME, IDB_VERSION, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE);
+        }
+      },
+    });
+  }
+  return _idbPromise;
+}
+
+async function loadFromStorage() {
+  try {
+    const idb = await getIdb();
+    const value = await idb.get(IDB_STORE, STORAGE_KEY);
+    if (value !== undefined) return value;
+    // One-time migration from localStorage to IndexedDB
+    const legacy = localStorage.getItem(STORAGE_KEY);
+    if (legacy) {
+      await idb.put(IDB_STORE, legacy, STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+      return legacy;
+    }
+    return null;
+  } catch {
+    return localStorage.getItem(STORAGE_KEY);
+  }
+}
+
+async function saveToStorage(value) {
+  try {
+    const idb = await getIdb();
+    await idb.put(IDB_STORE, value, STORAGE_KEY);
+  } catch {
+    localStorage.setItem(STORAGE_KEY, value);
+  }
+}
 
 function generateId() {
   if (crypto.randomUUID) return crypto.randomUUID();
@@ -17,32 +63,19 @@ function generateId() {
 
 function getDb() {
   if (_db !== null) return _db;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      // If data is encrypted and we haven't unlocked yet, return empty (safe fallback)
-      if (parsed && parsed.__encrypted) { _db = {}; return _db; }
-      _db = parsed;
-    } else {
-      _db = {};
-    }
-  } catch {
-    _db = {};
-  }
+  // Synchronous fallback (only safe after initLocalDb has run)
+  _db = {};
   return _db;
 }
 
 async function saveDb() {
-  if (_encKey) {
-    const encrypted = await encryptData(_db, _encKey);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ __encrypted: encrypted }));
-  } else {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(_db));
-  }
+  const json = _encKey
+    ? JSON.stringify({ __encrypted: await encryptData(_db, _encKey) })
+    : JSON.stringify(_db);
+  await saveToStorage(json);
 }
 
-// Called on app start. Password is required only if encryption is enabled.
+// Called on app start. Password required only when encryption is enabled.
 export async function initLocalDb(password) {
   if (password && isEncryptionEnabled()) {
     let salt = getEncSalt();
@@ -51,7 +84,7 @@ export async function initLocalDb(password) {
       setEncSalt(salt);
     }
     _encKey = await deriveKey(password, salt);
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = await loadFromStorage();
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.__encrypted) {
@@ -62,7 +95,6 @@ export async function initLocalDb(password) {
           throw new Error('Incorrect password');
         }
       } else {
-        // Unencrypted data exists — load it (may be migrating to encrypted)
         _db = parsed;
       }
     } else {
@@ -70,11 +102,20 @@ export async function initLocalDb(password) {
     }
   } else {
     _encKey = null;
-    getDb();
+    const raw = await loadFromStorage();
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        _db = (parsed && parsed.__encrypted) ? {} : parsed;
+      } catch {
+        _db = {};
+      }
+    } else {
+      _db = {};
+    }
   }
 }
 
-// Enable encryption for the first time (encrypts existing data with password)
 export async function enableEncryption(password) {
   const db = getDb();
   let salt = getEncSalt();
@@ -84,9 +125,7 @@ export async function enableEncryption(password) {
   await saveDb();
 }
 
-// Disable encryption (re-saves as plaintext)
 export async function disableEncryption(password) {
-  // Verify password first
   await initLocalDb(password);
   _encKey = null;
   await saveDb();
@@ -122,7 +161,6 @@ function matchesQuery(record, query) {
   return Object.entries(query).every(([k, v]) => record[k] === v);
 }
 
-// Simple pub/sub for subscribe() support
 const _listeners = {};
 function emit(entityName, event) {
   (_listeners[entityName] || []).forEach(fn => fn(event));
@@ -183,7 +221,9 @@ export function createLocalDbEntities() {
         subscribe: (callback) => {
           if (!_listeners[entityName]) _listeners[entityName] = [];
           _listeners[entityName].push(callback);
-          return () => { _listeners[entityName] = (_listeners[entityName] || []).filter(fn => fn !== callback); };
+          return () => {
+            _listeners[entityName] = (_listeners[entityName] || []).filter(fn => fn !== callback);
+          };
         },
       };
     }
@@ -207,28 +247,72 @@ export function createLocalAuth() {
   };
 }
 
-// Full data dump for export
 export function getFullDbDump() {
-  const db = getDb();
-  return { ...db };
+  return { ...getDb() };
 }
 
-// Load a full dump (for import/restore)
+// Rewrites every local-image:// URL in the DB to /local-image/[id]
+// so the Service Worker can intercept them. Safe to run on every startup —
+// exits fast once all URLs are already in the new format.
+function rewriteLocalImageUrls(value) {
+  if (typeof value === 'string') {
+    if (value.startsWith('local-image://')) {
+      return { changed: true, value: `/local-image/${value.slice('local-image://'.length)}` };
+    }
+    return { changed: false, value };
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const result = value.map((item) => {
+      const r = rewriteLocalImageUrls(item);
+      if (r.changed) changed = true;
+      return r.value;
+    });
+    return { changed, value: result };
+  }
+  if (value && typeof value === 'object') {
+    let changed = false;
+    const result = {};
+    for (const [k, v] of Object.entries(value)) {
+      const r = rewriteLocalImageUrls(v);
+      if (r.changed) changed = true;
+      result[k] = r.value;
+    }
+    return { changed, value: result };
+  }
+  return { changed: false, value };
+}
+
+export async function migrateLocalImageUrlScheme() {
+  const db = getDb();
+  let migrated = 0;
+  for (const [entityName, collection] of Object.entries(db)) {
+    if (!collection || typeof collection !== 'object') continue;
+    for (const [recordId, record] of Object.entries(collection)) {
+      if (!record || typeof record !== 'object') continue;
+      const { changed, value } = rewriteLocalImageUrls(record);
+      if (changed) {
+        db[entityName][recordId] = value;
+        migrated++;
+      }
+    }
+  }
+  if (migrated > 0) await saveDb();
+  return migrated;
+}
+
 export async function loadDbDump(dump) {
   _db = dump;
   await saveDb();
 }
 
-// Recursive walker: traverses any value deeply and migrates all data: URLs to local image storage
 async function walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl) {
   if (typeof value === 'string') {
-    // Direct data: URL
     if (value.startsWith('data:') && !isLocalImageUrl(value)) {
       const imageId = `migrated-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await saveLocalImage(imageId, value);
       return { changed: true, value: createLocalImageUrl(imageId) };
     }
-    // data: URLs embedded inside HTML src attributes
     if (value.includes('src="data:image')) {
       let changed = false;
       let result = value;
@@ -268,25 +352,18 @@ async function walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLoca
   return { changed: false, value };
 }
 
-// Migrate ALL base64 data URLs in any entity field to local image storage (deep recursive)
 export async function migrateBase64AvatarsToLocal() {
   const db = getDb();
   const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
 
-  const totalRecords = Object.values(db).reduce((sum, col) => sum + (col && typeof col === 'object' ? Object.keys(col).length : 0), 0);
-  console.log(`[migrateBase64AvatarsToLocal] Scanning ${totalRecords} total records across ${Object.keys(db).length} collections...`);
-
   let migrated = 0;
-
   for (const [entityName, collection] of Object.entries(db)) {
     if (!collection || typeof collection !== 'object') continue;
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;
       let recordChanged = false;
       const updatedRecord = { ...record };
-
       for (const [field, value] of Object.entries(record)) {
-        // Skip built-in metadata fields that will never contain images
         if (['id', 'created_date', 'updated_date', 'created_by'].includes(field)) continue;
         try {
           const r = await walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl);
@@ -299,18 +376,115 @@ export async function migrateBase64AvatarsToLocal() {
           console.warn(`[migrateBase64AvatarsToLocal] Failed on ${entityName}.${recordId}.${field}:`, e);
         }
       }
-
       if (recordChanged) {
         db[entityName][recordId] = updatedRecord;
       }
     }
   }
-
-  if (migrated > 0) {
-    await saveDb();
-    console.log(`[migrateBase64AvatarsToLocal] Migrated ${migrated} base64 image(s) to local image storage`);
-  } else {
-    console.log(`[migrateBase64AvatarsToLocal] No base64 images found — nothing to migrate`);
-  }
+  if (migrated > 0) await saveDb();
   return migrated;
+}
+
+// Expose raw IndexedDB dump for the debug panel
+export async function getRawIdbDump() {
+  return getDb();
+}
+
+// Fetch external https:// image URLs, store them in IDB, and rewrite the DB record.
+// Requires network. Skips URLs that aren't images (wrong Content-Type) or fail to fetch.
+// onProgress({ migrated, failed, skipped }) is called after each URL attempt.
+export async function migrateHttpImagesToLocal(onProgress) {
+  const db = getDb();
+  const { saveLocalImage, createLocalImageUrl, isLocalImageUrl } = await import('./localImageStorage.js');
+
+  let migrated = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  const report = (type) => {
+    if (type === 'migrated') migrated++;
+    else if (type === 'failed') failed++;
+    else skipped++;
+    onProgress?.({ migrated, failed, skipped });
+  };
+
+  for (const [entityName, collection] of Object.entries(db)) {
+    if (!collection || typeof collection !== 'object') continue;
+    for (const [recordId, record] of Object.entries(collection)) {
+      if (!record || typeof record !== 'object') continue;
+      let recordChanged = false;
+      const updatedRecord = { ...record };
+      for (const [field, value] of Object.entries(record)) {
+        if (['id', 'created_date', 'updated_date', 'created_by'].includes(field)) continue;
+        try {
+          const r = await _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, report);
+          if (r.changed) {
+            updatedRecord[field] = r.value;
+            recordChanged = true;
+          }
+        } catch {}
+      }
+      if (recordChanged) db[entityName][recordId] = updatedRecord;
+    }
+  }
+
+  if (migrated > 0) await saveDb();
+  return { migrated, failed, skipped };
+}
+
+async function _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult) {
+  if (typeof value === 'string') {
+    if (isLocalImageUrl(value) || value.startsWith('data:') || value.startsWith('local-image://')) {
+      return { changed: false, value };
+    }
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      try {
+        const response = await fetch(value, { mode: 'cors' });
+        if (!response.ok) { onResult('failed'); return { changed: false, value }; }
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.startsWith('image/')) {
+          onResult('skipped');
+          return { changed: false, value };
+        }
+        const blob = await response.blob();
+        let dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const { compressImageDataUrl } = await import('./localImageStorage.js');
+        dataUrl = await compressImageDataUrl(dataUrl);
+        const imageId = `cached-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        onResult('migrated');
+        return { changed: true, value: createLocalImageUrl(imageId) };
+      } catch {
+        onResult('failed');
+        return { changed: false, value };
+      }
+    }
+    return { changed: false, value };
+  }
+  if (Array.isArray(value)) {
+    let changed = false;
+    const result = [];
+    for (const item of value) {
+      const r = await _walkAndMigrateHttp(item, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult);
+      if (r.changed) changed = true;
+      result.push(r.value);
+    }
+    return { changed, value: result };
+  }
+  if (value && typeof value === 'object') {
+    let changed = false;
+    const result = {};
+    for (const [k, v] of Object.entries(value)) {
+      const r = await _walkAndMigrateHttp(v, saveLocalImage, createLocalImageUrl, isLocalImageUrl, onResult);
+      if (r.changed) changed = true;
+      result[k] = r.value;
+    }
+    return { changed, value: result };
+  }
+  return { changed: false, value };
 }

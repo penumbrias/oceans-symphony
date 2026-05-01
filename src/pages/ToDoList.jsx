@@ -114,7 +114,7 @@ export default function ToDoList() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div data-tour="tasks-list" className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">To-Do List</h1>
         <Button onClick={() => setShowForm(true)} className="gap-2">

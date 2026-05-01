@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import AlterAvatarInline from "@/components/shared/AlterAvatar";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -9,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterSessionPopover";
 import { SymptomBar, SymptomDetailModal } from "@/components/timeline/SymptomBar";
 import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
+import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 44 };
@@ -135,6 +138,8 @@ function StatusNoteBadge({ note, topPx, id }) {
 function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress }) {
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
   const lpRef = useRef(null);
   const touchFiredRef = useRef(false);
 
@@ -170,8 +175,8 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
           boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
         }}
         title={alter?.name + (isPrimary ? " (primary)" : "")}>
-        {alter?.avatar_url
-          ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
+        {resolvedUrl && !imgError
+          ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
           : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
       </div>
       {heightPx > sz + 4 && (
@@ -188,6 +193,8 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
 
 function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
   const [adjustedMins, setAdjustedMins] = useState(splitMins);
+  const splitResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [splitImgError, setSplitImgError] = useState(false);
   const isPrimary = session?.alter_id
     ? (session?.is_primary ?? false)
     : session?.primary_alter_id === alter?.id;
@@ -209,8 +216,8 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
       <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4 space-y-3"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2">
-          {alter?.avatar_url
-            ? <img src={alter.avatar_url} alt={alter.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+          {splitResolvedUrl && !splitImgError
+            ? <img src={splitResolvedUrl} alt={alter?.name} className="w-7 h-7 rounded-full object-cover flex-shrink-0" onError={() => setSplitImgError(true)} />
             : <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
                 style={{ backgroundColor: alter?.color || "#9333ea" }}>
                 {alter?.name?.charAt(0)?.toUpperCase()}
@@ -325,13 +332,7 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
                 className={`w-full text-left px-2 py-1.5 rounded-md text-sm flex items-center gap-2 transition-colors ${
                   selectedAlterId === a.id ? "bg-primary/15 text-primary" : "hover:bg-muted/50"
                 }`}>
-                {a.avatar_url
-                  ? <img src={a.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
-                  : <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold"
-                      style={{ backgroundColor: a.color || "#9333ea", fontSize: 9 }}>
-                      {a.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                }
+                <AlterAvatarInline alter={a} size="xs" />
                 <span className="truncate">{a.name}</span>
               </button>
             ))}
@@ -358,6 +359,37 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
             Save
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onClose }) {
+  const h = Math.floor(startMins / 60) % 12 || 12;
+  const m = startMins % 60;
+  const period = Math.floor(startMins / 60) < 12 ? "am" : "pm";
+  const timeStr = `${h}:${String(m).padStart(2, "0")}${period}`;
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div className="bg-card rounded-xl border border-border shadow-xl p-4 max-w-xs w-full mx-4 mb-24 space-y-3" onClick={e => e.stopPropagation()}>
+        <p className="text-sm font-semibold text-center">Add entry at {timeStr}</p>
+        <div className="space-y-2">
+          <button onClick={onFrontSession} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
+            <Users className="w-5 h-5 text-primary flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Front Session</p>
+              <p className="text-xs text-muted-foreground">Log who was fronting at this time</p>
+            </div>
+          </button>
+          <button onClick={onCheckIn} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
+            <Heart className="w-5 h-5 text-rose-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Quick Check-In</p>
+              <p className="text-xs text-muted-foreground">Log emotions, activities, symptoms, or a note</p>
+            </div>
+          </button>
+        </div>
+        <button onClick={onClose} className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
       </div>
     </div>
   );
@@ -537,6 +569,8 @@ export default function InfiniteTimeline({
   const [editingSession, setEditingSession] = useState(null);
   const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
   const [newSessionPopover, setNewSessionPopover] = useState(null);
+  const [retroPickerState, setRetroPickerState] = useState(null); // { startMins } — type picker
+  const [retroCheckIn, setRetroCheckIn] = useState(null); // { startMins } — QuickCheckInModal
   const [symptomSessionPopover, setSymptomSessionPopover] = useState(null); // { session, symptom, splitMins }
   const [symptomDetailModal, setSymptomDetailModal] = useState(null); // { session, symptom }
   const longPressTargetRef = useRef(null);
@@ -997,7 +1031,7 @@ export default function InfiniteTimeline({
     const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
     longPressTargetRef.current = setTimeout(() => {
       longPressTargetRef.current = null;
-      setNewSessionPopover({ startMins: Math.min(Math.max(0, mins), 1439) });
+      setRetroPickerState({ startMins: Math.min(Math.max(0, mins), 1439) });
     }, 500);
   };
   const cancelAreaLongPress = () => {
@@ -1093,7 +1127,9 @@ export default function InfiniteTimeline({
             </div>
 
             <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-              <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}>
+              <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}
+                onMouseDown={startAreaLongPress} onMouseUp={cancelAreaLongPress} onMouseLeave={cancelAreaLongPress}
+                onTouchStart={startAreaLongPress} onTouchEnd={cancelAreaLongPress}>
 
                 {HOURS.map((h) => {
                   const top = getTopPx(h * 60);
@@ -1241,11 +1277,6 @@ export default function InfiniteTimeline({
                 <div
                   className="absolute"
                   style={{ left: alterLeft, top: 0, width: alterAreaWidth, height: totalHeight, zIndex: 1 }}
-                  onMouseDown={startAreaLongPress}
-                  onMouseUp={cancelAreaLongPress}
-                  onMouseLeave={cancelAreaLongPress}
-                  onTouchStart={startAreaLongPress}
-                  onTouchEnd={cancelAreaLongPress}
                 >
                   {alterColumns.map((col, colIdx) => (
                     <div key={`col-${colIdx}`} className="absolute"
@@ -1320,6 +1351,7 @@ export default function InfiniteTimeline({
           day={day} sessions={sessions} activities={activities} emotions={emotions}
           journals={journals} checkIns={checkIns} tasks={tasks} alters={alters}
           symptoms={symptoms} symptomSessions={symptomSessions}
+          bulletins={bulletins} categories={categories}
         />
       )}
 
@@ -1376,6 +1408,28 @@ export default function InfiniteTimeline({
           onClose={() => setSymptomDetailModal(null)}
         />
       )}
+
+      {retroPickerState && (
+        <RetroEntryPicker
+          startMins={retroPickerState.startMins}
+          onFrontSession={() => { setNewSessionPopover({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
+          onCheckIn={() => { setRetroCheckIn({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
+          onClose={() => setRetroPickerState(null)}
+        />
+      )}
+
+      {retroCheckIn && (() => {
+        const d = new Date(dayStart);
+        d.setHours(Math.floor(retroCheckIn.startMins / 60), retroCheckIn.startMins % 60, 0, 0);
+        return (
+          <QuickCheckInModal
+            isOpen={true}
+            onClose={() => setRetroCheckIn(null)}
+            alters={alters}
+            retroTimestamp={d.toISOString()}
+          />
+        );
+      })()}
 
       {detailPopup?.type === "activity" && (() => {
         const { entry } = detailPopup;

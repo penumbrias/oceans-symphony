@@ -14,6 +14,9 @@ const SECTIONS = [
   "activities",
   "journals",
   "diary",
+  "bulletins",
+  "systemCheckIns",
+  "tasks",
   "patterns",
   "alterAppendix",
 ];

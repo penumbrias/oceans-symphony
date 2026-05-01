@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
@@ -34,6 +35,8 @@ function directionLabel(direction, nameA, nameB) {
 function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const selectedResolvedUrl = useResolvedAvatarUrl(selected?.avatar_url);
+  const [selectedImgError, setSelectedImgError] = useState(false);
 
   const filtered = allAlters.filter(a =>
     a.id !== excludeId &&
@@ -48,8 +51,8 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
         className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted/30 transition-colors text-left">
         {selected ? (
           <>
-            {selected.avatar_url ? (
-              <img src={selected.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+            {selectedResolvedUrl && !selectedImgError ? (
+              <img src={selectedResolvedUrl} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={() => setSelectedImgError(true)} />
             ) : (
               <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
                 style={{ backgroundColor: selected.color || "#8b5cf6" }}>
@@ -82,7 +85,7 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
                   onClick={() => { onSelect(alter); setOpen(false); setSearch(""); }}
                   className="w-full flex items-center gap-2 px-3 py-2 border-b border-border/30 hover:bg-muted/40 transition-colors text-left">
                   {alter.avatar_url ? (
-                    <img src={alter.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                    <img src={alter.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
                   ) : (
                     <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
                       style={{ backgroundColor: alter.color || "#8b5cf6" }}>
@@ -108,6 +111,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
   const [relType, setRelType] = useState("");
   const [color, setColor] = useState("#3b82f6");
   const [notes, setNotes] = useState("");
+  const [strength, setStrength] = useState(3);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Set default type once loaded
@@ -139,6 +143,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
       direction,
       color,
       notes,
+      strength,
     });
   };
 
@@ -190,6 +195,23 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
               <option key={t.id || t.label} value={t.label}>{t.label}</option>
             ))}
           </select>
+        </div>
+
+        {/* Strength */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+            Strength <span className="font-normal normal-case text-muted-foreground/70">{["", "Very Weak", "Weak", "Moderate", "Strong", "Very Strong"][strength]}</span>
+          </p>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map(v => (
+              <button key={v} onClick={() => setStrength(v)}
+                className={`flex-1 h-8 rounded-lg border-2 text-xs font-bold transition-all ${
+                  v <= strength ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary/50"
+                }`}>
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Color */}

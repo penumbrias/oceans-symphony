@@ -63,6 +63,26 @@ export default function TherapyReportPage() {
     queryFn: () => db.DiaryCard.list(),
   });
 
+  const { data: bulletins = [] } = useQuery({
+    queryKey: ["bulletins"],
+    queryFn: () => db.Bulletin.list(),
+  });
+
+  const { data: systemCheckIns = [] } = useQuery({
+    queryKey: ["systemCheckIns"],
+    queryFn: () => db.SystemCheckIn.list(),
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => db.Task.list(),
+  });
+
+  const { data: dailyProgress = [] } = useQuery({
+    queryKey: ["dailyProgress"],
+    queryFn: () => db.DailyProgress.list(),
+  });
+
   const { data: templates = [] } = useQuery({
     queryKey: ["reportTemplates"],
     queryFn: () => db.ReportTemplate.list(),
@@ -145,6 +165,29 @@ export default function TherapyReportPage() {
         emotionCheckIns,
       });
 
+      const bulletinsData = reportSections.buildBulletinsSection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        bulletins,
+        alters,
+        includeAlterInfo: config.config.includeAlterInfo !== false,
+      });
+
+      const systemCheckInsData = reportSections.buildSystemCheckInsSection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        systemCheckIns,
+        alters,
+        includeAlterInfo: config.config.includeAlterInfo !== false,
+      });
+
+      const tasksData = reportSections.buildTasksSummarySection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        tasks,
+        dailyProgress,
+      });
+
       const patterns = reportSections.buildPatternsSummary({
         systemName: config.config.systemName,
         dateFrom: config.dateFrom,
@@ -187,6 +230,9 @@ export default function TherapyReportPage() {
         activities: activitiesData,
         journals,
         diary,
+        bulletins: bulletinsData,
+        systemCheckIns: systemCheckInsData,
+        tasks: tasksData,
         patterns,
         alterAppendix,
       };
@@ -247,7 +293,7 @@ export default function TherapyReportPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-8">
+    <div data-tour="therapy-report-builder" className="max-w-3xl mx-auto p-6 space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Therapy Report</h1>
         <p className="text-muted-foreground mt-2">

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Settings, ChevronLeft } from "lucide-react";
+import { Settings, ChevronLeft, Wifi } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +13,30 @@ import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remind
 import ReminderToast from "@/components/reminders/ReminderToast";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
+
+function OfflineReadyBadge() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const check = () => setReady(!!navigator.serviceWorker?.controller);
+    check();
+    navigator.serviceWorker?.addEventListener('controllerchange', check);
+    return () => navigator.serviceWorker?.removeEventListener('controllerchange', check);
+  }, []);
+  return (
+    <span
+      title={ready ? "Offline Ready — works without internet" : "Registering offline support…"}
+      className={cn(
+        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors select-none",
+        ready
+          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+          : "bg-muted text-muted-foreground"
+      )}
+    >
+      <span className={cn("w-1.5 h-1.5 rounded-full", ready ? "bg-emerald-500" : "bg-muted-foreground/50")} />
+      {ready ? "Offline Ready" : "…"}
+    </span>
+  );
+}
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
@@ -85,7 +109,7 @@ const handleNotifClick = (mentionLog) => {
     navigate(mentionLog.navigate_path);
   } else {
     navigate(mentionLog.navigate_path || "/", {
-      state: { highlightId: mentionLog.source_id }
+      state: { highlightBulletinId: mentionLog.source_id }
     });
   }
 };
@@ -107,9 +131,10 @@ const handleNotifClick = (mentionLog) => {
         <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Symphony home">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <img src="https://i.imgur.com/P79YnqQ.png" className="w-7 h-7 object-contain rounded-full" alt="logo" />            
-                </div>
+              <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
+            </div>
             <span className="font-display text-lg font-semibold tracking-tight text-foreground">Symphony</span>
+            <OfflineReadyBadge />
           </Link>
 
           <nav className="flex items-center gap-1" aria-label="Main navigation">
@@ -175,9 +200,10 @@ const handleNotifClick = (mentionLog) => {
 
         <Link to="/" className="flex items-center gap-2 select-none min-h-[44px] px-2" aria-label="Symphony home">
             <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <img src="https://i.imgur.com/P79YnqQ.png" className="w-7 h-7 object-contain rounded-full" alt="logo" />
+              <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
             </div>
             <span className="font-display text-base font-semibold text-foreground">Oceans Symphony</span>
+            <OfflineReadyBadge />
           </Link>
         }
 

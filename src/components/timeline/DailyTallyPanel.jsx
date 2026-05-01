@@ -2,57 +2,71 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { parseDate } from "@/lib/dateUtils";
 import { startOfDay, endOfDay, format } from "date-fns";
+import { ChevronRight } from "lucide-react";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
   "#22c55e","#f59e0b","#ef4444","#8b5cf6","#06b6d4",
   "#f97316","#84cc16","#e11d48","#7c3aed","#0891b2",
 ];
-
 function emotionColor(name) {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   return EMOTION_COLORS[h % EMOTION_COLORS.length];
 }
+function fmtMins(mins) {
+  if (mins >= 60) return `${Math.round(mins / 60)}h`;
+  return `${mins}m`;
+}
+
+function SectionLabel({ children }) {
+  return <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{children}</p>;
+}
+
+function NavRow({ label, sublabel, route, navigate }) {
+  return (
+    <button
+      onClick={() => navigate(route)}
+      className="w-full flex items-center gap-1 text-left hover:bg-muted/40 px-1.5 py-0.5 rounded transition-colors -mx-1.5"
+    >
+      <span className="text-xs text-foreground truncate flex-1">{label}</span>
+      {sublabel && <span className="text-[10px] text-muted-foreground flex-shrink-0">{sublabel}</span>}
+      <ChevronRight className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />
+    </button>
+  );
+}
 
 export default function DailyTallyPanel({
   day, sessions, activities, emotions, journals, alters,
   checkIns = [], tasks = [], symptoms = [], symptomSessions = [],
+  bulletins = [], categories = [],
 }) {
   const navigate = useNavigate();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const dayEnd = useMemo(() => endOfDay(day), [day]);
+  const inDay = (d) => d >= dayStart && d <= dayEnd;
 
-  const [showAllActivities, setShowAllActivities] = useState(false);
-  const [showAllStatuses, setShowAllStatuses] = useState(false);
-  const [frontingView, setFrontingView] = useState("total"); // "total" | "primary" | "cofronting"
+  const [frontingView, setFrontingView] = useState("total");
 
-  // Emotion tally
-  const emotionTally = useMemo(() => {
-    const tally = {};
-    emotions.forEach((e) => {
-      const t = parseDate(e.timestamp);
-      if (t >= dayStart && t <= dayEnd) {
-        (e.emotions || []).forEach((em) => { tally[em] = (tally[em] || 0) + 1; });
-      }
-    });
-    return Object.entries(tally).sort((a, b) => b[1] - a[1]);
-  }, [emotions, dayStart, dayEnd]);
+  const catMap = useMemo(() => Object.fromEntries((categories || []).map(c => [c.id, c])), [categories]);
 
-  // Fronter tally
+  // ── Fronting ─────────────────────────────────────────────────────────────
+  const switchCount = useMemo(() => sessions.filter(s => inDay(parseDate(s.start_time))).length, [sessions, dayStart, dayEnd]);
+
   const fronterTally = useMemo(() => {
-    const tally = {}; // alterId -> { total, primary, cofronting }
+    const tally = {};
     sessions.forEach((s) => {
       const start = parseDate(s.start_time);
       const end = s.end_time ? parseDate(s.end_time) : new Date();
-      const sessionStart = Math.max(start, dayStart);
-      const sessionEnd = Math.min(end, dayEnd);
-      if (sessionStart >= sessionEnd) return;
-      const mins = Math.round((sessionEnd - sessionStart) / 60000);
+      const clampStart = Math.max(start, dayStart);
+      const clampEnd = Math.min(end, dayEnd);
+      if (clampStart >= clampEnd) return;
+      const mins = Math.round((clampEnd - clampStart) / 60000);
       if (s.alter_id) {
         if (!tally[s.alter_id]) tally[s.alter_id] = { total: 0, primary: 0, cofronting: 0 };
         tally[s.alter_id].total += mins;
         if (s.is_primary) tally[s.alter_id].primary += mins;
+        else tally[s.alter_id].cofronting += mins;
       } else {
         const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
         ids.forEach((id) => {
@@ -64,284 +78,213 @@ export default function DailyTallyPanel({
       }
     });
     return Object.entries(tally)
-      .map(([alterId, times]) => ({ alterId, ...times, alter: (alters || []).find((a) => a.id === alterId) }))
+      .map(([alterId, times]) => ({ alterId, ...times, alter: (alters || []).find(a => a.id === alterId) }))
       .sort((a, b) => b.total - a.total);
   }, [sessions, dayStart, dayEnd, alters]);
 
-  const switchCount = useMemo(() => {
-    return sessions.filter((s) => {
-      const start = parseDate(s.start_time);
-      return start >= dayStart && start <= dayEnd;
-    }).length;
-  }, [sessions, dayStart, dayEnd]);
+  // ── Activities ────────────────────────────────────────────────────────────
+  const dayActivities = useMemo(() =>
+    activities.filter(a => inDay(parseDate(a.timestamp)))
+  , [activities, dayStart, dayEnd]);
 
-  const journalCount = useMemo(() => {
-    return journals.filter((j) => {
-      const t = parseDate(j.created_date);
-      return t >= dayStart && t <= dayEnd;
-    }).length;
-  }, [journals, dayStart, dayEnd]);
-
-  const systemCheckInCount = useMemo(() => {
-    return checkIns.filter((c) => {
-      const t = parseDate(c.created_date);
-      return t >= dayStart && t <= dayEnd;
-    }).length;
-  }, [checkIns, dayStart, dayEnd]);
-
-  const quickCheckInCount = useMemo(() => {
-    return emotions.filter((e) => {
-      const t = parseDate(e.timestamp);
-      return t >= dayStart && t <= dayEnd;
-    }).length;
+  // ── Emotions ──────────────────────────────────────────────────────────────
+  const emotionTally = useMemo(() => {
+    const tally = {};
+    emotions.filter(e => inDay(parseDate(e.timestamp))).forEach(e => {
+      (e.emotions || []).forEach(em => { tally[em] = (tally[em] || 0) + 1; });
+    });
+    return Object.entries(tally).sort((a, b) => b[1] - a[1]);
   }, [emotions, dayStart, dayEnd]);
 
-  const checkInCount = systemCheckInCount + quickCheckInCount;
+  const dayEmotions = useMemo(() => emotions.filter(e => inDay(parseDate(e.timestamp))), [emotions, dayStart, dayEnd]);
+  const dayCheckIns = useMemo(() => checkIns.filter(c => inDay(parseDate(c.created_date))), [checkIns, dayStart, dayEnd]);
 
-  const taskStats = useMemo(() => {
-    const dayTasks = tasks.filter((t) => {
-      const created = parseDate(t.created_date);
-      const completed = t.completed && t.completed_date ? parseDate(t.completed_date) : null;
-      return (created >= dayStart && created <= dayEnd) || (completed && completed >= dayStart && completed <= dayEnd);
-    });
-    const completedCount = dayTasks.filter((t) => t.completed && parseDate(t.completed_date) >= dayStart && parseDate(t.completed_date) <= dayEnd).length;
-    const createdCount = dayTasks.filter((t) => parseDate(t.created_date) >= dayStart && parseDate(t.created_date) <= dayEnd).length;
-    return { created: createdCount, completed: completedCount };
-  }, [tasks, dayStart, dayEnd]);
+  // ── Journals ──────────────────────────────────────────────────────────────
+  const dayJournals = useMemo(() => journals.filter(j => inDay(parseDate(j.created_date))), [journals, dayStart, dayEnd]);
 
-  // Unique activities
-  const uniqueActivities = useMemo(() => {
-    const dayActs = activities.filter((a) => {
-      const t = parseDate(a.timestamp);
-      return t >= dayStart && t <= dayEnd;
-    });
-    return [...new Set(dayActs.map((a) => a.activity_name))];
-  }, [activities, dayStart, dayEnd]);
+  // ── Bulletins ─────────────────────────────────────────────────────────────
+  const dayBulletins = useMemo(() => bulletins.filter(b => inDay(parseDate(b.created_date))), [bulletins, dayStart, dayEnd]);
 
-  // Custom status notes from emotions
-  const customStatuses = useMemo(() => {
-    const statuses = [];
-    emotions.forEach((e) => {
-      const t = parseDate(e.timestamp);
-      if (t < dayStart || t > dayEnd) return;
-      if (!e.note || !e.note.trim()) return;
-      try {
-        const parsed = JSON.parse(e.note);
-        if (Array.isArray(parsed)) {
-          parsed.forEach(n => { if (n.text?.trim()) statuses.push(n.text.trim()); });
-        } else {
-          statuses.push(e.note.trim());
-        }
-      } catch {
-        statuses.push(e.note.trim());
-      }
-    });
-    return statuses;
-  }, [emotions, dayStart, dayEnd]);
+  // ── Tasks ─────────────────────────────────────────────────────────────────
+  const dayTasks = useMemo(() => tasks.filter(t => inDay(parseDate(t.created_date))), [tasks, dayStart, dayEnd]);
 
-  // Active symptom sessions this day
-  const activeSymptoms = useMemo(() => {
-    const symptomMap = {};
-    symptoms.forEach(s => { symptomMap[s.id] = s; });
+  // ── Symptoms ──────────────────────────────────────────────────────────────
+  const symptomMap = useMemo(() => Object.fromEntries((symptoms || []).map(s => [s.id, s])), [symptoms]);
+  const daySymptomSessions = useMemo(() => {
     const seen = new Set();
-    const result = [];
-    symptomSessions.forEach(ss => {
-      const start = parseDate(ss.start_time);
-      const end = ss.end_time ? parseDate(ss.end_time) : new Date();
-      const sessionStart = Math.max(start, dayStart);
-      const sessionEnd = Math.min(end, dayEnd);
-      if (sessionStart < sessionEnd && !seen.has(ss.symptom_id)) {
-        seen.add(ss.symptom_id);
-        const symptom = symptomMap[ss.symptom_id];
-        if (symptom) result.push(symptom);
-      }
+    return symptomSessions.filter(ss => {
+      const t = parseDate(ss.start_time);
+      if (!inDay(t) || seen.has(ss.symptom_id)) return false;
+      seen.add(ss.symptom_id);
+      return true;
     });
-    return result;
-  }, [symptomSessions, symptoms, dayStart, dayEnd]);
-
-  const ACTIVITY_INITIAL = 4;
-  const STATUS_INITIAL = 3;
+  }, [symptomSessions, dayStart, dayEnd]);
 
   return (
-    <div className="px-4 py-3 bg-muted/20 border-t border-border/40 space-y-3 text-xs">
+    <div className="px-4 py-3 bg-muted/20 border-t border-border/40 text-xs space-y-3">
 
-      {/* Row 1: Activities + Switches/Fronters */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* ── Row 1: Activities | Switches | Fronting ── */}
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3">
+
+        {/* Activities */}
         <div>
-          <p className="text-muted-foreground font-medium mb-1">Activities</p>
-          <div className="flex flex-wrap gap-1">
-            {uniqueActivities.length > 0 ? (
-              <>
-                {(showAllActivities ? uniqueActivities : uniqueActivities.slice(0, ACTIVITY_INITIAL)).map((name) => (
-                  <div key={name} className="px-1.5 py-0.5 rounded bg-primary/15 text-primary font-medium text-xs">
-                    {name}
-                  </div>
-                ))}
-                {uniqueActivities.length > ACTIVITY_INITIAL && (
-                  <button
-                    onClick={() => setShowAllActivities(v => !v)}
-                    className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-xs hover:bg-muted/80 transition-colors">
-                    {showAllActivities ? "Less" : `+${uniqueActivities.length - ACTIVITY_INITIAL} more`}
-                  </button>
-                )}
-              </>
-            ) : (
-              <span className="text-muted-foreground italic">None</span>
-            )}
-          </div>
+          <SectionLabel>Activities</SectionLabel>
+          {dayActivities.length === 0 ? (
+            <p className="text-muted-foreground italic">None</p>
+          ) : (
+            <div className="space-y-0.5">
+              {dayActivities.map(a => {
+                const catNames = (a.activity_category_ids || []).map(id => catMap[id]?.name).filter(Boolean).join(", ");
+                const name = a.activity_name || catNames || "Activity";
+                const sub = a.duration_minutes ? `${a.duration_minutes}m` : "";
+                return <NavRow key={a.id} label={name} sublabel={sub} route="/activities" navigate={navigate} />;
+              })}
+            </div>
+          )}
         </div>
 
-        <div className="flex gap-4">
-          <div className="flex flex-col items-center justify-start">
-            <p className="text-muted-foreground font-medium text-xs mb-1">Switches</p>
-            <p className="text-2xl font-bold text-primary">{switchCount}</p>
+        {/* Switches */}
+        <div className="text-center flex flex-col items-center pt-0.5">
+          <SectionLabel>Switches</SectionLabel>
+          <span className="text-3xl font-bold text-primary leading-none">{switchCount}</span>
+        </div>
+
+        {/* Fronting */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <SectionLabel>Fronters</SectionLabel>
+            <div className="flex gap-0.5 bg-muted/40 rounded-full p-0.5">
+              {[{ id: "total", label: "All" }, { id: "primary", label: "⭐" }, { id: "cofronting", label: "co" }].map(opt => (
+                <button key={opt.id} onClick={() => setFrontingView(opt.id)}
+                  className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium transition-colors ${frontingView === opt.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-muted-foreground font-medium text-xs">Fronters</p>
-              <div className="flex gap-0.5 bg-muted/40 rounded-full p-0.5">
-                {[{ id: "total", label: "All" }, { id: "primary", label: "⭐" }, { id: "cofronting", label: "co" }].map(opt => (
-                  <button key={opt.id} onClick={() => setFrontingView(opt.id)}
-                    className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium transition-colors ${
-                      frontingView === opt.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                    }`}>
-                    {opt.label}
-                  </button>
+          {fronterTally.length === 0 ? (
+            <p className="text-muted-foreground italic">None</p>
+          ) : (
+            <div className="space-y-0.5">
+              {fronterTally
+                .filter(({ primary, cofronting }) => {
+                  if (frontingView === "primary") return primary > 0;
+                  if (frontingView === "cofronting") return cofronting > 0;
+                  return true;
+                })
+                .map(({ alter, alterId, total, primary, cofronting }) => {
+                  const mins = frontingView === "primary" ? primary : frontingView === "cofronting" ? cofronting : total;
+                  return (
+                    <div key={alterId} className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter?.color || "#9333ea" }} />
+                      <span className="flex-1 truncate">{alter?.name || "Unknown"}</span>
+                      <span className="text-muted-foreground tabular-nums">{fmtMins(mins)}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Emotions ── */}
+      <div>
+        <SectionLabel>Emotions</SectionLabel>
+        {emotionTally.length === 0 ? (
+          <p className="text-muted-foreground italic">None</p>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {emotionTally.slice(0, 8).map(([em, count]) => (
+              <span key={em} className="px-1.5 py-0.5 rounded text-white font-medium text-xs flex items-center gap-1"
+                style={{ backgroundColor: emotionColor(em) }}>
+                {em}{count > 1 && <span className="opacity-75">×{count}</span>}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Row 2: Check-ins | Symptoms ── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <SectionLabel>Check-ins</SectionLabel>
+          {dayEmotions.length === 0 && dayCheckIns.length === 0 ? (
+            <p className="text-muted-foreground italic">None</p>
+          ) : (
+            <div className="space-y-0.5">
+              {dayEmotions.length > 0 && (
+                <NavRow label={`${dayEmotions.length} quick`} route="/checkin-log" navigate={navigate} />
+              )}
+              {dayCheckIns.length > 0 && (
+                <NavRow label={`${dayCheckIns.length} system`} route="/system-checkin" navigate={navigate} />
+              )}
+            </div>
+          )}
+        </div>
+        <div>
+          <SectionLabel>Symptoms</SectionLabel>
+          {daySymptomSessions.length === 0 ? (
+            <p className="text-muted-foreground italic">None</p>
+          ) : (
+            <div className="space-y-0.5">
+              {daySymptomSessions.map(ss => {
+                const sym = symptomMap[ss.symptom_id];
+                const name = sym?.name || sym?.label || "Symptom";
+                const sub = ss.end_time ? `ended ${format(parseDate(ss.end_time), "h:mm a")}` : "ongoing";
+                return (
+                  <p key={ss.id} className="text-xs text-foreground">
+                    {name} <span className="text-muted-foreground">· {sub}</span>
+                  </p>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Journals ── */}
+      {dayJournals.length > 0 && (
+        <div>
+          <SectionLabel>Journals</SectionLabel>
+          <div className="space-y-0.5">
+            {dayJournals.map(j => (
+              <NavRow
+                key={j.id}
+                label={j.title || "Journal Entry"}
+                sublabel={j.entry_type || ""}
+                route={`/journals?id=${j.id}`}
+                navigate={navigate}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tasks | Bulletins ── */}
+      {(dayTasks.length > 0 || dayBulletins.length > 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          {dayTasks.length > 0 && (
+            <div>
+              <SectionLabel>Tasks</SectionLabel>
+              <NavRow
+                label={`${dayTasks.filter(t => t.completed).length}/${dayTasks.length} done`}
+                route="/todo"
+                navigate={navigate}
+              />
+            </div>
+          )}
+          {dayBulletins.length > 0 && (
+            <div>
+              <SectionLabel>Bulletins</SectionLabel>
+              <div className="space-y-0.5">
+                {dayBulletins.map(b => (
+                  <NavRow key={b.id} label={b.title || "Bulletin"} route={`/bulletin/${b.id}`} navigate={navigate} />
                 ))}
               </div>
             </div>
-            <div className="space-y-0.5">
-              {fronterTally.length > 0 ? (
-                fronterTally
-                  .filter(({ total, primary, cofronting }) => {
-                    if (frontingView === "primary") return primary > 0;
-                    if (frontingView === "cofronting") return cofronting > 0;
-                    return true;
-                  })
-                  .map(({ alter, total, primary, cofronting }) => {
-                    const mins = frontingView === "primary" ? primary
-                      : frontingView === "cofronting" ? cofronting
-                      : total;
-                    return (
-                      <div key={alter?.id || total} className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter?.color || "#9333ea" }} />
-                        <span className="truncate text-xs">{alter?.name || "Unknown"}</span>
-                        <span className="text-muted-foreground text-xs ml-auto">
-                          {mins >= 60 ? `${Math.round(mins / 60)}h` : `${mins}m`}
-                        </span>
-                      </div>
-                    );
-                  })
-              ) : (
-                <span className="text-muted-foreground italic">None</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Row 2: Emotions + Check-ins */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-muted-foreground font-medium mb-1">Emotions</p>
-          <div className="flex flex-wrap gap-1">
-            {emotionTally.length > 0 ? (
-              emotionTally.slice(0, 5).map(([em, count]) => (
-                <div key={em} className="px-1.5 py-0.5 rounded text-white font-medium text-xs flex items-center gap-1"
-                  style={{ backgroundColor: emotionColor(em) }}>
-                  {em} <span className="opacity-80">×{count}</span>
-                </div>
-              ))
-            ) : (
-              <span className="text-muted-foreground italic">None</span>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-muted-foreground font-medium mb-1">Check-ins</p>
-          <div className="space-y-0.5">
-            {quickCheckInCount > 0 && (
-              <p className="text-xs"><span className="font-semibold">{quickCheckInCount}</span> <span className="text-muted-foreground">quick</span></p>
-            )}
-            {systemCheckInCount > 0 && (
-              <p className="text-xs"><span className="font-semibold">{systemCheckInCount}</span> <span className="text-muted-foreground">system</span></p>
-            )}
-            {checkInCount === 0 && <span className="text-muted-foreground italic">None</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* Row 3: Symptoms + Custom Statuses */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-muted-foreground font-medium mb-1">Symptoms</p>
-          <div className="flex flex-wrap gap-1">
-            {activeSymptoms.length > 0 ? (
-              activeSymptoms.map((s) => (
-                <div key={s.id} className="px-1.5 py-0.5 rounded text-white font-medium text-xs"
-                  style={{ backgroundColor: s.color || "#8b5cf6" }}>
-                  {s.label}
-                </div>
-              ))
-            ) : (
-              <span className="text-muted-foreground italic">None</span>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-muted-foreground font-medium mb-1">💬 Custom Statuses</p>
-          {customStatuses.length > 0 ? (
-            <div className="space-y-1">
-              {(showAllStatuses ? customStatuses : customStatuses.slice(0, STATUS_INITIAL)).map((text, i) => (
-                <p key={i} className="text-xs text-foreground leading-tight line-clamp-2 border-l-2 border-primary/40 pl-1.5">
-                  {text}
-                </p>
-              ))}
-              {customStatuses.length > STATUS_INITIAL && (
-                <button
-                  onClick={() => setShowAllStatuses(v => !v)}
-                  className="text-xs text-primary hover:underline transition-colors">
-                  {showAllStatuses ? "Show less" : `+${customStatuses.length - STATUS_INITIAL} more`}
-                </button>
-              )}
-            </div>
-          ) : (
-            <span className="text-muted-foreground italic">None</span>
           )}
         </div>
-      </div>
-
-      {/* Row 4: Entries */}
-      <div>
-        <p className="text-muted-foreground font-medium mb-1">Entries</p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-          {journalCount > 0 && (
-            <button onClick={() => navigate(`/journals`)} className="text-primary hover:underline text-left">
-              {journalCount} journal{journalCount !== 1 ? "s" : ""}
-            </button>
-          )}
-          {quickCheckInCount > 0 && (
-            <button onClick={() => navigate(`/checkin-log?date=${format(dayStart, 'yyyy-MM-dd')}`)} className="text-primary hover:underline text-left">
-              {quickCheckInCount} quick check-in{quickCheckInCount !== 1 ? "s" : ""}
-            </button>
-          )}
-          {systemCheckInCount > 0 && (
-            <button onClick={() => navigate(`/system-checkin`)} className="text-primary hover:underline text-left">
-              {systemCheckInCount} system check-in{systemCheckInCount !== 1 ? "s" : ""}
-            </button>
-          )}
-          {taskStats.created > 0 && (
-            <button onClick={() => navigate(`/todo`)} className="text-primary hover:underline text-left">
-              {taskStats.completed}/{taskStats.created} to-do{taskStats.created !== 1 ? "s" : ""}
-            </button>
-          )}
-          {journalCount === 0 && quickCheckInCount === 0 && systemCheckInCount === 0 && taskStats.created === 0 && (
-            <span className="text-muted-foreground italic">None</span>
-          )}
-        </div>
-      </div>
+      )}
 
     </div>
   );

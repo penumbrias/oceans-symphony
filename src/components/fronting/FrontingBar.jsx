@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { User, Star, Plus, Pencil } from "lucide-react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { motion } from "framer-motion";
 import SetFrontModal from "./SetFrontModal";
 import { useTerms } from "@/lib/useTerms";
@@ -22,6 +23,8 @@ function FronterAvatar({ alter, isPrimary, size = "md" }) {
   const text = bg ? getContrastColor(bg) : null;
   const sz = size === "lg" ? "w-14 h-14" : "w-10 h-10";
   const iconSz = size === "lg" ? "w-7 h-7" : "w-5 h-5";
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div className="relative flex-shrink-0">
@@ -31,9 +34,9 @@ function FronterAvatar({ alter, isPrimary, size = "md" }) {
           backgroundColor: bg || "hsl(var(--muted))",
           borderColor: isPrimary ? "hsl(var(--primary))" : "hsl(var(--border))"
         }}>
-        
-        {alter?.avatar_url ?
-        <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" /> :
+
+        {resolvedUrl && !imgError ?
+        <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} /> :
 
         <User className={iconSz} style={{ color: text || "hsl(var(--muted-foreground))" }} />
         }

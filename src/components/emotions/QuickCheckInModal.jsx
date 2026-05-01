@@ -24,10 +24,11 @@ const PILLS = [
 { id: "note", label: "Note", icon: FileText }];
 
 
-export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null }) {
+export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null, retroTimestamp = null }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
+  const [hadFrontingOpen, setHadFrontingOpen] = useState(false);
 
   // Feeling
   const [selectedEmotions, setSelectedEmotions] = useState([]);
@@ -47,6 +48,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   // Saving
   const [saving, setSaving] = useState(false);
   const [showGroundingPrompt, setShowGroundingPrompt] = useState(false);
+
+  // datetime-local input value — defaults to retroTimestamp or now
+  const toDatetimeLocal = (iso) => {
+    const d = iso ? new Date(iso) : new Date();
+    const pad = n => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const [entryTime, setEntryTime] = useState(() => toDatetimeLocal(retroTimestamp));
 
   const HIGH_DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
 
@@ -72,13 +81,16 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+    if (id === "fronting") setHadFrontingOpen(true);
   };
 
   useEffect(() => {
     if (isOpen) {
+      setEntryTime(toDatetimeLocal(retroTimestamp));
       const initial = new Set(["feeling"]);
       if (initialSection) initial.add(initialSection);
       setOpenSections(initial);
+      if (initialSection === "fronting") setHadFrontingOpen(true);
       // Load current active sessions to pre-populate fronting state
       base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
         const newModel = active.filter(s => s.alter_id);
@@ -118,6 +130,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setShowNewActivity(false);
     setDiaryData({});
     setNote("");
+    setHadFrontingOpen(false);
     symptomGetterRef.current = null;
   };
 
@@ -206,11 +219,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
     setSaving(true);
     try {
-      const now = new Date().toISOString();
+      const now = entryTime ? new Date(entryTime).toISOString() : new Date().toISOString();
       await handleSaveActivities();
 
-      // Fronting sync — only if the fronting section was opened
-      if (openSections.has("fronting")) {
+      // Fronting sync — if fronting section was opened at any point (even if later collapsed)
+      if (hadFrontingOpen || openSections.has("fronting")) {
         const allSelectedIds = [...selectedAlterIds];
         const desiredMap = {}; // alterId -> is_primary
         for (const id of allSelectedIds) desiredMap[id] = id === primaryId;
@@ -258,11 +271,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         let journalEntryId = null;
         if (note && wordCount > 50) {
           const entry = await base44.entities.JournalEntry.create({
-            title: `Check-in - ${new Date().toLocaleDateString()}`,
+            title: `Check-in - ${new Date(now).toLocaleDateString()}`,
             content: note,
             entry_type: "personal",
             tags: ["checkin"],
-            folder: "Check-In Journals"
+            folder: "Check-In Journals",
+            created_date: now,
           });
           journalEntryId = entry.id;
         }
@@ -361,7 +375,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             <Heart className="w-5 h-5 text-destructive" />
             Quick Check-In
           </DialogTitle>
-          <DialogDescription>Track your emotions, activities, and state</DialogDescription>
+          <DialogDescription className="flex items-center gap-2 pt-1">
+            <input
+              type="datetime-local"
+              value={entryTime}
+              onChange={e => setEntryTime(e.target.value)}
+              className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
+            />
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -442,7 +463,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                         <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
                           style={{ backgroundColor: a.color || "hsl(var(--muted))" }}>
                           {a.avatar_url
-                            ? <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" />
+                            ? <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
                             : <User className="w-4 h-4 text-white/70" />}
                         </div>
                         <div className="flex-1 min-w-0">

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Loader2, Heart, X } from "lucide-react";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
+import AlterAvatar from "@/components/shared/AlterAvatar";
 
 export default function EmotionCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [] }) {
   const queryClient = useQueryClient();
@@ -154,10 +155,7 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
                     <button key={alter.id}
                       onClick={() => { setSelectedAlters(prev => [...prev, alter.id]); setAlterInput(""); }}
                       className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm transition-colors">
-                      {alter.avatar_url
-                        ? <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
-                        : <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: alter.color || "#8b5cf6" }}>{alter.name?.charAt(0)}</div>
-                      }
+                      <AlterAvatar alter={alter} size="sm" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{alter.name}</p>
                         {alter.alias && <p className="text-xs text-muted-foreground truncate">{alter.alias}</p>}
@@ -174,12 +172,7 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
                   return (
                     <div key={alterId} className="relative group">
                       <div className="aspect-square rounded-lg bg-muted overflow-hidden">
-                        {alter?.avatar_url
-                          ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
-                              <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>{alter?.name?.charAt(0)}</span>
-                            </div>
-                        }
+                        <AlterAvatar alter={alter} size="w-full h-full" rounded="none" />
                       </div>
                       <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                         <button onClick={() => setSelectedAlters(prev => prev.filter(id => id !== alterId))}

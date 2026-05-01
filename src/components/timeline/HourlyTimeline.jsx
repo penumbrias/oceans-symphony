@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
 import { Activity, Heart } from "lucide-react";
 
@@ -12,6 +13,8 @@ function minutesFromHourStart(date, firstHour, dayStart) {
 }
 
 function AlterAvatar({ alter, color, heightPx, topOffsetPx }) {
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
   return (
     <div
       className="absolute flex flex-col items-center"
@@ -22,8 +25,8 @@ function AlterAvatar({ alter, color, heightPx, topOffsetPx }) {
         style={{ backgroundColor: color }}
         title={alter?.name}
       >
-        {alter?.avatar_url ? (
-          <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
+        {resolvedUrl && !imgError ? (
+          <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
         ) : (
           <span className="text-xs font-bold text-white">
             {alter?.name?.charAt(0)?.toUpperCase() || "?"}

@@ -13,6 +13,7 @@ import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import TourModal from "@/components/onboarding/TourModal";
+import FeatureTour from "@/components/onboarding/FeatureTour";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
 import { useTerms } from "@/lib/useTerms";
 
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
+  const [showFeatureTour, setShowFeatureTour] = useState(false);
   const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
@@ -123,8 +125,13 @@ export default function Dashboard() {
             onClick={() => setShowTour(true)}
             className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
             title="Open guide">
-            
           Guide
+        </button>
+        <button
+            onClick={() => setShowFeatureTour(true)}
+            className="text-xs text-primary hover:text-primary/80 px-2 py-1.5 rounded-lg hover:bg-primary/10 transition-colors font-medium"
+            title="Interactive feature tour">
+          Tour ✨
         </button>
         <button
             onClick={() => setShowNotifHistory(true)}
@@ -149,10 +156,9 @@ export default function Dashboard() {
   onNotifClick={handleNotifClick} />
       
       <button
+        data-tour="quick-checkin"
         onClick={() => setShowEmotionModal(true)}
         aria-label="Quick emotional check-in" className="bg-destructive/10 text-destructive mb-2 px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors">
-        
-        
         <Heart className="w-4 h-4" />
         Quick Check-In
       </button>
@@ -167,6 +173,7 @@ export default function Dashboard() {
         existingSettingsId={settings[0]?.id || null} />
       
       <TourModal open={showTour} onClose={handleTourClose} />
+      {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
       <QuickCheckInModal
         isOpen={showEmotionModal}
         onClose={() => { setShowEmotionModal(false); setEmotionModalInitialSection(null); }}

@@ -38,6 +38,7 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
   const [relType, setRelType] = useState(rel.relationship_type);
   const [color, setColor] = useState(rel.color || "#6b7280");
   const [notes, setNotes] = useState(rel.notes || "");
+  const [strength, setStrength] = useState(rel.strength || 3);
 
   const { data: relTypes = [] } = useQuery({
     queryKey: ["relationshipTypes"],
@@ -88,6 +89,21 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
           </select>
         </div>
         <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+            Strength <span className="font-normal normal-case text-muted-foreground/70">{["", "Very Weak", "Weak", "Moderate", "Strong", "Very Strong"][strength]}</span>
+          </p>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map(v => (
+              <button key={v} onClick={() => setStrength(v)}
+                className={`flex-1 h-8 rounded-lg border-2 text-xs font-bold transition-all ${
+                  v <= strength ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary/50"
+                }`}>
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Color</p>
           <ColorPicker value={color} onChange={setColor} />
         </div>
@@ -98,7 +114,7 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1" onClick={() => onSave({ direction, relationship_type: relType, custom_label: "", color, notes })}>Save</Button>
+          <Button className="flex-1" onClick={() => onSave({ direction, relationship_type: relType, custom_label: "", color, notes, strength })}>Save</Button>
         </div>
       </div>
     </div>
@@ -276,8 +292,15 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
                   <AlterAvatar alter={b} size={22} />
                   <span className="text-xs text-foreground font-medium">{b?.name || "?"}</span>
 
+                  {/* Strength dots */}
+                  <div className="flex gap-0.5 ml-auto flex-shrink-0">
+                    {[1,2,3,4,5].map(v => (
+                      <div key={v} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: v <= (rel.strength || 3) ? (rel.color || "#6b7280") : "transparent", border: `1px solid ${rel.color || "#6b7280"}`, opacity: v <= (rel.strength || 3) ? 1 : 0.35 }} />
+                    ))}
+                  </div>
+
                   {/* Color dot */}
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 ml-auto" style={{ backgroundColor: rel.color || "#6b7280" }} />
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: rel.color || "#6b7280" }} />
 
                   {/* Actions */}
                   <button onClick={() => setEditingRel(rel)}

@@ -6,7 +6,7 @@ import { useTerms } from "@/lib/useTerms";
 
 const REVIEW_COUNTS = { daily: 14, weekly: 12, monthly: 12, yearly: 5 };
 
-export default function PeriodReview({ frequency, templates, allProgress }) {
+export default function PeriodReview({ frequency, templates, allProgress, onToggleTask }) {
   const terms = useTerms();
   const [offset, setOffset] = useState(0);
 
@@ -88,15 +88,14 @@ export default function PeriodReview({ frequency, templates, allProgress }) {
                     const isCurrent = key === currentKey;
                     return (
                       <td key={key} className={`px-1 py-2 text-center ${isCurrent ? "bg-primary/5" : ""}`}>
-                        {done ? (
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/15 text-primary">
-                            <Check className="w-3 h-3" />
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-muted/30 text-muted-foreground/40">
-                            <X className="w-3 h-3" />
-                          </span>
-                        )}
+                        <button
+                          onClick={() => onToggleTask?.(task.id, key, done)}
+                          title={done ? "Mark incomplete" : "Mark complete"}
+                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full transition-all ${
+                            onToggleTask ? "cursor-pointer hover:scale-110 active:scale-95" : "cursor-default"
+                          } ${done ? "bg-primary/15 text-primary" : "bg-muted/30 text-muted-foreground/40"}`}>
+                          {done ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                        </button>
                       </td>
                     );
                   })}

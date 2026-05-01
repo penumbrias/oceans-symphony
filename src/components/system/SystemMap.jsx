@@ -144,7 +144,6 @@ const SystemMap = ({ relationships = [] }) => {
     return map;
   }, [frontingSessions]);
 
-  // Flatten cofrontingTime to the selected timeMode key
   const cofrontingTime = useMemo(() => {
     const result = {};
     Object.entries(cofrontingTimeAll).forEach(([idA, peers]) => {
@@ -289,11 +288,14 @@ const SystemMap = ({ relationships = [] }) => {
     } else {
       positions[selectedAlter.id] = { x: centerX, y: centerY, nodeR: 35 };
       const others = filteredAlters.filter(a => a.id !== selectedAlter.id);
-      const maxCotime = Math.max(...others.map(a => cofrontingTime[selectedAlter.id]?.[a.id] || 0), 1);
-      // Radius: linear % of max co-fronting time with selected alter
+
+      // Denominator: X's total front time across all modes (never mode-filtered)
+      const xTotalTime = frontingTimeAll[selectedAlter.id]?.total || 1;
+
+      // 0% overlap → maxRadius (edge); 100% overlap → minRadius (center).
       const getRadius = (a) => {
-        const t = cofrontingTime[selectedAlter.id]?.[a.id] || 0;
-        const ratio = t / maxCotime;
+        const overlap = cofrontingTime[selectedAlter.id]?.[a.id] || 0;
+        const ratio = Math.min(1, overlap / xTotalTime);
         return maxRadius - ratio * (maxRadius - minRadius);
       };
       // Angular order: alters that co-front most with EACH OTHER sit adjacent
@@ -520,8 +522,12 @@ const SystemMap = ({ relationships = [] }) => {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
-  const alterNodeCount = nodes.filter(n => n.type === "alter").length;
-  const groupNodeCount = nodes.filter(n => n.type === "group").length;
+  const alterNodeCount = useMemo(() => nodes.filter(n => n.type === "alter").length, [nodes]);
+  const groupNodeCount = useMemo(() => nodes.filter(n => n.type === "group").length, [nodes]);
+  const maxCofrontStrength = useMemo(
+    () => Math.max(...links.filter(l => l.type === "cofronting").map(l => l.strength || 1), 1),
+    [links]
+  );
   const currentTimeMode = TIME_MODES.find(t => t.id === timeMode);
 
   return (
@@ -565,15 +571,14 @@ const SystemMap = ({ relationships = [] }) => {
               const targetNode = nodes.find((n) => n.id === link.target);
               if (!sourceNode || !targetNode) return null;
               const isCofronting = link.type === "cofronting";
-              const maxStrength = Math.max(...links.filter(l => l.type === "cofronting").map(l => l.strength || 1), 1);
-              const opacity = isCofronting ? 0.15 + (link.strength / maxStrength) * 0.55 : 0.3;
+              const opacity = isCofronting ? 0.15 + (link.strength / maxCofrontStrength) * 0.55 : 0.3;
               return (
                 <line
                   key={`link-${idx}`}
                   x1={sourceNode.x} y1={sourceNode.y}
                   x2={targetNode.x} y2={targetNode.y}
                   stroke={isCofronting ? "hsl(var(--accent))" : "hsl(var(--muted-foreground))"}
-                  strokeWidth={isCofronting ? Math.max(0.5, Math.min(3, (link.strength / maxStrength) * 3)) : 1.5}
+                  strokeWidth={isCofronting ? Math.max(0.5, Math.min(3, (link.strength / maxCofrontStrength) * 3)) : 1.5}
                   opacity={opacity}
                   strokeDasharray={link.type === "membership" ? "5,5" : "0"}
                 />
@@ -612,6 +617,7 @@ const SystemMap = ({ relationships = [] }) => {
                 const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
                 const markerId = `rel-arrow-${rel.id}`;
 
+                const relStrokeW = Math.max(0.75, (rel.strength || 3) * 0.6);
                 if (relDisplayMode === 'simple') {
                   const ox = perpX * baseOffset, oy = perpY * baseOffset;
                   const x1 = nodeA.x + ox, y1 = nodeA.y + oy;
@@ -619,7 +625,7 @@ const SystemMap = ({ relationships = [] }) => {
                   lines.push(
                     <g key={`rel-${rel.id}`}>
                       <line x1={x1} y1={y1} x2={x2} y2={y2}
-                        stroke={color} strokeWidth={1.5} strokeDasharray="6,3" opacity={0.7} />
+                        stroke={color} strokeWidth={relStrokeW} strokeDasharray="6,3" opacity={0.7} />
                       <text x={(x1+x2)/2} y={(y1+y2)/2 - 6} textAnchor="middle" fontSize={9}
                         fill={color} opacity={0.9} pointerEvents="none">
                         {label}
@@ -644,9 +650,9 @@ const SystemMap = ({ relationships = [] }) => {
                           </marker>
                         </defs>
                         <line x1={nodeA.x+ox1} y1={nodeA.y+oy1} x2={nodeB.x+ox1} y2={nodeB.y+oy1}
-                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
+                          stroke={color} strokeWidth={relStrokeW} opacity={0.75} markerEnd={`url(#${markerId})`} />
                         <line x1={nodeB.x+ox2} y1={nodeB.y+oy2} x2={nodeA.x+ox2} y2={nodeA.y+oy2}
-                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerIdB})`} />
+                          stroke={color} strokeWidth={relStrokeW} opacity={0.75} markerEnd={`url(#${markerIdB})`} />
                       </React.Fragment>
                     );
                   } else {
@@ -662,7 +668,7 @@ const SystemMap = ({ relationships = [] }) => {
                           </marker>
                         </defs>
                         <line x1={lx1+ox} y1={ly1+oy} x2={lx2+ox} y2={ly2+oy}
-                          stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`} />
+                          stroke={color} strokeWidth={relStrokeW} opacity={0.75} markerEnd={`url(#${markerId})`} />
                       </React.Fragment>
                     );
                   }

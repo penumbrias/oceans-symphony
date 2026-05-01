@@ -1,11 +1,9 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { isLocalMode } from "@/lib/storageMode";
-import { getFullDbDump, loadDbDump, migrateBase64AvatarsToLocal } from "@/lib/localDb";
-import { getAllLocalImages, restoreLocalImages } from "@/lib/localImageStorage";
+import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
+import { getFullDbDump, loadDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
+import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
 function compressBackup(data) {
@@ -109,8 +107,16 @@ export default function DataBackupRestore() {
   const [copiedChunks, setCopiedChunks] = useState(new Set()); // tracks which parts have been copied
   const [multiPartChunks, setMultiPartChunks] = useState([]); // for multi-part import
   const [showMultiPartImport, setShowMultiPartImport] = useState(false);
-  const [migratingAvatars, setMigratingAvatars] = useState(false);
-  const [migrateResult, setMigrateResult] = useState(null);
+  const [cachingUrls, setCachingUrls] = useState(false);
+  const [cacheUrlResult, setCacheUrlResult] = useState(null);
+  const [cacheUrlProgress, setCacheUrlProgress] = useState(null);
+  const [recompressing, setRecompressing] = useState(false);
+  const [recompressResult, setRecompressResult] = useState(null);
+  const [recompressProgress, setRecompressProgress] = useState(null);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugJson, setDebugJson] = useState(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugCopied, setDebugCopied] = useState(false);
 
   const showStatus = (type, message) => {
     setStatus({ type, message });
@@ -128,24 +134,9 @@ export default function DataBackupRestore() {
 
   const fetchFullDump = useCallback(async () => {
     if (fullDumpRef.current) return { dump: fullDumpRef.current, images: fullImagesRef.current };
-    let dump;
-    if (isLocalMode()) {
-      dump = getFullDbDump();
-    } else {
-      dump = {};
-      for (const name of ENTITY_NAMES) {
-        try { dump[name] = await base44.entities[name].list(); } catch {}
-      }
-      for (const name of ENTITY_NAMES) {
-        if (Array.isArray(dump[name])) {
-          dump[name] = Object.fromEntries(dump[name].map((r) => [r.id, r]));
-        }
-      }
-    }
+    const dump = getFullDbDump();
     let images = {};
-    if (isLocalMode()) {
-      try { images = await getAllLocalImages(); } catch {}
-    }
+    try { images = await getAllLocalImages(); } catch {}
     fullDumpRef.current = dump;
     fullImagesRef.current = images;
     return { dump, images };
@@ -225,7 +216,7 @@ const handleExportFull = async () => {
   try {
     const exportData = await buildExportData();
     const date = new Date().toISOString().slice(0, 10);
-    await downloadJson(exportData, `symphony-backup-${date}.sympbak`);
+    await downloadJson(exportData, `symphony-backup-${date}.json`);
     showStatus("success", "Backup exported!");
   } catch (e) {
     if (e.message === "__clipboard_fallback__") {
@@ -379,89 +370,53 @@ const handleExportFull = async () => {
     if (parsed.__format !== "symphony_backup" || !parsed.data) {
       throw new Error("Unknown format. Expected Symphony backup.");
     }
+    if (parsed.__local_images) {
+      try { await restoreLocalImages(parsed.__local_images); } catch (e) {
+        console.warn("Failed to restore local images:", e);
+      }
+    }
+    await loadDbDump(parsed.data);
+    showStatus("success", "Data restored! The app will reload.");
+    setTimeout(() => window.location.reload(), 1200);
+  };
 
-    if (isLocalMode()) {
-      // Restore local images before loading DB dump
-      if (parsed.__local_images) {
-        try {
-          await restoreLocalImages(parsed.__local_images);
-        } catch (e) {
-          console.warn("Failed to restore local images:", e);
-        }
-      }
-      await loadDbDump(parsed.data);
-      showStatus("success", "Data restored! The app will reload.");
-      setTimeout(() => window.location.reload(), 1200);
-    } else {
-      if (importMode === "replace") {
-        for (const entityName of ENTITY_NAMES) {
-          try {
-            let hasMore = true;
-            while (hasMore) {
-              const records = await base44.entities[entityName].list();
-              if (records.length === 0) {
-                hasMore = false;
-              } else {
-                for (const record of records) {
-                  await base44.entities[entityName].delete(record.id);
-                }
-              }
-            }
-          } catch {}
-        }
-      }
-
-      let count = 0;
-      for (const [entityName, recordsMap] of Object.entries(parsed.data)) {
-        if (!ENTITY_NAMES.includes(entityName)) continue;
-        const records = Array.isArray(recordsMap) ? recordsMap : Object.values(recordsMap || {});
-        for (const record of records) {
-          const { id, ...data } = record;
-          try { await base44.entities[entityName].create(data); count++; } catch {}
-        }
-      }
-      showStatus("success", `${importMode === "replace" ? "Replaced" : "Imported"} ${count} records.`);
+  const handleCacheUrlImages = async () => {
+    setCachingUrls(true);
+    setCacheUrlResult(null);
+    setCacheUrlProgress({ migrated: 0, failed: 0, skipped: 0 });
+    try {
+      const result = await migrateHttpImagesToLocal((progress) => {
+        setCacheUrlProgress({ ...progress });
+      });
+      setCacheUrlResult({
+        type: "success",
+        message: `Done! Cached ${result.migrated} image(s) locally.${result.failed > 0 ? ` ${result.failed} could not be fetched (CORS or offline).` : ""}`,
+      });
+    } catch (e) {
+      setCacheUrlResult({ type: "error", message: `Failed: ${e.message}` });
+    } finally {
+      setCachingUrls(false);
+      setCacheUrlProgress(null);
     }
   };
 
-  const handleMigrateAvatars = async () => {
-    setMigratingAvatars(true);
-    setMigrateResult(null);
+  const handleRecompressImages = async () => {
+    setRecompressing(true);
+    setRecompressResult(null);
+    setRecompressProgress({ processed: 0, total: 0, savedKB: 0 });
     try {
-      if (isLocalMode()) {
-        const count = await migrateBase64AvatarsToLocal();
-        setMigrateResult({ type: "success", message: `Done! Migrated ${count} avatar(s) to local storage.` });
-      } else {
-        // Cloud mode: scan all entities/fields for base64 data URLs and upload them
-        let migrated = 0;
-        for (const entityName of ENTITY_NAMES) {
-          let records = [];
-          try { records = await base44.entities[entityName].list(); } catch { continue; }
-          for (const record of records) {
-            const updates = {};
-            for (const [field, value] of Object.entries(record)) {
-              if (typeof value === "string" && value.startsWith("data:")) {
-                try {
-                  const res = await fetch(value);
-                  const blob = await res.blob();
-                  const file = new File([blob], `${entityName}-${record.id}-${field}.jpg`, { type: blob.type || "image/jpeg" });
-                  const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                  updates[field] = file_url;
-                  migrated++;
-                } catch {}
-              }
-            }
-            if (Object.keys(updates).length > 0) {
-              await base44.entities[entityName].update(record.id, updates);
-            }
-          }
-        }
-        setMigrateResult({ type: "success", message: `Done! Migrated ${migrated} image(s) to hosted URLs.` });
-      }
+      const result = await recompressAllStoredImages(512, 0.82, (p) => setRecompressProgress({ ...p }));
+      setRecompressResult({
+        type: "success",
+        message: `Done! Processed ${result.processed} image(s), saved ~${result.savedKB}KB.`,
+      });
+      fullDumpRef.current = null;
+      fullImagesRef.current = null;
     } catch (e) {
-      setMigrateResult({ type: "error", message: `Migration failed: ${e.message}` });
+      setRecompressResult({ type: "error", message: `Failed: ${e.message}` });
     } finally {
-      setMigratingAvatars(false);
+      setRecompressing(false);
+      setRecompressProgress(null);
     }
   };
 
@@ -516,19 +471,49 @@ const handleExportFull = async () => {
         )}
 
         <div className="space-y-2 pb-3 border-b border-border/40">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Avatar Migration</p>
-          <p className="text-xs text-muted-foreground">If avatars were uploaded on Android, they may be stored as large base64 strings that bloat backups. Run this once to migrate them to proper URLs.</p>
-          {migrateResult && (
-            <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${migrateResult.type === "success" ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-destructive/5 text-destructive"}`}>
-              {migrateResult.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-              {migrateResult.message}
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cache URL Images Offline</p>
+            <p className="text-xs text-muted-foreground">Download any images stored as external URLs (e.g. avatars pasted as links) into local storage so they display offline.</p>
+            {cacheUrlResult && (
+              <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${cacheUrlResult.type === "success" ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-destructive/5 text-destructive"}`}>
+                {cacheUrlResult.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                {cacheUrlResult.message}
+              </div>
+            )}
+            <Button variant="outline" onClick={handleCacheUrlImages} disabled={cachingUrls} className="w-full gap-2 justify-start">
+              {cachingUrls ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+              <div className="text-left">
+                <p className="font-medium">Cache Images for Offline</p>
+                {cachingUrls && cacheUrlProgress ? (
+                  <p className="text-xs text-muted-foreground font-normal">
+                    {cacheUrlProgress.migrated} cached · {cacheUrlProgress.failed} failed · {cacheUrlProgress.skipped} skipped
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground font-normal">Requires network · saves images locally</p>
+                )}
+              </div>
+            </Button>
+          </div>
+
+        <div className="space-y-2 pb-3 border-b border-border/40">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recompress Stored Images</p>
+          <p className="text-xs text-muted-foreground">Resize and re-encode all locally stored images to 512px max / JPEG 82%. Run this once to shrink backup size if images are large.</p>
+          {recompressResult && (
+            <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${recompressResult.type === "success" ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400" : "bg-destructive/5 text-destructive"}`}>
+              {recompressResult.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+              {recompressResult.message}
             </div>
           )}
-          <Button variant="outline" onClick={handleMigrateAvatars} disabled={migratingAvatars} className="w-full gap-2 justify-start">
-            {migratingAvatars ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+          <Button variant="outline" onClick={handleRecompressImages} disabled={recompressing} className="w-full gap-2 justify-start">
+            {recompressing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
             <div className="text-left">
-              <p className="font-medium">Migrate All Images</p>
-              <p className="text-xs text-muted-foreground font-normal">Convert any base64 images to hosted URLs</p>
+              <p className="font-medium">Recompress Images</p>
+              {recompressing && recompressProgress ? (
+                <p className="text-xs text-muted-foreground font-normal">
+                  {recompressProgress.processed}/{recompressProgress.total} · saved {recompressProgress.savedKB}KB so far
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground font-normal">Shrinks backup size · irreversible</p>
+              )}
             </div>
           </Button>
         </div>
@@ -677,12 +662,12 @@ const handleExportFull = async () => {
               <span className="text-xs font-medium">Replace All</span>
             </label>
           </div>
-          <input ref={fileInputRef} type="file" accept=".json,.txt,.sympbak" onChange={handleImportFromFile} className="hidden" />
+          <input ref={fileInputRef} type="file" accept=".json,.txt" onChange={handleImportFromFile} className="hidden" />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal">Symphony backup .sympbak, .JSON or .txt file</p>
+              <p className="text-xs text-muted-foreground font-normal">Symphony backup .json or .txt file</p>
             </div>
           </Button>
           {!showPasteInput && !showMultiPartImport ? (
@@ -763,6 +748,65 @@ const handleExportFull = async () => {
               ? "⚠️ Replace All will delete existing data and import from backup."
               : "⚠️ Add New imports records — it does not replace existing data."}
           </p>
+        </div>
+        {/* Debug: View Local Data */}
+        <div className="space-y-2 pt-1 border-t border-border/40">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Developer</p>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              if (debugOpen) { setDebugOpen(false); setDebugJson(null); return; }
+              setDebugLoading(true);
+              try {
+                const dump = await getRawIdbDump();
+                setDebugJson(JSON.stringify(dump, null, 2));
+                setDebugOpen(true);
+              } catch (e) {
+                showStatus("error", "Could not read local data: " + e.message);
+              } finally {
+                setDebugLoading(false);
+              }
+            }}
+            disabled={debugLoading}
+            className="w-full gap-2 justify-start"
+          >
+            {debugLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bug className="w-4 h-4" />}
+            <div className="text-left">
+              <p className="font-medium">Debug: View Local Data</p>
+              <p className="text-xs text-muted-foreground font-normal">Inspect raw JSON in IndexedDB</p>
+            </div>
+          </Button>
+          {debugOpen && debugJson && (
+            <div className="rounded-xl border border-border/50 bg-muted/20 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground">Raw IndexedDB contents</p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(debugJson);
+                      setDebugCopied(true);
+                      setTimeout(() => setDebugCopied(false), 2000);
+                    } catch {}
+                  }}
+                >
+                  {debugCopied ? <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-green-500" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                  {debugCopied ? "Copied!" : "Copy"}
+                </Button>
+              </div>
+              <textarea
+                readOnly
+                value={debugJson}
+                className="w-full h-64 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                onFocus={e => e.target.select()}
+              />
+              <p className="text-xs text-muted-foreground">
+                Entities: {Object.keys(JSON.parse(debugJson)).filter(k => !k.startsWith('_')).join(', ')}
+              </p>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
