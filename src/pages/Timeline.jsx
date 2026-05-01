@@ -153,7 +153,7 @@ export default function Timeline() {
     }`;
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto" ref={containerRef}>
+    <div data-tour="timeline-container" className="space-y-4 max-w-3xl mx-auto" ref={containerRef}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-3xl font-bold">Timeline</h1>
         <div className="flex items-center gap-2 flex-wrap">

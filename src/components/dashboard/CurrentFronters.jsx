@@ -178,7 +178,7 @@ export default function CurrentFronters({ alters }) {
             <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" />
             <p className="text-sm text-muted-foreground">No one is currently {terms.fronting}</p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs">
+          <Button data-tour="set-front" size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs">
             <RefreshCw className="w-3 h-3" />
             Set {terms.Front}
           </Button>
@@ -212,7 +212,7 @@ export default function CurrentFronters({ alters }) {
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Currently {terms.Fronting}</p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs h-7 px-2.5">
+          <Button data-tour="set-front" size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs h-7 px-2.5">
             <RefreshCw className="w-3 h-3" />
             {terms.Switch}
           </Button>

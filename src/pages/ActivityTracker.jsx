@@ -101,7 +101,7 @@ export default function ActivityTracker() {
 
   return (
     <div className="min-h-screen bg-background p-4">
-      <div className="max-w-full mx-auto">
+      <div data-tour="activities-log" className="max-w-full mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-foreground">Activity Tracker</h1>
           <div className="flex items-center gap-2">

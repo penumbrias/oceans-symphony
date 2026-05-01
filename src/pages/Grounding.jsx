@@ -466,7 +466,7 @@ export default function Grounding({ initialPath = null }) {
 
   // Entry screen (Support tab)
   return (
-    <div className="max-w-lg mx-auto px-4">
+    <div data-tour="grounding-content" className="max-w-lg mx-auto px-4">
       <TabBar />
       <div className="space-y-8">
         <div className="text-center space-y-2 pt-4">

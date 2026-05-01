@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useTerms } from '@/lib/useTerms';
-import { 
-  Users, Heart, BookOpen, BarChart2, Map, Shield, 
+import {
+  Users, Heart, BookOpen, BarChart2, Map, Shield,
   FileText, Sparkles, Clock, CheckSquare, Activity,
-  MessageSquare, Zap, ChevronRight, ChevronLeft, X
+  MessageSquare, Zap, ChevronRight, ChevronLeft, X, Bell
 } from 'lucide-react';
 
 const STEPS = (t) => [
@@ -77,8 +77,35 @@ const STEPS = (t) => [
     body: `The infinite timeline shows everything — ${t.fronting} sessions, emotions, activities, symptoms, journal entries, and tasks — laid out chronologically by day. Zoom in and out to explore.`,
     icon: <Clock className='w-8 h-8' />,
     color: 'from-indigo-500/20 to-blue-500/20',
-    tip: `Double-tap a ${t.fronting} bar on the timeline to edit that session's start and end time`,
-    features: [`${t.Fronting} session bars`, 'Emotion and symptom events', 'Activity tracking', 'Zoom and scroll', 'Daily tally view'],
+    tip: `Press and hold anywhere on the timeline to retroactively add a ${t.fronting} session or quick check-in at that time`,
+    features: [`${t.Fronting} session bars`, 'Emotion and symptom events', 'Activity tracking', 'Zoom and scroll', 'Daily tally view', 'Retroactive entry via long press'],
+  },
+  {
+    title: 'Tasks & Habits',
+    subtitle: 'Daily, weekly, monthly, and yearly tracking',
+    body: `Build task lists for any time scale — daily routines, weekly goals, monthly intentions, or yearly milestones. Track streaks and habit completion over time. Tap "Tally" on any past timeline day to retroactively review task history.`,
+    icon: <CheckSquare className='w-8 h-8' />,
+    color: 'from-teal-500/20 to-emerald-500/20',
+    tip: 'Tasks repeat on their schedule and track streaks automatically',
+    features: ['Daily, weekly, monthly, yearly tasks', 'Completion streaks', 'Historical review', 'Manual check-off', 'System-wide task sharing'],
+  },
+  {
+    title: 'Bulletin Board',
+    subtitle: `System-wide announcements and messages`,
+    body: `Post messages that any part of the ${t.system} can see. Great for leaving notes between ${t.alters}, announcements, or anything the whole ${t.system} should know. Bulletins support @ mentions and comments.`,
+    icon: <MessageSquare className='w-8 h-8' />,
+    color: 'from-orange-500/20 to-amber-500/20',
+    tip: `Pin important bulletins so they always appear at the top of the board`,
+    features: ['System-wide messages', '@ mention notifications', 'Comments and replies', 'Pin important posts', 'Timestamped for reference'],
+  },
+  {
+    title: 'Reminders & Notifications',
+    subtitle: 'Stay on track between sessions',
+    body: `Set scheduled reminders to log fronting, check in, or take care of yourself. Reminders can link directly to any part of the app — tap a notification and it opens the right thing instantly.`,
+    icon: <Zap className='w-8 h-8' />,
+    color: 'from-yellow-500/20 to-orange-500/20',
+    tip: 'Reminders are delivered even when the app is closed, as long as you grant notification permission',
+    features: ['Scheduled reminders', 'Deep-link to any feature', 'Custom messages', 'Repeating or one-time', 'Notification history'],
   },
   {
     title: 'Analytics',

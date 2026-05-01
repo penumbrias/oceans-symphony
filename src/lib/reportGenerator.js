@@ -440,6 +440,24 @@ function addAlterAppendix(doc, appendix, y) {
   return y;
 }
 
+function addSimpleListSection(doc, title, lines, y) {
+  if (!lines || lines.length === 0) return y;
+  y = checkPageBreak(doc, y, 20);
+  y = sectionHeader(doc, title, y);
+  lines.forEach(line => {
+    const parts = line.split("\n");
+    parts.forEach((part, i) => {
+      y = checkPageBreak(doc, y, 6);
+      doc.setFontSize(i === 0 ? 8.5 : 8);
+      doc.setFont("helvetica", i === 0 ? "normal" : "normal");
+      doc.setTextColor(...(i === 0 ? [30, 30, 30] : MUTED));
+      y = wrappedText(doc, part, MARGIN + (i > 0 ? 6 : 2), y, CONTENT_W - (i > 0 ? 6 : 2), 4.5);
+    });
+    y += 2;
+  });
+  return y + 4;
+}
+
 // ── PLAIN TEXT EXPORT ─────────────────────────────────────────────────────────
 
 function formatAsPlainText({
@@ -593,6 +611,39 @@ function formatAsPlainText({
     text += "\n";
   }
 
+  // Bulletins
+  if (enabledSections.has("bulletins") && sections.bulletins?.length > 0) {
+    text += `BULLETIN BOARD\n${"--------".padEnd(60, "-")}\n`;
+    sections.bulletins.forEach(b => {
+      text += `\n  [${b.date}]${b.isPinned ? " 📌" : ""} ${b.title}`;
+      if (b.author) text += ` — by ${b.author}`;
+      text += "\n";
+      if (b.content) text += `  ${b.content.slice(0, 300)}${b.content.length > 300 ? "..." : ""}\n`;
+    });
+    text += "\n";
+  }
+
+  // System Check-Ins
+  if (enabledSections.has("systemCheckIns") && sections.systemCheckIns?.length > 0) {
+    text += `SYSTEM CHECK-INS\n${"--------".padEnd(60, "-")}\n`;
+    sections.systemCheckIns.forEach(c => {
+      text += `\n  [${c.date}] ${c.title}`;
+      if (c.overallRating != null) text += ` — Rating: ${c.overallRating}`;
+      text += "\n";
+      if (c.summary) text += `  ${c.summary}\n`;
+    });
+    text += "\n";
+  }
+
+  // Tasks
+  if (enabledSections.has("tasks") && sections.tasks?.frequencySummary?.length > 0) {
+    text += `TASKS & HABITS\n${"--------".padEnd(60, "-")}\n`;
+    sections.tasks.frequencySummary.forEach(f => {
+      text += `  ${f.frequency}: ${f.periods} period(s) tracked, avg ${f.avgCompleted} tasks completed\n`;
+    });
+    text += "\n";
+  }
+
   // Patterns
   if (enabledSections.has("patterns") && sections.patterns) {
     text += `PATTERNS SUMMARY\n${"--------".padEnd(60, "-")}\n`;
@@ -660,6 +711,21 @@ export async function generateTherapyReport({
   }
   if (enabledSections.has("diary") && sections.diary) {
     y = addDiarySection(doc, sections.diary, y);
+  }
+  if (enabledSections.has("bulletins") && sections.bulletins?.length > 0) {
+    y = addSimpleListSection(doc, "Bulletin Board", sections.bulletins.map(b =>
+      `[${b.date}]${b.isPinned ? " 📌" : ""} ${b.title}${b.author ? " — " + b.author : ""}${b.content ? "\n  " + b.content.slice(0, 200) : ""}`
+    ), y);
+  }
+  if (enabledSections.has("systemCheckIns") && sections.systemCheckIns?.length > 0) {
+    y = addSimpleListSection(doc, "System Check-Ins", sections.systemCheckIns.map(c =>
+      `[${c.date}] ${c.title}${c.overallRating != null ? " — Rating: " + c.overallRating : ""}${c.summary ? "\n  " + c.summary : ""}`
+    ), y);
+  }
+  if (enabledSections.has("tasks") && sections.tasks?.frequencySummary?.length > 0) {
+    y = addSimpleListSection(doc, "Tasks & Habits", sections.tasks.frequencySummary.map(f =>
+      `${f.frequency}: ${f.periods} period(s), avg ${f.avgCompleted} completed`
+    ), y);
   }
   if (enabledSections.has("patterns") && sections.patterns) {
     y = addPatternsSection(doc, sections.patterns, y);

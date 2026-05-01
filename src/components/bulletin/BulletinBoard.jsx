@@ -101,7 +101,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
   };
 
   return (
-    <div>
+    <div data-tour="bulletin-list">
       {/* Header */}
       <div className="mt-4 flex items-center justify-between">
         <div className="flex items-center gap-2">

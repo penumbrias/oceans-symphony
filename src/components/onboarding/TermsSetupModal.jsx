@@ -47,7 +47,7 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
           <div>
             <h2 className="text-xl font-semibold">Choose your language 💜</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Innerworld adapts to the terminology your system prefers. Pick a preset or define your own.
+              Oceans Symphony adapts to the terminology your system prefers. Pick a preset or define your own.
             </p>
           </div>
 

@@ -175,7 +175,7 @@ export default function Journals() {
   const breadcrumbs = viewingFolder ? viewingFolder.split("/") : [];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div data-tour="journals-list" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">

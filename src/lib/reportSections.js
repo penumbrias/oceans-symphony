@@ -112,9 +112,13 @@ export function buildFrontingSection({ dateFrom, dateTo, frontingSessions, alter
     const start = new Date(s.start_time);
     const end = s.end_time ? new Date(s.end_time) : null;
     const ms = end ? end - start : null;
+    const coFronters = (s.co_fronter_ids || [])
+      .map(cid => alterName(cid, alters, includeAlterInfo))
+      .filter(Boolean);
     return {
       date: fmtDateTime(s.start_time),
       who: alterName(id, alters, includeAlterInfo),
+      coFronters: coFronters.length > 0 ? coFronters.join(", ") : null,
       duration: ms ? msToHm(ms) : "ongoing",
       note: s.note || "",
       isPrimary: s.is_primary,
@@ -233,7 +237,7 @@ export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckI
 // ── SECTION: ACTIVITIES ────────────────────────────────────────────────────────
 
 export function buildActivitiesSection({ dateFrom, dateTo, activities }) {
-  const acts = activities.filter(a => inRange(a.start_time || a.created_date, dateFrom, dateTo));
+  const acts = activities.filter(a => inRange(a.timestamp || a.start_time || a.created_date, dateFrom, dateTo));
 
   const freq = {};
   acts.forEach(a => {
@@ -379,4 +383,75 @@ export function buildAlterAppendix({ alters, alterIdsInReport }) {
       role: a.role || null,
       bio: a.description ? a.description.slice(0, 200) : null,
     }));
+}
+
+// ── SECTION: BULLETINS ────────────────────────────────────────────────────────
+
+export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, includeAlterInfo }) {
+  const items = bulletins
+    .filter(b => inRange(b.created_date, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+
+  return items.map(b => ({
+    date: fmtDateTime(b.created_date),
+    title: b.title || "Bulletin",
+    content: b.content ? b.content.slice(0, 500) : "",
+    author: includeAlterInfo ? (alterName(b.author_alter_id, alters, true) || null) : null,
+    isPinned: !!b.is_pinned,
+  }));
+}
+
+// ── SECTION: SYSTEM CHECK-INS ─────────────────────────────────────────────────
+
+export function buildSystemCheckInsSection({ dateFrom, dateTo, systemCheckIns, alters, includeAlterInfo }) {
+  const items = systemCheckIns
+    .filter(c => inRange(c.created_date, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+
+  return items.map(c => {
+    const responses = c.responses || c.answers || {};
+    const summaryParts = Object.entries(responses)
+      .filter(([, v]) => v != null && v !== "")
+      .slice(0, 5)
+      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`);
+    return {
+      date: fmtDateTime(c.created_date),
+      title: c.title || "System Check-In",
+      summary: summaryParts.join(" · ") || null,
+      overallRating: c.overall_rating ?? c.rating ?? null,
+    };
+  });
+}
+
+// ── SECTION: TASKS SUMMARY ────────────────────────────────────────────────────
+
+export function buildTasksSummarySection({ dateFrom, dateTo, tasks, dailyProgress }) {
+  const periodTasks = tasks.filter(t => {
+    if (!t.frequency || t.frequency === "daily") return true;
+    return true; // include all tasks that were active in period
+  });
+
+  const completedInPeriod = (dailyProgress || [])
+    .filter(p => inRange(p.date || p.period_key, dateFrom, dateTo));
+
+  const completionByFreq = {};
+  completedInPeriod.forEach(p => {
+    const freq = p.frequency || "daily";
+    if (!completionByFreq[freq]) completionByFreq[freq] = { periods: 0, totalCompleted: 0, totalTasks: 0 };
+    completionByFreq[freq].periods += 1;
+    completionByFreq[freq].totalCompleted += (p.completed_task_ids || []).length;
+  });
+
+  const frequencySummary = Object.entries(completionByFreq).map(([freq, data]) => ({
+    frequency: freq,
+    periods: data.periods,
+    avgCompleted: data.periods > 0 ? (data.totalCompleted / data.periods).toFixed(1) : "0",
+  }));
+
+  const taskList = periodTasks.slice(0, 20).map(t => ({
+    title: t.title,
+    frequency: t.frequency || "daily",
+  }));
+
+  return { taskList, frequencySummary, totalTasks: periodTasks.length };
 }
