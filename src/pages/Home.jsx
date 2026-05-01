@@ -116,7 +116,9 @@ export default function Home() {
       </motion.div>
 
       <FrontingBar alters={activeAlters} />
-      <AlterGrid alters={activeAlters} currentSession={activeSession} />
+      <div data-tour="alters-grid">
+        <AlterGrid alters={activeAlters} currentSession={activeSession} />
+      </div>
 
       <AlterEditModal
         open={showAddAlter}
