@@ -201,10 +201,13 @@ export default function TherapyReportPage() {
 
       // Collect alter IDs from report
       const alterIdsInReport = new Set();
-      fronting.sessionList.forEach(s => {
-        const id = frontingSessions.find(fs => fs.start_time === s.date)?.alter_id;
-        if (id) alterIdsInReport.add(id);
-      });
+      frontingSessions
+        .filter(s => reportSections.inRange(s.start_time, config.dateFrom, config.dateTo))
+        .forEach(s => {
+          const id = s.alter_id || s.primary_alter_id;
+          if (id) alterIdsInReport.add(id);
+          (s.co_fronter_ids || []).forEach(cid => alterIdsInReport.add(cid));
+        });
       emotions.checkInList.forEach(e => {
         if (e.who && e.who !== "a system member") {
           const a = alters.find(x => x.name === e.who);
@@ -249,13 +252,15 @@ export default function TherapyReportPage() {
         setExportModal({ content: textContent, filename, format: "text" });
         toast.success("Report ready — copy the text below");
       } else {
-        // Generate PDF
-        await generateTherapyReport({
+        // Generate PDF and show download modal
+        const { blob, filename } = await generateTherapyReport({
           config: config.config,
           sections,
           enabledSections,
         });
-        toast.success("Report ready — check your downloads");
+        const blobUrl = URL.createObjectURL(blob);
+        setExportModal({ filename, format: "pdf", blobUrl });
+        toast.success("PDF ready — tap Download below");
       }
 
       // Save export log
@@ -309,10 +314,14 @@ export default function TherapyReportPage() {
 
       <ExportModal
         isOpen={!!exportModal}
-        onClose={() => setExportModal(null)}
+        onClose={() => {
+          if (exportModal?.blobUrl) URL.revokeObjectURL(exportModal.blobUrl);
+          setExportModal(null);
+        }}
         content={exportModal?.content || ""}
         filename={exportModal?.filename || ""}
         format={exportModal?.format || "json"}
+        blobUrl={exportModal?.blobUrl}
       />
     </div>
   );

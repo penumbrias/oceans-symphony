@@ -195,24 +195,36 @@ export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckI
     }
   });
 
-  const summaryTable = Object.values(bySymptom).map(s => ({
-    label: s.label,
-    count: s.count,
-    avgSeverity: s.severities.length > 0 ? (s.severities.reduce((a, b) => a + b, 0) / s.severities.length).toFixed(1) : "—",
-    activeSessions: s.sessions,
-    totalDuration: s.sessionMs > 0 ? msToHm(s.sessionMs) : "—",
-  })).sort((a, b) => b.count - a.count);
+  const summaryTable = Object.values(bySymptom).map(s => {
+    const sym = Object.values(symptomMap).find(x => x.label === s.label);
+    const isPositive = sym?.is_positive ?? false;
+    return {
+      label: s.label,
+      isPositive,
+      count: s.count,
+      avgScore: s.severities.length > 0 ? (s.severities.reduce((a, b) => a + b, 0) / s.severities.length).toFixed(1) : "—",
+      activeSessions: s.sessions,
+      totalDuration: s.sessionMs > 0 ? msToHm(s.sessionMs) : "—",
+    };
+  }).sort((a, b) => b.count - a.count);
 
-  // Noteworthy
+  // Noteworthy — respects is_positive: positive symptoms flag when LOW, negative when HIGH
   const noteworthy = [];
   checkIns.forEach(c => {
-    if (c.severity >= thresholds.symptom_severity_min) {
-      const sym = symptomMap[c.symptom_id];
+    if (c.severity == null) return;
+    const sym = symptomMap[c.symptom_id];
+    if (!sym) return;
+    const isPositive = sym.is_positive;
+    const lowThreshold = 6 - thresholds.symptom_severity_min; // e.g. threshold=4 → flag if ≤2
+    const isNoteworthy = isPositive
+      ? c.severity <= lowThreshold
+      : c.severity >= thresholds.symptom_severity_min;
+    if (isNoteworthy) {
       noteworthy.push({
         date: fmtDateTime(c.timestamp),
-        label: sym?.label || "Symptom",
+        label: sym.label,
         severity: c.severity,
-        flag: `Severity ${c.severity}`,
+        flag: isPositive ? `Low ${sym.label} (${c.severity}/5)` : `High severity (${c.severity}/5)`,
       });
     }
   });
