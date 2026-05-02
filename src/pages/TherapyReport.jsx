@@ -212,7 +212,7 @@ export default function TherapyReportPage() {
         }
       });
 
-      const alterAppendix = config.config.includeAlterInfo && config.selectedSections.has("alterAppendix")
+      const alterAppendix = config.config.includeAlterInfo !== false && config.selectedSections.has("alterAppendix")
         ? reportSections.buildAlterAppendix({ alters, alterIdsInReport })
         : [];
 

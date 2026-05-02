@@ -82,6 +82,7 @@ export default function ReportBuilder({
         showCoverPage,
         confidentialityNotice,
         journalDetail,
+        includeAlterInfo,
       },
       saveAsTemplate: saveAsTemplate ? { name: templateName } : null,
     });
@@ -336,6 +337,7 @@ export default function ReportBuilder({
                 showCoverPage,
                 confidentialityNotice,
                 journalDetail,
+                includeAlterInfo,
               },
               exportAsText: true,
               saveAsTemplate: saveAsTemplate ? { name: templateName } : null,
