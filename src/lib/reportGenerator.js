@@ -389,7 +389,7 @@ function addStatusNotesSection(doc, statusNotes, y) {
     doc.text(entry.date, MARGIN + 2, y);
     y += 5;
     doc.setTextColor(50, 50, 50);
-    y = wrappedText(doc, `💬 ${entry.note}`, MARGIN + 4, y, CONTENT_W - 8, 4.5);
+    y = wrappedText(doc, entry.note, MARGIN + 4, y, CONTENT_W - 8, 4.5);
     if (entry.emotions) {
       doc.setTextColor(...MUTED);
       doc.setFontSize(7.5);
@@ -583,9 +583,10 @@ function formatAsPlainText({
     if (sections.journals.length > 0) {
       sections.journals.forEach(j => {
         text += `\n  "${j.title || "Untitled"}" (${j.date})\n`;
-        if (j.excerpt || j.content) {
-          const snippet = (j.content || j.excerpt || "").slice(0, 300);
-          text += `  ${snippet}${snippet.length >= 300 ? "…" : ""}\n`;
+        if (j.content) {
+          text += `  ${j.content}\n`;
+        } else if (j.excerpt) {
+          text += `  ${j.excerpt}${j.excerpt.length >= 400 ? "…" : ""}\n`;
         }
       });
     } else {
@@ -742,35 +743,34 @@ export async function generateTherapyReport({
 
   const slug = (config.systemName || "system").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   const filename = `${slug}-therapy-report-${config.dateFrom}-to-${config.dateTo}.pdf`;
-  
-  // APK-friendly PDF export
+
   try {
     const blob = doc.output("blob");
-    const file = new File([blob], filename, { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
 
-    // Try Web Share API first (works on mobile)
+    // On mobile with file-sharing support, offer the share sheet
+    const file = new File([blob], filename, { type: "application/pdf" });
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: filename });
+        URL.revokeObjectURL(url);
         return;
       } catch (err) {
-        // User cancelled share or share failed — fall through to download
-        if (err.name === "AbortError") return;
+        if (err.name === "AbortError") { URL.revokeObjectURL(url); return; }
+        // share failed — fall through to download
       }
     }
 
-    // Desktop / fallback: trigger download via anchor
-    const url = URL.createObjectURL(blob);
+    // Standard download via anchor
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   } catch (err) {
     console.error("PDF export failed:", err);
-    // Last resort: use jsPDF's built-in save
     doc.save(filename);
   }
 }
