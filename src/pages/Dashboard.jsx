@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { Heart, Bell } from "lucide-react";
@@ -13,7 +13,6 @@ import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import TourModal from "@/components/onboarding/TourModal";
-import FeatureTour from "@/components/onboarding/FeatureTour";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
 import { useTerms } from "@/lib/useTerms";
 
@@ -23,7 +22,7 @@ export default function Dashboard() {
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
-  const [showFeatureTour, setShowFeatureTour] = useState(false);
+  const { setShowFeatureTour } = useOutletContext() || {};
   const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
@@ -173,7 +172,6 @@ export default function Dashboard() {
         existingSettingsId={settings[0]?.id || null} />
       
       <TourModal open={showTour} onClose={handleTourClose} />
-      {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
       <QuickCheckInModal
         isOpen={showEmotionModal}
         onClose={() => { setShowEmotionModal(false); setEmotionModalInitialSection(null); }}
