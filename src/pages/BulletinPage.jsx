@@ -65,7 +65,7 @@ export default function BulletinPage() {
       const el = document.getElementById(`comment-${targetCommentId}`);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 150);
-    const timer = setTimeout(() => setHighlightedCommentId(null), 4000);
+    const timer = setTimeout(() => setHighlightedCommentId(null), 5000);
     return () => clearTimeout(timer);
   }, [targetCommentId, comments.length]);
 

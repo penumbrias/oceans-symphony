@@ -103,6 +103,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
   const [pinToggle, setPinToggle] = useState(false);
   const [saving, setSaving] = useState(false);
   const highlightRef = useRef(null);
+  const [activeHighlightId, setActiveHighlightId] = useState(highlightMessageId || null);
 
   const { data: messages = [] } = useQuery({
     queryKey: ["privateMessages", alterId],
@@ -132,6 +133,8 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
     if (!highlightMessageId || !highlightRef.current) return;
     const el = highlightRef.current;
     setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
+    const timer = setTimeout(() => setActiveHighlightId(null), 5000);
+    return () => clearTimeout(timer);
   }, [highlightMessageId, messages]);
 
   const handleSendMessage = async () => {
@@ -208,7 +211,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
       ) : (
         <div className="space-y-2">
           {messages.map((msg) => {
-            const isHighlighted = msg.id === highlightMessageId;
+            const isHighlighted = msg.id === activeHighlightId;
             return (
               <MessageCard
                 key={msg.id}

@@ -50,7 +50,7 @@ export default function Dashboard() {
     const bid = location.state?.highlightBulletinId;
     if (bid) {
       setHighlightBulletinId(bid);
-      setTimeout(() => setHighlightBulletinId(null), 3000);
+      setTimeout(() => setHighlightBulletinId(null), 5000);
       window.history.replaceState({}, "");
     }
   }, [location.state]);
@@ -60,7 +60,7 @@ export default function Dashboard() {
     const path = mentionLog.navigate_path || "/";
     if (path === "/" && mentionLog.source_id) {
       setHighlightBulletinId(mentionLog.source_id);
-      setTimeout(() => setHighlightBulletinId(null), 3000);
+      setTimeout(() => setHighlightBulletinId(null), 5000);
     } else {
       navigate(path);
     }
