@@ -433,8 +433,10 @@ export default function Analytics() {
         <PatternInsights
           sessions={sessions}
           alters={alters}
+          altersById={altersById}
           symptomCheckIns={symptomCheckIns}
           symptoms={symptoms}
+          emotionCheckIns={emotionCheckIns}
           from={from}
           to={to}
         />

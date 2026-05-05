@@ -1,7 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { computeAlterEmotionProfiles } from "@/lib/analyticsEngine";
-import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
 
 // Rough emotion → valence mapping for coloring
 const VALENCE = {
