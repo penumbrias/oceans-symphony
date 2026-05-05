@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_RELATIONSHIP_TYPES } from "@/lib/relationshipTypes";
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
 
 function TypeRow({ type, onUpdate, onToggleArchive }) {
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(type.label);
   const [color, setColor] = useState(type.color || "#6b7280");
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const handleSave = () => {
     if (!label.trim()) return;
@@ -28,13 +30,21 @@ function TypeRow({ type, onUpdate, onToggleArchive }) {
   if (editing) {
     return (
       <div className="flex items-center gap-2 p-2 rounded-lg border border-primary/30 bg-primary/5">
-        <input
-          type="color"
-          value={color}
-          onChange={e => setColor(e.target.value)}
-          className="w-7 h-7 rounded cursor-pointer border border-border flex-shrink-0 p-0.5 bg-background"
+        <button
+          type="button"
+          onClick={() => setShowColorPicker(true)}
+          className="w-7 h-7 rounded-lg border-2 border-border hover:border-primary/50 flex-shrink-0 shadow-sm transition-colors"
+          style={{ backgroundColor: color }}
           title="Pick color"
         />
+        {showColorPicker && (
+          <ColorPickerModal
+            color={color}
+            label="Relationship type color"
+            onSave={c => setColor(c)}
+            onClose={() => setShowColorPicker(false)}
+          />
+        )}
         <Input
           value={label}
           onChange={e => setLabel(e.target.value)}
@@ -82,6 +92,7 @@ export default function RelationshipTypesManager() {
   const [adding, setAdding] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newColor, setNewColor] = useState("#6b7280");
+  const [showNewColorPicker, setShowNewColorPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const { data: types = [], isLoading } = useQuery({
@@ -153,7 +164,6 @@ export default function RelationshipTypesManager() {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {/* List */}
         <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
           {sorted.map(t => (
             <TypeRow
@@ -165,16 +175,23 @@ export default function RelationshipTypesManager() {
           ))}
         </div>
 
-        {/* Add form */}
         {adding ? (
           <div className="flex items-center gap-2 p-2 rounded-lg border border-primary/30 bg-primary/5 mt-2">
-            <input
-              type="color"
-              value={newColor}
-              onChange={e => setNewColor(e.target.value)}
-              className="w-7 h-7 rounded cursor-pointer border border-border flex-shrink-0 p-0.5 bg-background"
+            <button
+              type="button"
+              onClick={() => setShowNewColorPicker(true)}
+              className="w-7 h-7 rounded-lg border-2 border-border hover:border-primary/50 flex-shrink-0 shadow-sm transition-colors"
+              style={{ backgroundColor: newColor }}
               title="Pick color"
             />
+            {showNewColorPicker && (
+              <ColorPickerModal
+                color={newColor}
+                label="Relationship type color"
+                onSave={c => setNewColor(c)}
+                onClose={() => setShowNewColorPicker(false)}
+              />
+            )}
             <Input
               value={newLabel}
               onChange={e => setNewLabel(e.target.value)}

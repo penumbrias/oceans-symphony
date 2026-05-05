@@ -8,20 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
-
-const DEFAULT_COLORS = ["#8b5cf6", "#ec4899", "#3b82f6", "#14b8a6", "#f59e0b", "#ef4444", "#22c55e", "#f97316"];
-
-function ColorPicker({ value, onChange }) {
-  return (
-    <div className="flex gap-1.5 flex-wrap">
-      {DEFAULT_COLORS.map(c => (
-        <button key={c} onClick={() => onChange(c)}
-          className="w-6 h-6 rounded-full border-2 transition-all"
-          style={{ backgroundColor: c, borderColor: value === c ? "#fff" : "transparent", boxShadow: value === c ? `0 0 0 2px ${c}` : "none" }} />
-      ))}
-    </div>
-  );
-}
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
 
 function SymptomRow({ symptom, onSave, onDelete, onMoveUp, onMoveDown, index, total }) {
   const [editing, setEditing] = useState(false);
@@ -29,6 +16,7 @@ function SymptomRow({ symptom, onSave, onDelete, onMoveUp, onMoveDown, index, to
   const [type, setType] = useState(symptom.type || "boolean");
   const [color, setColor] = useState(symptom.color || "#8b5cf6");
   const [isPositive, setIsPositive] = useState(symptom.is_positive || false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const handleSave = async () => {
     await onSave(symptom.id, { label, type, color, is_positive: isPositive });
@@ -77,9 +65,20 @@ function SymptomRow({ symptom, onSave, onDelete, onMoveUp, onMoveDown, index, to
               ))}
             </div>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Color</label>
-            <ColorPicker value={color} onChange={setColor} />
+          <div className="flex items-center gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Color</label>
+              <button
+                type="button"
+                onClick={() => setShowColorPicker(true)}
+                className="w-8 h-8 rounded-lg border-2 border-border hover:border-primary/50 transition-colors shadow-sm"
+                style={{ backgroundColor: color }}
+                title="Pick color"
+              />
+              {showColorPicker && (
+                <ColorPickerModal color={color} onSave={c => setColor(c)} onClose={() => setShowColorPicker(false)} />
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <input type="checkbox" id={`pos-${symptom.id}`} checked={isPositive} onChange={e => setIsPositive(e.target.checked)} className="w-4 h-4 accent-primary" />
@@ -100,6 +99,7 @@ function AddSymptomForm({ category, onAdd, onCancel }) {
   const [type, setType] = useState("boolean");
   const [color, setColor] = useState("#8b5cf6");
   const [isPositive, setIsPositive] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const handleAdd = () => {
     if (!label.trim()) return;
@@ -126,7 +126,16 @@ function AddSymptomForm({ category, onAdd, onCancel }) {
       </div>
       <div>
         <label className="text-xs text-muted-foreground mb-1 block">Color</label>
-        <ColorPicker value={color} onChange={setColor} />
+        <button
+          type="button"
+          onClick={() => setShowColorPicker(true)}
+          className="w-8 h-8 rounded-lg border-2 border-border hover:border-primary/50 transition-colors shadow-sm"
+          style={{ backgroundColor: color }}
+          title="Pick color"
+        />
+        {showColorPicker && (
+          <ColorPickerModal color={color} onSave={c => setColor(c)} onClose={() => setShowColorPicker(false)} />
+        )}
       </div>
       <div className="flex items-center gap-2">
         <input type="checkbox" id="new-pos" checked={isPositive} onChange={e => setIsPositive(e.target.checked)} className="w-4 h-4 accent-primary" />

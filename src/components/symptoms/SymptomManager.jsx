@@ -92,7 +92,7 @@ export default function SymptomManager() {
               </select>
               <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
                 <input type="checkbox" checked={form.is_positive} onChange={e => setForm(f => ({ ...f, is_positive: e.target.checked }))} />
-                Positive
+                Higher = better
               </label>
               <button type="button" onClick={() => setShowColorPicker(true)}
                 className="w-8 h-8 rounded-lg border-2 border-border cursor-pointer flex-shrink-0"
