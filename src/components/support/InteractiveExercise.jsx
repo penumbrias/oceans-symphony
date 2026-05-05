@@ -1,14 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Loader2, Save, CheckCircle, ChevronDown, ChevronUp, History } from "lucide-react";
+import { Loader2, CheckCircle, ChevronDown, ChevronUp, History } from "lucide-react";
 import { format } from "date-fns";
-
-// exerciseId: stable string like "m1_t2_orienting"
-// exerciseTitle: display name
-// fields: [{ id, label, placeholder, type: "text"|"textarea"|"slider" min max }]
-// onSaved: optional callback
 
 export default function InteractiveExercise({ exerciseId, exerciseTitle, fields = [], onSaved }) {
   const queryClient = useQueryClient();
@@ -18,70 +13,118 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
   const [keepHistory, setKeepHistory] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
+  // Refs for stable auto-save callback
+  const responsesRef = useRef(responses);
+  const latestEntryRef = useRef(null);
+  const autoSaveTimerRef = useRef(null);
+  responsesRef.current = responses;
+
   const { data: allEntries = [] } = useQuery({
     queryKey: ["supportJournal", exerciseId],
     queryFn: () => base44.entities.SupportJournalEntry.filter({ exercise_id: exerciseId }),
   });
 
-  // Most recent entry → pre-fill
   const latestEntry = allEntries.sort((a, b) =>
     new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date)
   )[0];
+  latestEntryRef.current = latestEntry;
 
   useEffect(() => {
-    if (latestEntry?.responses) {
-      setResponses(latestEntry.responses);
-    }
+    if (latestEntry?.responses) setResponses(latestEntry.responses);
   }, [latestEntry?.id]);
+
+  // Auto-save: always updates existing entry (no history branching)
+  const autoSave = useCallback(async () => {
+    const currentResponses = responsesRef.current;
+    const currentEntry = latestEntryRef.current;
+    const hasContent = Object.values(currentResponses).some(v => String(v ?? "").trim().length > 0);
+    if (!hasContent) return;
+    setSaving(true);
+    try {
+      if (currentEntry) {
+        await base44.entities.SupportJournalEntry.update(currentEntry.id, {
+          responses: currentResponses,
+          exercise_title: exerciseTitle,
+        });
+      } else {
+        await base44.entities.SupportJournalEntry.create({
+          exercise_id: exerciseId,
+          exercise_title: exerciseTitle,
+          responses: currentResponses,
+          keep_history: false,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["supportJournal", exerciseId] });
+      queryClient.invalidateQueries({ queryKey: ["supportJournalAll"] });
+      setSaved(true);
+      onSaved?.();
+    } catch (e) {
+      console.warn("Auto-save failed", e);
+    }
+    setSaving(false);
+  }, [exerciseId, exerciseTitle]);
 
   const handleChange = (fieldId, value) => {
     setResponses(prev => ({ ...prev, [fieldId]: value }));
     setSaved(false);
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(autoSave, 1500);
   };
 
+  // Manual save: respects keepHistory checkbox (can create new history entry)
   const handleSave = async () => {
+    const hasContent = Object.values(responses).some(v => String(v ?? "").trim().length > 0);
+    if (!hasContent) return;
+    clearTimeout(autoSaveTimerRef.current);
     setSaving(true);
-    const hasContent = Object.values(responses).some(v => String(v || "").trim().length > 0);
-    if (!hasContent) { setSaving(false); return; }
-
-    if (keepHistory || !latestEntry) {
-      await base44.entities.SupportJournalEntry.create({
-        exercise_id: exerciseId,
-        exercise_title: exerciseTitle,
-        responses,
-        keep_history: keepHistory,
-      });
-    } else {
-      await base44.entities.SupportJournalEntry.update(latestEntry.id, {
-        responses,
-        exercise_title: exerciseTitle,
-      });
+    try {
+      if (keepHistory || !latestEntry) {
+        await base44.entities.SupportJournalEntry.create({
+          exercise_id: exerciseId,
+          exercise_title: exerciseTitle,
+          responses,
+          keep_history: keepHistory,
+        });
+      } else {
+        await base44.entities.SupportJournalEntry.update(latestEntry.id, {
+          responses,
+          exercise_title: exerciseTitle,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["supportJournal", exerciseId] });
+      queryClient.invalidateQueries({ queryKey: ["supportJournalAll"] });
+      setSaved(true);
+      onSaved?.();
+    } finally {
+      setSaving(false);
     }
-    queryClient.invalidateQueries({ queryKey: ["supportJournal", exerciseId] });
-    queryClient.invalidateQueries({ queryKey: ["supportJournalAll"] });
-    setSaved(true);
-    setSaving(false);
-    onSaved?.();
   };
+
+  // Cleanup timer on unmount
+  useEffect(() => () => clearTimeout(autoSaveTimerRef.current), []);
 
   const historyEntries = allEntries
     .sort((a, b) => new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date))
-    .slice(1); // exclude the one pre-filled
+    .slice(1);
 
   return (
     <div className="border border-border/60 rounded-xl bg-card/50 overflow-hidden">
       <div className="px-4 py-3 bg-primary/5 border-b border-border/40 flex items-center justify-between">
         <p className="text-sm font-semibold text-primary">✍️ Reflection exercise</p>
-        {allEntries.length > 1 && (
-          <button
-            onClick={() => setShowHistory(v => !v)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <History className="w-3 h-3" />
-            {showHistory ? "Hide" : "Past responses"}
-            {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {saving && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+          {!saving && saved && <span className="text-xs text-green-600 flex items-center gap-0.5"><CheckCircle className="w-3 h-3" /> Saved</span>}
+          {allEntries.length > 1 && (
+            <button
+              onClick={() => setShowHistory(v => !v)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <History className="w-3 h-3" />
+              {showHistory ? "Hide" : "Past responses"}
+              {showHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          )}
+        </div>
       </div>
 
       {showHistory && historyEntries.length > 0 && (
@@ -152,15 +195,15 @@ export default function InteractiveExercise({ exerciseId, exerciseTitle, fields 
             />
             Keep all responses
           </label>
-          <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
-            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : saved ? <CheckCircle className="w-3 h-3" /> : <Save className="w-3 h-3" />}
-            {saved ? "Saved" : "Save"}
+          <Button size="sm" variant="ghost" onClick={handleSave} disabled={saving} className="gap-1.5 text-xs h-7 px-2 text-muted-foreground hover:text-foreground">
+            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : saved ? <CheckCircle className="w-3 h-3" /> : null}
+            {saved ? "Saved" : "Save now"}
           </Button>
         </div>
 
         {latestEntry && (
           <p className="text-xs text-muted-foreground">
-            Last saved {format(new Date(latestEntry.updated_date || latestEntry.created_date), "MMM d, yyyy")}
+            Last saved {format(new Date(latestEntry.updated_date || latestEntry.created_date), "MMM d, yyyy 'at' h:mm a")}
           </p>
         )}
       </div>
