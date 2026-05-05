@@ -161,6 +161,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
       });
 
       queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+      queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
       queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
       setContent("");
       setComposing(false);
@@ -173,16 +174,19 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
   const handleDelete = async (messageId) => {
     await base44.entities.AlterMessage.delete(messageId);
     queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
   };
 
   const handleTogglePinned = async (messageId, pinned) => {
     await base44.entities.AlterMessage.update(messageId, { pinned });
     queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
   };
 
   const handleMarkRead = async (messageId) => {
     await base44.entities.AlterMessage.update(messageId, { is_read: true });
     queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
   };
 
   return (
