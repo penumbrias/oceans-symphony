@@ -66,10 +66,10 @@ ${symptomLines}
 ${notes || "—"}`;
 }
 
-export default function SwitchJournalModal({ open, onClose, sessionId, authorAlterId }) {
+export default function SwitchJournalModal({ open, onClose, sessionId, authorAlterId, defaultTrigger = "" }) {
   const now = new Date();
   const [title, setTitle] = useState(`Switch Log — ${format(now, "MMM d, yyyy")}`);
-  const [trigger, setTrigger] = useState("");
+  const [trigger, setTrigger] = useState(defaultTrigger);
   const [before, setBefore] = useState("");
   const [after, setAfter] = useState("");
   const [symptoms, setSymptoms] = useState({

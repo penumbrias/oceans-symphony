@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User } from "lucide-react";
+import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -15,6 +15,17 @@ import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet } from "@/lib/emotionDistress";
+import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+
+const TRIGGER_CATEGORIES = [
+  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
+  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
+  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
+  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
+  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
+  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
+  { id: "unknown",         label: "Unknown",        emoji: "❓" },
+];
 
 const PILLS = [
 { id: "feeling", label: "Feeling", icon: Smile },
@@ -46,6 +57,15 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const [diaryData, setDiaryData] = useState({});
   // Note
   const [note, setNote] = useState("");
+  // Switch journaling + trigger
+  const [journalSwitch, setJournalSwitch] = useState(false);
+  const [isTriggeredSwitch, setIsTriggeredSwitch] = useState(false);
+  const [triggerCategory, setTriggerCategory] = useState("");
+  const [triggerLabel, setTriggerLabel] = useState("");
+  const [showJournalModal, setShowJournalModal] = useState(false);
+  const [newSessionId, setNewSessionId] = useState(null);
+  const [showSupportPrompt, setShowSupportPrompt] = useState(false);
+  const initialFrontRef = useRef({ primaryId: "", coFronterIds: [] });
   // Saving
   const [saving, setSaving] = useState(false);
   const [showGroundingPrompt, setShowGroundingPrompt] = useState(false);
@@ -104,15 +124,22 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         if (newModel.length > 0) {
           const primarySess = newModel.find(s => s.is_primary);
           const coSessions = newModel.filter(s => !s.is_primary);
-          setPrimaryId(primarySess?.alter_id || "");
-          setCoFronterIds(coSessions.map(s => s.alter_id));
+          const pid = primarySess?.alter_id || "";
+          const co = coSessions.map(s => s.alter_id);
+          setPrimaryId(pid);
+          setCoFronterIds(co);
+          initialFrontRef.current = { primaryId: pid, coFronterIds: co };
         } else if (active.length > 0) {
           const s = active[0];
-          setPrimaryId(s.primary_alter_id || "");
-          setCoFronterIds(s.co_fronter_ids || []);
+          const pid = s.primary_alter_id || "";
+          const co = s.co_fronter_ids || [];
+          setPrimaryId(pid);
+          setCoFronterIds(co);
+          initialFrontRef.current = { primaryId: pid, coFronterIds: co };
         } else if (currentFronterIds.length > 0) {
           setPrimaryId(currentFronterIds[0] || "");
           setCoFronterIds(currentFronterIds.slice(1));
+          initialFrontRef.current = { primaryId: currentFronterIds[0] || "", coFronterIds: currentFronterIds.slice(1) };
         }
       }).catch(() => {
         if (currentFronterIds.length > 0) {
@@ -138,6 +165,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setDiaryData({});
     setNote("");
     setHadFrontingOpen(false);
+    setJournalSwitch(false);
+    setIsTriggeredSwitch(false);
+    setTriggerCategory("");
+    setTriggerLabel("");
+    setShowJournalModal(false);
+    setNewSessionId(null);
+    setShowSupportPrompt(false);
+    initialFrontRef.current = { primaryId: "", coFronterIds: [] };
     symptomGetterRef.current = null;
   };
 
@@ -150,6 +185,22 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
   // Derive flat array for legacy uses (activity logging, etc.)
   const selectedAlters = useMemo(() => [...selectedAlterIds], [selectedAlterIds]);
+
+  const frontingActuallyChanged = useMemo(() => {
+    if (!hadFrontingOpen) return false;
+    const init = initialFrontRef.current;
+    const initSet = new Set([init.primaryId, ...init.coFronterIds].filter(Boolean));
+    const currSet = new Set([primaryId, ...coFronterIds].filter(Boolean));
+    if (initSet.size !== currSet.size) return true;
+    for (const id of currSet) if (!initSet.has(id)) return true;
+    if (primaryId !== init.primaryId) return true;
+    return false;
+  }, [primaryId, coFronterIds, hadFrontingOpen]);
+
+  const triggerString = useMemo(() => {
+    const cat = TRIGGER_CATEGORIES.find(c => c.id === triggerCategory);
+    return [cat?.label, triggerLabel].filter(Boolean).join(": ");
+  }, [triggerCategory, triggerLabel]);
 
   const toggleAlter = (id) => {
     if (primaryId === id) {
@@ -254,18 +305,25 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         }
 
         // Create sessions for new alters or those whose primary status changed
+        let firstNewSessionId = null;
         for (const id of allSelectedIds) {
           const existing = newModelSessions.find(s => s.alter_id === id);
           const statusUnchanged = existing && existing.is_primary === desiredMap[id];
           if (!statusUnchanged) {
-            await base44.entities.FrontingSession.create({
+            const triggerExtras = isTriggeredSwitch && triggerCategory
+              ? { is_triggered_switch: true, trigger_category: triggerCategory, trigger_label: triggerLabel }
+              : {};
+            const newSession = await base44.entities.FrontingSession.create({
               alter_id: id,
               is_primary: desiredMap[id],
               start_time: now,
               is_active: true,
+              ...triggerExtras,
             });
+            if (!firstNewSessionId) firstNewSessionId = newSession?.id || null;
           }
         }
+        setNewSessionId(firstNewSessionId);
 
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
@@ -334,9 +392,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
       queryClient.invalidateQueries({ queryKey: ["activities"] });
 
-      // Check for high-distress emotions
       const hasDistress = selectedEmotions.some(e => isDistressingEmotion(e));
-      if (hasDistress) {
+      if (journalSwitch && frontingActuallyChanged) {
+        // Journal modal opens; support prompt shows after it closes
+        setShowJournalModal(true);
+        if (hasDistress || isTriggeredSwitch) setShowSupportPrompt(true);
+      } else if (isTriggeredSwitch || hasDistress) {
         setShowGroundingPrompt(true);
       } else {
         onClose();
@@ -349,31 +410,58 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   };
 
   if (showGroundingPrompt) {
+    const isTriggered = isTriggeredSwitch;
     return (
-      <Dialog open={isOpen} onOpenChange={() => {setShowGroundingPrompt(false);onClose();}}>
+      <Dialog open={isOpen} onOpenChange={() => { setShowGroundingPrompt(false); onClose(); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Check-in saved 🤍</DialogTitle>
-            <DialogDescription>Would you like to try a grounding exercise?</DialogDescription>
+            <DialogDescription>
+              {isTriggered
+                ? "You've noted a triggered switch. Would you like some support?"
+                : "Would you like to try a grounding exercise?"}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 pt-2">
-            <p className="text-sm text-muted-foreground">It looks like you might be having a hard time. A grounding technique might help.</p>
+            <p className="text-sm text-muted-foreground">
+              {isTriggered
+                ? "It can help to use a grounding technique after a triggered switch."
+                : "It looks like you might be having a hard time. A grounding technique might help."}
+            </p>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => {setShowGroundingPrompt(false);onClose();}} className="flex-1">
+              <Button variant="outline" onClick={() => { setShowGroundingPrompt(false); onClose(); }} className="flex-1">
                 No thanks
               </Button>
-              <Button onClick={() => {setShowGroundingPrompt(false);onClose();window.location.href = "/grounding";}} className="flex-1">
-                Yes, let's try
+              <Button onClick={() => { setShowGroundingPrompt(false); onClose(); window.location.href = "/grounding"; }} className="flex-1">
+                Yes, open grounding
               </Button>
             </div>
           </div>
         </DialogContent>
-      </Dialog>);
-
+      </Dialog>
+    );
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <>
+    {showJournalModal && (
+      <SwitchJournalModal
+        open={showJournalModal}
+        onClose={() => {
+          setShowJournalModal(false);
+          if (showSupportPrompt) {
+            setShowSupportPrompt(false);
+            setShowGroundingPrompt(true);
+          } else {
+            onClose();
+          }
+        }}
+        sessionId={newSessionId}
+        authorAlterId={primaryId}
+        defaultTrigger={triggerString}
+      />
+    )}
+    <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -447,7 +535,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                   })}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Tap name to make primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary</p>
+              <p className="text-xs text-muted-foreground">Tap to toggle · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary · hold to set primary</p>
 
               {/* Search */}
               <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
@@ -486,6 +574,60 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                     );
                   })}
               </div>
+
+              {/* Journal + trigger options — only show when front has changed */}
+              {frontingActuallyChanged && (
+                <div className="border-t border-border/40 pt-2 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={journalSwitch}
+                      onChange={e => setJournalSwitch(e.target.checked)}
+                      className="w-3.5 h-3.5 accent-primary"
+                    />
+                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Journal this {terms.switch}?</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isTriggeredSwitch}
+                      onChange={e => setIsTriggeredSwitch(e.target.checked)}
+                      className="w-3.5 h-3.5 accent-orange-500"
+                    />
+                    <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                    <span className="text-sm text-muted-foreground">This was a triggered {terms.switch}</span>
+                  </label>
+                  {isTriggeredSwitch && (
+                    <div className="border border-orange-400/30 rounded-lg p-2.5 bg-orange-50/30 dark:bg-orange-900/10 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">What triggered it?</p>
+                      <div className="flex flex-wrap gap-1">
+                        {TRIGGER_CATEGORIES.map(cat => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
+                            title={cat.hint}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
+                              triggerCategory === cat.id
+                                ? "bg-orange-100 text-orange-800 border-orange-400 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+                                : "text-muted-foreground border-border hover:bg-muted/50"
+                            }`}
+                          >
+                            {cat.emoji} {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                      <Input
+                        value={triggerLabel}
+                        onChange={e => setTriggerLabel(e.target.value)}
+                        placeholder="Optional: describe the trigger..."
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           }
 
@@ -554,6 +696,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           </div>
         </div>
       </DialogContent>
-    </Dialog>);
-
+    </Dialog>
+    </>
+  );
 }
