@@ -12,11 +12,7 @@ import JournalEntryCard from "@/components/journal/JournalEntryCard";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import JournalViewModal from "@/components/journal/JournalViewModal";
 import FolderGrid from "@/components/journal/FolderGrid";
-
-const TABS = [
-  { id: "all", label: "All", icon: BookOpen },
-  { id: "switch_log", label: "Switch Logs", icon: Shuffle },
-];
+import { useTerms } from "@/lib/useTerms";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -41,6 +37,11 @@ const getDepth = (path) => path.split("/").length - 1;
 
 export default function Journals() {
   const queryClient = useQueryClient();
+  const terms = useTerms();
+  const TABS = [
+    { id: "all", label: "All", icon: BookOpen },
+    { id: "switch_log", label: `${terms.Switch} Logs`, icon: Shuffle },
+  ];
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState(null);
@@ -124,7 +125,7 @@ export default function Journals() {
       if (search && !e.title?.toLowerCase().includes(search.toLowerCase()) &&
           !e.content?.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedTag && !(e.tags || []).includes(selectedTag)) return false;
-      if (e.folder !== viewingFolder) return false;
+      if ((e.folder || null) !== viewingFolder) return false;
       if (fronterOnly && currentAlterIds.length > 0) {
         const allowed = e.allowed_alter_ids || [];
         if (allowed.length > 0 && !allowed.some((id) => currentAlterIds.includes(id))) return false;

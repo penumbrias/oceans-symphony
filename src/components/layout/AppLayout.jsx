@@ -90,10 +90,15 @@ const navItems = useMemo(() => {
 }, [navConfig.topBar, terms]);
 
 const bottomNavItems = useMemo(() => {
+  const termMap = {
+    alters: terms.Alters,
+    "system-map": `${terms.System} Map`,
+  };
   return (navConfig.bottomBar || [])
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
-    .filter(Boolean);
-}, [navConfig.bottomBar]);
+    .filter(Boolean)
+    .map(page => ({ ...page, label: termMap[page.id] || page.label }));
+}, [navConfig.bottomBar, terms]);
 
 const { data: pendingReminders = [] } = usePendingReminderInstances();
 const pendingCount = pendingReminders.filter(i => i.status === "fired").length;

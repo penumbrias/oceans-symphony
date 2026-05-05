@@ -21,6 +21,8 @@ const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_TEXT_KEY = "_header_text_color";
 const HIDE_HEADER_KEY = "_hide_header";
+const HEADER_IMAGE_KEY = "_header_image";
+const SECTION_BG_KEY = "_section_bg_opacity";
 
 function AvatarModal({ src, onSave, onClose }) {
   const [url, setUrl] = useState(src || "");
@@ -136,6 +138,8 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const bgOpacity = form.custom_fields?.[BG_OPACITY_KEY] !== undefined ? form.custom_fields[BG_OPACITY_KEY] : 0.15;
   const headerTextColor = form.custom_fields?.[HEADER_TEXT_KEY] || "";
   const hideHeader = form.custom_fields?.[HIDE_HEADER_KEY] || false;
+  const headerImage = form.custom_fields?.[HEADER_IMAGE_KEY] || "";
+  const sectionBgOpacity = form.custom_fields?.[SECTION_BG_KEY] !== undefined ? form.custom_fields[SECTION_BG_KEY] : 0;
 
   const setBgField = (key, val) => setForm(f => ({
     ...f, custom_fields: { ...f.custom_fields, [key]: val },
@@ -143,7 +147,8 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
 
   const clearBg = () => setForm(f => {
     const cf = { ...f.custom_fields };
-    delete cf[BG_COLOR_KEY]; delete cf[BG_IMAGE_KEY]; delete cf[BG_OPACITY_KEY]; delete cf[HEADER_TEXT_KEY];
+    delete cf[BG_COLOR_KEY]; delete cf[BG_IMAGE_KEY]; delete cf[BG_OPACITY_KEY];
+    delete cf[HEADER_TEXT_KEY]; delete cf[HEADER_IMAGE_KEY]; delete cf[SECTION_BG_KEY];
     return { ...f, custom_fields: cf };
   });
 
@@ -497,9 +502,19 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           </div>
         </div>
 
-        {/* Background image */}
+        {/* Header banner image */}
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Background image</label>
+          <label className="text-xs text-muted-foreground font-medium">Header image <span className="text-muted-foreground/50">(banner at top)</span></label>
+          <div className="flex gap-2">
+            <Input value={headerImage} onChange={e => setBgField(HEADER_IMAGE_KEY, e.target.value)}
+              placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
+            {headerImage && <button type="button" onClick={() => setBgField(HEADER_IMAGE_KEY, "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3 h-3" /></button>}
+          </div>
+        </div>
+
+        {/* Full-page background image */}
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground font-medium">Background image <span className="text-muted-foreground/50">(covers whole page)</span></label>
           <div className="flex gap-2">
             <Input value={bgImage} onChange={e => setBgField(BG_IMAGE_KEY, e.target.value)}
               placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
@@ -515,11 +530,22 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         {/* Opacity — only show if bg set */}
         {(bgColor || bgImage) && (
           <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">Opacity</label>
+            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">BG opacity</label>
             <input type="range" min={0.02} max={1} step={0.01} value={bgOpacity}
               onChange={e => setBgField(BG_OPACITY_KEY, parseFloat(e.target.value))}
               className="flex-1 h-1 accent-primary" />
             <span className="text-xs text-muted-foreground flex-shrink-0">{Math.round(bgOpacity * 100)}%</span>
+          </div>
+        )}
+
+        {/* Section readability — always show when any bg is set */}
+        {(bgColor || bgImage) && (
+          <div className="flex items-center gap-3">
+            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">Readability</label>
+            <input type="range" min={0} max={0.97} step={0.01} value={sectionBgOpacity}
+              onChange={e => setBgField(SECTION_BG_KEY, parseFloat(e.target.value))}
+              className="flex-1 h-1 accent-primary" />
+            <span className="text-xs text-muted-foreground flex-shrink-0">{Math.round(sectionBgOpacity * 100)}%</span>
           </div>
         )}
       </div>

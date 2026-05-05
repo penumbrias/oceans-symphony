@@ -29,6 +29,8 @@ const TABS = [
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
+const HEADER_IMAGE_KEY = "_header_image";
+const SECTION_BG_KEY = "_section_bg_opacity";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -47,6 +49,7 @@ export default function AlterProfile() {
   const [editMode, setEditMode] = useState(false);
   const [showComposeMessage, setShowComposeMessage] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
+  const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
   const saveRef = useRef(null);
 
   const { data: alter, isLoading } = useQuery({
@@ -67,6 +70,13 @@ export default function AlterProfile() {
       setAvatarSrc(null);
     }
   }, [alter?.avatar_url]);
+
+  // Resolve header image URL
+  useEffect(() => {
+    const img = alter?.custom_fields?.[HEADER_IMAGE_KEY];
+    if (img) resolveImageUrl(img).then(setResolvedHeaderImage).catch(() => setResolvedHeaderImage(null));
+    else setResolvedHeaderImage(null);
+  }, [alter?.custom_fields?.[HEADER_IMAGE_KEY]]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -103,6 +113,8 @@ export default function AlterProfile() {
   const pageBgColor = cf[BG_COLOR_KEY] || "";
   const pageBgImage = cf[BG_IMAGE_KEY] || "";
   const pageBgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
+  const pageHeaderImage = cf[HEADER_IMAGE_KEY] || "";
+  const sectionBgOpacity = cf[SECTION_BG_KEY] !== undefined ? cf[SECTION_BG_KEY] : 0;
   const hasPageBg = pageBgColor || pageBgImage;
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -194,6 +206,13 @@ export default function AlterProfile() {
           </div>
         </div>
 
+        {/* Header banner image */}
+        {resolvedHeaderImage && (
+          <div className="w-full rounded-2xl overflow-hidden mb-4" style={{ height: 160 }}>
+            <img src={resolvedHeaderImage} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+
         {tab !== "profile" && (
           <div
             className="rounded-2xl p-4 mb-5 flex items-center gap-4"
@@ -245,7 +264,11 @@ export default function AlterProfile() {
           })}
         </div>
 
-        <div>
+        <div
+          className={hasPageBg && sectionBgOpacity > 0 ? "rounded-2xl p-2" : ""}
+          style={hasPageBg && sectionBgOpacity > 0 ? {
+            backgroundColor: `hsl(var(--background) / ${sectionBgOpacity})`,
+          } : {}}>
           {tab === "profile" && (
             <ProfileTab
               alter={alter}
