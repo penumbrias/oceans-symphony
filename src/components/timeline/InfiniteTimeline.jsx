@@ -372,23 +372,36 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
 }
 
 function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onClose }) {
-  const h = Math.floor(startMins / 60) % 12 || 12;
-  const m = startMins % 60;
-  const period = Math.floor(startMins / 60) < 12 ? "am" : "pm";
+  const [adjustedMins, setAdjustedMins] = useState(startMins);
+  const timeInputValue = `${String(Math.floor(adjustedMins / 60)).padStart(2, "0")}:${String(adjustedMins % 60).padStart(2, "0")}`;
+  const h = Math.floor(adjustedMins / 60) % 12 || 12;
+  const m = adjustedMins % 60;
+  const period = Math.floor(adjustedMins / 60) < 12 ? "am" : "pm";
   const timeStr = `${h}:${String(m).padStart(2, "0")}${period}`;
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40" onClick={onClose}>
       <div className="bg-card rounded-xl border border-border shadow-xl p-4 max-w-xs w-full mx-4 mb-24 space-y-3" onClick={e => e.stopPropagation()}>
-        <p className="text-sm font-semibold text-center">Add entry at {timeStr}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">Add entry at</p>
+          <input
+            type="time"
+            value={timeInputValue}
+            onChange={e => {
+              const [hh, mm] = e.target.value.split(":").map(Number);
+              if (!isNaN(hh) && !isNaN(mm)) setAdjustedMins(hh * 60 + mm);
+            }}
+            className="h-7 text-sm border border-border/50 rounded-lg px-2 bg-background"
+          />
+        </div>
         <div className="space-y-2">
-          <button onClick={onFrontSession} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
+          <button onClick={() => onFrontSession(adjustedMins)} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
             <Users className="w-5 h-5 text-primary flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">Front Session</p>
               <p className="text-xs text-muted-foreground">Log who was fronting at this time</p>
             </div>
           </button>
-          <button onClick={onCheckIn} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
+          <button onClick={() => onCheckIn(adjustedMins)} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
             <Heart className="w-5 h-5 text-rose-400 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">Quick Check-In</p>
@@ -685,6 +698,19 @@ export default function InfiniteTimeline({
     });
     return result;
   }, [sessions, dayStart, isToday]);
+
+  const statusNoteEntries = useMemo(() => {
+    const seen = new Set();
+    const notes = [];
+    for (const entry of alterEntries) {
+      if (!entry.isPrimary) continue;
+      if (seen.has(entry.sessionId)) continue;
+      seen.add(entry.sessionId);
+      const note = lsGet(`symphony_status_${entry.sessionId}`, "");
+      if (note) notes.push({ id: entry.sessionId, note, startMins: entry.startMins });
+    }
+    return notes;
+  }, [alterEntries]);
 
   const alterColumns = useMemo(() => {
     const cols = [];
@@ -1323,8 +1349,9 @@ export default function InfiniteTimeline({
                   ))}
                 </div>
 
-
-
+                {statusNoteEntries.map(({ id, note, startMins }) => (
+                  <StatusNoteBadge key={id} id={id} note={note} topPx={getTopPx(startMins)} />
+                ))}
 
               </div>
             </div>
@@ -1398,8 +1425,8 @@ export default function InfiniteTimeline({
       {retroPickerState && (
         <RetroEntryPicker
           startMins={retroPickerState.startMins}
-          onFrontSession={() => { setNewSessionPopover({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
-          onCheckIn={() => { setRetroCheckIn({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
+          onFrontSession={(mins) => { setNewSessionPopover({ startMins: mins ?? retroPickerState.startMins }); setRetroPickerState(null); }}
+          onCheckIn={(mins) => { setRetroCheckIn({ startMins: mins ?? retroPickerState.startMins }); setRetroPickerState(null); }}
           onClose={() => setRetroPickerState(null)}
         />
       )}

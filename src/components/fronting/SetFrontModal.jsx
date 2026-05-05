@@ -5,12 +5,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowUpDown, Trash2 } from "lucide-react";
+import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowUpDown, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { useTerms } from "@/lib/useTerms";
 import { formatInTimeZone } from "date-fns-tz";
+
+const TRIGGER_CATEGORIES = [
+  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
+  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
+  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
+  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
+  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
+  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
+  { id: "unknown",         label: "Unknown",        emoji: "❓" },
+];
 
 // Returns an ISO string in the user's detected local timezone (not hardcoded)
 function nowLocalIso() {
@@ -109,6 +119,9 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const [isUnsure, setIsUnsure] = useState(false);
   const [viewMode, setViewMode] = useState("list");
   const [sortBy, setSortBy] = useState("alpha"); // "alpha" | "most" | "least"
+  const [triggeredSwitch, setTriggeredSwitch] = useState(false);
+  const [triggerCategory, setTriggerCategory] = useState("");
+  const [triggerLabel, setTriggerLabel] = useState("");
 
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
@@ -116,6 +129,23 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     enabled: open && sortBy !== "alpha",
     staleTime: 60000,
   });
+
+  const { data: customTriggerTypes = [] } = useQuery({
+    queryKey: ["customTriggerTypes"],
+    queryFn: () => base44.entities.TriggerType.list(),
+    enabled: open,
+  });
+  const allTriggerCategories = useMemo(() => [
+    ...TRIGGER_CATEGORIES,
+    ...customTriggerTypes.map(t => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
+  ], [customTriggerTypes]);
+
+  const triggerDefaultText = useMemo(() => {
+    if (!triggeredSwitch) return "";
+    const cat = allTriggerCategories.find(c => c.id === triggerCategory);
+    const parts = [cat ? `${cat.emoji} ${cat.label}` : "", triggerLabel].filter(Boolean);
+    return parts.join(": ");
+  }, [triggeredSwitch, triggerCategory, triggerLabel, allTriggerCategories]);
 
   const alterFrontTotals = useMemo(() => {
     if (sortBy === "alpha") return {};
@@ -135,6 +165,9 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     if (open) {
       setIsUnsure(false);
       setJournalSwitch(false);
+      setTriggeredSwitch(false);
+      setTriggerCategory("");
+      setTriggerLabel("");
       // Re-initialize from live active sessions (new model)
       base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
         const newModelSessions = active.filter(s => s.alter_id);
@@ -257,6 +290,17 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             });
             if (!firstSessionId) firstSessionId = newSession?.id || null;
           }
+        }
+
+        if (triggeredSwitch && triggerCategory) {
+          const nowActive = await base44.entities.FrontingSession.filter({ is_active: true });
+          await Promise.all(nowActive.map(s =>
+            base44.entities.FrontingSession.update(s.id, {
+              is_triggered_switch: true,
+              trigger_category: triggerCategory,
+              trigger_label: triggerLabel,
+            })
+          ));
         }
 
         toast.success("✅ Front updated!");
@@ -423,12 +467,48 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 checked={journalSwitch}
                 onCheckedChange={setJournalSwitch}
                 disabled={isUnsure} />
-              
               <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
                 <BookOpen className="w-3.5 h-3.5" />
                 Journal this {terms.switch}?
               </label>
             </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="triggered-switch"
+                checked={triggeredSwitch}
+                onCheckedChange={setTriggeredSwitch}
+                disabled={isUnsure} />
+              <label htmlFor="triggered-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+                <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                Triggered {terms.switch}?
+              </label>
+            </div>
+
+            {triggeredSwitch && !isUnsure && (
+              <div className="rounded-xl bg-orange-500/5 border border-orange-400/20 px-3 py-2 space-y-2">
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                  {allTriggerCategories.map(cat => (
+                    <button key={cat.id} type="button"
+                      onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
+                      title={cat.hint}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
+                        triggerCategory === cat.id
+                          ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+                          : "text-muted-foreground border-border/60 hover:bg-muted/50"
+                      }`}>
+                      {cat.emoji} {cat.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  value={triggerLabel}
+                  onChange={e => setTriggerLabel(e.target.value)}
+                  placeholder="Describe what triggered the switch..."
+                  className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
+                />
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button
@@ -466,7 +546,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
         open={showJournalModal}
         onClose={() => {setShowJournalModal(false);onClose();}}
         sessionId={newSessionId}
-        authorAlterId={primaryId} />
+        authorAlterId={primaryId}
+        defaultTrigger={triggerDefaultText} />
 
       }
     </>);

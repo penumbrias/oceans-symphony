@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
   Check, Loader2, MessageSquare
@@ -77,6 +79,9 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleMouseDown}
+      onTouchEnd={handleMouseUp}
+      onTouchMove={handleMouseUp}
       onClick={handleClick}
       className={`flex items-center gap-2.5 bg-card border rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none ${
         isExpanded ? "border-primary/50 bg-primary/5" : "border-border/50 hover:border-border"
@@ -366,6 +371,8 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 export default function CurrentFronters({ alters }) {
   const [showModal, setShowModal] = useState(false);
   const [expandedAlterId, setExpandedAlterId] = useState(null);
+  const [holdMenuAlter, setHoldMenuAlter] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handler = () => setShowModal(true);
@@ -415,6 +422,19 @@ export default function CurrentFronters({ alters }) {
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       toast.success(`${alter.name} is now primary!`);
     } catch { toast.error("Failed to update primary fronter"); }
+  };
+
+  const handleRemoveFromFront = async (alter) => {
+    try {
+      const targetSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
+      if (targetSession) {
+        await base44.entities.FrontingSession.update(targetSession.id, { is_active: false, end_time: new Date().toISOString() });
+      }
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      toast.success(`${alter.name} removed from front`);
+    } catch { toast.error("Failed to remove"); }
+    setHoldMenuAlter(null);
   };
 
   const handleSaveStatus = async () => {
@@ -492,7 +512,7 @@ export default function CurrentFronters({ alters }) {
                 isPrimary={i === 0}
                 startTime={alterSession?.start_time}
                 session={alterSession}
-                onHold={handleSetPrimaryFromHold}
+                onHold={setHoldMenuAlter}
                 coFronterLabel={`Co-${terms.fronting}`}
                 isExpanded={expandedAlterId === alter.id}
                 onToggleExpand={id => setExpandedAlterId(prev => prev === id ? null : id)}
@@ -548,6 +568,63 @@ export default function CurrentFronters({ alters }) {
         )}
       </div>
       <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={active} />
+
+      {holdMenuAlter && (
+        <Dialog open={!!holdMenuAlter} onOpenChange={() => setHoldMenuAlter(null)}>
+          <DialogContent className="max-w-[280px] p-4 gap-0">
+            <div className="flex items-center gap-3 pb-3 mb-3 border-b border-border/50">
+              <div
+                className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
+                style={{ backgroundColor: holdMenuAlter.color || "hsl(var(--muted))" }}
+              >
+                {holdMenuAlter.avatar_url
+                  ? <img src={holdMenuAlter.avatar_url} alt={holdMenuAlter.name} className="w-full h-full object-cover" />
+                  : <User className="w-5 h-5 text-muted-foreground" />}
+              </div>
+              <div>
+                <p className="font-semibold text-sm">{holdMenuAlter.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {holdMenuAlter.id === primaryAlterId ? `Primary ${terms.fronter || terms.alter}` : `Co-${terms.fronting}`}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <button
+                onClick={async () => {
+                  if (holdMenuAlter.id === primaryAlterId) {
+                    try {
+                      const sess = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === holdMenuAlter.id);
+                      if (sess?.alter_id) {
+                        await base44.entities.FrontingSession.update(sess.id, { is_primary: false });
+                        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+                        toast.success(`${holdMenuAlter.name} is now co-${terms.fronting}`);
+                      }
+                    } catch { toast.error("Failed to update"); }
+                  } else {
+                    await handleSetPrimaryFromHold(holdMenuAlter);
+                  }
+                  setHoldMenuAlter(null);
+                }}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
+              >
+                {holdMenuAlter.id === primaryAlterId ? `Make Co-${terms.front}` : "Make Primary"}
+              </button>
+              <button
+                onClick={() => handleRemoveFromFront(holdMenuAlter)}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                Remove from {terms.Front}
+              </button>
+              <button
+                onClick={() => { navigate(`/alter/${holdMenuAlter.id}`); setHoldMenuAlter(null); }}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
+              >
+                View Profile
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
