@@ -8,7 +8,71 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+
+function parseJsonSafe(str, fallback) {
+  try { return JSON.parse(str) || fallback; } catch { return fallback; }
+}
+
+function SessionDetails({ session }) {
+  const notes = parseJsonSafe(session.note, []);
+  const noteText = Array.isArray(notes) ? notes.map(n => n.text).filter(Boolean).join("\n") : (session.note || "");
+  const emotions = parseJsonSafe(session.session_emotions, []);
+  const symptoms = parseJsonSafe(session.session_symptoms, []);
+  const isTriggered = !!session.is_triggered_switch;
+
+  if (!noteText && emotions.length === 0 && symptoms.length === 0 && !isTriggered) return null;
+
+  return (
+    <div className="space-y-2.5 pt-2 border-t border-border/40">
+      {isTriggered && (
+        <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
+          <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
+          <div className="text-xs min-w-0">
+            <span className="font-semibold text-orange-600 dark:text-orange-400">Triggered switch</span>
+            {session.trigger_category && (
+              <span className="text-muted-foreground"> · {session.trigger_category}</span>
+            )}
+            {session.trigger_label && (
+              <p className="text-muted-foreground mt-0.5 truncate">{session.trigger_label}</p>
+            )}
+          </div>
+        </div>
+      )}
+      {noteText && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">💬 Note</p>
+          <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{noteText}</p>
+        </div>
+      )}
+      {emotions.length > 0 && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1.5">Emotions</p>
+          <div className="flex flex-wrap gap-1">
+            {emotions.map(e => (
+              <span key={e} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{e}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {symptoms.length > 0 && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1.5">Symptoms</p>
+          <div className="flex flex-col gap-1">
+            {symptoms.map(s => (
+              <div key={s.id} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{s.label}</span>
+                <span className="font-medium text-foreground">
+                  {s.type === "boolean" ? (s.value ? "Yes" : "No") : `${s.value}/5`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function formatDuration(minutes) {
   if (minutes < 60) return `${minutes}m`;
@@ -41,7 +105,7 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-xs">
+      <DialogContent className="max-w-xs max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {infoResolvedUrl && !infoImgError
@@ -69,6 +133,8 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
             <p className="text-xs text-muted-foreground">Duration</p>
             <p className="font-semibold text-primary">{formatDuration(durationMins)}</p>
           </div>
+
+          <SessionDetails session={session} />
 
           <Button size="sm" variant="outline" className="w-full" onClick={onEdit}>
             Edit session

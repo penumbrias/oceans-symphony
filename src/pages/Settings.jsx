@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
+import CustomTriggerTypesManager from "@/components/settings/CustomTriggerTypesManager";
 import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
@@ -191,6 +192,9 @@ export default function Settings() {
           </div>
           <div className="border-t border-border/30 pt-4">
             <CustomEmotionsManager />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <CustomTriggerTypesManager />
           </div>
         </Section>
 

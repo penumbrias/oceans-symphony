@@ -159,6 +159,14 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
     queryKey: ["customEmotions"],
     queryFn: () => base44.entities.CustomEmotion.list(),
   });
+  const { data: customTriggerTypes = [] } = useQuery({
+    queryKey: ["customTriggerTypes"],
+    queryFn: () => base44.entities.TriggerType.list(),
+  });
+  const allTriggerCategories = [
+    ...TRIGGER_CATEGORIES,
+    ...customTriggerTypes.map(t => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
+  ];
 
   const activeSymptoms = symptoms.filter(s => !s.is_archived);
 
@@ -330,7 +338,7 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
       {showTrigger && (
         <div className="border-t border-border/30 px-3 py-2.5 space-y-2">
           <div className="flex flex-wrap gap-1">
-            {TRIGGER_CATEGORIES.map(cat => (
+            {allTriggerCategories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => { setTriggerCategory(c => c === cat.id ? "" : cat.id); setCustomTriggerType(""); }}
@@ -505,7 +513,7 @@ export default function CurrentFronters({ alters }) {
             <Input
               value={tempStatus}
               onChange={e => setTempStatus(e.target.value)}
-              placeholder="status..."
+              placeholder="Add a status..."
               className="text-sm h-8 flex-1"
               autoFocus
               onKeyDown={e => { if (e.key === "Enter") handleSaveStatus(); }}
@@ -527,7 +535,7 @@ export default function CurrentFronters({ alters }) {
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <span className="italic">status...</span>
+                <span className="italic">Add a custom status...</span>
                 <Edit2 className="w-3 h-3" />
               </div>
             )}
