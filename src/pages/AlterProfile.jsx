@@ -148,7 +148,10 @@ export default function AlterProfile() {
         </div>
       )}
 
-      <div className="relative z-10" style={pageTextColor ? { color: pageTextColor } : {}}>
+      {pageTextColor && (
+        <style>{`.apc .text-foreground{color:${pageTextColor}}.apc .text-muted-foreground{color:${pageTextColor}99}.apc .text-muted-foreground\\/70{color:${pageTextColor}66}`}</style>
+      )}
+      <div className={pageTextColor ? "relative z-10 apc" : "relative z-10"} style={pageTextColor ? { color: pageTextColor } : {}}>
         <div className="flex items-center justify-between mb-4">
           <Link to="/Home">
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
@@ -208,16 +211,9 @@ export default function AlterProfile() {
           </div>
         </div>
 
-        {/* Header banner image */}
-        {resolvedHeaderImage && (
-          <div className="w-full rounded-2xl overflow-hidden mb-4" style={{ height: 160 }}>
-            <img src={resolvedHeaderImage} alt="" className="w-full h-full object-cover" />
-          </div>
-        )}
-
-        {tab !== "profile" && (
+          {tab !== "profile" && (
           <div
-            className="rounded-2xl p-4 mb-5 flex items-center gap-4"
+            className="rounded-2xl p-4 mb-5 flex items-center gap-4 relative overflow-hidden"
             style={{
               background: alterColor
                 ? `linear-gradient(135deg, ${alterColor}22, ${alterColor}08)`
@@ -225,8 +221,19 @@ export default function AlterProfile() {
               borderLeft: alterColor ? `4px solid ${alterColor}` : "4px solid hsl(var(--primary))",
             }}
           >
+            {resolvedHeaderImage && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage: `url("${resolvedHeaderImage}")`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  opacity: 0.45,
+                }}
+              />
+            )}
             <div
-              className="w-14 h-14 rounded-xl border-2 border-border/60 overflow-hidden flex-shrink-0"
+              className="w-14 h-14 rounded-xl border-2 border-border/60 overflow-hidden flex-shrink-0 relative z-10"
               style={{ backgroundColor: alterColor || "hsl(var(--muted))" }}
             >
               {avatarSrc ? (
@@ -237,7 +244,7 @@ export default function AlterProfile() {
                 </div>
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 relative z-10">
               <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
               {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
               {alter.role && <p className="text-xs text-muted-foreground/70 mt-0.5">{alter.role}</p>}

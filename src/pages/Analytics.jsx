@@ -23,6 +23,8 @@ import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import SleepAnalytics from "@/components/analytics/SleepAnalytics";
 import JournalAnalytics from "@/components/analytics/JournalAnalytics";
 import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
+import SwitchLogAnalytics from "@/components/analytics/SwitchLogAnalytics";
+import CheckInAnalytics from "@/components/analytics/CheckInAnalytics";
 
 const MODES = [
   { id: "total",      label: "Total",    icon: Clock },
@@ -96,6 +98,8 @@ function SectionGrid({ terms, onSelect }) {
     { id: "sleep", emoji: "😴", label: "Sleep", desc: "Sleep patterns" },
     { id: "journals", emoji: "📖", label: "Journals", desc: "Writing activity" },
     { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: "Who fronts together" },
+    { id: "switchlogs", emoji: "🔄", label: `${terms.Switch} Logs`, desc: "Triggers, symptoms, and patterns" },
+    { id: "checkins", emoji: "✅", label: `${terms.System} Check-Ins`, desc: "Frequency and member insights" },
   ];
 
   return (
@@ -231,6 +235,8 @@ export default function Analytics() {
     sleep: "Sleep",
     journals: "Journals",
     cofronting: terms.Cofronting,
+    switchlogs: `${terms.Switch} Logs`,
+    checkins: `${terms.System} Check-Ins`,
   };
 
   return (
@@ -407,6 +413,16 @@ export default function Analytics() {
       {/* ── CO-FRONTING ── */}
       {activeSection === "cofronting" && (
         <CoFrontingAnalytics sessions={sessions} alters={alters} altersById={altersById} from={from} to={to} />
+      )}
+
+      {/* ── SWITCH LOGS ── */}
+      {activeSection === "switchlogs" && (
+        <SwitchLogAnalytics journals={journals} from={from} to={to} />
+      )}
+
+      {/* ── CHECK-INS ── */}
+      {activeSection === "checkins" && (
+        <CheckInAnalytics checkIns={systemCheckIns} alters={alters} from={from} to={to} />
       )}
     </div>
   );

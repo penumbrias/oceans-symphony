@@ -97,7 +97,16 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
         author_alter_id: authorAlterId || "",
         fronting_session_id: sessionId || "",
         allowed_alter_ids: [],
+        switch_data: { trigger, before, after, symptoms },
       });
+      // Sync trigger info back to the fronting session for analytics
+      if (sessionId) {
+        const patch = {};
+        if (trigger) { patch.is_triggered_switch = true; patch.trigger_label = trigger; }
+        const symptomEntries = SYMPTOMS.map(s => ({ id: s.key, label: s.label, value: symptoms[s.key], type: "slider" }));
+        patch.session_symptoms = symptomEntries;
+        try { await base44.entities.FrontingSession.update(sessionId, patch); } catch {}
+      }
       toast.success("Switch journal saved!");
       onClose();
     } catch (err) {

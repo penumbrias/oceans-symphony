@@ -110,7 +110,9 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none py-2">
               {displayContent
-                ? <div dangerouslySetInnerHTML={{ __html: displayContent }} />
+                ? (/<[a-z][\s\S]*>/i.test(displayContent)
+                    ? <div dangerouslySetInnerHTML={{ __html: displayContent }} />
+                    : <ReactMarkdown>{displayContent}</ReactMarkdown>)
                 : <p className="text-muted-foreground italic text-sm">No content.</p>
               }
             </div>

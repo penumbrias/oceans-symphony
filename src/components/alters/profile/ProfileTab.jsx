@@ -271,12 +271,14 @@ useEffect(() => {
   const viewBgOpacity = alter.custom_fields?.[BG_OPACITY_KEY] !== undefined ? alter.custom_fields[BG_OPACITY_KEY] : 0.15;
   const viewHeaderText = alter.custom_fields?.[HEADER_TEXT_KEY] || null;
   const viewHideHeader = alter.custom_fields?.[HIDE_HEADER_KEY] || false;
+  const viewHeaderImage = alter.custom_fields?.[HEADER_IMAGE_KEY] || "";
   const hasBg = viewBgColor || viewBgImage;
   const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
 
   // Resolve background image URLs (may be local-image:// in local mode)
   const [resolvedViewBgImage, setResolvedViewBgImage] = useState(viewBgImage);
   const [resolvedEditBgImage, setResolvedEditBgImage] = useState(bgImage);
+  const [resolvedViewHeaderImage, setResolvedViewHeaderImage] = useState("");
 
   useEffect(() => {
     if (!viewBgImage) { setResolvedViewBgImage(""); return; }
@@ -287,6 +289,11 @@ useEffect(() => {
     if (!bgImage) { setResolvedEditBgImage(""); return; }
     resolveImageUrl(bgImage).then(r => setResolvedEditBgImage(r || "")).catch(() => setResolvedEditBgImage(""));
   }, [bgImage]);
+
+  useEffect(() => {
+    if (!viewHeaderImage) { setResolvedViewHeaderImage(""); return; }
+    resolveImageUrl(viewHeaderImage).then(r => setResolvedViewHeaderImage(r || "")).catch(() => setResolvedViewHeaderImage(""));
+  }, [viewHeaderImage]);
 
   // ── VIEW MODE ──
   if (!editMode) {
@@ -299,6 +306,14 @@ useEffect(() => {
                 {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
                 {viewBgImage && resolvedViewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedViewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
               </div>
+            )}
+            {viewHeaderImage && resolvedViewHeaderImage && (
+              <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: `url("${resolvedViewHeaderImage}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                opacity: 0.45,
+              }} />
             )}
             {viewBgImage?.startsWith("data:") && (
               <div className="absolute top-2 right-2 z-10">
@@ -316,7 +331,7 @@ useEffect(() => {
                 />
               </div>
             )}
-            <div className={`relative flex gap-4 items-start ${hasBg ? "p-4" : ""}`}>
+            <div className={`relative z-10 flex gap-4 items-start ${hasBg || viewHeaderImage ? "p-4" : ""}`}>
               <div className="relative">
                 <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
                   style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
