@@ -181,12 +181,14 @@ useEffect(() => {
 
   return (
     <Dialog open={isOpenFinal} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editingEntryFinal ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
 
-        <div className="space-y-4">
+        {/* ── Fixed header: modal title + entry title + author ── */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50 space-y-3">
+          <DialogHeader>
+            <DialogTitle>{editingEntryFinal ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
+          </DialogHeader>
+
           <Input placeholder="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
           {/* Author — dropdown default + -name signpost field */}
@@ -195,7 +197,6 @@ useEffect(() => {
               <PenLine className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground flex-shrink-0">Written by</span>
 
-              {/* Dropdown: explicit selection / shows current effective author */}
               <div className="relative">
                 <button
                   type="button"
@@ -241,7 +242,6 @@ useEffect(() => {
                 )}
               </div>
 
-              {/* Signpost field: -name or -alias to sign */}
               <input
                 value={signpostText}
                 onChange={e => setSignpostText(e.target.value)}
@@ -250,7 +250,6 @@ useEffect(() => {
               />
             </div>
 
-            {/* Show who was detected from the signpost field */}
             {signpostAuthors.length > 0 && (
               <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground">
                 <span>Signing as:</span>
@@ -264,6 +263,10 @@ useEffect(() => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-4">
 
           {/* Folder selector */}
           <div className="space-y-1.5">
@@ -406,13 +409,17 @@ useEffect(() => {
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={(isEncrypted && !encryptionPassword && !editingEntryFinal) || saveMutation.isPending}>
-            {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            Save Entry
-          </Button>
-        </DialogFooter>
+        {/* ── Fixed footer ── */}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave} disabled={(isEncrypted && !encryptionPassword && !editingEntryFinal) || saveMutation.isPending}>
+              {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Save Entry
+            </Button>
+          </DialogFooter>
+        </div>
+
       </DialogContent>
     </Dialog>
   );
