@@ -57,17 +57,17 @@ export default function AccessibilitySettings() {
             <button
               key={opt.value}
               onClick={() => update("fontFamily", opt.value, setAccessibilityFontFamily)}
-              className={`rounded-xl border p-3 text-left transition-all ${
+              className={`rounded-xl border p-3 text-left transition-all overflow-hidden ${
                 settings.fontFamily === opt.value
                   ? "border-primary/60 bg-primary/10"
                   : "border-border/50 bg-card hover:bg-muted/30"
               }`}
             >
-              <p className={`text-sm font-semibold ${settings.fontFamily === opt.value ? "text-primary" : ""}`}
+              <p className={`text-sm font-semibold break-words ${settings.fontFamily === opt.value ? "text-primary" : ""}`}
                 style={{ fontFamily: opt.value === "system" ? "system-ui, -apple-system, sans-serif" : "'Inter', sans-serif" }}>
                 {opt.label}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
             </button>
           ))}
         </div>
@@ -84,16 +84,16 @@ export default function AccessibilitySettings() {
             <button
               key={opt.value}
               onClick={() => update("fontSize", opt.value, setAccessibilityFontSize)}
-              className={`rounded-xl border p-3 text-left transition-all ${
+              className={`rounded-xl border p-3 text-left transition-all overflow-hidden ${
                 settings.fontSize === opt.value
                   ? "border-primary/60 bg-primary/10"
                   : "border-border/50 bg-card hover:bg-muted/30"
               }`}
             >
-              <p className={`text-sm font-semibold ${settings.fontSize === opt.value ? "text-primary" : ""}`}>
+              <p className={`text-sm font-semibold break-words ${settings.fontSize === opt.value ? "text-primary" : ""}`}>
                 {opt.label}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
             </button>
           ))}
         </div>
@@ -105,21 +105,21 @@ export default function AccessibilitySettings() {
         <p className="text-xs text-muted-foreground mb-3">
           Increases the minimum height of buttons and links — helps if buttons feel hard to press.
         </p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-col gap-2">
           {TOUCH_OPTIONS.map(opt => (
             <button
               key={opt.value}
               onClick={() => update("largeTouch", opt.value, setAccessibilityLargeTouch)}
-              className={`rounded-xl border p-3 text-left transition-all ${
+              className={`rounded-xl border px-3 py-2.5 text-left transition-all flex items-center justify-between gap-3 ${
                 settings.largeTouch === opt.value
                   ? "border-primary/60 bg-primary/10"
                   : "border-border/50 bg-card hover:bg-muted/30"
               }`}
             >
-              <p className={`text-xs font-semibold ${settings.largeTouch === opt.value ? "text-primary" : ""}`}>
+              <p className={`text-sm font-semibold ${settings.largeTouch === opt.value ? "text-primary" : ""}`}>
                 {opt.label}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{opt.desc}</p>
+              <p className="text-xs text-muted-foreground text-right">{opt.desc}</p>
             </button>
           ))}
         </div>
@@ -136,16 +136,16 @@ export default function AccessibilitySettings() {
             <button
               key={opt.value}
               onClick={() => update("navHeight", opt.value, setAccessibilityNavHeight)}
-              className={`rounded-xl border p-3 text-left transition-all ${
+              className={`rounded-xl border p-3 text-left transition-all overflow-hidden ${
                 settings.navHeight === opt.value
                   ? "border-primary/60 bg-primary/10"
                   : "border-border/50 bg-card hover:bg-muted/30"
               }`}
             >
-              <p className={`text-sm font-semibold ${settings.navHeight === opt.value ? "text-primary" : ""}`}>
+              <p className={`text-sm font-semibold break-words ${settings.navHeight === opt.value ? "text-primary" : ""}`}>
                 {opt.label}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
             </button>
           ))}
         </div>

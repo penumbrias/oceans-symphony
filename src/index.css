@@ -86,6 +86,12 @@ body {
   }
 }
 
+/* Prevent text from overflowing button/card boundaries at any font scale */
+button, [role="button"] {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 /* ── Accessibility ── */
 html.a11y-text-sm { font-size: 87.5%; }
 html.a11y-text-lg { font-size: 112.5%; }

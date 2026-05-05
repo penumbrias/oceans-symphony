@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List } from "lucide-react";
@@ -30,6 +30,24 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
   const activeSessions = sessions.filter((s) => s.is_active);
 
+  // Build a fronting rank map: 0 = primary, 1 = co-fronter, absent = not fronting
+  const frontingRank = useMemo(() => {
+    const map = {};
+    for (const s of activeSessions) {
+      if (s.alter_id) {
+        // New individual-session model
+        if (!(s.alter_id in map)) map[s.alter_id] = s.is_primary ? 0 : 1;
+      } else {
+        // Legacy model
+        if (s.primary_alter_id) map[s.primary_alter_id] = 0;
+        for (const id of (s.co_fronter_ids || [])) {
+          if (!(id in map)) map[id] = 1;
+        }
+      }
+    }
+    return map;
+  }, [activeSessions]);
+
   const filtered = alters.
   filter(
     (a) =>
@@ -39,6 +57,9 @@ export default function AlterGrid({ alters, currentSession = null }) {
     a.pronouns?.toLowerCase().includes(search.toLowerCase()))
   ).
   sort((a, b) => {
+    const ra = frontingRank[a.id] ?? 2;
+    const rb = frontingRank[b.id] ?? 2;
+    if (ra !== rb) return ra - rb; // fronters always first
     const cmp = (a.name || "").localeCompare(b.name || "");
     return sortDir === "asc" ? cmp : -cmp;
   });
