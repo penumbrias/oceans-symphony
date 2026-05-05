@@ -51,6 +51,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   // Activity
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [activityDuration, setActivityDuration] = useState("");
+  const [activityNote, setActivityNote] = useState("");
   const [newActivityName, setNewActivityName] = useState("");
   const [showNewActivity, setShowNewActivity] = useState(false);
   // Diary
@@ -160,6 +161,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setAlterSearch("");
     setSelectedActivityCategories([]);
     setActivityDuration("");
+    setActivityNote("");
     setNewActivityName("");
     setShowNewActivity(false);
     setDiaryData({});
@@ -255,7 +257,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         activity_category_ids: [catId],
         duration_minutes: activityDuration ? parseInt(activityDuration) : null,
         fronting_alter_ids: selectedAlters,
-        emotions: selectedEmotions
+        emotions: selectedEmotions,
+        notes: activityNote.trim() || null,
       });
     }
   };
@@ -619,6 +622,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               <ActivityPillSelector selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
             duration={activityDuration} onDurationChange={setActivityDuration} />
+              <Textarea
+                placeholder="Add a note about this activity... (optional)"
+                value={activityNote}
+                onChange={e => setActivityNote(e.target.value)}
+                className="text-sm min-h-[60px] resize-none"
+                aria-label="Activity note"
+              />
               {showNewActivity ?
             <div className="space-y-2">
                   <Input placeholder="Activity name..." value={newActivityName}

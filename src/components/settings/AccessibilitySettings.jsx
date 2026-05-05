@@ -7,7 +7,13 @@ import {
   setAccessibilityHighContrast,
   setAccessibilityLargeTouch,
   setAccessibilityNavHeight,
+  setAccessibilityFontFamily,
 } from "@/lib/useAccessibility";
+
+const FONT_FAMILY_OPTIONS = [
+  { value: "inter",  label: "Inter",        desc: "App default — clean, modern" },
+  { value: "system", label: "System font",  desc: "Uses your device's built-in font" },
+];
 
 const NAV_HEIGHT_OPTIONS = [
   { value: "compact",    label: "Compact",    desc: "44px — more screen space" },
@@ -39,6 +45,33 @@ export default function AccessibilitySettings() {
 
   return (
     <div className="space-y-6">
+
+      {/* Font family */}
+      <div>
+        <p className="text-sm font-semibold mb-1">Font family</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Switch to your device's system font for a more native feel.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {FONT_FAMILY_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => update("fontFamily", opt.value, setAccessibilityFontFamily)}
+              className={`rounded-xl border p-3 text-left transition-all ${
+                settings.fontFamily === opt.value
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border/50 bg-card hover:bg-muted/30"
+              }`}
+            >
+              <p className={`text-sm font-semibold ${settings.fontFamily === opt.value ? "text-primary" : ""}`}
+                style={{ fontFamily: opt.value === "system" ? "system-ui, -apple-system, sans-serif" : "'Inter', sans-serif" }}>
+                {opt.label}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Font / UI scale */}
       <div>

@@ -3,6 +3,7 @@ const LS_REDUCE_MOTION= "symphony_a11y_reduceMotion";
 const LS_HIGH_CONTRAST= "symphony_a11y_highContrast";
 const LS_LARGE_TOUCH  = "symphony_a11y_largeTouch";
 const LS_NAV_HEIGHT   = "symphony_a11y_navHeight";
+const LS_FONT_FAMILY  = "symphony_a11y_fontFamily";
 
 const FONT_CLASSES  = ["a11y-text-sm", "a11y-text-lg", "a11y-text-xl"];
 const TOUCH_CLASSES = ["a11y-touch-comfortable", "a11y-touch-large"];
@@ -39,12 +40,20 @@ function applyNavHeight(value) {
   document.documentElement.style.setProperty("--bottom-nav-height", h);
 }
 
+function applyFontFamily(value) {
+  const family = value === "system"
+    ? "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    : "'Inter', sans-serif";
+  document.documentElement.style.setProperty("--font-sans", family);
+}
+
 export function initAccessibility() {
   applyFontSize(localStorage.getItem(LS_FONT_SIZE) || "default");
   applyReduceMotion(localStorage.getItem(LS_REDUCE_MOTION) === "true");
   applyHighContrast(localStorage.getItem(LS_HIGH_CONTRAST) === "true");
   applyLargeTouch(localStorage.getItem(LS_LARGE_TOUCH) || "default");
   applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
+  applyFontFamily(localStorage.getItem(LS_FONT_FAMILY) || "inter");
 }
 
 export function getAccessibilitySettings() {
@@ -54,6 +63,7 @@ export function getAccessibilitySettings() {
     highContrast:localStorage.getItem(LS_HIGH_CONTRAST) === "true",
     largeTouch:  localStorage.getItem(LS_LARGE_TOUCH)  || "default",
     navHeight:   localStorage.getItem(LS_NAV_HEIGHT)   || "default",
+    fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || "inter",
   };
 }
 
@@ -80,4 +90,9 @@ export function setAccessibilityLargeTouch(value) {
 export function setAccessibilityNavHeight(value) {
   localStorage.setItem(LS_NAV_HEIGHT, value);
   applyNavHeight(value);
+}
+
+export function setAccessibilityFontFamily(value) {
+  localStorage.setItem(LS_FONT_FAMILY, value);
+  applyFontFamily(value);
 }
