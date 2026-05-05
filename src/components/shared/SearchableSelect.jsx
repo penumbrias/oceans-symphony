@@ -245,7 +245,7 @@ export function SearchableSelect({
           ref={panelRef}
           data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight }}
+          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
         >
           {/* Search */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
@@ -433,7 +433,7 @@ export function SearchableMultiSelect({
           ref={panelRef}
           data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight }}
+          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
         >
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />

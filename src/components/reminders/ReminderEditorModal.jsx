@@ -462,7 +462,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
       <DialogContent
         className="max-w-lg max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => {
-          if (e.target?.closest?.("[data-searchable-dropdown]")) e.preventDefault();
+          if (document.querySelector("[data-searchable-dropdown]")) e.preventDefault();
         }}
       >
         <DialogHeader>

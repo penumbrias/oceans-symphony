@@ -509,7 +509,7 @@ export async function runSnoozeOptionsMigration(defaultSnoozeOptions) {
 }
 
 export async function runReminderMigration() {
-  const FLAG = "reminders_migration_v1_done";
+  const FLAG = "reminders_migration_v2_done";
   if (localStorage.getItem(FLAG)) return;
   try {
     const reminders = await base44.entities.Reminder.list();
@@ -519,8 +519,14 @@ export async function runReminderMigration() {
       const migrated = actions.map(a => {
         if (a.action_type !== "open_route") return a;
         const path = a.payload?.path || "";
-        // open_set_front detection
-        if (path.includes("openSetFront") || path.includes("set_front")) {
+        const label = (a.label || "").toLowerCase();
+        // open_set_front detection — path-based or label-based (empty/root path + "front" label)
+        if (
+          path.includes("openSetFront") ||
+          path.includes("set_front") ||
+          path === "/fronting" ||
+          (label.includes("front") && (!path || path === "/"))
+        ) {
           changed = true;
           return { ...a, action_type: "open_set_front", payload: {} };
         }
