@@ -25,6 +25,7 @@
 
     --color-bg: #F0F9FF;
     --color-surface: #E0F2FE;
+    --color-surface-rgb: 224, 242, 254;
     --color-primary: #3B82F6;
     --color-secondary: #DBEAFE;
     --color-accent: #38BDF8;
@@ -39,6 +40,7 @@
   .dark {
     --color-bg: #0A0E17;
     --color-surface: #101820;
+    --color-surface-rgb: 16, 24, 32;
     --color-primary: #3B82F6;
     --color-secondary: #1E3A5F;
     --color-accent: #38BDF8;

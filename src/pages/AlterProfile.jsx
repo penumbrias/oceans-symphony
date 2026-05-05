@@ -273,12 +273,7 @@ export default function AlterProfile() {
           })}
         </div>
 
-        <div className={hasPageBg && sectionBgOpacity > 0 ? "relative rounded-2xl p-2" : ""}>
-          {hasPageBg && sectionBgOpacity > 0 && (
-            <div className="absolute inset-0 rounded-2xl pointer-events-none"
-              style={{ backgroundColor: "var(--color-bg)", opacity: sectionBgOpacity }} />
-          )}
-          <div className={hasPageBg && sectionBgOpacity > 0 ? "relative z-10" : ""}>
+        <div>
           {tab === "profile" && (
             <ProfileTab
               alter={alter}
@@ -294,7 +289,6 @@ export default function AlterProfile() {
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
           {tab === "options" && <OptionsTab alter={alter} />}
-          </div>
         </div>
       </div>
     </motion.div>

@@ -296,6 +296,12 @@ useEffect(() => {
   }, [viewHeaderImage]);
 
   // ── VIEW MODE ──
+  const viewSectionBgOpacity = parseFloat(alter.custom_fields?.[SECTION_BG_KEY] ?? 0);
+  const hasSectionBg = viewSectionBgOpacity > 0 && (viewBgColor || viewBgImage || viewHeaderImage);
+  const sectionCardStyle = hasSectionBg
+    ? { backgroundColor: `rgba(var(--color-surface-rgb), ${viewSectionBgOpacity})` }
+    : {};
+
   if (!editMode) {
     return (
       <div className="space-y-6">
@@ -386,7 +392,7 @@ useEffect(() => {
             );
           }
           return (
-            <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
+            <div className="bg-muted/20 rounded-xl p-4 border border-border/40" style={sectionCardStyle}>
               <SimplePreview blocks={blocks} onBlockChange={() => {}} readOnly={true} />
             </div>
           );
@@ -437,7 +443,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           return (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
-              <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden">
+              <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden" style={sectionCardStyle}>
                 {visibleFilled.map((field, i) => (
                   <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
