@@ -162,6 +162,16 @@ export function SearchableSelect({
     return () => document.removeEventListener("mousedown", handler);
   }, [open, handleClose]);
 
+  // Stop touchmove from bubbling to document so react-remove-scroll (used by Radix Dialog)
+  // doesn't call preventDefault(), which suppresses click events on iOS
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const panel = panelRef.current;
+    const stop = (e) => e.stopPropagation();
+    panel.addEventListener("touchmove", stop);
+    return () => panel.removeEventListener("touchmove", stop);
+  }, [open, panelPos]);
+
   // Keyboard nav
   const handleKeyDown = (e) => {
     if (!open) {
@@ -387,6 +397,14 @@ export function SearchableMultiSelect({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open, handleClose]);
+
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const panel = panelRef.current;
+    const stop = (e) => e.stopPropagation();
+    panel.addEventListener("touchmove", stop);
+    return () => panel.removeEventListener("touchmove", stop);
+  }, [open, panelPos]);
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>

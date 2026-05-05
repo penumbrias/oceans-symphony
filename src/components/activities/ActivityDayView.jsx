@@ -208,15 +208,33 @@ export default function ActivityDayView({
   const dateStr = format(date, "yyyy-MM-dd");
   const isToday = dateStr === format(new Date(), "yyyy-MM-dd");
 
-  const dayActivities = useMemo(() =>
-    activities.filter(a => format(parseDate(a.timestamp), "yyyy-MM-dd") === dateStr),
-    [activities, dateStr]
-  );
+  const dayActivities = useMemo(() => {
+    const dayStart = parseDate(dateStr);
+    return activities.filter(a => {
+      const actStart = parseDate(a.timestamp);
+      if (format(actStart, "yyyy-MM-dd") === dateStr) return true;
+      // Include activities that started the previous day and extend past midnight into this day
+      if (a.duration_minutes > 0) {
+        const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
+        return actEnd > dayStart;
+      }
+      return false;
+    });
+  }, [activities, dateStr]);
 
-  const totalDuration = useMemo(() =>
-    dayActivities.reduce((s, a) => s + (a.duration_minutes || 0), 0),
-    [dayActivities]
-  );
+  const totalDuration = useMemo(() => {
+    const dayStart = parseDate(dateStr);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    return dayActivities.reduce((s, a) => {
+      if (!a.duration_minutes) return s;
+      const actStart = parseDate(a.timestamp);
+      const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
+      // Clip to the current day's bounds
+      const clippedStart = actStart < dayStart ? dayStart : actStart;
+      const clippedEnd = actEnd > dayEnd ? dayEnd : actEnd;
+      return s + Math.round((clippedEnd - clippedStart) / 60000);
+    }, 0);
+  }, [dayActivities, dateStr]);
 
   const getColor = useCallback((act) => getActivityColor(act, catById), [catById]);
 
