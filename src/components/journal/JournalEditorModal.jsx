@@ -19,15 +19,17 @@ const getSavedFolders = () => {
   catch { return []; }
 };
 
-// Detect ~AlterName: signpost patterns in content (plain text or HTML)
-function detectSignpostAlters(content, alters) {
-  if (!content || !alters?.length) return [];
-  const text = content.replace(/<[^>]+>/g, " ");
+// Parse -name / -alias patterns to identify signing alters (same as bulletin board)
+function parseSignpostAuthors(text, alters) {
+  const pattern = /-(\w+)/g;
   const found = [];
-  alters.forEach(alter => {
-    const escaped = alter.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (new RegExp(`~${escaped}\\s*:`, "i").test(text)) found.push(alter.id);
-  });
+  for (const match of [...text.matchAll(pattern)]) {
+    const term = match[1].toLowerCase();
+    const alter = (alters || []).find(a =>
+      a.name.toLowerCase() === term || (a.alias && a.alias.toLowerCase() === term)
+    );
+    if (alter && !found.find(f => f.id === alter.id)) found.push(alter);
+  }
   return found;
 }
 
@@ -55,6 +57,7 @@ export default function JournalEditorModal({
   const [coAuthorIds, setCoAuthorIds] = useState([]);
   const [showAuthorPicker, setShowAuthorPicker] = useState(false);
   const [authorSearch, setAuthorSearch] = useState("");
+  const [signpostText, setSignpostText] = useState("");
 
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, content, setContent);
@@ -68,19 +71,19 @@ export default function JournalEditorModal({
     return map;
   }, [alters]);
 
-  // Detect ~Name: patterns in content — these alters are auto-included as co-authors
-  const signpostDetected = useMemo(
-    () => detectSignpostAlters(content, alters),
-    [content, alters]
+  // Parse -name/-alias patterns from the signpost field
+  const signpostAuthors = useMemo(
+    () => parseSignpostAuthors(signpostText, alters),
+    [signpostText, alters]
   );
 
-  // Effective co-authors = manual + signpost detected (minus primary author)
-  const effectiveCoAuthorIds = useMemo(() => {
-    return [...new Set([...coAuthorIds, ...signpostDetected])]
-      .filter(id => id !== authorAlterId);
-  }, [coAuthorIds, signpostDetected, authorAlterId]);
+  // If signpost field has results those override the dropdown; else fall back to manual selection
+  const effectiveAuthorId = signpostAuthors[0]?.id ?? authorAlterId;
+  const effectiveCoAuthorIds = signpostAuthors.length > 0
+    ? signpostAuthors.slice(1).map(a => a.id)
+    : coAuthorIds;
 
-  useEffect(() => {
+useEffect(() => {
     if (editingEntryFinal) {
       setTitle(editingEntryFinal.title || "");
       setIsEncrypted(editingEntryFinal.is_encrypted || false);
@@ -110,6 +113,7 @@ export default function JournalEditorModal({
     setDecryptionError("");
     setShowAuthorPicker(false);
     setAuthorSearch("");
+    setSignpostText("");
   }, [editingEntryFinal?.id, isOpenFinal]);
 
   const handleDecrypt = async () => {
@@ -164,7 +168,7 @@ export default function JournalEditorModal({
       content: finalContent,
       is_encrypted: isEncrypted,
       folder: folder || null,
-      author_alter_id: authorAlterId || null,
+      author_alter_id: effectiveAuthorId || null,
       co_author_alter_ids: effectiveCoAuthorIds,
     });
   };
@@ -185,66 +189,79 @@ export default function JournalEditorModal({
         <div className="space-y-4">
           <Input placeholder="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
-          {/* Author — compact row with searchable dropdown */}
-          <div className="relative flex items-center gap-2">
-            <PenLine className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-            <span className="text-xs text-muted-foreground flex-shrink-0">Written by</span>
-            <button
-              type="button"
-              onClick={() => { setShowAuthorPicker(v => !v); setAuthorSearch(""); }}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-border/60 hover:border-border bg-background transition-colors"
-            >
-              {authorAlter ? (
-                <>
-                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: authorAlter.color || "#8b5cf6" }} />
-                  <span className="max-w-[160px] truncate">{authorAlter.name}</span>
-                </>
-              ) : (
-                <span className="text-muted-foreground">No attribution</span>
-              )}
-              <ChevronDown className="w-3 h-3 text-muted-foreground" />
-            </button>
-            {signpostDetected.length > 0 && (
-              <span className="text-[10px] text-muted-foreground">
-                +{signpostDetected.length} co-author{signpostDetected.length !== 1 ? "s" : ""} via ~signpost
-              </span>
-            )}
-            {showAuthorPicker && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowAuthorPicker(false)} />
-                <div className="absolute top-full left-16 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-border/50">
-                    <input
-                      autoFocus
-                      value={authorSearch}
-                      onChange={e => setAuthorSearch(e.target.value)}
-                      placeholder="Search members..."
-                      className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-                    />
-                  </div>
-                  <div className="max-h-52 overflow-y-auto">
-                    <button
-                      type="button"
-                      onClick={() => { setAuthorAlterId(null); setShowAuthorPicker(false); }}
-                      className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors ${!authorAlterId ? "text-primary font-medium" : "text-muted-foreground"}`}
-                    >
-                      No attribution
-                    </button>
-                    {filteredAltersForAuthor.map(a => (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => { setAuthorAlterId(a.id); setShowAuthorPicker(false); }}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${authorAlterId === a.id ? "bg-primary/5 text-primary" : ""}`}
-                      >
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
-                        <span className="flex-1 truncate">{a.name}</span>
-                        {a.id === currentAlterId && <span className="text-[10px] text-primary/70 flex-shrink-0">fronting</span>}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
+          {/* Author — dropdown default + -name signpost field */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <PenLine className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              <span className="text-xs text-muted-foreground flex-shrink-0">Written by</span>
+
+              {/* Dropdown: explicit selection / shows current effective author */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => { setShowAuthorPicker(v => !v); setAuthorSearch(""); }}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-border/60 hover:border-border bg-background transition-colors"
+                >
+                  {(() => {
+                    const a = altersById[effectiveAuthorId];
+                    return a ? (
+                      <>
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }} />
+                        <span className="max-w-[120px] truncate">{a.name}</span>
+                      </>
+                    ) : <span className="text-muted-foreground">No attribution</span>;
+                  })()}
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                </button>
+                {showAuthorPicker && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowAuthorPicker(false)} />
+                    <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 overflow-hidden">
+                      <div className="px-3 py-2 border-b border-border/50">
+                        <input autoFocus value={authorSearch} onChange={e => setAuthorSearch(e.target.value)}
+                          placeholder="Search members..."
+                          className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground" />
+                      </div>
+                      <div className="max-h-52 overflow-y-auto">
+                        <button type="button" onClick={() => { setAuthorAlterId(null); setShowAuthorPicker(false); }}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors ${!authorAlterId ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                          No attribution
+                        </button>
+                        {filteredAltersForAuthor.map(a => (
+                          <button key={a.id} type="button" onClick={() => { setAuthorAlterId(a.id); setShowAuthorPicker(false); }}
+                            className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${authorAlterId === a.id ? "bg-primary/5 text-primary" : ""}`}>
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                            <span className="flex-1 truncate">{a.name}</span>
+                            {a.id === currentAlterId && <span className="text-[10px] text-primary/70 flex-shrink-0">fronting</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Signpost field: -name or -alias to sign */}
+              <input
+                value={signpostText}
+                onChange={e => setSignpostText(e.target.value)}
+                placeholder="-name or -alias to sign"
+                className="flex-1 min-w-[140px] text-xs font-mono bg-transparent border border-border/40 rounded-lg px-2.5 py-1 focus:border-primary/50 outline-none placeholder:text-muted-foreground/40"
+              />
+            </div>
+
+            {/* Show who was detected from the signpost field */}
+            {signpostAuthors.length > 0 && (
+              <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground">
+                <span>Signing as:</span>
+                {signpostAuthors.map((a, i) => (
+                  <span key={a.id} className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                    {a.name}
+                    {i === 0 && signpostAuthors.length > 1 && <span className="opacity-50">(primary)</span>}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
 
@@ -379,9 +396,6 @@ export default function JournalEditorModal({
               ) : (
                 <BlockEditor value={content} onChange={setContent} />
               )}
-              <p className="text-xs text-muted-foreground">
-                Tip: Use <code className="font-mono bg-muted px-1 rounded">~AlterName:</code> to mark which alter is writing a section — they'll be auto-added as co-authors.
-              </p>
             </div>
           )}
 
