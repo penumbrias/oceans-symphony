@@ -121,17 +121,21 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-destructive" />
-            Quick Emotion Check-In
-          </DialogTitle>
-          <DialogDescription>How are you feeling right now?</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
 
-        <div className="space-y-4">
-          {/* Emotion picker */}
+        {/* Fixed header */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-destructive" />
+              Quick Emotion Check-In
+            </DialogTitle>
+            <DialogDescription>How are you feeling right now?</DialogDescription>
+          </DialogHeader>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-4">
           <EmotionWheelPicker
             selectedEmotions={selectedEmotions}
             onToggle={toggleEmotion}
@@ -139,7 +143,6 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
             onAddCustom={(label) => addCustomMutation.mutate(label)}
           />
 
-          {/* Alters */}
           <div>
             <p className="text-sm font-medium mb-2">Who's fronting? <span className="text-muted-foreground font-normal">(optional)</span></p>
             <div className="relative mb-2">
@@ -188,7 +191,6 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
             )}
           </div>
 
-          {/* Activity */}
           <div>
             <p className="text-sm font-medium mb-2">What activity? <span className="text-muted-foreground font-normal">(optional)</span></p>
             <div className="flex gap-2">
@@ -199,7 +201,6 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
             </div>
           </div>
 
-          {/* Note */}
           <div>
             <p className="text-sm font-medium mb-2">Quick note <span className="text-muted-foreground font-normal">(optional)</span></p>
             <Textarea placeholder="Optional note..." value={note}
@@ -211,8 +212,10 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
               </p>
             )}
           </div>
+        </div>
 
-          {/* Actions */}
+        {/* Fixed footer */}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
             <Button onClick={handleSubmit} disabled={selectedEmotions.length === 0 || saving} className="flex-1">

@@ -169,12 +169,17 @@ const handleAvatarUpload = async (e) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isNew ? `Add New ${t.Alter}` : `Edit ${alter?.name || t.Alter}`}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
 
-        <div className="space-y-4 pt-2">
+        {/* Fixed header */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
+          <DialogHeader>
+            <DialogTitle>{isNew ? `Add New ${t.Alter}` : `Edit ${alter?.name || t.Alter}`}</DialogTitle>
+          </DialogHeader>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-4">
           {form.color && (
             <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />
           )}
@@ -258,27 +263,28 @@ const handleAvatarUpload = async (e) => {
               )}
             </div>
           )}
+        </div>
 
-          <div className="flex flex-col gap-2 pt-2">
-            <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              {isNew ? `Create ${t.Alter}` : "Save Changes"}
-            </Button>
-            {!isNew && (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
-                  {alter?.is_archived
-                    ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
-                    : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
-                </Button>
-                <Button variant="outline" onClick={handleDelete} disabled={deleting}
-                  className="flex-1 text-destructive hover:bg-destructive/10 border-destructive/40 hover:border-destructive/60">
-                  {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                  Delete
-                </Button>
-              </div>
-            )}
-          </div>
+        {/* Fixed footer */}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50 flex flex-col gap-2">
+          <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            {isNew ? `Create ${t.Alter}` : "Save Changes"}
+          </Button>
+          {!isNew && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
+                {alter?.is_archived
+                  ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
+                  : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
+              </Button>
+              <Button variant="outline" onClick={handleDelete} disabled={deleting}
+                className="flex-1 text-destructive hover:bg-destructive/10 border-destructive/40 hover:border-destructive/60">
+                {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                Delete
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
 

@@ -462,24 +462,29 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       />
     )}
     <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-destructive" />
-            Quick Check-In
-          </DialogTitle>
-          <DialogDescription className="flex items-center gap-2 pt-1">
-            <input
-              type="datetime-local"
-              value={entryTime}
-              onChange={e => setEntryTime(e.target.value)}
-              className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
-            />
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
 
-        <div className="space-y-3">
-          {/* Pill toggles — scrollable row on mobile */}
+        {/* Fixed header */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-destructive" />
+              Quick Check-In
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2 pt-1">
+              <input
+                type="datetime-local"
+                value={entryTime}
+                onChange={e => setEntryTime(e.target.value)}
+                className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
+              />
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-3">
+          {/* Pill toggles */}
           <div className="flex flex-wrap gap-1.5 pb-1">
             {PILLS.map((pill) => {
               const PillIcon = pill.icon;
@@ -493,7 +498,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                   <PillIcon className="w-3 h-3" />
                   {pill.label}
                 </button>);
-
             })}
           </div>
 
@@ -506,7 +510,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
               customEmotions={customEmotions}
               onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })} />
-            
             </div>
           }
 
@@ -514,8 +517,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {openSections.has("fronting") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Who's {terms.fronting}?</p>
-
-              {/* Selected chips */}
               {selectedAlterIds.size > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {[...selectedAlterIds].map(id => {
@@ -536,12 +537,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                 </div>
               )}
               <p className="text-xs text-muted-foreground">Tap to toggle · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary · hold to set primary</p>
-
-              {/* Search */}
               <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
                 onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
-
-              {/* Alter list */}
               <div className="max-h-40 overflow-y-auto space-y-1">
                 {activeAlters
                   .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
@@ -574,27 +571,15 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                     );
                   })}
               </div>
-
-              {/* Journal + trigger options — only show when front has changed */}
               {frontingActuallyChanged && (
                 <div className="border-t border-border/40 pt-2 space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={journalSwitch}
-                      onChange={e => setJournalSwitch(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-primary"
-                    />
+                    <input type="checkbox" checked={journalSwitch} onChange={e => setJournalSwitch(e.target.checked)} className="w-3.5 h-3.5 accent-primary" />
                     <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">Journal this {terms.switch}?</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isTriggeredSwitch}
-                      onChange={e => setIsTriggeredSwitch(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-orange-500"
-                    />
+                    <input type="checkbox" checked={isTriggeredSwitch} onChange={e => setIsTriggeredSwitch(e.target.checked)} className="w-3.5 h-3.5 accent-orange-500" />
                     <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
                     <span className="text-sm text-muted-foreground">This was a triggered {terms.switch}</span>
                   </label>
@@ -603,27 +588,17 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                       <p className="text-xs font-medium text-muted-foreground">What triggered it?</p>
                       <div className="flex flex-wrap gap-1">
                         {TRIGGER_CATEGORIES.map(cat => (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
-                            title={cat.hint}
+                          <button key={cat.id} type="button" onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)} title={cat.hint}
                             className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
                               triggerCategory === cat.id
                                 ? "bg-orange-100 text-orange-800 border-orange-400 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
                                 : "text-muted-foreground border-border hover:bg-muted/50"
-                            }`}
-                          >
+                            }`}>
                             {cat.emoji} {cat.label}
                           </button>
                         ))}
                       </div>
-                      <Input
-                        value={triggerLabel}
-                        onChange={e => setTriggerLabel(e.target.value)}
-                        placeholder="Optional: describe the trigger..."
-                        className="h-7 text-xs"
-                      />
+                      <Input value={triggerLabel} onChange={e => setTriggerLabel(e.target.value)} placeholder="Optional: describe the trigger..." className="h-7 text-xs" />
                     </div>
                   )}
                 </div>
@@ -646,7 +621,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                     <Button size="sm" onClick={handleCreateNewActivity} disabled={!newActivityName.trim()} className="flex-1">Add</Button>
                   </div>
                 </div> :
-
             <button onClick={() => setShowNewActivity(true)}
             className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:border-primary hover:text-foreground transition-colors flex items-center justify-center gap-1">
                   <Plus className="w-4 h-4" /> Create new activity
@@ -666,10 +640,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {openSections.has("diary") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Daily Log</p>
-              <DiarySection
-              data={diaryData}
-              onChange={(groupKey, value) => setDiaryData((prev) => ({ ...prev, [groupKey]: value }))} />
-            
+              <DiarySection data={diaryData} onChange={(groupKey, value) => setDiaryData((prev) => ({ ...prev, [groupKey]: value }))} />
             </div>
           }
 
@@ -686,8 +657,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             }
             </div>
           }
+        </div>
 
-          <div className="flex gap-2 pt-1">
+        {/* Fixed footer */}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
+          <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
             <Button onClick={handleSubmit} disabled={saving} className="flex-1">
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}

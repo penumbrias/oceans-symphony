@@ -279,7 +279,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Set {terms.Front}ers</DialogTitle>
           </DialogHeader>
