@@ -14,7 +14,7 @@ import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 44 };
+const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
 const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
 
@@ -135,7 +135,7 @@ function StatusNoteBadge({ note, topPx, id }) {
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress }) {
+function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress, hasNote }) {
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
@@ -166,18 +166,25 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}
       onMouseDown={startPress} onMouseUp={cancelPress} onMouseLeave={cancelPress}
       onTouchStart={startPress} onTouchEnd={handleTouchEnd}>
-      <div
-        className="rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
-        style={{
-          width: sz, height: sz,
-          backgroundColor: color,
-          border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
-          boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
-        }}
-        title={alter?.name + (isPrimary ? " (primary)" : "")}>
-        {resolvedUrl && !imgError
-          ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
-          : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
+      <div className="relative flex-shrink-0">
+        <div
+          className="rounded-full overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
+          style={{
+            width: sz, height: sz,
+            backgroundColor: color,
+            border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
+            boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
+          }}
+          title={alter?.name + (isPrimary ? " (primary)" : "")}>
+          {resolvedUrl && !imgError
+            ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
+        </div>
+        {hasNote && (
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-background border border-border/60 flex items-center justify-center" style={{ fontSize: 7, lineHeight: 1 }}>
+            💬
+          </div>
+        )}
       </div>
       {heightPx > sz + 4 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
@@ -1296,6 +1303,7 @@ export default function InfiniteTimeline({
                             heightPx={heightPx}
                             isPrimary={entry.isPrimary}
                             rowH={rowH}
+                            hasNote={!!entrySession?.note}
                             onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
                             onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
                             onLongPress={(clientY) => {

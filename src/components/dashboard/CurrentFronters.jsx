@@ -148,6 +148,7 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
   const [showTrigger, setShowTrigger] = useState(!!session?.is_triggered_switch);
   const [triggerCategory, setTriggerCategory] = useState(session?.trigger_category || "");
   const [triggerLabel, setTriggerLabel] = useState(session?.trigger_label || "");
+  const [customTriggerType, setCustomTriggerType] = useState("");
   const [saving, setSaving] = useState(false);
 
   const { data: symptoms = [] } = useQuery({
@@ -188,9 +189,10 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
         .filter(Boolean);
       if (symptomArr.length > 0) updates.session_symptoms = JSON.stringify(symptomArr);
 
-      if (showTrigger && triggerCategory) {
+      const effectiveCategory = customTriggerType.trim() || triggerCategory;
+      if (showTrigger && effectiveCategory) {
         updates.is_triggered_switch = true;
-        updates.trigger_category = triggerCategory;
+        updates.trigger_category = effectiveCategory;
         updates.trigger_label = triggerLabel;
       }
 
@@ -331,10 +333,10 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
             {TRIGGER_CATEGORIES.map(cat => (
               <button
                 key={cat.id}
-                onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
+                onClick={() => { setTriggerCategory(c => c === cat.id ? "" : cat.id); setCustomTriggerType(""); }}
                 title={cat.hint}
                 className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
-                  triggerCategory === cat.id
+                  triggerCategory === cat.id && !customTriggerType
                     ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
                     : "text-muted-foreground border-border/60 hover:bg-muted/50"
                 }`}
@@ -344,9 +346,15 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
             ))}
           </div>
           <input
+            value={customTriggerType}
+            onChange={e => { setCustomTriggerType(e.target.value); if (e.target.value) setTriggerCategory(""); }}
+            placeholder="Or type a custom trigger type..."
+            className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
+          />
+          <input
             value={triggerLabel}
             onChange={e => setTriggerLabel(e.target.value)}
-            placeholder="Describe the trigger..."
+            placeholder="Describe what happened..."
             className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
           />
         </div>
@@ -382,15 +390,9 @@ export default function CurrentFronters({ alters }) {
   const active = primarySession || activeSessions[0] || null;
 
   useEffect(() => {
-    if (!active) { setStatusText(""); setTempStatus(""); return; }
-    try {
-      const raw = active.note;
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const text = Array.isArray(parsed) ? (parsed[parsed.length - 1]?.text || "") : raw;
-        setStatusText(text); setTempStatus(text);
-      } else { setStatusText(""); setTempStatus(""); }
-    } catch { setStatusText(active.note || ""); setTempStatus(active.note || ""); }
+    const saved = active?.id ? (localStorage.getItem(`symphony_status_${active.id}`) ?? "") : "";
+    setStatusText(saved);
+    setTempStatus(saved);
   }, [active?.id]);
 
   useEffect(() => { setExpandedAlterId(null); }, [active?.id]);
@@ -413,19 +415,11 @@ export default function CurrentFronters({ alters }) {
     } catch { toast.error("Failed to update primary fronter"); }
   };
 
-  const handleSaveStatus = async () => {
+  const handleSaveStatus = () => {
     const note = tempStatus.trim();
     setStatusText(note);
     setEditingStatus(false);
-    try {
-      const nowIso = new Date().toISOString();
-      for (const s of activeSessions) {
-        let existing = [];
-        try { const parsed = JSON.parse(s.note || "[]"); existing = Array.isArray(parsed) ? parsed : []; } catch {}
-        await base44.entities.FrontingSession.update(s.id, { note: JSON.stringify([...existing, { text: note, timestamp: nowIso }]) });
-      }
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch {}
+    if (active?.id) localStorage.setItem(`symphony_status_${active.id}`, note);
     toast.success("Status saved");
   };
 
@@ -511,7 +505,7 @@ export default function CurrentFronters({ alters }) {
             <Input
               value={tempStatus}
               onChange={e => setTempStatus(e.target.value)}
-              placeholder="Add a status..."
+              placeholder="status..."
               className="text-sm h-8 flex-1"
               autoFocus
               onKeyDown={e => { if (e.key === "Enter") handleSaveStatus(); }}
@@ -533,7 +527,7 @@ export default function CurrentFronters({ alters }) {
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <span className="italic">Add a custom status...</span>
+                <span className="italic">status...</span>
                 <Edit2 className="w-3 h-3" />
               </div>
             )}
