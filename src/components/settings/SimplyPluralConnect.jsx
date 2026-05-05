@@ -352,9 +352,9 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       for (const entry of entries) {
         const spFrontId = entry.id || entry._id || "";
         if (spFrontId && existingSpFrontIds.has(spFrontId)) { skipped++; continue; }
-        const sessions = mapFrontHistoryEntry(entry, alterIdBySpId);
-        if (sessions.length === 0) { noAlter++; continue; }
-        toCreate.push(...sessions);
+        const session = mapFrontHistoryEntry(entry, alterIdBySpId);
+        if (!session) { noAlter++; continue; }
+        toCreate.push(session);
       }
 
       if (toCreate.length > 0) {
