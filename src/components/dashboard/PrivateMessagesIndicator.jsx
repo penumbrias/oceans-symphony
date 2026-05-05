@@ -63,16 +63,18 @@ export default function PrivateMessagesIndicator({ activeFronters = [] }) {
 
             {/* Pinned message display */}
             {hasPinned && pinned.length > 0 && (
-              <div className="rounded-lg border border-border/50 bg-card/50 p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <MessageCircle className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pinned message</p>
+              <Link to={`/alter/${alter.id}?tab=private-messages&messageId=${pinned[0].id}`}>
+                <div className="rounded-lg border border-border/50 bg-card/50 p-3 space-y-2 hover:bg-muted/30 transition-colors cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pinned message</p>
+                  </div>
+                  <p className="text-sm text-foreground leading-relaxed line-clamp-2">{pinned[0].content}</p>
+                  <p className="text-xs text-muted-foreground">
+                    from {altersById[pinned[0].from_alter_id]?.name || "Unknown"}
+                  </p>
                 </div>
-                <p className="text-sm text-foreground leading-relaxed line-clamp-2">{pinned[0].content}</p>
-                <p className="text-xs text-muted-foreground">
-                  from {altersById[pinned[0].from_alter_id]?.name || "Unknown"}
-                </p>
-              </div>
+              </Link>
             )}
           </div>
         );

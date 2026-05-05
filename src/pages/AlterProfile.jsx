@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,13 @@ function getContrastColor(hex) {
 
 export default function AlterProfile() {
   const { id: alterId } = useParams();
-  const [tab, setTab] = useState("profile");
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => {
+    const t = searchParams.get("tab");
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "options"];
+    return valid.includes(t) ? t : "profile";
+  });
+  const highlightMessageId = searchParams.get("messageId") || null;
   const [editMode, setEditMode] = useState(false);
   const [showComposeMessage, setShowComposeMessage] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
@@ -285,7 +291,7 @@ export default function AlterProfile() {
           )}
           {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
           {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
-          {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} />}
+          {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} highlightMessageId={highlightMessageId} />}
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
           {tab === "options" && <OptionsTab alter={alter} />}
