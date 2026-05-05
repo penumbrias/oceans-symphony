@@ -243,6 +243,7 @@ export function SearchableSelect({
       {open && panelPos && createPortal(
         <div
           ref={panelRef}
+          data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
           style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight }}
         >
@@ -430,6 +431,7 @@ export function SearchableMultiSelect({
       {open && panelPos && createPortal(
         <div
           ref={panelRef}
+          data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
           style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight }}
         >

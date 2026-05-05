@@ -79,11 +79,6 @@ export default function DailyTasks() {
     queryFn: () => base44.entities.JournalEntry.list("-created_date", 50),
     staleTime: 0,
   });
-  const { data: diaryCards = [] } = useQuery({
-    queryKey: ["diaryCardsToday", TODAY],
-    queryFn: () => base44.entities.DiaryCard.filter({ date: TODAY }),
-    staleTime: 0,
-  });
   const { data: systemCheckIns = [] } = useQuery({
     queryKey: ["systemCheckInsToday", TODAY],
     queryFn: () => base44.entities.SystemCheckIn.filter({ date: TODAY }),
@@ -100,10 +95,10 @@ export default function DailyTasks() {
   const autoTriggers = useMemo(
     () => buildAutoCompletedTriggers({
       hasJournal: hasJournalToday,
-      hasDiaryCard: diaryCards.length > 0,
+      hasDiaryCard: false,
       hasPartsCheckIn: systemCheckIns.length > 0,
     }),
-    [hasJournalToday, diaryCards.length, systemCheckIns.length]
+    [hasJournalToday, systemCheckIns.length]
   );
 
   // Current period key per frequency

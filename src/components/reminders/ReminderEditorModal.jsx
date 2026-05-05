@@ -459,7 +459,12 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => {
+          if (e.target?.closest?.("[data-searchable-dropdown]")) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{existing ? "Edit Reminder" : "New Reminder"}</DialogTitle>
         </DialogHeader>

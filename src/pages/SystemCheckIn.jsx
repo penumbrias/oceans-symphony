@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save, Plus, Pencil, Eye, CheckCircle2, Users, MessageSquare } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import CheckInStep1 from "@/components/system-checkin/CheckInStep1";
@@ -19,7 +18,6 @@ import { saveMentions } from "@/lib/mentionUtils";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 
 export default function SystemCheckInPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const terms = useTerms();
@@ -84,8 +82,6 @@ export default function SystemCheckInPage() {
     }
 
     const dataToSave = { ...formData };
-    const shouldCreateDiary = formData.create_diary_card;
-    delete dataToSave.create_diary_card;
 
     const allStepContent = [
       formData.step3_greet?.notes,
@@ -168,8 +164,22 @@ export default function SystemCheckInPage() {
   }
 }
 
-    if (shouldCreateDiary) {
-      setTimeout(() => { navigate("/diary?create=true"); }, 500);
+
+    // Sync feelings to EmotionCheckIn so they appear in analytics
+    const feelings = formData.step2_notice?.feelings;
+    if (feelings?.trim()) {
+      const emotionLabels = feelings.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+      if (emotionLabels.length > 0) {
+        try {
+          await base44.entities.EmotionCheckIn.create({
+            timestamp: new Date().toISOString(),
+            emotions: emotionLabels,
+            fronting_alter_ids: [],
+            note: `From system check-in`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+        } catch {}
+      }
     }
   };
 
@@ -408,27 +418,6 @@ const formatted = date.toLocaleDateString("en-US", {
             <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
 <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
 <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
-
-            {/* Next Steps */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Next Step</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="diary-card"
-                    checked={formData.create_diary_card || false}
-                    onChange={(e) => setFormData({ ...formData, create_diary_card: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="diary-card" className="cursor-pointer text-sm">
-                    Complete a daily diary card next
-                  </label>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Save Button */}
             <Button

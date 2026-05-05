@@ -67,8 +67,6 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
   };
 
   const handleAction = async (instance, action) => {
-    const reminder = reminderMap[instance.reminder_id];
-    if (!reminder) return;
     const type = action.action_type;
 
     if (type === "open_set_front") {
