@@ -73,24 +73,16 @@ export default function Journals() {
     queryFn: () => base44.entities.Group.list(),
   });
 
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 10),
+  const { data: activeSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
 
-  const activeSessions = sessions.filter((s) => s.is_active);
-  let currentAlterId = null;
-  let currentAlterIds = [];
-  if (activeSessions.length > 0) {
-    if (activeSessions[0].alter_id) {
-      currentAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
-      currentAlterId = currentAlterIds[0] || null;
-    } else {
-      const first = activeSessions[0];
-      currentAlterId = first.primary_alter_id || null;
-      currentAlterIds = [first.primary_alter_id, ...(first.co_fronter_ids || [])].filter(Boolean);
-    }
-  }
+  const primarySession = activeSessions.find((s) => s.is_primary) || activeSessions[0];
+  const currentAlterId = primarySession?.alter_id || primarySession?.primary_alter_id || null;
+  const currentAlterIds = activeSessions
+    .map((s) => s.alter_id || s.primary_alter_id)
+    .filter(Boolean);
 
   const altersById = useMemo(() =>
     Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);

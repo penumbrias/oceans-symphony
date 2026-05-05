@@ -116,6 +116,12 @@ useEffect(() => {
     setSignpostText("");
   }, [editingEntryFinal?.id, isOpenFinal]);
 
+  // Backfill author when fronting data arrives after the modal is already open
+  useEffect(() => {
+    if (!isOpenFinal || editingEntryFinal || !currentAlterId) return;
+    setAuthorAlterId((prev) => (prev == null ? currentAlterId : prev));
+  }, [currentAlterId, isOpenFinal]);
+
   const handleDecrypt = async () => {
     setIsDecrypting(true);
     setDecryptionError("");
