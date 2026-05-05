@@ -55,8 +55,8 @@ export async function getFronters(token, systemId) {
 
 export async function getFrontHistory(token, systemId, startTime, endTime) {
   try {
-    const start = startTime || (Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const end = endTime || Date.now();
+    const start = startTime ?? 0;
+    const end = endTime ?? Date.now();
     const data = await spFetch(`/frontHistory/${systemId}?startTime=${start}&endTime=${end}`, token);
     return Array.isArray(data) ? data : (data.data ?? []);
   } catch {
@@ -82,13 +82,39 @@ export async function getCustomFields(token, systemId) {
   }
 }
 
+export async function getPolls(token, systemId) {
+  try {
+    const data = await spFetch(`/polls/${systemId}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
+export async function getMemberNotes(token, systemId, memberId) {
+  try {
+    const data = await spFetch(`/notes/${systemId}/${memberId}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
+export async function getCustomFronts(token, systemId) {
+  try {
+    const data = await spFetch(`/customFronts/${systemId}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
 function normalizeColor(raw) {
   if (!raw) return "";
   const s = raw.toString().trim();
   return s.startsWith("#") ? s : `#${s}`;
 }
 
-// Maps SP valueType strings to our field_type enum
 const SP_TYPE_MAP = {
   text: "text",
   string: "text",
@@ -103,9 +129,6 @@ export function spFieldType(spType) {
 }
 
 function remapCustomFields(spInfo, fieldIdMap) {
-  // spInfo: { [spFieldId]: value }
-  // fieldIdMap: { [spFieldId]: localFieldId }
-  // returns: { [localFieldId]: value }
   if (!spInfo || typeof spInfo !== "object") return {};
   const result = {};
   for (const [spFieldId, value] of Object.entries(spInfo)) {
@@ -166,5 +189,106 @@ export function mapGroupToLocalGroup(group) {
     tags: Array.isArray(c.tags) ? c.tags : [],
     is_hidden: !!c.private,
     parent: "",
+  };
+}
+
+// Maps one SP front history entry to an array of FrontingSession objects (one per member).
+export function mapFrontHistoryEntry(entry, alterIdBySpId) {
+  const spFrontId = entry.id || entry._id || "";
+  const c = entry.content || entry;
+
+  const members = Array.isArray(c.members) ? c.members : [];
+  const startTime = c.startTime ? new Date(c.startTime).toISOString() : null;
+  const endTime = (c.endTime && c.endTime > 0) ? new Date(c.endTime).toISOString() : null;
+  const isActive = !!c.live;
+  const note = c.customStatus || "";
+
+  if (!startTime) return [];
+
+  return members
+    .map((spMemberId, idx) => {
+      const localAlterId = alterIdBySpId[spMemberId];
+      if (!localAlterId) return null;
+      return {
+        alter_id: localAlterId,
+        is_primary: idx === 0,
+        start_time: startTime,
+        end_time: endTime,
+        is_active: isActive,
+        note,
+        sp_front_id: spFrontId,
+      };
+    })
+    .filter(Boolean);
+}
+
+// Maps one SP poll to a local Poll object.
+// SP poll options can be: string[] or { name, votes[] }[]
+// SP votes can be at content.votes as { spMemberId: optionIdx } or embedded in options.
+export function mapSPPoll(spPoll, alterIdBySpId) {
+  const spId = spPoll.id || spPoll._id || "";
+  const c = spPoll.content || spPoll;
+
+  const question = c.name || c.question || c.title || "Untitled Poll";
+  let options = [];
+  const spVotes = {}; // { spMemberId -> optionIdx }
+
+  if (Array.isArray(c.options)) {
+    if (c.options.length === 0 || typeof c.options[0] === "string") {
+      options = c.options;
+    } else {
+      // Objects: { name, votes: [] }
+      options = c.options.map((o) => o.name || o.label || "");
+      c.options.forEach((o, idx) => {
+        const voters = o.votes || o.voters || [];
+        for (const spMemberId of voters) {
+          spVotes[spMemberId] = idx;
+        }
+      });
+    }
+  }
+
+  // Top-level votes object: { spMemberId: optionIdx } or { spMemberId: [optionIdx] }
+  if (c.votes && typeof c.votes === "object" && !Array.isArray(c.votes)) {
+    for (const [spMemberId, val] of Object.entries(c.votes)) {
+      const idx = Array.isArray(val) ? val[0] : val;
+      if (typeof idx === "number") spVotes[spMemberId] = idx;
+    }
+  }
+
+  // Build local votes: { "0": [localAlterId, ...], "1": [...] }
+  const localVotes = {};
+  options.forEach((_, idx) => { localVotes[String(idx)] = []; });
+  for (const [spMemberId, optionIdx] of Object.entries(spVotes)) {
+    const localId = alterIdBySpId[spMemberId];
+    const key = String(optionIdx);
+    if (localId && localVotes[key] !== undefined) {
+      localVotes[key].push(localId);
+    }
+  }
+
+  const isClosedByTime = c.endTime && c.endTime < Date.now();
+  const isClosedByStatus = c.status === "closed" || !!c.closed;
+
+  return {
+    sp_id: spId,
+    question,
+    options,
+    votes: localVotes,
+    is_closed: !!(isClosedByTime || isClosedByStatus),
+  };
+}
+
+// Maps one SP member note to a local AlterNote object.
+export function mapSPMemberNote(spNote, localAlterId) {
+  const spId = spNote.id || spNote._id || "";
+  const c = spNote.content || spNote;
+  const title = c.title || "";
+  const body = c.text || c.note || c.body || "";
+  const content = title ? `**${title}**\n\n${body}`.trim() : body.trim();
+  return {
+    sp_id: spId,
+    alter_id: localAlterId,
+    content,
   };
 }
