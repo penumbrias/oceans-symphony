@@ -450,7 +450,7 @@ export function buildSystemCheckInsSection({ dateFrom, dateTo, systemCheckIns, a
       .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`);
     return {
       date: fmtDateTime(c.created_date),
-      title: c.title || "System Check-In",
+      title: c.title || "System Meeting",
       summary: summaryParts.join(" · ") || null,
       overallRating: c.overall_rating ?? c.rating ?? null,
     };

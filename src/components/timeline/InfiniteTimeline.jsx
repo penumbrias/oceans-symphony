@@ -852,7 +852,7 @@ export default function InfiniteTimeline({
     });
     checkIns.forEach((c) => {
       const mins = minutesInDay(parseDate(c.created_date), dayStart);
-      if (inDay(mins)) entries.push({ mins, type: "checkin", id: c.id, label: "System Check-In", data: c });
+      if (inDay(mins)) entries.push({ mins, type: "checkin", id: c.id, label: "System Meeting", data: c });
     });
     bulletins.forEach((b) => {
       const mins = minutesInDay(parseDate(b.created_date), dayStart);
@@ -1514,7 +1514,7 @@ export default function InfiniteTimeline({
         return (
           <DetailPopup icon={meta.icon} timeStr={timeStr} onClose={() => setDetailPopup(null)}>
             {entry.type === "journal" && <p className="text-sm font-semibold">{entry.label}</p>}
-            {entry.type === "checkin" && <p className="text-sm font-semibold">System Check-In</p>}
+            {entry.type === "checkin" && <p className="text-sm font-semibold">System Meeting</p>}
             {entry.type === "bulletin" && <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">{entry.data.content}</p>}
             {(entry.type === "task" || entry.type === "task_done") && <p className="text-sm font-semibold">{entry.label}</p>}
             {entry.type === "symptom_checkin" && (

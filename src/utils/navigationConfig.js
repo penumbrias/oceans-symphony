@@ -3,7 +3,7 @@ import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork,
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
   { id: "alters", label: "Alters", path: "/Home", icon: Users },
-  { id: "checkin", label: "Check-In", path: "/system-checkin", icon: Sparkles },
+  { id: "checkin", label: "Meeting", path: "/system-checkin", icon: Sparkles },
   { id: "journals", label: "Journals", path: "/journals", icon: BookOpen },
   { id: "tasks", label: "Tasks", path: "/tasks", icon: CheckSquare },
   { id: "timeline", label: "Timeline", path: "/timeline", icon: Clock },

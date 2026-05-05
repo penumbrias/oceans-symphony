@@ -327,7 +327,7 @@ export default function GlobalSearch() {
       const dateMatch = !textMatch && matchesDate(c.created_date, q);
       if (textMatch || dateMatch) {
         results.push({
-          type: "checkin", id: c.id, title: "System Check-In",
+          type: "checkin", id: c.id, title: "System Meeting",
           subtitle: dateMatch ? `📅 Matched date: ${formatDateLabel(c.created_date)}` : (c.notes?.slice(0, 60) || c.content?.slice(0, 60)),
           path: `/system-checkin?id=${c.id}`, dateMatch,
         });

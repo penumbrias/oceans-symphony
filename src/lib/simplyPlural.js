@@ -57,8 +57,7 @@ export async function getFrontHistory(token, systemId, startTime, endTime) {
   try {
     const start = startTime ?? 0;
     const end = endTime ?? Date.now();
-    // /range endpoint explicitly supports startTime/endTime query params
-    const data = await spFetch(`/frontHistory/${systemId}/range?startTime=${start}&endTime=${end}`, token);
+    const data = await spFetch(`/frontHistory/${systemId}?startTime=${start}&endTime=${end}`, token);
     return Array.isArray(data) ? data : (data.data ?? []);
   } catch {
     return [];

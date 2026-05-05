@@ -100,7 +100,7 @@ function SectionGrid({ terms, onSelect }) {
     { id: "journals", emoji: "📖", label: "Journals", desc: "Writing activity" },
     { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: "Who fronts together" },
     { id: "switchlogs", emoji: "🔄", label: `${terms.Switch} Logs`, desc: "Triggers, symptoms, and patterns" },
-    { id: "checkins", emoji: "✅", label: `${terms.System} Check-Ins`, desc: "Frequency and member insights" },
+    { id: "checkins", emoji: "✅", label: `${terms.System} Meetings`, desc: "Frequency and member insights" },
     { id: "patterns", emoji: "🔍", label: "Patterns & Insights", desc: "Cross-system correlations and trends" },
   ];
 
@@ -238,7 +238,7 @@ export default function Analytics() {
     journals: "Journals",
     cofronting: terms.Cofronting,
     switchlogs: `${terms.Switch} Logs`,
-    checkins: `${terms.System} Check-Ins`,
+    checkins: `${terms.System} Meetings`,
     patterns: "Patterns & Insights",
   };
 

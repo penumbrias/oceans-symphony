@@ -228,7 +228,7 @@ export default function SystemCheckInPage() {
             </Button>
           </div>
           <div className="mb-6">
-            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Check-In</h1>
+            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meeting</h1>
             <p className="text-muted-foreground text-sm mt-1">
 {(() => {
   const [y, m, d] = currentCheckIn.date.split("-").map(Number);
@@ -331,14 +331,14 @@ export default function SystemCheckInPage() {
       {view === "list" ? (
         <div>
           <div className="mb-8">
-            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Check-Ins</h1>
+            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meetings</h1>
             <p className="text-muted-foreground text-sm mt-1">
               A 5-minute guided ritual to connect with your {terms.system}
             </p>
           </div>
           <Button onClick={handleNewCheckIn} className="gap-2 mb-6">
             <Plus className="w-4 h-4" />
-            New Check-In
+            New Meeting
           </Button>
           {checkIns.length === 0 ? (
             <Card className="bg-muted/30">
@@ -389,7 +389,7 @@ const formatted = date.toLocaleDateString("en-US", {
 
           <div className="mb-8">
             <h1 className="font-display text-3xl font-semibold text-foreground">
-              {currentCheckIn ? "Edit Check-In" : `New ${terms.System} Check-In`}
+              {currentCheckIn ? "Edit Meeting" : `New ${terms.System} Meeting`}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
               Take 5 minutes to connect with your {terms.system}
@@ -426,7 +426,7 @@ const formatted = date.toLocaleDateString("en-US", {
               disabled={createMutation.isPending || updateMutation.isPending}
             >
               <Save className="w-4 h-4" />
-              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save Check-In"}
+              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save Meeting"}
             </Button>
           </div>
         </div>

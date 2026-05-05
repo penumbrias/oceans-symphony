@@ -17,7 +17,7 @@ function buildNavGroups(altersLabel, systemLabel) {
       { id: "settings",  label: "Settings",               icon: Settings,    path: "/settings" },
     ],
     "Tracking": [
-      { id: "checkin",      label: `${systemLabel} Check-In`, icon: Sparkles,   path: "/system-checkin" },
+      { id: "checkin",      label: `${systemLabel} Meeting`,  icon: Sparkles,   path: "/system-checkin" },
       { id: "checkin-log",  label: "Check-In Log",            icon: Heart,      path: "/checkin-log" },
       { id: "activities",   label: "Activities",              icon: Zap,        path: "/activities" },
       { id: "tasks",        label: "Daily Tasks",             icon: CheckSquare,path: "/tasks" },
@@ -45,7 +45,7 @@ function buildGridItems(altersLabel, systemLabel) {
   return [
     { id: "reminders",      label: "Reminders",              icon: Bell,        path: "/reminders",       color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
     { id: "alters",         label: altersLabel,              icon: Users,       path: "/Home",            color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
-    { id: "checkin",        label: `${systemLabel} Check-In`,icon: Sparkles,    path: "/system-checkin",  color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+    { id: "checkin",        label: `${systemLabel} Meeting`, icon: Sparkles,    path: "/system-checkin",  color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
     { id: "activities",     label: "Activities",             icon: Zap,         path: "/activities",      color: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400" },
     { id: "analytics",      label: "Analytics",              icon: BarChart2,   path: "/analytics",       color: "bg-green-500/15 text-green-600 dark:text-green-400" },
     { id: "therapy-report", label: "Therapy Report",         icon: FileText,    path: "/therapy-report",  color: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },

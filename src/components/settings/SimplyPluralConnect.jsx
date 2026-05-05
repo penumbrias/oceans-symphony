@@ -335,8 +335,30 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       setHistoryProgress("Loading local alters…");
       const existingAlters = await localEntities.Alter.list();
       const alterIdBySpId = {};
+      const alterIdByName = {};
       for (const a of existingAlters) {
         if (a.sp_id) alterIdBySpId[a.sp_id] = a.id;
+        if (a.name) alterIdByName[a.name.toLowerCase().trim()] = a.id;
+      }
+
+      // Fetch SP member list to fill in missing sp_id→localId mappings by name fallback.
+      // This handles alters that exist locally but were created manually (no sp_id).
+      setHistoryProgress("Matching SP members to local alters…");
+      const spMembers = await getMembers(tok, sysId);
+      const spMemberNames = {}; // spId → name (for the toast summary)
+      for (const m of spMembers) {
+        const spId = m.id || m._id || "";
+        const c = m.content || m;
+        const name = (c.name || "").toLowerCase().trim();
+        if (!spId) continue;
+        spMemberNames[spId] = c.name || "";
+        if (alterIdBySpId[spId]) continue; // already mapped via sp_id
+        const localId = alterIdByName[name];
+        if (localId) {
+          alterIdBySpId[spId] = localId;
+          // Backfill sp_id on the local alter so future imports are faster
+          await localEntities.Alter.update(localId, { sp_id: spId });
+        }
       }
 
       setHistoryProgress("Checking existing sessions…");
@@ -348,10 +370,13 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       let skipped = 0, noAlter = 0;
       const toCreate = [];
 
+      const unmatchedSpIds = new Set();
       setHistoryProgress(`Processing ${entries.length} entries…`);
       for (const entry of entries) {
         const spFrontId = entry.id || entry._id || "";
         if (spFrontId && existingSpFrontIds.has(spFrontId)) { skipped++; continue; }
+        const c = entry.content || entry;
+        if (!c.custom && c.member && !alterIdBySpId[c.member]) unmatchedSpIds.add(c.member);
         const session = mapFrontHistoryEntry(entry, alterIdBySpId);
         if (!session) { noAlter++; continue; }
         toCreate.push(session);
@@ -364,10 +389,19 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       const created = toCreate.length;
 
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
       setHistoryProgress("");
-      toast.success(
-        `Front history import complete! ${created} sessions created · ${skipped} already existed · ${noAlter} entries skipped (alter not found locally)`
-      );
+
+      const unmatchedNames = [...unmatchedSpIds].map(id => spMemberNames[id] || id).join(", ");
+      if (created === 0 && noAlter > 0) {
+        toast.error(
+          `No sessions created — ${noAlter} entries had no matching local alter. Unmatched SP members: ${unmatchedNames || "unknown"}. Try importing alters first.`
+        );
+      } else {
+        toast.success(
+          `Front history import complete! ${created} sessions created · ${skipped} already existed${noAlter > 0 ? ` · ${noAlter} skipped (no matching alter)` : ""}`
+        );
+      }
     } catch (e) {
       setHistoryProgress("");
       toast.error(e.message || "Front history import failed");

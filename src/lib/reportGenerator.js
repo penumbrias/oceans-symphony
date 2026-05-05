@@ -771,7 +771,7 @@ export async function generateTherapyReport({
     ), y);
   }
   if (enabledSections.has("systemCheckIns") && sections.systemCheckIns?.length > 0) {
-    y = addSimpleListSection(doc, "System Check-Ins", sections.systemCheckIns.map(c =>
+    y = addSimpleListSection(doc, "System Meetings", sections.systemCheckIns.map(c =>
       `[${c.date}] ${c.title}${c.overallRating != null ? " — Rating: " + c.overallRating : ""}${c.summary ? "\n  " + c.summary : ""}`
     ), y);
   }

@@ -18,7 +18,7 @@ function buildSidebarGroups(altersLabel, systemLabel) {
     {
       label: "Tracking",
       items: [
-        { id: "checkin",     label: `${systemLabel} Check-In`, icon: Sparkles,    path: "/system-checkin" },
+        { id: "checkin",     label: `${systemLabel} Meeting`,   icon: Sparkles,    path: "/system-checkin" },
         { id: "checkin-log", label: "Check-In Log",            icon: Heart,       path: "/checkin-log" },
         { id: "activities",  label: "Activities",              icon: Zap,         path: "/activities" },
         { id: "tasks",       label: "Daily Tasks",             icon: CheckSquare, path: "/tasks" },
