@@ -410,3 +410,328 @@ export function computeRecoveryTime(frontingSessions, symptomCheckIns, baseline)
 
   return { averageHours: avg, byCategory: byCategoryAvg };
 }
+
+// ─── Habit → symptom outcomes ─────────────────────────────────────────────────
+
+/**
+ * For each habit, compute average symptom levels on days it was completed
+ * vs days it was missed, and the next-day effect.
+ *
+ * Returns: { habits: Symptom[], symptoms: Symptom[], result: { habitId: { symptomId: { completedAvg, missedAvg, delta, nextDelta } } } }
+ */
+export function computeHabitSymptomCorrelation(symptomCheckIns, symptoms) {
+  const habitSymptoms = symptoms.filter(s => s.category === "habit" && !s.is_archived);
+  const regularSymptoms = symptoms.filter(s => s.category !== "habit" && s.type === "rating" && !s.is_archived);
+  if (!habitSymptoms.length || !regularSymptoms.length) return { habits: [], symptoms: [], result: {} };
+
+  const habitIds = new Set(habitSymptoms.map(s => s.id));
+  const symptomIds = new Set(regularSymptoms.map(s => s.id));
+
+  const dailyHabits = {};
+  const dailySymptoms = {};
+  symptomCheckIns.forEach(sc => {
+    if (!sc.timestamp || sc.severity === null || sc.severity === undefined) return;
+    const day = sc.timestamp.substring(0, 10);
+    const val = Number(sc.severity);
+    if (habitIds.has(sc.symptom_id)) {
+      if (!dailyHabits[day]) dailyHabits[day] = {};
+      if (!dailyHabits[day][sc.symptom_id]) dailyHabits[day][sc.symptom_id] = [];
+      dailyHabits[day][sc.symptom_id].push(val);
+    }
+    if (symptomIds.has(sc.symptom_id)) {
+      if (!dailySymptoms[day]) dailySymptoms[day] = {};
+      if (!dailySymptoms[day][sc.symptom_id]) dailySymptoms[day][sc.symptom_id] = [];
+      dailySymptoms[day][sc.symptom_id].push(val);
+    }
+  });
+
+  const days = Object.keys(dailyHabits).sort();
+  const result = {};
+
+  habitSymptoms.forEach(habit => {
+    result[habit.id] = {};
+    regularSymptoms.forEach(symptom => {
+      const comp = [], missed = [], nextComp = [], nextMissed = [];
+      days.forEach((day, i) => {
+        const habitVals = dailyHabits[day]?.[habit.id];
+        if (!habitVals) return;
+        const habitAvg = habitVals.reduce((a, b) => a + b, 0) / habitVals.length;
+        const completed = habitAvg > 0.5;
+
+        const sameVals = dailySymptoms[day]?.[symptom.id];
+        if (sameVals) {
+          const avg = sameVals.reduce((a, b) => a + b, 0) / sameVals.length;
+          completed ? comp.push(avg) : missed.push(avg);
+        }
+
+        const nextDay = days[i + 1];
+        if (nextDay) {
+          const nextVals = dailySymptoms[nextDay]?.[symptom.id];
+          if (nextVals) {
+            const avg = nextVals.reduce((a, b) => a + b, 0) / nextVals.length;
+            completed ? nextComp.push(avg) : nextMissed.push(avg);
+          }
+        }
+      });
+
+      if (comp.length + missed.length < 4) return;
+      const mean = arr => arr.length ? parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2)) : null;
+      const ca = mean(comp), ma = mean(missed), nca = mean(nextComp), nma = mean(nextMissed);
+      result[habit.id][symptom.id] = {
+        completedAvg: ca,
+        missedAvg: ma,
+        delta: ca !== null && ma !== null ? parseFloat((ca - ma).toFixed(2)) : null,
+        nextCompletedAvg: nca,
+        nextMissedAvg: nma,
+        nextDelta: nca !== null && nma !== null ? parseFloat((nca - nma).toFixed(2)) : null,
+        completedDays: comp.length,
+        missedDays: missed.length,
+      };
+    });
+  });
+
+  return { habits: habitSymptoms, symptoms: regularSymptoms, result };
+}
+
+// ─── Alter emotion profiles ───────────────────────────────────────────────────
+
+/**
+ * For each alter (and system overall), compute emotion frequency distributions
+ * from EmotionCheckIn records.
+ *
+ * Returns: { alterId: { topEmotions: [{emotion, count, pct}], total } }
+ * "__system__" key for check-ins with no specific alter.
+ */
+export function computeAlterEmotionProfiles(emotionCheckIns, alters) {
+  const profiles = { __system__: {} };
+  alters.forEach(a => { profiles[a.id] = {}; });
+
+  emotionCheckIns.forEach(ci => {
+    const alterIds = ci.fronting_alter_ids?.length
+      ? ci.fronting_alter_ids
+      : ["__system__"];
+    alterIds.forEach(alterId => {
+      if (!profiles[alterId]) return;
+      (ci.emotions || []).forEach(emotion => {
+        profiles[alterId][emotion] = (profiles[alterId][emotion] || 0) + 1;
+      });
+    });
+  });
+
+  const result = {};
+  Object.entries(profiles).forEach(([alterId, counts]) => {
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (!total) return;
+    result[alterId] = {
+      topEmotions: Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([emotion, count]) => ({ emotion, count, pct: Math.round((count / total) * 100) })),
+      total,
+    };
+  });
+  return result;
+}
+
+// ─── Early warning indicator ──────────────────────────────────────────────────
+
+/**
+ * Compare recent symptom check-ins (last `hours`) to the pre-switch signature.
+ * Returns a status: "warning" | "elevated" | "stable" | "insufficient_data"
+ */
+export function computeEarlyWarningStatus(symptomCheckIns, preSwitchSignature, windowHours = 48) {
+  if (!Object.keys(preSwitchSignature).length) return { status: "insufficient_data", matchedSymptoms: [], message: null };
+
+  const nowMs = Date.now();
+  const windowStart = nowMs - windowHours * 3_600_000;
+  const recent = symptomCheckIns.filter(sc => {
+    const ts = new Date(sc.timestamp).getTime();
+    return ts >= windowStart && ts <= nowMs && sc.severity !== null && sc.symptom_id;
+  });
+  if (!recent.length) return { status: "no_recent_data", matchedSymptoms: [], message: null };
+
+  const recentBySymptom = {};
+  recent.forEach(sc => {
+    if (!recentBySymptom[sc.symptom_id]) recentBySymptom[sc.symptom_id] = [];
+    recentBySymptom[sc.symptom_id].push(Number(sc.severity));
+  });
+  const recentMeans = {};
+  Object.entries(recentBySymptom).forEach(([id, vals]) => {
+    recentMeans[id] = vals.reduce((a, b) => a + b, 0) / vals.length;
+  });
+
+  // Only consider symptoms with meaningful pre-switch elevation
+  const signatureSymptoms = Object.entries(preSwitchSignature)
+    .filter(([, sig]) => sig.elevation !== null && sig.elevation >= 0.3);
+  if (!signatureSymptoms.length) return { status: "no_pattern_data", matchedSymptoms: [], message: null };
+
+  const matched = [];
+  signatureSymptoms.forEach(([symptomId, sig]) => {
+    if (recentMeans[symptomId] === undefined) return;
+    const threshold = (sig.baselineMean ?? 0) + sig.elevation * 0.65;
+    if (recentMeans[symptomId] >= threshold) matched.push(symptomId);
+  });
+
+  const ratio = matched.length / signatureSymptoms.length;
+
+  if (ratio >= 0.6 && matched.length >= 2) {
+    return {
+      status: "warning",
+      matchRatio: ratio,
+      matchedSymptoms: matched,
+      message: "Your current symptom pattern matches what has historically preceded a switch. Consider grounding tools and checking in with your system.",
+    };
+  }
+  if (ratio >= 0.3 && matched.length >= 1) {
+    return {
+      status: "elevated",
+      matchRatio: ratio,
+      matchedSymptoms: matched,
+      message: "Some symptoms are elevated in a pattern that can precede switches.",
+    };
+  }
+  return { status: "stable", matchRatio: ratio, matchedSymptoms: [], message: null };
+}
+
+// ─── Weekly narrative ─────────────────────────────────────────────────────────
+
+const TRIGGER_LABELS_SHORT = {
+  sensory: "sensory", emotional: "emotional", interpersonal: "interpersonal",
+  trauma_reminder: "trauma reminder", physical: "physical", internal: "internal", unknown: "unknown",
+};
+
+/**
+ * Generate a plain-language narrative summary for a date range.
+ * Returns an array of sentences/paragraphs.
+ */
+export function generateWeeklyNarrative({
+  sessions, altersById = {}, symptomCheckIns, symptoms,
+  baseline, emotionCheckIns, fromMs, toMs,
+}) {
+  const paragraphs = [];
+  const symptomMap = Object.fromEntries(symptoms.filter(s => s.type === "rating").map(s => [s.id, s]));
+
+  // Triggered switches
+  const triggered = sessions.filter(s => {
+    if (!s.is_triggered_switch || !s.start_time) return false;
+    const ts = new Date(s.start_time).getTime();
+    return ts >= fromMs && ts <= toMs;
+  });
+  const allInPeriod = sessions.filter(s => {
+    const ts = s.start_time ? new Date(s.start_time).getTime() : 0;
+    return ts >= fromMs && ts <= toMs;
+  });
+
+  if (triggered.length === 0) {
+    paragraphs.push("No triggered switches occurred this period.");
+  } else {
+    const catCounts = {};
+    triggered.forEach(s => {
+      const c = s.trigger_category || "unknown";
+      catCounts[c] = (catCounts[c] || 0) + 1;
+    });
+    const topCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 2)
+      .map(([c, n]) => `${n} ${TRIGGER_LABELS_SHORT[c] || c}`);
+    paragraphs.push(
+      `${triggered.length} triggered switch${triggered.length !== 1 ? "es" : ""} occurred this period` +
+      (topCats.length ? ` (${topCats.join(", ")})` : "") + "."
+    );
+  }
+
+  // Symptoms vs baseline
+  const deviation = computeBaselineDeviation(symptomCheckIns, baseline, fromMs, toMs);
+  const elevated = Object.entries(deviation).filter(([, d]) => d.zScore > 0.5)
+    .sort((a, b) => b[1].zScore - a[1].zScore).slice(0, 3);
+  const lowered = Object.entries(deviation).filter(([, d]) => d.zScore < -0.5)
+    .sort((a, b) => a[1].zScore - b[1].zScore).slice(0, 2);
+
+  if (elevated.length > 0) {
+    const names = elevated.map(([id]) => symptomMap[id]?.label || id).join(", ");
+    paragraphs.push(`Elevated above baseline: ${names}.`);
+  }
+  if (lowered.length > 0) {
+    const names = lowered.map(([id]) => (symptomMap[id]?.is_positive ? "↑ " : "↓ ") + (symptomMap[id]?.label || id)).join(", ");
+    paragraphs.push(`Below baseline (positive change): ${names}.`);
+  }
+  if (elevated.length === 0 && lowered.length === 0 && Object.keys(deviation).length > 0) {
+    paragraphs.push("Symptom levels were near baseline throughout this period.");
+  }
+
+  // Top fronting alters
+  const frontingTime = {};
+  allInPeriod.forEach(s => {
+    const start = new Date(s.start_time).getTime();
+    const end = s.end_time ? new Date(s.end_time).getTime() : start + 3_600_000;
+    const dur = end - start;
+    const ids = s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+    ids.forEach(id => { frontingTime[id] = (frontingTime[id] || 0) + dur; });
+  });
+  const topAlters = Object.entries(frontingTime)
+    .sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([id]) => altersById[id]?.name).filter(Boolean);
+  if (topAlters.length > 0) {
+    paragraphs.push(`Most active fronters: ${topAlters.join(", ")}.`);
+  }
+
+  // Emotions
+  const periodEmotions = emotionCheckIns.filter(ci => {
+    const ts = new Date(ci.timestamp).getTime();
+    return ts >= fromMs && ts <= toMs;
+  });
+  const emotionCounts = {};
+  periodEmotions.forEach(ci => {
+    (ci.emotions || []).forEach(e => { emotionCounts[e] = (emotionCounts[e] || 0) + 1; });
+  });
+  const topEmotions = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([e]) => e);
+  if (topEmotions.length > 0) {
+    paragraphs.push(`Most frequent emotions: ${topEmotions.join(", ")}.`);
+  }
+
+  return paragraphs;
+}
+
+// ─── Curriculum engagement ────────────────────────────────────────────────────
+
+/**
+ * Check if symptom levels changed in the weeks following module completions.
+ * Returns: [{ moduleId, completedDate, symptomId, beforeMean, afterMean, delta }]
+ */
+export function computeCurriculumEngagement(learningProgress, symptomCheckIns, symptoms, baseline) {
+  const completions = learningProgress.filter(p => p.completed && p.completed_date);
+  if (!completions.length || !Object.keys(baseline).length) return [];
+
+  const ratingIds = new Set(symptoms.filter(s => s.type === "rating").map(s => s.id));
+  const WINDOW = 14 * 24 * 3_600_000; // 2 weeks
+
+  return completions.map(p => {
+    const completedMs = new Date(p.completed_date).getTime();
+    const beforeStart = completedMs - WINDOW;
+    const afterEnd = completedMs + WINDOW;
+
+    const before = {}, after = {};
+    symptomCheckIns.forEach(sc => {
+      if (!sc.timestamp || !sc.symptom_id || !ratingIds.has(sc.symptom_id)) return;
+      if (sc.severity === null) return;
+      const ts = new Date(sc.timestamp).getTime();
+      if (ts >= beforeStart && ts < completedMs) {
+        if (!before[sc.symptom_id]) before[sc.symptom_id] = [];
+        before[sc.symptom_id].push(Number(sc.severity));
+      } else if (ts >= completedMs && ts <= afterEnd) {
+        if (!after[sc.symptom_id]) after[sc.symptom_id] = [];
+        after[sc.symptom_id].push(Number(sc.severity));
+      }
+    });
+
+    const changes = [];
+    Object.keys({ ...before, ...after }).forEach(symptomId => {
+      const bVals = before[symptomId];
+      const aVals = after[symptomId];
+      if (!bVals?.length || !aVals?.length) return;
+      const bMean = bVals.reduce((s, v) => s + v, 0) / bVals.length;
+      const aMean = aVals.reduce((s, v) => s + v, 0) / aVals.length;
+      changes.push({ symptomId, beforeMean: parseFloat(bMean.toFixed(2)), afterMean: parseFloat(aMean.toFixed(2)), delta: parseFloat((aMean - bMean).toFixed(2)) });
+    });
+
+    return { topicId: p.topic_id, moduleId: p.module_id, completedDate: p.completed_date, changes };
+  }).filter(r => r.changes.length > 0);
+}
