@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 
 function parseJsonSafe(str, fallback) {
   try { return JSON.parse(str) || fallback; } catch { return fallback; }
@@ -146,9 +147,21 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
 
           <SessionDetails session={s} />
 
-          <Button size="sm" variant="outline" className="w-full" onClick={onEdit}>
-            Edit session
-          </Button>
+          <div className="flex gap-2">
+            {alter?.id && (
+              <Link
+                to={`/alter/${alter.id}`}
+                onClick={onClose}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-medium border border-input rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                View profile
+              </Link>
+            )}
+            <Button size="sm" variant="outline" className="flex-1" onClick={onEdit}>
+              Edit session
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
