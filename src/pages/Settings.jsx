@@ -34,7 +34,6 @@ const SECTIONS = [
   { id: "analytics", label: "Analytics", icon: "📊" },
   { id: "reminders", label: "Reminders", icon: "🔔" },
   { id: "data", label: "Data & Privacy", icon: "💾" },
-  { id: "account", label: "Account", icon: "🔑" },
 ];
 
 function Section({ id, icon, label, defaultOpen = false, children }) {
