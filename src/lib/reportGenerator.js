@@ -403,13 +403,54 @@ function addStatusNotesSection(doc, statusNotes, y) {
 
 // ── PATTERNS SUMMARY ──────────────────────────────────────────────────────────
 
-function addPatternsSection(doc, summary, y) {
+function addPatternsSection(doc, patternsData, y) {
   y = checkPageBreak(doc, y, 30);
-  y = sectionHeader(doc, "Patterns Summary", y);
+  y = sectionHeader(doc, "Patterns & Narrative", y);
+
+  // Handle both legacy string format and new { paragraphs, earlyWarning } object
+  const paragraphs = typeof patternsData === "string"
+    ? [patternsData]
+    : (patternsData?.paragraphs || []);
+  const earlyWarning = typeof patternsData === "string" ? null : patternsData?.earlyWarning;
+
+  // Early warning banner
+  if (earlyWarning?.status === "warning" || earlyWarning?.status === "elevated") {
+    const isWarning = earlyWarning.status === "warning";
+    y = checkPageBreak(doc, y, 20);
+    const msgLines = earlyWarning.message
+      ? doc.splitTextToSize(earlyWarning.message, CONTENT_W - 8)
+      : [];
+    const bannerH = 10 + msgLines.length * 4.5;
+    doc.setFillColor(...(isWarning ? [254, 226, 226] : [255, 237, 213]));
+    doc.setDrawColor(...(isWarning ? [239, 68, 68] : [249, 115, 22]));
+    doc.setLineWidth(0.4);
+    doc.roundedRect(MARGIN, y, CONTENT_W, bannerH, 2, 2, "FD");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...(isWarning ? [185, 28, 28] : [194, 65, 12]));
+    doc.text(isWarning ? "Pattern alert" : "Elevated pattern", MARGIN + 3, y + 6);
+    if (msgLines.length > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(50, 50, 50);
+      msgLines.forEach((line, i) => {
+        doc.text(line, MARGIN + 3, y + 11 + i * 4.5);
+      });
+    }
+    y += bannerH + 4;
+  }
+
+  // Narrative paragraphs
   doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(50, 50, 50);
-  y = wrappedText(doc, summary, MARGIN + 2, y, CONTENT_W - 4, 5.5);
-  return y + 8;
+  paragraphs.forEach(p => {
+    y = checkPageBreak(doc, y, 12);
+    y = wrappedText(doc, p, MARGIN + 2, y, CONTENT_W - 4, 5.5);
+    y += 3;
+  });
+
+  return y + 5;
 }
 
 // ── ALTER APPENDIX ────────────────────────────────────────────────────────────
@@ -648,8 +689,18 @@ function formatAsPlainText({
 
   // Patterns
   if (enabledSections.has("patterns") && sections.patterns) {
-    text += `PATTERNS SUMMARY\n${"--------".padEnd(60, "-")}\n`;
-    text += `${sections.patterns}\n\n`;
+    text += `PATTERNS & NARRATIVE\n${"--------".padEnd(60, "-")}\n`;
+    if (typeof sections.patterns === "string") {
+      text += `${sections.patterns}\n\n`;
+    } else {
+      const { paragraphs = [], earlyWarning } = sections.patterns;
+      if (earlyWarning?.status === "warning" || earlyWarning?.status === "elevated") {
+        text += `⚠ ${earlyWarning.status === "warning" ? "PATTERN ALERT" : "ELEVATED PATTERN"}\n`;
+        if (earlyWarning.message) text += `${earlyWarning.message}\n`;
+        text += "\n";
+      }
+      paragraphs.forEach(p => { text += `${p}\n\n`; });
+    }
   }
 
   // Alter Appendix

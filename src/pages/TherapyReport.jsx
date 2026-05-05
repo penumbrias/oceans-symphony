@@ -197,6 +197,11 @@ export default function TherapyReportPage() {
         emotionData: emotions,
         symptomsData,
         diaryData: diary,
+        sessions: frontingSessions,
+        alters,
+        symptomCheckIns,
+        symptoms,
+        emotionCheckIns,
       });
 
       // Collect alter IDs from report

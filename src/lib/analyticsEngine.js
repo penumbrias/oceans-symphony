@@ -735,3 +735,81 @@ export function computeCurriculumEngagement(learningProgress, symptomCheckIns, s
     return { topicId: p.topic_id, moduleId: p.module_id, completedDate: p.completed_date, changes };
   }).filter(r => r.changes.length > 0);
 }
+
+// ─── Alter Co-fronting Matrix ─────────────────────────────────────────────────
+
+/**
+ * Build an N×N co-fronting frequency matrix for all alters.
+ * cell[a][b] = number of times alters a and b co-fronted.
+ *
+ * Handles both data models:
+ *  - Individual sessions (alter_id): overlapping time windows count as co-fronting
+ *  - Group sessions (primary_alter_id + co_fronter_ids): all listed IDs co-front
+ *
+ * Returns: { matrix: { alterId: { alterId: count } }, maxCount: number, pairs: [{a, b, count}] }
+ */
+export function computeAlterCoFrontingMatrix(frontingSessions, alters) {
+  const alterIds = alters.map(a => a.id);
+  const idSet = new Set(alterIds);
+
+  // Initialize matrix
+  const matrix = {};
+  alterIds.forEach(a => {
+    matrix[a] = {};
+    alterIds.forEach(b => { matrix[a][b] = 0; });
+  });
+
+  const addPair = (a, b) => {
+    if (!idSet.has(a) || !idSet.has(b) || a === b) return;
+    matrix[a][b] = (matrix[a][b] || 0) + 1;
+    matrix[b][a] = (matrix[b][a] || 0) + 1;
+  };
+
+  // Group sessions: all listed IDs are co-fronting for the duration
+  const groupSessions = frontingSessions.filter(s => !s.alter_id && s.primary_alter_id);
+  groupSessions.forEach(session => {
+    const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        addPair(ids[i], ids[j]);
+      }
+    }
+  });
+
+  // Individual sessions: overlapping windows count as co-fronting
+  const individual = frontingSessions
+    .filter(s => s.alter_id && s.start_time)
+    .map(s => ({
+      id: s.alter_id,
+      start: new Date(s.start_time).getTime(),
+      end: s.end_time ? new Date(s.end_time).getTime() : new Date(s.start_time).getTime() + 3_600_000,
+    }))
+    .sort((a, b) => a.start - b.start);
+
+  for (let i = 0; i < individual.length; i++) {
+    const s1 = individual[i];
+    for (let j = i + 1; j < individual.length; j++) {
+      const s2 = individual[j];
+      if (s2.start >= s1.end) break; // sorted by start, no more overlaps possible
+      if (s2.id === s1.id) continue;
+      if (s2.start < s1.end && s1.start < s2.end) {
+        addPair(s1.id, s2.id);
+      }
+    }
+  }
+
+  // Compute max count and top pairs
+  let maxCount = 0;
+  const pairs = [];
+  alterIds.forEach((a, ai) => {
+    alterIds.forEach((b, bi) => {
+      if (bi <= ai) return;
+      const count = matrix[a][b] || 0;
+      if (count > 0) pairs.push({ a, b, count });
+      if (count > maxCount) maxCount = count;
+    });
+  });
+  pairs.sort((x, y) => y.count - x.count);
+
+  return { matrix, maxCount, pairs };
+}

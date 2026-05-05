@@ -14,6 +14,7 @@ import HabitSymptomCorrelation from "./patterns/HabitSymptomCorrelation";
 import AlterEmotionProfiles from "./patterns/AlterEmotionProfiles";
 import NarrativeSummary from "./NarrativeSummary";
 import WhatHelps from "./patterns/WhatHelps";
+import AlterCoFrontingMap from "./patterns/AlterCoFrontingMap";
 
 const TABS = [
   { id: "narrative",    label: "Summary",             desc: "Period narrative and early warning status" },
@@ -28,6 +29,7 @@ const TABS = [
   { id: "recovery",     label: "Recovery time",        desc: "How long symptoms take to stabilize after triggers" },
   { id: "habits",       label: "Habits & symptoms",    desc: "How habits correlate with symptom levels" },
   { id: "whathelps",    label: "What helps",           desc: "Grounding and coping preferences by member" },
+  { id: "cofronting",   label: "Co-fronting map",      desc: "How often each pair of members fronts together" },
 ];
 
 export default function PatternInsights({
@@ -191,6 +193,13 @@ export default function PatternInsights({
         <WhatHelps
           techniques={groundingTechniques}
           preferences={groundingPreferences}
+          alters={alters}
+        />
+      )}
+
+      {activeTab === "cofronting" && (
+        <AlterCoFrontingMap
+          frontingSessions={sessions}
           alters={alters}
         />
       )}

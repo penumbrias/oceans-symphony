@@ -2,6 +2,12 @@
 // All logic is pure: takes raw entity arrays, returns structured data for the PDF generator.
 
 import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
+import {
+  computeSymptomBaseline,
+  computePreSwitchSignature,
+  computeEarlyWarningStatus,
+  generateWeeklyNarrative,
+} from "./analyticsEngine";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -352,35 +358,51 @@ export function buildStatusNotesSection({ dateFrom, dateTo, emotionCheckIns }) {
 
 // ── SECTION: PATTERNS SUMMARY ─────────────────────────────────────────────────
 
-export function buildPatternsSummary({ systemName, dateFrom, dateTo, overview, frontingData, emotionData, symptomsData, diaryData }) {
+export function buildPatternsSummary({
+  systemName, dateFrom, dateTo, overview, frontingData, emotionData, symptomsData, diaryData,
+  sessions = [], alters = [], symptomCheckIns = [], symptoms = [], emotionCheckIns = [],
+}) {
   const name = systemName || "The system";
   const dayCount = Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000) + 1;
   const topEmotions = (emotionData?.topEmotions || []).slice(0, 3).map(e => e.emotion);
   const topSymptoms = (symptomsData?.summaryTable || []).slice(0, 3).map(s => s.label);
   const crisisCount = (emotionData?.noteworthy || []).length;
 
-  let text = `During this ${dayCount}-day period (${fmtDate(dateFrom)} to ${fmtDate(dateTo)}), ${name} recorded ${overview.frontingCount} fronting session${overview.frontingCount !== 1 ? "s" : ""}.`;
+  // Always build the stats summary paragraph
+  let statsParagraph = `During this ${dayCount}-day period (${fmtDate(dateFrom)} to ${fmtDate(dateTo)}), ${name} recorded ${overview.frontingCount} fronting session${overview.frontingCount !== 1 ? "s" : ""}.`;
+  if (topEmotions.length > 0) statsParagraph += ` The most frequently logged emotions were ${topEmotions.join(", ")}.`;
+  if (topSymptoms.length > 0) statsParagraph += ` The most tracked symptoms or habits were ${topSymptoms.join(", ")}.`;
+  if (overview.checkInCount > 0) statsParagraph += ` There were ${overview.checkInCount} emotion check-in${overview.checkInCount !== 1 ? "s" : ""} recorded.`;
+  if (crisisCount > 0) statsParagraph += ` ${crisisCount} check-in${crisisCount !== 1 ? "s" : ""} included crisis-level distress.`;
+  if (overview.journalCount > 0) statsParagraph += ` ${overview.journalCount} journal entr${overview.journalCount !== 1 ? "ies were" : "y was"} written.`;
+  if (frontingData?.noteworthy?.length > 0) statsParagraph += ` ${frontingData.noteworthy.length} notable fronting event${frontingData.noteworthy.length !== 1 ? "s were" : " was"} flagged.`;
 
-  if (topEmotions.length > 0) {
-    text += ` The most frequently logged emotions were ${topEmotions.join(", ")}.`;
-  }
-  if (topSymptoms.length > 0) {
-    text += ` The most tracked symptoms or habits were ${topSymptoms.join(", ")}.`;
-  }
-  if (overview.checkInCount > 0) {
-    text += ` There were ${overview.checkInCount} emotion check-in${overview.checkInCount !== 1 ? "s" : ""} recorded.`;
-  }
-  if (crisisCount > 0) {
-    text += ` ${crisisCount} check-in${crisisCount !== 1 ? "s" : ""} included crisis-level distress.`;
-  }
-  if (overview.journalCount > 0) {
-    text += ` ${overview.journalCount} journal entr${overview.journalCount !== 1 ? "ies were" : "y was"} written.`;
-  }
-  if (frontingData?.noteworthy?.length > 0) {
-    text += ` ${frontingData.noteworthy.length} notable fronting event${frontingData.noteworthy.length !== 1 ? "s were" : " was"} flagged.`;
-  }
+  // Try to generate richer narrative paragraphs from the analytics engine
+  try {
+    const fromMs = new Date(dateFrom).setHours(0, 0, 0, 0);
+    const toMs = new Date(dateTo).setHours(23, 59, 59, 999);
+    const altersById = {};
+    alters.forEach(a => { altersById[a.id] = a; });
 
-  return text;
+    const baseline = computeSymptomBaseline(symptomCheckIns, symptoms);
+    const narrativeParagraphs = generateWeeklyNarrative({
+      sessions, altersById, symptomCheckIns, symptoms, baseline, emotionCheckIns, fromMs, toMs,
+    });
+
+    const preSwitchSignature = computePreSwitchSignature(sessions, symptomCheckIns, baseline);
+    const earlyWarning = computeEarlyWarningStatus(symptomCheckIns, preSwitchSignature);
+
+    const paragraphs = narrativeParagraphs.length > 0
+      ? [statsParagraph, ...narrativeParagraphs]
+      : [statsParagraph];
+
+    return {
+      paragraphs,
+      earlyWarning: (earlyWarning.status === "warning" || earlyWarning.status === "elevated") ? earlyWarning : null,
+    };
+  } catch {
+    return { paragraphs: [statsParagraph], earlyWarning: null };
+  }
 }
 
 // ── SECTION: ALTER APPENDIX ───────────────────────────────────────────────────
