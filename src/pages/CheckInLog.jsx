@@ -418,6 +418,7 @@ export default function CheckInLog() {
   const [searchParams] = useSearchParams();
   const [view, setView] = useState("list");
   const highlightId = searchParams.get("id");
+  const dateParam = searchParams.get("date"); // "yyyy-MM-dd" — scroll to that day
 
   const { data: checkIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
@@ -473,11 +474,12 @@ export default function CheckInLog() {
   }, [checkIns]);
 
   const highlightDate = useMemo(() => {
+    if (dateParam) return dateParam;
     if (!highlightId) return null;
     const ci = checkIns.find(c => c.id === highlightId);
     if (!ci) return null;
     return format(startOfDay(parseISO(ci.timestamp)), "yyyy-MM-dd");
-  }, [highlightId, checkIns]);
+  }, [highlightId, dateParam, checkIns]);
 
   const handleDelete = async (checkInId) => {
     if (!confirm("Delete this check-in?")) return;
@@ -536,7 +538,7 @@ export default function CheckInLog() {
               allActivities={activities}
               diaryCardsByDate={diaryCardsByDate}
               highlightId={highlightId}
-              defaultExpanded={date === highlightDate || (!highlightId && date === byDate[0]?.[0])}
+              defaultExpanded={date === highlightDate || (!highlightId && !dateParam && date === byDate[0]?.[0])}
               onDelete={handleDelete}
             />
           ))}
