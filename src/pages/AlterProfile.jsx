@@ -31,6 +31,7 @@ const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_IMAGE_KEY = "_header_image";
 const SECTION_BG_KEY = "_section_bg_opacity";
+const PAGE_TEXT_KEY = "_page_text_color";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -115,6 +116,7 @@ export default function AlterProfile() {
   const pageBgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
   const pageHeaderImage = cf[HEADER_IMAGE_KEY] || "";
   const sectionBgOpacity = cf[SECTION_BG_KEY] !== undefined ? cf[SECTION_BG_KEY] : 0;
+  const pageTextColor = cf[PAGE_TEXT_KEY] || "";
   const hasPageBg = pageBgColor || pageBgImage;
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -146,7 +148,7 @@ export default function AlterProfile() {
         </div>
       )}
 
-      <div className="relative z-10">
+      <div className="relative z-10" style={pageTextColor ? { color: pageTextColor } : {}}>
         <div className="flex items-center justify-between mb-4">
           <Link to="/Home">
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">

@@ -23,6 +23,7 @@ const HEADER_TEXT_KEY = "_header_text_color";
 const HIDE_HEADER_KEY = "_hide_header";
 const HEADER_IMAGE_KEY = "_header_image";
 const SECTION_BG_KEY = "_section_bg_opacity";
+const PAGE_TEXT_KEY = "_page_text_color";
 
 function AvatarModal({ src, onSave, onClose }) {
   const [url, setUrl] = useState(src || "");
@@ -108,6 +109,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
+  const [showPageTextPicker, setShowPageTextPicker] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
@@ -118,7 +120,9 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [deleting, setDeleting] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
+  const [uploadingHeader, setUploadingHeader] = useState(false);
   const bgFileInputRef = useRef(null);
+  const headerFileInputRef = useRef(null);
 
   useEffect(() => {
     setForm({
@@ -140,6 +144,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const hideHeader = form.custom_fields?.[HIDE_HEADER_KEY] || false;
   const headerImage = form.custom_fields?.[HEADER_IMAGE_KEY] || "";
   const sectionBgOpacity = form.custom_fields?.[SECTION_BG_KEY] !== undefined ? form.custom_fields[SECTION_BG_KEY] : 0;
+  const pageTextColor = form.custom_fields?.[PAGE_TEXT_KEY] || "";
 
   const setBgField = (key, val) => setForm(f => ({
     ...f, custom_fields: { ...f.custom_fields, [key]: val },
@@ -148,7 +153,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const clearBg = () => setForm(f => {
     const cf = { ...f.custom_fields };
     delete cf[BG_COLOR_KEY]; delete cf[BG_IMAGE_KEY]; delete cf[BG_OPACITY_KEY];
-    delete cf[HEADER_TEXT_KEY]; delete cf[HEADER_IMAGE_KEY]; delete cf[SECTION_BG_KEY];
+    delete cf[HEADER_TEXT_KEY]; delete cf[HEADER_IMAGE_KEY]; delete cf[SECTION_BG_KEY]; delete cf[PAGE_TEXT_KEY];
     return { ...f, custom_fields: cf };
   });
 
@@ -222,6 +227,39 @@ useEffect(() => {
       toast.error("Failed to process background image");
     } finally { setUploadingBg(false); e.target.value = ""; }
   };
+
+  const handleHeaderUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingHeader(true);
+    try {
+      const compressImage = (file, maxWidth = 1200, quality = 0.85) => new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+      const dataUrl = await compressImage(file);
+      if (isLocalMode()) {
+        const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        setBgField(HEADER_IMAGE_KEY, createLocalImageUrl(imageId));
+      } else {
+        setBgField(HEADER_IMAGE_KEY, dataUrl);
+      }
+      toast.success("Header image saved!");
+    } catch { toast.error("Failed to process header image"); }
+    finally { setUploadingHeader(false); e.target.value = ""; }
+  };
+
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const hasColor = form.color && form.color.length > 3;
@@ -472,7 +510,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           </div>
         </div>
 
-        {/* Bg color + image side by side */}
+        {/* Colors grid */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground font-medium">Background color</label>
@@ -485,6 +523,19 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
               <Input value={bgColor} onChange={e => setBgField(BG_COLOR_KEY, e.target.value)}
                 placeholder="#1a0a2e" className="font-mono text-xs flex-1 h-7" />
               {bgColor && <button type="button" onClick={() => setBgField(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Page text color</label>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setShowPageTextPicker(true)}
+                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 flex items-center justify-center"
+                style={{ backgroundColor: pageTextColor || "transparent" }}>
+                {!pageTextColor && <span className="text-muted-foreground text-xs font-bold">A</span>}
+              </button>
+              <Input value={pageTextColor} onChange={e => setBgField(PAGE_TEXT_KEY, e.target.value)}
+                placeholder="Default" className="font-mono text-xs flex-1 h-7" />
+              {pageTextColor && <button type="button" onClick={() => setBgField(PAGE_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
             </div>
           </div>
           <div className="space-y-1">
@@ -508,6 +559,11 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <div className="flex gap-2">
             <Input value={headerImage} onChange={e => setBgField(HEADER_IMAGE_KEY, e.target.value)}
               placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
+            <button type="button" onClick={() => headerFileInputRef.current?.click()} disabled={uploadingHeader}
+              className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
+              {uploadingHeader ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
+            </button>
+            <input ref={headerFileInputRef} type="file" accept="image/*" hidden onChange={handleHeaderUpload} />
             {headerImage && <button type="button" onClick={() => setBgField(HEADER_IMAGE_KEY, "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3 h-3" /></button>}
           </div>
         </div>
@@ -602,6 +658,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Alter Color" onSave={(hex) => set("color", hex)} onClose={() => setShowColorPicker(false)} />}
       {showBgColorPicker && <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color" onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
       {showHeaderTextPicker && <ColorPickerModal color={headerTextColor || "#ffffff"} label="Header Text Color" onSave={(hex) => setBgField(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
+      {showPageTextPicker && <ColorPickerModal color={pageTextColor || "#ffffff"} label="Page Text Color" onSave={(hex) => setBgField(PAGE_TEXT_KEY, hex)} onClose={() => setShowPageTextPicker(false)} />}
     </div>
   );
 }
