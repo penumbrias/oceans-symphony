@@ -19,15 +19,17 @@ import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
-import { Palette, Save, Loader2, ChevronDown, Zap, Check } from "lucide-react";
+import { Palette, Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
 
 const SECTIONS = [
   { id: "system", label: "System", icon: "⚙️" },
   { id: "appearance", label: "Appearance", icon: "🎨" },
   { id: "alters", label: "Alters & Fields", icon: "👥" },
   { id: "checkin", label: "Check-In & Tracking", icon: "⚡" },
+  { id: "analytics", label: "Analytics", icon: "📊" },
   { id: "reminders", label: "Reminders", icon: "🔔" },
   { id: "data", label: "Data & Privacy", icon: "💾" },
   { id: "account", label: "Account", icon: "🔑" },
@@ -59,6 +61,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
@@ -195,6 +198,49 @@ export default function Settings() {
           </div>
           <div className="border-t border-border/30 pt-4">
             <CustomTriggerTypesManager />
+          </div>
+        </Section>
+
+        {/* ── ANALYTICS ── */}
+        <Section id="analytics" icon="📊" label="Analytics">
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold mb-1">Grouping mode</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                For large systems, analytics can aggregate data by group instead of by individual member.
+                Groups are managed from the {terms.System} Members page.
+              </p>
+              <div className="flex gap-2">
+                {[
+                  { id: "individual", label: "By member", desc: "Show each member separately" },
+                  { id: "group", label: "By group", desc: "Aggregate members into their groups" },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setAnalyticsGrouping(opt.id)}
+                    className={`flex-1 rounded-xl border p-3 text-left transition-all ${
+                      analyticsGrouping === opt.id
+                        ? "border-primary/60 bg-primary/10"
+                        : "border-border/50 bg-card hover:bg-muted/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <BarChart2 className={`w-3.5 h-3.5 ${analyticsGrouping === opt.id ? "text-primary" : "text-muted-foreground"}`} />
+                      <p className={`text-xs font-semibold ${analyticsGrouping === opt.id ? "text-primary" : "text-foreground"}`}>
+                        {opt.label}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-snug">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+              {analyticsGrouping === "group" && (
+                <p className="text-xs text-muted-foreground mt-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                  Group mode is active. The Patterns & Insights section will show data aggregated by group.
+                  Alters without a group appear under "Ungrouped."
+                </p>
+              )}
+            </div>
           </div>
         </Section>
 

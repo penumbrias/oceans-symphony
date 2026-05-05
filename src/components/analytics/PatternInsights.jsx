@@ -1,7 +1,14 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { computeSymptomBaseline } from "@/lib/analyticsEngine";
+import { Users, User } from "lucide-react";
+import {
+  computeSymptomBaseline,
+  buildGroupView,
+  remapSessionsToGroups,
+  remapEmotionCheckInsToGroups,
+} from "@/lib/analyticsEngine";
+import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
 import TriggerSymptomChains from "./patterns/TriggerSymptomChains";
 import PreSwitchSignature from "./patterns/PreSwitchSignature";
 import SymptomCorrelationMatrix from "./patterns/SymptomCorrelationMatrix";
@@ -22,8 +29,8 @@ const TABS = [
   { id: "triggers",     label: "Triggers → Symptoms",  desc: "What each trigger type activates" },
   { id: "preswitsch",   label: "Warning signs",        desc: "Symptoms before a switch" },
   { id: "correlations", label: "Symptom clusters",     desc: "Which symptoms move together" },
-  { id: "alters",       label: "Alters & stress",      desc: "Who fronts during high/low periods" },
-  { id: "emotions",     label: "Alter emotions",       desc: "Emotional patterns by system member" },
+  { id: "alters",       label: "Members & stress",     desc: "Who fronts during high/low periods" },
+  { id: "emotions",     label: "Member emotions",      desc: "Emotional patterns by system member" },
   { id: "longterm",     label: "Long-term trends",     desc: "Monthly symptom trajectory" },
   { id: "timing",       label: "Switch timing",        desc: "Day/time patterns for switches" },
   { id: "recovery",     label: "Recovery time",        desc: "How long symptoms take to stabilize after triggers" },
@@ -32,11 +39,21 @@ const TABS = [
   { id: "cofronting",   label: "Co-fronting map",      desc: "How often each pair of members fronts together" },
 ];
 
+// Tabs that aggregate per-alter data — switch to group variants when grouping is on
+const GROUP_AWARE_TABS = new Set(["alters", "emotions", "cofronting"]);
+
 export default function PatternInsights({
   sessions, alters, altersById, symptomCheckIns, symptoms,
   emotionCheckIns, from, to,
 }) {
   const [activeTab, setActiveTab] = useState("narrative");
+  const { mode: groupingMode, setMode: setGroupingMode } = useAnalyticsGrouping();
+  const isGroupMode = groupingMode === "group";
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
 
   const { data: groundingTechniques = [] } = useQuery({
     queryKey: ["groundingTechniques"],
@@ -53,6 +70,28 @@ export default function PatternInsights({
     [symptomCheckIns, symptoms]
   );
 
+  // Group-mode derived data — only computed when groups exist
+  const groupView = useMemo(() => {
+    if (!groups.length) return null;
+    return buildGroupView(alters, groups);
+  }, [alters, groups]);
+
+  const groupSessions = useMemo(() => {
+    if (!isGroupMode || !groupView) return sessions;
+    return remapSessionsToGroups(sessions, groupView.alterGroupMap);
+  }, [isGroupMode, groupView, sessions]);
+
+  const groupEmotionCheckIns = useMemo(() => {
+    if (!isGroupMode || !groupView) return emotionCheckIns;
+    return remapEmotionCheckInsToGroups(emotionCheckIns, groupView.alterGroupMap);
+  }, [isGroupMode, groupView, emotionCheckIns]);
+
+  // When in group mode, sub-components receive group-alters (groups shaped as alters)
+  const effectiveAlters = isGroupMode && groupView ? groupView.groupAlters : alters;
+  const effectiveSessions = isGroupMode && groupView ? groupSessions : sessions;
+  const effectiveEmotionCheckIns = isGroupMode && groupView ? groupEmotionCheckIns : emotionCheckIns;
+
+  const hasGroups = groups.length > 0;
   const hasAnyData = symptomCheckIns.length > 0 || sessions.length > 0;
 
   if (!hasAnyData) {
@@ -68,11 +107,38 @@ export default function PatternInsights({
 
   return (
     <div className="space-y-4">
-      <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3">
-        <p className="text-xs text-primary/80 leading-relaxed">
-          Pattern analysis uses all historical data for accuracy — more data reveals clearer patterns.
-          The date range selector above applies to the Summary and Baseline views.
+      {/* Info + grouping toggle */}
+      <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 flex items-start gap-3">
+        <p className="text-xs text-primary/80 leading-relaxed flex-1">
+          Pattern analysis uses all historical data. The date range applies to Summary and Baseline.
+          {isGroupMode && " Showing data aggregated by group."}
         </p>
+        {hasGroups && (
+          <div className="flex gap-1 flex-shrink-0">
+            <button
+              onClick={() => setGroupingMode("individual")}
+              title="Show by individual member"
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all ${
+                !isGroupMode
+                  ? "bg-primary text-primary-foreground border-transparent"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <User className="w-3 h-3" /> Member
+            </button>
+            <button
+              onClick={() => setGroupingMode("group")}
+              title="Aggregate by group"
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border transition-all ${
+                isGroupMode
+                  ? "bg-primary text-primary-foreground border-transparent"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Users className="w-3 h-3" /> Group
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tab pills — scrollable */}
@@ -88,6 +154,9 @@ export default function PatternInsights({
             }`}
           >
             {tab.label}
+            {isGroupMode && GROUP_AWARE_TABS.has(tab.id) && hasGroups && (
+              <span className="ml-1 opacity-60 text-[10px]">G</span>
+            )}
           </button>
         ))}
       </div>
@@ -95,6 +164,9 @@ export default function PatternInsights({
       {/* Tab description */}
       <p className="text-xs text-muted-foreground -mt-1">
         {TABS.find(t => t.id === activeTab)?.desc}
+        {isGroupMode && GROUP_AWARE_TABS.has(activeTab) && hasGroups && (
+          <span className="ml-1 text-primary">· grouped view</span>
+        )}
       </p>
 
       {/* Content */}
@@ -147,8 +219,8 @@ export default function PatternInsights({
 
       {activeTab === "alters" && (
         <AlterSymptomCorrelation
-          frontingSessions={sessions}
-          alters={alters}
+          frontingSessions={effectiveSessions}
+          alters={effectiveAlters}
           symptomCheckIns={symptomCheckIns}
           symptoms={symptoms}
           baseline={baseline}
@@ -157,8 +229,8 @@ export default function PatternInsights({
 
       {activeTab === "emotions" && (
         <AlterEmotionProfiles
-          alters={alters}
-          emotionCheckIns={emotionCheckIns}
+          alters={effectiveAlters}
+          emotionCheckIns={effectiveEmotionCheckIns}
         />
       )}
 
@@ -199,8 +271,8 @@ export default function PatternInsights({
 
       {activeTab === "cofronting" && (
         <AlterCoFrontingMap
-          frontingSessions={sessions}
-          alters={alters}
+          frontingSessions={effectiveSessions}
+          alters={effectiveAlters}
         />
       )}
     </div>

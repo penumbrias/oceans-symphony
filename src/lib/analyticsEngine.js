@@ -736,6 +736,103 @@ export function computeCurriculumEngagement(learningProgress, symptomCheckIns, s
   }).filter(r => r.changes.length > 0);
 }
 
+// ─── Group-mode aggregation ───────────────────────────────────────────────────
+
+/**
+ * Build the data needed to display analytics by group instead of by individual alter.
+ *
+ * Returns:
+ *  - groupAlters: synthetic "alter" objects (one per group) for use as alter proxies in components
+ *  - alterGroupMap: { alterId: [groupId, ...] }
+ *  - ungroupedExists: boolean — true if any alter belongs to no group
+ */
+export function buildGroupView(alters, groups) {
+  // Map sp_id → alterId for groups that store member_sp_ids
+  const spIdToAlterId = {};
+  alters.forEach(a => { if (a.sp_id) spIdToAlterId[a.sp_id] = a.id; });
+
+  // Build alter → group(s) map using the alter's embedded groups array
+  const alterGroupMap = {};
+  alters.forEach(alter => {
+    alterGroupMap[alter.id] = (alter.groups || []).map(g => g.id).filter(Boolean);
+  });
+
+  // Also cross-reference group.member_sp_ids as a fallback
+  groups.forEach(g => {
+    (g.member_sp_ids || []).forEach(spId => {
+      const alterId = spIdToAlterId[spId];
+      if (alterId && !alterGroupMap[alterId]?.includes(g.id)) {
+        if (!alterGroupMap[alterId]) alterGroupMap[alterId] = [];
+        alterGroupMap[alterId].push(g.id);
+      }
+    });
+  });
+
+  // Which groups actually have members?
+  const groupsWithMembers = new Set();
+  Object.values(alterGroupMap).forEach(gids => gids.forEach(gid => groupsWithMembers.add(gid)));
+
+  // Build synthetic alter-like objects for each group
+  const groupAlters = groups
+    .filter(g => groupsWithMembers.has(g.id))
+    .map(g => ({
+      id: g.id,
+      name: g.name,
+      color: g.color || "#8b5cf6",
+      avatar_url: null,
+      pronouns: null,
+      role: null,
+      _isGroup: true,
+    }));
+
+  const ungroupedExists = alters.some(a => !alterGroupMap[a.id]?.length);
+  if (ungroupedExists) {
+    groupAlters.push({ id: "__ungrouped__", name: "Ungrouped", color: "#94a3b8", avatar_url: null, _isGroup: true });
+  }
+
+  return { groupAlters, alterGroupMap, ungroupedExists };
+}
+
+/**
+ * Remap fronting sessions so alter_id is replaced by the alter's group id(s).
+ * An alter in multiple groups produces one remapped session per group.
+ * Alters with no group are mapped to __ungrouped__.
+ */
+export function remapSessionsToGroups(sessions, alterGroupMap) {
+  const result = [];
+  sessions.forEach(session => {
+    const alterId = session.alter_id || session.primary_alter_id;
+    if (!alterId) {
+      result.push(session);
+      return;
+    }
+    const groupIds = alterGroupMap[alterId];
+    if (!groupIds?.length) {
+      result.push({ ...session, alter_id: "__ungrouped__" });
+    } else {
+      groupIds.forEach(gid => result.push({ ...session, alter_id: gid }));
+    }
+  });
+  return result;
+}
+
+/**
+ * Remap emotion check-ins so fronting_alter_ids uses group ids instead of alter ids.
+ */
+export function remapEmotionCheckInsToGroups(emotionCheckIns, alterGroupMap) {
+  return emotionCheckIns.map(ci => {
+    const fronterIds = ci.fronting_alter_ids;
+    if (!fronterIds?.length) return ci;
+    const groupIds = new Set();
+    fronterIds.forEach(aid => {
+      const gids = alterGroupMap[aid];
+      if (!gids?.length) groupIds.add("__ungrouped__");
+      else gids.forEach(gid => groupIds.add(gid));
+    });
+    return { ...ci, fronting_alter_ids: Array.from(groupIds) };
+  });
+}
+
 // ─── Alter Co-fronting Matrix ─────────────────────────────────────────────────
 
 /**
