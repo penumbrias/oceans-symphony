@@ -552,6 +552,28 @@ export async function runReminderMigration() {
 export function useRemindersScheduler() {
   const queryClient = useQueryClient();
   const intervalRef = useRef(null);
+  // undefined = not yet initialized (skip first render to avoid double-run on mount)
+  const latestSessionIdRef = useRef(undefined);
+
+  // Watch frontHistory so we can run the scheduler immediately when a new
+  // session is created, rather than waiting for the 60-second interval.
+  const { data: recentSessions = [] } = useQuery({
+    queryKey: ["frontHistory"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
+  });
+
+  useEffect(() => {
+    const latestId = recentSessions[0]?.id ?? null;
+    if (latestSessionIdRef.current === undefined) {
+      // First data arrival — record baseline, mount effect already ran the scheduler
+      latestSessionIdRef.current = latestId;
+      return;
+    }
+    if (latestId !== latestSessionIdRef.current) {
+      latestSessionIdRef.current = latestId;
+      runClientScheduler(queryClient);
+    }
+  }, [recentSessions, queryClient]);
 
   useEffect(() => {
     // Run migrations once
