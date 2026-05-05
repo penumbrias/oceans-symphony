@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { X, ChevronLeft, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
-const WHEEL = {
+export const WHEEL = {
   good: {
     label: "Good",
     color: "#22c55e",

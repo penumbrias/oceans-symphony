@@ -282,8 +282,8 @@ function addSymptomsSection(doc, symptomsData, y) {
   y = sectionHeader(doc, "Symptoms & Habits", y);
 
   if (symptomsData.summaryTable.length > 0) {
-    y = drawTable(doc, ["Symptom / Habit", "Check-ins", "Avg Severity", "Sessions", "Total Duration"],
-      symptomsData.summaryTable.map(r => [r.label, r.count, r.avgSeverity, r.activeSessions, r.totalDuration]), y,
+    y = drawTable(doc, ["Symptom / Habit", "Check-ins", "Avg Score", "Sessions", "Total Duration"],
+      symptomsData.summaryTable.map(r => [r.label + (r.isPositive ? " (+)" : ""), r.count, r.avgScore, r.activeSessions, r.totalDuration]), y,
       [CONTENT_W * 0.3, CONTENT_W * 0.15, CONTENT_W * 0.15, CONTENT_W * 0.15, CONTENT_W * 0.25]);
     y += 6;
   }
@@ -552,7 +552,8 @@ function formatAsPlainText({
     if (sections.symptoms.summaryTable.length > 0) {
       text += `\nSummary:\n`;
       sections.symptoms.summaryTable.forEach(r => {
-        text += `  • ${r.label}: ${r.count} check-ins, avg severity ${r.avgSeverity}, ${r.activeSessions} sessions\n`;
+        const scoreLabel = r.isPositive ? "avg score (higher=better)" : "avg severity";
+        text += `  • ${r.label}${r.isPositive ? " [positive]" : ""}: ${r.count} check-ins, ${scoreLabel} ${r.avgScore}, ${r.activeSessions} sessions\n`;
       });
     }
     if (sections.symptoms.noteworthy.length > 0) {
@@ -743,36 +744,8 @@ export async function generateTherapyReport({
 
   const slug = (config.systemName || "system").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
   const filename = `${slug}-therapy-report-${config.dateFrom}-to-${config.dateTo}.pdf`;
-
-  try {
-    const blob = doc.output("blob");
-    const url = URL.createObjectURL(blob);
-
-    // On mobile with file-sharing support, offer the share sheet
-    const file = new File([blob], filename, { type: "application/pdf" });
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: filename });
-        URL.revokeObjectURL(url);
-        return;
-      } catch (err) {
-        if (err.name === "AbortError") { URL.revokeObjectURL(url); return; }
-        // share failed — fall through to download
-      }
-    }
-
-    // Standard download via anchor
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-  } catch (err) {
-    console.error("PDF export failed:", err);
-    doc.save(filename);
-  }
+  const blob = doc.output("blob");
+  return { blob, filename };
 }
 
 export function formatTherapyReportAsText({

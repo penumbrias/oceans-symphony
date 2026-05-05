@@ -13,6 +13,7 @@ import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remind
 import ReminderToast from "@/components/reminders/ReminderToast";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
+import FeatureTour from "@/components/onboarding/FeatureTour";
 
 function OfflineReadyBadge() {
   const [ready, setReady] = useState(false);
@@ -49,6 +50,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const terms = useTerms();
   const [historyDepth, setHistoryDepth] = useState(0);
+  const [showFeatureTour, setShowFeatureTour] = useState(false);
   useRemindersScheduler();
 
 const { data: systemSettings = [] } = useQuery({
@@ -239,7 +241,7 @@ const handleNotifClick = (mentionLog) => {
       <main
         className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8 pb-20 sm:pb-8">
         
-        <Outlet />
+        <Outlet context={{ setShowFeatureTour }} />
       </main>
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
@@ -294,6 +296,7 @@ const handleNotifClick = (mentionLog) => {
       <MigrationBanner />
       <FloatingGroundingButton />
       <ReminderToast />
+      {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
       <NotificationPopups
         mentionLogs={mentionLogs}
         alters={alters}

@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { DEFAULT_GROUPS } from "@/components/diary/DiarySection";
 
-function FieldItem({ field, groupId, index, total, onEdit, onDelete, onToggle, onMoveUp, onMoveDown }) {
+function FieldItem({ field, groupId, index, total, onEdit, onDelete, onToggle, onIsPositiveToggle, onMoveUp, onMoveDown }) {
   return (
     <div className="flex items-center gap-2 bg-muted/30 rounded-lg p-2">
       <div className="flex flex-col gap-0.5">
@@ -27,6 +27,19 @@ function FieldItem({ field, groupId, index, total, onEdit, onDelete, onToggle, o
         <p className="text-xs font-medium truncate">{field.label}</p>
         <p className="text-xs text-muted-foreground capitalize">{field.type}</p>
       </div>
+      {field.type === "rating" && (
+        <button
+          onClick={() => onIsPositiveToggle(field.id)}
+          title="Toggle: higher values are better"
+          className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 transition-colors border ${
+            field.is_positive
+              ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800"
+              : "text-muted-foreground bg-muted/50 border-border/50 hover:border-border"
+          }`}
+        >
+          {field.is_positive ? "↑ good" : "↑ bad"}
+        </button>
+      )}
       <Switch checked={field.enabled !== false} onCheckedChange={() => onToggle(field.id)} />
       <button onClick={() => onDelete(field.id)} className="p-1 hover:bg-destructive/10 rounded">
         <Trash2 className="w-3 h-3 text-destructive" />
@@ -111,6 +124,10 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
                 total={sortedFields.length}
                 onDelete={fid => onFieldDelete(group.id, fid)}
                 onToggle={fid => onFieldToggle(group.id, fid)}
+                onIsPositiveToggle={fid => {
+                  const f = sortedFields.find(x => x.id === fid);
+                  if (f) onFieldEdit(group.id, { ...f, is_positive: !f.is_positive }, false);
+                }}
                 onMoveUp={() => {
                   const newFields = [...sortedFields];
                   [newFields[index - 1], newFields[index]] = [newFields[index], newFields[index - 1]];

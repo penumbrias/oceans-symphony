@@ -14,6 +14,7 @@ import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
+import { loadSystemDistressSet } from "@/lib/emotionDistress";
 
 const PILLS = [
 { id: "feeling", label: "Feeling", icon: Smile },
@@ -57,7 +58,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   };
   const [entryTime, setEntryTime] = useState(() => toDatetimeLocal(retroTimestamp));
 
-  const HIGH_DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
+  const isDistressingEmotion = (label) => {
+    const key = label.toLowerCase();
+    const sysSet = loadSystemDistressSet();
+    if (sysSet.has(key)) return true;
+    const ce = customEmotions.find(e => e.label === label || e.label.toLowerCase() === key);
+    return !!ce?.is_distressing;
+  };
 
   const symptomGetterRef = useRef(null);
 
@@ -328,9 +335,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       queryClient.invalidateQueries({ queryKey: ["activities"] });
 
       // Check for high-distress emotions
-      const hasDistress = selectedEmotions.some((e) =>
-      HIGH_DISTRESS_EMOTIONS.some((d) => e.toLowerCase().includes(d))
-      );
+      const hasDistress = selectedEmotions.some(e => isDistressingEmotion(e));
       if (hasDistress) {
         setShowGroundingPrompt(true);
       } else {

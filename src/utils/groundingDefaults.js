@@ -462,6 +462,217 @@ export const DEFAULT_TECHNIQUES = [
     duration_seconds: 120,
     is_default: true,
     order: 26
+  },
+
+  // --- BODY (additional) ---
+  {
+    name: "Butterfly hug",
+    description: "A gentle self-administered technique using alternating taps to calm and comfort the nervous system.",
+    category: "body",
+    steps: [
+      "Cross your arms over your chest so each hand rests near the opposite shoulder.",
+      "Begin to tap gently and alternately — left hand, then right hand — in a slow, steady rhythm.",
+      "Find a pace that feels calming, not rushed.",
+      "Keep breathing normally as you tap.",
+      "You can close your eyes if that feels safe, or let your gaze go soft.",
+      "Continue for as long as it feels helpful — even a minute can make a difference.",
+      "When you're ready to stop, bring your hands to rest in your lap and take one slow breath."
+    ],
+    suggested_for: ["anxiety", "crisis", "switching", "overwhelm"],
+    duration_seconds: 120,
+    is_default: true,
+    order: 27
+  },
+  {
+    name: "Self-soothing touch",
+    description: "Gentle physical contact with yourself to activate the body's natural calming response.",
+    category: "body",
+    steps: [
+      "Place one hand over your heart. Feel its warmth and gentle weight.",
+      "Place your other hand on your belly.",
+      "Take a slow breath and notice both your hands resting there.",
+      "Feel the warmth from your palms spreading gently into your chest and belly.",
+      "You can gently stroke your own arm if that feels okay — a slow, caring gesture.",
+      "If you feel comfortable, give yourself a gentle hug, wrapping both arms around yourself.",
+      "Breathe slowly. Notice any warmth or softening in your body."
+    ],
+    suggested_for: ["anxiety", "crisis", "overwhelm", "switching"],
+    duration_seconds: 90,
+    is_default: true,
+    order: 28
+  },
+  {
+    name: "Cold water face splash",
+    description: "A quick, powerful way to interrupt a spiral by activating the body's natural calming dive reflex.",
+    category: "body",
+    steps: [
+      "Go to a sink and fill it with cold water, or hold a cold, damp cloth.",
+      "Take a breath, then briefly lower your face toward the water — or press the cold cloth gently against your forehead and cheeks.",
+      "Hold for a few seconds. Even a moment of cold contact is enough.",
+      "Breathe slowly through your nose.",
+      "Notice the sensation — sharp, clear, present.",
+      "Dry your face gently. Take a slow breath.",
+      "Notice how your body feels now."
+    ],
+    suggested_for: ["crisis", "anxiety", "overwhelm", "dissociation"],
+    duration_seconds: 60,
+    is_default: true,
+    order: 29
+  },
+  {
+    name: "Hand warmth",
+    description: "Warming your hands through friction and placing them gently on your face or eyes to activate the calming response.",
+    category: "body",
+    steps: [
+      "Rub your palms together briskly for 10–15 seconds until they feel warm.",
+      "Cup your warmed hands gently over your closed eyes.",
+      "Let the warmth and darkness settle you. Breathe slowly.",
+      "Notice the warmth. Notice the quiet.",
+      "If you like, move your warm hands to rest on your cheeks.",
+      "Stay here for as long as it feels good — 30 seconds to a few minutes.",
+      "When you're ready, slowly lower your hands and open your eyes softly."
+    ],
+    suggested_for: ["dissociation", "derealization", "anxiety", "stuck"],
+    duration_seconds: 90,
+    is_default: true,
+    order: 30
+  },
+
+  // --- SENSORY (additional) ---
+  {
+    name: "Smell grounding",
+    description: "Using scent as an anchor to the present moment — one of the most direct routes to feeling 'here'.",
+    category: "sensory",
+    steps: [
+      "Find something nearby with a distinct smell — lotion, tea, coffee, a candle, a piece of fruit, soap.",
+      "Hold it close and breathe in slowly.",
+      "Let the smell fill your awareness. This smell is here. You are here.",
+      "Try to notice details — is it sharp or soft? Warm or cool? Sweet or earthy?",
+      "Breathe in again. Notice any shift in your body as you do.",
+      "If one smell isn't enough, try another. Different scents can have different effects.",
+      "Pause and notice. You are in this moment, in this place."
+    ],
+    suggested_for: ["dissociation", "derealization", "switching"],
+    duration_seconds: 90,
+    is_default: true,
+    order: 31
+  },
+  {
+    name: "Mindful eating",
+    description: "Using the sensory experience of eating to gently pull attention back into the body and the present moment.",
+    category: "sensory",
+    steps: [
+      "Get something small to eat — a piece of fruit, a cracker, a square of chocolate.",
+      "Before eating, look at it. Notice its color and shape.",
+      "Hold it in your fingers. What does it feel like? Rough? Smooth? Cool or warm?",
+      "Bring it close and notice if it has a smell.",
+      "Take one small bite. Chew slowly and deliberately.",
+      "Notice the taste — is it sweet, sharp, salty, bitter? Notice how it changes as you chew.",
+      "Swallow slowly. Notice the sensation.",
+      "Take a breath. You are here, tasting this, in this moment."
+    ],
+    suggested_for: ["dissociation", "stuck", "overwhelm", "derealization"],
+    duration_seconds: 120,
+    is_default: true,
+    order: 32
+  },
+
+  // --- VISUALIZATION (additional) ---
+  {
+    name: "Tree rooting",
+    description: "A grounding visualization that connects you to the earth and builds a sense of stability from the ground up.",
+    category: "visualization",
+    steps: [
+      "Sit or stand with both feet flat on the floor.",
+      "Close your eyes if comfortable, or let your gaze soften.",
+      "Imagine that your feet are growing roots — slowly, gently downward, through the floor, into the earth.",
+      "Let those roots reach down deeper with each breath. They spread wide and anchor you.",
+      "Feel the solidity beneath you. The earth holds you. You don't have to hold yourself up alone.",
+      "Notice your feet on the floor. The ground is real and solid.",
+      "Breathe slowly. With each inhale, feel that connection. With each exhale, feel any tension release downward into the earth.",
+      "When you're ready, gently bring your attention back to the room, keeping that sense of being grounded."
+    ],
+    suggested_for: ["dissociation", "anxiety", "derealization", "overwhelm"],
+    duration_seconds: 180,
+    is_default: true,
+    order: 33
+  },
+  {
+    name: "Necklace of good moments",
+    description: "A gentle imagery technique for accessing warmth and safety through positive memories.",
+    category: "visualization",
+    steps: [
+      "Take a slow breath and, if comfortable, close your eyes.",
+      "Imagine a necklace with many small beads — each one holds a moment that was okay, or even good. It doesn't need to be a big memory.",
+      "Let one bead come to you. Even a simple memory — warmth from sunshine, a moment of laughter, a feeling of being okay.",
+      "Let yourself be in that memory for a moment. What did you see? What did it feel like?",
+      "Notice any warmth in your body as you remember it.",
+      "If you like, move to another bead — another small good moment.",
+      "When you're ready, take a breath and come back to the room, bringing a little of that warmth with you."
+    ],
+    suggested_for: ["stuck", "crisis", "overwhelm", "switching"],
+    duration_seconds: 240,
+    is_default: true,
+    order: 34
+  },
+  {
+    name: "Inner still point",
+    description: "Finding a quiet, steady place inside yourself even when everything else feels chaotic.",
+    category: "visualization",
+    steps: [
+      "Take a slow breath and, if comfortable, close your eyes.",
+      "Even in the middle of a storm, there's a still point at the center.",
+      "Imagine finding that place inside you — very small, very quiet. It might be deep in your chest, or somewhere else that feels right.",
+      "It doesn't need to be large. Just a point of steadiness, untouched by the noise around it.",
+      "Let your attention rest there. Breathe gently.",
+      "You don't need to make the storm go away. Just notice this small stillness.",
+      "Stay here as long as you need. When you're ready, slowly bring your attention back."
+    ],
+    suggested_for: ["overwhelm", "switching", "crisis", "anxiety"],
+    duration_seconds: 180,
+    is_default: true,
+    order: 35
+  },
+
+  // --- MOVEMENT (additional) ---
+  {
+    name: "Mindful walk",
+    description: "Using slow, deliberate movement and attention to each step as a way to reconnect with your body and the present.",
+    category: "movement",
+    steps: [
+      "Find a space where you can take a few steps — even a small room is fine.",
+      "Begin to walk very slowly. Slower than feels natural.",
+      "With each step, notice the sensation of your foot lifting, moving, and pressing down.",
+      "Feel the ground under each foot as it lands.",
+      "As you walk, look around and gently name things you see.",
+      "Breathe slowly. Let your walk carry your whole attention.",
+      "Continue for one to five minutes, or as long as it helps.",
+      "When you stop, stand for a moment and press your feet into the floor."
+    ],
+    suggested_for: ["stuck", "anxiety", "dissociation", "overwhelm"],
+    duration_seconds: 180,
+    is_default: true,
+    order: 36
+  },
+
+  // --- AFFIRMATION (additional) ---
+  {
+    name: "Compassionate inner voice",
+    description: "Practicing speaking to yourself the way you would speak to someone you deeply care about.",
+    category: "affirmation",
+    steps: [
+      "Take a slow breath.",
+      "Think of someone you care about — a friend, a child, an animal.",
+      "Now imagine they were going through exactly what you're going through right now.",
+      "What would you say to them? How would you speak to them?",
+      "Try saying some of that to yourself — out loud or in your head.",
+      "Some possibilities: \"This is really hard. You're doing your best.\" \"It makes sense that you feel this way.\" \"You don't have to have it all figured out right now.\"",
+      "If it feels difficult to say these things to yourself, that's okay. Just noticing what you'd say to someone else is enough."
+    ],
+    suggested_for: ["crisis", "overwhelm", "stuck", "anxiety", "switching"],
+    duration_seconds: 120,
+    is_default: true,
+    order: 37
   }
 ];
 

@@ -619,6 +619,214 @@ export const CURRICULUM = [
     ]
   },
   {
+    id: "m11",
+    title: "Understanding Triggers",
+    emoji: "🧩",
+    topics: [
+      {
+        id: "m11_t1",
+        title: "What triggers are and how they work",
+        content: [
+          { type: "p", text: "A trigger is anything that activates a strong emotional, physical, or behavioural response — often one that feels bigger than the current situation seems to call for. Triggers can be sounds, smells, tones of voice, body positions, words, images, times of year, or almost anything else." },
+          { type: "p", text: "Triggers work by association. Something in the present resembles something from the past — often at a sensory or emotional level rather than a conscious one. The brain recognizes the pattern and responds as if the past situation is happening again." },
+          { type: "p", text: "This is not a choice or a weakness. It's the result of how the brain stores and retrieves information about threatening situations. The response makes complete sense given what happened — the brain is doing exactly what it evolved to do." },
+          { type: "p", text: "For systems, different parts may be triggered by different things — what activates one part may have no effect on another. Understanding this can reduce inner conflict when it seems like parts are reacting 'for no reason.'" },
+          { type: "note", text: "Take this topic slowly. If you feel yourself getting activated while reading, pause and use a grounding technique before continuing." },
+        ],
+        exercise: {
+          id: "m11_t1_triggers_intro",
+          title: "What I know about my triggers",
+          fields: [
+            { id: "known_triggers", label: "Triggers I'm already aware of — situations, things, or experiences that tend to set off a strong reaction:", placeholder: "No need to list all of them — just any you already know about", type: "textarea", rows: 4 },
+            { id: "body_first", label: "Often the body notices a trigger before the mind does. What does being triggered feel like in your body?", placeholder: "Anything you notice physically", type: "textarea", rows: 3 },
+          ]
+        }
+      },
+      {
+        id: "m11_t2",
+        title: "Internal and external triggers",
+        content: [
+          { type: "p", text: "External triggers come from the environment: a smell, a specific tone of voice, a location, a date or anniversary, physical contact, a news story, certain words." },
+          { type: "p", text: "Internal triggers come from within: a particular emotion (for example, feeling happy might trigger fear that something bad will follow), a body sensation, a memory that arises, a thought, even a dream." },
+          { type: "p", text: "Internal triggers can be harder to identify because they don't have an obvious external cause. If you're suddenly flooded with feelings and can't see a reason, it may be an internal trigger — the nervous system responding to something inside." },
+          { type: "p", text: "Neither type is more 'valid' or more understandable than the other. Both are real, and both make sense." },
+        ],
+        exercise: {
+          id: "m11_t2_trigger_types",
+          title: "External and internal triggers",
+          fields: [
+            { id: "external", label: "External triggers I'm aware of:", placeholder: "Things in the environment that tend to affect me", type: "textarea", rows: 3 },
+            { id: "internal", label: "Internal triggers I'm aware of:", placeholder: "Feelings, body sensations, or thoughts that can set things off", type: "textarea", rows: 3 },
+            { id: "hard_to_identify", label: "Are there times when you're triggered but can't find a reason? What does that feel like?", placeholder: "Just noticing — no need to explain it", type: "textarea", rows: 2 },
+          ]
+        }
+      },
+      {
+        id: "m11_t3",
+        title: "Working with triggered states",
+        content: [
+          { type: "p", text: "When you're triggered, the most helpful thing is to return to the present — not to fight the reaction, analyze it, or push through. The reaction makes sense. It just needs to know that this moment is different from then." },
+          { type: "p", text: "A four-step approach: notice (something is happening — I may be triggered), pause (press the internal pause button), ground (return to the present using senses or breath), then gently orient (where am I? when is it? what is different now?)." },
+          { type: "p", text: "After the triggered state eases, you may find it helpful to reflect: what was the trigger? What did it remind me of? What does that part of me need?" },
+          { type: "p", text: "Over time, as you build this skill, triggered states may become slightly less intense or slightly shorter. But this is slow work — be patient with yourself and your system." },
+        ],
+        exercise: {
+          id: "m11_t3_working_with_triggers",
+          title: "My plan for triggered moments",
+          fields: [
+            { id: "notice_signs", label: "The earliest signs I notice that I may be triggered (before it gets very intense):", placeholder: "Physical, emotional, or cognitive signs", type: "textarea", rows: 3 },
+            { id: "first_steps", label: "When I notice I'm triggered, my first steps will be:", placeholder: "e.g. pause, breathe, ground...", type: "textarea", rows: 2 },
+            { id: "after", label: "After a triggered state eases, what might help me care for myself?", placeholder: "Self-care, grounding, gentle activity...", type: "textarea", rows: 2 },
+          ]
+        }
+      },
+    ]
+  },
+  {
+    id: "m12",
+    title: "Inner Communication and Cooperation",
+    emoji: "🤝",
+    topics: [
+      {
+        id: "m12_t1",
+        title: "Understanding inner communication",
+        content: [
+          { type: "p", text: "For people with plural systems, internal communication — how different parts relate to and connect with each other — is a central part of functioning and healing." },
+          { type: "p", text: "Inner communication can happen in many ways: thoughts that seem to come from somewhere else, emotional states that shift without an obvious external cause, images, inner voices, sensations. Every system is different." },
+          { type: "p", text: "Many people find that inner communication improves gradually over time — not by forcing it, but by creating internal conditions of safety and curiosity." },
+          { type: "p", text: "A helpful starting place: treating all parts with the same patience and respect you'd want for yourself. This doesn't mean agreeing with everything every part does. It means recognizing that each part developed for a reason, and that understanding their perspective is valuable." },
+          { type: "note", text: "This module is written specifically for plural systems. If this doesn't apply to you, feel free to skip it." },
+        ]
+      },
+      {
+        id: "m12_t2",
+        title: "Listening to different parts",
+        content: [
+          { type: "p", text: "Listening to a part of your system doesn't require knowing who they are, having a name for them, or being able to 'see' them clearly. It can be as simple as noticing what feelings, impulses, or thoughts seem to be coming up, and being curious about what they might be communicating." },
+          { type: "p", text: "Questions to ask with curiosity rather than judgment: What is this part trying to do? What do they seem to need? What might they be afraid of? What do they want me to know?" },
+          { type: "p", text: "Not all parts will answer immediately. Some may be reluctant, frightened, or mistrustful. That's understandable — trust develops over time, not all at once." },
+          { type: "p", text: "There's no single 'right' way to do this. Journaling, drawing, internal dialogue, or simply sitting quietly with an open, curious attitude can all be forms of listening." },
+        ],
+        exercise: {
+          id: "m12_t2_listening",
+          title: "Practice listening",
+          fields: [
+            { id: "part_present", label: "Is there a part of your system who seems present or active lately?", placeholder: "You don't need to know their name or role — just what you notice", type: "textarea", rows: 2 },
+            { id: "what_doing", label: "What might they be trying to do or communicate?", placeholder: "Even a guess or a feeling", type: "textarea", rows: 2 },
+            { id: "what_need", label: "What might they need?", placeholder: "What would help them feel safer or more heard?", type: "textarea", rows: 2 },
+            { id: "your_response", label: "What would you want to say to them, if you could?", placeholder: "A message from the rest of your system", type: "textarea", rows: 3 },
+          ]
+        }
+      },
+      {
+        id: "m12_t3",
+        title: "Working toward cooperation",
+        content: [
+          { type: "p", text: "Cooperation in a system doesn't mean that all parts agree all the time, or that everyone is always happy. It means that parts can increasingly work together — or at least not actively work against each other — in ways that are less distressing for everyone." },
+          { type: "p", text: "Cooperation often grows through: understanding each part's role and function, negotiating agreements about things that affect everyone (such as safety behaviours), finding ways for parts who want different things to each get something they need, and building a sense of shared experience and shared safety." },
+          { type: "p", text: "Progress is often slow and non-linear. Some weeks things may feel more connected; other weeks more fragmented. Both are normal." },
+          { type: "p", text: "Working with a trauma-specialist therapist can be particularly helpful for this aspect of the work. This module is meant to support and complement that, not replace it." },
+        ],
+        exercise: {
+          id: "m12_t3_cooperation",
+          title: "Building cooperation",
+          fields: [
+            { id: "conflicts", label: "Are there ongoing inner conflicts — parts who seem to want opposite things, or whose actions affect others negatively?", placeholder: "No need to go into detail — just what you're aware of", type: "textarea", rows: 3 },
+            { id: "each_needs", label: "What might each side of the conflict need?", placeholder: "Even a guess — what might each part be trying to protect or get?", type: "textarea", rows: 3 },
+            { id: "small_step", label: "What might a very small step toward cooperation look like?", placeholder: "Something small and safe — not a complete resolution, just a beginning", type: "textarea", rows: 2 },
+          ]
+        }
+      },
+      {
+        id: "m12_t4",
+        title: "Building internal safety",
+        content: [
+          { type: "p", text: "Internal safety means that different parts of the system feel safe enough inside — not threatened by each other, not in constant crisis, not fighting for resources or control." },
+          { type: "p", text: "Internal safety often develops when: all parts know that their existence is acknowledged, all parts have some sense that their needs matter, there are agreements in place about safety (especially around crisis situations), and there is a shared understanding that all parts are trying to help, even when their methods are painful." },
+          { type: "p", text: "The inner safe place visualization can be used as a shared resource — a place inside where all parts can rest. Building this takes time, and different parts may respond to it differently." },
+          { type: "p", text: "Notice any parts who respond well to safety imagery, and any who don't. The ones who don't often have good reasons — they may have learned that 'safe' wasn't real. Patience and curiosity are more helpful than pushing." },
+        ],
+        exercise: {
+          id: "m12_t4_inner_safety",
+          title: "Building toward inner safety",
+          fields: [
+            { id: "what_helps_safety", label: "What has helped create a sense of safety inside — even just a little?", placeholder: "Grounding, agreements, imagery, something else?", type: "textarea", rows: 3 },
+            { id: "what_threatens", label: "What tends to make things feel less safe internally?", placeholder: "Situations, feelings, inner dynamics...", type: "textarea", rows: 2 },
+            { id: "one_thing", label: "Is there one small thing that might help build more internal safety?", placeholder: "An agreement, a change, something you could try", type: "textarea", rows: 2 },
+          ]
+        }
+      },
+    ]
+  },
+  {
+    id: "m13",
+    title: "Daily Structure and Rest",
+    emoji: "🌙",
+    topics: [
+      {
+        id: "m13_t1",
+        title: "Why daily structure matters",
+        content: [
+          { type: "p", text: "For people with trauma histories, the nervous system is often stuck in a state of high alert. One of the ways we can signal safety to the nervous system is through predictable, gentle structure — a rhythm to the day that it can learn to trust." },
+          { type: "p", text: "Structure doesn't mean rigidity. It means creating enough predictability that you're not constantly making decisions from scratch or dealing with the extra stress of an unpredictable environment." },
+          { type: "p", text: "Even very simple anchors can help: waking at a similar time, eating at regular intervals, having a small ritual that marks the beginning and end of the day. These things communicate to the nervous system: there is order here. Things are manageable." },
+          { type: "p", text: "For plural systems, structure can also reduce switching and confusion — knowing what the plan is gives all parts something to orient to." },
+        ],
+        exercise: {
+          id: "m13_t1_structure",
+          title: "My daily anchors",
+          fields: [
+            { id: "current_anchors", label: "What regular anchors do I already have in my day?", placeholder: "e.g. morning coffee, regular bedtime, mealtimes — even small ones count", type: "textarea", rows: 2 },
+            { id: "what_helps", label: "What helps my day feel more manageable when I have it?", placeholder: "Routine, predictability, particular activities...", type: "textarea", rows: 2 },
+            { id: "one_anchor", label: "One small anchor I could add or strengthen:", placeholder: "Something small and realistic", type: "text" },
+          ]
+        }
+      },
+      {
+        id: "m13_t2",
+        title: "Sleep, rest, and nighttime",
+        content: [
+          { type: "p", text: "Sleep difficulties are very common after trauma — nightmares, hypervigilance at night, difficulty falling asleep, waking frequently. These are direct effects of how trauma affects the nervous system and how it processes experience during sleep." },
+          { type: "p", text: "Some things that may help: keeping a fairly consistent sleep and wake time even on days when sleep was poor; avoiding screens in the hour before sleep; having a brief, calming routine before bed to signal the nervous system that the day is ending; leaving a light on if complete darkness feels unsafe; keeping a notebook by the bed if thoughts or memories often arise at night." },
+          { type: "p", text: "If nightmares or night-time distress are severe, this is something to discuss with a therapist — there are specific approaches for working with trauma-related sleep disturbance." },
+          { type: "p", text: "Rest is not the same as sleep. Rest means time when you're not producing, achieving, or managing something difficult. Moments of genuine ease — reading, a walk, music, quiet — count as rest and matter for recovery." },
+          { type: "note", text: "If you wake distressed from a nightmare: switch on a light, name the room you're in, use a grounding technique from the Support tab. Remind yourself: that was then. I am here, now, in this moment." },
+        ],
+        exercise: {
+          id: "m13_t2_sleep",
+          title: "Sleep and rest",
+          fields: [
+            { id: "sleep_challenges", label: "What makes sleep or nighttime difficult for me?", placeholder: "Nightmares, difficulty sleeping, fear, other...", type: "textarea", rows: 2 },
+            { id: "what_helps_sleep", label: "What has helped even a little with sleep?", placeholder: "Anything — even very small things", type: "textarea", rows: 2 },
+            { id: "bedtime_routine", label: "What might a calming pre-sleep routine look like for me?", placeholder: "Small, realistic steps", type: "textarea", rows: 2 },
+            { id: "rest", label: "What counts as rest for me — genuine ease, not just stopping work?", placeholder: "Activities or moments that feel genuinely restorative", type: "textarea", rows: 2 },
+          ]
+        }
+      },
+      {
+        id: "m13_t3",
+        title: "Sustainable self-care",
+        content: [
+          { type: "p", text: "Self-care in the context of trauma recovery means meeting basic needs consistently — sleep, food, movement, human connection — not performing wellness." },
+          { type: "p", text: "For many people, self-care can feel uncomfortable, undeserved, or even dangerous. These feelings make sense given trauma history. If caring for yourself was associated with shame or punishment, or if you learned that your needs didn't matter, self-care can feel foreign or threatening." },
+          { type: "p", text: "Starting small helps. Not a full self-care regime, but one small act of care — drinking a glass of water, stepping outside briefly, eating something nourishing — done consistently, without requiring that it 'feel right.'" },
+          { type: "p", text: "Notice what you do when you're having a hard time. Do you tend to eat less, isolate, stop sleeping? Knowing your patterns means you can sometimes catch them earlier and offer yourself something different." },
+          { type: "p", text: "For plural systems: self-care works best when it's something all parts can engage with, or at least not actively resist. It can help to ask: is there a way to meet the system's needs here, not just one part's?" },
+        ],
+        exercise: {
+          id: "m13_t3_selfcare",
+          title: "Sustainable self-care",
+          fields: [
+            { id: "basic_needs", label: "How do I tend to do with basic needs — sleep, food, movement, connection?", placeholder: "Which are easier? Which are harder?", type: "textarea", rows: 3 },
+            { id: "hard_times", label: "What happens to my self-care when I'm struggling?", placeholder: "What do I tend to stop doing, or do more of?", type: "textarea", rows: 2 },
+            { id: "one_act", label: "One small, consistent act of care I could offer myself:", placeholder: "Small enough that it's realistic even on a hard day", type: "text" },
+            { id: "feels_like", label: "What does it feel like to think about caring for yourself?", placeholder: "Any feelings or thoughts that come up — comfortable, uncomfortable, anything", type: "textarea", rows: 2 },
+          ]
+        }
+      },
+    ]
+  },
+  {
     id: "m10",
     title: "Building on Progress",
     emoji: "🌟",
