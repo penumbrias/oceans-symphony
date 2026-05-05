@@ -728,15 +728,18 @@ export default function InfiniteTimeline({
   const statusNoteEntries = useMemo(() => {
     const seen = new Set();
     const notes = [];
-    for (const entry of alterEntries) {
-      if (!entry.isPrimary) continue;
-      if (seen.has(entry.sessionId)) continue;
-      seen.add(entry.sessionId);
-      const note = lsGet(`symphony_status_${entry.sessionId}`, "");
-      if (note) notes.push({ id: entry.sessionId, note, startMins: entry.startMins });
+    for (const session of sessions) {
+      const isPrimary = session.alter_id ? (session.is_primary ?? false) : true;
+      if (!isPrimary) continue;
+      if (seen.has(session.id)) continue;
+      seen.add(session.id);
+      const note = localStorage.getItem(`symphony_status_${session.id}`) || "";
+      if (!note) continue;
+      const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+      notes.push({ id: session.id, note, startMins });
     }
     return notes;
-  }, [alterEntries]);
+  }, [sessions, dayStart]);
 
   const alterColumns = useMemo(() => {
     const cols = [];
