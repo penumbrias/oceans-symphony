@@ -3,7 +3,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,9 +98,19 @@ function localDatetimeToISO(val) {
 export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   const infoResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   const [infoImgError, setInfoImgError] = useState(false);
-  if (!session) return null;
-  const start = parseDate(session.start_time);
-  const end = session.end_time ? parseDate(session.end_time) : null;
+
+  // Always fetch fresh data so note/emotions/symptoms are current
+  const { data: freshSession } = useQuery({
+    queryKey: ["session", session?.id],
+    queryFn: () => base44.entities.FrontingSession.get(session.id),
+    enabled: !!session?.id,
+    staleTime: 0,
+  });
+  const s = freshSession || session;
+
+  if (!s) return null;
+  const start = parseDate(s.start_time);
+  const end = s.end_time ? parseDate(s.end_time) : null;
   const durationMins = end ? differenceInMinutes(end, start) : differenceInMinutes(new Date(), start);
 
   return (
@@ -134,7 +144,7 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
             <p className="font-semibold text-primary">{formatDuration(durationMins)}</p>
           </div>
 
-          <SessionDetails session={session} />
+          <SessionDetails session={s} />
 
           <Button size="sm" variant="outline" className="w-full" onClick={onEdit}>
             Edit session

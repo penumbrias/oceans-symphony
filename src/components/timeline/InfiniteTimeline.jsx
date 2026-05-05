@@ -1323,28 +1323,6 @@ export default function InfiniteTimeline({
                   ))}
                 </div>
 
-                {/* Legacy session notes */}
-                {sessions.flatMap((session) => {
-
-                  if (!session.note) return [];
-                  let notes = [];
-                  try {
-                    const parsed = JSON.parse(session.note);
-                    notes = Array.isArray(parsed) ? parsed : [{ text: session.note, timestamp: session.start_time }];
-                  } catch {
-                    notes = [{ text: session.note, timestamp: session.start_time }];
-                  }
-                  return notes.map((sn, i) => {
-                    const mins = Math.max(0, minutesInDay(parseDate(sn.timestamp), dayStart));
-                    const topPx = getTopPx(mins);
-                    return (
-                      <div key={`note-${session.id}-${i}`} className="absolute"
-                        style={{ left: Math.max(0, alterLeft - 20), right: 0, top: 0, height: totalHeight }}>
-                        <StatusNoteBadge note={sn.text} topPx={topPx} />
-                      </div>
-                    );
-                  });
-                })}
 
 
 
