@@ -34,6 +34,10 @@ import Reminders from '@/pages/Reminders';
 import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
 import { isEncryptionEnabled } from '@/lib/storageMode';
+import { initAccessibility } from '@/lib/useAccessibility';
+
+// Apply saved accessibility settings before first render
+initAccessibility();
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal, migrateLocalImageUrlScheme } from '@/lib/localDb';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';

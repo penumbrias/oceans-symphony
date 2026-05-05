@@ -19,6 +19,7 @@ import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
+import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import { Palette, Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
 const SECTIONS = [
   { id: "system", label: "System", icon: "⚙️" },
   { id: "appearance", label: "Appearance", icon: "🎨" },
+  { id: "accessibility", label: "Accessibility", icon: "♿" },
   { id: "alters", label: "Alters & Fields", icon: "👥" },
   { id: "checkin", label: "Check-In & Tracking", icon: "⚡" },
   { id: "analytics", label: "Analytics", icon: "📊" },
@@ -166,6 +168,11 @@ export default function Settings() {
         <Section id="appearance" icon="🎨" label="Appearance">
           <AdvancedAppearance />
           <NavigationSettings settings={settings} />
+        </Section>
+
+        {/* ── ACCESSIBILITY ── */}
+        <Section id="accessibility" icon="♿" label="Accessibility">
+          <AccessibilitySettings />
         </Section>
 
         {/* ── ALTERS & FIELDS ── */}

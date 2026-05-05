@@ -79,6 +79,37 @@ body {
   }
 }
 
+/* ── Accessibility ── */
+html.a11y-text-sm { font-size: 87.5%; }
+html.a11y-text-lg { font-size: 112.5%; }
+html.a11y-text-xl { font-size: 125%; }
+
+html.a11y-touch-comfortable button,
+html.a11y-touch-comfortable [role="button"],
+html.a11y-touch-comfortable a[class] {
+  min-height: 44px;
+}
+html.a11y-touch-large button,
+html.a11y-touch-large [role="button"],
+html.a11y-touch-large a[class] {
+  min-height: 52px;
+}
+
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+html.a11y-high-contrast {
+  filter: contrast(1.15) saturate(1.1);
+}
+
+/* ── End Accessibility ── */
+
 @keyframes suggestionFadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }

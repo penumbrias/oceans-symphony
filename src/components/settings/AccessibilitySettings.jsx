@@ -1,0 +1,138 @@
+import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import {
+  getAccessibilitySettings,
+  setAccessibilityFontSize,
+  setAccessibilityReduceMotion,
+  setAccessibilityHighContrast,
+  setAccessibilityLargeTouch,
+} from "@/lib/useAccessibility";
+
+const FONT_OPTIONS = [
+  { value: "sm",      label: "Small",       desc: "87.5% of default" },
+  { value: "default", label: "Default",     desc: "100%" },
+  { value: "lg",      label: "Large",       desc: "112.5% — easier to read" },
+  { value: "xl",      label: "Extra Large", desc: "125% — maximum readability" },
+];
+
+const TOUCH_OPTIONS = [
+  { value: "default",     label: "Default",     desc: "Standard button sizes" },
+  { value: "comfortable", label: "Comfortable",  desc: "44px minimum tap target" },
+  { value: "large",       label: "Large",        desc: "52px minimum tap target" },
+];
+
+export default function AccessibilitySettings() {
+  const [settings, setSettings] = useState(getAccessibilitySettings);
+
+  const update = (key, value, setter) => {
+    setter(value);
+    setSettings(s => ({ ...s, [key]: value }));
+  };
+
+  return (
+    <div className="space-y-6">
+
+      {/* Font / UI scale */}
+      <div>
+        <p className="text-sm font-semibold mb-1">Text & UI size</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Scales the base font size — affects text, spacing, and button sizes proportionally.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {FONT_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => update("fontSize", opt.value, setAccessibilityFontSize)}
+              className={`rounded-xl border p-3 text-left transition-all ${
+                settings.fontSize === opt.value
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border/50 bg-card hover:bg-muted/30"
+              }`}
+            >
+              <p className={`text-sm font-semibold ${settings.fontSize === opt.value ? "text-primary" : ""}`}>
+                {opt.label}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Touch target size */}
+      <div>
+        <p className="text-sm font-semibold mb-1">Touch target size</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Increases the minimum height of buttons and links — helps if buttons feel hard to press.
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          {TOUCH_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => update("largeTouch", opt.value, setAccessibilityLargeTouch)}
+              className={`rounded-xl border p-3 text-left transition-all ${
+                settings.largeTouch === opt.value
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border/50 bg-card hover:bg-muted/30"
+              }`}
+            >
+              <p className={`text-xs font-semibold ${settings.largeTouch === opt.value ? "text-primary" : ""}`}>
+                {opt.label}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Toggles */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold">Reduce motion</p>
+            <p className="text-xs text-muted-foreground">Disables animations and transitions throughout the app</p>
+          </div>
+          <Switch
+            checked={settings.reduceMotion}
+            onCheckedChange={v => update("reduceMotion", v, setAccessibilityReduceMotion)}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold">High contrast</p>
+            <p className="text-xs text-muted-foreground">Slightly boosts contrast and colour saturation</p>
+          </div>
+          <Switch
+            checked={settings.highContrast}
+            onCheckedChange={v => update("highContrast", v, setAccessibilityHighContrast)}
+          />
+        </div>
+      </div>
+
+      {/* Screen reader note */}
+      <div className="rounded-xl bg-muted/30 border border-border/40 px-4 py-3 space-y-1.5 text-xs text-muted-foreground">
+        <p className="font-semibold text-foreground text-sm">Screen reader support</p>
+        <p>
+          Oceans Symphony works with your device's built-in screen reader (VoiceOver on iOS/macOS,
+          TalkBack on Android, or NVDA/JAWS on Windows). Enable it from your device's accessibility settings.
+        </p>
+        <p>
+          Interactive elements have labels and roles. If you find an unlabelled control,
+          please report it so we can fix it.
+        </p>
+      </div>
+
+      {/* Preview */}
+      <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
+        <p className="text-xs text-muted-foreground mb-2 font-medium">Preview</p>
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">This is how text looks at your current size</p>
+          <p className="text-xs text-muted-foreground">Supporting text at the muted style — used for descriptions and hints.</p>
+          <button className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+            Sample button
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
