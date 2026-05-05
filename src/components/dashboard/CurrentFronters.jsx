@@ -389,14 +389,13 @@ export default function CurrentFronters({ alters }) {
   const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : true);
   const active = primarySession || activeSessions[0] || null;
 
-  // Key status by primary alter so it persists across sessions and shows on their board
   const primaryAlterId = primarySession?.alter_id || active?.primary_alter_id || null;
 
   useEffect(() => {
-    const saved = primaryAlterId ? (localStorage.getItem(`symphony_alterstatus_${primaryAlterId}`) ?? "") : "";
+    const saved = active?.id ? (localStorage.getItem(`symphony_status_${active.id}`) ?? "") : "";
     setStatusText(saved);
     setTempStatus(saved);
-  }, [primaryAlterId]);
+  }, [active?.id]);
 
   useEffect(() => { setExpandedAlterId(null); }, [active?.id]);
 
@@ -418,16 +417,21 @@ export default function CurrentFronters({ alters }) {
     } catch { toast.error("Failed to update primary fronter"); }
   };
 
-  const handleSaveStatus = () => {
+  const handleSaveStatus = async () => {
     const note = tempStatus.trim();
     setStatusText(note);
     setEditingStatus(false);
-    if (primaryAlterId) {
-      if (note) {
-        localStorage.setItem(`symphony_alterstatus_${primaryAlterId}`, note);
-      } else {
-        localStorage.removeItem(`symphony_alterstatus_${primaryAlterId}`);
-      }
+    if (active?.id) localStorage.setItem(`symphony_status_${active.id}`, note);
+    // Record the status on the primary alter's board history
+    if (note && primaryAlterId) {
+      try {
+        await base44.entities.AlterMessage.create({
+          alter_id: primaryAlterId,
+          author_alter_id: primaryAlterId,
+          content: note,
+        });
+        queryClient.invalidateQueries({ queryKey: ["alterMessages", primaryAlterId] });
+      } catch {}
     }
     toast.success("Status saved");
   };
