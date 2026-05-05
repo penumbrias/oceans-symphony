@@ -371,11 +371,26 @@ useEffect(() => {
           </div>
         )}
 
-        {alter.description ? (
-          <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
-            <SimplePreview blocks={htmlToBlocks(alter.description)} onBlockChange={() => {}} readOnly={true} />
-          </div>
-        ) : (
+        {alter.description ? (() => {
+          const blocks = htmlToBlocks(alter.description);
+          // If all blocks are raw/text type whose content looks like encoded data, the bio is corrupted
+          const looksCorrupted = blocks.length > 0 && blocks.every(b =>
+            (b.type === "raw" || b.type === "text") &&
+            (b.content?.includes("data-blocks=") || b.content?.match(/^%5B|^blocks=/))
+          );
+          if (looksCorrupted) {
+            return (
+              <div className="bg-muted/20 rounded-xl p-4 border border-border/40 text-center">
+                <p className="text-sm text-muted-foreground italic">Bio display issue — open Edit to re-save the bio and it will display correctly.</p>
+              </div>
+            );
+          }
+          return (
+            <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
+              <SimplePreview blocks={blocks} onBlockChange={() => {}} readOnly={true} />
+            </div>
+          );
+        })() : (
           <div className="text-center py-8 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">
             No bio yet. Tap <strong>Edit</strong> to add one.
           </div>
