@@ -417,7 +417,7 @@ export default function Analytics() {
 
       {/* ── SWITCH LOGS ── */}
       {activeSection === "switchlogs" && (
-        <SwitchLogAnalytics journals={journals} from={from} to={to} />
+        <SwitchLogAnalytics journals={journals} sessions={sessions} from={from} to={to} />
       )}
 
       {/* ── CHECK-INS ── */}

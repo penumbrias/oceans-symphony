@@ -1,8 +1,11 @@
 import React, { useState, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { format, parseISO } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 
-const COLORS = {
+// Legacy hardcoded keys kept for backwards-compat with any old DiaryCard.checklist data
+const LEGACY_COLORS = {
   overall_mood: "#8b5cf6",
   energy_levels: "#fbbf24",
   anxiety: "#ef4444",
@@ -12,78 +15,135 @@ const COLORS = {
   trouble_sleeping: "#6366f1",
   feeling_irritable: "#d946ef",
   emotional_numbness: "#06b6d4",
-  random_switch: "#10b981",
-  triggered_switch: "#84cc16",
-  amnesia_memory: "#f59e0b",
   lack_of_motivation: "#64748b",
 };
 
-const NUMERIC_SYMPTOMS = [
-  "overall_mood",
-  "energy_levels",
-  "anxiety",
-  "depression",
-  "feeling_overwhelmed",
-  "feeling_manic",
-  "trouble_sleeping",
-  "feeling_irritable",
-  "emotional_numbness",
-  "lack_of_motivation",
-];
-
 export default function SymptomTrendCharts({ dailyAggregates }) {
-  const [selected, setSelected] = useState(
-    new Set(["overall_mood", "anxiety", "energy_levels", "depression"])
+  const [selected, setSelected] = useState(null); // null = use defaults (first 4)
+
+  const { data: allSymptomCheckIns = [] } = useQuery({
+    queryKey: ["symptomCheckIns"],
+    queryFn: () => base44.entities.SymptomCheckIn.list(),
+  });
+
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+  });
+
+  const symptomMap = useMemo(() =>
+    Object.fromEntries(symptoms.map((s) => [s.id, s])),
+    [symptoms]
   );
 
+  const dateSet = useMemo(() => new Set(dailyAggregates.map((d) => d.date)), [dailyAggregates]);
+
+  // Group rating-type SymptomCheckIns by date → symptomId → averaged value
+  const ciByDate = useMemo(() => {
+    const map = {};
+    const counts = {};
+    allSymptomCheckIns.forEach((sc) => {
+      if (!sc.timestamp || !sc.symptom_id) return;
+      const dateStr = sc.timestamp.substring(0, 10);
+      if (!dateSet.has(dateStr)) return;
+      const sym = symptomMap[sc.symptom_id];
+      if (sym?.type !== "rating") return;
+      if (sc.severity === null || sc.severity === undefined) return;
+      const val = Number(sc.severity);
+      if (!map[dateStr]) { map[dateStr] = {}; counts[dateStr] = {}; }
+      if (map[dateStr][sc.symptom_id] === undefined) {
+        map[dateStr][sc.symptom_id] = val;
+        counts[dateStr][sc.symptom_id] = 1;
+      } else {
+        counts[dateStr][sc.symptom_id]++;
+        map[dateStr][sc.symptom_id] = Math.round(
+          (map[dateStr][sc.symptom_id] * (counts[dateStr][sc.symptom_id] - 1) + val) /
+            counts[dateStr][sc.symptom_id] * 10
+        ) / 10;
+      }
+    });
+    return map;
+  }, [allSymptomCheckIns, symptomMap, dateSet]);
+
+  const ratingSymptoms = useMemo(() =>
+    symptoms.filter((s) => s.type === "rating" && !s.is_archived).sort((a, b) => (a.order ?? 999) - (b.order ?? 999)),
+    [symptoms]
+  );
+
+  // Build chart data merging new (entity-based) and legacy (DiaryCard.checklist) sources
   const chartData = useMemo(() => {
-    return dailyAggregates.map((day) => ({
-      date: format(parseISO(day.date), "MMM d"),
-      ...Object.fromEntries(
-        NUMERIC_SYMPTOMS.map((s) => [
-          s,
-          day.checklist?.symptoms?.[s] !== undefined ? day.checklist.symptoms[s] : null,
-        ])
-      ),
-    }));
-  }, [dailyAggregates]);
+    return dailyAggregates.map((day) => {
+      const row = { date: format(parseISO(day.date), "MMM d") };
+      ratingSymptoms.forEach((s) => {
+        const v = ciByDate[day.date]?.[s.id];
+        if (v !== undefined) row[s.id] = v;
+      });
+      Object.keys(LEGACY_COLORS).forEach((key) => {
+        const v = day.checklist?.symptoms?.[key];
+        if (v !== undefined) row[key] = v;
+      });
+      return row;
+    });
+  }, [dailyAggregates, ciByDate, ratingSymptoms]);
 
-  const availableSymptoms = NUMERIC_SYMPTOMS.filter((s) =>
-    chartData.some((d) => d[s] !== null && d[s] !== undefined)
+  // All metrics that have at least one data point
+  const allMetrics = useMemo(() => {
+    const metrics = [];
+    ratingSymptoms.forEach((s) => {
+      if (chartData.some((d) => d[s.id] !== undefined)) {
+        metrics.push({ id: s.id, label: s.label, color: s.color || "#8b5cf6" });
+      }
+    });
+    // Legacy fallback (only if a key has data AND isn't already covered by a new-system symptom)
+    const newIds = new Set(metrics.map((m) => m.id));
+    Object.entries(LEGACY_COLORS).forEach(([key, color]) => {
+      if (!newIds.has(key) && chartData.some((d) => d[key] !== undefined)) {
+        const label = key.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        metrics.push({ id: key, label, color });
+      }
+    });
+    return metrics;
+  }, [chartData, ratingSymptoms]);
+
+  const defaultSelected = useMemo(() =>
+    new Set(allMetrics.slice(0, 4).map((m) => m.id)),
+    [allMetrics]
   );
 
-  const toggle = (symptom) => {
+  const effectiveSelected = selected || defaultSelected;
+
+  const toggle = (id) => {
     setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(symptom) ? next.delete(symptom) : next.add(symptom);
+      const current = prev || defaultSelected;
+      const next = new Set(current);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  };
-
-  const formatLabel = (key) => {
-    return key
-      .split("_")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
   };
 
   if (chartData.length < 2) {
     return <p className="text-sm text-muted-foreground text-center py-6">Need at least 2 entries to show trends.</p>;
   }
 
+  if (allMetrics.length === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-6">No symptom trend data for this period. Log symptoms via Quick Check-In to see trends here.</p>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {availableSymptoms.map((s) => (
+        {allMetrics.map((m) => (
           <button
-            key={s}
-            onClick={() => toggle(s)}
+            key={m.id}
+            onClick={() => toggle(m.id)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-              selected.has(s) ? "border-transparent text-white" : "border-border text-muted-foreground hover:border-primary/40"
+              effectiveSelected.has(m.id)
+                ? "border-transparent text-white"
+                : "border-border text-muted-foreground hover:border-primary/40"
             }`}
-            style={selected.has(s) ? { backgroundColor: COLORS[s] || "#888" } : {}}
+            style={effectiveSelected.has(m.id) ? { backgroundColor: m.color } : {}}
           >
-            {formatLabel(s)}
+            {m.label}
           </button>
         ))}
       </div>
@@ -96,17 +156,17 @@ export default function SymptomTrendCharts({ dailyAggregates }) {
             <YAxis domain={[0, 5]} tick={{ fontSize: 11 }} />
             <Tooltip
               contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-              formatter={(value) => (value !== null ? value.toFixed(1) : "—")}
+              formatter={(value) => (value !== null && value !== undefined ? Number(value).toFixed(1) : "—")}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            {availableSymptoms.map((s) =>
-              selected.has(s) ? (
+            {allMetrics.map((m) =>
+              effectiveSelected.has(m.id) ? (
                 <Line
-                  key={s}
+                  key={m.id}
                   type="monotone"
-                  dataKey={s}
-                  name={formatLabel(s)}
-                  stroke={COLORS[s] || "#888"}
+                  dataKey={m.id}
+                  name={m.label}
+                  stroke={m.color}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                   connectNulls

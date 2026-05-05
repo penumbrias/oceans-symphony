@@ -13,7 +13,17 @@ const SWITCH_SYMPTOMS = [
   { key: "tension",      label: "Tension",      color: "#14b8a6" },
 ];
 
-export default function SwitchLogAnalytics({ journals = [], from, to }) {
+const TRIGGER_CATEGORY_LABELS = {
+  sensory: "👂 Sensory",
+  emotional: "💙 Emotional",
+  interpersonal: "👥 Interpersonal",
+  trauma_reminder: "⚡ Trauma reminder",
+  physical: "🫀 Physical",
+  internal: "🧠 Internal",
+  unknown: "❓ Unknown",
+};
+
+export default function SwitchLogAnalytics({ journals = [], sessions = [], from, to }) {
   const fromMs = startOfDay(from).getTime();
   const toMs = endOfDay(to).getTime();
 
@@ -72,6 +82,25 @@ export default function SwitchLogAnalytics({ journals = [], from, to }) {
   const topAvgSymptom = avgSymptoms.length
     ? [...avgSymptoms].sort((a, b) => b.avg - a.avg)[0]
     : null;
+
+  // Triggered switches from FrontingSession (structured trigger_category data)
+  const triggeredSessions = useMemo(() => {
+    return sessions.filter(s => {
+      if (!s.is_triggered_switch || !s.trigger_category) return false;
+      const ts = new Date(s.start_time).getTime();
+      return ts >= fromMs && ts <= toMs;
+    });
+  }, [sessions, fromMs, toMs]);
+
+  const triggerCategoryFreq = useMemo(() => {
+    const freq = {};
+    triggeredSessions.forEach(s => {
+      freq[s.trigger_category] = (freq[s.trigger_category] || 0) + 1;
+    });
+    return Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, count]) => ({ cat, label: TRIGGER_CATEGORY_LABELS[cat] || cat, count }));
+  }, [triggeredSessions]);
 
   if (!switchLogs.length) {
     return (
@@ -159,10 +188,44 @@ export default function SwitchLogAnalytics({ journals = [], from, to }) {
         </div>
       )}
 
-      {logsWithData.length === 0 && (
+      {/* Trigger categories from FrontingSession structured data */}
+      {triggerCategoryFreq.length > 0 && (
+        <div className="bg-card border border-border/50 rounded-lg p-4">
+          <h3 className="text-sm font-semibold mb-1">Trigger categories</h3>
+          <p className="text-xs text-muted-foreground mb-3">From triggered {sessions.length > 0 ? "switches" : "check-ins"} logged in Quick Check-In</p>
+          <div className="space-y-2">
+            {triggerCategoryFreq.map(({ cat, label, count }) => (
+              <div key={cat} className="flex items-center gap-2">
+                <span className="flex-1 text-sm">{label}</span>
+                <div className="flex-1 h-2 bg-muted/40 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-orange-400 rounded-full"
+                    style={{ width: `${Math.round(count / triggeredSessions.length * 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold tabular-nums w-6 text-right">{count}</span>
+              </div>
+            ))}
+          </div>
+          {triggeredSessions.some(s => s.trigger_label) && (
+            <div className="mt-3 space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground">Trigger descriptions</p>
+              {[...new Set(triggeredSessions.filter(s => s.trigger_label).map(s => s.trigger_label))]
+                .slice(0, 8)
+                .map((label, i) => (
+                  <p key={i} className="text-xs text-muted-foreground pl-2 border-l-2 border-orange-400/40">
+                    {label}
+                  </p>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {logsWithData.length === 0 && triggerCategoryFreq.length === 0 && (
         <div className="bg-muted/30 rounded-lg p-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Symptom and trigger data is recorded when switch logs are filled out using the switch journal form.
+            Symptom data appears when switch logs are filled out via the switch journal form. Trigger categories appear when a triggered switch is marked in Quick Check-In.
           </p>
         </div>
       )}
