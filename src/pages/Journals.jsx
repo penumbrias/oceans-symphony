@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft } from "lucide-react";
+import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft, UserRound, ChevronDown, X } from "lucide-react";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,9 @@ export default function Journals() {
   const [tab, setTab] = useState("all");
   const [search, setSearch] = useState("");
   const [selectedTag, setSelectedTag] = useState(null);
+  const [selectedAuthorId, setSelectedAuthorId] = useState(null);
+  const [showAuthorFilter, setShowAuthorFilter] = useState(false);
+  const [authorFilterSearch, setAuthorFilterSearch] = useState("");
   const [fronterOnly, setFronterOnly] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -118,6 +121,16 @@ export default function Journals() {
       });
   }, [allFolderPaths, viewingFolder, entries]);
 
+  // Alters who have authored at least one journal entry (for filter dropdown)
+  const authoredAlterIds = useMemo(() => {
+    const ids = new Set();
+    entries.forEach(e => {
+      if (e.author_alter_id) ids.add(e.author_alter_id);
+      (e.co_author_alter_ids || []).forEach(id => ids.add(id));
+    });
+    return [...ids];
+  }, [entries]);
+
   // Entries visible at current level — only direct children of viewingFolder
   const filtered = useMemo(() => {
     return entries.filter((e) => {
@@ -126,13 +139,18 @@ export default function Journals() {
           !e.content?.toLowerCase().includes(search.toLowerCase())) return false;
       if (selectedTag && !(e.tags || []).includes(selectedTag)) return false;
       if ((e.folder || null) !== viewingFolder) return false;
+      if (selectedAuthorId) {
+        const isAuthor = e.author_alter_id === selectedAuthorId;
+        const isCoAuthor = (e.co_author_alter_ids || []).includes(selectedAuthorId);
+        if (!isAuthor && !isCoAuthor) return false;
+      }
       if (fronterOnly && currentAlterIds.length > 0) {
         const allowed = e.allowed_alter_ids || [];
         if (allowed.length > 0 && !allowed.some((id) => currentAlterIds.includes(id))) return false;
       }
       return true;
     });
-  }, [entries, tab, search, selectedTag, viewingFolder, fronterOnly, currentAlterIds]);
+  }, [entries, tab, search, selectedTag, viewingFolder, selectedAuthorId, fronterOnly, currentAlterIds]);
 
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
   const openEntry = (entry) => { setViewingEntry(entry); };
@@ -245,6 +263,81 @@ export default function Journals() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search entries..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
+
+        {/* Author filter */}
+        {authoredAlterIds.length > 0 && (
+          <div className="relative">
+            <Button
+              variant={selectedAuthorId ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setShowAuthorFilter(v => !v); setAuthorFilterSearch(""); }}
+              className={`gap-1.5 ${selectedAuthorId ? "bg-primary hover:bg-primary/90" : ""}`}
+            >
+              {selectedAuthorId ? (
+                <>
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: altersById[selectedAuthorId]?.color || "#94a3b8" }} />
+                  <span className="max-w-[100px] truncate">{altersById[selectedAuthorId]?.name}</span>
+                </>
+              ) : (
+                <>
+                  <UserRound className="w-3.5 h-3.5" />
+                  Author
+                </>
+              )}
+              <ChevronDown className="w-3 h-3 opacity-60" />
+            </Button>
+            {selectedAuthorId && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setSelectedAuthorId(null); }}
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-muted-foreground/20 hover:bg-destructive/20 flex items-center justify-center"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            )}
+            {showAuthorFilter && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowAuthorFilter(false)} />
+                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-52 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-border/50">
+                    <input
+                      autoFocus
+                      value={authorFilterSearch}
+                      onChange={e => setAuthorFilterSearch(e.target.value)}
+                      placeholder="Search members..."
+                      className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <div className="max-h-52 overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedAuthorId(null); setShowAuthorFilter(false); }}
+                      className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors ${!selectedAuthorId ? "text-primary font-medium" : "text-muted-foreground"}`}
+                    >
+                      All authors
+                    </button>
+                    {authoredAlterIds
+                      .map(id => altersById[id])
+                      .filter(Boolean)
+                      .filter(a => !authorFilterSearch || a.name.toLowerCase().includes(authorFilterSearch.toLowerCase()))
+                      .map(a => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => { setSelectedAuthorId(a.id); setShowAuthorFilter(false); }}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${selectedAuthorId === a.id ? "bg-primary/5 text-primary" : ""}`}
+                        >
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                          <span className="flex-1 truncate">{a.name}</span>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {currentAlterIds.length > 0 && (
           <Button variant={fronterOnly ? "default" : "outline"} size="sm"
             onClick={() => setFronterOnly(!fronterOnly)}
