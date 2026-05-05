@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Settings, ChevronLeft, Wifi } from "lucide-react";
+import { Settings, ChevronLeft, Wifi, Menu } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import MigrationBanner from "@/components/fronting/MigrationBanner";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
+import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import ReminderToast from "@/components/reminders/ReminderToast";
@@ -51,6 +52,7 @@ export default function AppLayout() {
   const terms = useTerms();
   const [historyDepth, setHistoryDepth] = useState(0);
   const [showFeatureTour, setShowFeatureTour] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   useRemindersScheduler();
 
 const { data: systemSettings = [] } = useQuery({
@@ -200,18 +202,20 @@ const handleNotifClick = (mentionLog) => {
           onClick={() => navigate(-1)}
           aria-label="Go back"
           className="flex items-center gap-1 text-primary min-w-[44px] min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50">
-          
             <ChevronLeft className="w-5 h-5" />
             <span className="text-sm font-medium">Back</span>
           </button> :
 
-        <Link to="/" className="flex items-center gap-2 select-none min-h-[44px] px-2" aria-label="Symphony home">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open navigation menu"
+          className="flex items-center gap-2 select-none min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50 text-left">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
             </div>
             <span className="font-display text-base font-semibold text-foreground">Oceans Symphony</span>
             <OfflineReadyBadge />
-          </Link>
+          </button>
         }
 
         {/* Right: bell + settings icons */}
@@ -298,6 +302,7 @@ const handleNotifClick = (mentionLog) => {
         </div>
       )}
 
+      <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <MigrationBanner />
       <FloatingGroundingButton />
       <ReminderToast />

@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell } from "lucide-react";
 
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
@@ -18,29 +18,30 @@ export const ALL_PAGES = [
   { id: "polls", label: "Polls", path: "/polls", icon: Vote },
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
   { id: "checkin-log", label: "Check-In Log", path: "/checkin-log", icon: Heart },
+  { id: "reminders", label: "Reminders", path: "/reminders", icon: Bell },
 ];
 
 export const DEFAULT_CONFIG = {
   topBar: ["home", "alters", "checkin", "journals", "tasks"],
   bottomBar: ["home", "alters", "checkin", "journals", "tasks"],
   dashboardGrid: [
-  "alters",
-  "checkin",
-  "activities",
-  "analytics",
-  "therapy-report",
-  "support",
-  "checkin-log",
-  "sleep",
-
-  "timeline",
-  "system-map",
-  "journals",
-  "tasks",
-  "groups",
-  "polls",
-  "settings",
-  "safety-plan",
-  "home",
-],
+    "reminders",
+    "alters",
+    "checkin",
+    "activities",
+    "analytics",
+    "therapy-report",
+    "support",
+    "checkin-log",
+    "sleep",
+    "timeline",
+    "system-map",
+    "journals",
+    "tasks",
+    "groups",
+    "polls",
+    "settings",
+    "safety-plan",
+    "home",
+  ],
 };
