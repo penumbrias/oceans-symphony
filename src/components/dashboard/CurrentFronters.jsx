@@ -389,11 +389,14 @@ export default function CurrentFronters({ alters }) {
   const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : true);
   const active = primarySession || activeSessions[0] || null;
 
+  // Key status by primary alter so it persists across sessions and shows on their board
+  const primaryAlterId = primarySession?.alter_id || active?.primary_alter_id || null;
+
   useEffect(() => {
-    const saved = active?.id ? (localStorage.getItem(`symphony_status_${active.id}`) ?? "") : "";
+    const saved = primaryAlterId ? (localStorage.getItem(`symphony_alterstatus_${primaryAlterId}`) ?? "") : "";
     setStatusText(saved);
     setTempStatus(saved);
-  }, [active?.id]);
+  }, [primaryAlterId]);
 
   useEffect(() => { setExpandedAlterId(null); }, [active?.id]);
 
@@ -419,7 +422,13 @@ export default function CurrentFronters({ alters }) {
     const note = tempStatus.trim();
     setStatusText(note);
     setEditingStatus(false);
-    if (active?.id) localStorage.setItem(`symphony_status_${active.id}`, note);
+    if (primaryAlterId) {
+      if (note) {
+        localStorage.setItem(`symphony_alterstatus_${primaryAlterId}`, note);
+      } else {
+        localStorage.removeItem(`symphony_alterstatus_${primaryAlterId}`);
+      }
+    }
     toast.success("Status saved");
   };
 
@@ -505,7 +514,7 @@ export default function CurrentFronters({ alters }) {
             <Input
               value={tempStatus}
               onChange={e => setTempStatus(e.target.value)}
-              placeholder="Add a status..."
+              placeholder="Custom status..."
               className="text-sm h-8 flex-1"
               autoFocus
               onKeyDown={e => { if (e.key === "Enter") handleSaveStatus(); }}
@@ -527,7 +536,7 @@ export default function CurrentFronters({ alters }) {
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <span className="italic">Add a custom status...</span>
+                <span className="italic text-xs">Custom status...</span>
                 <Edit2 className="w-3 h-3" />
               </div>
             )}

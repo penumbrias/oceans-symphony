@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, FileText } from "lucide-react";
+import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, FileText, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
@@ -86,6 +86,9 @@ export default function MessagesTab({ alterId, alters }) {
   const [saving, setSaving] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [alterStatus] = useState(() => {
+    try { return localStorage.getItem(`symphony_alterstatus_${alterId}`) || ""; } catch { return ""; }
+  });
 
   const { data: messages = [] } = useQuery({
     queryKey: ["alterMessages", alterId],
@@ -172,6 +175,17 @@ const postMessage = async () => {
 
   return (
     <div className="space-y-3">
+      {/* Custom status banner */}
+      {alterStatus && (
+        <div className="rounded-xl bg-primary/5 border border-primary/20 px-4 py-3 flex items-start gap-2.5">
+          <Activity className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-0.5">Custom Status</p>
+            <p className="text-sm text-foreground leading-relaxed">{alterStatus}</p>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <input
         className="w-full h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
