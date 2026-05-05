@@ -38,9 +38,28 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
           )}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground mb-2">
+      <p className="text-xs text-muted-foreground mb-2 flex items-center flex-wrap gap-1">
         {format(parseDate(entry.created_date), "MMM d, yyyy · h:mm a")}
         {author && <span className="ml-1.5">· by {author.name}</span>}
+        {entry.co_author_alter_ids?.length > 0 && (
+          <span className="flex items-center gap-0.5 ml-0.5">
+            {entry.co_author_alter_ids.slice(0, 4).map(id => {
+              const a = altersById?.[id];
+              if (!a) return null;
+              return (
+                <span
+                  key={id}
+                  title={a.name}
+                  className="w-3.5 h-3.5 rounded-full border border-background flex-shrink-0"
+                  style={{ backgroundColor: a.color || "#94a3b8" }}
+                />
+              );
+            })}
+            {entry.co_author_alter_ids.length > 4 && (
+              <span className="text-[10px] text-muted-foreground ml-0.5">+{entry.co_author_alter_ids.length - 4}</span>
+            )}
+          </span>
+        )}
       </p>
       {entry.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1">

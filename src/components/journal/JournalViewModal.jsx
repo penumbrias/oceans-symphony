@@ -8,6 +8,22 @@ import { decryptContent } from "@/lib/encryption";
 import { Edit2, Lock, AlertCircle, Loader2, BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
+function processSignposts(html, altersById) {
+  if (!html || !altersById) return html;
+  let result = html;
+  Object.values(altersById).forEach(alter => {
+    if (!alter?.name) return;
+    const escaped = alter.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const color = /^#[0-9a-fA-F]{3,8}$/.test(alter.color) ? alter.color : "#94a3b8";
+    const displayName = alter.name.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    result = result.replace(
+      new RegExp(`~${escaped}\\s*:`, "gi"),
+      `<span style="display:inline-block;background:${color}22;color:${color};border:1px solid ${color}55;border-radius:4px;padding:1px 8px;font-size:0.72rem;font-weight:700;margin:0 2px 0 0;letter-spacing:0.02em;">~ ${displayName}:</span>`
+    );
+  });
+  return result;
+}
+
 async function resolveLocalImagesInHtml(html) {
   if (!html || !html.includes("local-image://")) return html;
   const { resolveImageUrl } = await import("@/lib/imageUrlResolver");
@@ -32,8 +48,8 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
     if (!open) { setResolvedHtml(null); return; }
     const content = decryptedContent ?? entry?.content;
     if (!content) { setResolvedHtml(null); return; }
-    resolveLocalImagesInHtml(content).then(setResolvedHtml);
-  }, [open, entry?.content, decryptedContent]);
+    resolveLocalImagesInHtml(content).then(html => setResolvedHtml(processSignposts(html, altersById)));
+  }, [open, entry?.content, decryptedContent, altersById]);
 
   if (!entry) return null;
 
@@ -69,10 +85,35 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <DialogTitle className="text-xl font-semibold leading-tight">{entry.title}</DialogTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                {format(parseDate(entry.created_date), "MMMM d, yyyy · h:mm a")}
-                {author && <span className="ml-1.5">· {author.name}</span>}
-              </p>
+              <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-1">
+                <span className="text-xs text-muted-foreground">
+                  {format(parseDate(entry.created_date), "MMMM d, yyyy · h:mm a")}
+                </span>
+                {author && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    ·
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: author.color || "#94a3b8" }}
+                    />
+                    {author.name}
+                  </span>
+                )}
+                {entry.co_author_alter_ids?.map(id => {
+                  const a = altersById?.[id];
+                  if (!a) return null;
+                  return (
+                    <span key={id} className="flex items-center gap-1 text-xs text-muted-foreground">
+                      &
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: a.color || "#94a3b8" }}
+                      />
+                      {a.name}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
             <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0" onClick={() => { handleClose(); onEdit(entry); }}>
               <Edit2 className="w-3.5 h-3.5" />
