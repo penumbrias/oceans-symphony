@@ -78,11 +78,19 @@ export default function Journals() {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 10),
   });
 
-  const activeSession = sessions.find((s) => s.is_active);
-  const currentAlterIds = activeSession
-    ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
-    : [];
-  const currentAlterId = activeSession?.primary_alter_id || null;
+  const activeSessions = sessions.filter((s) => s.is_active);
+  let currentAlterId = null;
+  let currentAlterIds = [];
+  if (activeSessions.length > 0) {
+    if (activeSessions[0].alter_id) {
+      currentAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
+      currentAlterId = currentAlterIds[0] || null;
+    } else {
+      const first = activeSessions[0];
+      currentAlterId = first.primary_alter_id || null;
+      currentAlterIds = [first.primary_alter_id, ...(first.co_fronter_ids || [])].filter(Boolean);
+    }
+  }
 
   const altersById = useMemo(() =>
     Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
