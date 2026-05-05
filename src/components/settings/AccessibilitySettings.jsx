@@ -6,7 +6,15 @@ import {
   setAccessibilityReduceMotion,
   setAccessibilityHighContrast,
   setAccessibilityLargeTouch,
+  setAccessibilityNavHeight,
 } from "@/lib/useAccessibility";
+
+const NAV_HEIGHT_OPTIONS = [
+  { value: "compact",    label: "Compact",    desc: "44px — more screen space" },
+  { value: "default",    label: "Default",    desc: "56px — standard size" },
+  { value: "tall",       label: "Tall",       desc: "68px — easier to reach" },
+  { value: "extra-tall", label: "Extra Tall", desc: "80px — maximum height" },
+];
 
 const FONT_OPTIONS = [
   { value: "sm",      label: "Small",       desc: "87.5% of default" },
@@ -79,6 +87,32 @@ export default function AccessibilitySettings() {
                 {opt.label}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Nav bar height */}
+      <div>
+        <p className="text-sm font-semibold mb-1">Navigation bar height</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Adjusts the height of the bottom tab bar on mobile — taller bars are easier to reach.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {NAV_HEIGHT_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => update("navHeight", opt.value, setAccessibilityNavHeight)}
+              className={`rounded-xl border p-3 text-left transition-all ${
+                settings.navHeight === opt.value
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border/50 bg-card hover:bg-muted/30"
+              }`}
+            >
+              <p className={`text-sm font-semibold ${settings.navHeight === opt.value ? "text-primary" : ""}`}>
+                {opt.label}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
             </button>
           ))}
         </div>

@@ -527,8 +527,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                         className="px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1 border"
                         style={{ backgroundColor: a.color ? `${a.color}20` : undefined, borderColor: a.color || undefined }}>
                         {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-                        <button onClick={() => setAsPrimary(id)} className="hover:underline" title="Set as primary">{a.name}</button>
-                        <button onClick={() => toggleAlter(id)} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
+                        <button onClick={() => setAsPrimary(id)} className="hover:underline" aria-label={id === primaryId ? `${a.name} is primary — click to demote` : `Set ${a.name} as primary`}>{a.name}</button>
+                        <button onClick={() => toggleAlter(id)} aria-label={`Remove ${a.name}`} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
                           <X className="w-3 h-3" />
                         </button>
                       </span>
@@ -546,7 +546,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                     const isSelected = selectedAlterIds.has(a.id);
                     const isPrimary = primaryId === a.id;
                     return (
-                      <div key={a.id} onClick={() => toggleAlter(a.id)}
+                      <div key={a.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${isSelected ? "Deselect" : "Select"} ${a.name}`}
+                        aria-pressed={isSelected}
+                        onClick={() => toggleAlter(a.id)}
+                        onKeyDown={e => e.key === "Enter" || e.key === " " ? toggleAlter(a.id) : undefined}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all ${
                           isSelected ? "border-primary/60 bg-primary/5" : "border-border/50 bg-card hover:bg-muted/30"
                         }`}>
@@ -561,7 +567,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                           {a.pronouns && <p className="text-xs text-muted-foreground truncate">{a.pronouns}</p>}
                         </div>
                         <button onClick={e => { e.stopPropagation(); if (isSelected) setAsPrimary(a.id); }}
-                            title={isPrimary ? "Primary fronter (tap to unset)" : isSelected ? "Set as primary" : "Select first"}
+                            aria-label={isPrimary ? `${a.name} is primary — click to demote` : isSelected ? `Set ${a.name} as primary` : `Select ${a.name} first`}
+                            disabled={!isSelected}
                             className={`p-1 rounded-md transition-colors flex-shrink-0 ${
                               isPrimary ? "text-amber-500" : isSelected ? "text-muted-foreground hover:text-amber-400" : "text-muted-foreground/30"
                             }`}>

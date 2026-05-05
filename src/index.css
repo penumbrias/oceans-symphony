@@ -34,7 +34,7 @@
     --color-text-secondary: #64748B;
 
     --radius: 0.75rem;
-    --bottom-nav-height: 64px;
+    --bottom-nav-height: 56px;
   }
 
   .dark {
@@ -76,6 +76,13 @@ body {
   p, span, h1, h2, h3, h4, h5, h6, li, blockquote, .selectable {
     -webkit-user-select: text;
     user-select: text;
+  }
+}
+
+/* Mobile main-content bottom padding tracks the nav bar height */
+@media (max-width: 639px) {
+  .app-content-main {
+    padding-bottom: calc(var(--bottom-nav-height, 56px) + 16px) !important;
   }
 }
 

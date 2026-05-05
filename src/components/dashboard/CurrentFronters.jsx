@@ -76,6 +76,10 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Long press for options.`}
+      aria-expanded={isExpanded}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
@@ -83,6 +87,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       onTouchEnd={handleMouseUp}
       onTouchMove={handleMouseUp}
       onClick={handleClick}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? handleClick() : undefined}
       className={`flex items-center gap-2.5 bg-card border rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none ${
         isExpanded ? "border-primary/50 bg-primary/5" : "border-border/50 hover:border-border"
       }`}
@@ -236,7 +241,8 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
       <div className="px-3 pb-3 flex items-center gap-1.5">
         <button
           onClick={() => { setShowEmotions(v => !v); setShowSymptoms(false); setShowTrigger(false); }}
-          title="Add emotions"
+          aria-label="Add emotions"
+          aria-expanded={showEmotions}
           className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
             showEmotions ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground border-border hover:bg-muted/50"
           }`}
@@ -247,7 +253,8 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 
         <button
           onClick={() => { setShowSymptoms(v => !v); setShowEmotions(false); setShowTrigger(false); }}
-          title="Add symptoms"
+          aria-label="Add symptoms"
+          aria-expanded={showSymptoms}
           className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
             showSymptoms ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground border-border hover:bg-muted/50"
           }`}
@@ -258,7 +265,8 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 
         <button
           onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
-          title="Mark triggered switch"
+          aria-label="Mark triggered switch"
+          aria-expanded={showTrigger}
           className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
             showTrigger
               ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
@@ -270,7 +278,7 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
         </button>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} aria-label="Close panel" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-3.5 h-3.5" />
           </button>
           <button

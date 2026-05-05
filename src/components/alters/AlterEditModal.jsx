@@ -214,7 +214,7 @@ const handleAvatarUpload = async (e) => {
             <Label>Avatar</Label>
             <div className="flex gap-2">
               <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} aria-label={uploadingAvatar ? "Uploading avatar…" : "Upload avatar image"}>
                 {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               </Button>
               <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />

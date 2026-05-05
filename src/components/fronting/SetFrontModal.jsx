@@ -45,7 +45,12 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
   const [imgError, setImgError] = useState(false);
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${selected ? "Deselect" : "Select"} ${alter.name}`}
+      aria-pressed={selected}
       onClick={onToggle}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onToggle() : undefined}
       className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
       selected ?
       "border-primary/60 bg-primary/5" :
@@ -69,7 +74,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
       {selected &&
       <button
         onClick={(e) => {e.stopPropagation();onSetPrimary();}}
-        title="Set as primary"
+        aria-label={isPrimary ? `${alter.name} is primary — click to demote` : `Set ${alter.name} as primary`}
         className={`p-1 rounded-md transition-colors ${isPrimary ? "text-amber-500" : "text-muted-foreground hover:text-amber-400"}`}>
         
           <Star className={`w-4 h-4 ${isPrimary ? "fill-amber-500" : ""}`} />
@@ -347,16 +352,13 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                         {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
                         <button
                       onClick={() => setPrimary(id)} className="text-sm hover:underline"
-
-                      title="Set as primary">
-                      
+                      aria-label={id === primaryId ? `${a.name} is primary — click to demote` : `Set ${a.name} as primary`}>
                           {a.name}
                         </button>
                         <button
                       onClick={(e) => {e.stopPropagation();toggleAlter(id);}}
-                      className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Remove">
-                      
+                      aria-label={`Remove ${a.name}`}
+                      className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
                           <X className="lucide lucide-x w-3 h-3" />
                         </button>
                       </span>);
@@ -384,23 +386,23 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             </div>
             <button
               onClick={() => setSortBy(s => s === "alpha" ? "most" : s === "most" ? "least" : "alpha")}
-              title={sortBy === "alpha" ? "Sort: A→Z" : sortBy === "most" ? "Sort: Most fronted" : "Sort: Least fronted"}
+              aria-label={sortBy === "alpha" ? "Sort: A to Z (click to change)" : sortBy === "most" ? "Sort: Most fronted (click to change)" : "Sort: Least fronted (click to change)"}
               className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
               <ArrowUpDown className="w-4 h-4" />
             </button>
-            <div className="flex gap-1 bg-muted/50 rounded-md p-1">
+            <div className="flex gap-1 bg-muted/50 rounded-md p-1" role="group" aria-label="View mode">
               <button
                 onClick={() => setViewMode("list")}
                 className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                title="List view">
-                
+                aria-label="List view"
+                aria-pressed={viewMode === "list"}>
                 <List className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                title="Grid view">
-                
+                aria-label="Grid view"
+                aria-pressed={viewMode === "grid"}>
                 <Grid3x3 className="w-4 h-4" />
               </button>
             </div>

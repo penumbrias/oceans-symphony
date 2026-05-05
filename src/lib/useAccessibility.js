@@ -1,10 +1,18 @@
-const LS_FONT_SIZE = "symphony_a11y_fontSize";
-const LS_REDUCE_MOTION = "symphony_a11y_reduceMotion";
-const LS_HIGH_CONTRAST = "symphony_a11y_highContrast";
-const LS_LARGE_TOUCH = "symphony_a11y_largeTouch";
+const LS_FONT_SIZE    = "symphony_a11y_fontSize";
+const LS_REDUCE_MOTION= "symphony_a11y_reduceMotion";
+const LS_HIGH_CONTRAST= "symphony_a11y_highContrast";
+const LS_LARGE_TOUCH  = "symphony_a11y_largeTouch";
+const LS_NAV_HEIGHT   = "symphony_a11y_navHeight";
 
-const FONT_CLASSES = ["a11y-text-sm", "a11y-text-lg", "a11y-text-xl"];
+const FONT_CLASSES  = ["a11y-text-sm", "a11y-text-lg", "a11y-text-xl"];
 const TOUCH_CLASSES = ["a11y-touch-comfortable", "a11y-touch-large"];
+
+const NAV_HEIGHTS = {
+  compact:    "44px",
+  default:    "56px",
+  tall:       "68px",
+  "extra-tall": "80px",
+};
 
 function applyFontSize(value) {
   const el = document.documentElement;
@@ -26,19 +34,26 @@ function applyLargeTouch(value) {
   if (value && value !== "default") el.classList.add(`a11y-touch-${value}`);
 }
 
+function applyNavHeight(value) {
+  const h = NAV_HEIGHTS[value] || NAV_HEIGHTS.default;
+  document.documentElement.style.setProperty("--bottom-nav-height", h);
+}
+
 export function initAccessibility() {
   applyFontSize(localStorage.getItem(LS_FONT_SIZE) || "default");
   applyReduceMotion(localStorage.getItem(LS_REDUCE_MOTION) === "true");
   applyHighContrast(localStorage.getItem(LS_HIGH_CONTRAST) === "true");
   applyLargeTouch(localStorage.getItem(LS_LARGE_TOUCH) || "default");
+  applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
 }
 
 export function getAccessibilitySettings() {
   return {
-    fontSize: localStorage.getItem(LS_FONT_SIZE) || "default",
-    reduceMotion: localStorage.getItem(LS_REDUCE_MOTION) === "true",
-    highContrast: localStorage.getItem(LS_HIGH_CONTRAST) === "true",
-    largeTouch: localStorage.getItem(LS_LARGE_TOUCH) || "default",
+    fontSize:    localStorage.getItem(LS_FONT_SIZE)    || "default",
+    reduceMotion:localStorage.getItem(LS_REDUCE_MOTION) === "true",
+    highContrast:localStorage.getItem(LS_HIGH_CONTRAST) === "true",
+    largeTouch:  localStorage.getItem(LS_LARGE_TOUCH)  || "default",
+    navHeight:   localStorage.getItem(LS_NAV_HEIGHT)   || "default",
   };
 }
 
@@ -60,4 +75,9 @@ export function setAccessibilityHighContrast(enabled) {
 export function setAccessibilityLargeTouch(value) {
   localStorage.setItem(LS_LARGE_TOUCH, value);
   applyLargeTouch(value);
+}
+
+export function setAccessibilityNavHeight(value) {
+  localStorage.setItem(LS_NAV_HEIGHT, value);
+  applyNavHeight(value);
 }

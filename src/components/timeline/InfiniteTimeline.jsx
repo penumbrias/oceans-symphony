@@ -162,8 +162,12 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
 
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={`${alter?.name}${isPrimary ? " (primary)" : ""} — tap to view session details`}
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
       onMouseDown={startPress} onMouseUp={cancelPress} onMouseLeave={cancelPress}
       onTouchStart={startPress} onTouchEnd={handleTouchEnd}>
       <div className="relative flex-shrink-0">
@@ -175,7 +179,7 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
             border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
             boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
           }}
-          title={alter?.name + (isPrimary ? " (primary)" : "")}>
+          aria-hidden="true">
           {resolvedUrl && !imgError
             ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
             : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
@@ -307,7 +311,7 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
             onClick={() => { if (!stillFronting && endTime) { const t = startTime; setStartTime(endTime); setEndTime(t); } }}
             disabled={stillFronting || !endTime}
             className="flex-shrink-0 h-8 px-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-30 text-sm"
-            title="Swap start and end times">
+            aria-label="Swap start and end times">
             ⇄
           </button>
           <div className="flex-1">
@@ -436,11 +440,15 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
   const handleTouchEnd = (e) => { touchFiredRef.current = true; onTap?.(); };
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={`${activityName || "Activity"} — tap to view details`}
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
       onTouchEnd={handleTouchEnd}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}>
       <div className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
-        style={{ width: sz, height: sz, backgroundColor: color }}>
+        style={{ width: sz, height: sz, backgroundColor: color }} aria-hidden="true">
         <span className="text-xs font-bold text-white leading-none">
           {activityName?.charAt(0)?.toUpperCase() || "A"}
         </span>
@@ -475,7 +483,13 @@ function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   const note = entry.data.note;
   const tap = useDoubleTap(onTap, onDoubleTap);
   return (
-    <div className="absolute right-0 left-0 cursor-pointer z-10 px-1" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+    <div className="absolute right-0 left-0 cursor-pointer z-10 px-1"
+      role="button"
+      tabIndex={0}
+      aria-label={`Emotion check-in${emotions.length > 0 ? `: ${emotions.slice(0, 3).join(", ")}${emotions.length > 3 ? ` and ${emotions.length - 3} more` : ""}` : ""}${note ? " — has note" : ""} — tap to view`}
+      style={{ top: topPx, userSelect: "none" }}
+      onClick={tap}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
       <div className="relative">
         {emotions.length > 0 ? (
           <div className="flex flex-col gap-px">
@@ -517,7 +531,13 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
       .sort((a, b) => (b.checkIn.severity ?? -1) - (a.checkIn.severity ?? -1))
       .slice(0, 3);
     return (
-      <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+      <div className="absolute left-1 cursor-pointer z-10"
+        role="button"
+        tabIndex={0}
+        aria-label={`Symptom check-in — tap to view`}
+        style={{ top: topPx, userSelect: "none" }}
+        onClick={tap}
+        onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
         <div className="flex flex-col gap-px" style={{ maxWidth: colWidth - 8 }}>
           {items.map(({ symptom, checkIn }, i) => {
             const color = symptom?.color || "#8b5cf6";
@@ -546,7 +566,13 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
     entry.type === 'bulletin' ? 'Bulletin' :
     (entry.label || 'Task');
   return (
-    <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+    <div className="absolute left-1 cursor-pointer z-10"
+      role="button"
+      tabIndex={0}
+      aria-label={`${shortLabel}${entry.label && entry.label !== shortLabel ? `: ${entry.label}` : ""} — tap to view`}
+      style={{ top: topPx, userSelect: "none" }}
+      onClick={tap}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
       {showLabel ? (
         <div className="flex items-center gap-1 rounded-full border shadow-sm bg-card border-border/60 px-1.5 py-0.5 hover:scale-105 transition-transform"
           style={{ maxWidth: colWidth - 8 }} title={entry.label}>

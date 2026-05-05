@@ -244,18 +244,18 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Page content ── */}
       <main
-        className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8 pb-20 sm:pb-8">
+        className="app-content-main flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8 sm:pb-8">
         
         <Outlet context={{ setShowFeatureTour }} />
       </main>
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-50 h-14 bg-background/95 backdrop-blur-xl border-t border-border/50"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
+        style={{ height: "var(--bottom-nav-height, 56px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         aria-label="Tab bar navigation">
-        
-        <div className="flex items-center justify-around h-14">
+
+        <div className="flex items-center justify-around" style={{ height: "var(--bottom-nav-height, 56px)" }}>
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.path === "/" ?

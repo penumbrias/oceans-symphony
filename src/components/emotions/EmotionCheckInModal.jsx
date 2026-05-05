@@ -179,6 +179,7 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
                       </div>
                       <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                         <button onClick={() => setSelectedAlters(prev => prev.filter(id => id !== alterId))}
+                          aria-label={`Remove ${alter?.alias || alter?.name || "alter"}`}
                           className="bg-destructive text-destructive-foreground rounded-full p-1">
                           <X className="w-3 h-3" />
                         </button>
