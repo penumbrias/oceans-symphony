@@ -92,3 +92,22 @@ body {
   animation: mentionGlow 1s ease-in-out 5;
   border-color: var(--color-primary);
 }
+
+/* WYSIWYG editor placeholder */
+.wysiwyg-content:empty::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+  font-style: italic;
+  pointer-events: none;
+}
+.wysiwyg-content blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  margin: 4px 0;
+  padding: 4px 12px;
+  color: hsl(var(--muted-foreground));
+}
+.wysiwyg-content h2 { font-size: 1.25rem; font-weight: 700; margin: 8px 0 4px; }
+.wysiwyg-content h3 { font-size: 1.05rem; font-weight: 600; margin: 6px 0 3px; }
+.wysiwyg-content ul, .wysiwyg-content ol { padding-left: 1.5em; margin: 4px 0; }
+.wysiwyg-content li { margin: 2px 0; }

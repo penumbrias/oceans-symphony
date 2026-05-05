@@ -6,12 +6,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
-import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye } from "lucide-react";
+import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye, Code } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
+import WysiwygEditor from "@/components/shared/WysiwygEditor";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
@@ -27,7 +28,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [folder, setFolder] = useState(defaultFolder || null);
-  const [editorMode, setEditorMode] = useState("simple");
+  const [editorMode, setEditorMode] = useState("plain");
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [encryptionPassword, setEncryptionPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
@@ -60,7 +61,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
       setIsEncrypted(false);
       setShowPasswordField(false);
       setFolder(defaultFolder || null);
-      setEditorMode("simple");
+      setEditorMode("plain");
     }
     setEncryptionPassword("");
     setDecryptionPassword("");
@@ -250,10 +251,16 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
                     <LayoutGrid className="w-3 h-3" /> Blocks
                   </button>
+                  <button type="button" onClick={() => setEditorMode("raw")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    <Code className="w-3 h-3" /> Raw
+                  </button>
                 </div>
               </div>
 
               {editorMode === "plain" ? (
+                <WysiwygEditor value={content} onChange={setContent} placeholder="Write your entry..." />
+              ) : editorMode === "raw" ? (
                 <div className="rounded-xl border border-input bg-background">
                   <textarea ref={taRef} value={content} onChange={e => setContent(e.target.value)}
                     placeholder="Write your entry..."
