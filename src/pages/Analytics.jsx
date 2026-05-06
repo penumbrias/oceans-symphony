@@ -26,6 +26,7 @@ import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 import SwitchLogAnalytics from "@/components/analytics/SwitchLogAnalytics";
 import CheckInAnalytics from "@/components/analytics/CheckInAnalytics";
 import PatternInsights from "@/components/analytics/PatternInsights";
+import LocationAnalytics from "@/components/analytics/LocationAnalytics";
 
 const MODES = [
   { id: "total",      label: "Total",    icon: Clock },
@@ -102,6 +103,7 @@ function SectionGrid({ terms, onSelect }) {
     { id: "switchlogs", emoji: "🔄", label: `${terms.Switch} Logs`, desc: "Triggers, symptoms, and patterns" },
     { id: "checkins", emoji: "✅", label: `${terms.System} Meetings`, desc: "Frequency and member insights" },
     { id: "patterns", emoji: "🔍", label: "Patterns & Insights", desc: "Cross-system correlations and trends" },
+    { id: "locations", emoji: "📍", label: "Locations", desc: "Where you go and patterns by place" },
   ];
 
   return (
@@ -240,6 +242,7 @@ export default function Analytics() {
     switchlogs: `${terms.Switch} Logs`,
     checkins: `${terms.System} Meetings`,
     patterns: "Patterns & Insights",
+    locations: "Locations",
   };
 
   return (
@@ -426,6 +429,11 @@ export default function Analytics() {
       {/* ── CHECK-INS ── */}
       {activeSection === "checkins" && (
         <CheckInAnalytics checkIns={systemCheckIns} alters={alters} from={from} to={to} />
+      )}
+
+      {/* ── LOCATIONS ── */}
+      {activeSection === "locations" && (
+        <LocationAnalytics from={from} to={to} />
       )}
 
       {/* ── PATTERNS & INSIGHTS ── */}

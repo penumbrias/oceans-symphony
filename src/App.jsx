@@ -34,6 +34,7 @@ import Reminders from '@/pages/Reminders';
 import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
 import SystemHistory from '@/pages/SystemHistory';
+import LocationHistory from '@/pages/LocationHistory';
 import { isEncryptionEnabled } from '@/lib/storageMode';
 import { initAccessibility } from '@/lib/useAccessibility';
 
@@ -87,6 +88,7 @@ const AuthenticatedApp = () => {
         <Route path="/polls" element={<Polls />} />
         <Route path="/checkin-log" element={<CheckInLog />} />
         <Route path="/system-history" element={<SystemHistory />} />
+        <Route path="/location-history" element={<LocationHistory />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

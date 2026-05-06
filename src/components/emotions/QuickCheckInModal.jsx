@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
+import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle } from "lucide-react";
+import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -33,7 +34,8 @@ const PILLS = [
 { id: "activity", label: "Activity", icon: Zap },
 { id: "symptoms", label: "Symptoms / Habits", icon: Activity },
 { id: "diary", label: "Diary", icon: BookOpen },
-{ id: "note", label: "Note", icon: FileText }];
+{ id: "note", label: "Note", icon: FileText },
+{ id: "location", label: "Location", icon: MapPin }];
 
 
 export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null, retroTimestamp = null }) {
@@ -70,6 +72,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   // Saving
   const [saving, setSaving] = useState(false);
   const [showGroundingPrompt, setShowGroundingPrompt] = useState(false);
+  // Location
+  const [locationName, setLocationName] = useState("");
+  const [locationCategory, setLocationCategory] = useState("");
+  const [locationLat, setLocationLat] = useState(null);
+  const [locationLng, setLocationLng] = useState(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   // datetime-local input value — defaults to retroTimestamp or now
   const toDatetimeLocal = (iso) => {
@@ -176,6 +184,21 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setShowSupportPrompt(false);
     initialFrontRef.current = { primaryId: "", coFronterIds: [] };
     symptomGetterRef.current = null;
+    setLocationName("");
+    setLocationCategory("");
+    setLocationLat(null);
+    setLocationLng(null);
+    setGpsLoading(false);
+  };
+
+  const handleGPS = () => {
+    if (!navigator.geolocation) { toast.error("GPS not available on this device"); return; }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLocationLat(pos.coords.latitude); setLocationLng(pos.coords.longitude); setGpsLoading(false); toast.success("Location captured"); },
+      (err) => { toast.error("Could not get location: " + err.message); setGpsLoading(false); },
+      { timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   // Derived: all selected alter IDs
@@ -394,6 +417,19 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       }
 
       queryClient.invalidateQueries({ queryKey: ["activities"] });
+
+      // Location
+      if (openSections.has("location") && (locationName.trim() || locationCategory)) {
+        await localEntities.Location.create({
+          timestamp: now,
+          name: locationName.trim() || getCategoryMeta(locationCategory).label,
+          category: locationCategory || "other",
+          latitude: locationLat ?? null,
+          longitude: locationLng ?? null,
+          source: locationLat != null ? "gps" : "manual",
+        });
+        queryClient.invalidateQueries({ queryKey: ["locations"] });
+      }
 
       const hasDistress = selectedEmotions.some(e => isDistressingEmotion(e));
       if (journalSwitch && frontingActuallyChanged) {
@@ -674,6 +710,52 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             }
             </div>
           }
+
+          {/* Location */}
+          {openSections.has("location") && (
+            <div className="border border-border/50 rounded-xl p-3 space-y-3">
+              <p className="text-sm font-medium">Where are you?</p>
+              <div className="flex flex-wrap gap-1.5">
+                {LOCATION_CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setLocationCategory(cat.id === locationCategory ? "" : cat.id)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all"
+                    style={
+                      locationCategory === cat.id
+                        ? { backgroundColor: cat.color, borderColor: cat.color, color: "#fff" }
+                        : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
+                    }
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={locationName}
+                  onChange={e => setLocationName(e.target.value)}
+                  placeholder={locationCategory ? getCategoryMeta(locationCategory).label : "Place name (optional)..."}
+                  className="flex-1 h-8 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleGPS}
+                  disabled={gpsLoading}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-colors disabled:opacity-50 flex-shrink-0 ${
+                    locationLat != null
+                      ? "border-green-500/60 bg-green-500/10 text-green-600 dark:text-green-400"
+                      : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                  }`}
+                >
+                  {gpsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+                  {locationLat != null ? "✓" : "GPS"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Fixed footer */}

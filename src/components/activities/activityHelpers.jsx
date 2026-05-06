@@ -53,6 +53,16 @@ export function getAlterIdsForSlot(date, hour, minute, intervalMinutes, fronting
   return [...ids];
 }
 
+export function getLocationsForSlot(date, hour, minute, intervalMinutes, locationRecords) {
+  const slotStart = new Date(date);
+  slotStart.setHours(hour, minute, 0, 0);
+  const slotEnd = new Date(slotStart.getTime() + intervalMinutes * 60 * 1000);
+  return locationRecords.filter(loc => {
+    const t = parseDate(loc.timestamp);
+    return t >= slotStart && t < slotEnd;
+  });
+}
+
 export function getEmotionsForSlot(date, hour, minute, intervalMinutes, activities, emotionCheckIns) {
   const slotStart = new Date(date);
   slotStart.setHours(hour, minute, 0, 0);

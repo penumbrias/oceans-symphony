@@ -12,9 +12,10 @@ import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterS
 import { SymptomBar, SymptomDetailModal } from "@/components/timeline/SymptomBar";
 import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+import { getCategoryMeta } from "@/lib/locationCategories";
 
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32 };
+const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32, locationCol: 44 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
 const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
 
@@ -104,7 +105,7 @@ function StatusNoteBadge({ note, topPx, id }) {
   const [open, setOpen] = React.useState(false);
   return (
     <>
-      <div className="absolute z-10 flex items-start pointer-events-none" style={{ top: topPx, left: LABEL_WIDTH, userSelect: "none" }} data-status-id={id}>
+      <div className="absolute z-10 flex items-start pointer-events-none" style={{ top: topPx, left: LABEL_WIDTH - 22, userSelect: "none" }} data-status-id={id}>
         <div className="mx-1 flex items-center gap-1" style={{ fontSize: 9 }}>
           {/* Only the icon is clickable — rest is pointer-events-none so alters behind are tappable */}
           <button
@@ -518,6 +519,29 @@ function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   );
 }
 
+function LocationBubble({ entry, topPx, colWidth, onTap }) {
+  const cat = getCategoryMeta(entry.data.category);
+  return (
+    <div
+      className="absolute right-0 left-0 cursor-pointer z-10 px-1"
+      role="button"
+      tabIndex={0}
+      aria-label={`${entry.data.name || cat.label} — tap to view`}
+      style={{ top: topPx, userSelect: "none" }}
+      onClick={onTap}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
+    >
+      <div className="flex items-center gap-0.5 overflow-hidden" title={entry.data.name || cat.label}>
+        <div className="rounded-full flex-shrink-0 border border-background"
+          style={{ width: 7, height: 7, backgroundColor: cat.color }} />
+        <span className="font-medium truncate" style={{ fontSize: 9, color: cat.color, maxWidth: "100%", lineHeight: "1.1" }}>
+          {entry.data.name || cat.label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
   const meta = TYPE_META[entry.type] || { icon: "•" };
@@ -597,6 +621,7 @@ export default function InfiniteTimeline({
   showSymptoms = true,
   symptomSessions = [], symptomCheckIns = [], symptoms = [],
   categories = [],
+  locations = [], showLocations = true,
 }) {
   const queryClient = useQueryClient();
 
@@ -842,6 +867,17 @@ export default function InfiniteTimeline({
       .sort((a, b) => a.mins - b.mins);
   }, [emotions, dayStart]);
 
+  const locationEntries = useMemo(() => {
+    if (!showLocations) return [];
+    return locations
+      .map((loc, i) => {
+        const mins = minutesInDay(parseDate(loc.timestamp), dayStart);
+        return { mins, type: "location", id: loc.id, data: loc, key: `loc-${i}-${loc.id}` };
+      })
+      .filter(e => e.mins >= 0 && e.mins < 24 * 60)
+      .sort((a, b) => a.mins - b.mins);
+  }, [locations, showLocations, dayStart]);
+
   const eventEntries = useMemo(() => {
     const inDay = (mins) => mins >= 0 && mins < 24 * 60;
     const entries = [];
@@ -910,6 +946,16 @@ export default function InfiniteTimeline({
     });
   }, [emotionEntries, getTopPx]);
 
+  const locationPositioned = useMemo(() => {
+    let minNext = -Infinity;
+    return locationEntries.map((entry) => {
+      const raw = getTopPx(entry.mins);
+      const top = Math.max(raw, minNext);
+      minNext = top + MIN_EMOTION_GAP;
+      return { ...entry, adjustedTop: top };
+    });
+  }, [locationEntries, getTopPx]);
+
   const eventPositioned = useMemo(() => {
     let minNext = -Infinity;
     return eventEntries.map((entry) => {
@@ -964,13 +1010,15 @@ export default function InfiniteTimeline({
 
   const eventColWidth_actual = showCheckIns && eventEntries.length > 0 ? eventColWidth : 0;
   const emotionColWidth_actual = showEmotions && emotionEntries.length > 0 ? emotionColWidth : 0;
+  const locationColWidth_actual = showLocations && locationEntries.length > 0 ? colWidths.locationCol : 0;
 
-  // New column order: [time label | alters | symptoms | events | emotions | activities]
+  // Column order: [time label | alters | symptoms | events | emotions | locations | activities]
   const alterLeft = LABEL_WIDTH;
   const symptomLeft = alterLeft + alterAreaWidth;
   const eventColLeft = symptomLeft + symptomAreaWidth;
   const emotionColLeft = eventColLeft + eventColWidth_actual;
-  const activityLeft = emotionColLeft + emotionColWidth_actual;
+  const locationColLeft = emotionColLeft + emotionColWidth_actual;
+  const activityLeft = locationColLeft + locationColWidth_actual;
   const totalWidth = activityLeft + activityAreaWidth;
   const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
 
@@ -1203,7 +1251,7 @@ export default function InfiniteTimeline({
                       {isCurrentHour && (
                         <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
                       )}
-                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-1 text-right" style={{ width: LABEL_WIDTH }}>
+                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
                         {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
                       </div>
                       <div className="flex-1 border-t border-border/30 mt-2" />
@@ -1265,6 +1313,10 @@ export default function InfiniteTimeline({
                 {emotionColWidth_actual > 0 && (
                   <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
                     style={{ left: emotionColLeft, height: totalHeight }} />
+                )}
+                {locationColWidth_actual > 0 && (
+                  <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
+                    style={{ left: locationColLeft, height: totalHeight }} />
                 )}
                 {numActivityCols > 0 && (
                   <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
@@ -1331,6 +1383,20 @@ export default function InfiniteTimeline({
                         colWidth={emotionColWidth_actual}
                         onTap={() => setDetailPopup({ type: "emotion", entry })}
                         onDoubleTap={() => navigate(`/checkin-log?id=${entry.id}`)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {locationColWidth_actual > 0 && (
+                  <div className="absolute" style={{ left: locationColLeft, top: 0, width: locationColWidth_actual, height: totalHeight }}>
+                    {locationPositioned.map((entry) => (
+                      <LocationBubble
+                        key={entry.key}
+                        entry={entry}
+                        topPx={entry.adjustedTop}
+                        colWidth={locationColWidth_actual}
+                        onTap={() => setDetailPopup({ type: "location", entry })}
                       />
                     ))}
                   </div>
@@ -1503,6 +1569,20 @@ export default function InfiniteTimeline({
             )}
             {note && <p className="text-sm text-foreground whitespace-pre-wrap">{note}</p>}
             {emotions.length === 0 && !note && <p className="text-xs text-muted-foreground italic">No details</p>}
+          </DetailPopup>
+        );
+      })()}
+
+      {detailPopup?.type === "location" && (() => {
+        const { entry } = detailPopup;
+        const cat = getCategoryMeta(entry.data.category);
+        const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+        return (
+          <DetailPopup icon={cat.emoji} timeStr={timeStr} onClose={() => setDetailPopup(null)}>
+            <p className="text-sm font-semibold">{entry.data.name || cat.label}</p>
+            <p className="text-xs mt-0.5" style={{ color: cat.color }}>{cat.label}</p>
+            {entry.data.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{entry.data.notes}</p>}
+            {entry.data.source === "gps" && <p className="text-xs text-green-500 mt-1">📍 GPS location</p>}
           </DetailPopup>
         );
       })()}
