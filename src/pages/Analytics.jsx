@@ -250,6 +250,19 @@ export default function Analytics() {
     return result;
   }, [rawAlterMap, absorptionMap]);
 
+  // Remap absorbed alter IDs in sessions so TimeOfDayFronters attributes
+  // pre-fusion sessions to the persistent alter, not the absorbed one
+  const foldedSessions = useMemo(() => {
+    if (!Object.keys(absorptionMap).length) return filtered;
+    return filtered.map(s => {
+      const newAlterId = absorptionMap[s.alter_id] || s.alter_id;
+      const newPrimaryId = absorptionMap[s.primary_alter_id] || s.primary_alter_id;
+      const newCoFronters = (s.co_fronter_ids || []).map(id => absorptionMap[id] || id);
+      if (newAlterId === s.alter_id && newPrimaryId === s.primary_alter_id) return s;
+      return { ...s, alter_id: newAlterId, primary_alter_id: newPrimaryId, co_fronter_ids: newCoFronters };
+    });
+  }, [filtered, absorptionMap]);
+
   const rows = useMemo(() => {
     return Object.values(alterMap)
       .filter((d) => d.count > 0 && (showArchived || !d.alter.is_archived))
@@ -425,7 +438,7 @@ export default function Analytics() {
           )}
 
           {topTab === "timeofday" && (
-            <TimeOfDayFronters sessions={filtered} alters={showArchived ? alters : alters.filter(a => !a.is_archived)} />
+            <TimeOfDayFronters sessions={foldedSessions} alters={showArchived ? alters : alters.filter(a => !a.is_archived)} />
           )}
         </div>
       )}
