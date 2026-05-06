@@ -731,7 +731,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Record System Event</DialogTitle>
         </DialogHeader>
