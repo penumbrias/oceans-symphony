@@ -50,6 +50,7 @@ export default function FloatingGroundingButton() {
       if (!moved && Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
         moved = true;
         setIsDragging(true);
+        document.body.style.overflow = "hidden";
       }
       if (moved) {
         ev.preventDefault();
@@ -67,6 +68,7 @@ export default function FloatingGroundingButton() {
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onUp);
+      document.body.style.overflow = "";
       setIsDragging(false);
 
       if (moved) {
