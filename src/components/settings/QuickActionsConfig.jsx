@@ -206,10 +206,12 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
   const actionTypes = [
     { id: "open_checkin_section", label: "Open Check-In at a specific section" },
     { id: "open_set_front", label: `Open Set ${terms.Front}ers modal` },
-    { id: "set_front_alter", label: `Set a specific ${terms.alter} to ${terms.front}` },
+    { id: "set_front_alter", label: `Set a specific ${terms.alter} as ${terms.front} (replaces current)` },
+    { id: "add_to_front_alter", label: `Add a specific ${terms.alter} to ${terms.front} (keeps current)` },
     { id: "log_activity", label: "Log an activity" },
     { id: "log_symptom", label: "Log a symptom or habit" },
     { id: "log_emotion", label: "Log an emotion" },
+    { id: "log_diary", label: "Log a diary entry" },
     { id: "log_location", label: "Log a location" },
   ];
 
@@ -225,6 +227,11 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
       const a = activeAlters.find(a => a.id === data.config?.alter_id);
       return a?.name || "Set fronter";
     }
+    if (data.type === "add_to_front_alter") {
+      const a = activeAlters.find(a => a.id === data.config?.alter_id);
+      return a?.name || "Add to front";
+    }
+    if (data.type === "log_diary") return "Diary entry";
     if (data.type === "log_activity") {
       const c = activityCategories.find(c => c.id === data.config?.category_id);
       return c?.name || "Activity";
@@ -247,7 +254,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
   };
 
   const handleSave = () => {
-    if (data.type === "set_front_alter" && !data.config?.alter_id) { toast.error(`Choose an ${terms.alter}`); return; }
+    if ((data.type === "set_front_alter" || data.type === "add_to_front_alter") && !data.config?.alter_id) { toast.error(`Choose an ${terms.alter}`); return; }
     if (data.type === "log_activity" && !data.config?.category_id) { toast.error("Choose an activity category"); return; }
     if (data.type === "open_checkin_section" && !data.config?.section) { toast.error("Choose a section"); return; }
     if (data.type === "log_symptom" && !data.config?.symptom_id) { toast.error("Choose a symptom"); return; }
@@ -265,7 +272,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
         </select>
       </div>
 
-      {data.type === "set_front_alter" && (
+      {(data.type === "set_front_alter" || data.type === "add_to_front_alter") && (
         <div>
           <Label className="text-xs font-medium mb-1 block">Which {terms.alter}?</Label>
           <select value={data.config?.alter_id || ""} onChange={e => setConfig("alter_id", e.target.value)}
@@ -391,10 +398,12 @@ export default function QuickActionsConfig() {
   const typeLabel = type => ({
     open_checkin: "Open full Check-In",
     open_checkin_section: "Open at section",
-    set_front_alter: `Set ${terms.alter} to ${terms.front}`,
+    set_front_alter: `Set ${terms.alter} (replaces)`,
+    add_to_front_alter: `Add ${terms.alter} to ${terms.front}`,
     log_activity: "Log activity",
     log_symptom: "Log symptom",
     log_emotion: "Log emotion",
+    log_diary: "Log diary entry",
     log_location: "Log location",
     open_set_front: `Open Set ${terms.Front}ers`,
   }[type] || type);

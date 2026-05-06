@@ -3,8 +3,9 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, MapPin, Loader2 } from "lucide-react";
+import { Plus, MapPin, Loader2, UserPlus, RefreshCw } from "lucide-react";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
+import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 
 const SECTION_LABELS = {
   feeling: "Feeling / Emotions",
@@ -17,28 +18,58 @@ const SECTION_LABELS = {
 };
 
 function SymptomRow({ action, symptom, onAction }) {
+  const [checked, setChecked] = useState(false);
+  const [severity, setSeverity] = useState(null);
   const color = symptom.color || "#8B5CF6";
+  const isRating = symptom.type === "rating";
+  const LABELS = ["—", "0", "1", "2", "3", "4", "5"];
+
+  const handleSeverity = (idx) => {
+    if (idx === 0) { setSeverity(null); setChecked(false); return; }
+    const val = idx - 1;
+    setSeverity(val);
+    setChecked(true);
+  };
+
+  const handleLog = () => {
+    setChecked(true);
+    onAction(action, { severity });
+  };
+
   return (
-    <div className="px-4 py-3 bg-card border border-border/50 rounded-2xl shadow-sm space-y-2.5">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium flex-1 text-foreground">{symptom.label}</span>
-        <button onClick={() => onAction(action, {})}
-          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border transition-all"
-          style={{ borderColor: color, color }} title="Log without severity">
-          <Plus className="w-3.5 h-3.5" />
-        </button>
+    <div className="flex items-center gap-2 px-3 py-2 bg-card rounded-xl border transition-all shadow-sm"
+      style={{ borderColor: checked ? color : "hsl(var(--border))", backgroundColor: checked ? `${color}15` : "hsl(var(--card))" }}>
+      <button onClick={() => setChecked(c => !c)}
+        className="w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors"
+        style={{ borderColor: checked ? color : "hsl(var(--border))", backgroundColor: checked ? color : "transparent" }}>
+        {checked && <div className="w-2 h-2 rounded-sm bg-white" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{symptom.label}</p>
+        {isRating && (
+          <div className="flex gap-1 mt-1">
+            {LABELS.map((lbl, idx) => {
+              const sel = idx === 0 ? severity === null : severity === idx - 1;
+              return (
+                <button key={idx} onClick={() => handleSeverity(idx)}
+                  className="w-6 h-6 rounded text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: sel ? (idx === 0 ? `${color}30` : color) : "hsl(var(--muted))",
+                    color: sel ? (idx === 0 ? color : "#fff") : "hsl(var(--muted-foreground))"
+                  }}>
+                  {lbl}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
-      <div className="flex gap-1.5">
-        {[1, 2, 3, 4, 5].map(n => (
-          <button key={n} onClick={() => onAction(action, { severity: n })}
-            className="flex-1 h-8 rounded-lg text-xs font-semibold border transition-colors active:opacity-70"
-            style={{ borderColor: `${color}60`, color, backgroundColor: "transparent" }}
-            onPointerEnter={e => { e.currentTarget.style.backgroundColor = color; e.currentTarget.style.color = "#fff"; }}
-            onPointerLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = color; }}>
-            {n}
-          </button>
-        ))}
-      </div>
+      <button onClick={handleLog}
+        className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all border"
+        style={{ borderColor: color, backgroundColor: "transparent", color }}
+        title="Log">
+        <Plus className="w-3 h-3" />
+      </button>
     </div>
   );
 }
@@ -66,10 +97,38 @@ function EmotionRow({ action, onAction }) {
 function AlterRow({ action, alter, onAction }) {
   return (
     <button onClick={() => onAction(action)}
-      className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-muted/50 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
-      <span>👤</span>
-      <span>{alter.name}</span>
+      className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-primary/5 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
+      <RefreshCw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+      <span className="flex-1">{alter.name}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-md">Set</span>
     </button>
+  );
+}
+
+function AddToFrontRow({ action, alter, onAction }) {
+  return (
+    <button onClick={() => onAction(action)}
+      className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-green-500/5 border border-border/50 hover:border-green-500/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
+      <UserPlus className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+      <span className="flex-1">{alter.name}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-green-600/80 bg-green-500/10 px-1.5 py-0.5 rounded-md">Add</span>
+    </button>
+  );
+}
+
+function DiaryRow({ action, onAction }) {
+  const [diaryData, setDiaryData] = useState({});
+  const hasData = hasDiaryData(diaryData);
+  return (
+    <div className="px-4 py-3 bg-card border border-border/50 rounded-2xl shadow-sm space-y-3">
+      <DiarySection data={diaryData} onChange={(groupKey, value) => setDiaryData(prev => ({ ...prev, [groupKey]: value }))} />
+      <button
+        onClick={() => onAction(action, { diaryData })}
+        disabled={!hasData}
+        className="w-full h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90">
+        Log Diary Entry
+      </button>
+    </div>
   );
 }
 
@@ -181,6 +240,13 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
         if (!alter) return null;
         return <AlterRow key={action.id} action={action} alter={alter} onAction={onAction} />;
       }
+      case "add_to_front_alter": {
+        const alter = alters.find(a => a.id === action.config?.alter_id);
+        if (!alter) return null;
+        return <AddToFrontRow key={action.id} action={action} alter={alter} onAction={onAction} />;
+      }
+      case "log_diary":
+        return <DiaryRow key={action.id} action={action} onAction={onAction} />;
       case "log_location":
         return <LocationRow key={action.id} action={action} onAction={onAction} />;
       case "open_checkin_section":
