@@ -297,21 +297,19 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-sm font-medium text-foreground">Notes — Optional</label>
-              {notes.trim() && (
-                <button
-                  type="button"
-                  onClick={() => setSaveAsDream(v => !v)}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all",
-                    saveAsDream
-                      ? "border-violet-500/60 bg-violet-500/10 text-violet-500"
-                      : "border-border text-muted-foreground hover:border-border/80"
-                  )}
-                >
-                  <BookOpen className="w-3 h-3" />
-                  {saveAsDream ? "Saving to Dream Journal" : "Save to Dream Journal"}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setSaveAsDream(v => !v)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all",
+                  saveAsDream
+                    ? "border-violet-500/60 bg-violet-500/10 text-violet-500"
+                    : "border-border text-muted-foreground hover:border-border/80"
+                )}
+              >
+                <BookOpen className="w-3 h-3" />
+                {saveAsDream ? "Saving to Dream Journal" : "Save to Dream Journal"}
+              </button>
             </div>
             <Textarea
               value={notes}
