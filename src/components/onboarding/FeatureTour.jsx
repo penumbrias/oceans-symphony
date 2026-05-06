@@ -332,7 +332,7 @@ function buildSteps(t) {
       section: "activities", sectionLabel: "Activities",
       emoji: "🏃",
       title: "Activity Tracking",
-      body: `Log any activity — exercise, creative work, social interaction, self-care — with a category, duration, and optional notes. Activities appear on the Timeline, in the Therapy Report, and in the Activities analytics section.`,
+      body: `Log any activity — exercise, creative work, social interaction, self-care — with an optional category, duration, and notes. Activities appear on the Timeline, in the Therapy Report, and in the Activities analytics section.`,
       route: "/activities", target: "activities-log",
       look: `the activity list and the "Log Activity" button`, action: null,
     },
@@ -340,9 +340,9 @@ function buildSteps(t) {
       section: "activities", sectionLabel: "Activities",
       emoji: "⏱️",
       title: "Categories & Analytics",
-      body: `Each activity has a category and a duration in minutes. The Activities analytics section breaks this down into frequency charts, time-spent-per-category trends, and an ${t.Alter} × Activity matrix showing which ${t.alters} tend to do which activities.`,
+      body: `Activities can optionally have a category and duration in minutes — neither is required. When you do add them, the Activities analytics section breaks it down into frequency charts, time-spent-per-category trends, and an ${t.Alter} × Activity matrix showing which ${t.alters} tend to do which activities.`,
       route: "/activities", target: null,
-      look: `the category dropdown and duration field when logging — then check Analytics → Activities`, action: null,
+      look: `the optional category dropdown and duration field when logging — then check Analytics → Activities`, action: null,
     },
 
     // ─── POLLS ──────────────────────────────────────────────────────────────
@@ -586,9 +586,9 @@ function buildSteps(t) {
       section: "settings", sectionLabel: "Settings",
       emoji: "🔒",
       title: "Data & Privacy",
-      body: `Enable local-only mode to keep all data on-device with AES-256 encryption — nothing is sent to any server. Export a full JSON backup of all your data, or import one to restore. Connect your Simply Plural account to sync ${t.alter} profiles. All data is always yours and fully exportable.`,
+      body: `All data is stored locally on your device by default — nothing is sent to any server. You can optionally enable password encryption (AES-256) to protect your data behind a passphrase. Export a full JSON backup of all your data, or import one to restore. Connect your Simply Plural account to sync ${t.alter} profiles. Your data is always yours and fully exportable.`,
       route: "/settings", target: null,
-      look: `expand "Data & Privacy" — local mode toggle, backup/restore buttons, and Simply Plural connect`, action: null,
+      look: `expand "Data & Privacy" — the password encryption toggle, backup/restore buttons, and Simply Plural connect`, action: null,
     },
 
     // ─── DONE ───────────────────────────────────────────────────────────────
