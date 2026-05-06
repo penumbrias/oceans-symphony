@@ -122,7 +122,6 @@ export default function Dashboard() {
   }
 
   const [emotionModalInitialSection, setEmotionModalInitialSection] = useState(null);
-  const [pendingSymptomLog, setPendingSymptomLog] = useState(null);
 
   // Live clock — updates every minute
   const [now, setNow] = useState(() => new Date());
@@ -189,15 +188,12 @@ export default function Dashboard() {
     }
   };
 
-  const executeQuickAction = async (action) => {
+  const executeQuickAction = async (action, extraData = {}) => {
     showQuickActionsRef.current = false;
     setShowQuickActions(false);
     const now = new Date().toISOString();
 
-    if (action.type === "open_checkin") {
-      setEmotionModalInitialSection(null);
-      setShowEmotionModal(true);
-    } else if (action.type === "open_checkin_section") {
+    if (action.type === "open_checkin_section") {
       setEmotionModalInitialSection(action.config?.section || null);
       setShowEmotionModal(true);
     } else if (action.type === "open_set_front") {
@@ -226,22 +222,27 @@ export default function Dashboard() {
         timestamp: now,
       });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
-      toast.success(`${action.label || cat?.name || "Activity"} logged`);
+      toast.success(`${cat?.name || "Activity"} logged`);
     } else if (action.type === "log_symptom") {
       const { symptom_id } = action.config || {};
       if (!symptom_id) return;
-      setPendingSymptomLog({ symptom_id, label: action.label });
+      await base44.entities.SymptomCheckIn.create({
+        symptom_id,
+        severity: extraData.severity ?? null,
+        timestamp: now,
+      });
+      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      toast.success("Logged");
     } else if (action.type === "log_emotion") {
-      const { emotion_label, intensity } = action.config || {};
+      const { emotion_label } = action.config || {};
       if (!emotion_label) return;
       await base44.entities.EmotionCheckIn.create({
         timestamp: now,
         emotions: [emotion_label],
         fronting_alter_ids: frontingAlterIds,
-        ...(intensity ? { note: `Intensity: ${intensity}/10` } : {}),
       });
       queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-      toast.success(`${action.label || emotion_label} logged`);
+      toast.success(`${emotion_label} logged`);
     }
   };
 
@@ -340,68 +341,6 @@ export default function Dashboard() {
         alters={alters}
         currentFronterIds={frontingAlterIds}
         initialSection={emotionModalInitialSection} />
-
-      {/* Severity prompt for log_symptom quick actions */}
-      <AnimatePresence>
-        {pendingSymptomLog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
-            onClick={() => setPendingSymptomLog(null)}
-          >
-            <motion.div
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
-              transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm mx-4 mb-8 bg-card border border-border/50 rounded-2xl p-5 shadow-xl"
-            >
-              <p className="text-sm font-semibold text-foreground mb-1">{pendingSymptomLog.label}</p>
-              <p className="text-xs text-muted-foreground mb-4">How severe? Tap a level or skip.</p>
-              <div className="flex gap-2 mb-3">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    onClick={async () => {
-                      const ts = new Date().toISOString();
-                      await base44.entities.SymptomCheckIn.create({
-                        symptom_id: pendingSymptomLog.symptom_id,
-                        severity: n,
-                        timestamp: ts,
-                      });
-                      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
-                      toast.success(`${pendingSymptomLog.label} logged (severity ${n})`);
-                      setPendingSymptomLog(null);
-                    }}
-                    className="flex-1 h-11 rounded-xl border border-border/50 bg-muted/30 hover:bg-primary/10 hover:border-primary/50 text-sm font-semibold transition-colors"
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={async () => {
-                  const ts = new Date().toISOString();
-                  await base44.entities.SymptomCheckIn.create({
-                    symptom_id: pendingSymptomLog.symptom_id,
-                    severity: null,
-                    timestamp: ts,
-                  });
-                  queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
-                  toast.success(`${pendingSymptomLog.label} logged`);
-                  setPendingSymptomLog(null);
-                }}
-                className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 transition-colors"
-              >
-                Skip severity
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
     </motion.div>);
 

@@ -18,18 +18,8 @@ const CHECKIN_SECTIONS = [
   { id: "location", label: "Location" },
 ];
 
-const DEFAULT_EMOJIS = {
-  open_checkin: "💜",
-  open_checkin_section: "📍",
-  set_front_alter: "👤",
-  log_activity: "⚡",
-  log_symptom: "🩺",
-  log_emotion: "😊",
-  open_set_front: "🔄",
-};
-
 function blankForm() {
-  return { label: "", type: "open_checkin_section", emoji: "", config: {} };
+  return { label: "", type: "open_checkin_section", emoji: null, config: {} };
 }
 
 function ActivityCategoryPicker({ categories, selectedId, onChange }) {
@@ -147,39 +137,35 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     setData((d) => ({ ...d, config: { ...d.config, [key]: value } }));
   };
 
-  const applySuggestion = () => {
-    if (data.label.trim()) return;
-    let suggestion = "";
-    if (data.type === "set_front_alter" && data.config?.alter_id) {
-      const a = activeAlters.find((a) => a.id === data.config.alter_id);
-      if (a) suggestion = `Set ${terms.front}: ${a.name}`;
-    } else if (data.type === "log_activity" && data.config?.category_id) {
-      const c = sortedCategories.find((c) => c.id === data.config.category_id);
-      if (c) suggestion = `Log: ${c.name}`;
-    } else if (data.type === "open_checkin_section" && data.config?.section) {
-      const s = CHECKIN_SECTIONS.find((s) => s.id === data.config.section);
-      if (s) suggestion = `Check-In: ${s.label}`;
-    } else if (data.type === "log_symptom" && data.config?.symptom_id) {
-      const s = activeSymptoms.find((s) => s.id === data.config.symptom_id);
-      if (s) suggestion = `Log: ${s.label}`;
-    } else if (data.type === "log_emotion" && data.config?.emotion_label) {
-      suggestion = `Log: ${data.config.emotion_label}`;
-    } else if (data.type === "open_set_front") {
-      suggestion = `Open Set ${terms.Front}ers`;
-    } else if (data.type === "open_checkin") {
-      suggestion = "Quick Check-In";
+  const derivedLabel = () => {
+    if (data.type === "set_front_alter") {
+      const a = activeAlters.find((a) => a.id === data.config?.alter_id);
+      return a?.name || "Set fronter";
     }
-    if (suggestion) setData((d) => ({ ...d, label: suggestion }));
+    if (data.type === "log_activity") {
+      const c = activityCategories.find((c) => c.id === data.config?.category_id);
+      return c?.name || "Activity";
+    }
+    if (data.type === "open_checkin_section") {
+      const s = CHECKIN_SECTIONS.find((s) => s.id === data.config?.section);
+      return s?.label || "Check-In section";
+    }
+    if (data.type === "log_symptom") {
+      const s = activeSymptoms.find((s) => s.id === data.config?.symptom_id);
+      return s?.label || "Symptom";
+    }
+    if (data.type === "log_emotion") return data.config?.emotion_label || "Emotion";
+    if (data.type === "open_set_front") return `Set ${terms.Front}ers`;
+    return data.type;
   };
 
   const handleSave = () => {
-    if (!data.label.trim()) { toast.error("Add a label"); return; }
     if (data.type === "set_front_alter" && !data.config?.alter_id) { toast.error(`Choose an ${terms.alter}`); return; }
     if (data.type === "log_activity" && !data.config?.category_id) { toast.error("Choose an activity category"); return; }
     if (data.type === "open_checkin_section" && !data.config?.section) { toast.error("Choose a section"); return; }
     if (data.type === "log_symptom" && !data.config?.symptom_id) { toast.error("Choose a symptom"); return; }
     if (data.type === "log_emotion" && !data.config?.emotion_label?.trim()) { toast.error("Enter an emotion"); return; }
-    onSave(data);
+    onSave({ ...data, label: derivedLabel(), emoji: null });
   };
 
   return (
@@ -348,30 +334,6 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
           </div>
         </div>
       )}
-
-      {/* Label */}
-      <div>
-        <Label className="text-xs font-medium mb-1 block">Button label</Label>
-        <Input
-          value={data.label}
-          onChange={(e) => setData((d) => ({ ...d, label: e.target.value }))}
-          onFocus={applySuggestion}
-          placeholder="e.g. Log shower, Check in emotions…"
-          className="h-8 text-sm"
-        />
-      </div>
-
-      {/* Emoji */}
-      <div>
-        <Label className="text-xs font-medium mb-1 block">Emoji (optional)</Label>
-        <Input
-          value={data.emoji}
-          onChange={(e) => setData((d) => ({ ...d, emoji: e.target.value }))}
-          placeholder={DEFAULT_EMOJIS[data.type] || "⚡"}
-          className="h-8 text-sm w-24"
-          maxLength={2}
-        />
-      </div>
 
       <div className="flex gap-2">
         <Button size="sm" onClick={handleSave} className="gap-1">
