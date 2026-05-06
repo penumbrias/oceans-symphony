@@ -2,17 +2,18 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { format, differenceInYears, differenceInMonths, differenceInDays } from "date-fns";
-import { GitMerge, Split, MoonStar, Sunrise, Plus, ArrowRight, Trash2, CalendarDays, Pencil, Check, X } from "lucide-react";
+import { GitMerge, Split, MoonStar, Sunrise, Sparkles, Plus, ArrowRight, Trash2, CalendarDays, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal";
 
 const TYPE_META = {
-  fusion:   { label: "Fusion",   icon: GitMerge, color: "text-violet-500", bg: "bg-violet-500/10 border-violet-500/20", dot: "bg-violet-500" },
-  split:    { label: "Split",    icon: Split,    color: "text-blue-500",   bg: "bg-blue-500/10 border-blue-500/20",     dot: "bg-blue-500" },
-  dormancy: { label: "Dormancy", icon: MoonStar, color: "text-indigo-500", bg: "bg-indigo-500/10 border-indigo-500/20", dot: "bg-indigo-500" },
-  return:   { label: "Return",   icon: Sunrise,  color: "text-amber-500",  bg: "bg-amber-500/10 border-amber-500/20",   dot: "bg-amber-500" },
+  fusion:    { label: "Fusion",     icon: GitMerge,  color: "text-violet-500",  bg: "bg-violet-500/10 border-violet-500/20",  dot: "bg-violet-500" },
+  split:     { label: "Split",      icon: Split,     color: "text-blue-500",    bg: "bg-blue-500/10 border-blue-500/20",      dot: "bg-blue-500" },
+  dormancy:  { label: "Dormancy",   icon: MoonStar,  color: "text-indigo-500",  bg: "bg-indigo-500/10 border-indigo-500/20",  dot: "bg-indigo-500" },
+  return:    { label: "Return",     icon: Sunrise,   color: "text-amber-500",   bg: "bg-amber-500/10 border-amber-500/20",    dot: "bg-amber-500" },
+  emergence: { label: "Emergence",  icon: Sparkles,  color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-500" },
 };
 
 function AlterPill({ alter }) {
@@ -35,7 +36,7 @@ function TimelineEvent({ event, altersById, onDelete, isLast }) {
 
   const sourceAlters = (event.source_alter_ids || []).map(id => altersById[id]).filter(Boolean);
   const resultAlters = (event.result_alter_ids || []).map(id => altersById[id]).filter(Boolean);
-  const showResult = event.type !== "dormancy" && event.type !== "return";
+  const showResult = event.type !== "dormancy" && event.type !== "return" && event.type !== "emergence";
 
   const fusionLabel = event.fusion_type === "absorption" ? "Absorption"
     : event.fusion_type === "new_formation" ? "New Formation"
@@ -58,7 +59,9 @@ function TimelineEvent({ event, altersById, onDelete, isLast }) {
             {fusionLabel && <span className="text-xs text-muted-foreground">· {fusionLabel}</span>}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-xs text-muted-foreground">{format(new Date(event.date), "MMM d, yyyy")}</span>
+            <span className="text-xs text-muted-foreground">
+              {event.year_only ? format(new Date(event.date), "yyyy") : format(new Date(event.date), "MMM d, yyyy")}
+            </span>
             <button
               type="button"
               onClick={() => onDelete(event.id)}
@@ -242,7 +245,7 @@ export default function SystemHistory() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-display font-bold text-foreground">System History</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Fusions, splits, dormancy, and returns</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Fusions, splits, emergences, dormancy, and returns</p>
         </div>
         <Button size="sm" onClick={() => setModalOpen(true)}>
           <Plus className="w-4 h-4 mr-1" /> Add Event
@@ -273,7 +276,7 @@ export default function SystemHistory() {
         <div className="text-center py-16">
           <GitMerge className="w-10 h-10 text-muted-foreground/30 mx-auto mb-4" />
           <p className="text-base font-medium text-muted-foreground">No events yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Record a fusion, split, dormancy, or return to build your system's history.</p>
+          <p className="text-sm text-muted-foreground mt-1">Record a fusion, split, emergence, dormancy, or return to build your system's history.</p>
           <Button size="sm" className="mt-4" onClick={() => setModalOpen(true)}>
             <Plus className="w-4 h-4 mr-1" /> Add first event
           </Button>

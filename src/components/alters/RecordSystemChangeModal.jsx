@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search } from "lucide-react";
+import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -82,6 +82,14 @@ const TYPES = [
     bg: "bg-amber-500/10 border-amber-500/30",
     description: "One or more alters return from dormancy.",
   },
+  {
+    id: "emergence",
+    label: "Emergence",
+    icon: Sparkles,
+    color: "text-emerald-500",
+    bg: "bg-emerald-500/10 border-emerald-500/30",
+    description: "One or more alters emerge or are first recognized in the system.",
+  },
 ];
 
 // ─── Step components ──────────────────────────────────────────────────────────
@@ -121,6 +129,7 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
   const label = type === "fusion" ? "Alters involved in the fusion (select 2+)"
     : type === "split" ? "Which alter is splitting?"
     : type === "dormancy" ? "Which alters are going dormant?"
+    : type === "emergence" ? "Which alters emerged or were first recognized?"
     : "Which alters are returning?";
 
   const filtered = useMemo(() =>
@@ -567,7 +576,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
   const [archiveAbsorbed, setArchiveAbsorbed] = useState(true);
   const [archiveSource, setArchiveSource] = useState(false);
 
-  const noResultStep = type === "dormancy" || type === "return";
+  const noResultStep = type === "dormancy" || type === "return" || type === "emergence";
   const steps = noResultStep
     ? ["Type", "Alters", "Details"]
     : ["Type", "Alters", "Result", "Details", "Apply"];
