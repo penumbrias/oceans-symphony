@@ -148,7 +148,8 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
     e.stopPropagation();
     touchFiredRef.current = false;
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
+    const barTop = e.currentTarget.getBoundingClientRect().top;
+    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.({ clientY, barTop }); }, 500);
   };
   const cancelPress = (e) => {
     e?.stopPropagation();
@@ -1436,12 +1437,12 @@ export default function InfiniteTimeline({
                             hasNote={!!entrySession?.note}
                             onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
                             onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
-                            onLongPress={(clientY) => {
+                            onLongPress={({ clientY, barTop }) => {
                               if (!entrySession) return;
-                              const gridEl = document.querySelector(".overflow-y-auto");
-                              const gridRect = gridEl?.getBoundingClientRect();
-                              const scrollTop = gridEl?.scrollTop || 0;
-                              const relY = clientY - (gridRect?.top || 0) + scrollTop;
+                              // barTop = viewport Y of the bar's top edge; topPx = bar's Y in the day grid
+                              // gridOriginY = viewport Y of the day grid's 00:00 row
+                              const gridOriginY = barTop - topPx;
+                              const relY = clientY - gridOriginY;
                               const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
                               const clampedMins = Math.min(Math.max(pressedMins, entry.startMins), entry.endMins);
                               setSplitPopover({ alter, session: entrySession, splitMins: clampedMins });
