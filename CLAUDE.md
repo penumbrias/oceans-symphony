@@ -2,12 +2,15 @@
 
 ## Critical: Always Respect User Terminology
 
-Users can customise the words used for their system, alters, fronting, and switching. **Every piece of new UI must use these terms — never hardcode "system", "alter", "alters", "fronting", "fronter", etc.**
+Users can customise the words used for their system, alters, fronting, and switching. **Every piece of new UI must use these terms — never hardcode "system", "alter", "alters", "fronting", "fronter", "switch", "headmate", "headmates", "member" (when referring to alters), etc.**
 
 - **Hook:** `useTerms()` from `@/lib/useTerms` — use this in any component that surfaces these words.
-- **Available terms:** `terms.system`, `terms.System`, `terms.alter`, `terms.Alter`, `terms.alters`, `terms.Alters`, `terms.front`, `terms.Front`, `terms.fronting`, `terms.Fronting`, `terms.fronter`, `terms.Fronter`, `terms.fronters`, `terms.Fronters`, `terms.switch`, `terms.Switch`, etc.
+- **Available terms:** `terms.system`, `terms.System`, `terms.alter`, `terms.Alter`, `terms.alters`, `terms.Alters`, `terms.front`, `terms.Front`, `terms.fronting`, `terms.Fronting`, `terms.fronter`, `terms.Fronter`, `terms.fronters`, `terms.Fronters`, `terms.switch`, `terms.Switch`, `terms.switches`, etc.
 - **Static configs** (like `navigationConfig.js` `ALL_PAGES`) cannot use the hook — resolve labels at the component level (see `resolveLabel` pattern in `NavigationSettings.jsx` and `termMap` in `AppLayout.jsx`).
 - **Tooltips and sort labels** count too — e.g., "Most fronting time first" not "Most fronted first".
+- **Compound words count too** — e.g., `${t.system}-wide` not "system-wide"; `${t.Switch} Log` not "Switch Log".
+- **ALL body text, descriptions, labels, placeholders, and tour steps** must use terms — not just headings and buttons.
+- **"headmate" and "headmates" are hardcoded synonyms** — always replace with `${t.alter}` / `${t.alters}`.
 - When in doubt: if the word would change if the user had set a custom term, use `useTerms()`.
 
 ## Critical: Custom Status Notes
