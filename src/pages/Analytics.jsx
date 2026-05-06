@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
+import { buildAbsorptionMap } from "@/lib/absorptionUtils";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { motion } from "framer-motion";
@@ -192,16 +193,45 @@ export default function Analytics() {
     queryFn: () => base44.entities.Bulletin.list("-created_date", 500),
   });
 
+  const { data: systemChangeEvents = [] } = useQuery({
+    queryKey: ["systemChangeEvents"],
+    queryFn: () => localEntities.SystemChangeEvent.list(),
+  });
+
+  const absorptionMap = useMemo(() => buildAbsorptionMap(systemChangeEvents), [systemChangeEvents]);
+
   const altersById = useMemo(() => {
     const map = {};
     alters.forEach((a) => { map[a.id] = a; });
     return map;
   }, [alters]);
 
-  const { alterMap, filtered } = useMemo(
+  const { alterMap: rawAlterMap, filtered } = useMemo(
     () => computeStats(sessions, alters, from, to),
     [sessions, alters, from, to]
   );
+
+  // Fold absorbed alters' stats into their persistent alter so analytics
+  // reflects total front history including pre-fusion sessions
+  const alterMap = useMemo(() => {
+    if (!Object.keys(absorptionMap).length) return rawAlterMap;
+    const result = {};
+    Object.entries(rawAlterMap).forEach(([id, d]) => {
+      result[id] = { ...d, sessions: [...d.sessions] };
+    });
+    Object.entries(absorptionMap).forEach(([absorbedId, persistentId]) => {
+      const src = result[absorbedId];
+      const dst = result[persistentId];
+      if (!src || !dst) return;
+      dst.total += src.total;
+      dst.primary += src.primary;
+      dst.cofronting += src.cofronting;
+      dst.sessions = [...dst.sessions, ...src.sessions];
+      dst.count += src.count;
+      delete result[absorbedId];
+    });
+    return result;
+  }, [rawAlterMap, absorptionMap]);
 
   const rows = useMemo(() => {
     return Object.values(alterMap)
