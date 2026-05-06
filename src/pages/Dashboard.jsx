@@ -122,6 +122,7 @@ export default function Dashboard() {
   }
 
   const [emotionModalInitialSection, setEmotionModalInitialSection] = useState(null);
+  const [pendingSymptomLog, setPendingSymptomLog] = useState(null);
 
   // Live clock — updates every minute
   const [now, setNow] = useState(() => new Date());
@@ -162,7 +163,7 @@ export default function Dashboard() {
     const tick = () => {
       if (!holdStartRef.current) return;
       const elapsed = Date.now() - holdStartRef.current;
-      const progress = Math.min(100, (elapsed / 3000) * 100);
+      const progress = Math.min(100, (elapsed / 1500) * 100);
       setHoldProgress(progress);
       if (progress < 100) {
         holdTimerRef.current = setTimeout(tick, 50);
@@ -227,15 +228,10 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       toast.success(`${action.label || cat?.name || "Activity"} logged`);
     } else if (action.type === "log_symptom") {
-      const { symptom_id, severity } = action.config || {};
+      const { symptom_id, alter_id } = action.config || {};
       if (!symptom_id) return;
-      await base44.entities.SymptomCheckIn.create({
-        symptom_id,
-        severity: severity || null,
-        timestamp: now,
-      });
-      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
-      toast.success(`${action.label} logged`);
+      const logAlterIds = alter_id ? [alter_id] : frontingAlterIds;
+      setPendingSymptomLog({ symptom_id, alter_ids: logAlterIds, label: action.label });
     } else if (action.type === "log_emotion") {
       const { emotion_label, intensity } = action.config || {};
       if (!emotion_label) return;
@@ -345,7 +341,69 @@ export default function Dashboard() {
         alters={alters}
         currentFronterIds={frontingAlterIds}
         initialSection={emotionModalInitialSection} />
-      
+
+      {/* Severity prompt for log_symptom quick actions */}
+      <AnimatePresence>
+        {pendingSymptomLog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setPendingSymptomLog(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm mx-4 mb-8 bg-card border border-border/50 rounded-2xl p-5 shadow-xl"
+            >
+              <p className="text-sm font-semibold text-foreground mb-1">{pendingSymptomLog.label}</p>
+              <p className="text-xs text-muted-foreground mb-4">How severe? Tap a level or skip.</p>
+              <div className="flex gap-2 mb-3">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    onClick={async () => {
+                      const ts = new Date().toISOString();
+                      await base44.entities.SymptomCheckIn.create({
+                        symptom_id: pendingSymptomLog.symptom_id,
+                        severity: n,
+                        timestamp: ts,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+                      toast.success(`${pendingSymptomLog.label} logged (severity ${n})`);
+                      setPendingSymptomLog(null);
+                    }}
+                    className="flex-1 h-11 rounded-xl border border-border/50 bg-muted/30 hover:bg-primary/10 hover:border-primary/50 text-sm font-semibold transition-colors"
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={async () => {
+                  const ts = new Date().toISOString();
+                  await base44.entities.SymptomCheckIn.create({
+                    symptom_id: pendingSymptomLog.symptom_id,
+                    severity: null,
+                    timestamp: ts,
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+                  toast.success(`${pendingSymptomLog.label} logged`);
+                  setPendingSymptomLog(null);
+                }}
+                className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 transition-colors"
+              >
+                Skip severity
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </motion.div>);
 
 }

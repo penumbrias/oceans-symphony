@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ChevronUp, ChevronDown, Trash2, Plus, Check, X, Pencil } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronRight, Trash2, Plus, Check, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,14 +29,102 @@ const DEFAULT_EMOJIS = {
 };
 
 function blankForm() {
-  return { label: "", type: "open_checkin", emoji: "", config: {} };
+  return { label: "", type: "open_checkin_section", emoji: "", config: {} };
+}
+
+function ActivityCategoryPicker({ categories, selectedId, onChange }) {
+  const [expandedId, setExpandedId] = useState(null);
+
+  const roots = useMemo(
+    () => [...categories.filter((c) => !c.parent_category_id)].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [categories]
+  );
+  const childrenOf = useMemo(() => {
+    const map = {};
+    categories.forEach((c) => {
+      if (c.parent_category_id) {
+        (map[c.parent_category_id] ??= []).push(c);
+      }
+    });
+    Object.values(map).forEach((arr) => arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+    return map;
+  }, [categories]);
+
+  const selectedCat = categories.find((c) => c.id === selectedId);
+
+  if (categories.length === 0) {
+    return <p className="text-xs text-muted-foreground mt-1">No activity categories yet. Add them via Check-In → Activity section.</p>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {selectedCat && (
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-xs font-medium text-primary mb-2">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: selectedCat.color || "currentColor" }} />
+          {selectedCat.name}
+          <button onClick={() => onChange("")} className="ml-auto text-primary/60 hover:text-primary">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+      <div className="max-h-48 overflow-y-auto rounded-lg border border-border/40 divide-y divide-border/30">
+        {roots.map((root) => {
+          const subs = childrenOf[root.id] || [];
+          const isExpanded = expandedId === root.id;
+          const isSelected = selectedId === root.id;
+          return (
+            <div key={root.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (subs.length > 0) {
+                    setExpandedId(isExpanded ? null : root.id);
+                  } else {
+                    onChange(root.id);
+                  }
+                }}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                  isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/40 text-foreground"
+                }`}
+              >
+                {subs.length > 0 ? (
+                  <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                ) : (
+                  <span className="w-3.5 h-3.5 flex-shrink-0" />
+                )}
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: root.color || "#888" }} />
+                <span className="flex-1 text-left">{root.name}</span>
+                {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+              </button>
+              {isExpanded && subs.map((sub) => {
+                const isSubSelected = selectedId === sub.id;
+                return (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => onChange(sub.id)}
+                    className={`w-full flex items-center gap-2 pl-8 pr-3 py-1.5 text-xs transition-colors ${
+                      isSubSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/30 text-muted-foreground"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sub.color || root.color || "#888" }} />
+                    <span className="flex-1 text-left">{sub.name}</span>
+                    {isSubSelected && <Check className="w-3 h-3 flex-shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function ActionForm({ initialData, alters, symptoms, activityCategories, customEmotions, onSave, onCancel, terms }) {
   const [data, setData] = useState(initialData || blankForm());
 
   const actionTypes = [
-    { id: "open_checkin", label: "Open full Quick Check-In" },
     { id: "open_checkin_section", label: "Open Check-In at a specific section" },
     { id: "open_set_front", label: `Open Set ${terms.Front}ers modal` },
     { id: "set_front_alter", label: `Set a specific ${terms.alter} to ${terms.front}` },
@@ -147,22 +235,11 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
         <div className="space-y-2">
           <div>
             <Label className="text-xs font-medium mb-1 block">Activity category</Label>
-            <select
-              value={data.config?.category_id || ""}
-              onChange={(e) => setConfig("category_id", e.target.value)}
-              onBlur={applySuggestion}
-              className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">Select a category…</option>
-              {sortedCategories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            {sortedCategories.length === 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                No activity categories yet. Add them via Check-In → Activity section.
-              </p>
-            )}
+            <ActivityCategoryPicker
+              categories={sortedCategories}
+              selectedId={data.config?.category_id || ""}
+              onChange={(id) => { setConfig("category_id", id || undefined); if (id) applySuggestion(); }}
+            />
           </div>
           <div>
             <Label className="text-xs font-medium mb-1 block">Duration (minutes, optional)</Label>
@@ -200,16 +277,20 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
             )}
           </div>
           <div>
-            <Label className="text-xs font-medium mb-1 block">Default severity (1–5, optional)</Label>
-            <Input
-              type="number"
-              value={data.config?.severity || ""}
-              onChange={(e) => setConfig("severity", e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="e.g. 3"
-              min="1"
-              max="5"
-              className="h-8 text-sm"
-            />
+            <Label className="text-xs font-medium mb-1 block">Also set {terms.fronter} (optional)</Label>
+            <select
+              value={data.config?.alter_id || ""}
+              onChange={(e) => setConfig("alter_id", e.target.value)}
+              className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Keep current {terms.front} as-is</option>
+              {activeAlters.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Severity will be prompted when you trigger this action.
+            </p>
           </div>
         </div>
       )}
@@ -383,7 +464,7 @@ export default function QuickActionsConfig() {
   };
 
   const typeLabel = (type) => ({
-    open_checkin: "Open full Check-In",
+    open_checkin: "Open full Check-In",  // kept for any existing saved actions
     open_checkin_section: "Open at section",
     set_front_alter: `Set ${terms.alter} to ${terms.front}`,
     log_activity: "Log activity",
