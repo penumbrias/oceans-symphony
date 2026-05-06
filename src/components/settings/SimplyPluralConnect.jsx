@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, CheckCircle2, Link2, Unlink, ArrowDownLeft, Clock, Vote, FileText } from "lucide-react";
+import { Loader2, CheckCircle2, Link2, Unlink, ArrowDownLeft, Clock, Vote, FileText, Users, Layers, ImageOff } from "lucide-react";
 import { base44, localEntities } from "@/api/base44Client";
 import {
   getSystemId,
@@ -51,6 +51,9 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
   // Members/groups/polls/notes import
   const [importMode, setImportMode] = useState("standard");
+  const [includeGroups, setIncludeGroups] = useState(true);
+  const [includeCustomFields, setIncludeCustomFields] = useState(true);
+  const [includeAvatars, setIncludeAvatars] = useState(false);
   const [includePolls, setIncludePolls] = useState(true);
   const [includeNotes, setIncludeNotes] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -100,15 +103,12 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       if (localMode) {
         const { sp_token: tok, sp_system_id: sysId } = effectiveSettings;
 
-        // ── Step 1: Fetch ──
+        // ── Step 1: Fetch members & groups (always needed) ──
         setImportProgress("Fetching members…");
         const members = await getMembers(tok, sysId);
 
         setImportProgress("Fetching groups…");
         const groups = await getGroups(tok, sysId);
-
-        setImportProgress("Fetching custom fields…");
-        const spFields = await getCustomFields(tok, sysId);
 
         const groupsById = {};
         for (const g of groups) {
@@ -117,40 +117,52 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         }
 
         // ── Step 2: Custom fields ──
-        setImportProgress("Importing custom fields…");
-        const existingFields = await localEntities.CustomField.list();
-        const existingFieldsBySpId = {};
-        for (const f of existingFields) {
-          if (f.sp_id) existingFieldsBySpId[f.sp_id] = f;
-        }
         const fieldIdMap = {};
         let fieldsCreated = 0;
-        if (importMode === "replace_all") {
-          for (const f of existingFields) await localEntities.CustomField.delete(f.id);
-        }
-        for (const spField of spFields) {
-          const spFieldId = spField.id || spField._id || "";
-          const fc = spField.content || spField;
-          if (!spFieldId) continue;
-          const fieldData = { sp_id: spFieldId, name: fc.name || "Unnamed Field", field_type: spFieldType(fc.valueType || fc.type), order: fieldsCreated };
-          if (importMode === "replace_all") {
-            const created = await localEntities.CustomField.create(fieldData);
-            fieldIdMap[spFieldId] = created.id;
-            fieldsCreated++;
+        {
+          const existingFields = await localEntities.CustomField.list();
+          const existingFieldsBySpId = {};
+          for (const f of existingFields) {
+            if (f.sp_id) existingFieldsBySpId[f.sp_id] = f;
+          }
+          if (includeCustomFields) {
+            setImportProgress("Importing custom fields…");
+            const spFields = await getCustomFields(tok, sysId);
+            if (importMode === "replace_all") {
+              for (const f of existingFields) await localEntities.CustomField.delete(f.id);
+            }
+            for (const spField of spFields) {
+              const spFieldId = spField.id || spField._id || "";
+              const fc = spField.content || spField;
+              if (!spFieldId) continue;
+              const fieldData = { sp_id: spFieldId, name: fc.name || "Unnamed Field", field_type: spFieldType(fc.valueType || fc.type), order: fieldsCreated };
+              if (importMode === "replace_all") {
+                const created = await localEntities.CustomField.create(fieldData);
+                fieldIdMap[spFieldId] = created.id;
+                fieldsCreated++;
+              } else {
+                const existing = existingFieldsBySpId[spFieldId];
+                if (existing) {
+                  fieldIdMap[spFieldId] = existing.id;
+                  if (importMode !== "new_only") await localEntities.CustomField.update(existing.id, fieldData);
+                } else {
+                  const created = await localEntities.CustomField.create(fieldData);
+                  fieldIdMap[spFieldId] = created.id;
+                  fieldsCreated++;
+                }
+              }
+            }
           } else {
-            const existing = existingFieldsBySpId[spFieldId];
-            if (existing) {
-              fieldIdMap[spFieldId] = existing.id;
-              if (importMode !== "new_only") await localEntities.CustomField.update(existing.id, fieldData);
-            } else {
-              const created = await localEntities.CustomField.create(fieldData);
-              fieldIdMap[spFieldId] = created.id;
-              fieldsCreated++;
+            // Build map from existing local fields so alter custom_field refs still resolve
+            for (const f of existingFields) {
+              if (f.sp_id) fieldIdMap[f.sp_id] = f.id;
             }
           }
         }
 
-        const mappedAlters = members.map((m) => mapMemberToAlter(m, groupsById, fieldIdMap));
+        // Pass only groupsById when groups are being included (otherwise preserve local group assignments)
+        const effectiveGroupsById = includeGroups ? groupsById : {};
+        const mappedAlters = members.map((m) => mapMemberToAlter(m, effectiveGroupsById, fieldIdMap));
 
         // ── Step 3: Alters ──
         setImportProgress("Importing alters…");
@@ -174,11 +186,17 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
             const existing = existingBySpId[incoming.sp_id];
             if (existing) {
               if (importMode !== "new_only") {
-                await localEntities.Alter.update(existing.id, incoming);
+                const updateData = { ...incoming };
+                if (!includeAvatars) {
+                  delete updateData.avatar_url;
+                  delete updateData.banner_url;
+                }
+                await localEntities.Alter.update(existing.id, updateData);
                 altersUpdated++;
               }
               alterIdBySpId[incoming.sp_id] = existing.id;
             } else {
+              // New alter — always include avatar (nothing to overwrite)
               const created = await localEntities.Alter.create(incoming);
               alterIdBySpId[incoming.sp_id] = created.id;
               altersCreated++;
@@ -186,50 +204,50 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           }
         }
 
-        // ── Step 4: Groups (pass 1) ──
-        setImportProgress("Importing groups…");
-        const existingGroups = await localEntities.Group.list();
+        // ── Steps 4+5: Groups ──
         let groupsCreated = 0, groupsUpdated = 0;
-        if (importMode === "replace_all") {
-          for (const g of existingGroups) await localEntities.Group.delete(g.id);
-        }
-        const existingGroupsBySpId = {};
-        if (importMode !== "replace_all") {
-          for (const g of existingGroups) { if (g.sp_id) existingGroupsBySpId[g.sp_id] = g; }
-        }
-        const groupIdBySpId = {};
-        for (const spGroup of groups) {
-          const mapped = mapGroupToLocalGroup(spGroup);
-          mapped.parent = "";
-          const existing = existingGroupsBySpId[mapped.sp_id];
-          if (importMode === "replace_all" || !existing) {
-            const created = await localEntities.Group.create(mapped);
-            groupIdBySpId[mapped.sp_id] = created.id;
-            groupsCreated++;
-          } else if (importMode !== "new_only") {
-            await localEntities.Group.update(existing.id, { ...mapped, parent: existing.parent });
-            groupIdBySpId[mapped.sp_id] = existing.id;
-            groupsUpdated++;
-          } else {
-            groupIdBySpId[mapped.sp_id] = existing.id;
+        if (includeGroups) {
+          setImportProgress("Importing groups…");
+          const existingGroups = await localEntities.Group.list();
+          if (importMode === "replace_all") {
+            for (const g of existingGroups) await localEntities.Group.delete(g.id);
+          }
+          const existingGroupsBySpId = {};
+          if (importMode !== "replace_all") {
+            for (const g of existingGroups) { if (g.sp_id) existingGroupsBySpId[g.sp_id] = g; }
+          }
+          const groupIdBySpId = {};
+          for (const spGroup of groups) {
+            const mapped = mapGroupToLocalGroup(spGroup);
+            mapped.parent = "";
+            const existing = existingGroupsBySpId[mapped.sp_id];
+            if (importMode === "replace_all" || !existing) {
+              const created = await localEntities.Group.create(mapped);
+              groupIdBySpId[mapped.sp_id] = created.id;
+              groupsCreated++;
+            } else if (importMode !== "new_only") {
+              await localEntities.Group.update(existing.id, { ...mapped, parent: existing.parent });
+              groupIdBySpId[mapped.sp_id] = existing.id;
+              groupsUpdated++;
+            } else {
+              groupIdBySpId[mapped.sp_id] = existing.id;
+            }
+          }
+          setImportProgress("Resolving group nesting…");
+          for (const spGroup of groups) {
+            const spId = spGroup.id || spGroup._id || "";
+            const c = spGroup.content || spGroup;
+            const spParentId = c.parent || "";
+            const localGroupId = groupIdBySpId[spId];
+            if (!localGroupId) continue;
+            const localParentId = spParentId ? groupIdBySpId[spParentId] || "" : "";
+            if (localParentId !== undefined) {
+              await localEntities.Group.update(localGroupId, { parent: localParentId });
+            }
           }
         }
 
-        // ── Step 5: Groups parent resolution (pass 2) ──
-        setImportProgress("Resolving group nesting…");
-        for (const spGroup of groups) {
-          const spId = spGroup.id || spGroup._id || "";
-          const c = spGroup.content || spGroup;
-          const spParentId = c.parent || "";
-          const localGroupId = groupIdBySpId[spId];
-          if (!localGroupId) continue;
-          const localParentId = spParentId ? groupIdBySpId[spParentId] || "" : "";
-          if (localParentId !== undefined) {
-            await localEntities.Group.update(localGroupId, { parent: localParentId });
-          }
-        }
-
-        // ── Step 6: Polls (optional) ──
+        // ── Polls (optional) ──
         let pollsCreated = 0, pollsUpdated = 0;
         if (includePolls) {
           setImportProgress("Importing polls…");
@@ -292,8 +310,8 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
         const parts = [
           `Alters: ${altersCreated} new, ${altersUpdated} updated`,
-          `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
-          fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
+          includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
+          includeCustomFields && fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
           includePolls && `Polls: ${pollsCreated} new, ${pollsUpdated} updated`,
           includeNotes && notesCreated > 0 && `Notes: ${notesCreated} imported`,
         ].filter(Boolean).join(" · ");
@@ -489,7 +507,41 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                 <p className="text-xs text-muted-foreground font-medium">Include:</p>
                 <label className="flex items-center gap-2 text-sm cursor-default opacity-60 select-none">
                   <input type="checkbox" checked disabled readOnly className="rounded" />
-                  Alters, Groups & Custom Fields
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  Alters (always)
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none ml-5">
+                  <input
+                    type="checkbox"
+                    checked={includeAvatars}
+                    onChange={(e) => setIncludeAvatars(e.target.checked)}
+                    className="rounded"
+                  />
+                  <ImageOff className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>
+                    Overwrite avatars on existing alters
+                    <span className="text-muted-foreground/60 text-xs ml-1">(new alters always get theirs)</span>
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeGroups}
+                    onChange={(e) => setIncludeGroups(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                  Groups
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeCustomFields}
+                    onChange={(e) => setIncludeCustomFields(e.target.checked)}
+                    className="rounded"
+                  />
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                  Custom Fields
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input
@@ -509,7 +561,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                     className="rounded"
                   />
                   <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                  Member Notes (one API call per alter — may be slow)
+                  Member Notes <span className="text-muted-foreground/60 text-xs">(one API call per alter — slow)</span>
                 </label>
               </div>
 
