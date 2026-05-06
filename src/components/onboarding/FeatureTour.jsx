@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { X, ChevronLeft, ChevronRight, MapPin, ChevronsRight } from "lucide-react";
@@ -666,6 +666,29 @@ export default function FeatureTour({ onClose }) {
     setStep(newStep);
   }, [steps, step, navigate, applyHighlight]);
 
+  const cardRef = useRef(null);
+
+  // Measure tour card height and publish as --tour-card-height CSS variable so
+  // dialogs can reposition themselves above the card.
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      const h = Math.ceil(window.innerHeight - rect.top);
+      document.documentElement.style.setProperty("--tour-card-height", `${h}px`);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+      document.documentElement.style.removeProperty("--tour-card-height");
+    };
+  }, []);
+
   useEffect(() => {
     window.__tourActive = true;
     goTo(0);
@@ -696,8 +719,15 @@ export default function FeatureTour({ onClose }) {
       {/* Dim overlay — sits below modals so modals still look natural */}
       <div className="fixed inset-0 z-40 bg-black/30 pointer-events-none" />
 
+      {/* Touch blocker — z-[99] solid wall covering the tour card's footprint so
+          nothing below (dialogs at z-50) can receive pointer events in that area */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-[99] pointer-events-auto"
+        style={{ height: "var(--tour-card-height, 0px)" }}
+      />
+
       {/* Tour card — portal-rendered as last body child so z-[100] always wins */}
-      <div className="fixed bottom-16 left-0 right-0 z-[100] px-3 pb-2">
+      <div ref={cardRef} className="fixed bottom-16 left-0 right-0 z-[100] px-3 pb-2">
         <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
           {/* Overall progress bar */}
           <div className="h-1 bg-muted">
