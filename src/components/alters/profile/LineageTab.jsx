@@ -54,7 +54,7 @@ function EventCard({ event, altersById, onDelete }) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs text-muted-foreground">{format(new Date(event.date), "MMM d, yyyy")}</span>
+          <span className="text-xs text-muted-foreground">{event.year_only ? format(new Date(event.date), "yyyy") : format(new Date(event.date), "MMM d, yyyy")}</span>
           <button
             type="button"
             onClick={() => onDelete(event.id)}

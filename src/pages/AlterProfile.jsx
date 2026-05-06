@@ -256,6 +256,7 @@ export default function AlterProfile() {
               <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
               {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
               {alter.role && <p className="text-xs text-muted-foreground/70 mt-0.5">{alter.role}</p>}
+              {alter.origin_year && <p className="text-xs text-muted-foreground/60 mt-0.5">Since {alter.origin_year}</p>}
             </div>
           </div>
         )}

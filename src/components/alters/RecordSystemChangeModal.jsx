@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { localEntities } from "@/api/base44Client";
-import { format } from "date-fns";
+import { localEntities, base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -190,7 +189,7 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
   if (type === "fusion" && fusionType === "absorption") {
     return (
       <div>
-        <p className="text-xs text-muted-foreground mb-2">Which alter absorbs the others and remains active?</p>
+        <p className="text-xs text-muted-foreground mb-2">Which alter persists and remains active after the fusion?</p>
         <div className="flex flex-wrap gap-2">
           {sourceAlters.map(a => (
             <AlterChip
@@ -202,7 +201,7 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
           ))}
         </div>
         {!absorptionTarget && (
-          <p className="text-xs text-destructive mt-2">Select the surviving alter.</p>
+          <p className="text-xs text-destructive mt-2">Select the alter that persists.</p>
         )}
       </div>
     );
@@ -301,15 +300,19 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
   return null;
 }
 
-function StepDetails({ date, onDate, cause, onCause, notes, onNotes }) {
+function StepDetails({ year, onYear, cause, onCause, notes, onNotes }) {
+  const currentYear = new Date().getFullYear();
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-xs text-muted-foreground mb-1">Date this occurred</p>
+        <p className="text-xs text-muted-foreground mb-1">Year this occurred</p>
         <Input
-          type="datetime-local"
-          value={date}
-          onChange={e => onDate(e.target.value)}
+          type="number"
+          min={1900}
+          max={currentYear}
+          value={year}
+          onChange={e => onYear(e.target.value)}
+          placeholder={String(currentYear)}
           className="text-sm"
         />
       </div>
@@ -358,7 +361,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
   const [newAlterName, setNewAlterName] = useState("");
   const [newAlterColor, setNewAlterColor] = useState("#9333ea");
   const [splitResults, setSplitResults] = useState([]);
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+  const [year, setYear] = useState(String(new Date().getFullYear()));
   const [cause, setCause] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -418,9 +421,11 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
         resultAlterIds = [...sourceAlterIds];
       }
 
+      const yearNum = parseInt(year, 10) || new Date().getFullYear();
       await localEntities.SystemChangeEvent.create({
         type,
-        date: new Date(date).toISOString(),
+        date: new Date(yearNum, 0, 1).toISOString(),
+        year_only: true,
         source_alter_ids: sourceAlterIds,
         result_alter_ids: resultAlterIds,
         fusion_type: type === "fusion" ? fusionType : null,
@@ -428,6 +433,26 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
         cause: cause.trim(),
         notes: notes.trim(),
       });
+
+      // Auto-create "Split from" relationships when a split event is recorded
+      if (type === "split") {
+        for (const resultId of resultAlterIds) {
+          for (const sourceId of sourceAlterIds) {
+            if (resultId !== sourceId) {
+              await base44.entities.AlterRelationship.create({
+                alter_id_a: resultId,
+                alter_id_b: sourceId,
+                relationship_type: "Split from",
+                direction: "a_to_b",
+                color: "#a855f7",
+                notes: `Auto-created from split event (${yearNum})`,
+                strength: 3,
+              });
+            }
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
+      }
 
       queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -496,7 +521,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
         )}
         {((step === 2 && noResultStep) || (step === 3 && !noResultStep)) && (
           <StepDetails
-            date={date} onDate={setDate}
+            year={year} onYear={setYear}
             cause={cause} onCause={setCause}
             notes={notes} onNotes={setNotes}
           />

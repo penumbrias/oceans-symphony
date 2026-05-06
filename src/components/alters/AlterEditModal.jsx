@@ -21,7 +21,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
 
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
-    description: "", color: "", avatar_url: "",
+    description: "", color: "", avatar_url: "", origin_year: "",
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -35,7 +35,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
         name: alter.name || "", alias: alter.alias || "",
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
-        avatar_url: alter.avatar_url || "",
+        avatar_url: alter.avatar_url || "", origin_year: alter.origin_year ? String(alter.origin_year) : "",
       });
     } else {
       setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "" });
@@ -115,12 +115,13 @@ const handleAvatarUpload = async (e) => {
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
     setSaving(true);
+    const formData = { ...form, origin_year: form.origin_year ? parseInt(form.origin_year, 10) : null };
     try {
       if (isNew) {
-        await base44.entities.Alter.create({ ...form, is_archived: false });
+        await base44.entities.Alter.create({ ...formData, is_archived: false });
         toast.success(`✅ ${t.Alter} created!`);
       } else {
-        await base44.entities.Alter.update(alter.id, form);
+        await base44.entities.Alter.update(alter.id, formData);
         toast.success("✅ Saved!");
       }
       queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -203,6 +204,18 @@ const handleAvatarUpload = async (e) => {
               <Label>Role</Label>
               <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host..." />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Origin Year</Label>
+            <Input
+              type="number"
+              min={1900}
+              max={new Date().getFullYear()}
+              value={form.origin_year}
+              onChange={(e) => set("origin_year", e.target.value)}
+              placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
+            />
           </div>
 
           <div className="space-y-2">
