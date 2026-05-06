@@ -173,7 +173,7 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
               )}
             >
               <AlterAvatar alter={a} size={6} />
-              <span className="text-sm font-medium flex-1 truncate"
+              <span className="text-sm font-medium flex-1 truncate min-w-0"
                 style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>
                 {a.name}
               </span>
@@ -279,7 +279,7 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
                   isSelected ? "border-primary/50 bg-primary/10" : "border-transparent hover:border-border/60 hover:bg-muted/40"
                 )}>
                 <AlterAvatar alter={a} size={6} />
-                <span className="text-sm font-medium flex-1 truncate" style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>{a.name}</span>
+                <span className="text-sm font-medium flex-1 truncate min-w-0" style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>{a.name}</span>
                 {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: a.color || "hsl(var(--primary))" }} />}
               </button>
             );
@@ -343,7 +343,7 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
                     isSelected ? "border-primary/50 bg-primary/10" : "border-transparent hover:border-border/60 hover:bg-muted/40"
                   )}>
                   <AlterAvatar alter={a} size={6} />
-                  <span className="text-sm font-medium flex-1 truncate" style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>{a.name}</span>
+                  <span className="text-sm font-medium flex-1 truncate min-w-0" style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>{a.name}</span>
                   {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: a.color || "hsl(var(--primary))" }} />}
                 </button>
               );
