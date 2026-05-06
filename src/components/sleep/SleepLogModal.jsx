@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ZapOff, Cloud, AlarmClock, Plus, X } from "lucide-react";
+import { ZapOff, Cloud, AlarmClock, Plus, X, BookOpen } from "lucide-react";
 
 function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   return (
@@ -111,6 +111,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
   const [hadNightmare, setHadNightmare] = useState(false);
   const [interruptionCount, setInterruptionCount] = useState(0);
   const [interruptionTimes, setInterruptionTimes] = useState([]);
+  const [saveAsDream, setSaveAsDream] = useState(false);
 
   React.useEffect(() => {
     if (isOpen && selectedDate) {
@@ -130,6 +131,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       setInterruptionTimes([]);
       setNotes("");
       setQuality(5);
+      setSaveAsDream(false);
     }
   }, [isOpen, selectedDate]);
 
@@ -175,6 +177,22 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         had_nightmare: hadNightmare,
       });
 
+      if (saveAsDream && notes.trim()) {
+        const DREAM_FOLDER = "Dreams";
+        const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
+        if (!saved.includes(DREAM_FOLDER)) {
+          localStorage.setItem("os_journal_folders", JSON.stringify([...saved, DREAM_FOLDER]));
+        }
+        const title = `Dream — ${format(new Date(dateStr), "MMMM d, yyyy")}`;
+        await base44.entities.JournalEntry.create({
+          title,
+          content: notes.trim(),
+          folder: DREAM_FOLDER,
+          tags: [hadNightmare ? "nightmare" : "dream"],
+          entry_type: "dream",
+        });
+      }
+
       await base44.entities.Activity.create({
         timestamp: bedtimeISO,
         activity_name: "Sleep",
@@ -195,6 +213,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       setHadNightmare(false);
       setInterruptionCount(0);
       setInterruptionTimes([]);
+      setSaveAsDream(false);
       onSave?.();
       onClose();
     } catch (err) {
@@ -276,7 +295,24 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Notes — Optional</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium text-foreground">Notes — Optional</label>
+              {notes.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setSaveAsDream(v => !v)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all",
+                    saveAsDream
+                      ? "border-violet-500/60 bg-violet-500/10 text-violet-500"
+                      : "border-border text-muted-foreground hover:border-border/80"
+                  )}
+                >
+                  <BookOpen className="w-3 h-3" />
+                  {saveAsDream ? "Saving to Dream Journal" : "Save to Dream Journal"}
+                </button>
+              )}
+            </div>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
