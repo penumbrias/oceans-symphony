@@ -1582,7 +1582,22 @@ export default function InfiniteTimeline({
             <p className="text-sm font-semibold">{entry.data.name || cat.label}</p>
             <p className="text-xs mt-0.5" style={{ color: cat.color }}>{cat.label}</p>
             {entry.data.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{entry.data.notes}</p>}
-            {entry.data.source === "gps" && <p className="text-xs text-green-500 mt-1">📍 GPS location</p>}
+            {entry.data.latitude != null && entry.data.longitude != null && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-muted-foreground font-mono">
+                  {entry.data.latitude.toFixed(5)}, {entry.data.longitude.toFixed(5)}
+                </p>
+                <a
+                  href={`https://www.google.com/maps?q=${entry.data.latitude},${entry.data.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  Open in Maps ↗
+                </a>
+              </div>
+            )}
           </DetailPopup>
         );
       })()}

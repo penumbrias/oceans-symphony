@@ -297,6 +297,17 @@ export default function LocationHistory() {
                             {loc.notes && (
                               <p className="text-xs text-muted-foreground mt-1 italic">{loc.notes}</p>
                             )}
+                            {loc.latitude != null && loc.longitude != null && (
+                              <a
+                                href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-400 hover:text-blue-300 underline mt-1 inline-block"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} ↗
+                              </a>
+                            )}
                           </div>
                           <div className="flex gap-1 flex-shrink-0">
                             <button

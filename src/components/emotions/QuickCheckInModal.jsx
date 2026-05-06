@@ -754,6 +754,17 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                   {locationLat != null ? "✓" : "GPS"}
                 </button>
               </div>
+              {locationLat != null && locationLng != null && (
+                <a
+                  href={`https://www.google.com/maps?q=${locationLat},${locationLng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  📍 {locationLat.toFixed(4)}, {locationLng.toFixed(4)} — Open in Maps ↗
+                </a>
+              )}
             </div>
           )}
         </div>
