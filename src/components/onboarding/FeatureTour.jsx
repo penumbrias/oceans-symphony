@@ -722,26 +722,56 @@ export default function FeatureTour({ onClose }) {
     [steps, step, current.section]
   );
 
-  const applyHighlight = useCallback((target) => {
+  const [spotlightRect, setSpotlightRect] = useState(null);
+  const highlightedElRef = useRef(null);
+
+  const updateSpotlight = useCallback(() => {
+    const el = highlightedElRef.current;
+    if (!el) { setSpotlightRect(null); return; }
+    const r = el.getBoundingClientRect();
+    setSpotlightRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+  }, []);
+
+  // Keep spotlight in sync with scroll/resize
+  useEffect(() => {
+    const h = () => { if (highlightedElRef.current) updateSpotlight(); };
+    window.addEventListener("scroll", h, { passive: true, capture: true });
+    window.addEventListener("resize", h, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", h, { capture: true });
+      window.removeEventListener("resize", h);
+    };
+  }, [updateSpotlight]);
+
+  const clearHighlight = useCallback(() => {
     document.querySelectorAll("[data-tour-active]").forEach(el => {
       el.removeAttribute("data-tour-active");
       el.style.removeProperty("outline");
       el.style.removeProperty("outline-offset");
       el.style.removeProperty("border-radius");
-      el.style.removeProperty("position");
-      el.style.removeProperty("z-index");
     });
+    highlightedElRef.current = null;
+    setSpotlightRect(null);
+  }, []);
+
+  const applyHighlight = useCallback((target, attempt = 0) => {
+    clearHighlight();
     if (!target) return;
     const el = document.querySelector(`[data-tour="${target}"]`);
-    if (!el) return;
+    if (!el) {
+      // Retry until the page finishes rendering — up to ~2 s
+      if (attempt < 10) setTimeout(() => applyHighlight(target, attempt + 1), 200);
+      return;
+    }
     el.setAttribute("data-tour-active", "1");
     el.style.outline = "3px solid hsl(var(--primary))";
     el.style.outlineOffset = "4px";
     el.style.borderRadius = "8px";
-    el.style.position = "relative";
-    el.style.zIndex = "49";
+    highlightedElRef.current = el;
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, []);
+    // Update spotlight after scroll settles
+    setTimeout(updateSpotlight, 380);
+  }, [clearHighlight, updateSpotlight]);
 
   const goTo = useCallback((newStep) => {
     const prev = steps[step];
@@ -789,14 +819,7 @@ export default function FeatureTour({ onClose }) {
     goTo(0);
     return () => {
       window.__tourActive = false;
-      document.querySelectorAll("[data-tour-active]").forEach(el => {
-        el.removeAttribute("data-tour-active");
-        el.style.removeProperty("outline");
-        el.style.removeProperty("outline-offset");
-        el.style.removeProperty("border-radius");
-        el.style.removeProperty("position");
-        el.style.removeProperty("z-index");
-      });
+      clearHighlight();
     };
   }, []);
 
@@ -815,8 +838,32 @@ export default function FeatureTour({ onClose }) {
 
   return createPortal(
     <>
-      {/* Dim overlay — sits below modals so modals still look natural */}
-      <div className="fixed inset-0 z-40 bg-black/30 pointer-events-none" />
+      {/* SVG spotlight — renders a full-screen dim with a transparent cutout over
+          the highlighted element. Positioned in the portal so it has no parent
+          stacking context; the hole approach works regardless of element z-index. */}
+      {spotlightRect ? (
+        <svg
+          className="fixed inset-0 pointer-events-none"
+          style={{ zIndex: 45, width: "100%", height: "100%", overflow: "visible" }}
+        >
+          <defs>
+            <mask id="tour-spotlight-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
+              <rect width="100%" height="100%" fill="white" />
+              <rect
+                x={Math.max(0, spotlightRect.left - 10)}
+                y={Math.max(0, spotlightRect.top - 10)}
+                width={spotlightRect.width + 20}
+                height={spotlightRect.height + 20}
+                rx={12}
+                fill="black"
+              />
+            </mask>
+          </defs>
+          <rect width="100%" height="100%" fill="rgba(0,0,0,0.45)" mask="url(#tour-spotlight-mask)" />
+        </svg>
+      ) : (
+        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 45, background: "rgba(0,0,0,0.3)" }} />
+      )}
 
       {/* Touch blocker — z-[99] solid wall covering the tour card's footprint so
           nothing below (dialogs at z-50) can receive pointer events in that area */}

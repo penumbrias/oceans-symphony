@@ -56,6 +56,13 @@ export default function AlterProfile() {
   });
   const highlightMessageId = searchParams.get("messageId") || null;
   const [editMode, setEditMode] = useState(false);
+
+  // Keep tab in sync when the URL ?tab= param changes (e.g. tour navigation)
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
+    if (t && valid.includes(t)) setTab(t);
+  }, [searchParams]);
   const [showComposeMessage, setShowComposeMessage] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
