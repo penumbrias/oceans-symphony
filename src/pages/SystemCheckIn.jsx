@@ -329,14 +329,14 @@ export default function SystemCheckInPage() {
         </div>
       )}
       {view === "list" ? (
-        <div>
+        <div data-tour="meetings-list">
           <div className="mb-8">
             <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meetings</h1>
             <p className="text-muted-foreground text-sm mt-1">
               A 5-minute guided ritual to connect with your {terms.system}
             </p>
           </div>
-          <Button onClick={handleNewCheckIn} className="gap-2 mb-6">
+          <Button data-tour="meetings-new" onClick={handleNewCheckIn} className="gap-2 mb-6">
             <Plus className="w-4 h-4" />
             New Meeting
           </Button>

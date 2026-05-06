@@ -193,7 +193,7 @@ export default function Timeline() {
     <div data-tour="timeline-container" className="space-y-4 max-w-3xl mx-auto" ref={containerRef}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-3xl font-bold">Timeline</h1>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div data-tour="timeline-jump" className="flex items-center gap-2 flex-wrap">
           <input
             type="date"
             value={jumpDate}
@@ -217,7 +217,7 @@ export default function Timeline() {
       )}
 
       {/* Toggles */}
-      <div className="flex gap-2 flex-wrap">
+      <div data-tour="timeline-filters" className="flex gap-2 flex-wrap">
         <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)} title="Activities">
           <Activity className="w-3.5 h-3.5" />
         </button>

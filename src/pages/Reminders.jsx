@@ -69,7 +69,7 @@ export default function Reminders() {
           {/* Tabs */}
           <div className="flex gap-1 p-1 bg-muted/30 rounded-xl w-fit">
             {["inbox", "manage"].map(t => (
-              <button key={t} onClick={() => setTab(t)}
+              <button key={t} data-tour={`reminders-${t}-tab`} onClick={() => setTab(t)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
                   tab === t ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}>

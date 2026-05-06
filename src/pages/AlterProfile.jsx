@@ -51,7 +51,7 @@ export default function AlterProfile() {
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
     const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "options"];
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
     return valid.includes(t) ? t : "profile";
   });
   const highlightMessageId = searchParams.get("messageId") || null;
@@ -207,6 +207,7 @@ export default function AlterProfile() {
                   </Button>
                 )}
                 <Button
+                  data-tour="alter-profile-edit-btn"
                   variant="outline"
                   size="sm"
                   onClick={() => setEditMode(e => !e)}
@@ -261,7 +262,7 @@ export default function AlterProfile() {
           </div>
         )}
 
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
+        <div data-tour="alter-profile-tabs" className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
           {TABS.map((t) => {
             const Icon = t.icon;
             return (

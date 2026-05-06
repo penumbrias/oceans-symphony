@@ -435,7 +435,7 @@ export default function Grounding({ initialPath = null }) {
 
   // Tab bar shown on entry
   const TabBar = () => (
-    <div className="flex border-b border-border/60 mb-6 sticky top-0 bg-background z-10">
+    <div data-tour="grounding-tabs" className="flex border-b border-border/60 mb-6 sticky top-0 bg-background z-10">
       {[
         { id: "support", label: "Support" },
         { id: "learn", label: "Learn" },
@@ -477,6 +477,7 @@ export default function Grounding({ initialPath = null }) {
 
         <div className="space-y-3">
           <button
+            data-tour="grounding-browse"
             onClick={() => setPath("all")}
             className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
           >
@@ -488,6 +489,7 @@ export default function Grounding({ initialPath = null }) {
           </button>
 
           <button
+            data-tour="grounding-state-check"
             onClick={() => setPath("state-check")}
             className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
           >
@@ -499,6 +501,7 @@ export default function Grounding({ initialPath = null }) {
           </button>
 
           <button
+            data-tour="grounding-breathing"
             onClick={() => setPath("breathing-picker")}
             className="w-full text-left bg-card border border-border/60 rounded-lg p-4 hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center justify-between group"
           >

@@ -39,7 +39,7 @@ const SECTIONS = [
 function Section({ id, icon, label, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div id={id} className="border border-border/50 rounded-xl overflow-hidden">
+    <div id={id} data-tour={`settings-${id}`} className="border border-border/50 rounded-xl overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -130,7 +130,7 @@ export default function Settings() {
       </div>
 
       {/* Quick Nav */}
-      <div className="flex flex-wrap gap-2 mb-6 p-3 bg-muted/20 border border-border/40 rounded-xl">
+      <div data-tour="settings-quick-nav" className="flex flex-wrap gap-2 mb-6 p-3 bg-muted/20 border border-border/40 rounded-xl">
         {SECTIONS.map(s => (
           <button key={s.id} onClick={() => scrollTo(s.id)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-border/40 hover:bg-muted/50 hover:border-primary/40 transition-colors text-xs font-medium">
@@ -139,7 +139,7 @@ export default function Settings() {
         ))}
       </div>
 
-      <div className="space-y-3 max-w-2xl">
+      <div data-tour="settings-content" className="space-y-3 max-w-2xl">
 
         {/* ── SYSTEM ── */}
         <Section id="system" icon="⚙️" label="System" defaultOpen={true}>

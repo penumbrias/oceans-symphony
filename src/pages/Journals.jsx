@@ -230,11 +230,11 @@ export default function Journals() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowNewFolder(true)} className="gap-1.5">
+          <Button data-tour="journals-folder-btn" variant="outline" onClick={() => setShowNewFolder(true)} className="gap-1.5">
             <FolderPlus className="w-4 h-4" />
             {viewingFolder ? "New Subfolder" : "New Folder"}
           </Button>
-          <Button onClick={() => openNew(viewingFolder)} className="bg-primary hover:bg-primary/90 gap-1.5">
+          <Button data-tour="journals-new-entry" onClick={() => openNew(viewingFolder)} className="bg-primary hover:bg-primary/90 gap-1.5">
             <Plus className="w-4 h-4" />
             New Entry
           </Button>
@@ -242,7 +242,7 @@ export default function Journals() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-muted/40 p-1 rounded-xl w-fit">
+      <div data-tour="journals-tabs" className="flex gap-1 mb-4 bg-muted/40 p-1 rounded-xl w-fit">
         {TABS.map((t) => {
           const Icon = t.icon;
           return (
@@ -258,7 +258,7 @@ export default function Journals() {
       </div>
 
       {/* Filters row */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div data-tour="journals-filters" className="flex flex-wrap gap-2 mb-4">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search entries..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />

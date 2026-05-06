@@ -279,7 +279,7 @@ export default function DailyTasks() {
   }, [templates]);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-2xl mx-auto">
+    <motion.div data-tour="tasks-daily" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -296,7 +296,7 @@ export default function DailyTasks() {
             <CalendarDays className="w-3.5 h-3.5" />
             Review
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowManager(!showManager)} className="gap-1.5">
+          <Button data-tour="tasks-edit-btn" variant="outline" size="sm" onClick={() => setShowManager(!showManager)} className="gap-1.5">
             <Settings className="w-3.5 h-3.5" />
             {showManager ? "Close" : "Edit"}
           </Button>
@@ -320,16 +320,18 @@ export default function DailyTasks() {
       </AnimatePresence>
 
       {/* Level bar (always daily XP) */}
-      <LevelBar
-        totalXP={totalXP}
-        todayXP={activeFreq === "daily" ? todayXP : undefined}
-        todayPossibleXP={activeFreq === "daily" ? possibleXP : undefined}
-        streak={streak}
-        bestStreak={bestStreak}
-      />
+      <div data-tour="tasks-level-bar">
+        <LevelBar
+          totalXP={totalXP}
+          todayXP={activeFreq === "daily" ? todayXP : undefined}
+          todayPossibleXP={activeFreq === "daily" ? possibleXP : undefined}
+          streak={streak}
+          bestStreak={bestStreak}
+        />
+      </div>
 
       {/* Frequency tabs */}
-      <div className="flex gap-1 bg-muted/40 rounded-xl p-1">
+      <div data-tour="tasks-freq-tabs" className="flex gap-1 bg-muted/40 rounded-xl p-1">
         {FREQUENCIES.map(f => (
           <button
             key={f}
