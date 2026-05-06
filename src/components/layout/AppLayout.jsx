@@ -81,26 +81,27 @@ const navConfig = useMemo(() => {
   return systemSettings?.[0]?.navigation_config || DEFAULT_CONFIG;
 }, [systemSettings]);
 
+const termMap = useMemo(() => ({
+  alters:           terms.Alters,
+  checkin:          `${terms.System} Meeting`,
+  "system-map":     `${terms.System} Map`,
+  "system-history": `${terms.System} History`,
+}), [terms]);
+
 const navItems = useMemo(() => {
   return (navConfig.topBar || [])
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
     .filter(Boolean)
-    .map(page => ({
-      ...page,
-      label: page.id === "alters" ? (terms.Alters || page.label) : page.label,
-    }));
-}, [navConfig.topBar, terms]);
+    .map(page => ({ ...page, label: termMap[page.id] || page.label }));
+}, [navConfig.topBar, termMap]);
+
 
 const bottomNavItems = useMemo(() => {
-  const termMap = {
-    alters: terms.Alters,
-    "system-map": `${terms.System} Map`,
-  };
   return (navConfig.bottomBar || [])
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
     .filter(Boolean)
     .map(page => ({ ...page, label: termMap[page.id] || page.label }));
-}, [navConfig.bottomBar, terms]);
+}, [navConfig.bottomBar, termMap]);
 
 const { data: pendingReminders = [] } = usePendingReminderInstances();
 const pendingCount = pendingReminders.filter(i => i.status === "fired").length;

@@ -1,5 +1,15 @@
 # Oceans Symphony — Architecture Notes for Claude
 
+## Critical: Always Respect User Terminology
+
+Users can customise the words used for their system, alters, fronting, and switching. **Every piece of new UI must use these terms — never hardcode "system", "alter", "alters", "fronting", "fronter", etc.**
+
+- **Hook:** `useTerms()` from `@/lib/useTerms` — use this in any component that surfaces these words.
+- **Available terms:** `terms.system`, `terms.System`, `terms.alter`, `terms.Alter`, `terms.alters`, `terms.Alters`, `terms.front`, `terms.Front`, `terms.fronting`, `terms.Fronting`, `terms.fronter`, `terms.Fronter`, `terms.fronters`, `terms.Fronters`, `terms.switch`, `terms.Switch`, etc.
+- **Static configs** (like `navigationConfig.js` `ALL_PAGES`) cannot use the hook — resolve labels at the component level (see `resolveLabel` pattern in `NavigationSettings.jsx` and `termMap` in `AppLayout.jsx`).
+- **Tooltips and sort labels** count too — e.g., "Most fronting time first" not "Most fronted first".
+- When in doubt: if the word would change if the user had set a custom term, use `useTerms()`.
+
 ## Critical: Custom Status Notes
 
 **How they work (like Facebook statuses):**

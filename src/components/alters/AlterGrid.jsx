@@ -135,7 +135,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {/* Sort */}
         <button
           onClick={() => setSortMode(m => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[m]))}
-          title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": "Most fronted first", "least": "Least fronted first" }[sortMode]}
+          title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortMode]}
           className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           {sortMode === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
           {sortMode === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}

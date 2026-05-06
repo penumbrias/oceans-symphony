@@ -6,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Navigation, Save, Loader2, ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X } from "lucide-react";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { useTerms } from "@/lib/useTerms";
 
 function ActiveItem({ label, checked, onToggle, onMoveUp, onMoveDown, isFirst, isLast }) {
   return (
@@ -25,7 +26,7 @@ function ActiveItem({ label, checked, onToggle, onMoveUp, onMoveDown, isFirst, i
 }
 
 // Grid editor for Dashboard Grid — column count is configurable
-function DashboardGridEditor({ checkedItems, onMove, onToggle, cols = 3 }) {
+function DashboardGridEditor({ checkedItems, onMove, onToggle, cols = 3, resolveLabel }) {
   const COLS = cols;
   const totalItems = checkedItems.length;
 
@@ -48,8 +49,7 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle, cols = 3 }) {
             const flatIdx = rowIdx * COLS + colIdx;
             if (!item) return <div key={colIdx} className="rounded-lg border border-dashed border-border/20 h-20" />;
 
-            const page = ALL_PAGES.find(p => p.id === item);
-            const label = page?.label || item;
+            const label = resolveLabel ? resolveLabel(item) : (ALL_PAGES.find(p => p.id === item)?.label || item);
 
             const canUp    = rowIdx > 0;
             const canDown  = flatIdx + COLS < totalItems;
@@ -116,10 +116,22 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle, cols = 3 }) {
 
 export default function NavigationSettings({ settings }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [saving, setSaving] = useState(false);
   const [openSection, setOpenSection] = useState(null);
   const [gridCols, setGridCols] = useState(() => parseInt(localStorage.getItem("nav_grid_cols") || "3", 10));
+
+  const pageTermMap = {
+    alters:           terms.Alters,
+    checkin:          `${terms.System} Meeting`,
+    "system-map":     `${terms.System} Map`,
+    "system-history": `${terms.System} History`,
+  };
+  const resolveLabel = (pageId) => {
+    const page = ALL_PAGES.find(p => p.id === pageId);
+    return pageTermMap[pageId] || page?.label || pageId;
+  };
 
   useEffect(() => {
     if (settings?.navigation_config) {
@@ -236,6 +248,7 @@ export default function NavigationSettings({ settings }) {
                         onMove={(idxA, idxB) => handleSwap(location, idxA, idxB)}
                         onToggle={(pageId) => handleToggle(location, pageId)}
                         cols={gridCols}
+                        resolveLabel={resolveLabel}
                       />
                     </>
                   ) : (
@@ -246,7 +259,7 @@ export default function NavigationSettings({ settings }) {
                         return (
                           <ActiveItem
                             key={page.id}
-                            label={page.label}
+                            label={resolveLabel(page.id)}
                             checked
                             onToggle={() => handleToggle(location, page.id)}
                             onMoveUp={() => handleMove(location, index, -1)}
@@ -264,7 +277,7 @@ export default function NavigationSettings({ settings }) {
                       {uncheckedItems.filter(p => !(isDashboard && p.id === "home")).map(page => (
                         <div key={page.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 opacity-60">
                           <div className="w-4 h-4" />
-                          <span className="flex-1 text-sm text-muted-foreground">{page.label}</span>
+                          <span className="flex-1 text-sm text-muted-foreground">{resolveLabel(page.id)}</span>
                           <Checkbox
                             checked={false}
                             disabled={count >= maxLen}
