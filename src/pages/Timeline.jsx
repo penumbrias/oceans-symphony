@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { parseDate } from "@/lib/dateUtils";
 import { useQuery } from "@tanstack/react-query";
-import { format, subDays, startOfDay, endOfDay, isToday, differenceInCalendarDays } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
 import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "react-router-dom";
@@ -21,7 +21,8 @@ export default function Timeline() {
   const [showSymptoms, setShowSymptoms] = useState(true);
   const [showLocations, setShowLocations] = useState(true);
   const [jumpDate, setJumpDate] = useState(() => searchParams.get("date") || "");
-  const [pendingScrollDate, setPendingScrollDate] = useState(null);
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const isAtToday = isToday(anchorDate);
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -162,31 +163,24 @@ export default function Timeline() {
     if (el) el.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // After daysBack expands, scroll to the pending date once it's in the DOM
-  useEffect(() => {
-    if (!pendingScrollDate) return;
-    const target = document.getElementById(`day-${pendingScrollDate}`);
-    if (target) {
-      setTimeout(() => target.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-      setPendingScrollDate(null);
-    }
-  }, [daysBack, pendingScrollDate]);
-
   const handleJumpToDate = () => {
     if (!jumpDate) return;
-    const target = document.getElementById(`day-${jumpDate}`);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      // Target day not rendered yet — expand daysBack to reach it then scroll
-      const daysNeeded = differenceInCalendarDays(new Date(), new Date(jumpDate + "T00:00:00")) + 1;
-      setDaysBack(Math.max(daysBack, daysNeeded));
-      setPendingScrollDate(jumpDate);
-    }
+    const target = new Date(jumpDate + "T00:00:00");
+    if (isNaN(target.getTime())) return;
+    setAnchorDate(target);
+    setDaysBack(CHUNK_DAYS);
+    const el = document.querySelector(".overflow-y-auto");
+    if (el) el.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Build array of days from today back daysBack days
-  const days = Array.from({ length: daysBack }, (_, i) => subDays(new Date(), i));
+  const handleBackToToday = () => {
+    setAnchorDate(new Date());
+    setDaysBack(CHUNK_DAYS);
+    const el = document.querySelector(".overflow-y-auto");
+    if (el) el.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const days = Array.from({ length: daysBack }, (_, i) => subDays(anchorDate, i));
 
   const toggleStyles = (active) =>
     `px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
@@ -211,6 +205,16 @@ export default function Timeline() {
           </Button>
         </div>
       </div>
+
+      {/* Back to today banner */}
+      {!isAtToday && (
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+          <span className="text-primary font-medium">Viewing {format(anchorDate, "MMM d, yyyy")}</span>
+          <button onClick={handleBackToToday} className="text-xs text-primary font-semibold hover:underline">
+            Back to today →
+          </button>
+        </div>
+      )}
 
       {/* Toggles */}
       <div className="flex gap-2 flex-wrap">
