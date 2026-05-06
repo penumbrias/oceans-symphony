@@ -127,11 +127,27 @@ function SectionGrid({ terms, onSelect }) {
 export default function Analytics() {
   const terms = useTerms();
   const [activeSection, setActiveSection] = useState(null);
+  const [preset, setPreset] = useState("30d");
   const [from, setFrom] = useState(subDays(new Date(), 30));
   const [to, setTo] = useState(new Date());
   const [mode, setMode] = useState("total");
   const [topTab, setTopTab] = useState("stats");
   const [activitySubTab, setActivitySubTab] = useState("overview");
+
+  const PRESETS = [
+    { id: "7d",   label: "7d",       from: () => subDays(new Date(), 7) },
+    { id: "30d",  label: "30d",      from: () => subDays(new Date(), 30) },
+    { id: "90d",  label: "90d",      from: () => subDays(new Date(), 90) },
+    { id: "1y",   label: "1y",       from: () => subDays(new Date(), 365) },
+    { id: "all",  label: "All Time", from: () => new Date(0) },
+    { id: "custom", label: "Custom", from: null },
+  ];
+
+  const applyPreset = (id) => {
+    setPreset(id);
+    const p = PRESETS.find(x => x.id === id);
+    if (p?.from) { setFrom(p.from()); setTo(new Date()); }
+  };
 
   const ACTIVITY_SUB_TABS = [
     { id: "overview", label: "Overview" },
@@ -300,8 +316,27 @@ export default function Analytics() {
         )}
       </motion.div>
 
-      {/* Global Date Range — always visible */}
-      <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+      {/* Global Date Range — preset chips + optional custom pickers */}
+      <div className="space-y-2">
+        <div className="flex gap-1.5 flex-wrap">
+          {PRESETS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => applyPreset(p.id)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                preset === p.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted-foreground border-border hover:border-primary/40"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {preset === "custom" && (
+          <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+        )}
+      </div>
 
       {/* Landing grid */}
       {!activeSection && <SectionGrid terms={terms} onSelect={setActiveSection} />}
