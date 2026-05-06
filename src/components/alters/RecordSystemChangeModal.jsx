@@ -123,7 +123,8 @@ function StepType({ value, onChange }) {
 }
 
 function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusionTypeChange }) {
-  const isSingle = type === "split";
+  const isSingle = type === "split"; // locks to one selection
+  const requiresOne = type !== "fusion"; // validation: "one" vs "two"
   const [search, setSearch] = useState("");
 
   const label = type === "fusion" ? "Alters involved in the fusion (select 2+)"
@@ -210,7 +211,7 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
 
       {/* Validation */}
       {selected.length === 0 && (
-        <p className="text-xs text-destructive">Select at least {isSingle ? "one" : "two"} alter{isSingle ? "" : "s"}.</p>
+        <p className="text-xs text-destructive">Select at least {requiresOne ? "one alter" : "two alters"}.</p>
       )}
       {type === "fusion" && selected.length === 1 && (
         <p className="text-xs text-destructive">Select at least two alters for a fusion.</p>
