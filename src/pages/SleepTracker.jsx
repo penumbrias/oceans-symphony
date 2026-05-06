@@ -177,7 +177,7 @@ export default function SleepTracker() {
                               {sleep.is_interrupted && (
                                 <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
                                   <AlarmClock className="w-3 h-3" />
-                                  Interrupted{sleep.interruption_times?.length > 0 ? ` ×${sleep.interruption_times.length}` : ""}
+                                  {(() => { const n = sleep.interruption_count || sleep.interruption_times?.length; return n ? `Interrupted ×${n}` : "Interrupted"; })()}
                                 </span>
                               )}
                               {sleep.dreamed && !sleep.had_nightmare && (

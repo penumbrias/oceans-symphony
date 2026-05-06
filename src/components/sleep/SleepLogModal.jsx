@@ -28,49 +28,72 @@ function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   );
 }
 
-function InterruptionDetails({ wakeDate, interruptionTimes, onTimesChange }) {
+function InterruptionDetails({ count, onCount, interruptionTimes, onTimesChange }) {
   const [newTime, setNewTime] = useState("");
 
   const addTime = () => {
     const t = newTime.trim();
     if (!t) return;
-    onTimesChange([...interruptionTimes, t]);
+    const updated = [...interruptionTimes, t];
+    onTimesChange(updated);
+    // keep count in sync if adding times
+    if (updated.length > count) onCount(updated.length);
     setNewTime("");
   };
 
   const removeTime = (i) => onTimesChange(interruptionTimes.filter((_, idx) => idx !== i));
 
-  // Default date for the time input — use wake date if available
-  const datePrefix = wakeDate || format(new Date(), "yyyy-MM-dd");
-
   return (
-    <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 space-y-3 mt-2">
+    <div className="mt-2 space-y-3 pl-1">
+      {/* Count stepper */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">How many times?</span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onCount(Math.max(0, count - 1))}
+            className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors text-base leading-none"
+          >−</button>
+          <span className="text-sm font-semibold w-4 text-center tabular-nums">{count || 0}</span>
+          <button
+            type="button"
+            onClick={() => onCount((count || 0) + 1)}
+            className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors text-base leading-none"
+          >+</button>
+        </div>
+      </div>
+
+      {/* Specific times — optional */}
       <div>
-        <label className="text-xs text-muted-foreground font-medium">Times woken up (optional)</label>
-        <div className="flex gap-2 mt-1.5">
-          <Input
+        <div className="flex items-center gap-2">
+          <input
             type="time"
             value={newTime}
             onChange={e => setNewTime(e.target.value)}
             onKeyDown={e => e.key === "Enter" && addTime()}
-            className="text-sm flex-1"
+            className="flex-1 rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
           />
-          <Button type="button" size="sm" variant="outline" onClick={addTime} className="flex-shrink-0">
-            <Plus className="w-3.5 h-3.5" />
-          </Button>
+          <button
+            type="button"
+            onClick={addTime}
+            className="text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-2.5 py-1.5 transition-colors whitespace-nowrap"
+          >
+            + Add time
+          </button>
         </div>
         {interruptionTimes.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {interruptionTimes.map((t, i) => (
               <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
                 {t}
-                <button type="button" onClick={() => removeTime(i)} className="hover:opacity-70">
+                <button type="button" onClick={() => removeTime(i)} className="hover:opacity-70 leading-none">
                   <X className="w-2.5 h-2.5" />
                 </button>
               </span>
             ))}
           </div>
         )}
+        <p className="text-xs text-muted-foreground/60 mt-1.5">Specific times are optional</p>
       </div>
     </div>
   );
@@ -86,6 +109,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
   const [isInterrupted, setIsInterrupted] = useState(false);
   const [dreamed, setDreamed] = useState(false);
   const [hadNightmare, setHadNightmare] = useState(false);
+  const [interruptionCount, setInterruptionCount] = useState(0);
   const [interruptionTimes, setInterruptionTimes] = useState([]);
 
   React.useEffect(() => {
@@ -102,6 +126,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       setIsInterrupted(false);
       setDreamed(false);
       setHadNightmare(false);
+      setInterruptionCount(0);
       setInterruptionTimes([]);
       setNotes("");
       setQuality(5);
@@ -115,7 +140,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
 
   const handleInterruptedToggle = (val) => {
     setIsInterrupted(val);
-    if (!val) setInterruptionTimes([]);
+    if (!val) { setInterruptionCount(0); setInterruptionTimes([]); }
   };
 
   const handleSave = async () => {
@@ -144,7 +169,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         quality: quality || null,
         notes: notes || null,
         is_interrupted: isInterrupted,
-        interruption_count: isInterrupted ? (interruptionTimes.length || null) : null,
+        interruption_count: isInterrupted ? (interruptionCount || interruptionTimes.length || null) : null,
         interruption_times: isInterrupted && interruptionTimes.length > 0 ? interruptionTimes : null,
         dreamed,
         had_nightmare: hadNightmare,
@@ -168,6 +193,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       setIsInterrupted(false);
       setDreamed(false);
       setHadNightmare(false);
+      setInterruptionCount(0);
       setInterruptionTimes([]);
       onSave?.();
       onClose();
@@ -241,7 +267,8 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
             {/* Interruption details */}
             {isInterrupted && (
               <InterruptionDetails
-                wakeDate={sleepDate}
+                count={interruptionCount}
+                onCount={setInterruptionCount}
                 interruptionTimes={interruptionTimes}
                 onTimesChange={setInterruptionTimes}
               />
