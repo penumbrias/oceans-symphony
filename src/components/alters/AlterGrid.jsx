@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import AlterCard from "./AlterCard";
 import AlterGridView from "./AlterGridView";
 import FolderGroupsSection from "./FolderGroupsSection.jsx";
+import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { useTerms } from "@/lib/useTerms";
 
 export default function AlterGrid({ alters, currentSession = null }) {
@@ -17,6 +18,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
   const [sortMode, setSortMode] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [showFolders, setShowFolders] = useState(true);
   const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
@@ -39,9 +41,16 @@ export default function AlterGrid({ alters, currentSession = null }) {
     if (sortMode === "alpha-asc" || sortMode === "alpha-desc") return {};
     const totals = {};
     for (const s of allSessions) {
-      if (!s.alter_id) continue;
       const dur = s.end_time && s.start_time ? new Date(s.end_time) - new Date(s.start_time) : 0;
-      totals[s.alter_id] = (totals[s.alter_id] || 0) + dur;
+      if (s.alter_id) {
+        totals[s.alter_id] = (totals[s.alter_id] || 0) + dur;
+      } else {
+        // Legacy session format
+        if (s.primary_alter_id) totals[s.primary_alter_id] = (totals[s.primary_alter_id] || 0) + dur;
+        for (const id of (s.co_fronter_ids || [])) {
+          totals[id] = (totals[id] || 0) + dur;
+        }
+      }
     }
     return totals;
   }, [allSessions, sortMode]);
@@ -96,7 +105,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
       </button>
       <button
-        onClick={() => navigate("/groups?new=1")}
+        onClick={() => setCreateGroupOpen(true)}
         title="New group"
         className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
         <Plus className="w-4 h-4" />
@@ -187,6 +196,11 @@ export default function AlterGrid({ alters, currentSession = null }) {
           }
         </div>
       </div>
+
+      <CreateGroupModal
+        open={createGroupOpen}
+        onClose={() => setCreateGroupOpen(false)}
+      />
     </div>);
 
 }
