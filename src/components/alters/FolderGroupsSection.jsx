@@ -86,7 +86,7 @@ function FolderRow({ group, onClick }) {
 
 }
 
-export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [] }) {
+export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls }) {
   const [navStack, setNavStack] = useState([]);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
@@ -157,20 +157,21 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           variant="ghost"
           size="sm"
           className="gap-2">
-          
+
             <Users className="w-4 h-4" />
             Members
           </Button>
         }
-        <Button
-          onClick={() => setCreateGroupOpen(true)}
-          variant="ghost"
-          size="sm"
-          className="gap-2">
-          
-          <Plus className="w-4 h-4" />
-          New Group
-        </Button>
+        {headerControls || (
+          <Button
+            onClick={() => setCreateGroupOpen(true)}
+            variant="ghost"
+            size="sm"
+            className="gap-2">
+            <Plus className="w-4 h-4" />
+            New Group
+          </Button>
+        )}
       </div>
 
       {/* Content: Folders and Members */}

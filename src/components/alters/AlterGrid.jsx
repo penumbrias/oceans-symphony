@@ -145,17 +145,14 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
       {/* Content */}
       <div className="space-y-4">
-        {/* Groups section — controls always visible, folders conditional */}
+        {/* Groups section */}
         {rootGroups.length > 0 && showFolders && (
-          <>
-            {/* Groups header row with controls */}
-            <div className="flex items-center gap-2 px-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Groups</p>
-              <div className="flex-1 h-px bg-border/50" />
-              {groupControls(true)}
-            </div>
-            <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortMode === "alpha-desc" ? "desc" : "asc"} activeSessions={activeSessions} />
-          </>
+          <FolderGroupsSection
+            alters={alters.filter((a) => !a.is_archived)}
+            sortDir={sortMode === "alpha-desc" ? "desc" : "asc"}
+            activeSessions={activeSessions}
+            headerControls={groupControls(true)}
+          />
         )}
 
         {/* Alters list/grid */}
