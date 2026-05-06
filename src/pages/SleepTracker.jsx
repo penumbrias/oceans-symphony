@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlarmClock, Cloud, ZapOff } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import SleepLogModal from "@/components/sleep/SleepLogModal";
@@ -172,6 +172,25 @@ export default function SleepTracker() {
                               </span>
                             )}
                           </div>
+                          {(sleep.is_interrupted || sleep.dreamed || sleep.had_nightmare) && (
+                            <div className="flex gap-1.5 mt-2 flex-wrap">
+                              {sleep.is_interrupted && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                                  <AlarmClock className="w-3 h-3" /> Interrupted
+                                </span>
+                              )}
+                              {sleep.dreamed && !sleep.had_nightmare && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                                  <Cloud className="w-3 h-3" /> Dreamed
+                                </span>
+                              )}
+                              {sleep.had_nightmare && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 border border-red-500/20">
+                                  <ZapOff className="w-3 h-3" /> Nightmare
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {sleep.notes && (
                             <p className="text-sm text-muted-foreground mt-2">
                               {sleep.notes}
