@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus } from "lucide-react";
+import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -14,7 +14,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const [search, setSearch] = useState("");
-  const [sortDir, setSortDir] = useState("asc"); // "asc" | "desc"
+  const [sortMode, setSortMode] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [showFolders, setShowFolders] = useState(true);
   const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
 
@@ -27,6 +27,24 @@ export default function AlterGrid({ alters, currentSession = null }) {
     queryKey: ["frontHistory"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
   });
+
+  const { data: allSessions = [] } = useQuery({
+    queryKey: ["frontSessionsAll"],
+    queryFn: () => base44.entities.FrontingSession.filter({}),
+    enabled: sortMode === "most" || sortMode === "least",
+    staleTime: 60000,
+  });
+
+  const alterFrontTotals = useMemo(() => {
+    if (sortMode === "alpha-asc" || sortMode === "alpha-desc") return {};
+    const totals = {};
+    for (const s of allSessions) {
+      if (!s.alter_id) continue;
+      const dur = s.end_time && s.start_time ? new Date(s.end_time) - new Date(s.start_time) : 0;
+      totals[s.alter_id] = (totals[s.alter_id] || 0) + dur;
+    }
+    return totals;
+  }, [allSessions, sortMode]);
 
   const activeSessions = sessions.filter((s) => s.is_active);
 
@@ -60,8 +78,10 @@ export default function AlterGrid({ alters, currentSession = null }) {
     const ra = frontingRank[a.id] ?? 2;
     const rb = frontingRank[b.id] ?? 2;
     if (ra !== rb) return ra - rb; // fronters always first
+    if (sortMode === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
+    if (sortMode === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
     const cmp = (a.name || "").localeCompare(b.name || "");
-    return sortDir === "asc" ? cmp : -cmp;
+    return sortMode === "alpha-asc" ? cmp : -cmp;
   });
 
   // Root-level groups for display
@@ -82,10 +102,13 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
         {/* Sort */}
         <button
-          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
-          title={sortDir === "asc" ? "A → Z" : "Z → A"}
+          onClick={() => setSortMode(m => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[m]))}
+          title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": "Most fronted first", "least": "Least fronted first" }[sortMode]}
           className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-          {sortDir === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
+          {sortMode === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
+          {sortMode === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
+          {sortMode === "most" && <TrendingDown className="w-4 h-4" />}
+          {sortMode === "least" && <TrendingUp className="w-4 h-4" />}
         </button>
 
         {/* View mode */}
@@ -124,7 +147,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
       <div className="space-y-8">
         {/* Folders section */}
         {showFolders && rootGroups.length > 0 &&
-        <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortDir} activeSessions={activeSessions} />
+        <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortMode === "alpha-desc" ? "desc" : "asc"} activeSessions={activeSessions} />
         }
 
         {/* Alters list/grid */}
