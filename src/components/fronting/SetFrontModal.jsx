@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -43,15 +43,36 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
   const text = bg ? getContrastColor(bg) : null;
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
+  const timerRef = useRef(null);
+  const longFiredRef = useRef(false);
+
+  const startPress = () => {
+    longFiredRef.current = false;
+    timerRef.current = setTimeout(() => {
+      longFiredRef.current = true;
+      onSetPrimary();
+    }, 500);
+  };
+  const cancelPress = () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+  };
+  const handleClick = () => { if (!longFiredRef.current) onToggle(); };
+
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${selected ? "Deselect" : "Select"} ${alter.name}`}
+      aria-label={`${selected ? "Deselect" : "Select"} ${alter.name}${selected ? ". Long-press to toggle primary" : ""}`}
       aria-pressed={selected}
-      onClick={onToggle}
-      onKeyDown={e => e.key === "Enter" || e.key === " " ? onToggle() : undefined}
-      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
+      onMouseDown={startPress}
+      onMouseUp={cancelPress}
+      onMouseLeave={cancelPress}
+      onTouchStart={startPress}
+      onTouchEnd={cancelPress}
+      onTouchMove={cancelPress}
+      onClick={handleClick}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? handleClick() : undefined}
+      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all select-none ${
       selected ?
       "border-primary/60 bg-primary/5" :
       "border-border/50 bg-card hover:bg-muted/30"}`
@@ -76,12 +97,10 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
         onClick={(e) => {e.stopPropagation();onSetPrimary();}}
         aria-label={isPrimary ? `${alter.name} is primary — click to demote` : `Set ${alter.name} as primary`}
         className={`p-1 rounded-md transition-colors ${isPrimary ? "text-amber-500" : "text-muted-foreground hover:text-amber-400"}`}>
-        
           <Star className={`w-4 h-4 ${isPrimary ? "fill-amber-500" : ""}`} />
         </button>
       }
     </div>);
-
 }
 
 export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession }) {
@@ -397,8 +416,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           }
 
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
-            {selectedIds.size > 0 && <p className="text-primary">Click primary to make them co-{terms.front} only</p>}
+            <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
+            {selectedIds.size > 0 && <p className="text-primary">Tap primary name to make them co-{terms.front} only</p>}
           </div>
 
           {/* Search and View Toggle */}
