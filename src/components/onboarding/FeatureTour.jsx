@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { X, ChevronLeft, ChevronRight, MapPin, ChevronsRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
@@ -648,6 +649,11 @@ export default function FeatureTour({ onClose }) {
   }, []);
 
   const goTo = useCallback((newStep) => {
+    // Close any modal the current step opened before moving on
+    const prev = steps[step];
+    if (prev?.action) {
+      window.dispatchEvent(new CustomEvent(`${prev.action}-close`));
+    }
     const s = steps[newStep];
     if (s.route) navigate(s.route);
     // If this step should open a modal/panel, dispatch after route settles
@@ -658,7 +664,7 @@ export default function FeatureTour({ onClose }) {
     const highlightDelay = s.action ? 750 : 400;
     setTimeout(() => applyHighlight(s.target), highlightDelay);
     setStep(newStep);
-  }, [steps, navigate, applyHighlight]);
+  }, [steps, step, navigate, applyHighlight]);
 
   useEffect(() => {
     window.__tourActive = true;
@@ -677,16 +683,20 @@ export default function FeatureTour({ onClose }) {
   }, []);
 
   const handleClose = useCallback(() => {
+    const prev = steps[step];
+    if (prev?.action) {
+      window.dispatchEvent(new CustomEvent(`${prev.action}-close`));
+    }
     window.__tourActive = false;
     onClose();
-  }, [onClose]);
+  }, [steps, step, onClose]);
 
-  return (
+  return createPortal(
     <>
       {/* Dim overlay — sits below modals so modals still look natural */}
       <div className="fixed inset-0 z-40 bg-black/30 pointer-events-none" />
 
-      {/* Tour card — z-[100] to float above any modal dialog */}
+      {/* Tour card — portal-rendered as last body child so z-[100] always wins */}
       <div className="fixed bottom-16 left-0 right-0 z-[100] px-3 pb-2">
         <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
           {/* Overall progress bar */}
@@ -763,6 +773,7 @@ export default function FeatureTour({ onClose }) {
           <div className="h-1" />
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

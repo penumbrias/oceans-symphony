@@ -384,9 +384,14 @@ export default function CurrentFronters({ alters }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handler = () => setShowModal(true);
-    window.addEventListener("open-set-front", handler);
-    return () => window.removeEventListener("open-set-front", handler);
+    const open = () => setShowModal(true);
+    const close = () => setShowModal(false);
+    window.addEventListener("open-set-front", open);
+    window.addEventListener("open-set-front-close", close);
+    return () => {
+      window.removeEventListener("open-set-front", open);
+      window.removeEventListener("open-set-front-close", close);
+    };
   }, []);
 
   const [editingStatus, setEditingStatus] = useState(false);
