@@ -18,13 +18,14 @@ const TYPE_META = {
 
 function AlterPill({ alter }) {
   if (!alter) return null;
+  const color = alter.color || "#9333ea";
   return (
     <Link
       to={`/alter/${alter.id}`}
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border hover:opacity-80 transition-opacity"
-      style={{ borderColor: alter.color || "#9333ea", color: alter.color || "#9333ea", backgroundColor: `${alter.color || "#9333ea"}15` }}
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border hover:opacity-80 transition-opacity text-foreground"
+      style={{ borderColor: color, backgroundColor: `${color}22` }}
     >
-      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#9333ea" }} />
+      <div className="w-3 h-3 rounded-full flex-shrink-0 ring-1 ring-background" style={{ backgroundColor: color }} />
       {alter.name}
     </Link>
   );

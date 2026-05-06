@@ -197,8 +197,9 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
             if (!a) return null;
             return (
               <span key={id}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border"
-                style={{ borderColor: a.color || "hsl(var(--primary))", color: a.color || "hsl(var(--primary))", backgroundColor: (a.color || "#9333ea") + "18" }}>
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border text-foreground"
+                style={{ borderColor: a.color || "hsl(var(--primary))", backgroundColor: (a.color || "#9333ea") + "22" }}>
+                <span className="w-2 h-2 rounded-full ring-1 ring-background flex-shrink-0" style={{ backgroundColor: a.color || "hsl(var(--primary))" }} />
                 {a.name}
                 <button type="button" onClick={() => onToggle(a.id, false)} className="ml-0.5 opacity-70 hover:opacity-100">
                   <X className="w-2.5 h-2.5" />
@@ -355,8 +356,9 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
               {selectedExisting.map(r => {
                 const a = nonSourceAlters.find(x => x.id === r.id);
                 return (
-                  <span key={r.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border"
-                    style={{ borderColor: a?.color || "hsl(var(--primary))", color: a?.color || "hsl(var(--primary))", backgroundColor: (a?.color || "#9333ea") + "18" }}>
+                  <span key={r.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border text-foreground"
+                    style={{ borderColor: a?.color || "hsl(var(--primary))", backgroundColor: (a?.color || "#9333ea") + "22" }}>
+                    <span className="w-2 h-2 rounded-full ring-1 ring-background flex-shrink-0" style={{ backgroundColor: a?.color || "hsl(var(--primary))" }} />
                     {r.name}
                     <button type="button" onClick={() => onSplitResults(splitResults.filter(x => !(x.type === "existing" && x.id === r.id)))} className="ml-0.5 opacity-70 hover:opacity-100">
                       <X className="w-2.5 h-2.5" />
