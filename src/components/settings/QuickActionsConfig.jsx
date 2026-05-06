@@ -74,28 +74,30 @@ function ActivityCategoryPicker({ categories, selectedId, onChange }) {
           const isSelected = selectedId === root.id;
           return (
             <div key={root.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (subs.length > 0) {
-                    setExpandedId(isExpanded ? null : root.id);
-                  } else {
-                    onChange(root.id);
-                  }
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
+              <div
+                className={`flex items-center text-sm transition-colors ${
                   isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/40 text-foreground"
                 }`}
               >
-                {subs.length > 0 ? (
-                  <ChevronRight className={`w-3.5 h-3.5 flex-shrink-0 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                ) : (
-                  <span className="w-3.5 h-3.5 flex-shrink-0" />
+                <button
+                  type="button"
+                  onClick={() => onChange(root.id)}
+                  className="flex-1 flex items-center gap-2 px-3 py-2 text-left"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: root.color || "#888" }} />
+                  <span className="flex-1">{root.name}</span>
+                  {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                </button>
+                {subs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isExpanded ? null : root.id)}
+                    className="px-2 py-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                  </button>
                 )}
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: root.color || "#888" }} />
-                <span className="flex-1 text-left">{root.name}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-              </button>
+              </div>
               {isExpanded && subs.map((sub) => {
                 const isSubSelected = selectedId === sub.id;
                 return (
@@ -128,9 +130,9 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     { id: "open_checkin_section", label: "Open Check-In at a specific section" },
     { id: "open_set_front", label: `Open Set ${terms.Front}ers modal` },
     { id: "set_front_alter", label: `Set a specific ${terms.alter} to ${terms.front}` },
-    { id: "log_activity", label: "Instantly log an activity" },
-    { id: "log_symptom", label: "Instantly log a symptom or habit" },
-    { id: "log_emotion", label: "Instantly log an emotion" },
+    { id: "log_activity", label: "Log an activity" },
+    { id: "log_symptom", label: "Log a symptom or habit" },
+    { id: "log_emotion", label: "Log an emotion" },
   ];
 
   const activeAlters = alters.filter((a) => !a.is_archived);
