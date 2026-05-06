@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { parseDate } from "@/lib/dateUtils";
 import { useQuery } from "@tanstack/react-query";
-import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, isToday, differenceInCalendarDays } from "date-fns";
 import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "react-router-dom";
@@ -21,6 +21,7 @@ export default function Timeline() {
   const [showSymptoms, setShowSymptoms] = useState(true);
   const [showLocations, setShowLocations] = useState(true);
   const [jumpDate, setJumpDate] = useState(() => searchParams.get("date") || "");
+  const [pendingScrollDate, setPendingScrollDate] = useState(null);
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -161,11 +162,26 @@ export default function Timeline() {
     if (el) el.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // After daysBack expands, scroll to the pending date once it's in the DOM
+  useEffect(() => {
+    if (!pendingScrollDate) return;
+    const target = document.getElementById(`day-${pendingScrollDate}`);
+    if (target) {
+      setTimeout(() => target.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+      setPendingScrollDate(null);
+    }
+  }, [daysBack, pendingScrollDate]);
+
   const handleJumpToDate = () => {
     if (!jumpDate) return;
     const target = document.getElementById(`day-${jumpDate}`);
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      // Target day not rendered yet — expand daysBack to reach it then scroll
+      const daysNeeded = differenceInCalendarDays(new Date(), new Date(jumpDate + "T00:00:00")) + 1;
+      setDaysBack(Math.max(daysBack, daysNeeded));
+      setPendingScrollDate(jumpDate);
     }
   };
 
