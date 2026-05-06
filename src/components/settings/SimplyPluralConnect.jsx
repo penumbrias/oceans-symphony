@@ -14,8 +14,10 @@ import {
   getFrontHistory,
   getPolls,
   getMemberNotes,
+  getCustomFronts,
   spFieldType,
   mapMemberToAlter,
+  mapCustomFrontToAlter,
   mapGroupToLocalGroup,
   mapFrontHistoryEntry,
   mapSPPoll,
@@ -56,6 +58,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const [includeAvatars, setIncludeAvatars] = useState(false);
   const [includePolls, setIncludePolls] = useState(true);
   const [includeNotes, setIncludeNotes] = useState(false);
+  const [includeCustomFronts, setIncludeCustomFronts] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [importProgress, setImportProgress] = useState("");
 
@@ -204,6 +207,36 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           }
         }
 
+        // ── Step 3b: Custom fronts as alters (optional) ──
+        let customFrontsCreated = 0, customFrontsUpdated = 0;
+        if (includeCustomFronts) {
+          setImportProgress("Importing custom fronts as alters…");
+          const spCustomFronts = await getCustomFronts(tok, sysId);
+          const existingBySpId = {};
+          const existingAltersNow = await localEntities.Alter.list();
+          for (const a of existingAltersNow) {
+            if (a.sp_id) existingBySpId[a.sp_id] = a;
+          }
+          for (const cf of spCustomFronts) {
+            const mapped = mapCustomFrontToAlter(cf);
+            if (!mapped.sp_id) continue;
+            const existing = existingBySpId[mapped.sp_id];
+            if (existing) {
+              if (importMode !== "new_only") {
+                const updateData = { ...mapped };
+                if (!includeAvatars) delete updateData.avatar_url;
+                await localEntities.Alter.update(existing.id, updateData);
+                customFrontsUpdated++;
+              }
+              alterIdBySpId[mapped.sp_id] = existing.id;
+            } else {
+              const created = await localEntities.Alter.create(mapped);
+              alterIdBySpId[mapped.sp_id] = created.id;
+              customFrontsCreated++;
+            }
+          }
+        }
+
         // ── Steps 4+5: Groups ──
         let groupsCreated = 0, groupsUpdated = 0;
         if (includeGroups) {
@@ -310,6 +343,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
         const parts = [
           `Alters: ${altersCreated} new, ${altersUpdated} updated`,
+          includeCustomFronts && (customFrontsCreated > 0 || customFrontsUpdated > 0) && `Custom fronts: ${customFrontsCreated} new, ${customFrontsUpdated} updated`,
           includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
           includeCustomFields && fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
           includePolls && `Polls: ${pollsCreated} new, ${pollsUpdated} updated`,
@@ -562,6 +596,16 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                   />
                   <FileText className="w-3.5 h-3.5 text-muted-foreground" />
                   Member Notes <span className="text-muted-foreground/60 text-xs">(one API call per alter — slow)</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeCustomFronts}
+                    onChange={(e) => setIncludeCustomFronts(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  Custom Fronts <span className="text-muted-foreground/60 text-xs">(imported as alters)</span>
                 </label>
               </div>
 

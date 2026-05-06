@@ -174,6 +174,21 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}) {
   };
 }
 
+export function mapCustomFrontToAlter(customFront) {
+  const spId = customFront.id || customFront._id || "";
+  const c = customFront.content || customFront;
+  return {
+    sp_id: spId,
+    name: c.name || "Unknown",
+    description: c.desc || c.description || "",
+    color: normalizeColor(c.color),
+    avatar_url: c.avatarUrl || c.avatar_url || "",
+    tags: [],
+    groups: [],
+    is_archived: !!c.archived,
+  };
+}
+
 export function mapGroupToLocalGroup(group) {
   const spId = group.id || group._id || "";
   const c = group.content || group;
@@ -194,12 +209,11 @@ export function mapGroupToLocalGroup(group) {
 
 // Maps one SP front history entry to a single FrontingSession object (or null).
 // Each SP entry represents ONE member/customFront fronting.
-// `custom` (boolean) = true means it's a custom front, not a member — skip those.
+// When custom fronts have been imported as alters (sp_id = custom front ID), their
+// history entries resolve via the same alterIdBySpId lookup.
 export function mapFrontHistoryEntry(entry, alterIdBySpId) {
   const spFrontId = entry.id || entry._id || "";
   const c = entry.content || entry;
-
-  if (c.custom) return null; // custom fronts don't map to alters
 
   const spMemberId = c.member || "";
   if (!spMemberId) return null;
