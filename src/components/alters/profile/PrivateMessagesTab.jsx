@@ -5,6 +5,7 @@ import { Mail, Pin, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format, formatDistanceToNow } from "date-fns";
+import { useTerms } from "@/lib/useTerms";
 
 function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onTogglePinned, onMarkRead, isHighlighted, cardRef }) {
   const isSent = message.from_alter_id === currentAlterId;
@@ -97,6 +98,7 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onT
 
 export default function PrivateMessagesTab({ alterId, alters, highlightMessageId }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const [composing, setComposing] = useState(false);
   const [fromAlterId, setFromAlterId] = useState(null);
   const [content, setContent] = useState("");
@@ -208,7 +210,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
           <Mail className="w-8 h-8 mx-auto opacity-20" />
           <p>No messages yet</p>
           <p className="text-xs text-muted-foreground/70 max-w-xs mx-auto leading-relaxed">
-            Messages left here appear on the dashboard. Pin a message to keep it always visible at the top of the home screen.
+            Messages left here appear on the dashboard while this {terms.alter} is {terms.fronting}. Pin a message to keep it always visible at the top of the home screen.
           </p>
         </div>
       ) : (
