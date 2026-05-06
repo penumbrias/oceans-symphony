@@ -55,6 +55,14 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "dashboard", sectionLabel: "Dashboard",
+      emoji: "⚡",
+      title: "Quick Actions (Hold)",
+      body: `Press and hold the Quick Check-In button for 3 seconds to pop up your Quick Actions menu — a pill list of shortcuts you've configured. Each action can: open the full modal, jump to a specific section, set a specific ${t.alter} to ${t.front} instantly, log an activity, or log a symptom — all without touching the modal. Configure them in Settings → Check-In & Tracking → Quick Actions.`,
+      route: "/", target: "quick-checkin",
+      look: `the highlighted Quick Check-In button — hold it for 3 seconds to see your Quick Actions pop up`, action: null,
+    },
+    {
+      section: "dashboard", sectionLabel: "Dashboard",
       emoji: "💬",
       title: "Status Notes",
       body: `The status note field lets you leave a short system-wide note — "at work", "in therapy", "rough night". Every save creates a new timestamped record; nothing is ever overwritten. The most recent note appears above the input as a preview, and all past notes appear on the Timeline.`,
@@ -357,7 +365,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "bulletin", sectionLabel: "Bulletin Board",
       emoji: "💬",
       title: "@ Mentions & Comments",
-      body: `Type @ in a bulletin post to mention an ${t.alter} — they receive a notification in the bell. Tap any bulletin to expand it and reveal the threaded comment section. Other headmates can reply. Tap the comment's 🔔 to mark it as something important.`,
+      body: `Type @ in a bulletin post to mention an ${t.alter} — they receive a notification in the bell. Tap any bulletin to expand it and reveal the threaded comment section. Other ${t.alters} can reply and add emoji reactions. Tap the 📌 pin icon on a bulletin to pin it to the top of the board.`,
       route: "/", target: "bulletin-list",
       look: `the highlighted bulletin board — tap any bulletin to expand the comment thread`, action: null,
     },
@@ -622,7 +630,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "settings", sectionLabel: "Settings",
       emoji: "✏️",
-      title: "System Name & Terminology",
+      title: `${t.System} Name & Terminology`,
       body: `The System section is expanded by default. Set your ${t.system}'s name at the top. Below it, Terminology Settings lets you customize every word the app uses — "${t.system}", "${t.alter}", "${t.fronting}", "${t.switch}", and more. Changes take effect immediately throughout the entire app including this tour.`,
       route: "/settings", target: "settings-system",
       look: `the highlighted System section — already expanded with the name input at the top`, action: null,
@@ -638,7 +646,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "settings", sectionLabel: "Settings",
       emoji: "🧩",
-      title: "Alters & Fields",
+      title: `${t.Alters} & Fields`,
       body: `The Alters & Fields section has: Custom Fields Manager (add text/number/toggle/dropdown fields to all ${t.alter} profiles), Relationship Types (add custom types for the ${t.System} Map), and the Archived ${t.Alters} Manager (view and restore archived profiles).`,
       route: "/settings", target: "settings-alters",
       look: `the highlighted Alters & Fields section — tap its header to expand it`, action: null,
@@ -650,6 +658,14 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       body: `Configure the Quick Check-In flow and sections order using the Check-In Manager link. Create custom emotion labels that appear in check-ins. Add custom trigger type categories with emoji and hint text — these appear as options in the "Triggered ${t.switch}?" section of the ${t.Front} modal.`,
       route: "/settings", target: "settings-checkin",
       look: `the highlighted Check-In & Tracking section — tap its header to expand it`, action: null,
+    },
+    {
+      section: "settings", sectionLabel: "Settings",
+      emoji: "⚡",
+      title: "Quick Actions Config",
+      body: `The Quick Actions section (inside Check-In & Tracking) is where you build your personal shortcut library. Tap "Add" to create a new action — choose the type (open modal, jump to section, set ${t.alter} to ${t.front}, log activity, log symptom), fill in the config, and give it a label and optional emoji. Reorder with the up/down arrows. The next time you hold the Quick Check-In button, your shortcuts appear instantly.`,
+      route: "/settings", target: "settings-quick-actions",
+      look: `the highlighted Quick Actions config — tap the Check-In section header first if it's collapsed`, action: null,
     },
     {
       section: "settings", sectionLabel: "Settings",
@@ -723,13 +739,17 @@ export default function FeatureTour({ onClose }) {
   );
 
   const [spotlightRect, setSpotlightRect] = useState(null);
+  const [cardAtTop, setCardAtTop] = useState(false);
   const highlightedElRef = useRef(null);
 
   const updateSpotlight = useCallback(() => {
     const el = highlightedElRef.current;
-    if (!el) { setSpotlightRect(null); return; }
+    if (!el) { setSpotlightRect(null); setCardAtTop(false); return; }
     const r = el.getBoundingClientRect();
     setSpotlightRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+    // Move tour card to top when highlighted element is in the bottom 45% of viewport
+    // (prevents the card from covering the spotlight cutout)
+    setCardAtTop(r.top > window.innerHeight * 0.55);
   }, []);
 
   // Keep spotlight in sync with scroll/resize
@@ -865,15 +885,18 @@ export default function FeatureTour({ onClose }) {
         <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 45, background: "rgba(0,0,0,0.3)" }} />
       )}
 
-      {/* Touch blocker — z-[99] solid wall covering the tour card's footprint so
-          nothing below (dialogs at z-50) can receive pointer events in that area */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-[99] pointer-events-auto"
-        style={{ height: "var(--tour-card-height, 0px)" }}
-      />
+      {/* Touch blocker — covers the tour card footprint so nothing behind it gets taps */}
+      {cardAtTop ? (
+        <div className="fixed top-0 left-0 right-0 z-[99] pointer-events-auto"
+          style={{ height: "var(--tour-card-height, 0px)" }} />
+      ) : (
+        <div className="fixed bottom-0 left-0 right-0 z-[99] pointer-events-auto"
+          style={{ height: "var(--tour-card-height, 0px)" }} />
+      )}
 
-      {/* Tour card — portal-rendered as last body child so z-[100] always wins */}
-      <div ref={cardRef} className="fixed bottom-16 left-0 right-0 z-[100] px-3 pb-2">
+      {/* Tour card — portal-rendered as last body child so z-[100] always wins.
+          Moves to top when the spotlight is in the bottom half of the screen. */}
+      <div ref={cardRef} className={`fixed left-0 right-0 z-[100] px-3 pb-2 ${cardAtTop ? "top-4" : "bottom-16"}`}>
         <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
           {/* Overall progress bar */}
           <div className="h-1 bg-muted">

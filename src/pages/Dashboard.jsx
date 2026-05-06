@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Bell } from "lucide-react";
+import { toast } from "sonner";
+import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
@@ -121,6 +123,116 @@ export default function Dashboard() {
 
   const [emotionModalInitialSection, setEmotionModalInitialSection] = useState(null);
 
+  // Live clock — updates every minute
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── Quick Actions (long press) ────────────────────────────────────────────
+  const holdTimerRef = useRef(null);
+  const holdStartRef = useRef(null);
+  const timerFiredRef = useRef(false);
+  const showQuickActionsRef = useRef(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [showQuickActions, setShowQuickActions] = useState(false);
+
+  const { data: quickActionsRaw = [] } = useQuery({
+    queryKey: ["quickActions"],
+    queryFn: () => base44.entities.QuickAction.list("order"),
+  });
+  const sortedQuickActions = [...quickActionsRaw].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const startHold = (e) => {
+    // If menu already open, close it instead
+    if (showQuickActionsRef.current) {
+      showQuickActionsRef.current = false;
+      setShowQuickActions(false);
+      return;
+    }
+    timerFiredRef.current = false;
+    holdStartRef.current = Date.now();
+
+    const tick = () => {
+      if (!holdStartRef.current) return;
+      const elapsed = Date.now() - holdStartRef.current;
+      const progress = Math.min(100, (elapsed / 3000) * 100);
+      setHoldProgress(progress);
+      if (progress < 100) {
+        holdTimerRef.current = setTimeout(tick, 50);
+      } else {
+        timerFiredRef.current = true;
+        holdStartRef.current = null;
+        setHoldProgress(0);
+        if (navigator.vibrate) navigator.vibrate(50);
+        showQuickActionsRef.current = true;
+        setShowQuickActions(true);
+      }
+    };
+    holdTimerRef.current = setTimeout(tick, 50);
+  };
+
+  const endHold = () => {
+    if (!holdStartRef.current) return;
+    clearTimeout(holdTimerRef.current);
+    holdStartRef.current = null;
+    setHoldProgress(0);
+    if (!timerFiredRef.current && !showQuickActionsRef.current) {
+      setShowEmotionModal(true);
+    }
+  };
+
+  const executeQuickAction = async (action) => {
+    showQuickActionsRef.current = false;
+    setShowQuickActions(false);
+    const now = new Date().toISOString();
+
+    if (action.type === "open_checkin") {
+      setEmotionModalInitialSection(null);
+      setShowEmotionModal(true);
+    } else if (action.type === "open_checkin_section") {
+      setEmotionModalInitialSection(action.config?.section || null);
+      setShowEmotionModal(true);
+    } else if (action.type === "open_set_front") {
+      window.dispatchEvent(new CustomEvent("open-set-front"));
+    } else if (action.type === "set_front_alter") {
+      const alterId = action.config?.alter_id;
+      if (!alterId) return;
+      const active = await base44.entities.FrontingSession.filter({ is_active: true });
+      await Promise.all(active.map((s) =>
+        base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now })
+      ));
+      await base44.entities.FrontingSession.create({ alter_id: alterId, is_primary: true, start_time: now, is_active: true });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      const alterObj = alters.find((a) => a.id === alterId);
+      toast.success(`${alterObj?.name || "Alter"} set as ${terms.fronting}`);
+    } else if (action.type === "log_activity") {
+      const { activity_name, duration_minutes } = action.config || {};
+      if (!activity_name) return;
+      await base44.entities.Activity.create({
+        activity_name,
+        activity_category_ids: [],
+        duration_minutes: duration_minutes || null,
+        fronting_alter_ids: frontingAlterIds,
+        timestamp: now,
+      });
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      toast.success(`${action.label || activity_name} logged`);
+    } else if (action.type === "log_symptom") {
+      const { symptom_id, severity } = action.config || {};
+      if (!symptom_id) return;
+      await base44.entities.SymptomCheckIn.create({
+        symptom_id,
+        severity: severity || null,
+        timestamp: now,
+      });
+      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      toast.success(`${action.label} logged`);
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-2 sm:pt-0">
       
@@ -128,7 +240,9 @@ export default function Dashboard() {
       <div className="mb-3 flex items-start justify-between">
         <div>
           <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
-          <p className="text-muted-foreground mt-0.5 text-sm text-center">Welcome home 💜</p>
+          <p className="text-muted-foreground mt-0.5 text-sm">
+            {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+          </p>
         </div>
         <div className="flex items-center gap-1">
         <button
@@ -165,13 +279,38 @@ export default function Dashboard() {
   frontingAlterIds={frontingAlterIds}
   onNotifClick={handleNotifClick} />
       
-      <button
-        data-tour="quick-checkin"
-        onClick={() => setShowEmotionModal(true)}
-        aria-label="Quick emotional check-in" className="bg-destructive/10 text-destructive mb-2 px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors">
-        <Heart className="w-4 h-4" />
-        Quick Check-In
-      </button>
+      <div className="relative inline-flex mb-2">
+        <button
+          data-tour="quick-checkin"
+          onPointerDown={startHold}
+          onPointerUp={endHold}
+          onPointerLeave={endHold}
+          onPointerCancel={endHold}
+          onContextMenu={(e) => e.preventDefault()}
+          style={{ userSelect: "none", WebkitUserSelect: "none" }}
+          aria-label="Quick emotional check-in"
+          className={`bg-destructive/10 text-destructive px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors relative overflow-hidden${showQuickActions ? " ring-2 ring-destructive/30" : ""}`}
+        >
+          <Heart className="w-4 h-4 relative z-10" />
+          <span className="relative z-10">Quick Check-In</span>
+          {holdProgress > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 bg-destructive/20 pointer-events-none"
+              style={{ width: `${holdProgress}%` }}
+            />
+          )}
+        </button>
+        <AnimatePresence>
+          {showQuickActions && (
+            <QuickActionsMenu
+              actions={sortedQuickActions}
+              onAction={executeQuickAction}
+              onClose={() => { showQuickActionsRef.current = false; setShowQuickActions(false); }}
+            />
+          )}
+        </AnimatePresence>
+      </div>
 
       <NewFeaturesBar />
       <QuickNavMenu />

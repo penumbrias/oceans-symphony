@@ -20,6 +20,7 @@ import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
+import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
 import { Palette, Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -204,6 +205,9 @@ export default function Settings() {
           </div>
           <div className="border-t border-border/30 pt-4">
             <CustomTriggerTypesManager />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <QuickActionsConfig />
           </div>
         </Section>
 

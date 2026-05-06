@@ -90,6 +90,20 @@ InfiniteTimeline uses absolute positioning. Column order (left to right):
 
 ---
 
+## Critical: Keep the Feature Tour Up to Date
+
+**Every new feature or changed UI must be reflected in `src/components/onboarding/FeatureTour.jsx`.**
+
+Rules:
+- When adding a new page or major component, add at least one tour step for it in the correct section.
+- When renaming, moving, or removing a UI element that is referenced in a tour step, update that step's `title`, `body`, `target` (data-tour attribute), and `route` accordingly.
+- When adding a new `data-tour="…"` attribute to an element, add the matching tour step in `buildSteps()`.
+- Tour steps must use `t.` terms (never hardcode "alter", "system", "fronting", etc.).
+- Tour accuracy matters — never describe a feature differently from how it actually works (e.g. correct icon names, correct field locations).
+- The tour is the user's primary onboarding resource. Stale steps erode trust.
+
+---
+
 ## User Data Preservation — Non-Negotiable
 
 **User data must never be silently lost or overwritten.** Specific rules:
