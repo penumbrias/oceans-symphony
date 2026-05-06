@@ -6,7 +6,6 @@ import { GitMerge, Split, MoonStar, Sunrise, Plus, ArrowRight, Trash2, CalendarD
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { localEntities } from "@/api/base44Client";
 import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal";
 
 const TYPE_META = {
