@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +20,8 @@ function buildNavGroups(altersLabel, systemLabel) {
       { id: "checkin",      label: `${systemLabel} Meeting`,  icon: Sparkles,   path: "/system-checkin" },
       { id: "checkin-log",  label: "Check-In Log",            icon: Heart,      path: "/checkin-log" },
       { id: "activities",   label: "Activities",              icon: Zap,        path: "/activities" },
-      { id: "tasks",        label: "Daily Tasks",             icon: CheckSquare,path: "/tasks" },
+      { id: "tasks",        label: "Daily Tasks",             icon: CheckSquare,   path: "/tasks" },
+      { id: "todo",         label: "To-Do List",              icon: ClipboardList, path: "/todo" },
       { id: "sleep",        label: "Sleep",                   icon: Activity,   path: "/sleep" },
     ],
     "Journal & Content": [
@@ -57,7 +58,8 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "timeline",       label: "Timeline",               icon: Clock,       path: "/timeline",        color: "bg-orange-500/15 text-orange-600 dark:text-orange-400" },
     { id: "system-map",     label: `${systemLabel} Map`,     icon: GitBranch,   path: "/system-map",      color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
     { id: "journals",       label: "Journals",               icon: BookOpen,    path: "/journals",        color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
-    { id: "tasks",          label: "Daily Tasks",            icon: CheckSquare, path: "/tasks",           color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
+    { id: "tasks",          label: "Daily Tasks",            icon: CheckSquare,   path: "/tasks",  color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
+    { id: "todo",           label: "To-Do List",             icon: ClipboardList, path: "/todo",   color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
     { id: "groups",         label: "Groups",                 icon: Users,       path: "/groups",          color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
     { id: "safety-plan",    label: "Safety Plan",            icon: Shield,      path: "/safety-plan",     color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
     { id: "polls",           label: "Polls",                  icon: Vote,        path: "/polls",           color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
