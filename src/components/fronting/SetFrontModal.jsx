@@ -200,11 +200,16 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const activeAlters = useMemo(() => (alters || []).filter((a) => !a.is_archived), [alters]);
   const filtered = useMemo(() => {
     const list = activeAlters.filter((a) => a.name?.toLowerCase().includes(search.toLowerCase()));
-    if (sortBy === "most") return [...list].sort((a, b) => (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0));
-    if (sortBy === "least") return [...list].sort((a, b) => (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0));
-    if (sortBy === "alpha-desc") return [...list].sort((a, b) => (b.name || "").localeCompare(a.name || ""));
-    return [...list].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [activeAlters, search, sortBy, alterFrontTotals]);
+    const rank = (a) => a.id === primaryId ? 0 : coFronterIds.includes(a.id) ? 1 : 2;
+    return [...list].sort((a, b) => {
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      if (sortBy === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
+      if (sortBy === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
+      const cmp = (a.name || "").localeCompare(b.name || "");
+      return sortBy === "alpha-desc" ? -cmp : cmp;
+    });
+  }, [activeAlters, search, sortBy, alterFrontTotals, primaryId, coFronterIds]);
 
   const selectedIds = useMemo(() => {
     const ids = new Set(coFronterIds);
