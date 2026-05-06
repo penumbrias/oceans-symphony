@@ -312,25 +312,8 @@ const SystemMap = ({ relationships = [] }) => {
       place(others, getRadius, getCoTime);
     }
 
-    // Ghost positions for alters referenced in relationships but absent from the filtered ring
-    // (e.g. archived pre-split alters). Place them in an outer halo ring.
-    const referencedIds = new Set(relationships.flatMap(r => [r.alter_id_a, r.alter_id_b]));
-    const ghostAlters = alters.filter(a => referencedIds.has(a.id) && !positions[a.id]);
-    if (ghostAlters.length > 0) {
-      const ghostRadius = maxRadius + 72;
-      ghostAlters.forEach((a, i) => {
-        const angle = (i / ghostAlters.length) * Math.PI * 2 - Math.PI / 2;
-        positions[a.id] = {
-          x: centerX + Math.cos(angle) * ghostRadius,
-          y: centerY + Math.sin(angle) * ghostRadius,
-          nodeR: 20,
-          isGhost: true,
-        };
-      });
-    }
-
     return positions;
-  }, [filteredAlters, selectedAlter, frontingTime, frontingTimeAll, cofrontingTime, cofrontingTimeAll, relationships, alters]);
+  }, [filteredAlters, selectedAlter, frontingTime, frontingTimeAll, cofrontingTime, cofrontingTimeAll]);
 
   const groupData = useMemo(() => {
     if (!showGroups) return [];
@@ -404,34 +387,8 @@ const SystemMap = ({ relationships = [] }) => {
         radius: pos.nodeR ?? 35,
         isSelected: selectedAlter?.id === alter.id,
         isCofronter: selectedAlter ? (cofrontingTime[selectedAlter.id]?.[alter.id] || 0) > 0 : false,
-        isGhost: false,
       };
     });
-
-    // Ghost nodes: relationship endpoints that aren't in filteredAlters (e.g. archived alters)
-    const filteredIds = new Set(filteredAlters.map(a => a.id));
-    const referencedIds = new Set(relationships.flatMap(r => [r.alter_id_a, r.alter_id_b]));
-    const ghostAlterNodes = alters
-      .filter(a => referencedIds.has(a.id) && !filteredIds.has(a.id))
-      .map(alter => {
-        const pos = nodePositions[alter.id];
-        if (!pos) return null;
-        return {
-          id: alter.id,
-          label: alter.alias || alter.name,
-          displayName: alter.name,
-          avatar: null,
-          type: "alter",
-          color: alter.color || "#8b5cf6",
-          x: pos.x,
-          y: pos.y,
-          radius: pos.nodeR ?? 20,
-          isSelected: false,
-          isCofronter: false,
-          isGhost: true,
-        };
-      })
-      .filter(Boolean);
 
     const groupNodes = groupData.map(({ group, x, y, radius }) => ({
       id: group.id,
@@ -439,10 +396,9 @@ const SystemMap = ({ relationships = [] }) => {
       type: "group",
       color: group.color || "#6366f1",
       x, y, radius,
-      isGhost: false,
     }));
 
-    const allNodes = [...alterNodes, ...ghostAlterNodes, ...groupNodes];
+    const allNodes = [...alterNodes, ...groupNodes];
     setNodes(allNodes);
 
     if (!hasAutoFit.current && alterNodes.length > 0) {
@@ -470,7 +426,7 @@ const SystemMap = ({ relationships = [] }) => {
       });
     });
     setLinks(newLinks);
-  }, [filteredAlters, groupData, showGroups, selectedAlter, cofrontingTime, nodePositions, fitToNodes, relationships, alters]);
+  }, [filteredAlters, groupData, showGroups, selectedAlter, cofrontingTime, nodePositions, fitToNodes]);
 
   // Stable event handlers using refs so they don't cause re-registration on every render
   const handleMouseDown = useCallback((e) => {
@@ -732,17 +688,14 @@ const SystemMap = ({ relationships = [] }) => {
 
             {/* Nodes */}
             {nodes.map((node) => {
-              // Ghost nodes only appear when relationships are visible
-              if (node.isGhost && relDisplayMode === 'none') return null;
               const r = node.radius || (node.type === "group" ? 40 : 35);
-              const nodeOpacity = node.isGhost ? 0.45 : 0.85;
               return (
-                <g key={node.id} opacity={nodeOpacity}>
+                <g key={node.id}>
                   <defs>
                     <filter id={`shadow-${node.id}`}>
                       <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3" />
                     </filter>
-                    {node.avatar && node.type === "alter" && !node.isGhost && (
+                    {node.avatar && node.type === "alter" && (
                       <clipPath id={`clip-circle-${node.id}`}>
                         <circle cx={node.x} cy={node.y} r={r - 5} />
                       </clipPath>
@@ -750,11 +703,10 @@ const SystemMap = ({ relationships = [] }) => {
                   </defs>
                   <circle
                     cx={node.x} cy={node.y} r={r}
-                    fill={node.color}
-                    filter={node.isGhost ? undefined : `url(#shadow-${node.id})`}
-                    stroke={node.isGhost ? "white" : node.isSelected ? "white" : node.isCofronter ? "hsl(var(--accent))" : "transparent"}
-                    strokeWidth={node.isGhost ? 1.5 : node.isSelected ? 3 : node.isCofronter ? 2 : 0}
-                    strokeDasharray={node.isGhost ? "4,3" : "0"}
+                    fill={node.color} opacity={0.85}
+                    filter={`url(#shadow-${node.id})`}
+                    stroke={node.isSelected ? "white" : node.isCofronter ? "hsl(var(--accent))" : "transparent"}
+                    strokeWidth={node.isSelected ? 3 : node.isCofronter ? 2 : 0}
                     style={{ cursor: node.type === "alter" ? "pointer" : "default" }}
                     onMouseDown={(e) => { e.stopPropagation(); dragDistanceRef.current = 0; isDraggingRef.current = false; }}
                     onClick={() => node.type === "alter" && handleNodeClick(node.id)}
@@ -765,7 +717,7 @@ const SystemMap = ({ relationships = [] }) => {
                       if (dragDistanceRef.current <= 8) handleNodeClick(node.id);
                     }}
                   />
-                  {node.avatar && node.type === "alter" && !node.isGhost && (
+                  {node.avatar && node.type === "alter" && (
                     <image
                       x={node.x - (r - 5)} y={node.y - (r - 5)}
                       width={(r - 5) * 2} height={(r - 5) * 2}
@@ -782,25 +734,23 @@ const SystemMap = ({ relationships = [] }) => {
                       }}
                     />
                   )}
-                  <text x={node.x} y={node.y - (node.isGhost ? 6 : 10)}
-                    textAnchor="middle" fontSize={node.isGhost ? "10" : "13"} fontWeight="600"
+                  <text x={node.x} y={node.y - 10}
+                    textAnchor="middle" fontSize="13" fontWeight="600"
                     fill="white" pointerEvents="none">
                     {node.label.length > 12 ? node.label.slice(0, 10) + "…" : node.label}
                   </text>
-                  {!node.avatar && !node.isGhost && node.type === "alter" && node.displayName !== node.label && (
+                  {!node.avatar && node.type === "alter" && node.displayName !== node.label && (
                     <text x={node.x} y={node.y + 8}
                       textAnchor="middle" fontSize="11"
                       fill="white" opacity="0.8" pointerEvents="none">
                       {node.displayName.length > 12 ? node.displayName.slice(0, 10) + "…" : node.displayName}
                     </text>
                   )}
-                  {!node.isGhost && (
-                    <text x={node.x} y={node.y + (node.type === "group" ? r - 8 : 25)}
-                      textAnchor="middle" fontSize="10"
-                      fill="white" opacity="0.6" pointerEvents="none">
-                      {node.type === "group" ? "Group" : "Alter"}
-                    </text>
-                  )}
+                  <text x={node.x} y={node.y + (node.type === "group" ? r - 8 : 25)}
+                    textAnchor="middle" fontSize="10"
+                    fill="white" opacity="0.6" pointerEvents="none">
+                    {node.type === "group" ? "Group" : "Alter"}
+                  </text>
                 </g>
               );
             })}
@@ -855,7 +805,6 @@ const SystemMap = ({ relationships = [] }) => {
               {showGroups && <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2 border-dashed border-muted-foreground/50"/><span className="text-muted-foreground">Membership</span></div>}
               <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2" style={{borderColor:"hsl(var(--accent))"}}/><span className="text-muted-foreground">Co-fronting</span></div>
               {relDisplayMode !== 'none' && <div className="flex items-center gap-2"><div className="h-px w-3.5 border-t-2 border-dashed border-muted-foreground"/><span className="text-muted-foreground">Relationship</span></div>}
-              {relDisplayMode !== 'none' && nodes.some(n => n.isGhost) && <div className="flex items-center gap-2"><div className="w-3.5 h-3.5 rounded-full border-2 border-dashed border-muted-foreground/60 bg-muted/30"/><span className="text-muted-foreground">Archived (rel. endpoint)</span></div>}
               <div className="pt-1 border-t border-border text-muted-foreground">
                 {alterNodeCount} alters{showGroups ? ` · ${groupNodeCount} groups` : ''}
               </div>
