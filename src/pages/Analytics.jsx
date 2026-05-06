@@ -425,7 +425,7 @@ export default function Analytics() {
           )}
 
           {topTab === "timeofday" && (
-            <TimeOfDayFronters sessions={filtered} alters={alters} />
+            <TimeOfDayFronters sessions={filtered} alters={showArchived ? alters : alters.filter(a => !a.is_archived)} />
           )}
         </div>
       )}
