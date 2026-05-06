@@ -204,9 +204,12 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
 
       {/* Messages */}
       {messages.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          <Mail className="w-8 h-8 mx-auto mb-3 opacity-20" />
-          No messages yet
+        <div className="text-center py-10 text-muted-foreground text-sm space-y-3">
+          <Mail className="w-8 h-8 mx-auto opacity-20" />
+          <p>No messages yet</p>
+          <p className="text-xs text-muted-foreground/70 max-w-xs mx-auto leading-relaxed">
+            Messages left here appear on the dashboard. Pin a message to keep it always visible at the top of the home screen.
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
