@@ -131,6 +131,7 @@ export default function Analytics() {
   const [from, setFrom] = useState(subDays(new Date(), 30));
   const [to, setTo] = useState(new Date());
   const [mode, setMode] = useState("total");
+  const [showArchived, setShowArchived] = useState(false);
   const [topTab, setTopTab] = useState("stats");
   const [activitySubTab, setActivitySubTab] = useState("overview");
 
@@ -251,7 +252,7 @@ export default function Analytics() {
 
   const rows = useMemo(() => {
     return Object.values(alterMap)
-      .filter((d) => d.count > 0)
+      .filter((d) => d.count > 0 && (showArchived || !d.alter.is_archived))
       .map((d) => {
         let stat = 0;
         if (mode === "total")           stat = d.total;
@@ -264,7 +265,7 @@ export default function Analytics() {
         return { alter: d.alter, stat };
       })
       .sort((a, b) => b.stat - a.stat);
-  }, [alterMap, mode]);
+  }, [alterMap, mode, showArchived]);
 
   const maxStat = rows.length > 0 ? rows[0].stat : 1;
 
@@ -364,22 +365,34 @@ export default function Analytics() {
                 <ActivityHeatmap sessions={filtered} from={from} to={to} />
               </div>
 
-              {/* Mode pills — horizontal scroll */}
-              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                {MODES.map((m) => {
-                  const Icon = m.icon;
-                  return (
-                    <button key={m.id} onClick={() => setMode(m.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border flex-shrink-0 transition-all ${
-                        mode === m.id
-                          ? "bg-primary text-primary-foreground border-transparent"
-                          : "border-border text-muted-foreground hover:text-foreground"
-                      }`}>
-                      <Icon className="w-3.5 h-3.5" />
-                      {m.label}
-                    </button>
-                  );
-                })}
+              {/* Mode pills + archived toggle */}
+              <div className="flex items-center gap-2 justify-between flex-wrap">
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                  {MODES.map((m) => {
+                    const Icon = m.icon;
+                    return (
+                      <button key={m.id} onClick={() => setMode(m.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border flex-shrink-0 transition-all ${
+                          mode === m.id
+                            ? "bg-primary text-primary-foreground border-transparent"
+                            : "border-border text-muted-foreground hover:text-foreground"
+                        }`}>
+                        <Icon className="w-3.5 h-3.5" />
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setShowArchived(v => !v)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    showArchived
+                      ? "bg-muted text-foreground border-border"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {showArchived ? "Hide archived" : "Show archived"}
+                </button>
               </div>
 
               {rows.length === 0 ? (
