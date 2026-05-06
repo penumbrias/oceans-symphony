@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
-import { getFullDbDump, loadDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
@@ -375,8 +375,13 @@ const handleExportFull = async () => {
         console.warn("Failed to restore local images:", e);
       }
     }
-    await loadDbDump(parsed.data);
-    showStatus("success", "Data restored! The app will reload.");
+    if (importMode === "replace") {
+      await loadDbDump(parsed.data);
+      showStatus("success", "Data replaced! The app will reload.");
+    } else {
+      await mergeDbDump(parsed.data);
+      showStatus("success", "New records added (existing data preserved)! The app will reload.");
+    }
     setTimeout(() => window.location.reload(), 1200);
   };
 

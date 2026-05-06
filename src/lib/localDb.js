@@ -306,6 +306,22 @@ export async function loadDbDump(dump) {
   await saveDb();
 }
 
+// Add-only merge: only inserts records whose IDs don't already exist locally.
+// Existing records are never overwritten.
+export async function mergeDbDump(dump) {
+  if (!_db) _db = {};
+  for (const [entityName, records] of Object.entries(dump)) {
+    if (!records || typeof records !== "object") continue;
+    if (!_db[entityName]) _db[entityName] = {};
+    for (const [id, record] of Object.entries(records)) {
+      if (!_db[entityName][id]) {
+        _db[entityName][id] = record;
+      }
+    }
+  }
+  await saveDb();
+}
+
 async function walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl) {
   if (typeof value === 'string') {
     if (value.startsWith('data:') && !isLocalImageUrl(value)) {

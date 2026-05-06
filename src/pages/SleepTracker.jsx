@@ -5,16 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, AlarmClock, Cloud, ZapOff } from "lucide-react";
+import { Plus, Trash2, AlarmClock, Cloud, ZapOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import SleepLogModal from "@/components/sleep/SleepLogModal";
+import SleepEditModal from "@/components/sleep/SleepEditModal";
 
 export default function SleepTracker() {
   const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [editingSleep, setEditingSleep] = useState(null);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -203,14 +205,24 @@ export default function SleepTracker() {
                             </p>
                           )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(sleep.id)}
-                          className="text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingSleep(sleep)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(sleep.id)}
+                            className="text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -226,6 +238,17 @@ export default function SleepTracker() {
         onSave={handleSave}
         selectedDate={selectedDate}
       />
+
+      {editingSleep && (
+        <SleepEditModal
+          sleep={editingSleep}
+          onClose={() => setEditingSleep(null)}
+          onSave={() => {
+            queryClient.invalidateQueries({ queryKey: ["sleep"] });
+            setEditingSleep(null);
+          }}
+        />
+      )}
     </div>
   );
 }
