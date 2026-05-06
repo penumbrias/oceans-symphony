@@ -432,7 +432,7 @@ function StepApply({
                     </p>
                   )}
                   {candidates.map(({ alterId, value, name }) => {
-                    const isSelected = mergeSelections[key]?.alterId === alterId;
+                    const isSelected = (mergeSelections[key] || []).some(s => s.alterId === alterId);
                     return (
                       <label key={alterId} className="flex items-start gap-2 cursor-pointer">
                         <input
@@ -441,9 +441,9 @@ function StepApply({
                           checked={isSelected}
                           onChange={e => {
                             if (e.target.checked) {
-                              onMergeSelections(prev => ({ ...prev, [key]: { alterId, value } }));
+                              onMergeSelections(prev => ({ ...prev, [key]: [...(prev[key] || []), { alterId, value, name }] }));
                             } else {
-                              onMergeSelections(prev => { const n = { ...prev }; delete n[key]; return n; });
+                              onMergeSelections(prev => ({ ...prev, [key]: (prev[key] || []).filter(s => s.alterId !== alterId) }));
                             }
                           }}
                         />
@@ -673,11 +673,19 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
             await localEntities.Alter.update(id, { is_archived: true });
           }
         }
-        if (Object.keys(mergeSelections).length > 0) {
-          const mergeData = Object.fromEntries(
-            Object.entries(mergeSelections).map(([key, { value }]) => [key, value])
-          );
-          await localEntities.Alter.update(absorptionTarget, mergeData);
+        const hasSelections = Object.values(mergeSelections).some(arr => arr?.length > 0);
+        if (hasSelections) {
+          const persistentAlter = alters.find(a => a.id === absorptionTarget);
+          const mergeData = {};
+          for (const [key, selections] of Object.entries(mergeSelections)) {
+            if (!Array.isArray(selections) || selections.length === 0) continue;
+            const existingVal = persistentAlter?.[key]?.trim() || "";
+            const appended = selections.map(s => `From ${s.name}: ${s.value}`).join("\n\n");
+            mergeData[key] = existingVal ? `${existingVal}\n\n${appended}` : appended;
+          }
+          if (Object.keys(mergeData).length > 0) {
+            await localEntities.Alter.update(absorptionTarget, mergeData);
+          }
         }
       }
       if (type === "fusion" && fusionType === "new_formation") {
