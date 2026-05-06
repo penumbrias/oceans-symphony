@@ -276,24 +276,39 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
         const newModelSessions = activeSessions.filter(s => s.alter_id);
 
-        // 1. End sessions for alters who are removed OR whose is_primary status changed
-        for (const session of newModelSessions) {
-          const desiredPrimary = desiredMap[session.alter_id];
-          const isStillPresent = session.alter_id in desiredMap;
-          const primaryStatusChanged = isStillPresent && session.is_primary !== desiredPrimary;
+        // Group by alter_id — duplicates (>1 session per alter) get fully cleared
+        const sessionsByAlterId = {};
+        for (const s of newModelSessions) {
+          if (!sessionsByAlterId[s.alter_id]) sessionsByAlterId[s.alter_id] = [];
+          sessionsByAlterId[s.alter_id].push(s);
+        }
 
-          if (!isStillPresent || primaryStatusChanged) {
-            await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: now });
+        // 1. End sessions for removed alters, status-changed alters, and ALL duplicates
+        for (const [alterId, sessions] of Object.entries(sessionsByAlterId)) {
+          const isStillPresent = alterId in desiredMap;
+          const hasDuplicates = sessions.length > 1;
+          if (hasDuplicates) {
+            // End every copy — a clean single session will be created in step 2
+            for (const s of sessions) {
+              await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+            }
+          } else {
+            const primaryStatusChanged = isStillPresent && sessions[0].is_primary !== desiredMap[alterId];
+            if (!isStillPresent || primaryStatusChanged) {
+              await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
+            }
           }
         }
 
-        // 2. Create new sessions for alters who are new OR whose status changed (old session was ended above)
+        // 2. Create sessions for new alters, status-changed alters, or duplicates that were cleared
         let firstSessionId = null;
         for (const id of allSelectedIds) {
-          const existingSession = newModelSessions.find(s => s.alter_id === id);
-          const statusUnchanged = existingSession && existingSession.is_primary === desiredMap[id];
+          const sessions = sessionsByAlterId[id] || [];
+          const hasDuplicates = sessions.length > 1;
+          const single = sessions.length === 1 ? sessions[0] : null;
+          const statusUnchanged = single && single.is_primary === desiredMap[id];
 
-          if (!statusUnchanged) {
+          if (hasDuplicates || !statusUnchanged) {
             const newSession = await base44.entities.FrontingSession.create({
               alter_id: id,
               is_primary: desiredMap[id],
