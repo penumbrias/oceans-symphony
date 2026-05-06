@@ -207,30 +207,40 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
               </div>
             ))
           ) : (
-            filteredAlters.map((alter) => (
-              <label
-                key={alter.id}
-                className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-              >
-                <Checkbox
-                  checked={altersInGroup.has(alter.id)}
-                  onCheckedChange={(checked) =>
-                    handleToggleAlter(alter.id, checked)
-                  }
-                  className="absolute"
-                />
-                {alter.avatar_url && (
-                  <img
-                    src={alter.avatar_url}
-                    alt={alter.name}
-                    className="w-12 h-12 rounded-full object-cover"
+            filteredAlters.map((alter) => {
+              const inGroup = altersInGroup.has(alter.id);
+              return (
+                <label
+                  key={alter.id}
+                  className={`relative flex flex-col items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-colors ${
+                    inGroup ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted"
+                  }`}
+                >
+                  <Checkbox
+                    checked={inGroup}
+                    onCheckedChange={(checked) => handleToggleAlter(alter.id, checked)}
+                    className="absolute top-1.5 right-1.5 w-3.5 h-3.5"
                   />
-                )}
-                <span className="text-xs text-center font-medium truncate w-full">
-                  {alter.alias?.slice(0, 5) || alter.name.slice(0, 5)}
-                </span>
-              </label>
-            ))
+                  {alter.avatar_url ? (
+                    <img
+                      src={alter.avatar_url}
+                      alt={alter.name}
+                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-lg font-bold"
+                      style={{ backgroundColor: alter.color || "#9333ea" }}
+                    >
+                      {alter.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-xs text-center font-medium w-full truncate leading-tight">
+                    {alter.alias || alter.name}
+                  </span>
+                </label>
+              );
+            })
           )}
         </div>
 
