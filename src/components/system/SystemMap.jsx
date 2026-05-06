@@ -6,7 +6,6 @@ import { localEntities } from "@/api/base44Client";
 import { ZoomIn, ZoomOut, RotateCcw, X, ChevronUp, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { buildAbsorptionMap, foldAbsorptionTimes, foldAbsorptionCofronting } from "@/lib/absorptionUtils";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -62,13 +61,6 @@ const SystemMap = ({ relationships = [] }) => {
     queryFn: () => db.FrontingSession.list(),
   });
 
-  const { data: systemChangeEvents = [] } = useQuery({
-    queryKey: ["systemChangeEvents"],
-    queryFn: () => localEntities.SystemChangeEvent.list(),
-  });
-
-  const absorptionMap = useMemo(() => buildAbsorptionMap(systemChangeEvents), [systemChangeEvents]);
-
   // Fronting duration per alter broken down by total / primary / cofronting (ms)
   const frontingTimeAll = useMemo(() => {
     const time = {};
@@ -91,9 +83,8 @@ const SystemMap = ({ relationships = [] }) => {
         });
       }
     });
-    // Fold absorbed alters' time into their persistent alter
-    return foldAbsorptionTimes(time, absorptionMap);
-  }, [frontingSessions, absorptionMap]);
+    return time;
+  }, [frontingSessions]);
 
   const frontingTime = useMemo(() => {
     const result = {};
@@ -150,8 +141,8 @@ const SystemMap = ({ relationships = [] }) => {
         }
       }
     });
-    return foldAbsorptionCofronting(map, absorptionMap);
-  }, [frontingSessions, absorptionMap]);
+    return map;
+  }, [frontingSessions]);
 
   const cofrontingTime = useMemo(() => {
     const result = {};
