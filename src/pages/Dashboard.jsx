@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
+import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Bell } from "lucide-react";
 import { toast } from "sonner";
@@ -243,6 +244,19 @@ export default function Dashboard() {
       });
       queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       toast.success(`${emotion_label} logged`);
+    } else if (action.type === "log_location") {
+      const { category, name, coords } = extraData;
+      const catMeta = LOCATION_CATEGORIES.find(c => c.id === category);
+      await localEntities.Location.create({
+        timestamp: now,
+        name: name?.trim() || catMeta?.label || "Location",
+        category: category || "other",
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lng ?? null,
+        source: coords ? "gps" : "manual",
+      });
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+      toast.success("Location logged");
     }
   };
 

@@ -164,25 +164,31 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
       {/* Content */}
       <div className="space-y-4">
-        {/* Groups section */}
-        {rootGroups.length > 0 && showFolders && (
-          <FolderGroupsSection
-            alters={effectiveAlters.filter((a) => !a.is_archived)}
-            sortDir={sortMode === "alpha-desc" ? "desc" : "asc"}
-            activeSessions={activeSessions}
-            headerControls={groupControls(true)}
-          />
-        )}
+        {/* Groups section — header always visible */}
+        <div>
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Groups</p>
+            <div className="flex-1 h-px bg-border/50" />
+            {groupControls(rootGroups.length > 0)}
+          </div>
+          {rootGroups.length > 0 && showFolders && (
+            <FolderGroupsSection
+              alters={effectiveAlters.filter((a) => !a.is_archived)}
+              sortDir={sortMode === "alpha-desc" ? "desc" : "asc"}
+              activeSessions={activeSessions}
+            />
+          )}
+          {rootGroups.length === 0 && (
+            <p className="text-xs text-muted-foreground px-1 pb-1">No groups yet — tap + to create one.</p>
+          )}
+        </div>
 
         {/* Alters list/grid */}
         <div>
-          {rootGroups.length > 0 &&
           <div className="flex items-center gap-2 mb-3 px-1">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
             <div className="flex-1 h-px bg-border/50" />
-            {!showFolders && groupControls(false)}
           </div>
-          }
           {filtered.length > 0 ?
           viewMode === "list" ?
           <div className="mx-auto flex flex-col gap-2">
