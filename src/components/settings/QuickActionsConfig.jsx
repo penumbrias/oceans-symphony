@@ -191,7 +191,6 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
           <select
             value={data.config?.alter_id || ""}
             onChange={(e) => setConfig("alter_id", e.target.value)}
-            onBlur={applySuggestion}
             className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">Select an {terms.alter}…</option>
@@ -208,7 +207,6 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
           <select
             value={data.config?.section || ""}
             onChange={(e) => setConfig("section", e.target.value)}
-            onBlur={applySuggestion}
             className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">Select a section…</option>
@@ -226,7 +224,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
             <ActivityCategoryPicker
               categories={sortedCategories}
               selectedId={data.config?.category_id || ""}
-              onChange={(id) => { setConfig("category_id", id || undefined); if (id) applySuggestion(); }}
+              onChange={(id) => setConfig("category_id", id || undefined)}
             />
           </div>
           <div>
@@ -267,11 +265,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
                     <span className="flex-1 text-sm font-medium">{s.label}</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        const newId = isSelected ? "" : s.id;
-                        setConfig("symptom_id", newId || undefined);
-                        if (newId) setTimeout(applySuggestion, 0);
-                      }}
+                      onClick={() => setConfig("symptom_id", isSelected ? undefined : s.id)}
                       className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all border"
                       style={{
                         borderColor: isSelected ? color : "hsl(var(--border))",
@@ -297,7 +291,6 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
               <select
                 value={data.config?.emotion_label || ""}
                 onChange={(e) => setConfig("emotion_label", e.target.value)}
-                onBlur={applySuggestion}
                 className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">Select an emotion…</option>
@@ -309,7 +302,6 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
               <Input
                 value={data.config?.emotion_label || ""}
                 onChange={(e) => setConfig("emotion_label", e.target.value)}
-                onBlur={applySuggestion}
                 placeholder="e.g. Happy, Anxious, Calm…"
                 className="h-8 text-sm"
               />
@@ -319,18 +311,6 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
                 ? "Select from your custom emotions, or add more via Check-In → Feeling section."
                 : "No custom emotions yet — type any emotion label, or add custom ones via Check-In → Feeling section."}
             </p>
-          </div>
-          <div>
-            <Label className="text-xs font-medium mb-1 block">Intensity (1–10, optional)</Label>
-            <Input
-              type="number"
-              value={data.config?.intensity || ""}
-              onChange={(e) => setConfig("intensity", e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="e.g. 7"
-              min="1"
-              max="10"
-              className="h-8 text-sm"
-            />
           </div>
         </div>
       )}
@@ -413,9 +393,9 @@ export default function QuickActionsConfig() {
 
   const handleAdd = (formData) => {
     createMut.mutate({
-      label: formData.label.trim(),
+      label: formData.label,
       type: formData.type,
-      emoji: formData.emoji.trim() || null,
+      emoji: null,
       config: formData.config || {},
       order: sorted.length,
     });
@@ -425,9 +405,9 @@ export default function QuickActionsConfig() {
     updateMut.mutate({
       id: editId,
       data: {
-        label: formData.label.trim(),
+        label: formData.label,
         type: formData.type,
-        emoji: formData.emoji.trim() || null,
+        emoji: null,
         config: formData.config || {},
       },
     });
@@ -449,7 +429,7 @@ export default function QuickActionsConfig() {
         <div>
           <p className="text-sm font-semibold">Quick Actions</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Hold the Quick Check-In button for 3 seconds to pop these up.
+            Hold the Quick Check-In button for 1.5 seconds to pop these up.
           </p>
         </div>
         {!adding && (
@@ -498,9 +478,6 @@ export default function QuickActionsConfig() {
               />
             ) : (
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/20 border border-border/30 group">
-                <span className="text-base leading-none w-6 text-center flex-shrink-0">
-                  {action.emoji || DEFAULT_EMOJIS[action.type] || "⚡"}
-                </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{action.label}</p>
                   <p className="text-xs text-muted-foreground">{typeLabel(action.type)}</p>
