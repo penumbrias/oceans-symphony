@@ -258,24 +258,34 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
   const sourceAlters = alters.filter(a => sourceAlterIds.includes(a.id));
   const nonSourceAlters = alters.filter(a => !sourceAlterIds.includes(a.id));
   const [newSplitName, setNewSplitName] = useState("");
+  const [search, setSearch] = useState("");
 
   if (type === "fusion" && fusionType === "absorption") {
+    const filtered = sourceAlters.filter(a => a.name?.toLowerCase().includes(search.toLowerCase()));
     return (
-      <div>
-        <p className="text-xs text-muted-foreground mb-2">Which alter persists and remains active after the fusion?</p>
-        <div className="flex flex-wrap gap-2">
-          {sourceAlters.map(a => (
-            <AlterChip
-              key={a.id}
-              alter={a}
-              selected={absorptionTarget === a.id}
-              onClick={() => onAbsorptionTarget(a.id)}
-            />
-          ))}
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">Which alter persists and remains active after the fusion?</p>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search alters..." className="pl-8 text-sm h-8" />
         </div>
-        {!absorptionTarget && (
-          <p className="text-xs text-destructive mt-2">Select the alter that persists.</p>
-        )}
+        <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-border/50 p-1.5 bg-muted/10">
+          {filtered.map(a => {
+            const isSelected = absorptionTarget === a.id;
+            return (
+              <button key={a.id} type="button" onClick={() => onAbsorptionTarget(a.id)}
+                className={cn("w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border text-left transition-all",
+                  isSelected ? "border-primary/50 bg-primary/10" : "border-transparent hover:border-border/60 hover:bg-muted/40"
+                )}>
+                <AlterAvatar alter={a} size={6} />
+                <span className="text-sm font-medium flex-1 truncate" style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>{a.name}</span>
+                {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: a.color || "hsl(var(--primary))" }} />}
+              </button>
+            );
+          })}
+          {filtered.length === 0 && <p className="text-xs text-muted-foreground italic px-2.5 py-2">No alters found</p>}
+        </div>
+        {!absorptionTarget && <p className="text-xs text-destructive">Select the alter that persists.</p>}
       </div>
     );
   }
@@ -285,33 +295,25 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
       <div className="space-y-3">
         <div>
           <p className="text-xs text-muted-foreground mb-1">Name of the new alter that emerges</p>
-          <Input
-            value={newAlterName}
-            onChange={e => onNewAlterName(e.target.value)}
-            placeholder="New alter name"
-            className="text-sm"
-          />
+          <Input value={newAlterName} onChange={e => onNewAlterName(e.target.value)} placeholder="New alter name" className="text-sm" />
         </div>
         <div>
           <p className="text-xs text-muted-foreground mb-1">Color (optional)</p>
           <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={newAlterColor || "#9333ea"}
-              onChange={e => onNewAlterColor(e.target.value)}
-              className="w-9 h-9 rounded cursor-pointer border border-border"
-            />
+            <input type="color" value={newAlterColor || "#9333ea"} onChange={e => onNewAlterColor(e.target.value)}
+              className="w-9 h-9 rounded cursor-pointer border border-border" />
             <span className="text-xs text-muted-foreground">{newAlterColor || "#9333ea"}</span>
           </div>
         </div>
-        {!newAlterName.trim() && (
-          <p className="text-xs text-destructive">Enter a name for the new alter.</p>
-        )}
+        {!newAlterName.trim() && <p className="text-xs text-destructive">Enter a name for the new alter.</p>}
       </div>
     );
   }
 
   if (type === "split") {
+    const filteredNonSource = nonSourceAlters.filter(a => a.name?.toLowerCase().includes(search.toLowerCase()));
+    const selectedExisting = splitResults.filter(r => r.type === "existing");
+
     const addNewSplit = () => {
       const trimmed = newSplitName.trim();
       if (!trimmed || splitResults.some(r => r.type === "new" && r.name === trimmed)) return;
@@ -323,35 +325,52 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
       <div className="space-y-3">
         <div>
           <p className="text-xs text-muted-foreground mb-2">Which existing alters emerge from this split?</p>
-          <div className="flex flex-wrap gap-2">
-            {nonSourceAlters.map(a => {
-              const sel = splitResults.some(r => r.type === "existing" && r.id === a.id);
+          <div className="relative mb-2">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search alters..." className="pl-8 text-sm h-8" />
+          </div>
+          <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border border-border/50 p-1.5 bg-muted/10">
+            {filteredNonSource.map(a => {
+              const isSelected = splitResults.some(r => r.type === "existing" && r.id === a.id);
               return (
-                <AlterChip
-                  key={a.id}
-                  alter={a}
-                  selected={sel}
-                  onClick={() => {
-                    onSplitResults(sel
-                      ? splitResults.filter(r => !(r.type === "existing" && r.id === a.id))
-                      : [...splitResults, { type: "existing", id: a.id, name: a.name }]
-                    );
-                  }}
-                />
+                <button key={a.id} type="button"
+                  onClick={() => onSplitResults(isSelected
+                    ? splitResults.filter(r => !(r.type === "existing" && r.id === a.id))
+                    : [...splitResults, { type: "existing", id: a.id, name: a.name }]
+                  )}
+                  className={cn("w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border text-left transition-all",
+                    isSelected ? "border-primary/50 bg-primary/10" : "border-transparent hover:border-border/60 hover:bg-muted/40"
+                  )}>
+                  <AlterAvatar alter={a} size={6} />
+                  <span className="text-sm font-medium flex-1 truncate" style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>{a.name}</span>
+                  {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: a.color || "hsl(var(--primary))" }} />}
+                </button>
               );
             })}
+            {filteredNonSource.length === 0 && <p className="text-xs text-muted-foreground italic px-2.5 py-2">No alters found</p>}
           </div>
+          {selectedExisting.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {selectedExisting.map(r => {
+                const a = nonSourceAlters.find(x => x.id === r.id);
+                return (
+                  <span key={r.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border"
+                    style={{ borderColor: a?.color || "hsl(var(--primary))", color: a?.color || "hsl(var(--primary))", backgroundColor: (a?.color || "#9333ea") + "18" }}>
+                    {r.name}
+                    <button type="button" onClick={() => onSplitResults(splitResults.filter(x => !(x.type === "existing" && x.id === r.id)))} className="ml-0.5 opacity-70 hover:opacity-100">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div>
           <p className="text-xs text-muted-foreground mb-1">Or create new alters from this split</p>
           <div className="flex gap-2">
-            <Input
-              value={newSplitName}
-              onChange={e => setNewSplitName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && addNewSplit()}
-              placeholder="New alter name"
-              className="text-sm"
-            />
+            <Input value={newSplitName} onChange={e => setNewSplitName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addNewSplit()} placeholder="New alter name" className="text-sm" />
             <Button type="button" size="sm" variant="outline" onClick={addNewSplit}>Add</Button>
           </div>
           {splitResults.filter(r => r.type === "new").map((r, i) => (
@@ -363,9 +382,7 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
             </div>
           ))}
         </div>
-        {splitResults.length === 0 && (
-          <p className="text-xs text-destructive">Add at least one result alter.</p>
-        )}
+        {splitResults.length === 0 && <p className="text-xs text-destructive">Add at least one result alter.</p>}
       </div>
     );
   }
