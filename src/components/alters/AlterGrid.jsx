@@ -87,9 +87,32 @@ export default function AlterGrid({ alters, currentSession = null }) {
   // Root-level groups for display
   const rootGroups = allGroups.filter((g) => !g.parent || g.parent === "" || g.parent === "root");
 
+  const groupControls = (active) => (
+    <div className="flex items-center gap-0.5">
+      <button
+        onClick={() => setShowFolders(!showFolders)}
+        title={showFolders ? "Hide groups" : "Show groups"}
+        className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${active ? "text-primary" : "text-muted-foreground"} hover:bg-muted/60`}>
+        {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+      </button>
+      <button
+        onClick={() => navigate("/groups?new=1")}
+        title="New group"
+        className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+        <Plus className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => navigate("/groups")}
+        title="Manage groups"
+        className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+        <Settings className="w-4 h-4" />
+      </button>
+    </div>
+  );
+
   return (
     <div>
-      {/* Toolbar */}
+      {/* Toolbar — search, sort, view mode only */}
       <div className="my-1 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -118,44 +141,30 @@ export default function AlterGrid({ alters, currentSession = null }) {
           className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           {viewMode === "list" ? <Grid3X3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
         </button>
-
-        {/* Groups: eye | + | settings */}
-        <div className="flex-shrink-0 flex items-center h-9 rounded-xl border border-border/50 bg-card/50 px-2 gap-0.5">
-          <span className="text-xs text-muted-foreground pr-1.5 border-r border-border/50">Groups</span>
-          <button
-            onClick={() => setShowFolders(!showFolders)}
-            title={showFolders ? "Hide groups" : "Show groups"}
-            className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${showFolders ? "text-primary" : "text-muted-foreground"} hover:bg-muted/60`}>
-            {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={() => navigate("/groups?new=1")}
-            title="New group"
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
-            <Plus className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => navigate("/groups")}
-            title="Manage groups"
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
-            <Settings className="w-4 h-4" />
-          </button>
-        </div>
       </div>
 
       {/* Content */}
-      <div className="space-y-8">
-        {/* Folders section */}
-        {showFolders && rootGroups.length > 0 &&
-        <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortMode === "alpha-desc" ? "desc" : "asc"} activeSessions={activeSessions} />
-        }
+      <div className="space-y-4">
+        {/* Groups section — controls always visible, folders conditional */}
+        {rootGroups.length > 0 && showFolders && (
+          <>
+            {/* Groups header row with controls */}
+            <div className="flex items-center gap-2 px-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Groups</p>
+              <div className="flex-1 h-px bg-border/50" />
+              {groupControls(true)}
+            </div>
+            <FolderGroupsSection alters={alters.filter((a) => !a.is_archived)} sortDir={sortMode === "alpha-desc" ? "desc" : "asc"} activeSessions={activeSessions} />
+          </>
+        )}
 
         {/* Alters list/grid */}
         <div>
-          {showFolders && rootGroups.length > 0 &&
+          {rootGroups.length > 0 &&
           <div className="flex items-center gap-2 mb-3 px-1">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
             <div className="flex-1 h-px bg-border/50" />
+            {!showFolders && groupControls(false)}
           </div>
           }
           {filtered.length > 0 ?

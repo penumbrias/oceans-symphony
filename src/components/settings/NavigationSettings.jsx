@@ -24,9 +24,9 @@ function ActiveItem({ label, checked, onToggle, onMoveUp, onMoveDown, isFirst, i
   );
 }
 
-// 3-column grid editor for Dashboard Grid
-function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
-  const COLS = 3;
+// Grid editor for Dashboard Grid — column count is configurable
+function DashboardGridEditor({ checkedItems, onMove, onToggle, cols = 3 }) {
+  const COLS = cols;
   const totalItems = checkedItems.length;
 
   const rows = [];
@@ -42,7 +42,7 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
   return (
     <div className="space-y-1.5">
       {rows.map((row, rowIdx) => (
-        <div key={rowIdx} className="grid grid-cols-3 gap-1.5">
+        <div key={rowIdx} className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
           {Array.from({ length: COLS }).map((_, colIdx) => {
             const item = row[colIdx];
             const flatIdx = rowIdx * COLS + colIdx;
@@ -56,8 +56,10 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle }) {
             const canLeft  = colIdx > 0;
             const canRight = colIdx < COLS - 1 && flatIdx + 1 < totalItems;
 
-            const textAlign = colIdx === 0 ? "text-left" : colIdx === 1 ? "text-center" : "text-right";
-            const justifyLabel = colIdx === 0 ? "justify-start" : colIdx === 1 ? "justify-center" : "justify-end";
+            const isFirst = colIdx === 0;
+            const isLast  = colIdx === COLS - 1;
+            const textAlign    = isFirst ? "text-left" : isLast ? "text-right" : "text-center";
+            const justifyLabel = isFirst ? "justify-start" : isLast ? "justify-end" : "justify-center";
 
             return (
               <div key={item} className="relative rounded-lg border border-border/50 bg-card flex flex-col items-center h-20">
@@ -117,6 +119,7 @@ export default function NavigationSettings({ settings }) {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [saving, setSaving] = useState(false);
   const [openSection, setOpenSection] = useState(null);
+  const [gridCols, setGridCols] = useState(() => parseInt(localStorage.getItem("nav_grid_cols") || "3", 10));
 
   useEffect(() => {
     if (settings?.navigation_config) {
@@ -214,11 +217,25 @@ export default function NavigationSettings({ settings }) {
                 <div className="px-4 py-3 border-t border-border bg-muted/5 space-y-3">
                   {location === "dashboardGrid" ? (
                     <>
-                      <p className="text-xs text-muted-foreground">Mirrors the 3-column grid on the dashboard. Use arrows to swap positions.</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs text-muted-foreground">Use arrows to swap positions. Column count updates the dashboard immediately.</p>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-xs text-muted-foreground">Cols:</span>
+                          {[2, 3, 4].map(n => (
+                            <button
+                              key={n}
+                              onClick={() => { setGridCols(n); localStorage.setItem("nav_grid_cols", String(n)); }}
+                              className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors ${gridCols === n ? "bg-primary text-primary-foreground" : "bg-muted/40 text-muted-foreground hover:bg-muted/70"}`}>
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <DashboardGridEditor
                         checkedItems={checkedItems}
                         onMove={(idxA, idxB) => handleSwap(location, idxA, idxB)}
                         onToggle={(pageId) => handleToggle(location, pageId)}
+                        cols={gridCols}
                       />
                     </>
                   ) : (
