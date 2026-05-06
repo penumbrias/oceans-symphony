@@ -649,20 +649,20 @@ export default function FeatureTour({ onClose }) {
   }, []);
 
   const goTo = useCallback((newStep) => {
-    // Close any modal the current step opened before moving on
     const prev = steps[step];
-    if (prev?.action) {
+    const next = steps[newStep];
+    // Only close the modal if the next step doesn't share the same action —
+    // consecutive steps with the same action keep the modal open.
+    if (prev?.action && prev.action !== next?.action) {
       window.dispatchEvent(new CustomEvent(`${prev.action}-close`));
     }
-    const s = steps[newStep];
-    if (s.route) navigate(s.route);
-    // If this step should open a modal/panel, dispatch after route settles
-    if (s.action) {
-      setTimeout(() => window.dispatchEvent(new CustomEvent(s.action)), 350);
+    if (next.route) navigate(next.route);
+    // Only (re)open the modal if the action differs from the previous step.
+    if (next.action && next.action !== prev?.action) {
+      setTimeout(() => window.dispatchEvent(new CustomEvent(next.action)), 350);
     }
-    // Highlight after route + optional modal animation
-    const highlightDelay = s.action ? 750 : 400;
-    setTimeout(() => applyHighlight(s.target), highlightDelay);
+    const highlightDelay = (next.action && next.action !== prev?.action) ? 750 : 400;
+    setTimeout(() => applyHighlight(next.target), highlightDelay);
     setStep(newStep);
   }, [steps, step, navigate, applyHighlight]);
 
