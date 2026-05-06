@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
+import { TOUR_DEMO_ALTERS, TOUR_DEMO_SESSIONS } from "@/lib/tourDemoData";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
@@ -407,8 +408,20 @@ export default function CurrentFronters({ alters }) {
     .slice()
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] ?? null;
 
-  const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
-  const activeSessions = sessions.filter(s => s.is_active);
+  const realActiveSessions = sessions.filter(s => s.is_active);
+  const isDemo = realActiveSessions.length === 0 && !!window.__tourActive;
+  const demoAlterSource = alters.length > 0 ? alters.slice(0, 2) : TOUR_DEMO_ALTERS.slice(0, 2);
+  const demoSessions = isDemo
+    ? demoAlterSource.map((a, i) => ({
+        id: `_tour_s${i}`, alter_id: a.id, is_primary: false, is_active: true,
+        start_time: new Date(Date.now() - (i + 1) * 20 * 60 * 1000).toISOString(),
+      }))
+    : [];
+  const activeSessions = isDemo ? demoSessions : realActiveSessions;
+  const demoAltersById = Object.fromEntries(demoAlterSource.map(a => [a.id, a]));
+  const altersById = isDemo
+    ? { ...Object.fromEntries(alters.map((a) => [a.id, a])), ...demoAltersById }
+    : Object.fromEntries(alters.map((a) => [a.id, a]));
   const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : true);
   const active = primarySession || activeSessions[0] || null;
 
@@ -500,6 +513,11 @@ export default function CurrentFronters({ alters }) {
   return (
     <>
       <div className="mb-4" data-tour="fronters-widget">
+        {isDemo && (
+          <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[10px] text-primary/80 text-center">
+            Tour Preview — sample data
+          </div>
+        )}
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />

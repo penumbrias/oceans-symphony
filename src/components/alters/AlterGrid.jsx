@@ -10,10 +10,13 @@ import AlterGridView from "./AlterGridView";
 import FolderGroupsSection from "./FolderGroupsSection.jsx";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { useTerms } from "@/lib/useTerms";
+import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 
 export default function AlterGrid({ alters, currentSession = null }) {
   const navigate = useNavigate();
   const terms = useTerms();
+  const isDemo = alters.length === 0 && !!window.__tourActive;
+  const effectiveAlters = isDemo ? TOUR_DEMO_ALTERS : alters;
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [showFolders, setShowFolders] = useState(true);
@@ -75,7 +78,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
     return map;
   }, [activeSessions]);
 
-  const filtered = alters.
+  const filtered = effectiveAlters.
   filter(
     (a) =>
     !a.is_archived && (
@@ -121,6 +124,11 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
   return (
     <div>
+      {isDemo && (
+        <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[10px] text-primary/80 text-center">
+          Tour Preview — sample {terms.alters}
+        </div>
+      )}
       {/* Toolbar — search, sort, view mode only */}
       <div className="my-1 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="relative flex-1 min-w-0">
@@ -159,7 +167,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {/* Groups section */}
         {rootGroups.length > 0 && showFolders && (
           <FolderGroupsSection
-            alters={alters.filter((a) => !a.is_archived)}
+            alters={effectiveAlters.filter((a) => !a.is_archived)}
             sortDir={sortMode === "alpha-desc" ? "desc" : "asc"}
             activeSessions={activeSessions}
             headerControls={groupControls(true)}
@@ -183,7 +191,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
 )}
               </div> :
 
-          <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={alters} /> :
+          <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={effectiveAlters} /> :
 
 
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">

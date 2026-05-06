@@ -47,6 +47,12 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const handler = () => setShowEmotionModal(true);
+    window.addEventListener("open-quick-checkin", handler);
+    return () => window.removeEventListener("open-quick-checkin", handler);
+  }, []);
+
+  useEffect(() => {
     const bid = location.state?.highlightBulletinId;
     if (bid) {
       setHighlightBulletinId(bid);

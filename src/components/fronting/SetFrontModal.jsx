@@ -407,6 +407,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 className="pl-9" />
             </div>
             <button
+              data-tour="setfront-sort"
               onClick={() => setSortBy(s => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[s]))}
               title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortBy]}
               className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha-asc" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
@@ -488,7 +489,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           </div>
 
           <div className="space-y-2 pt-2 border-t border-border/50">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-tour="setfront-journal">
               <Checkbox
                 id="journal-switch"
                 checked={journalSwitch}
@@ -500,7 +501,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               </label>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-tour="setfront-triggered">
               <Checkbox
                 id="triggered-switch"
                 checked={triggeredSwitch}
