@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X } from "lucide-react";
+import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -116,34 +116,98 @@ function StepType({ value, onChange }) {
 
 function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusionTypeChange }) {
   const isSingle = type === "split";
+  const [search, setSearch] = useState("");
+
   const label = type === "fusion" ? "Alters involved in the fusion (select 2+)"
     : type === "split" ? "Which alter is splitting?"
     : type === "dormancy" ? "Which alters are going dormant?"
     : "Which alters are returning?";
 
+  const filtered = useMemo(() =>
+    alters.filter(a => a.name?.toLowerCase().includes(search.toLowerCase())),
+    [alters, search]
+  );
+
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs text-muted-foreground mb-2">{label}</p>
-        <div className="flex flex-wrap gap-2">
-          {alters.map((a) => (
-            <AlterChip
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+
+      {/* Search input */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search alters..."
+          className="pl-8 text-sm h-8"
+        />
+      </div>
+
+      {/* Scrollable alter list */}
+      <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-border/50 p-1.5 bg-muted/10">
+        {filtered.map(a => {
+          const isSelected = selected.includes(a.id);
+          const isDisabled = isSingle && selected.length > 0 && !isSelected;
+          return (
+            <button
               key={a.id}
-              alter={a}
-              selected={selected.includes(a.id)}
+              type="button"
+              disabled={isDisabled}
               onClick={() => onToggle(a.id, isSingle)}
-              disabled={isSingle && selected.length > 0 && !selected.includes(a.id)}
-            />
-          ))}
-        </div>
-        {selected.length === 0 && (
-          <p className="text-xs text-destructive mt-2">Select at least {isSingle ? "one" : "two"} alter{isSingle ? "" : "s"}.</p>
-        )}
-        {type === "fusion" && selected.length === 1 && (
-          <p className="text-xs text-destructive mt-2">Select at least two alters for a fusion.</p>
+              className={cn(
+                "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border text-left transition-all",
+                isSelected
+                  ? "border-primary/50 bg-primary/10"
+                  : "border-transparent hover:border-border/60 hover:bg-muted/40",
+                isDisabled && "opacity-40 cursor-not-allowed"
+              )}
+            >
+              <AlterAvatar alter={a} size={6} />
+              <span className="text-sm font-medium flex-1 truncate"
+                style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>
+                {a.name}
+              </span>
+              {isSelected && (
+                <Check className="w-3.5 h-3.5 flex-shrink-0"
+                  style={{ color: a.color || "hsl(var(--primary))" }} />
+              )}
+            </button>
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="text-xs text-muted-foreground italic px-2.5 py-2">No alters found</p>
         )}
       </div>
 
+      {/* Selected pills */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selected.map(id => {
+            const a = alters.find(x => x.id === id);
+            if (!a) return null;
+            return (
+              <span key={id}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border"
+                style={{ borderColor: a.color || "hsl(var(--primary))", color: a.color || "hsl(var(--primary))", backgroundColor: (a.color || "#9333ea") + "18" }}>
+                {a.name}
+                <button type="button" onClick={() => onToggle(a.id, false)} className="ml-0.5 opacity-70 hover:opacity-100">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Validation */}
+      {selected.length === 0 && (
+        <p className="text-xs text-destructive">Select at least {isSingle ? "one" : "two"} alter{isSingle ? "" : "s"}.</p>
+      )}
+      {type === "fusion" && selected.length === 1 && (
+        <p className="text-xs text-destructive">Select at least two alters for a fusion.</p>
+      )}
+
+      {/* Fusion type picker */}
       {type === "fusion" && (
         <div>
           <p className="text-xs text-muted-foreground mb-2">Type of fusion</p>
