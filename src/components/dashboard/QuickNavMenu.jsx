@@ -99,7 +99,7 @@ export default function QuickNavMenu() {
   const filteredGridItems = configuredGridItems;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="quick-nav">
       {/* Header with search and layout toggle */}
       <div className="flex gap-2 items-center">
         <GlobalSearch />

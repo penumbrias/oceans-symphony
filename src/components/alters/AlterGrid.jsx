@@ -134,6 +134,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
         {/* Sort */}
         <button
+          data-tour="alter-sort"
           onClick={() => setSortMode(m => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[m]))}
           title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortMode]}
           className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
@@ -145,6 +146,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
         {/* View mode */}
         <button
+          data-tour="alter-view-toggle"
           onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
           title={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}
           className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">

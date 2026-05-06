@@ -499,7 +499,7 @@ export default function CurrentFronters({ alters }) {
 
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4" data-tour="fronters-widget">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -559,6 +559,7 @@ export default function CurrentFronters({ alters }) {
         ) : (
           <button
             onClick={() => { setTempStatus(""); setEditingStatus(true); }}
+            data-tour="status-note"
             className="w-full text-left px-3 py-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-xs text-muted-foreground hover:text-foreground flex items-center justify-between gap-2"
           >
             {latestStatusNote
