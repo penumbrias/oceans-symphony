@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { parseDate } from "@/lib/dateUtils";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
-import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap, MapPin } from "lucide-react";
+import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "react-router-dom";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
@@ -23,6 +23,7 @@ export default function Timeline() {
   const [jumpDate, setJumpDate] = useState(() => searchParams.get("date") || "");
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontHistory"],
@@ -145,6 +146,20 @@ export default function Timeline() {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
+
+  // Show scroll-to-top button after scrolling down
+  useEffect(() => {
+    const el = document.querySelector(".overflow-y-auto");
+    if (!el) return;
+    const onScroll = () => setShowScrollTop(el.scrollTop > 400);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const handleScrollTop = () => {
+    const el = document.querySelector(".overflow-y-auto");
+    if (el) el.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleJumpToDate = () => {
     if (!jumpDate) return;
@@ -315,6 +330,17 @@ export default function Timeline() {
       <div ref={sentinelRef} className="h-12 flex items-center justify-center">
         <p className="text-xs text-muted-foreground animate-pulse">Loading more...</p>
       </div>
+
+      {/* Jump to top */}
+      {showScrollTop && (
+        <button
+          onClick={handleScrollTop}
+          className="fixed bottom-20 right-4 z-50 w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all"
+          title="Back to top"
+        >
+          <ArrowUp className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }

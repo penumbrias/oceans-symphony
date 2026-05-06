@@ -1030,7 +1030,10 @@ export default function InfiniteTimeline({
   const locationColLeft = emotionColLeft + emotionColWidth_actual;
   const activityLeft = locationColLeft + locationColWidth_actual;
   const totalWidth = activityLeft + activityAreaWidth;
-  const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
+  const dateLabel = isToday ? "Today"
+    : day.getFullYear() !== new Date().getFullYear()
+      ? format(day, "EEEE, MMM d, yyyy")
+      : format(day, "EEEE, MMM d");
 
   const handleSplitSave = async (action, splitMins) => {
     if (!splitPopover) return;
