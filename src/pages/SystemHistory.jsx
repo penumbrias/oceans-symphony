@@ -2,10 +2,11 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { format, differenceInYears, differenceInMonths, differenceInDays } from "date-fns";
-import { GitMerge, Split, MoonStar, Sunrise, Plus, ArrowRight, Trash2, CalendarDays, Filter } from "lucide-react";
+import { GitMerge, Split, MoonStar, Sunrise, Plus, ArrowRight, Trash2, CalendarDays, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { localEntities } from "@/api/base44Client";
 import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal";
 
 const TYPE_META = {
@@ -94,7 +95,7 @@ function TimelineEvent({ event, altersById, onDelete, isLast }) {
   );
 }
 
-function SystemBirthMarker({ date }) {
+function SystemBirthMarker({ date, onEdit }) {
   const age = differenceInYears(new Date(), date);
   const months = differenceInMonths(new Date(), date) % 12;
   const days = differenceInDays(new Date(), date);
@@ -109,12 +110,86 @@ function SystemBirthMarker({ date }) {
       <div className="flex flex-col items-center flex-shrink-0">
         <div className="w-3 h-3 rounded-full mt-1 ring-2 ring-background bg-primary" />
       </div>
-      <div className="pb-4">
+      <div className="pb-4 flex-1">
         <div className="flex items-center gap-1.5 mb-0.5">
           <CalendarDays className="w-3.5 h-3.5 text-primary" />
           <span className="text-sm font-semibold text-primary">System birth</span>
+          <button type="button" onClick={onEdit} className="text-muted-foreground hover:text-foreground transition-colors ml-1">
+            <Pencil className="w-3 h-3" />
+          </button>
         </div>
         <p className="text-xs text-muted-foreground">{format(date, "MMMM d, yyyy")} · {ageStr}</p>
+      </div>
+    </div>
+  );
+}
+
+function NoBirthMarker({ onEdit }) {
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center flex-shrink-0">
+        <div className="w-3 h-3 rounded-full mt-1 ring-2 ring-background bg-muted-foreground/40" />
+      </div>
+      <div className="pb-4">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <CalendarDays className="w-3.5 h-3.5" />
+          <span>Set system birth date</span>
+          <Pencil className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BirthDateEditor({ currentDate, settings, queryClient, onClose }) {
+  const [value, setValue] = useState(currentDate ? format(currentDate, "yyyy-MM-dd") : "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const iso = value ? new Date(value + "T00:00:00").toISOString() : null;
+      if (settings?.id) {
+        await localEntities.SystemSettings.update(settings.id, { system_birth_date: iso });
+      } else {
+        await localEntities.SystemSettings.create({ system_birth_date: iso });
+      }
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center flex-shrink-0">
+        <div className="w-3 h-3 rounded-full mt-1 ring-2 ring-background bg-primary" />
+      </div>
+      <div className="pb-4 flex-1">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <CalendarDays className="w-3.5 h-3.5 text-primary" />
+          <span className="text-sm font-semibold text-primary">System birth</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
+          />
+          <button type="button" disabled={saving} onClick={handleSave}
+            className="text-primary hover:text-primary/80 transition-colors disabled:opacity-50">
+            <Check className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -124,6 +199,7 @@ export default function SystemHistory() {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
+  const [editingBirth, setEditingBirth] = useState(false);
 
   const { data: events = [] } = useQuery({
     queryKey: ["systemChangeEvents"],
@@ -213,21 +289,30 @@ export default function SystemHistory() {
               event={event}
               altersById={altersById}
               onDelete={handleDelete}
-              isLast={i === filteredEvents.length - 1 && !systemBirthDate}
+              isLast={i === filteredEvents.length - 1 && !systemBirthDate && !editingBirth}
             />
           ))}
 
           {/* System birth at the bottom */}
-          {systemBirthDate && typeFilter === "all" && (
-            <SystemBirthMarker date={systemBirthDate} />
+          {typeFilter === "all" && (
+            editingBirth
+              ? <BirthDateEditor currentDate={systemBirthDate} settings={settingsArr[0]} queryClient={queryClient} onClose={() => setEditingBirth(false)} />
+              : systemBirthDate
+                ? <SystemBirthMarker date={systemBirthDate} onEdit={() => setEditingBirth(true)} />
+                : <NoBirthMarker onEdit={() => setEditingBirth(true)} />
           )}
         </div>
       )}
 
       {/* Show birth even if no events */}
-      {filteredEvents.length === 0 && systemBirthDate && typeFilter === "all" && (
+      {filteredEvents.length === 0 && typeFilter === "all" && (
         <div className="mt-4">
-          <SystemBirthMarker date={systemBirthDate} />
+          {editingBirth
+            ? <BirthDateEditor currentDate={systemBirthDate} settings={settingsArr[0]} queryClient={queryClient} onClose={() => setEditingBirth(false)} />
+            : systemBirthDate
+              ? <SystemBirthMarker date={systemBirthDate} onEdit={() => setEditingBirth(true)} />
+              : <NoBirthMarker onEdit={() => setEditingBirth(true)} />
+          }
         </div>
       )}
 

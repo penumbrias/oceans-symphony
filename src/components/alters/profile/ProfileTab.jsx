@@ -112,7 +112,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showPageTextPicker, setShowPageTextPicker] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [form, setForm] = useState({
-    name: "", alias: "", pronouns: "", role: "",
+    name: "", alias: "", pronouns: "", role: "", birthday: "",
     description: "", color: "", avatar_url: "",
     custom_fields: {},
   });
@@ -130,6 +130,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       alias: alter.alias || "",
       pronouns: alter.pronouns || "",
       role: alter.role || "",
+      birthday: alter.birthday || "",
       description: alter.description || "",
       color: alter.color || "",
       avatar_url: alter.avatar_url || "",
@@ -363,6 +364,7 @@ useEffect(() => {
                 </h2>
                 {alter.alias && <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>}
                 {alter.pronouns && <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>}
+                {alter.birthday && <p className="text-xs" style={{ color: viewHeaderText ? `${viewHeaderText}99` : "hsl(var(--muted-foreground))" }}>🎂 {alter.birthday}</p>}
                 {alter.role && (
                   <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
                     style={{
@@ -516,6 +518,17 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             <Input value={form.color} onChange={(e) => set("color", e.target.value)} placeholder="#8b5cf6" className="font-mono text-xs" />
           </div>
         </div>
+      </div>
+
+      {/* Birthday */}
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground font-medium">Birthday / Split date</label>
+        <Input
+          type="date"
+          value={form.birthday || ""}
+          onChange={(e) => set("birthday", e.target.value)}
+          className="text-sm"
+        />
       </div>
 
       {/* Profile Background — compact */}
