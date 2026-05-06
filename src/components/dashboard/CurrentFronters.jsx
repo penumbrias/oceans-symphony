@@ -484,7 +484,10 @@ export default function CurrentFronters({ alters }) {
     const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
     const coSessions = activeSessions.filter(s => s.alter_id && !s.is_primary);
     primary = primarySess ? altersById[primarySess.alter_id] : null;
-    coFronters = coSessions.map(s => altersById[s.alter_id]).filter(Boolean);
+    const seenIds = new Set(primarySess?.alter_id ? [primarySess.alter_id] : []);
+    coFronters = coSessions
+      .filter(s => !seenIds.has(s.alter_id) && seenIds.add(s.alter_id))
+      .map(s => altersById[s.alter_id]).filter(Boolean);
   } else {
     primary = altersById[active.primary_alter_id];
     coFronters = (active.co_fronter_ids || []).map(id => altersById[id]).filter(Boolean);

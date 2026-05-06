@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowUpDown, Trash2, AlertTriangle } from "lucide-react";
+import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
@@ -123,7 +123,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const [newSessionId, setNewSessionId] = useState(null);
   const [isUnsure, setIsUnsure] = useState(false);
   const [viewMode, setViewMode] = useState("list");
-  const [sortBy, setSortBy] = useState("alpha"); // "alpha" | "most" | "least"
+  const [sortBy, setSortBy] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [triggeredSwitch, setTriggeredSwitch] = useState(false);
   const [triggerCategory, setTriggerCategory] = useState("");
   const [triggerLabel, setTriggerLabel] = useState("");
@@ -131,7 +131,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
     queryFn: () => base44.entities.FrontingSession.filter({}),
-    enabled: open && sortBy !== "alpha",
+    enabled: open && (sortBy === "most" || sortBy === "least"),
     staleTime: 60000,
   });
 
@@ -153,14 +153,20 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   }, [triggeredSwitch, triggerCategory, triggerLabel, allTriggerCategories]);
 
   const alterFrontTotals = useMemo(() => {
-    if (sortBy === "alpha") return {};
+    if (sortBy === "alpha-asc" || sortBy === "alpha-desc") return {};
     const totals = {};
     for (const s of allSessions) {
-      if (!s.alter_id) continue;
       const dur = s.end_time && s.start_time
         ? new Date(s.end_time) - new Date(s.start_time)
         : 0;
-      totals[s.alter_id] = (totals[s.alter_id] || 0) + dur;
+      if (s.alter_id) {
+        totals[s.alter_id] = (totals[s.alter_id] || 0) + dur;
+      } else {
+        if (s.primary_alter_id) totals[s.primary_alter_id] = (totals[s.primary_alter_id] || 0) + dur;
+        for (const id of (s.co_fronter_ids || [])) {
+          totals[id] = (totals[id] || 0) + dur;
+        }
+      }
     }
     return totals;
   }, [allSessions, sortBy]);
@@ -196,7 +202,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     const list = activeAlters.filter((a) => a.name?.toLowerCase().includes(search.toLowerCase()));
     if (sortBy === "most") return [...list].sort((a, b) => (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0));
     if (sortBy === "least") return [...list].sort((a, b) => (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0));
-    return list;
+    if (sortBy === "alpha-desc") return [...list].sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+    return [...list].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   }, [activeAlters, search, sortBy, alterFrontTotals]);
 
   const selectedIds = useMemo(() => {
@@ -385,10 +392,13 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 className="pl-9" />
             </div>
             <button
-              onClick={() => setSortBy(s => s === "alpha" ? "most" : s === "most" ? "least" : "alpha")}
-              aria-label={sortBy === "alpha" ? "Sort: A to Z (click to change)" : sortBy === "most" ? "Sort: Most fronted (click to change)" : "Sort: Least fronted (click to change)"}
-              className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
-              <ArrowUpDown className="w-4 h-4" />
+              onClick={() => setSortBy(s => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[s]))}
+              title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortBy]}
+              className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha-asc" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
+              {sortBy === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
+              {sortBy === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
+              {sortBy === "most" && <TrendingDown className="w-4 h-4" />}
+              {sortBy === "least" && <TrendingUp className="w-4 h-4" />}
             </button>
             <div className="flex gap-1 bg-muted/50 rounded-md p-1" role="group" aria-label="View mode">
               <button
