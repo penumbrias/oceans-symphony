@@ -70,10 +70,14 @@ export default function BulletinPage() {
   }, [targetCommentId, comments.length]);
 
   const bulletin = bulletins.find(b => b.id === id);
-  const activeSession = sessions.find(s => s.is_active);
-  const currentAlterId = activeSession?.primary_alter_id || null;
-  const frontingAlterIds = activeSession
-    ? [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
+  const activeSessions = sessions.filter(s => s.is_active);
+  const activeSession = activeSessions[0] || null;
+  const currentAlterId = activeSession?.alter_id || activeSession?.primary_alter_id || null;
+  const frontingAlterIds = activeSessions.length > 0
+    ? activeSessions.flatMap(s => s.alter_id
+        ? [s.alter_id]
+        : [s.primary_alter_id, ...(s.co_fronter_ids || [])]
+      ).filter(Boolean)
     : [];
 
   if (!bulletin) {

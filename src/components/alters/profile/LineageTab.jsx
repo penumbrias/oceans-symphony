@@ -17,13 +17,14 @@ const TYPE_META = {
 
 function AlterPill({ alter }) {
   if (!alter) return null;
+  const color = alter.color || "#9333ea";
   return (
     <Link
       to={`/alter/${alter.id}`}
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border hover:opacity-80 transition-opacity"
-      style={{ borderColor: alter.color || "#9333ea", color: alter.color || "#9333ea", backgroundColor: `${alter.color || "#9333ea"}15` }}
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border hover:opacity-80 transition-opacity text-foreground"
+      style={{ borderColor: color, backgroundColor: `${color}22` }}
     >
-      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#9333ea" }} />
+      <div className="w-3 h-3 rounded-full flex-shrink-0 ring-1 ring-background" style={{ backgroundColor: color }} />
       {alter.name}
     </Link>
   );
@@ -89,40 +90,74 @@ function EventCard({ event, altersById, onDelete }) {
   );
 }
 
-// Simple tree node — renders an alter box with lines to parents/children
-function TreeNode({ alter, events, altersById, depth = 0 }) {
-  // Find events where this alter is a result (parents = source alters)
-  const parentEvents = events.filter(e =>
-    (e.result_alter_ids || []).includes(alter.id) && e.type !== "dormancy" && e.type !== "return"
-  );
-  const parentAlterIds = [...new Set(parentEvents.flatMap(e => e.source_alter_ids || []).filter(id => id !== alter.id))];
-  const parentAlters = parentAlterIds.map(id => altersById[id]).filter(Boolean);
+function ConnectionsMap({ alterId, events, altersById }) {
+  // Predecessors: alters in source_alter_ids where this alter is in result_alter_ids
+  const predecessorIds = useMemo(() => {
+    const ids = new Set();
+    events.forEach(e => {
+      if ((e.result_alter_ids || []).includes(alterId) && e.type !== "dormancy" && e.type !== "return") {
+        (e.source_alter_ids || []).forEach(id => { if (id !== alterId) ids.add(id); });
+      }
+    });
+    return [...ids];
+  }, [alterId, events]);
 
-  if (depth > 3) return null; // prevent infinite recursion for complex graphs
+  // Successors: alters in result_alter_ids where this alter is in source_alter_ids
+  const successorIds = useMemo(() => {
+    const ids = new Set();
+    events.forEach(e => {
+      if ((e.source_alter_ids || []).includes(alterId) && e.type !== "dormancy" && e.type !== "return") {
+        (e.result_alter_ids || []).forEach(id => { if (id !== alterId) ids.add(id); });
+      }
+    });
+    return [...ids];
+  }, [alterId, events]);
+
+  const thisAlter = altersById[alterId];
+  if (!thisAlter) return null;
+  if (predecessorIds.length === 0 && successorIds.length === 0) return null;
+
+  const color = thisAlter.color || "#9333ea";
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      {parentAlters.length > 0 && (
-        <div className="flex items-end gap-3 pb-1">
-          {parentAlters.map(parent => (
-            <div key={parent.id} className="flex flex-col items-center gap-1">
-              <TreeNode alter={parent} events={events} altersById={altersById} depth={depth + 1} />
-              <div className="w-px h-4 bg-border" />
+    <div className="rounded-xl border border-border/60 bg-card p-3 space-y-2">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Connections</p>
+      <div className="flex items-start gap-2 flex-wrap">
+        {predecessorIds.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">From</span>
+            <div className="flex flex-wrap gap-1">
+              {predecessorIds.map(id => altersById[id] && <AlterPill key={id} alter={altersById[id]} />)}
             </div>
-          ))}
-          {parentAlters.length > 1 && (
-            <div className="absolute w-full h-px bg-border" />
-          )}
+          </div>
+        )}
+        {predecessorIds.length > 0 && (
+          <div className="flex items-center self-center mt-4">
+            <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">This alter</span>
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border text-foreground"
+            style={{ borderColor: color, backgroundColor: `${color}33`, outline: `2px solid ${color}55`, outlineOffset: "1px" }}>
+            <div className="w-3 h-3 rounded-full flex-shrink-0 ring-1 ring-background" style={{ backgroundColor: color }} />
+            {thisAlter.name}
+          </div>
         </div>
-      )}
-      <Link
-        to={`/alter/${alter.id}`}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-card hover:bg-muted/50 transition-colors text-sm font-medium"
-        style={{ borderColor: alter.color || "#9333ea" }}
-      >
-        <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#9333ea" }} />
-        {alter.name}
-      </Link>
+        {successorIds.length > 0 && (
+          <div className="flex items-center self-center mt-4">
+            <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          </div>
+        )}
+        {successorIds.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">Became</span>
+            <div className="flex flex-wrap gap-1">
+              {successorIds.map(id => altersById[id] && <AlterPill key={id} alter={altersById[id]} />)}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -153,8 +188,6 @@ export default function LineageTab({ alterId }) {
     [allEvents, alterId]
   );
 
-  const thisAlter = altersById[alterId];
-
   async function handleDelete(eventId) {
     await localEntities.SystemChangeEvent.delete(eventId);
     queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
@@ -172,13 +205,9 @@ export default function LineageTab({ alterId }) {
         </Button>
       </div>
 
-      {/* Family tree */}
-      {relatedEvents.length > 0 && thisAlter && (
-        <div className="overflow-x-auto pb-2">
-          <div className="flex justify-center min-w-fit px-4">
-            <TreeNode alter={thisAlter} events={relatedEvents} altersById={altersById} />
-          </div>
-        </div>
+      {/* Connections map */}
+      {relatedEvents.length > 0 && (
+        <ConnectionsMap alterId={alterId} events={relatedEvents} altersById={altersById} />
       )}
 
       {/* Event list */}
