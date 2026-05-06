@@ -41,10 +41,13 @@ function applyNavHeight(value) {
 }
 
 function applyFontFamily(value) {
-  const family = value === "system"
-    ? "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    : "'Inter', sans-serif";
-  document.documentElement.style.setProperty("--font-sans", family);
+  const families = {
+    system:   "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    atkinson: "'Atkinson Hyperlegible', sans-serif",
+    nunito:   "'Nunito', sans-serif",
+    inter:    "'Inter', sans-serif",
+  };
+  document.documentElement.style.setProperty("--font-sans", families[value] || families.inter);
 }
 
 export function initAccessibility() {

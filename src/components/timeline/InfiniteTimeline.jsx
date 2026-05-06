@@ -422,8 +422,10 @@ function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onClose }) {
 }
 
 function DetailPopup({ title, icon, timeStr, onClose, children }) {
+  const openedAt = useRef(Date.now());
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={() => { if (Date.now() - openedAt.current > 350) onClose(); }}>
       <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
         <p className="text-xs text-muted-foreground mb-2">{icon} {timeStr}</p>
         {children}

@@ -11,8 +11,10 @@ import {
 } from "@/lib/useAccessibility";
 
 const FONT_FAMILY_OPTIONS = [
-  { value: "inter",  label: "Inter",        desc: "App default — clean, modern" },
-  { value: "system", label: "System font",  desc: "Uses your device's built-in font" },
+  { value: "inter",    label: "Inter",                 desc: "App default — clean, modern",          fontFamily: "'Inter', sans-serif" },
+  { value: "system",   label: "System font",           desc: "Uses your device's built-in font",     fontFamily: "system-ui, sans-serif" },
+  { value: "atkinson", label: "Atkinson Hyperlegible", desc: "Designed for low vision & dyslexia",   fontFamily: "'Atkinson Hyperlegible', sans-serif" },
+  { value: "nunito",   label: "Nunito",                desc: "Rounded, friendly — easier to read",   fontFamily: "'Nunito', sans-serif" },
 ];
 
 const NAV_HEIGHT_OPTIONS = [
@@ -64,7 +66,7 @@ export default function AccessibilitySettings() {
               }`}
             >
               <p className={`text-sm font-semibold break-words ${settings.fontFamily === opt.value ? "text-primary" : ""}`}
-                style={{ fontFamily: opt.value === "system" ? "system-ui, -apple-system, sans-serif" : "'Inter', sans-serif" }}>
+                style={{ fontFamily: opt.fontFamily }}>
                 {opt.label}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>

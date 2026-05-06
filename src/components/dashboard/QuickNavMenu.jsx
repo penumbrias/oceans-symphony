@@ -71,6 +71,7 @@ function buildGridItems(altersLabel, systemLabel) {
 export default function QuickNavMenu() {
   const terms = useTerms();
   const [isGridLayout, setIsGridLayout] = useState(() => localStorage.getItem("nav_grid_layout") === "true");
+  const [gridCols, setGridCols] = useState(() => parseInt(localStorage.getItem("nav_grid_cols") || "3", 10));
   const { data: pendingInstances = [] } = usePendingReminderInstances();
   const pendingCount = pendingInstances.filter(i => i.status === "fired").length;
   
@@ -109,14 +110,27 @@ export default function QuickNavMenu() {
             localStorage.setItem("nav_grid_layout", newState ? "true" : "false");
           }}
           title={isGridLayout ? "Switch to list view" : "Switch to grid view"}>
-          
           {isGridLayout ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
         </Button>
+        {isGridLayout && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              const next = gridCols === 4 ? 2 : gridCols + 1;
+              setGridCols(next);
+              localStorage.setItem("nav_grid_cols", String(next));
+            }}
+            title={`Columns: ${gridCols} (click to change)`}
+            className="text-xs font-bold w-9 h-9">
+            {gridCols}
+          </Button>
+        )}
       </div>
 
       {/* Grid Layout */}
       {isGridLayout &&
-      <div className="grid grid-cols-3 gap-2">
+      <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
               {configuredGridItems.map((item) => {
             const Icon = item.icon;
             return (

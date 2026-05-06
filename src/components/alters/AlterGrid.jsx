@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List } from "lucide-react";
+import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -71,53 +71,53 @@ export default function AlterGrid({ alters, currentSession = null }) {
     <div>
       {/* Toolbar */}
       <div className="my-1 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder={`Search ${terms.alters}...`}
             value={search}
-            onChange={(e) => setSearch(e.target.value)} className="bg-transparent text-foreground pl-10 px-3 py-1 text-base rounded-md flex h-9 w-full border shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-border/50" />
-          
-          
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-3 h-9 border-border/50 bg-transparent" />
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
 
-          title={sortDir === "asc" ? "A → Z" : "Z → A"}>
-          
+        {/* Sort */}
+        <button
+          onClick={() => setSortDir(sortDir === "asc" ? "desc" : "asc")}
+          title={sortDir === "asc" ? "A → Z" : "Z → A"}
+          className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           {sortDir === "asc" ? <ArrowDownAZ className="w-4 h-4" /> : <ArrowUpAZ className="w-4 h-4" />}
-          {sortDir === "asc" ? "" : ""}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowFolders(!showFolders)} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+        </button>
 
-          title={showFolders ? "Hide groups" : "Show groups"}>
-          
-          {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-          {showFolders ? "groups" : "groups"}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
+        {/* View mode */}
+        <button
           onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
-          className="bg-card/50 text-muted-foreground px-1 text-xs font-light rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
-          title={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}>
+          title={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}
+          className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           {viewMode === "list" ? <Grid3X3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate("/groups")} className="bg-card/50 text-muted-foreground px-1 text-xs font-light lowercase rounded-xl inline-flex items-center justify-center whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 hover:bg-accent h-9 gap-1.5 border border-border/50 hover:text-foreground"
+        </button>
 
-          title="Manage groups">
-          
-          <Settings className="w-4 h-4" />
-          Groups
-        </Button>
+        {/* Groups: eye | + | settings */}
+        <div className="flex-shrink-0 flex items-center h-9 rounded-xl border border-border/50 bg-card/50 px-2 gap-0.5">
+          <span className="text-xs text-muted-foreground pr-1.5 border-r border-border/50">Groups</span>
+          <button
+            onClick={() => setShowFolders(!showFolders)}
+            title={showFolders ? "Hide groups" : "Show groups"}
+            className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${showFolders ? "text-primary" : "text-muted-foreground"} hover:bg-muted/60`}>
+            {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => navigate("/groups?new=1")}
+            title="New group"
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+            <Plus className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => navigate("/groups")}
+            title="Manage groups"
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
