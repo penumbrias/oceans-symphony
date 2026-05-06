@@ -228,10 +228,9 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       toast.success(`${action.label || cat?.name || "Activity"} logged`);
     } else if (action.type === "log_symptom") {
-      const { symptom_id, alter_id } = action.config || {};
+      const { symptom_id } = action.config || {};
       if (!symptom_id) return;
-      const logAlterIds = alter_id ? [alter_id] : frontingAlterIds;
-      setPendingSymptomLog({ symptom_id, alter_ids: logAlterIds, label: action.label });
+      setPendingSymptomLog({ symptom_id, label: action.label });
     } else if (action.type === "log_emotion") {
       const { emotion_label, intensity } = action.config || {};
       if (!emotion_label) return;

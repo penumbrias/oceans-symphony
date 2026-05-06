@@ -256,42 +256,48 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
       )}
 
       {data.type === "log_symptom" && (
-        <div className="space-y-2">
-          <div>
-            <Label className="text-xs font-medium mb-1 block">Symptom / habit</Label>
-            <select
-              value={data.config?.symptom_id || ""}
-              onChange={(e) => setConfig("symptom_id", e.target.value)}
-              onBlur={applySuggestion}
-              className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">Select a symptom…</option>
-              {activeSymptoms.map((s) => (
-                <option key={s.id} value={s.id}>{s.label}</option>
-              ))}
-            </select>
-            {activeSymptoms.length === 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                No symptoms defined yet. Add them via Check-In → Symptoms section.
-              </p>
-            )}
-          </div>
-          <div>
-            <Label className="text-xs font-medium mb-1 block">Also set {terms.fronter} (optional)</Label>
-            <select
-              value={data.config?.alter_id || ""}
-              onChange={(e) => setConfig("alter_id", e.target.value)}
-              className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="">Keep current {terms.front} as-is</option>
-              {activeAlters.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Severity will be prompted when you trigger this action.
+        <div>
+          <Label className="text-xs font-medium mb-2 block">Symptom / habit</Label>
+          {activeSymptoms.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No symptoms defined yet. Add them via Check-In → Symptoms section.
             </p>
-          </div>
+          ) : (
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {activeSymptoms.map((s) => {
+                const color = s.color || "#8B5CF6";
+                const isSelected = data.config?.symptom_id === s.id;
+                return (
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl border transition-all"
+                    style={{
+                      borderColor: isSelected ? color : "hsl(var(--border))",
+                      backgroundColor: isSelected ? `${color}15` : "hsl(var(--card))",
+                    }}
+                  >
+                    <span className="flex-1 text-sm font-medium">{s.label}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newId = isSelected ? "" : s.id;
+                        setConfig("symptom_id", newId || undefined);
+                        if (newId) setTimeout(applySuggestion, 0);
+                      }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all border"
+                      style={{
+                        borderColor: isSelected ? color : "hsl(var(--border))",
+                        backgroundColor: isSelected ? color : "transparent",
+                        color: isSelected ? "#fff" : color,
+                      }}
+                    >
+                      {isSelected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
