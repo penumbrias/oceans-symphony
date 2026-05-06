@@ -101,11 +101,16 @@ export default function SleepAnalytics({ sleepRecords = [], from, to }) {
   const dreamStats = useMemo(() => {
     const n = filtered.length;
     if (n === 0) return null;
-    const interrupted = filtered.filter(r => r.is_interrupted).length;
+    const interruptedNights = filtered.filter(r => r.is_interrupted);
+    const interrupted = interruptedNights.length;
     const dreamed = filtered.filter(r => r.dreamed).length;
     const nightmares = filtered.filter(r => r.had_nightmare).length;
+    const totalInterruptions = interruptedNights.reduce((sum, r) =>
+      sum + (r.interruption_times?.length || (r.interruption_count || 0)), 0
+    );
+    const avgInterruptions = interrupted > 0 ? (totalInterruptions / interrupted).toFixed(1) : null;
     return {
-      interrupted, dreamed, nightmares, n,
+      interrupted, dreamed, nightmares, n, avgInterruptions,
       interruptedPct: Math.round((interrupted / n) * 100),
       dreamedPct: Math.round((dreamed / n) * 100),
       nightmaresPct: Math.round((nightmares / n) * 100),
@@ -172,7 +177,7 @@ export default function SleepAnalytics({ sleepRecords = [], from, to }) {
           <h3 className="text-sm font-semibold mb-3">Sleep quality breakdown</h3>
           <div className="space-y-3">
             {[
-              { label: "Interrupted nights", count: dreamStats.interrupted, pct: dreamStats.interruptedPct, icon: AlarmClock, color: "bg-orange-500" },
+              { label: `Interrupted nights${dreamStats.avgInterruptions ? ` · avg ${dreamStats.avgInterruptions}×` : ""}`, count: dreamStats.interrupted, pct: dreamStats.interruptedPct, icon: AlarmClock, color: "bg-orange-500" },
               { label: "Nights with dreams", count: dreamStats.dreamed,     pct: dreamStats.dreamedPct,    icon: Cloud,       color: "bg-blue-500" },
               { label: "Nightmare nights",   count: dreamStats.nightmares,  pct: dreamStats.nightmaresPct, icon: ZapOff,      color: "bg-red-500" },
             ].map(row => {

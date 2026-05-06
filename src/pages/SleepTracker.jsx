@@ -176,7 +176,8 @@ export default function SleepTracker() {
                             <div className="flex gap-1.5 mt-2 flex-wrap">
                               {sleep.is_interrupted && (
                                 <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
-                                  <AlarmClock className="w-3 h-3" /> Interrupted
+                                  <AlarmClock className="w-3 h-3" />
+                                  Interrupted{sleep.interruption_times?.length > 0 ? ` ×${sleep.interruption_times.length}` : ""}
                                 </span>
                               )}
                               {sleep.dreamed && !sleep.had_nightmare && (
@@ -190,6 +191,11 @@ export default function SleepTracker() {
                                 </span>
                               )}
                             </div>
+                          )}
+                          {sleep.is_interrupted && sleep.interruption_times?.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Woke at: {sleep.interruption_times.join(", ")}
+                            </p>
                           )}
                           {sleep.notes && (
                             <p className="text-sm text-muted-foreground mt-2">

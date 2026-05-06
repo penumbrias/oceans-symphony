@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ZapOff, Cloud, AlarmClock } from "lucide-react";
+import { ZapOff, Cloud, AlarmClock, Plus, X } from "lucide-react";
 
 function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   return (
@@ -28,6 +28,54 @@ function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   );
 }
 
+function InterruptionDetails({ wakeDate, interruptionTimes, onTimesChange }) {
+  const [newTime, setNewTime] = useState("");
+
+  const addTime = () => {
+    const t = newTime.trim();
+    if (!t) return;
+    onTimesChange([...interruptionTimes, t]);
+    setNewTime("");
+  };
+
+  const removeTime = (i) => onTimesChange(interruptionTimes.filter((_, idx) => idx !== i));
+
+  // Default date for the time input — use wake date if available
+  const datePrefix = wakeDate || format(new Date(), "yyyy-MM-dd");
+
+  return (
+    <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 space-y-3 mt-2">
+      <div>
+        <label className="text-xs text-muted-foreground font-medium">Times woken up (optional)</label>
+        <div className="flex gap-2 mt-1.5">
+          <Input
+            type="time"
+            value={newTime}
+            onChange={e => setNewTime(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && addTime()}
+            className="text-sm flex-1"
+          />
+          <Button type="button" size="sm" variant="outline" onClick={addTime} className="flex-shrink-0">
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+        {interruptionTimes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {interruptionTimes.map((t, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                {t}
+                <button type="button" onClick={() => removeTime(i)} className="hover:opacity-70">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate }) {
   const [bedtime, setBedtime] = useState("");
   const [wakeTime, setWakeTime] = useState("");
@@ -38,6 +86,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
   const [isInterrupted, setIsInterrupted] = useState(false);
   const [dreamed, setDreamed] = useState(false);
   const [hadNightmare, setHadNightmare] = useState(false);
+  const [interruptionTimes, setInterruptionTimes] = useState([]);
 
   React.useEffect(() => {
     if (isOpen && selectedDate) {
@@ -53,15 +102,20 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       setIsInterrupted(false);
       setDreamed(false);
       setHadNightmare(false);
+      setInterruptionTimes([]);
       setNotes("");
       setQuality(5);
     }
   }, [isOpen, selectedDate]);
 
-  // Auto-set dreamed when nightmare is checked
   const handleNightmareToggle = (val) => {
     setHadNightmare(val);
     if (val) setDreamed(true);
+  };
+
+  const handleInterruptedToggle = (val) => {
+    setIsInterrupted(val);
+    if (!val) setInterruptionTimes([]);
   };
 
   const handleSave = async () => {
@@ -90,6 +144,8 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         quality: quality || null,
         notes: notes || null,
         is_interrupted: isInterrupted,
+        interruption_count: isInterrupted ? (interruptionTimes.length || null) : null,
+        interruption_times: isInterrupted && interruptionTimes.length > 0 ? interruptionTimes : null,
         dreamed,
         had_nightmare: hadNightmare,
       });
@@ -112,6 +168,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
       setIsInterrupted(false);
       setDreamed(false);
       setHadNightmare(false);
+      setInterruptionTimes([]);
       onSave?.();
       onClose();
     } catch (err) {
@@ -123,7 +180,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Log Sleep{selectedDate && ` - ${format(selectedDate, "MMM d")}`}
@@ -162,7 +219,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
                 icon={AlarmClock}
                 label="Interrupted"
                 value={isInterrupted}
-                onChange={setIsInterrupted}
+                onChange={handleInterruptedToggle}
                 activeClass="border-orange-500/60 bg-orange-500/10 text-orange-500"
               />
               <TogglePill
@@ -180,6 +237,15 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
                 activeClass="border-red-500/60 bg-red-500/10 text-red-500"
               />
             </div>
+
+            {/* Interruption details */}
+            {isInterrupted && (
+              <InterruptionDetails
+                wakeDate={sleepDate}
+                interruptionTimes={interruptionTimes}
+                onTimesChange={setInterruptionTimes}
+              />
+            )}
           </div>
 
           <div>
