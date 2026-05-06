@@ -100,7 +100,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
   const rootGroups = allGroups.filter((g) => !g.parent || g.parent === "" || g.parent === "root");
 
   const groupControls = (active) => (
-    <div className="flex items-center gap-0.5">
+    <div data-tour="alter-groups-controls" className="flex items-center gap-0.5">
       <button
         onClick={() => setShowFolders(!showFolders)}
         title={showFolders ? "Hide groups" : "Show groups"}
