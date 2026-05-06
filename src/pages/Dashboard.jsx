@@ -144,6 +144,11 @@ export default function Dashboard() {
   });
   const sortedQuickActions = [...quickActionsRaw].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
   const startHold = (e) => {
     // If menu already open, close it instead
     if (showQuickActionsRef.current) {
@@ -209,17 +214,18 @@ export default function Dashboard() {
       const alterObj = alters.find((a) => a.id === alterId);
       toast.success(`${alterObj?.name || "Alter"} set as ${terms.fronting}`);
     } else if (action.type === "log_activity") {
-      const { activity_name, duration_minutes } = action.config || {};
-      if (!activity_name) return;
+      const { category_id, duration_minutes } = action.config || {};
+      if (!category_id) return;
+      const cat = activityCategories.find((c) => c.id === category_id);
       await base44.entities.Activity.create({
-        activity_name,
-        activity_category_ids: [],
+        activity_name: cat?.name || "",
+        activity_category_ids: [category_id],
         duration_minutes: duration_minutes || null,
         fronting_alter_ids: frontingAlterIds,
         timestamp: now,
       });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
-      toast.success(`${action.label || activity_name} logged`);
+      toast.success(`${action.label || cat?.name || "Activity"} logged`);
     } else if (action.type === "log_symptom") {
       const { symptom_id, severity } = action.config || {};
       if (!symptom_id) return;
@@ -230,6 +236,17 @@ export default function Dashboard() {
       });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success(`${action.label} logged`);
+    } else if (action.type === "log_emotion") {
+      const { emotion_label, intensity } = action.config || {};
+      if (!emotion_label) return;
+      await base44.entities.EmotionCheckIn.create({
+        timestamp: now,
+        emotions: [emotion_label],
+        fronting_alter_ids: frontingAlterIds,
+        ...(intensity ? { note: `Intensity: ${intensity}/10` } : {}),
+      });
+      queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      toast.success(`${action.label || emotion_label} logged`);
     }
   };
 

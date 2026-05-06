@@ -24,6 +24,7 @@ const DEFAULT_EMOJIS = {
   set_front_alter: "👤",
   log_activity: "⚡",
   log_symptom: "🩺",
+  log_emotion: "😊",
   open_set_front: "🔄",
 };
 
@@ -31,7 +32,7 @@ function blankForm() {
   return { label: "", type: "open_checkin", emoji: "", config: {} };
 }
 
-function ActionForm({ initialData, alters, symptoms, onSave, onCancel, terms }) {
+function ActionForm({ initialData, alters, symptoms, activityCategories, customEmotions, onSave, onCancel, terms }) {
   const [data, setData] = useState(initialData || blankForm());
 
   const actionTypes = [
@@ -41,10 +42,12 @@ function ActionForm({ initialData, alters, symptoms, onSave, onCancel, terms }) 
     { id: "set_front_alter", label: `Set a specific ${terms.alter} to ${terms.front}` },
     { id: "log_activity", label: "Instantly log an activity" },
     { id: "log_symptom", label: "Instantly log a symptom or habit" },
+    { id: "log_emotion", label: "Instantly log an emotion" },
   ];
 
   const activeAlters = alters.filter((a) => !a.is_archived);
   const activeSymptoms = symptoms.filter((s) => !s.is_archived);
+  const sortedCategories = [...activityCategories].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const setType = (type) => {
     setData((d) => ({ ...d, type, config: {} }));
@@ -60,14 +63,17 @@ function ActionForm({ initialData, alters, symptoms, onSave, onCancel, terms }) 
     if (data.type === "set_front_alter" && data.config?.alter_id) {
       const a = activeAlters.find((a) => a.id === data.config.alter_id);
       if (a) suggestion = `Set ${terms.front}: ${a.name}`;
-    } else if (data.type === "log_activity" && data.config?.activity_name) {
-      suggestion = `Log: ${data.config.activity_name}`;
+    } else if (data.type === "log_activity" && data.config?.category_id) {
+      const c = sortedCategories.find((c) => c.id === data.config.category_id);
+      if (c) suggestion = `Log: ${c.name}`;
     } else if (data.type === "open_checkin_section" && data.config?.section) {
       const s = CHECKIN_SECTIONS.find((s) => s.id === data.config.section);
       if (s) suggestion = `Check-In: ${s.label}`;
     } else if (data.type === "log_symptom" && data.config?.symptom_id) {
       const s = activeSymptoms.find((s) => s.id === data.config.symptom_id);
       if (s) suggestion = `Log: ${s.label}`;
+    } else if (data.type === "log_emotion" && data.config?.emotion_label) {
+      suggestion = `Log: ${data.config.emotion_label}`;
     } else if (data.type === "open_set_front") {
       suggestion = `Open Set ${terms.Front}ers`;
     } else if (data.type === "open_checkin") {
@@ -79,9 +85,10 @@ function ActionForm({ initialData, alters, symptoms, onSave, onCancel, terms }) 
   const handleSave = () => {
     if (!data.label.trim()) { toast.error("Add a label"); return; }
     if (data.type === "set_front_alter" && !data.config?.alter_id) { toast.error(`Choose an ${terms.alter}`); return; }
-    if (data.type === "log_activity" && !data.config?.activity_name?.trim()) { toast.error("Enter an activity name"); return; }
+    if (data.type === "log_activity" && !data.config?.category_id) { toast.error("Choose an activity category"); return; }
     if (data.type === "open_checkin_section" && !data.config?.section) { toast.error("Choose a section"); return; }
     if (data.type === "log_symptom" && !data.config?.symptom_id) { toast.error("Choose a symptom"); return; }
+    if (data.type === "log_emotion" && !data.config?.emotion_label?.trim()) { toast.error("Enter an emotion"); return; }
     onSave(data);
   };
 
@@ -139,14 +146,23 @@ function ActionForm({ initialData, alters, symptoms, onSave, onCancel, terms }) 
       {data.type === "log_activity" && (
         <div className="space-y-2">
           <div>
-            <Label className="text-xs font-medium mb-1 block">Activity name</Label>
-            <Input
-              value={data.config?.activity_name || ""}
-              onChange={(e) => setConfig("activity_name", e.target.value)}
+            <Label className="text-xs font-medium mb-1 block">Activity category</Label>
+            <select
+              value={data.config?.category_id || ""}
+              onChange={(e) => setConfig("category_id", e.target.value)}
               onBlur={applySuggestion}
-              placeholder="e.g. Showering, Walking, Reading…"
-              className="h-8 text-sm"
-            />
+              className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Select a category…</option>
+              {sortedCategories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {sortedCategories.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                No activity categories yet. Add them via Check-In → Activity section.
+              </p>
+            )}
           </div>
           <div>
             <Label className="text-xs font-medium mb-1 block">Duration (minutes, optional)</Label>
@@ -192,6 +208,52 @@ function ActionForm({ initialData, alters, symptoms, onSave, onCancel, terms }) 
               placeholder="e.g. 3"
               min="1"
               max="5"
+              className="h-8 text-sm"
+            />
+          </div>
+        </div>
+      )}
+
+      {data.type === "log_emotion" && (
+        <div className="space-y-2">
+          <div>
+            <Label className="text-xs font-medium mb-1 block">Emotion</Label>
+            {customEmotions.length > 0 ? (
+              <select
+                value={data.config?.emotion_label || ""}
+                onChange={(e) => setConfig("emotion_label", e.target.value)}
+                onBlur={applySuggestion}
+                className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Select an emotion…</option>
+                {customEmotions.map((e) => (
+                  <option key={e.id} value={e.label}>{e.label}</option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                value={data.config?.emotion_label || ""}
+                onChange={(e) => setConfig("emotion_label", e.target.value)}
+                onBlur={applySuggestion}
+                placeholder="e.g. Happy, Anxious, Calm…"
+                className="h-8 text-sm"
+              />
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              {customEmotions.length > 0
+                ? "Select from your custom emotions, or add more via Check-In → Feeling section."
+                : "No custom emotions yet — type any emotion label, or add custom ones via Check-In → Feeling section."}
+            </p>
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-1 block">Intensity (1–10, optional)</Label>
+            <Input
+              type="number"
+              value={data.config?.intensity || ""}
+              onChange={(e) => setConfig("intensity", e.target.value ? parseInt(e.target.value) : undefined)}
+              placeholder="e.g. 7"
+              min="1"
+              max="10"
               className="h-8 text-sm"
             />
           </div>
@@ -255,6 +317,16 @@ export default function QuickActionsConfig() {
     queryFn: () => base44.entities.Symptom.list(),
   });
 
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
+  const { data: customEmotions = [] } = useQuery({
+    queryKey: ["customEmotions"],
+    queryFn: () => base44.entities.CustomEmotion.list(),
+  });
+
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["quickActions"] });
 
   const createMut = useMutation({
@@ -316,6 +388,7 @@ export default function QuickActionsConfig() {
     set_front_alter: `Set ${terms.alter} to ${terms.front}`,
     log_activity: "Log activity",
     log_symptom: "Log symptom",
+    log_emotion: "Log emotion",
     open_set_front: `Open Set ${terms.Front}ers`,
   }[type] || type);
 
@@ -339,6 +412,8 @@ export default function QuickActionsConfig() {
         <ActionForm
           alters={alters}
           symptoms={symptoms}
+          activityCategories={activityCategories}
+          customEmotions={customEmotions}
           terms={terms}
           onSave={handleAdd}
           onCancel={() => setAdding(false)}
@@ -364,6 +439,8 @@ export default function QuickActionsConfig() {
                 }}
                 alters={alters}
                 symptoms={symptoms}
+                activityCategories={activityCategories}
+                customEmotions={customEmotions}
                 terms={terms}
                 onSave={handleEdit}
                 onCancel={() => setEditId(null)}

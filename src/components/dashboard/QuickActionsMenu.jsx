@@ -18,6 +18,7 @@ const TYPE_DEFAULT_EMOJIS = {
   set_front_alter: "👤",
   log_activity: "⚡",
   log_symptom: "🩺",
+  log_emotion: "😊",
   open_set_front: "🔄",
 };
 
