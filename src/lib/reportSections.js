@@ -327,33 +327,18 @@ export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includ
 }
 
 // ── SECTION: CUSTOM STATUS NOTES ─────────────────────────────────────────────
+// Custom statuses are standalone timestamped records (localEntities.StatusNote),
+// completely independent of sessions and alters — like Facebook statuses.
+// Each Save on the dashboard creates a NEW record; old ones are never modified.
 
-export function buildStatusNotesSection({ dateFrom, dateTo, emotionCheckIns }) {
-  const notes = emotionCheckIns
-    .filter(c => {
-      if (!c.note || !c.note.trim()) return false;
-      return inRange(c.timestamp || c.created_date, dateFrom, dateTo);
-    })
-    .sort((a, b) => new Date(a.timestamp || a.created_date) - new Date(b.timestamp || b.created_date));
-
-  return notes.flatMap(c => {
-    let entries = [];
-    try {
-      const parsed = JSON.parse(c.note);
-      entries = Array.isArray(parsed)
-        ? parsed.map(n => ({ text: n.text || "", timestamp: n.timestamp || c.timestamp || c.created_date }))
-        : [{ text: c.note, timestamp: c.timestamp || c.created_date }];
-    } catch {
-      entries = [{ text: c.note, timestamp: c.timestamp || c.created_date }];
-    }
-    return entries
-      .filter(n => n.text.trim())
-      .map(n => ({
-        date: fmtDateTime(n.timestamp),
-        note: n.text.trim(),
-        emotions: (c.emotions || []).join(", ") || null,
-      }));
-  });
+export function buildStatusNotesSection({ dateFrom, dateTo, statusNotes = [] }) {
+  return statusNotes
+    .filter(n => n.note?.trim() && inRange(n.timestamp, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    .map(n => ({
+      date: fmtDateTime(n.timestamp),
+      note: n.note.trim(),
+    }));
 }
 
 // ── SECTION: PATTERNS SUMMARY ─────────────────────────────────────────────────

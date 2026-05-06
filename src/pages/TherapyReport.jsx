@@ -88,6 +88,11 @@ export default function TherapyReportPage() {
     queryFn: () => db.ReportTemplate.list(),
   });
 
+  const { data: statusNotes = [] } = useQuery({
+    queryKey: ["statusNotes"],
+    queryFn: () => localEntities.StatusNote.list(),
+  });
+
   const handleGenerate = async (config) => {
     try {
       setLoading(true);
@@ -159,10 +164,10 @@ export default function TherapyReportPage() {
         mode: config.mode,
       });
 
-      const statusNotes = reportSections.buildStatusNotesSection({
+      const statusNotesSection = reportSections.buildStatusNotesSection({
         dateFrom: config.dateFrom,
         dateTo: config.dateTo,
-        emotionCheckIns,
+        statusNotes,
       });
 
       const bulletinsData = reportSections.buildBulletinsSection({
@@ -233,7 +238,7 @@ export default function TherapyReportPage() {
         overview,
         fronting,
         emotions,
-        statusNotes,
+        statusNotes: statusNotesSection,
         symptoms: symptomsData,
         activities: activitiesData,
         journals,

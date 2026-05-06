@@ -40,7 +40,7 @@ function NavRow({ label, sublabel, route, navigate }) {
 export default function DailyTallyPanel({
   day, sessions, activities, emotions, journals, alters,
   checkIns = [], tasks = [], symptoms = [], symptomSessions = [],
-  bulletins = [], categories = [],
+  bulletins = [], categories = [], statusNotes = [],
 }) {
   const navigate = useNavigate();
   const terms = useTerms();
@@ -258,6 +258,24 @@ export default function DailyTallyPanel({
                 navigate={navigate}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Custom Statuses ── */}
+      {statusNotes.length > 0 && (
+        <div>
+          <SectionLabel>Custom Statuses</SectionLabel>
+          <div className="space-y-0.5">
+            {statusNotes
+              .slice()
+              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+              .map(n => (
+                <div key={n.id} className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground flex-shrink-0">💬</span>
+                  <span className="text-xs text-foreground flex-1 min-w-0 break-words">{n.note}</span>
+                </div>
+              ))}
           </div>
         </div>
       )}

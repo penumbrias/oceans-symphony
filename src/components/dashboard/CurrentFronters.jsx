@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
@@ -389,7 +389,6 @@ export default function CurrentFronters({ alters }) {
   }, []);
 
   const [editingStatus, setEditingStatus] = useState(false);
-  const [statusText, setStatusText] = useState("");
   const [tempStatus, setTempStatus] = useState("");
   const queryClient = useQueryClient();
   const terms = useTerms();
@@ -399,18 +398,21 @@ export default function CurrentFronters({ alters }) {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 
+  // Latest status note for display — sorted descending, just grab first
+  const { data: allStatusNotes = [] } = useQuery({
+    queryKey: ["statusNotes"],
+    queryFn: () => localEntities.StatusNote.list(),
+  });
+  const latestStatusNote = allStatusNotes
+    .slice()
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] ?? null;
+
   const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
   const activeSessions = sessions.filter(s => s.is_active);
   const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : true);
   const active = primarySession || activeSessions[0] || null;
 
   const primaryAlterId = primarySession?.alter_id || active?.primary_alter_id || null;
-
-  useEffect(() => {
-    const saved = active?.id ? (localStorage.getItem(`symphony_status_${active.id}`) ?? "") : "";
-    setStatusText(saved);
-    setTempStatus(saved);
-  }, [active?.id]);
 
   useEffect(() => { setExpandedAlterId(null); }, [active?.id]);
 
@@ -447,20 +449,15 @@ export default function CurrentFronters({ alters }) {
 
   const handleSaveStatus = async () => {
     const note = tempStatus.trim();
-    setStatusText(note);
+    if (!note) { setEditingStatus(false); return; }
     setEditingStatus(false);
-    if (active?.id) localStorage.setItem(`symphony_status_${active.id}`, note);
-    // Record the status on the primary alter's board history
-    if (note && primaryAlterId) {
-      try {
-        await base44.entities.AlterMessage.create({
-          alter_id: primaryAlterId,
-          author_alter_id: primaryAlterId,
-          content: note,
-        });
-        queryClient.invalidateQueries({ queryKey: ["alterMessages", primaryAlterId] });
-      } catch {}
-    }
+    setTempStatus("");
+    // Each save creates a NEW immutable timestamped record — never overwrites old ones
+    await localEntities.StatusNote.create({
+      timestamp: new Date().toISOString(),
+      note,
+    });
+    queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
     toast.success("Status saved");
   };
 
@@ -540,39 +537,37 @@ export default function CurrentFronters({ alters }) {
 
         <PrivateMessagesIndicator activeFronters={all} />
 
-        {/* Custom status — shared across all fronters, separate from the per-alter note */}
+        {/* Custom status — each save is a new timestamped record, old ones never change */}
         {editingStatus ? (
           <div className="flex gap-2 items-center">
             <Input
               value={tempStatus}
               onChange={e => setTempStatus(e.target.value)}
-              placeholder="Custom status..."
+              placeholder="What's happening right now..."
               className="text-sm h-8 flex-1"
               autoFocus
-              onKeyDown={e => { if (e.key === "Enter") handleSaveStatus(); }}
+              onKeyDown={e => { if (e.key === "Enter") handleSaveStatus(); if (e.key === "Escape") { setTempStatus(""); setEditingStatus(false); } }}
             />
             <Button size="sm" onClick={handleSaveStatus} className="gap-1.5 text-xs h-8 px-2.5">Save</Button>
-            <Button size="sm" variant="outline" onClick={() => { setTempStatus(statusText); setEditingStatus(false); }} className="h-8 px-2">
+            <Button size="sm" variant="outline" onClick={() => { setTempStatus(""); setEditingStatus(false); }} className="h-8 px-2">
               <X className="w-3 h-3" />
             </Button>
           </div>
         ) : (
-          <button
-            onClick={() => setEditingStatus(true)}
-            className="w-full text-left px-3 py-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-sm text-muted-foreground hover:text-foreground"
-          >
-            {statusText ? (
-              <div className="flex items-center justify-between">
-                <span>{statusText}</span>
-                <Edit2 className="w-3 h-3" />
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <span className="italic text-xs">Custom status...</span>
-                <Edit2 className="w-3 h-3" />
-              </div>
+          <div className="space-y-1">
+            {latestStatusNote && (
+              <p className="text-xs text-muted-foreground px-1 truncate">
+                💬 {latestStatusNote.note}
+              </p>
             )}
-          </button>
+            <button
+              onClick={() => { setTempStatus(""); setEditingStatus(true); }}
+              className="w-full text-left px-3 py-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-xs text-muted-foreground hover:text-foreground flex items-center justify-between"
+            >
+              <span className="italic">Set a new status...</span>
+              <Edit2 className="w-3 h-3" />
+            </button>
+          </div>
         )}
       </div>
       <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={active} />

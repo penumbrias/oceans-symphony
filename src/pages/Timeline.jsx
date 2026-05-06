@@ -89,6 +89,11 @@ export default function Timeline() {
     queryFn: () => localEntities.Location.list(),
   });
 
+  const { data: statusNotes = [] } = useQuery({
+    queryKey: ["statusNotes"],
+    queryFn: () => localEntities.StatusNote.list(),
+  });
+
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],
     queryFn: () => base44.entities.Symptom.list(),
@@ -267,7 +272,12 @@ export default function Timeline() {
               })
             : [];
 
-          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0 || dayLocations.length > 0;
+          const dayStatusNotes = statusNotes.filter(n => {
+            const t = parseDate(n.timestamp);
+            return t >= dayStart && t <= dayEnd;
+          });
+
+          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0 || dayLocations.length > 0 || dayStatusNotes.length > 0;
 
           return (
             <div key={dateStr} id={`day-${dateStr}`}>
@@ -293,6 +303,7 @@ export default function Timeline() {
                 categories={categories}
                 locations={dayLocations}
                 showLocations={showLocations}
+                statusNotes={dayStatusNotes}
                 dailyProgress={dailyProgress.find((p) => p.date === format(day, "yyyy-MM-dd"))}
               />
             </div>

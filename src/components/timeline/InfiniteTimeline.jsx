@@ -622,6 +622,7 @@ export default function InfiniteTimeline({
   symptomSessions = [], symptomCheckIns = [], symptoms = [],
   categories = [],
   locations = [], showLocations = true,
+  statusNotes = [],
 }) {
   const queryClient = useQueryClient();
 
@@ -751,20 +752,28 @@ export default function InfiniteTimeline({
   }, [sessions, dayStart, isToday]);
 
   const statusNoteEntries = useMemo(() => {
+    // New: proper timestamped StatusNote records (one entry per save, never overwritten)
+    const fromRecords = statusNotes.map(n => ({
+      id: n.id,
+      note: n.note,
+      startMins: Math.max(0, minutesInDay(parseDate(n.timestamp), dayStart)),
+    }));
+
+    // Legacy: localStorage notes for old sessions that predate the new system
+    const fromLS = [];
     const seen = new Set();
-    const notes = [];
     for (const session of sessions) {
       const isPrimary = session.alter_id ? (session.is_primary ?? false) : true;
-      if (!isPrimary) continue;
-      if (seen.has(session.id)) continue;
+      if (!isPrimary || seen.has(session.id)) continue;
       seen.add(session.id);
       const note = localStorage.getItem(`symphony_status_${session.id}`) || "";
       if (!note) continue;
       const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
-      notes.push({ id: session.id, note, startMins });
+      fromLS.push({ id: `ls-${session.id}`, note, startMins });
     }
-    return notes;
-  }, [sessions, dayStart]);
+
+    return [...fromRecords, ...fromLS].sort((a, b) => a.startMins - b.startMins);
+  }, [statusNotes, sessions, dayStart]);
 
   const alterColumns = useMemo(() => {
     const cols = [];
@@ -1460,6 +1469,7 @@ export default function InfiniteTimeline({
           journals={journals} checkIns={checkIns} tasks={tasks} alters={alters}
           symptoms={symptoms} symptomSessions={symptomSessions}
           bulletins={bulletins} categories={categories}
+          statusNotes={statusNotes}
         />
       )}
 
