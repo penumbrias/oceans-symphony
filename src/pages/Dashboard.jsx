@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
-import { hasDiaryData } from "@/components/diary/DiarySection";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Bell } from "lucide-react";
@@ -255,26 +254,31 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       toast.success(`${emotion_label} logged`);
     } else if (action.type === "log_diary") {
-      const { diaryData = {} } = extraData;
-      if (!hasDiaryData(diaryData)) return;
+      const { value } = extraData;
+      const { group_id, field_data_key, field_label } = action.config || {};
+      if (!group_id || !field_data_key || value === undefined || value === null) return;
+      const cardData = {};
+      if (group_id === "urges") {
+        cardData.urges = { [field_data_key]: value };
+      } else if (group_id === "body_mind") {
+        cardData.body_mind = { [field_data_key]: value };
+      } else if (group_id === "skills") {
+        if (field_data_key === "skills_practiced") {
+          cardData.skills_practiced = value;
+        } else {
+          cardData.medication_safety = { [field_data_key]: value };
+        }
+      }
       await base44.entities.DiaryCard.create({
         card_type: "daily",
         date: format(new Date(), "yyyy-MM-dd"),
         name: `Daily — ${format(new Date(), "MMM d, yyyy")}`,
         fronting_alter_ids: frontingAlterIds,
         emotions: [],
-        urges: diaryData.urges || null,
-        body_mind: diaryData.body_mind || null,
-        skills_practiced: diaryData.skills?.skills_practiced ?? null,
-        medication_safety: diaryData.skills ? {
-          rx_meds_taken: diaryData.skills.rx_meds_taken,
-          self_harm_occurred: diaryData.skills.self_harm_occurred,
-          substances_count: diaryData.skills.substances_count,
-        } : null,
-        notes: null,
+        ...cardData,
       });
       queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
-      toast.success("Diary entry logged");
+      toast.success(`${field_label || "Diary"} logged`);
     } else if (action.type === "log_location") {
       const { category, name, coords } = extraData;
       const catMeta = LOCATION_CATEGORIES.find(c => c.id === category);

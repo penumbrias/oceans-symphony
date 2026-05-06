@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Plus, MapPin, Loader2, UserPlus, RefreshCw } from "lucide-react";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
-import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
+import RatingRow from "@/components/diary/RatingRow";
+import { Switch } from "@/components/ui/switch";
 
 const SECTION_LABELS = {
   feeling: "Feeling / Emotions",
@@ -116,18 +117,48 @@ function AddToFrontRow({ action, alter, onAction }) {
   );
 }
 
-function DiaryRow({ action, onAction }) {
-  const [diaryData, setDiaryData] = useState({});
-  const hasData = hasDiaryData(diaryData);
+function DiaryFieldRow({ action, onAction }) {
+  const { field_label, field_type, field_max, field_data_key } = action.config || {};
+  const [value, setValue] = useState(field_type === "rating" ? null : field_type === "boolean" ? false : 0);
+
+  if (!field_data_key) return null;
+
   return (
-    <div className="px-4 py-3 bg-card border border-border/50 rounded-2xl shadow-sm space-y-3">
-      <DiarySection data={diaryData} onChange={(groupKey, value) => setDiaryData(prev => ({ ...prev, [groupKey]: value }))} />
-      <button
-        onClick={() => onAction(action, { diaryData })}
-        disabled={!hasData}
-        className="w-full h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90">
-        Log Diary Entry
-      </button>
+    <div className="px-4 py-3 bg-card border border-border/50 rounded-2xl shadow-sm">
+      {field_type === "rating" && (
+        <RatingRow
+          label={field_label}
+          max={field_max ?? 5}
+          value={value}
+          onChange={v => { setValue(v); onAction(action, { value: v }); }}
+        />
+      )}
+      {field_type === "boolean" && (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium">{field_label}</span>
+          <div className="flex items-center gap-2">
+            <Switch checked={!!value} onCheckedChange={v => setValue(v)} />
+            <button onClick={() => onAction(action, { value })}
+              className="px-3 h-7 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+              Log
+            </button>
+          </div>
+        </div>
+      )}
+      {field_type === "number" && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{field_label}</p>
+          <div className="flex items-center gap-2">
+            <input type="number" min="0" value={value}
+              onChange={e => setValue(e.target.value === "" ? 0 : Number(e.target.value))}
+              className="w-20 h-8 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <button onClick={() => onAction(action, { value })}
+              className="flex-1 h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+              Log
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -246,7 +277,7 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
         return <AddToFrontRow key={action.id} action={action} alter={alter} onAction={onAction} />;
       }
       case "log_diary":
-        return <DiaryRow key={action.id} action={action} onAction={onAction} />;
+        return <DiaryFieldRow key={action.id} action={action} onAction={onAction} />;
       case "log_location":
         return <LocationRow key={action.id} action={action} onAction={onAction} />;
       case "open_checkin_section":

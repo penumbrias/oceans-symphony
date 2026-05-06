@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
+import { DEFAULT_GROUPS } from "@/components/diary/DiarySection";
 
 const CHECKIN_SECTIONS = [
   { id: "feeling", label: "Feeling / Emotions" },
@@ -199,8 +200,35 @@ function SymptomPicker({ symptoms, selectedId, onChange }) {
   );
 }
 
+// ── Diary field picker ────────────────────────────────────────────────────────
+function DiaryFieldPicker({ diaryGroups, selectedGroupId, selectedFieldKey, onChange }) {
+  return (
+    <div className="max-h-52 overflow-y-auto rounded-lg border border-border/40 divide-y divide-border/30">
+      {diaryGroups.map(group => (
+        <div key={group.id}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5 bg-muted/20">{group.label}</p>
+          {group.fields.filter(f => f.enabled !== false).map(field => {
+            const isSel = selectedGroupId === group.id && selectedFieldKey === field.data_key;
+            return (
+              <button key={field.id} type="button"
+                onClick={() => onChange(group.id, field.data_key, field.type, field.label, field.max)}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-left ${isSel ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/40 text-foreground"}`}>
+                <span className="flex-1">{field.label}</span>
+                <span className="text-xs text-muted-foreground">
+                  {field.type === "rating" ? `0–${field.max}` : field.type === "boolean" ? "Yes/No" : "Number"}
+                </span>
+                {isSel && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── ActionForm ────────────────────────────────────────────────────────────────
-function ActionForm({ initialData, alters, symptoms, activityCategories, customEmotions, onSave, onCancel, terms }) {
+function ActionForm({ initialData, alters, symptoms, activityCategories, customEmotions, diaryGroups, onSave, onCancel, terms }) {
   const [data, setData] = useState(initialData || blankForm());
 
   const actionTypes = [
@@ -231,7 +259,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
       const a = activeAlters.find(a => a.id === data.config?.alter_id);
       return a?.name || "Add to front";
     }
-    if (data.type === "log_diary") return "Diary entry";
+    if (data.type === "log_diary") return data.config?.field_label || "Diary field";
     if (data.type === "log_activity") {
       const c = activityCategories.find(c => c.id === data.config?.category_id);
       return c?.name || "Activity";
@@ -259,6 +287,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     if (data.type === "open_checkin_section" && !data.config?.section) { toast.error("Choose a section"); return; }
     if (data.type === "log_symptom" && !data.config?.symptom_id) { toast.error("Choose a symptom"); return; }
     if (data.type === "log_emotion" && !data.config?.emotion_label?.trim()) { toast.error("Choose an emotion"); return; }
+    if (data.type === "log_diary" && !data.config?.field_data_key) { toast.error("Choose a diary field"); return; }
     onSave({ ...data, label: derivedLabel(), emoji: null });
   };
 
@@ -321,6 +350,28 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
         </div>
       )}
 
+      {data.type === "log_diary" && (
+        <div>
+          <Label className="text-xs font-medium mb-1 block">Which diary field?</Label>
+          {data.config?.field_label && (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-xs font-medium text-primary mb-2">
+              {data.config.field_label}
+              <span className="text-primary/60 ml-1">
+                {data.config.field_type === "rating" ? `(0–${data.config.field_max})` : data.config.field_type === "boolean" ? "(Yes/No)" : "(Number)"}
+              </span>
+              <button onClick={() => setData(d => ({ ...d, config: {} }))} className="ml-auto text-primary/60 hover:text-primary"><X className="w-3 h-3" /></button>
+            </div>
+          )}
+          <DiaryFieldPicker
+            diaryGroups={diaryGroups}
+            selectedGroupId={data.config?.group_id || ""}
+            selectedFieldKey={data.config?.field_data_key || ""}
+            onChange={(groupId, fieldDataKey, fieldType, fieldLabel, fieldMax) =>
+              setData(d => ({ ...d, config: { group_id: groupId, field_data_key: fieldDataKey, field_type: fieldType, field_label: fieldLabel, field_max: fieldMax ?? null } }))}
+          />
+        </div>
+      )}
+
       {data.type === "log_location" && (
         <div>
           <Label className="text-xs font-medium mb-2 block">Default category (optional)</Label>
@@ -360,6 +411,12 @@ export default function QuickActionsConfig() {
   const { data: symptoms = [] } = useQuery({ queryKey: ["symptoms"], queryFn: () => base44.entities.Symptom.list() });
   const { data: activityCategories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: customEmotions = [] } = useQuery({ queryKey: ["customEmotions"], queryFn: () => base44.entities.CustomEmotion.list() });
+  const { data: diaryTemplates = [] } = useQuery({ queryKey: ["diaryTemplate"], queryFn: () => base44.entities.DiaryTemplate.list() });
+  const diaryGroups = useMemo(() => {
+    const tpl = diaryTemplates[0];
+    if (!tpl?.groups) return DEFAULT_GROUPS;
+    return tpl.groups.filter(g => g.enabled !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [diaryTemplates]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["quickActions"] });
 
@@ -424,7 +481,7 @@ export default function QuickActionsConfig() {
 
       {adding && (
         <ActionForm alters={alters} symptoms={symptoms} activityCategories={activityCategories} customEmotions={customEmotions}
-          terms={terms} onSave={handleAdd} onCancel={() => setAdding(false)} />
+          diaryGroups={diaryGroups} terms={terms} onSave={handleAdd} onCancel={() => setAdding(false)} />
       )}
 
       {sorted.length === 0 && !adding && (
@@ -437,7 +494,7 @@ export default function QuickActionsConfig() {
             {editId === action.id ? (
               <ActionForm initialData={{ label: action.label, type: action.type, emoji: action.emoji || "", config: action.config || {} }}
                 alters={alters} symptoms={symptoms} activityCategories={activityCategories} customEmotions={customEmotions}
-                terms={terms} onSave={handleEdit} onCancel={() => setEditId(null)} />
+                diaryGroups={diaryGroups} terms={terms} onSave={handleEdit} onCancel={() => setEditId(null)} />
             ) : (
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/20 border border-border/30 group">
                 <div className="flex-1 min-w-0">
