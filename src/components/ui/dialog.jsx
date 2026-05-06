@@ -6,7 +6,14 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Dialog = DialogPrimitive.Root
+// When the tour is active, disable modal mode so Radix doesn't apply
+// aria-hidden/inert to the tour card (which lives outside the dialog).
+const Dialog = ({ modal, ...props }) => (
+  <DialogPrimitive.Root
+    modal={window.__tourActive ? false : modal}
+    {...props}
+  />
+)
 
 const DialogTrigger = DialogPrimitive.Trigger
 
