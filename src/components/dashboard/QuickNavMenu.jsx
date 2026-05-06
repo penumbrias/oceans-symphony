@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -34,10 +34,11 @@ function buildNavGroups(altersLabel, systemLabel) {
       { id: "safety-plan",    label: "Safety Plan",     icon: Shield,      path: "/safety-plan" },
     ],
     "Analytics": [
-      { id: "analytics",       label: "Analytics",          icon: BarChart2, path: "/analytics" },
-      { id: "system-map",      label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map" },
-      { id: "timeline",        label: "Timeline",           icon: Clock,     path: "/timeline" },
-      { id: "system-history",  label: "System History",     icon: GitMerge,  path: "/system-history" },
+      { id: "analytics",        label: "Analytics",          icon: BarChart2, path: "/analytics" },
+      { id: "system-map",       label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map" },
+      { id: "timeline",         label: "Timeline",           icon: Clock,     path: "/timeline" },
+      { id: "system-history",   label: "System History",     icon: GitMerge,  path: "/system-history" },
+      { id: "location-history", label: "Location History",   icon: MapPin,    path: "/location-history" },
     ],
   };
 }
@@ -60,9 +61,10 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "groups",         label: "Groups",                 icon: Users,       path: "/groups",          color: "bg-lime-500/15 text-lime-600 dark:text-lime-400" },
     { id: "safety-plan",    label: "Safety Plan",            icon: Shield,      path: "/safety-plan",     color: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
     { id: "polls",           label: "Polls",                  icon: Vote,        path: "/polls",           color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
-    { id: "system-history", label: "System History",         icon: GitMerge,    path: "/system-history",  color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
-    { id: "settings",       label: "Settings",               icon: Settings,    path: "/settings",        color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
-    { id: "home",           label: "Home",                   icon: CheckSquare, path: "/",                color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
+    { id: "system-history",    label: "System History",   icon: GitMerge,    path: "/system-history",   color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
+    { id: "location-history",  label: "Location History", icon: MapPin,      path: "/location-history", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+    { id: "settings",          label: "Settings",         icon: Settings,    path: "/settings",         color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
+    { id: "home",              label: "Home",             icon: CheckSquare, path: "/",                 color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
   ];
 }
 

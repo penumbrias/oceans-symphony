@@ -300,6 +300,140 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
   return null;
 }
 
+const MERGE_FIELDS = [
+  { key: "description", label: "Description" },
+  { key: "pronouns", label: "Pronouns" },
+  { key: "role", label: "Role" },
+];
+
+function StepApply({
+  type, fusionType, sourceAlterIds, absorptionTarget, alters,
+  mergeSelections, onMergeSelections,
+  archiveAbsorbed, onArchiveAbsorbed,
+  archiveSource, onArchiveSource,
+}) {
+  const persistentAlter = alters.find(a => a.id === absorptionTarget);
+  const absorbedAlters = alters.filter(a => sourceAlterIds.includes(a.id) && a.id !== absorptionTarget);
+  const sourceAltersList = alters.filter(a => sourceAlterIds.includes(a.id));
+  const sourceAlter = sourceAltersList[0];
+
+  if (type === "fusion" && fusionType === "absorption") {
+    const anyFieldToMerge = MERGE_FIELDS.some(f =>
+      absorbedAlters.some(a => a[f.key]?.trim())
+    );
+
+    return (
+      <div className="space-y-4">
+        <label className="flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={archiveAbsorbed}
+            onChange={e => onArchiveAbsorbed(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-primary"
+          />
+          <div>
+            <p className="text-sm font-medium">Archive absorbed alters</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {absorbedAlters.map(a => a.name).join(", ")} will be hidden from the active roster. Front history and data are preserved.
+            </p>
+          </div>
+        </label>
+
+        {anyFieldToMerge && (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Merge into {persistentAlter?.name}
+            </p>
+            {MERGE_FIELDS.map(({ key, label }) => {
+              const candidates = absorbedAlters
+                .filter(a => a[key]?.trim())
+                .map(a => ({ alterId: a.id, value: a[key], name: a.name }));
+              if (candidates.length === 0) return null;
+              const persistentValue = persistentAlter?.[key]?.trim();
+              return (
+                <div key={key} className="rounded-lg border border-border/60 p-2.5 space-y-1.5">
+                  <p className="text-xs font-medium text-foreground">{label}</p>
+                  {persistentValue && (
+                    <p className="text-xs text-muted-foreground bg-muted/40 rounded px-2 py-1 break-words">
+                      Current: {persistentValue}
+                    </p>
+                  )}
+                  {candidates.map(({ alterId, value, name }) => {
+                    const isSelected = mergeSelections[key]?.alterId === alterId;
+                    return (
+                      <label key={alterId} className="flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 w-3.5 h-3.5 accent-primary"
+                          checked={isSelected}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              onMergeSelections(prev => ({ ...prev, [key]: { alterId, value } }));
+                            } else {
+                              onMergeSelections(prev => { const n = { ...prev }; delete n[key]; return n; });
+                            }
+                          }}
+                        />
+                        <span className="text-xs break-words">
+                          <span className="text-muted-foreground">From {name}:</span> {value}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (type === "fusion" && fusionType === "new_formation") {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-lg border border-border/60 p-3 space-y-2">
+          <p className="text-sm font-medium">Alters to archive</p>
+          <div className="space-y-1.5">
+            {sourceAltersList.map(a => (
+              <div key={a.id} className="flex items-center gap-2">
+                <AlterAvatar alter={a} size={5} />
+                <span className="text-sm text-foreground">{a.name}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            These alters will be hidden from the active roster. Their front history and data are fully preserved.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (type === "split") {
+    return (
+      <div className="space-y-3">
+        <label className="flex items-start gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={archiveSource}
+            onChange={e => onArchiveSource(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-primary"
+          />
+          <div>
+            <p className="text-sm font-medium">Archive {sourceAlter?.name} after split</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Check this if {sourceAlter?.name} no longer exists as a distinct part. Their front history is preserved and will appear in the result alters' history.
+            </p>
+          </div>
+        </label>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function StepDetails({ year, onYear, cause, onCause, notes, onNotes }) {
   const currentYear = new Date().getFullYear();
   return (
@@ -365,10 +499,15 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
   const [cause, setCause] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mergeSelections, setMergeSelections] = useState({});
+  const [archiveAbsorbed, setArchiveAbsorbed] = useState(true);
+  const [archiveSource, setArchiveSource] = useState(false);
 
   const noResultStep = type === "dormancy" || type === "return";
-  const totalSteps = noResultStep ? 3 : 4;
-  const steps = ["Type", "Alters", ...(noResultStep ? [] : ["Result"]), "Details"];
+  const steps = noResultStep
+    ? ["Type", "Alters", "Details"]
+    : ["Type", "Alters", "Result", "Details", "Apply"];
+  const totalSteps = steps.length;
 
   function toggleSource(id, single) {
     if (single) {
@@ -454,6 +593,31 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
         queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
       }
 
+      // Apply profile changes from Apply step
+      if (type === "fusion" && fusionType === "absorption") {
+        if (archiveAbsorbed) {
+          for (const id of sourceAlterIds.filter(id => id !== absorptionTarget)) {
+            await localEntities.Alter.update(id, { is_archived: true });
+          }
+        }
+        if (Object.keys(mergeSelections).length > 0) {
+          const mergeData = Object.fromEntries(
+            Object.entries(mergeSelections).map(([key, { value }]) => [key, value])
+          );
+          await localEntities.Alter.update(absorptionTarget, mergeData);
+        }
+      }
+      if (type === "fusion" && fusionType === "new_formation") {
+        for (const id of sourceAlterIds) {
+          await localEntities.Alter.update(id, { is_archived: true });
+        }
+      }
+      if (type === "split" && archiveSource) {
+        for (const id of sourceAlterIds) {
+          await localEntities.Alter.update(id, { is_archived: true });
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       onClose();
@@ -524,6 +688,21 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
             year={year} onYear={setYear}
             cause={cause} onCause={setCause}
             notes={notes} onNotes={setNotes}
+          />
+        )}
+        {step === 4 && !noResultStep && (
+          <StepApply
+            type={type}
+            fusionType={fusionType}
+            sourceAlterIds={sourceAlterIds}
+            absorptionTarget={absorptionTarget}
+            alters={sortedAlters}
+            mergeSelections={mergeSelections}
+            onMergeSelections={setMergeSelections}
+            archiveAbsorbed={archiveAbsorbed}
+            onArchiveAbsorbed={setArchiveAbsorbed}
+            archiveSource={archiveSource}
+            onArchiveSource={setArchiveSource}
           />
         )}
 

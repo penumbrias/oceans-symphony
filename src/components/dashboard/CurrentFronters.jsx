@@ -554,20 +554,16 @@ export default function CurrentFronters({ alters }) {
             </Button>
           </div>
         ) : (
-          <div className="space-y-1">
-            {latestStatusNote && (
-              <p className="text-xs text-muted-foreground px-1 truncate">
-                💬 {latestStatusNote.note}
-              </p>
-            )}
-            <button
-              onClick={() => { setTempStatus(""); setEditingStatus(true); }}
-              className="w-full text-left px-3 py-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-xs text-muted-foreground hover:text-foreground flex items-center justify-between"
-            >
-              <span className="italic">Set a new status...</span>
-              <Edit2 className="w-3 h-3" />
-            </button>
-          </div>
+          <button
+            onClick={() => { setTempStatus(""); setEditingStatus(true); }}
+            className="w-full text-left px-3 py-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-xs text-muted-foreground hover:text-foreground flex items-center justify-between gap-2"
+          >
+            {latestStatusNote
+              ? <span className="truncate">💬 {latestStatusNote.note}</span>
+              : <span className="italic">Set a new status...</span>
+            }
+            <Edit2 className="w-3 h-3 flex-shrink-0" />
+          </button>
         )}
       </div>
       <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={active} />
