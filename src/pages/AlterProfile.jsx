@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
@@ -15,6 +15,7 @@ import NotesTab from "@/components/alters/profile/NotesTab";
 import MessagesTab from "@/components/alters/profile/MessagesTab";
 import PrivateMessagesTab from "@/components/alters/profile/PrivateMessagesTab";
 import OptionsTab from "@/components/alters/profile/OptionsTab";
+import LineageTab from "@/components/alters/profile/LineageTab";
 
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
@@ -23,6 +24,7 @@ const TABS = [
   { id: "private-messages", label: "Messages", icon: Mail },
   { id: "history", label: "History", icon: TrendingUp },
   { id: "notes", label: "Notes", icon: FileText },
+  { id: "lineage", label: "Lineage", icon: GitMerge },
   { id: "options", label: "Options", icon: SlidersHorizontal },
 ];
 
@@ -294,6 +296,7 @@ export default function AlterProfile() {
           {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} highlightMessageId={highlightMessageId} />}
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
+          {tab === "lineage" && <LineageTab alterId={alter.id} />}
           {tab === "options" && <OptionsTab alter={alter} />}
         </div>
       </div>

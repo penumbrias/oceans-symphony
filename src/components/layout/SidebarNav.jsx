@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, FileText, Heart, Bell, Vote, Shield, X } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -44,9 +44,10 @@ function buildSidebarGroups(altersLabel, systemLabel) {
     {
       label: "Analytics",
       items: [
-        { id: "analytics",  label: "Analytics",          icon: BarChart2, path: "/analytics" },
-        { id: "system-map", label: `${systemLabel} Map`, icon: GitBranch, path: "/system-map" },
-        { id: "timeline",   label: "Timeline",           icon: Clock,     path: "/timeline" },
+        { id: "analytics",       label: "Analytics",          icon: BarChart2,  path: "/analytics" },
+        { id: "system-map",     label: `${systemLabel} Map`, icon: GitBranch,  path: "/system-map" },
+        { id: "timeline",       label: "Timeline",           icon: Clock,      path: "/timeline" },
+        { id: "system-history", label: "System History",     icon: GitMerge,   path: "/system-history" },
       ],
     },
   ];

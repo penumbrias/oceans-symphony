@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge } from "lucide-react";
 
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
@@ -19,6 +19,7 @@ export const ALL_PAGES = [
   { id: "settings", label: "Settings", path: "/settings", icon: Settings },
   { id: "checkin-log", label: "Check-In Log", path: "/checkin-log", icon: Heart },
   { id: "reminders", label: "Reminders", path: "/reminders", icon: Bell },
+  { id: "system-history", label: "System History", path: "/system-history", icon: GitMerge },
 ];
 
 export const DEFAULT_CONFIG = {

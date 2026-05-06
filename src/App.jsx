@@ -33,6 +33,7 @@ import TherapyReport from '@/pages/TherapyReport';
 import Reminders from '@/pages/Reminders';
 import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
+import SystemHistory from '@/pages/SystemHistory';
 import { isEncryptionEnabled } from '@/lib/storageMode';
 import { initAccessibility } from '@/lib/useAccessibility';
 
@@ -85,6 +86,7 @@ const AuthenticatedApp = () => {
         <Route path="/reminders" element={<Reminders />} />
         <Route path="/polls" element={<Polls />} />
         <Route path="/checkin-log" element={<CheckInLog />} />
+        <Route path="/system-history" element={<SystemHistory />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
