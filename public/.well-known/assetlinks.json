@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.vercel.oceans_symphony.twa",
+    "sha256_cert_fingerprints": ["C0:04:95:B1:62:D5:B4:F0:0C:8C:7A:55:36:A7:4F:2E:68:14:8F:E0:52:8F:CE:FD:0E:25:C5:6C:FE:70:BD:AF"]
+  }
+}]
