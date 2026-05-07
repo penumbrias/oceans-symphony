@@ -14,7 +14,9 @@ self.addEventListener('push', (event) => {
     body: body || '',
     icon: '/oceans-symphony-logo.png',
     badge: '/oceans-symphony-logo.png',
-    tag: reminderInstanceId ? `reminder-${reminderInstanceId}` : 'reminder',
+    // Preserve the server-sent tag (e.g. "front-change-<userId>") so the click handler
+    // can route to the right page. Fall back to reminder tag for reminder notifications.
+    tag: reminderInstanceId ? `reminder-${reminderInstanceId}` : (payload.tag || 'reminder'),
     data: { reminderInstanceId, inlineActions },
     actions: inlineActions.slice(0, 2).map(a => ({ action: a.action_type, title: a.label })),
     requireInteraction: false,
@@ -26,8 +28,16 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
+  // Clear the app icon badge whenever the user taps any notification.
+  if (self.registration.clearBadge) {
+    event.waitUntil(self.registration.clearBadge());
+  }
+
   const { reminderInstanceId, inlineActions = [] } = event.notification.data || {};
-  let url = '/reminders';
+  const tag = event.notification.tag || '';
+
+  // Friend front-change notifications → Friends page; everything else → Reminders
+  let url = tag.startsWith('front-change-') ? '/friends' : '/reminders';
 
   if (event.action && reminderInstanceId) {
     url = `/reminders?act=${reminderInstanceId}&action=${event.action}`;

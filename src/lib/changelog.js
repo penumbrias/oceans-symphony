@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Notification bell badge now only lights up when there are unread notifications for currently-fronting alters — it no longer stays lit after all notifications have been seen. Notification History also has a \"Clear all\" button to delete the full history.",
+        text: "The app icon badge (the red number on the iOS/Android home screen) now clears automatically when you open the app or bring it into focus. Tapping a friend front-change notification now opens the Friends page instead of the Reminders page.",
       },
       {
         type: "improve",
