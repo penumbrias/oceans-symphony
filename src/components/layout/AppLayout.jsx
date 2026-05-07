@@ -37,12 +37,10 @@ export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useRemindersScheduler();
 
-  // On app open (once per session), alert if any friend's front changed since last visit
-  const frontAlertDoneRef = useRef(false);
+  // Poll friends every 60 s and show in-app banner when a friend's front changes.
+  // On first run (app open) this replaces the old one-time check.
   useEffect(() => {
-    if (frontAlertDoneRef.current) return;
-    frontAlertDoneRef.current = true;
-    (async () => {
+    async function checkFriendFrontChanges() {
       try {
         const identity = await getLocalIdentity();
         if (!identity) return;
@@ -50,16 +48,17 @@ export default function AppLayout() {
         if (!data?.friends?.length) return;
 
         const snapshots = JSON.parse(localStorage.getItem("friends_front_snapshots") || "{}");
-        const newSnapshots = {};
+        const newSnapshots = { ...snapshots };
 
         for (const friend of data.friends) {
           const updatedAt = friend.front?.updatedAt;
           const fronters = friend.front?.fronters || [];
           const privacyLevel = friend.front?.privacyLevel || 'names';
-          newSnapshots[friend.userId] = { updatedAt, fronters };
 
           const prev = snapshots[friend.userId];
-          if (!prev || !updatedAt || updatedAt === prev.updatedAt) continue;
+          // Initialise snapshot without toasting on first sight
+          if (!prev) { newSnapshots[friend.userId] = { updatedAt, fronters }; continue; }
+          if (!updatedAt || updatedAt === prev.updatedAt) continue;
 
           const label = friend.displayName || friend.systemName || 'A friend';
           let fronterLine;
@@ -74,15 +73,21 @@ export default function AppLayout() {
           }
 
           toast(`🔔 ${label}: ${fronterLine}`, {
-            description: 'Front changed since your last visit',
+            description: 'Front updated',
             duration: 10000,
           });
+
+          newSnapshots[friend.userId] = { updatedAt, fronters };
         }
 
         localStorage.setItem("friends_front_snapshots", JSON.stringify(newSnapshots));
       } catch (_) {}
-    })();
-  }, []); // intentional — once per mount
+    }
+
+    checkFriendFrontChanges();
+    const id = setInterval(checkFriendFrontChanges, 60_000);
+    return () => clearInterval(id);
+  }, []); // intentional — runs once on mount, interval keeps it live
 
 const { data: systemSettings = [] } = useQuery({
   queryKey: ["systemSettings"],

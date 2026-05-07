@@ -362,9 +362,15 @@ export default function Dashboard() {
             className="relative mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
             
           <Bell className="w-5 h-5" />
-          {mentionLogs.length > 0 &&
+          {mentionLogs.some(m =>
+            m.log_type !== "authored" &&
+            (m.mentioned_alter_id || m.alter_id) &&
+            frontingAlterIds.includes(m.mentioned_alter_id || m.alter_id) &&
+            !(m.dismissed_by_alter_ids || []).includes(m.mentioned_alter_id || m.alter_id) &&
+            m.is_read !== true
+          ) && (
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />
-            }
+          )}
         </button>
         </div>
       </div>
