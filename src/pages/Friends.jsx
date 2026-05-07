@@ -25,6 +25,7 @@ import {
   toggleNotify,
   pushFrontStatus,
   saveFriendVisibility,
+  deleteProfile,
 } from "@/lib/friendsApi";
 import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
 
@@ -379,13 +380,15 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
 
 // ── Setup / profile modal ─────────────────────────────────────────────────────
 
-function ProfileSetupModal({ open, onClose, onSaved, existing }) {
+function ProfileSetupModal({ open, onClose, onSaved, onDeleted, existing }) {
   const terms = useTerms();
   const [displayName, setDisplayName] = useState(existing?.displayName || '');
   const [systemName, setSystemName] = useState(existing?.systemName || '');
   const [privacyLevel, setPrivacyLevel] = useState(existing?.privacyLevel || 'names');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleSave = async () => {
     setError('');
@@ -475,6 +478,59 @@ function ProfileSetupModal({ open, onClose, onSaved, existing }) {
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {saving ? 'Saving…' : (existing ? 'Save Changes' : 'Create Profile')}
           </button>
+
+          {existing && (
+            <div className="border-t border-border/40 pt-3 mt-1 space-y-2">
+              {!confirmDelete ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-full text-xs text-destructive/70 hover:text-destructive transition-colors py-1"
+                >
+                  Delete Friends profile…
+                </button>
+              ) : (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                  <p className="text-xs text-foreground font-medium">Delete your Friends profile?</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    This will remove you from all your friends' lists and delete all your Friends data from the server. Your personal app data is not affected.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={deleting}
+                      className="flex-1 px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-muted transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleting}
+                      onClick={async () => {
+                        setDeleting(true);
+                        try {
+                          await deleteProfile();
+                          toast.success('Friends profile deleted.');
+                          onClose();
+                          onDeleted?.();
+                        } catch (e) {
+                          setError(e.message || 'Failed to delete profile.');
+                          setConfirmDelete(false);
+                        } finally {
+                          setDeleting(false);
+                        }
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50"
+                    >
+                      {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                      {deleting ? 'Deleting…' : 'Yes, delete'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -1012,6 +1068,7 @@ export default function FriendsPage() {
         open={showSetup}
         onClose={() => setShowSetup(false)}
         onSaved={refetchIdentity}
+        onDeleted={refetchIdentity}
         existing={identity}
       />
       <AddFriendModal

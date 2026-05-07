@@ -206,6 +206,29 @@ export async function pushFrontStatus({ fronters, terms, systemName, displayName
   }).catch(() => {});  // fire and forget
 }
 
+// ─── Delete own profile ────────────────────────────────────────────────────────
+
+// Deletes the user's profile from the server and removes them from all friends'
+// lists. Also deletes the local FriendIdentity record so the app returns to
+// "no profile" state.
+export async function deleteProfile() {
+  const identity = await getLocalIdentity();
+  if (!identity) return;
+
+  const res = await fetch(`${BASE}/delete-profile`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: identity.userId, secret: identity.secret }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to delete profile.');
+  }
+
+  await localEntities.FriendIdentity.delete(identity.id);
+}
+
 // ─── Per-friend visibility settings ───────────────────────────────────────────
 
 // Save per-friend visibility settings locally.
