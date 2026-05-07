@@ -116,9 +116,10 @@ const frontingAlterIds = activeSession
     : [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
   : [];
 
-// Fronter-linked theme: when primary fronter changes, apply their linked preset
-const { alterThemeLinks, setSelectedTheme, setThemeMode, clearCustomColors, allPresets, userCustomPresets } = useTheme();
-const primaryFronter = frontingAlterIds[0] ?? null;
+// Resolve the true primary fronter by is_primary flag (not list order)
+const primaryFronter = activeSession?.alter_id
+  ? (sessions.find(s => s.is_active && s.alter_id && s.is_primary)?.alter_id ?? frontingAlterIds[0] ?? null)
+  : (activeSession?.primary_alter_id ?? null);
 const lastAppliedFronterRef = useRef(null);
 useEffect(() => {
   if (primaryFronter === lastAppliedFronterRef.current) return;
