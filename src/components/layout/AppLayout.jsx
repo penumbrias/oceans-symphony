@@ -14,6 +14,7 @@ import ReminderToast from "@/components/reminders/ReminderToast";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
 import FeatureTour from "@/components/onboarding/FeatureTour";
+import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
 
 function OfflineReadyBadge() {
   const [ready, setReady] = useState(false);
@@ -127,6 +128,9 @@ const handleNotifClick = (mentionLog) => {
     <div className="flex flex-col min-h-screen bg-background">
       {/* ── Safe area top spacer (mobile only) ── */}
       <div style={{ height: 'env(safe-area-inset-top, 0px)', background: 'var(--background)' }} className="sm:hidden" />
+
+      {/* ── Announcement Banner ── */}
+      <AnnouncementBanner />
 
       {/* ── Desktop top header (hidden on mobile) ── */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl hidden sm:block">
