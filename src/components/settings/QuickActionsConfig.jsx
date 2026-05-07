@@ -10,6 +10,7 @@ import { useTerms } from "@/lib/useTerms";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { DEFAULT_GROUPS } from "@/components/diary/DiarySection";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 const CHECKIN_SECTIONS = [
   { id: "feeling", label: "Feeling / Emotions" },
@@ -228,7 +229,7 @@ function DiaryFieldPicker({ diaryGroups, selectedGroupId, selectedFieldKey, onCh
 }
 
 // ── ActionForm ────────────────────────────────────────────────────────────────
-function ActionForm({ initialData, alters, symptoms, activityCategories, customEmotions, diaryGroups, onSave, onCancel, terms }) {
+function ActionForm({ initialData, alters, symptoms, activityCategories, customEmotions, diaryGroups, dailyTaskTemplates, onSave, onCancel, terms }) {
   const [data, setData] = useState(initialData || blankForm());
 
   const actionTypes = [
@@ -241,6 +242,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     { id: "log_emotion", label: "Log an emotion" },
     { id: "log_diary", label: "Log a diary entry" },
     { id: "log_location", label: "Log a location" },
+    { id: "toggle_daily_task", label: "Toggle a daily task" },
   ];
 
   const activeAlters = alters.filter(a => !a.is_archived);
@@ -278,6 +280,10 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
       return cat ? `${cat.emoji} ${cat.label}` : "Location";
     }
     if (data.type === "open_set_front") return `Set ${terms.Front}ers`;
+    if (data.type === "toggle_daily_task") {
+      const t = dailyTaskTemplates?.find(t => t.id === data.config?.task_id);
+      return t ? applyTerms(t.title, terms) : "Daily task";
+    }
     return data.type;
   };
 
@@ -288,6 +294,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     if (data.type === "log_symptom" && !data.config?.symptom_id) { toast.error("Choose a symptom"); return; }
     if (data.type === "log_emotion" && !data.config?.emotion_label?.trim()) { toast.error("Choose an emotion"); return; }
     if (data.type === "log_diary" && !data.config?.field_data_key) { toast.error("Choose a diary field"); return; }
+    if (data.type === "toggle_daily_task" && !data.config?.task_id) { toast.error("Choose a daily task"); return; }
     onSave({ ...data, label: derivedLabel(), emoji: null });
   };
 
@@ -372,6 +379,29 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
         </div>
       )}
 
+      {data.type === "toggle_daily_task" && (
+        <div>
+          <Label className="text-xs font-medium mb-1 block">Which daily task?</Label>
+          {dailyTaskTemplates && dailyTaskTemplates.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No manual daily tasks found. Add them via the Daily Tasks section.</p>
+          ) : (
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {(dailyTaskTemplates || []).map(t => {
+                const isSel = data.config?.task_id === t.id;
+                return (
+                  <button key={t.id} type="button" onClick={() => setConfig("task_id", t.id)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all text-left ${isSel ? "bg-primary/10 border-primary/40 text-primary font-medium" : "border-border/50 hover:bg-muted/40 text-foreground"}`}>
+                    <span className="flex-1 truncate">{applyTerms(t.title, terms)}</span>
+                    {t.points > 0 && <span className="text-xs text-muted-foreground flex-shrink-0">+{t.points} XP</span>}
+                    {isSel && <Check className="w-3.5 h-3.5 flex-shrink-0 text-primary" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {data.type === "log_location" && (
         <div>
           <Label className="text-xs font-medium mb-2 block">Default category (optional)</Label>
@@ -412,6 +442,8 @@ export default function QuickActionsConfig() {
   const { data: activityCategories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: customEmotions = [] } = useQuery({ queryKey: ["customEmotions"], queryFn: () => base44.entities.CustomEmotion.list() });
   const { data: diaryTemplates = [] } = useQuery({ queryKey: ["diaryTemplate"], queryFn: () => base44.entities.DiaryTemplate.list() });
+  const { data: allTaskTemplates = [] } = useQuery({ queryKey: ["dailyTaskTemplates"], queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200) });
+  const dailyTaskTemplates = useMemo(() => allTaskTemplates.filter(t => t.is_active !== false && t.mode === "MANUAL"), [allTaskTemplates]);
   const diaryGroups = useMemo(() => {
     const tpl = diaryTemplates[0];
     if (!tpl?.groups) return DEFAULT_GROUPS;
@@ -443,8 +475,8 @@ export default function QuickActionsConfig() {
     const swap = sorted[index + dir];
     if (!swap) return;
     await Promise.all([
-      base44.entities.QuickAction.update(target.id, { order: swap.order ?? index + dir }),
-      base44.entities.QuickAction.update(swap.id, { order: target.order ?? index }),
+      base44.entities.QuickAction.update(target.id, { order: index + dir }),
+      base44.entities.QuickAction.update(swap.id, { order: index }),
     ]);
     invalidate();
   };
@@ -463,6 +495,7 @@ export default function QuickActionsConfig() {
     log_diary: "Log diary entry",
     log_location: "Log location",
     open_set_front: `Open Set ${terms.Front}ers`,
+    toggle_daily_task: "Toggle daily task",
   }[type] || type);
 
   return (
@@ -481,7 +514,7 @@ export default function QuickActionsConfig() {
 
       {adding && (
         <ActionForm alters={alters} symptoms={symptoms} activityCategories={activityCategories} customEmotions={customEmotions}
-          diaryGroups={diaryGroups} terms={terms} onSave={handleAdd} onCancel={() => setAdding(false)} />
+          diaryGroups={diaryGroups} dailyTaskTemplates={dailyTaskTemplates} terms={terms} onSave={handleAdd} onCancel={() => setAdding(false)} />
       )}
 
       {sorted.length === 0 && !adding && (
@@ -494,7 +527,7 @@ export default function QuickActionsConfig() {
             {editId === action.id ? (
               <ActionForm initialData={{ label: action.label, type: action.type, emoji: action.emoji || "", config: action.config || {} }}
                 alters={alters} symptoms={symptoms} activityCategories={activityCategories} customEmotions={customEmotions}
-                diaryGroups={diaryGroups} terms={terms} onSave={handleEdit} onCancel={() => setEditId(null)} />
+                diaryGroups={diaryGroups} dailyTaskTemplates={dailyTaskTemplates} terms={terms} onSave={handleEdit} onCancel={() => setEditId(null)} />
             ) : (
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/20 border border-border/30 group">
                 <div className="flex-1 min-w-0">

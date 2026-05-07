@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, MapPin, Loader2, UserPlus, RefreshCw } from "lucide-react";
+import { Plus, MapPin, Loader2, UserPlus, RefreshCw, Check } from "lucide-react";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import RatingRow from "@/components/diary/RatingRow";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import { useTerms } from "@/lib/useTerms";
+import { getTodayString, applyTerms } from "@/lib/dailyTaskSystem";
 
 const SECTION_LABELS = {
   feeling: "Feeling / Emotions",
@@ -224,6 +227,82 @@ function LocationRow({ action, onAction }) {
   );
 }
 
+function DailyTaskRow({ action }) {
+  const queryClient = useQueryClient();
+  const terms = useTerms();
+  const { task_id } = action.config || {};
+  const TODAY = getTodayString();
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ["dailyTaskTemplates"],
+    queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200),
+  });
+  const { data: allProgress = [] } = useQuery({
+    queryKey: ["dailyProgress"],
+    queryFn: () => base44.entities.DailyProgress.list("-date", 1000),
+  });
+
+  const template = templates.find(t => t.id === task_id);
+  const currentRecord = allProgress.find(p =>
+    (p.frequency === "daily" || !p.frequency) &&
+    (p.period_key === TODAY || p.date === TODAY)
+  );
+  const completedIds = new Set(currentRecord?.completed_task_ids || []);
+  const isCompleted = completedIds.has(task_id);
+
+  const handleToggle = async () => {
+    if (!template || template.mode !== "MANUAL") return;
+    const nowCompleted = !isCompleted;
+    const newCompleted = new Set(completedIds);
+    nowCompleted ? newCompleted.add(task_id) : newCompleted.delete(task_id);
+    const currentXP = currentRecord?.xp_earned || 0;
+    const newXP = nowCompleted
+      ? currentXP + (template.points || 0)
+      : Math.max(0, currentXP - (template.points || 0));
+
+    // Optimistic update
+    queryClient.setQueryData(["dailyProgress"], old =>
+      Array.isArray(old)
+        ? currentRecord
+          ? old.map(p => p.id === currentRecord.id ? { ...p, completed_task_ids: [...newCompleted], xp_earned: newXP } : p)
+          : [...old, { id: "__optimistic__", date: TODAY, period_key: TODAY, frequency: "daily", completed_task_ids: [...newCompleted], xp_earned: newXP }]
+        : old
+    );
+
+    if (currentRecord) {
+      await base44.entities.DailyProgress.update(currentRecord.id, { completed_task_ids: [...newCompleted], xp_earned: newXP });
+    } else {
+      await base44.entities.DailyProgress.create({ date: TODAY, period_key: TODAY, frequency: "daily", completed_task_ids: [...newCompleted], xp_earned: newXP });
+    }
+    queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
+    if (nowCompleted && template.points > 0) toast.success(`+${template.points} XP — ${applyTerms(template.title, terms)} done! 🎉`);
+  };
+
+  if (!template) return null;
+
+  return (
+    <div className={`flex items-center gap-3 px-4 py-3 bg-card border rounded-2xl shadow-sm transition-all ${isCompleted ? "border-primary/40 bg-primary/5" : "border-border/50"}`}>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium truncate ${isCompleted ? "line-through text-muted-foreground" : "text-foreground"}`}>
+          {applyTerms(template.title, terms)}
+        </p>
+        {template.points > 0 && (
+          <p className="text-xs text-muted-foreground">+{template.points} XP</p>
+        )}
+      </div>
+      <button
+        onClick={handleToggle}
+        className={`w-8 h-8 rounded-full flex items-center justify-center border-2 flex-shrink-0 transition-all ${
+          isCompleted
+            ? "bg-primary border-primary text-primary-foreground"
+            : "border-border/60 text-muted-foreground hover:border-primary/60 hover:text-primary"
+        }`}>
+        {isCompleted && <Check className="w-4 h-4" />}
+      </button>
+    </div>
+  );
+}
+
 export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
   const navigate = useNavigate();
   const menuRef = useRef(null);
@@ -276,6 +355,8 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
         if (!alter) return null;
         return <AddToFrontRow key={action.id} action={action} alter={alter} onAction={onAction} />;
       }
+      case "toggle_daily_task":
+        return <DailyTaskRow key={action.id} action={action} />;
       case "log_diary":
         return <DiaryFieldRow key={action.id} action={action} onAction={onAction} />;
       case "log_location":
