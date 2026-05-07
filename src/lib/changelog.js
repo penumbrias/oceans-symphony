@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Therapy report PDF download on Android — tapping Download PDF was navigating the app to a blank page. Fixed by opening the download in a new browser tab (matching how file-saver handles it).",
+        text: "Therapy report PDF save on Android — on devices where the Web Share API supports file sharing (Android Chrome, modern iOS), the Save button now opens the native share sheet instead of using a blob URL anchor click. Blob URL downloads are unreliable in standalone PWA mode and caused about:blank navigation; the share sheet lets you save to Files, Google Drive, send to apps, etc.",
       },
       {
         type: "fix",

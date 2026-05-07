@@ -315,9 +315,8 @@ export default function TherapyReportPage() {
           enabledSections,
           sectionOptions,
         });
-        const blobUrl = URL.createObjectURL(blob);
-        setExportModal({ filename, format: "pdf", blobUrl });
-        toast.success("PDF ready — tap Download below");
+        setExportModal({ filename, format: "pdf", blob });
+        toast.success("PDF ready — tap Save / Share below");
       }
 
       // Save export log
@@ -371,14 +370,11 @@ export default function TherapyReportPage() {
 
       <ExportModal
         isOpen={!!exportModal}
-        onClose={() => {
-          if (exportModal?.blobUrl) URL.revokeObjectURL(exportModal.blobUrl);
-          setExportModal(null);
-        }}
+        onClose={() => setExportModal(null)}
         content={exportModal?.content || ""}
         filename={exportModal?.filename || ""}
         format={exportModal?.format || "json"}
-        blobUrl={exportModal?.blobUrl}
+        blob={exportModal?.blob}
       />
     </div>
   );
