@@ -6,17 +6,29 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Trash2, AlertTriangle } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useTerms } from "@/lib/useTerms";
 
 export default function OptionsTab({ alter }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const terms = useTerms();
   const [archived, setArchived] = useState(alter.is_archived || false);
+  const [friendsVisible, setFriendsVisible] = useState(alter.friends_visible ?? true);
   const [saving, setSaving] = useState(false);
 
   const toggleArchived = async (val) => {
     setArchived(val);
     setSaving(true);
     await base44.entities.Alter.update(alter.id, { is_archived: val });
+    queryClient.invalidateQueries({ queryKey: ["alters"] });
+    queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+    setSaving(false);
+  };
+
+  const toggleFriendsVisible = async (val) => {
+    setFriendsVisible(val);
+    setSaving(true);
+    await base44.entities.Alter.update(alter.id, { friends_visible: val });
     queryClient.invalidateQueries({ queryKey: ["alters"] });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
     setSaving(false);
@@ -35,9 +47,16 @@ export default function OptionsTab({ alter }) {
         <div className="space-y-4">
           <SettingRow
             label="Archived"
-            description="Marking as archived keeps the data but hides this alter from member counts and searches."
+            description={`Marking as archived keeps the data but hides this ${terms.alter} from member counts and searches.`}
             checked={archived}
             onCheckedChange={toggleArchived}
+            disabled={saving}
+          />
+          <SettingRow
+            label={`Visible to friends`}
+            description={`When enabled, this ${terms.alter} can appear in your front status shared with friends. Disable to keep them private.`}
+            checked={friendsVisible}
+            onCheckedChange={toggleFriendsVisible}
             disabled={saving}
           />
         </div>
@@ -63,7 +82,7 @@ export default function OptionsTab({ alter }) {
           <AlertDialogTrigger asChild>
             <button data-tour="alter-profile-delete" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 transition-colors">
               <Trash2 className="w-4 h-4" />
-              <span className="text-sm font-medium">Delete member</span>
+              <span className="text-sm font-medium">Delete {terms.alter}</span>
             </button>
           </AlertDialogTrigger>
           <AlertDialogContent>

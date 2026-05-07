@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { useTerms } from "@/lib/useTerms";
+import { pushFrontStatus } from "@/lib/friendsApi";
 import { formatInTimeZone } from "date-fns-tz";
 
 const TRIGGER_CATEGORIES = [
@@ -280,6 +281,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
         toast.success("✅ Front cleared");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+        // Push cleared status to friends server (fire-and-forget)
+        pushFrontStatus({ fronters: [], terms: { fronting: terms.fronting } }).catch(() => {});
         onClose();
       } else {
         const now = nowLocalIso();
@@ -357,6 +360,28 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
         toast.success("✅ Front updated!");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+
+        // Push front status to friends server (fire-and-forget)
+        const visibleFronters = allSelectedIds
+          .map(id => alters.find(a => a.id === id))
+          .filter(a => a && a.friends_visible !== false)
+          .map(a => ({
+            name: a.name,
+            initial: a.name?.[0] || '?',
+            color: a.color || null,
+            isPrimary: a.id === primaryId,
+            isCofronter: a.id !== primaryId,
+          }));
+        pushFrontStatus({
+          fronters: visibleFronters,
+          terms: {
+            fronting: terms.fronting,
+            front: terms.front,
+            alter: terms.alter,
+            system: terms.system,
+          },
+        }).catch(() => {});
+
         if (journalSwitch) {
           setNewSessionId(firstSessionId);
           setShowJournalModal(true);

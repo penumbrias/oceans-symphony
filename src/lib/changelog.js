@@ -13,6 +13,19 @@
 
 export const CHANGELOG = [
   {
+    date: "May 7, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Friends & Front Sharing — exchange friend codes with trusted people to share who's fronting in real time. Friends see your front status using your own terminology. Control privacy per-alter (hide individual alters from friends) and system-wide (names, count only, or fully hidden). Opt in to push notifications when a friend's front changes. Accessible from the new Friends page in navigation.",
+      },
+      {
+        type: "fix",
+        text: "Alter options tab — 'Delete member' and the archived description now use your chosen terminology.",
+      },
+    ],
+  },
+  {
     date: "May 8, 2026",
     changes: [
       {
