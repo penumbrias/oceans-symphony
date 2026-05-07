@@ -493,6 +493,20 @@ export default function FriendsPage() {
     }).catch(() => {});
   }, [identity]);
 
+  // When the Friends page is open and friendsData loads/refreshes, update the snapshot
+  // so changes already seen here don't re-trigger alerts on next app open.
+  useEffect(() => {
+    if (!friendsData?.friends?.length) return;
+    const snapshots = {};
+    for (const friend of friendsData.friends) {
+      snapshots[friend.userId] = {
+        updatedAt: friend.front?.updatedAt,
+        fronters: friend.front?.fronters || [],
+      };
+    }
+    localStorage.setItem("friends_front_snapshots", JSON.stringify(snapshots));
+  }, [friendsData]);
+
   const copyCode = useCallback(() => {
     if (!identity?.friendCode) return;
     navigator.clipboard.writeText(identity.friendCode).then(() => {

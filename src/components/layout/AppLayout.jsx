@@ -18,6 +18,8 @@ import FeatureTour from "@/components/onboarding/FeatureTour";
 import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
+import { toast } from "sonner";
+import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
@@ -34,6 +36,53 @@ export default function AppLayout() {
   const [showFeatureTour, setShowFeatureTour] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useRemindersScheduler();
+
+  // On app open (once per session), alert if any friend's front changed since last visit
+  const frontAlertDoneRef = useRef(false);
+  useEffect(() => {
+    if (frontAlertDoneRef.current) return;
+    frontAlertDoneRef.current = true;
+    (async () => {
+      try {
+        const identity = await getLocalIdentity();
+        if (!identity) return;
+        const data = await fetchFriendsList().catch(() => null);
+        if (!data?.friends?.length) return;
+
+        const snapshots = JSON.parse(localStorage.getItem("friends_front_snapshots") || "{}");
+        const newSnapshots = {};
+
+        for (const friend of data.friends) {
+          const updatedAt = friend.front?.updatedAt;
+          const fronters = friend.front?.fronters || [];
+          const privacyLevel = friend.front?.privacyLevel || 'names';
+          newSnapshots[friend.userId] = { updatedAt, fronters };
+
+          const prev = snapshots[friend.userId];
+          if (!prev || !updatedAt || updatedAt === prev.updatedAt) continue;
+
+          const label = friend.displayName || friend.systemName || 'A friend';
+          let fronterLine;
+          if (privacyLevel === 'hidden') {
+            fronterLine = 'updated their front';
+          } else if (privacyLevel === 'count_only') {
+            fronterLine = `${fronters.length} fronting`;
+          } else {
+            fronterLine = fronters.length
+              ? fronters.map(f => f.name).join(', ')
+              : 'no one fronting';
+          }
+
+          toast(`🔔 ${label}: ${fronterLine}`, {
+            description: 'Front changed since your last visit',
+            duration: 10000,
+          });
+        }
+
+        localStorage.setItem("friends_front_snapshots", JSON.stringify(newSnapshots));
+      } catch (_) {}
+    })();
+  }, []); // intentional — once per mount
 
 const { data: systemSettings = [] } = useQuery({
   queryKey: ["systemSettings"],
