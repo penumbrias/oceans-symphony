@@ -114,6 +114,20 @@ useEffect(() => {
   if (preset.font) setAccessibilityFontFamily(preset.font);
   if (preset.themeMode) setThemeMode(preset.themeMode);
   if (preset.fontSize) setAccessibilityFontSize(preset.fontSize);
+  // Apply terminology saved with the preset
+  if (preset.terms) {
+    const settings = systemSettings?.[0];
+    const termData = {
+      term_system: preset.terms.system || 'system',
+      term_alter:  preset.terms.alter  || 'alter',
+      term_switch: preset.terms.switch || 'switch',
+      term_front:  preset.terms.front  || 'front',
+    };
+    const op = settings?.id
+      ? base44.entities.SystemSettings.update(settings.id, termData)
+      : base44.entities.SystemSettings.create(termData);
+    op.catch(() => {});
+  }
 }, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {

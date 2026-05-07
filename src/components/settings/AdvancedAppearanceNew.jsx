@@ -5,7 +5,7 @@ import {
   APP_FONT_OPTIONS, FONT_CATEGORY_LABELS,
   getAccessibilitySettings, setAccessibilityFontFamily, setAccessibilityFontSize, findFontOption,
 } from '@/lib/useAccessibility';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Palette, X, ChevronDown, Search, Check, Trash2, Link2, Unlink, Save } from 'lucide-react';
 import { toast } from 'sonner';
@@ -147,6 +147,7 @@ function ColorSwatch({ label, color, onClick }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AdvancedAppearance() {
   const t = useTerms();
+  const qc = useQueryClient();
   const {
     themeMode, setThemeMode, cycleThemeMode,
     selectedTheme, setSelectedTheme,
@@ -178,6 +179,12 @@ export default function AdvancedAppearance() {
     queryKey: ['alters'],
     queryFn: () => base44.entities.Alter.list(),
   });
+
+  const { data: systemSettingsList = [] } = useQuery({
+    queryKey: ['systemSettings'],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const systemSettings = systemSettingsList[0] || null;
 
   const isDark = themeMode === 'dark' ||
     (themeMode === 'system' && document.documentElement.classList.contains('dark'));
@@ -213,7 +220,7 @@ export default function AdvancedAppearance() {
   };
 
   // ── Preset handlers ──────────────────────────────────────────
-  const handleSelectPreset = (name) => {
+  const handleSelectPreset = async (name) => {
     clearCustomColors();
     setSelectedTheme(name);
     setPendingColors(null);
@@ -222,6 +229,21 @@ export default function AdvancedAppearance() {
     if (preset?.font) { setCurrentFont(preset.font); setAccessibilityFontFamily(preset.font); }
     if (preset?.themeMode) setThemeMode(preset.themeMode);
     if (preset?.fontSize) { setCurrentSize(preset.fontSize); setAccessibilityFontSize(preset.fontSize); }
+    // Apply saved terms if present
+    if (preset?.terms) {
+      const termData = {
+        term_system: preset.terms.system || 'system',
+        term_alter:  preset.terms.alter  || 'alter',
+        term_switch: preset.terms.switch || 'switch',
+        term_front:  preset.terms.front  || 'front',
+      };
+      if (systemSettings?.id) {
+        await base44.entities.SystemSettings.update(systemSettings.id, termData);
+      } else {
+        await base44.entities.SystemSettings.create(termData);
+      }
+      qc.invalidateQueries({ queryKey: ['systemSettings'] });
+    }
   };
 
   // ── Color editing ────────────────────────────────────────────
@@ -268,10 +290,16 @@ export default function AdvancedAppearance() {
     if (!name) return;
     const colors = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
     if (!colors) return;
-    saveCustomPreset(name, { ...colors, font: currentFont, themeMode, fontSize: currentSize });
+    saveCustomPreset(name, {
+      ...colors,
+      font: currentFont,
+      themeMode,
+      fontSize: currentSize,
+      terms: { system: t.system, alter: t.alter, switch: t.switch, front: t.front },
+    });
     setPresetName('');
     setShowSaveForm(false);
-    toast.success(`Theme "${name}" saved`);
+    toast.success(`Theme "${name}" saved — includes your current terminology`);
   };
 
   // Collect all presets for display
@@ -443,6 +471,11 @@ export default function AdvancedAppearance() {
                   />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-semibold truncate ${isActive ? 'text-primary' : ''}`}>{name}</p>
+                    {preset.terms && (
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {preset.terms.alter} · {preset.terms.front}ing · {preset.terms.system}
+                      </p>
+                    )}
                     {linkedAlters.length > 0 && (
                       <p className="text-[10px] text-muted-foreground truncate">
                         Linked: {linkedAlters.map(a => a.alias || a.name).join(', ')}
