@@ -3,6 +3,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "app.vercel.oceans_symphony.twa",
-    "sha256_cert_fingerprints": ["0C:4A:79:84:3B:2E:4B:18:C2:9C:C5:69:95:64:0F:9F:98:85:86:5C:10:5E:17:9C:6A:22:6F:B1:F2:FF:F0:F7"]
+    "sha256_cert_fingerprints": ["85:75:84:5E:23:BA:99:C4:BB:41:0F:99:1B:B8:61:13:EF:F1:00:64:9A:07:71:C8:E7:EE:33:E7:EC:F0:7D:FA"]
   }
 }]
