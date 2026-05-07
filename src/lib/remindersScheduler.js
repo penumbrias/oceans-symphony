@@ -430,12 +430,15 @@ export async function runClientScheduler(queryClient) {
            }
          }
 
+        const channels = reminder.delivery_channels?.length ? reminder.delivery_channels : ["in_app"];
+        const deliveryAttempted = channels.includes("in_app") ? ["in_app"] : [];
+
         const inst = await base44.entities.ReminderInstance.create({
           reminder_id: reminder.id,
           scheduled_for: due.scheduled_for,
           fired_at: now.toISOString(),
           status: "fired",
-          delivery_attempted: ["in_app"],
+          delivery_attempted: deliveryAttempted,
         });
 
         await base44.entities.Reminder.update(reminder.id, {
@@ -445,16 +448,18 @@ export async function runClientScheduler(queryClient) {
         recentInstances.push(inst);
         newInstances.push(inst);
 
-        // Send native push notification if enabled (fire-and-forget)
-        isPushEnabled().then(enabled => {
-          if (!enabled) return;
-          sendPushNotification({
-            title: reminder.title,
-            body: reminder.body || '',
-            reminderInstanceId: inst.id,
-            inlineActions: reminder.inline_actions || [],
+        // Send native push notification if push is in delivery channels (fire-and-forget)
+        if (channels.includes("push")) {
+          isPushEnabled().then(enabled => {
+            if (!enabled) return;
+            sendPushNotification({
+              title: reminder.title,
+              body: reminder.body || '',
+              reminderInstanceId: inst.id,
+              inlineActions: reminder.inline_actions || [],
+            }).catch(() => {});
           }).catch(() => {});
-        }).catch(() => {});
+        }
       } catch (err) {
         console.warn(`[remindersScheduler] reminder ${reminder.id} error:`, err.message);
       }
