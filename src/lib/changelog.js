@@ -21,6 +21,10 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "Alters grid view now has a 3/4 column toggle — tap the number button in the toolbar while in grid mode to switch between 3 and 4 columns. Your preference is saved.",
+      },
+      {
+        type: "improve",
         text: "Onboarding guide flow — after completing setup (first run or after Delete All Data), the Guide now automatically opens so new users get an overview of Symphony. At the end of the guide, a tip points to the Tour ✨ button for a hands-on interactive walkthrough.",
       },
       {
