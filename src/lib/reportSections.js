@@ -11,6 +11,26 @@ import {
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+function stripHtml(html) {
+  if (!html) return "";
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function inRange(dateStr, from, to) {
   if (!dateStr) return false;
   const d = new Date(dateStr);
@@ -281,8 +301,9 @@ export function buildJournalsSection({ dateFrom, dateTo, journalEntries, journal
 
   return entries.map(j => {
     const base = { date: fmtDate(j.created_date), title: j.title || "Untitled" };
-    if (journalDetail === "full") return { ...base, content: j.content || "" };
-    if (journalDetail === "excerpts") return { ...base, excerpt: (j.content || "").slice(0, 400) };
+    const clean = stripHtml(j.content || "");
+    if (journalDetail === "full") return { ...base, content: clean };
+    if (journalDetail === "excerpts") return { ...base, excerpt: clean.slice(0, 400) };
     return base; // summaries only
   });
 }
@@ -400,7 +421,7 @@ export function buildAlterAppendix({ alters, alterIdsInReport, alterDetail = "fu
       name: a.name,
       pronouns: a.pronouns || null,
       role: a.role || null,
-      bio: alterDetail === "full" ? (a.description || null) : null,
+      bio: alterDetail === "full" ? (stripHtml(a.description || "") || null) : null,
     }));
 }
 
@@ -414,7 +435,7 @@ export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, inc
   return items.map(b => ({
     date: fmtDateTime(b.created_date),
     title: b.title || "Bulletin",
-    content: bulletinDetail === "content" ? (b.content ? b.content.slice(0, 500) : "") : "",
+    content: bulletinDetail === "content" ? stripHtml(b.content || "").slice(0, 500) : "",
     author: includeAlterInfo ? (alterName(b.author_alter_id, alters, true) || null) : null,
     isPinned: !!b.is_pinned,
   }));
@@ -519,7 +540,7 @@ export function buildSystemCheckInsSection({ dateFrom, dateTo, systemCheckIns, a
     const summaryParts = Object.entries(responses)
       .filter(([, v]) => v != null && v !== "")
       .slice(0, 5)
-      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`);
+      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${stripHtml(String(v))}`);
     return {
       date: fmtDateTime(c.created_date),
       title: c.title || "System Meeting",

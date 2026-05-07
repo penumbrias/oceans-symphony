@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Therapy report PDF download on Android — tapping Download PDF was navigating the app to a blank page. Fixed by opening the download in a new browser tab (matching how file-saver handles it).",
+      },
+      {
+        type: "fix",
+        text: "Therapy report text export — journal entries, bulletin posts, and alter bios were showing raw HTML and CSS markup instead of readable text. All rich-text fields are now stripped to plain text before being included in the report.",
+      },
+      {
         type: "feature",
         text: "Therapy report overhaul — every section is now individually toggleable with per-section detail levels. New sections: Locations (GPS/manual), Sleep Log (duration, quality, nightmares), and Skills & Exercises (completed grounding exercises with optional written responses). Fronting history can now include a full session-by-session log. Emotion check-ins can show all entries. Diary cards can show all or noteworthy-only. Bulletins can show titles or full content. Member profiles appendix now shows full bios when requested (previously truncated to 200 characters).",
       },

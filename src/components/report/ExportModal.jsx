@@ -43,6 +43,8 @@ export default function ExportModal({ isOpen, onClose, content, filename, format
     const a = document.createElement("a");
     a.href = blobUrl;
     a.download = filename;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
