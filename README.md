@@ -1,3 +1,11 @@
+This app was originally developed with the base44 platform, it has since been migrated off of base44.
+
+access the most up to date, offline version of the app @ oceans-symphony.vercel.app
+(you will have to import your data from the non-vercel version of the app!)
+
+
+
+
 **Welcome to your Base44 project** 
 
 **About**
