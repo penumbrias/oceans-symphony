@@ -59,7 +59,7 @@ const SEEDS = [
      trigger_config: { on: "no_front_update", threshold_minutes: 360 },
      delivery_channels: ["in_app"],
      inline_actions: [
-       { label: "Update front", action_type: "open_set_front", payload: {} },
+       { label: "Update {front}", action_type: "open_set_front", payload: {} },
      ],
      quiet_hours_respect: true,
      is_active: true,
@@ -150,7 +150,11 @@ export default function RemindersOnboarding({ onDone }) {
         title = `Hi [{terms.alter} name] 🤍`;
       }
 
-      return { ...seed, title, body };
+      const inline_actions = (seed.inline_actions || []).map(a => ({
+        ...a,
+        label: a.label ? interpolate(a.label) : a.label,
+      }));
+      return { ...seed, title, body, inline_actions };
     });
   };
 
