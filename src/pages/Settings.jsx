@@ -271,15 +271,19 @@ export default function Settings() {
           <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-3 text-sm text-muted-foreground">
             <p className="font-semibold text-foreground">🔐 Privacy & Data Notice</p>
             <div className="space-y-1">
-              <p className="font-medium text-foreground">🔒 Local Mode</p>
+              <p className="font-medium text-foreground">🔒 Local Storage</p>
               <p>All data is stored on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
             </div>
             <div className="space-y-1">
               <p className="font-medium text-foreground">💾 Backups</p>
               <p>Use Backup & Export below to save your data as a JSON file. Keep backups safe — local data is tied to this device.</p>
             </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">🤖 Transparency</p>
+              <p>Oceans Symphony is <strong>vibe-coded</strong> — built with AI assistance. It is a work in progress, shared in good faith. We do our best but cannot guarantee it is bug-free.</p>
+            </div>
             <p className="text-amber-600 dark:text-amber-400 font-medium">
-              🌊 Oceans Symphony is free and shared in good faith by a DID system. Contact: pesturedrawing@gmail.com. {" "}
+              🌊 Free and open source, shared by a DID system to fill a void in the community. Contact: pesturedrawing@gmail.com.{" "}
               <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
                 className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
             </p>

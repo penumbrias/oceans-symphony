@@ -216,41 +216,26 @@ export default function StorageModeSetup({ mode, onComplete }) {
             {noticeOpen && (
               <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground border-t border-amber-500/20 pt-3">
                 <div className="space-y-1">
-                  <p className="font-semibold text-foreground">☁️ Cloud Mode <strong>(not recommended)</strong></p>
-                  <p>
-                    <strong className="text-foreground">Oceans Symphony is built on and "vibe-coded" with the Base44 platform.</strong>{" "}
-                    Your data is stored on Base44's servers with row-level security — no other user can access your data.
-                    However, cloud data is <strong>not end-to-end encrypted</strong>, meaning{" "}
-                    <strong className="text-foreground">I as the developer technically have server access</strong>.
-                    I am committed to never accessing your data, but please be mindful of what you enter if this concerns you.
-                  </p>
+                  <p className="font-medium text-foreground">🔒 Local Storage</p>
+                  <p>All data is stored on your device with <strong className="text-foreground">AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
                 </div>
                 <div className="space-y-1">
-                  <p className="font-semibold text-foreground">🔒 Local Mode <strong>(recommended)</strong></p>
-                  <p>
-                    Local mode stores all data exclusively on your device. When encryption is enabled, your data is protected
-                    with <strong className="text-foreground">AES-256-GCM encryption</strong> — the same standard used by banks
-                    and governments. Your password never leaves your device. Even I cannot access your encrypted local data.{" "}
-                    <strong>This is the recommended mode for sensitive information.</strong>
-                  </p>
-                  <p>
-                    <strong className="text-foreground">
-                      If you lose your encryption password, data cannot be retrieved — make frequent backups and save your password securely.
-                    </strong>
-                  </p>
+                  <p className="font-medium text-foreground">💾 Backups</p>
+                  <p>Use Settings → Backup &amp; Export to save your data as a JSON file. Keep backups safe — local data is tied to this device and will be lost if you clear app data without a backup.</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="font-semibold text-foreground">💾 Backups</p>
-                  <p>
-                    Use Settings → Backup &amp; Export to save your data as a JSON file. Keep backups somewhere safe —
-                    local data is tied to this device and will be lost if you clear app data or uninstall without a backup.
-                  </p>
+                  <p className="font-medium text-foreground">🤖 Transparency</p>
+                  <p>Oceans Symphony is <strong className="text-foreground">vibe-coded</strong> — built with AI assistance. It is a work in progress, shared in good faith. We do our best but cannot guarantee it is bug-free.</p>
                 </div>
                 <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
-                  🌊 Oceans Symphony is free and shared in good faith with the community by a DID system.
-                  It was built to fill a void and has no intention of being gatekept. If you're a developer,
-                  feel free to copy it. This app is a work in progress — thank you for your patience and trust.
-                  Contact us @ pesturedrawing@gmail.com
+                  🌊 Free and open source, shared by a DID system to fill a void in the community.{" "}
+                  Contact: pesturedrawing@gmail.com ·{" "}
+                  <span
+                    onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+                    className="text-primary underline cursor-pointer"
+                  >
+                    Latest releases on GitHub →
+                  </span>
                 </p>
               </div>
             )}
