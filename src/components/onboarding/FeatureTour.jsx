@@ -579,7 +579,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "grounding", sectionLabel: "Support",
       emoji: "📚",
       title: "Learn Tab — Curriculum",
-      body: `The Learn tab has modules covering dissociation education, grounding theory, emotional regulation, the window of tolerance, safety planning, and inner child work. Each module has multiple short lessons. "Try Now" buttons inside lessons launch the relevant technique directly from the reading.`,
+      body: `The Learn tab has 13 modules: Grounding, Separating Past from Present, Imagery Skills, Managing Overwhelming Feelings, Self-Compassion, Understanding Cycles and Patterns, Window of Tolerance, Working with Feelings, Shame and Healing-Focused Thinking, Understanding Triggers, Inner Communication and Cooperation, Daily Structure and Rest, and Building on Progress. Each module has multiple short lessons with reflection prompts. "Try Now" buttons launch the relevant technique directly from the reading.`,
       route: "/grounding", target: "grounding-tabs",
       look: `tap the "Learn" tab in the highlighted tab bar to explore the curriculum modules`, action: null,
     },
