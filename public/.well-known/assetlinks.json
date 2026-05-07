@@ -1,8 +1,18 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "app.oceans_symphony.twa",
-    "sha256_cert_fingerprints": ["7B:E4:32:89:BE:22:FA:3C:AE:75:DD:F4:39:51:6C:11:CC:23:3F:5F:0E:4A:B2:C1:CC:8E:C0:6C:6F:6A:D7:42"]
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.oceans_symphony.www.twa",
+      "sha256_cert_fingerprints": ["C7:8A:F0:26:94:67:8A:A0:96:9C:A7:5F:04:73:DF:1A:1C:41:99:3F:A4:B6:56:24:17:CF:6D:13:3F:24:FA:43"]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.oceans_symphony.twa",
+      "sha256_cert_fingerprints": ["7B:E4:32:89:BE:22:FA:3C:AE:75:DD:F4:39:51:6C:11:CC:23:3F:5F:0E:4A:B2:C1:CC:8E:C0:6C:6F:6A:D7:42"]
+    }
   }
-}]
+]
