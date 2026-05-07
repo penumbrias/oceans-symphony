@@ -149,7 +149,7 @@ const STEPS = (t) => [
     body: `Explore at your own pace. Every feature is designed with dissociative ${t.system}s in mind. You can reopen this guide anytime from the Guide button on the home screen.`,
     icon: '💜',
     color: 'from-violet-500/20 to-purple-500/20',
-    tip: null,
+    tip: `Want a hands-on walkthrough? Tap the Tour ✨ button on the home screen for an interactive step-by-step tour of every feature — it spotlights the actual UI and uses demo data so you can explore safely.`,
     features: null,
   },
 ];
