@@ -46,9 +46,10 @@ function sessionNoteText(session) {
   } catch { return session.note; }
 }
 
-function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel, isExpanded, onToggleExpand }) {
+function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
+  const navigate = useNavigate();
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
   const longPressFiredRef = useRef(false);
 
@@ -72,7 +73,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   };
 
   const handleClick = () => {
-    if (!longPressFiredRef.current) onToggleExpand(alter.id);
+    if (!longPressFiredRef.current) navigate(`/alter/${alter.id}`);
   };
 
   return (
@@ -89,9 +90,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       onTouchMove={handleMouseUp}
       onClick={handleClick}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? handleClick() : undefined}
-      className={`flex items-center gap-2.5 bg-card border rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none ${
-        isExpanded ? "border-primary/50 bg-primary/5" : "border-border/50 hover:border-border"
-      }`}
+      className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none hover:border-border hover:bg-muted/20"
     >
       {/* Avatar with badges */}
       <div className="relative flex-shrink-0">
@@ -379,7 +378,6 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 
 export default function CurrentFronters({ alters }) {
   const [showModal, setShowModal] = useState(false);
-  const [expandedAlterId, setExpandedAlterId] = useState(null);
   const [holdMenuAlter, setHoldMenuAlter] = useState(null);
   const navigate = useNavigate();
 
@@ -431,8 +429,6 @@ export default function CurrentFronters({ alters }) {
   const active = primarySession || activeSessions[0] || null;
 
   const primaryAlterId = primarySession?.alter_id || active?.primary_alter_id || null;
-
-  useEffect(() => { setExpandedAlterId(null); }, [active?.id]);
 
   const handleSetPrimaryFromHold = async (alter) => {
     try {
@@ -512,9 +508,6 @@ export default function CurrentFronters({ alters }) {
   }
   const all = [primary, ...coFronters].filter(Boolean);
 
-  const expandedAlter = expandedAlterId ? altersById[expandedAlterId] : null;
-  const expandedSession = expandedAlterId ? activeSessions.find(s => (s.alter_id || s.primary_alter_id) === expandedAlterId) : null;
-
   return (
     <>
       <div className="mb-4" data-tour="fronters-widget">
@@ -545,20 +538,10 @@ export default function CurrentFronters({ alters }) {
                 session={alterSession}
                 onHold={setHoldMenuAlter}
                 coFronterLabel={`Co-${terms.fronting}`}
-                isExpanded={expandedAlterId === alter.id}
-                onToggleExpand={id => setExpandedAlterId(prev => prev === id ? null : id)}
               />
             );
           })}
 
-          {expandedAlter && expandedSession && (
-            <AlterPanel
-              alter={expandedAlter}
-              session={expandedSession}
-              onClose={() => setExpandedAlterId(null)}
-              onSaved={() => setExpandedAlterId(null)}
-            />
-          )}
         </div>
 
         <PrivateMessagesIndicator activeFronters={all} />
