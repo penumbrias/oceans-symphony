@@ -3,6 +3,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterAvatarInline from "@/components/shared/AlterAvatar";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate } from "@/lib/dateUtils";
@@ -205,6 +206,7 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
 }
 
 function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
+  const terms = useTerms();
   const [adjustedMins, setAdjustedMins] = useState(splitMins);
   const splitResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   const [splitImgError, setSplitImgError] = useState(false);
@@ -268,7 +270,7 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
           )}
           <button onClick={() => onSave("end", adjustedMins)}
             className="w-full px-3 py-2 text-sm rounded-lg bg-destructive/10 border border-destructive/40 text-destructive hover:bg-destructive/20 transition-colors text-left">
-            ✕ Remove from front at {formatMins(adjustedMins)}
+            ✕ Remove from {terms.front} at {formatMins(adjustedMins)}
           </button>
         </div>
         <button onClick={onClose} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-1">
@@ -280,6 +282,7 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
 }
 
 function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
+  const terms = useTerms();
   const minsToTime = (mins) => {
     const h = Math.floor(Math.max(0, Math.min(1439, mins)) / 60);
     const m = Math.max(0, Math.min(1439, mins)) % 60;
@@ -330,13 +333,13 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
             onChange={e => setStillFronting(e.target.checked)}
             className="w-4 h-4 accent-primary" />
           <label htmlFor="still-fronting" className="text-xs text-muted-foreground cursor-pointer select-none">
-            Still fronting (no end time)
+            Still {terms.fronting} (no end time)
           </label>
         </div>
 
         <div>
-          <p className="text-xs text-muted-foreground mb-1">Who was fronting?</p>
-          <input placeholder="Search alters..." value={search}
+          <p className="text-xs text-muted-foreground mb-1">Who was {terms.fronting}?</p>
+          <input placeholder={`Search ${terms.alters}...`} value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm mb-1.5" />
           <div className="max-h-32 overflow-y-auto space-y-1 border border-border rounded-lg p-1.5 bg-muted/20">

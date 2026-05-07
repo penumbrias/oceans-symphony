@@ -255,7 +255,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
 
           <div>
             <Textarea
-              placeholder="Leave a message for this alter..."
+              placeholder={`Leave a message for this ${terms.alter}...`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="min-h-[80px] text-sm"

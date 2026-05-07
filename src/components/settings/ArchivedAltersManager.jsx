@@ -4,8 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Archive, RotateCcw, Loader2 } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 export default function ArchivedAltersManager() {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const [restoring, setRestoring] = useState(null);
 
@@ -33,13 +35,13 @@ export default function ArchivedAltersManager() {
               <Archive className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>
-              <CardTitle className="text-lg">Archived Members</CardTitle>
-              <CardDescription>Manage archived system members</CardDescription>
+              <CardTitle className="text-lg">Archived {terms.Alters}</CardTitle>
+              <CardDescription>Manage archived {terms.system} {terms.alters}</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No archived members</p>
+          <p className="text-sm text-muted-foreground">No archived {terms.alters}</p>
         </CardContent>
       </Card>
     );

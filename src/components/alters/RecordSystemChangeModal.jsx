@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useTerms } from "@/lib/useTerms";
 
 // ─── AlterChip ────────────────────────────────────────────────────────────────
 
@@ -123,6 +124,7 @@ function StepType({ value, onChange }) {
 }
 
 function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusionTypeChange }) {
+  const terms = useTerms();
   const isSingle = type === "split"; // locks to one selection
   const requiresOne = type !== "fusion"; // validation: "one" vs "two"
   const [search, setSearch] = useState("");
@@ -148,7 +150,7 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
         <Input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search alters..."
+          placeholder={`Search ${terms.alters}...`}
           className="pl-8 text-sm h-8"
         />
       </div>
@@ -257,6 +259,7 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
 }
 
 function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget, onAbsorptionTarget, newAlterName, onNewAlterName, newAlterColor, onNewAlterColor, splitResults, onSplitResults }) {
+  const terms = useTerms();
   const sourceAlters = alters.filter(a => sourceAlterIds.includes(a.id));
   const nonSourceAlters = alters.filter(a => !sourceAlterIds.includes(a.id));
   const [newSplitName, setNewSplitName] = useState("");
@@ -266,10 +269,10 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
     const filtered = sourceAlters.filter(a => a.name?.toLowerCase().includes(search.toLowerCase()));
     return (
       <div className="space-y-3">
-        <p className="text-xs text-muted-foreground">Which alter persists and remains active after the fusion?</p>
+        <p className="text-xs text-muted-foreground">Which {terms.alter} persists and remains active after the fusion?</p>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search alters..." className="pl-8 text-sm h-8" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${terms.alters}...`} className="pl-8 text-sm h-8" />
         </div>
         <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-border/50 p-1.5 bg-muted/10">
           {filtered.map(a => {
@@ -296,8 +299,8 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
     return (
       <div className="space-y-3">
         <div>
-          <p className="text-xs text-muted-foreground mb-1">Name of the new alter that emerges</p>
-          <Input value={newAlterName} onChange={e => onNewAlterName(e.target.value)} placeholder="New alter name" className="text-sm" />
+          <p className="text-xs text-muted-foreground mb-1">Name of the new {terms.alter} that emerges</p>
+          <Input value={newAlterName} onChange={e => onNewAlterName(e.target.value)} placeholder={`New ${terms.alter} name`} className="text-sm" />
         </div>
         <div>
           <p className="text-xs text-muted-foreground mb-1">Color (optional)</p>
@@ -329,7 +332,7 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
           <p className="text-xs text-muted-foreground mb-2">Which existing alters emerge from this split?</p>
           <div className="relative mb-2">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search alters..." className="pl-8 text-sm h-8" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${terms.alters}...`} className="pl-8 text-sm h-8" />
           </div>
           <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border border-border/50 p-1.5 bg-muted/10">
             {filteredNonSource.map(a => {
@@ -370,10 +373,10 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
           )}
         </div>
         <div>
-          <p className="text-xs text-muted-foreground mb-1">Or create new alters from this split</p>
+          <p className="text-xs text-muted-foreground mb-1">Or create new {terms.alters} from this split</p>
           <div className="flex gap-2">
             <Input value={newSplitName} onChange={e => setNewSplitName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && addNewSplit()} placeholder="New alter name" className="text-sm" />
+              onKeyDown={e => e.key === "Enter" && addNewSplit()} placeholder={`New ${terms.alter} name`} className="text-sm" />
             <Button type="button" size="sm" variant="outline" onClick={addNewSplit}>Add</Button>
           </div>
           {splitResults.filter(r => r.type === "new").map((r, i) => (
@@ -385,7 +388,7 @@ function StepResult({ type, fusionType, sourceAlterIds, alters, absorptionTarget
             </div>
           ))}
         </div>
-        {splitResults.length === 0 && <p className="text-xs text-destructive">Add at least one result alter.</p>}
+        {splitResults.length === 0 && <p className="text-xs text-destructive">Add at least one result {terms.alter}.</p>}
       </div>
     );
   }

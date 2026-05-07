@@ -6,6 +6,7 @@ import { HexColorPicker } from "react-colorful";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { DEFAULT_RELATIONSHIP_TYPES } from "@/lib/relationshipTypes";
+import { useTerms } from "@/lib/useTerms";
 
 // Kept for backward compat with RelationshipsPanel import
 export const RELATIONSHIP_PRESETS = DEFAULT_RELATIONSHIP_TYPES.map(t => ({ type: t.label, color: t.color }));
@@ -33,6 +34,7 @@ function directionLabel(direction, nameA, nameB) {
 }
 
 function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }) {
+  const terms = useTerms();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const selectedResolvedUrl = useResolvedAvatarUrl(selected?.avatar_url);
@@ -62,7 +64,7 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
             <p className="text-sm font-medium text-foreground truncate">{selected.name}</p>
           </>
         ) : (
-          <span className="text-sm text-muted-foreground">Select an alter...</span>
+          <span className="text-sm text-muted-foreground">Select an {terms.alter}...</span>
         )}
       </button>
 
@@ -70,7 +72,7 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
         <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50">
           <input
             type="text"
-            placeholder="Search alters..."
+            placeholder={`Search ${terms.alters}...`}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full px-3 py-2 border-b border-border/50 bg-background rounded-t-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"

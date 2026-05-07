@@ -6,6 +6,7 @@ import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCirc
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
+import { useTerms } from "@/lib/useTerms";
 
 const SOURCE_TYPE_CONFIG = {
   bulletin:  { label: "Bulletin",   icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10"   },
@@ -80,6 +81,7 @@ function LogItem({ item, onDelete }) {
 }
 
 export default function MessagesTab({ alterId, alters }) {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const [composing, setComposing] = useState(false);
   const [newContent, setNewContent] = useState("");
@@ -222,7 +224,7 @@ const postMessage = async () => {
       {composing ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
           <Textarea
-            placeholder="Leave a message for this alter..."
+            placeholder={`Leave a message for this ${terms.alter}...`}
             value={newContent}
             onChange={e => setNewContent(e.target.value)}
             className="min-h-[80px] text-sm"

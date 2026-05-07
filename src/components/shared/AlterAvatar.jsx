@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { cn } from "@/lib/utils";
+import { useTerms } from "@/lib/useTerms";
 
 const SIZE_CLASSES = {
   xs:  "w-5 h-5 text-[8px]",
@@ -25,6 +26,7 @@ const SIZE_CLASSES = {
  *   rounded     – "full" (default) | "lg" | "md" | "none"
  */
 export default function AlterAvatar({ alter, size = "md", className, rounded = "full" }) {
+  const terms = useTerms();
   const [imgError, setImgError] = useState(false);
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
 
@@ -58,7 +60,7 @@ export default function AlterAvatar({ alter, size = "md", className, rounded = "
     <div
       className={cn(sizeClass, roundedClass, "flex-shrink-0 flex items-center justify-center select-none", className)}
       style={{ background: bg }}
-      aria-label={alter?.name ?? "System member"}
+      aria-label={alter?.name ?? terms.Alter}
     >
       <span className="font-bold text-white leading-none" style={{ fontSize: "38%" }}>
         {initial}

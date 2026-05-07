@@ -265,7 +265,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
   const handleSave = async () => {
     if (!isUnsure && !primaryId && coFronterIds.length === 0) {
-      toast.error("Select at least one fronter or mark as unsure");
+      toast.error(`Select at least one ${terms.fronter} or mark as unsure`);
       return;
     }
     setSaving(true);

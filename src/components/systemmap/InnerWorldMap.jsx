@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
+import { useTerms } from "@/lib/useTerms";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { localEntities } from "@/api/base44Client";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
@@ -284,6 +285,7 @@ function AlterRelationshipsSection({ alter, relationships, alterMap }) {
 }
 
 export default function InnerWorldMap({ alters: allAlters, relationships, onRefreshRelationships }) {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const svgRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -658,7 +660,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           ) : (
             <button
               onClick={() => setPanelOpen(true)}
-              title="Expand unplaced alters"
+              title={`Expand unplaced ${terms.alters}`}
               className="flex-shrink-0 w-8 h-32 bg-card border-r border-border flex items-center justify-center hover:bg-muted/50 transition-colors z-10">
               <div className="flex flex-col items-center gap-1 rotate-180 text-muted-foreground hover:text-foreground">
                 <span className="text-xs font-bold">U</span>

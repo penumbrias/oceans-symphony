@@ -12,8 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Grid3X3, List } from "lucide-react";
 import { toast } from "sonner";
+import { useTerms } from "@/lib/useTerms";
 
 export default function GroupMembersModal({ group, allGroups, isOpen, onClose }) {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState("all"); // all, not-in, in
@@ -115,7 +117,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
           {/* Search and View Toggle */}
           <div className="flex gap-2">
             <Input
-              placeholder="Search alters..."
+              placeholder={`Search ${terms.alters}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1"

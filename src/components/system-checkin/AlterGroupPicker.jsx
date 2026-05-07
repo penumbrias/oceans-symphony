@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 export default function AlterGroupPicker({ alters = [], groups = [], selected = [], onChange }) {
+  const terms = useTerms();
   const [input, setInput] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 
@@ -57,7 +59,7 @@ export default function AlterGroupPicker({ alters = [], groups = [], selected = 
     <div className="space-y-2">
       <div className="relative">
         <Input
-          placeholder="Type alter name or alias to add..."
+          placeholder={`Type ${terms.alter} name or alias to add...`}
           value={input}
           onChange={(e) => {
             setInput(e.target.value);

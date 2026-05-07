@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import { format } from "date-fns";
+import { useTerms } from "@/lib/useTerms";
 
 const db = isLocalMode() ? localEntities : base44.entities;
 
@@ -42,6 +43,7 @@ export function buildInternalLinkHTML(item) {
 }
 
 export default function InternalLinkPicker({ onSelect, onClose }) {
+  const terms = useTerms();
   const [query, setQuery] = useState("");
   const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,7 +144,7 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search alters, journals, locations…"
+            placeholder={`Search ${terms.alters}, journals, locations…`}
             className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
