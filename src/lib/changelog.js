@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "fix",
+        text: "First-run onboarding screen (privacy & data notice, local encryption setup) was being skipped entirely — now correctly displays before the app loads on a fresh install.",
+      },
+      {
         type: "improve",
         text: "Check-In Log now shows all tracked data, not just formal check-ins. Days with standalone symptom updates, activities, locations, or status notes appear as their own entries in the timeline even when no check-in was done. Days with only standalone data now appear in the log at all.",
       },

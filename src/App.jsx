@@ -35,7 +35,8 @@ import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
 import SystemHistory from '@/pages/SystemHistory';
 import LocationHistory from '@/pages/LocationHistory';
-import { isEncryptionEnabled } from '@/lib/storageMode';
+import { isEncryptionEnabled, isFirstRun } from '@/lib/storageMode';
+import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import { initAccessibility } from '@/lib/useAccessibility';
 
 // Apply saved accessibility settings before first render
@@ -97,8 +98,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // 'loading' while IndexedDB initializes, 'unlock' if encryption is set, null when ready
+  // 'firstrun' → storage/encryption setup, 'unlock' → password prompt, 'loading' → init DB, null → ready
   const [setupState, setSetupState] = useState(() => {
+    if (isFirstRun()) return 'firstrun';
     if (isEncryptionEnabled() && !isDbInitialized()) return 'unlock';
     return 'loading';
   });
@@ -124,6 +126,14 @@ function App() {
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
       </div>
+    );
+  }
+
+  if (setupState === 'firstrun') {
+    return (
+      <ThemeProvider>
+        <StorageModeSetup mode="setup" onComplete={() => setSetupState(null)} />
+      </ThemeProvider>
     );
   }
 

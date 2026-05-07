@@ -316,6 +316,7 @@ export function ThemeProvider({ children }) {
   const [customColors, setCustomColors] = useState(null);
   const [selectedFont, setSelectedFont] = useState('inter');
   const [userCustomPresets, setUserCustomPresets] = useState({});
+  const [alterThemeLinks, setAlterThemeLinks] = useState({}); // { alterId: presetName }
   const [mounted, setMounted] = useState(false);
   const [isDarkOS, setIsDarkOS] = useState(false);
 
@@ -325,12 +326,14 @@ export function ThemeProvider({ children }) {
     const savedCustom = localStorage.getItem('symphony_customColors');
     const savedFont = localStorage.getItem('symphony_selectedFont');
     const savedUserPresets = localStorage.getItem('symphony_userCustomPresets');
-    
+    const savedLinks = localStorage.getItem('symphony_alterThemeLinks');
+
     setThemeMode(saved || 'system');
     setSelectedTheme(savedTheme || 'cool');
     if (savedCustom) setCustomColors(JSON.parse(savedCustom));
     if (savedFont) setSelectedFont(savedFont);
     if (savedUserPresets) setUserCustomPresets(JSON.parse(savedUserPresets));
+    if (savedLinks) setAlterThemeLinks(JSON.parse(savedLinks));
     
     const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
     setIsDarkOS(darkMq.matches);
@@ -348,6 +351,7 @@ export function ThemeProvider({ children }) {
     if (customColors) localStorage.setItem('symphony_customColors', JSON.stringify(customColors));
     localStorage.setItem('symphony_selectedFont', selectedFont);
     localStorage.setItem('symphony_userCustomPresets', JSON.stringify(userCustomPresets));
+    localStorage.setItem('symphony_alterThemeLinks', JSON.stringify(alterThemeLinks));
     
     const isDark = themeMode === 'dark' || (themeMode === 'system' && isDarkOS);
     document.documentElement.classList.toggle('dark', isDark);
@@ -390,10 +394,33 @@ export function ThemeProvider({ children }) {
   };
 
   const saveCustomPreset = (name, colors) => {
-    setUserCustomPresets(prev => ({
-      ...prev,
-      [name]: colors
-    }));
+    setUserCustomPresets(prev => ({ ...prev, [name]: colors }));
+  };
+
+  const deleteUserPreset = (name) => {
+    setUserCustomPresets(prev => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    // Clear alter links pointing to this deleted preset
+    setAlterThemeLinks(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(id => { if (next[id] === name) delete next[id]; });
+      return next;
+    });
+  };
+
+  const linkAlterTheme = (alterId, presetName) => {
+    setAlterThemeLinks(prev => ({ ...prev, [alterId]: presetName }));
+  };
+
+  const unlinkAlterTheme = (alterId) => {
+    setAlterThemeLinks(prev => {
+      const next = { ...prev };
+      delete next[alterId];
+      return next;
+    });
   };
 
   const cycleThemeMode = () => {
@@ -416,6 +443,10 @@ export function ThemeProvider({ children }) {
       setSelectedFont,
       userCustomPresets,
       saveCustomPreset,
+      deleteUserPreset,
+      alterThemeLinks,
+      linkAlterTheme,
+      unlinkAlterTheme,
       allPresets: ALL_PRESETS,
     }}>
       {children}

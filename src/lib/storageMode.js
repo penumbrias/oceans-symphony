@@ -8,14 +8,7 @@ const KEYS = {
   localUser: 'symphony_local_user',
 };
 
-// Auto-set local mode on first run so no onboarding screen is shown
-export const isFirstRun = () => {
-  if (!localStorage.getItem(KEYS.mode)) {
-    localStorage.setItem(KEYS.mode, 'local');
-    return false;
-  }
-  return false;
-};
+export const isFirstRun = () => !localStorage.getItem(KEYS.mode);
 
 export const getMode = () => 'local';
 export const isLocalMode = () => true;

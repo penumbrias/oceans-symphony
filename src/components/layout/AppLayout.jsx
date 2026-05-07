@@ -16,6 +16,8 @@ import ReminderToast from "@/components/reminders/ReminderToast";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
 import FeatureTour from "@/components/onboarding/FeatureTour";
+import { useTheme } from "@/lib/ThemeContext";
+import { setAccessibilityFontFamily } from "@/lib/useAccessibility";
 
 function OfflineReadyBadge() {
   const [ready, setReady] = useState(false);
@@ -113,6 +115,23 @@ const frontingAlterIds = activeSession
     ? sessions.filter(s => s.is_active && s.alter_id).map(s => s.alter_id)
     : [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
   : [];
+
+// Fronter-linked theme: when primary fronter changes, apply their linked preset
+const { alterThemeLinks, setSelectedTheme, clearCustomColors, allPresets, userCustomPresets } = useTheme();
+const primaryFronter = frontingAlterIds[0] ?? null;
+const lastAppliedFronterRef = useRef(null);
+useEffect(() => {
+  if (primaryFronter === lastAppliedFronterRef.current) return;
+  lastAppliedFronterRef.current = primaryFronter;
+  if (!primaryFronter) return;
+  const linkedPreset = alterThemeLinks[primaryFronter];
+  if (!linkedPreset) return;
+  const preset = allPresets[linkedPreset] || userCustomPresets[linkedPreset];
+  if (!preset) return;
+  clearCustomColors();
+  setSelectedTheme(linkedPreset);
+  if (preset.font) setAccessibilityFontFamily(preset.font);
+}, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {
   if (mentionLog.navigate_path?.includes("?id=")) {

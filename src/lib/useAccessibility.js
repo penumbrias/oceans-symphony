@@ -9,11 +9,78 @@ const FONT_CLASSES  = ["a11y-text-sm", "a11y-text-lg", "a11y-text-xl"];
 const TOUCH_CLASSES = ["a11y-touch-comfortable", "a11y-touch-large"];
 
 const NAV_HEIGHTS = {
-  compact:    "44px",
-  default:    "56px",
-  tall:       "68px",
+  compact:      "44px",
+  default:      "56px",
+  tall:         "68px",
   "extra-tall": "80px",
 };
+
+// Existing short-key users stay working
+const LEGACY_FONT_MAP = {
+  inter:    "'Inter', sans-serif",
+  system:   "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  atkinson: "'Atkinson Hyperlegible', sans-serif",
+  nunito:   "'Nunito', sans-serif",
+};
+
+export const APP_FONT_OPTIONS = [
+  // UI-optimised / accessible
+  { label: "Inter",                  value: "'Inter', sans-serif",                          legacy: "inter",    category: "ui" },
+  { label: "System font",            value: "system-ui, -apple-system, sans-serif",         legacy: "system",   category: "ui" },
+  { label: "Atkinson Hyperlegible",  value: "'Atkinson Hyperlegible', sans-serif",          legacy: "atkinson", category: "ui" },
+  { label: "Nunito",                 value: "'Nunito', sans-serif",                         legacy: "nunito",   category: "ui" },
+  { label: "Poppins",                value: "Poppins, sans-serif",                                              category: "ui" },
+  { label: "Raleway",                value: "Raleway, sans-serif",                                              category: "ui" },
+  { label: "Noto Sans",              value: "'Noto Sans', sans-serif",                                          category: "ui" },
+  // Serif
+  { label: "Playfair Display",       value: "'Playfair Display', serif",                                        category: "serif" },
+  { label: "Lora",                   value: "Lora, serif",                                                      category: "serif" },
+  { label: "Merriweather",           value: "Merriweather, serif",                                              category: "serif" },
+  { label: "Noto Serif",             value: "'Noto Serif', serif",                                              category: "serif" },
+  { label: "Amiri",                  value: "Amiri, serif",                                                     category: "serif" },
+  // Handwriting
+  { label: "Caveat",                 value: "Caveat, cursive",                                                  category: "handwriting" },
+  { label: "Dancing Script",         value: "'Dancing Script', cursive",                                        category: "handwriting" },
+  { label: "Pacifico",               value: "Pacifico, cursive",                                               category: "handwriting" },
+  { label: "Satisfy",                value: "Satisfy, cursive",                                                 category: "handwriting" },
+  // Monospace
+  { label: "Fira Code",              value: "'Fira Code', monospace",                                           category: "mono" },
+  { label: "Space Mono",             value: "'Space Mono', monospace",                                          category: "mono" },
+  // Display / decorative
+  { label: "Righteous",              value: "Righteous, cursive",                                               category: "display" },
+  { label: "Lobster",                value: "Lobster, cursive",                                                 category: "display" },
+  { label: "Bungee",                 value: "Bungee, display",                                                  category: "display" },
+  { label: "Orbitron",               value: "Orbitron, sans-serif",                                             category: "display" },
+  // Cultural / multilingual
+  { label: "Nanum Gothic",           value: "'Nanum Gothic', sans-serif",                                       category: "other" },
+  { label: "Sawarabi Mincho",        value: "'Sawarabi Mincho', serif",                                         category: "other" },
+  { label: "Tajawal",                value: "Tajawal, sans-serif",                                              category: "other" },
+  // Fun (affects readability)
+  { label: "VT323",                  value: "VT323, monospace",                                                 category: "fun" },
+  { label: "Press Start 2P",         value: "'Press Start 2P', cursive",                                        category: "fun" },
+];
+
+export const FONT_CATEGORY_LABELS = {
+  ui:          "UI & Accessible",
+  serif:       "Serif",
+  handwriting: "Handwriting",
+  mono:        "Monospace",
+  display:     "Display",
+  other:       "Multilingual",
+  fun:         "Fun (affects readability)",
+};
+
+/** Returns the CSS font-family string for a stored value (handles legacy short keys). */
+export function resolveFontCss(value) {
+  return LEGACY_FONT_MAP[value] || value || "'Inter', sans-serif";
+}
+
+/** Find the APP_FONT_OPTIONS entry that matches a stored value. */
+export function findFontOption(storedValue) {
+  return APP_FONT_OPTIONS.find(
+    f => f.value === storedValue || (f.legacy && f.legacy === storedValue)
+  ) || APP_FONT_OPTIONS[0];
+}
 
 function applyFontSize(value) {
   const el = document.documentElement;
@@ -41,13 +108,9 @@ function applyNavHeight(value) {
 }
 
 function applyFontFamily(value) {
-  const families = {
-    system:   "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    atkinson: "'Atkinson Hyperlegible', sans-serif",
-    nunito:   "'Nunito', sans-serif",
-    inter:    "'Inter', sans-serif",
-  };
-  document.documentElement.style.setProperty("--font-sans", families[value] || families.inter);
+  // Accepts either a legacy short key ("inter") or a CSS font-family string
+  const css = LEGACY_FONT_MAP[value] || value || "'Inter', sans-serif";
+  document.documentElement.style.setProperty("--font-sans", css);
 }
 
 export function initAccessibility() {
