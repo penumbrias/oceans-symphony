@@ -21,6 +21,10 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "Alters page grid view: tapping an alter now opens their profile page (matching list mode). Long-pressing a currently-fronting alter toggles their primary status. On the dashboard fronting widget, tapping an alter chip now opens the inline session detail panel (add notes, emotions, symptoms) — use the long-press menu to navigate to their profile.",
+      },
+      {
+        type: "improve",
         text: "Friends front-change banners now appear live during your session (every 60 s) rather than only on the next app open. No push subscription required — changes show as an in-app toast whenever a friend's front updates.",
       },
       {

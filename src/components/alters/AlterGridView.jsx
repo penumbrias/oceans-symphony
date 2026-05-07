@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-function AlterCard({ alter, fronting, isPrimary, compact, onDoubleClick, onMouseDown, onMouseUp, onMouseLeave, anonymize = "off" }) {
+function AlterCard({ alter, fronting, isPrimary, compact, onClick, onPointerDown, onPointerUp, onPointerCancel, anonymize = "off" }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -21,10 +21,11 @@ function AlterCard({ alter, fronting, isPrimary, compact, onDoubleClick, onMouse
   return (
     <div
       className="flex flex-col items-center gap-2"
-      onDoubleClick={onDoubleClick}
-      onMouseDown={onMouseDown}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
+      onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerCancel}
+      onPointerCancel={onPointerCancel}
     >
       {resolvedUrl && !imgError ? (
         <img
@@ -58,58 +59,47 @@ function AlterCard({ alter, fronting, isPrimary, compact, onDoubleClick, onMouse
 export default function AlterGridView({ alters, activeSessions = [], allAlters = [], cols = 3, anonymize = "off" }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
+  const longPressTimerRef = useRef(null);
+  const longPressFiredRef = useRef(false);
   const compact = cols >= 4;
-
-  const handleDoubleClick = async (alter) => {
-    try {
-      const mySession = activeSessions.find(s => s.alter_id === alter.id);
-      if (mySession) {
-        // Remove from front
-        await base44.entities.FrontingSession.update(mySession.id, {
-          is_active: false,
-          end_time: new Date().toISOString(),
-        });
-        toast.success(`✅ ${alter.name} removed from front`);
-      } else {
-        // Add to front
-        const hasPrimary = activeSessions.some(s => s.is_primary);
-        await base44.entities.FrontingSession.create({
-          alter_id: alter.id,
-          is_primary: false,
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
-        toast.success(`✅ ${alter.name} added to front!`);
-      }
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch (err) {
-      toast.error(err.message || "Failed to update front");
-    }
-  };
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
 
-  const handleMouseDown = (alter) => {
-    const timeoutId = setTimeout(() => {
-      navigate(`/alter/${alter.id}`);
+  const startLongPress = (alter) => {
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(async () => {
+      longPressFiredRef.current = true;
+      const mySession = activeSessions.find(s => s.alter_id === alter.id);
+      if (!mySession) return;
+      if (navigator.vibrate) navigator.vibrate(50);
+      try {
+        if (mySession.is_primary) {
+          await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
+          toast(`${alter.name} is now co-fronting`);
+        } else {
+          const prevPrimary = activeSessions.find(s => s.is_primary && s.id !== mySession.id);
+          if (prevPrimary) {
+            await base44.entities.FrontingSession.update(prevPrimary.id, { is_primary: false });
+          }
+          await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
+          toast.success(`${alter.name} is now primary!`);
+        }
+        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      } catch {
+        toast.error("Failed to update primary status");
+      }
     }, 500);
-    setLongPressTimeoutId(timeoutId);
   };
 
-  const handleMouseUp = () => {
-    if (longPressTimeoutId) {
-      clearTimeout(longPressTimeoutId);
-      setLongPressTimeoutId(null);
-    }
+  const cancelLongPress = () => {
+    clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
   };
 
-  const handleMouseLeave = () => {
-    if (longPressTimeoutId) {
-      clearTimeout(longPressTimeoutId);
-      setLongPressTimeoutId(null);
-    }
+  const handleClick = (alter) => {
+    if (longPressFiredRef.current) return;
+    navigate(`/alter/${alter.id}`);
   };
 
   const colsClass = {
@@ -128,10 +118,10 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           fronting={isFronting(alter.id)}
           isPrimary={activeSessions.find(s => s.alter_id === alter.id)?.is_primary ?? false}
           compact={compact}
-          onDoubleClick={() => handleDoubleClick(alter)}
-          onMouseDown={() => handleMouseDown(alter)}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
+          onClick={() => handleClick(alter)}
+          onPointerDown={() => startLongPress(alter)}
+          onPointerUp={cancelLongPress}
+          onPointerCancel={cancelLongPress}
           anonymize={anonymize}
         />
       ))}

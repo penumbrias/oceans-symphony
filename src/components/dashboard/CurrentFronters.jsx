@@ -46,10 +46,9 @@ function sessionNoteText(session) {
   } catch { return session.note; }
 }
 
-function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel }) {
+function FronterChip({ alter, isPrimary, startTime, session, onHold, onChipClick, coFronterLabel }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
-  const navigate = useNavigate();
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
   const longPressFiredRef = useRef(false);
 
@@ -73,7 +72,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   };
 
   const handleClick = () => {
-    if (!longPressFiredRef.current) navigate(`/alter/${alter.id}`);
+    if (!longPressFiredRef.current) onChipClick(alter);
   };
 
   return (
@@ -379,7 +378,12 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 export default function CurrentFronters({ alters }) {
   const [showModal, setShowModal] = useState(false);
   const [holdMenuAlter, setHoldMenuAlter] = useState(null);
+  const [activePanel, setActivePanel] = useState(null);
   const navigate = useNavigate();
+
+  const handleChipClick = (alter) => {
+    setActivePanel(p => p?.id === alter.id ? null : alter);
+  };
 
   useEffect(() => {
     const open = () => setShowModal(true);
@@ -537,11 +541,20 @@ export default function CurrentFronters({ alters }) {
                 startTime={alterSession?.start_time}
                 session={alterSession}
                 onHold={setHoldMenuAlter}
+                onChipClick={handleChipClick}
                 coFronterLabel={`Co-${terms.fronting}`}
               />
             );
           })}
-
+          {activePanel && (
+            <AlterPanel
+              key={activePanel.id}
+              alter={activePanel}
+              session={activeSessions.find(s => (s.alter_id || s.primary_alter_id) === activePanel.id)}
+              onClose={() => setActivePanel(null)}
+              onSaved={() => setActivePanel(null)}
+            />
+          )}
         </div>
 
         <PrivateMessagesIndicator activeFronters={all} />
