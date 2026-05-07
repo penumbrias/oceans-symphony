@@ -187,32 +187,28 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
         </div>
       )}
 
-      {checkInOpen && (
-        <QuickCheckInModal
-          isOpen={checkInOpen}
-          onClose={(saved) => {
-            setCheckInOpen(false);
-            if (saved && pendingActInstance) {
-              updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_check_in" });
-            }
-            setPendingActInstance(null);
-          }}
-        />
-      )}
+      <QuickCheckInModal
+        isOpen={checkInOpen}
+        onClose={(saved) => {
+          setCheckInOpen(false);
+          if (saved && pendingActInstance) {
+            updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_check_in" });
+          }
+          setPendingActInstance(null);
+        }}
+      />
 
-      {setFrontOpen && (
-        <SetFrontModal
-          open={setFrontOpen}
-          alters={alters}
-          onClose={() => {
-            setSetFrontOpen(false);
-            if (pendingActInstance) {
-              updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_set_front" });
-            }
-            setPendingActInstance(null);
-          }}
-        />
-      )}
+      <SetFrontModal
+        open={setFrontOpen}
+        alters={alters}
+        onClose={() => {
+          setSetFrontOpen(false);
+          if (pendingActInstance) {
+            updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_set_front" });
+          }
+          setPendingActInstance(null);
+        }}
+      />
     </div>
   );
 }

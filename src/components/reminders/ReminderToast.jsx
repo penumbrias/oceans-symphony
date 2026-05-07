@@ -135,7 +135,9 @@ export default function ReminderToast() {
     } else if (type === "open_todo") {
       navigate("/todo");
     } else if (type === "open_route") {
-      navigate(action.payload?.path || "/");
+      const path = action.payload?.path;
+      if (path && path !== "/") navigate(path);
+      else return;
     } else if (type === "log_symptom") {
       await base44.entities.SymptomCheckIn.create({ symptom_id: action.payload?.symptom_id, timestamp: new Date().toISOString() });
     } else if (type === "dismiss") {
