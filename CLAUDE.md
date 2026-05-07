@@ -109,23 +109,26 @@ Rules:
 
 ## Critical: Keep the Changelog Up to Date
 
-**Whenever a feature, improvement, or notable fix ships, add an entry to `src/lib/changelog.js`. Do this as part of the same commit — never leave it for later.**
+**Whenever a feature, improvement, or notable fix ships, add an entry to `src/lib/changelog.js`. This is non-negotiable — do it in the same commit, every time, no exceptions.**
 
 Rules:
 - Add a new date block at the top of the `CHANGELOG` array when starting a new session's work.
 - Use `type: "feature"` for new capabilities, `"improve"` for enhancements, `"fix"` for user-visible bug fixes, `"hotfix"` for minor/internal fixes (brief text only).
-- For hotfixes, write "Hotfixes on [ComponentName]: [brief description]" — no need for detail.
+- For hotfixes, write "Hotfix: [brief description]" — no need for detail.
 - For larger features, write 1–2 sentences describing what the user can now do.
 - Do not add entries for refactors, renames, or changes that have no user-visible effect.
 - The changelog is shown in Settings → Recent Updates — keep it user-facing, not technical jargon.
-- **Every shipped task gets a changelog entry in the same commit — do not batch them up or forget mid-session.**
+- **Every single commit that changes behaviour visible to the user must include a changelog entry. No batching. No "I'll add it later". If you forgot, add it now before the next task.**
+- **Bug fixes always get a changelog entry** — even small ones. Crashes, wrong text, broken interactions — all count.
+- **Terminology fixes count** — if text was hardcoded and now uses user terms, log it.
 
-Recent features that must always be logged (examples of what counts):
+What always needs a changelog entry:
 - New settings sections or pages
 - New data entities or logging types
 - UI/UX behaviour changes visible to the user
 - Onboarding changes
-- Bug fixes the user would notice
+- Any bug fix the user would notice (crashes, broken buttons, wrong labels, missing UI)
+- Terminology corrections in user-facing text
 
 ---
 

@@ -28,6 +28,18 @@ export const CHANGELOG = [
         text: "Tasks page crashed on load due to a variable used before declaration. Navigating to Tasks (including via the feature tour) no longer crashes the app.",
       },
       {
+        type: "fix",
+        text: "Alter-linked themes now switch correctly when primary fronter is changed via the long-press menu on the dashboard, not only through the Set Front modal.",
+      },
+      {
+        type: "hotfix",
+        text: "Hotfix: startup crash caused by missing useTheme() call in AppLayout after previous edit.",
+      },
+      {
+        type: "fix",
+        text: "Analytics section grid — descriptions for System Members, Co-fronting, and Patterns & Insights were using hardcoded words instead of your chosen terminology.",
+      },
+      {
         type: "feature",
         text: "Appearance overhaul — font family moved into Appearance settings with a searchable dropdown of 27+ fonts across 7 categories. Save named theme presets that capture your colors, font, text size, and light/dark mode. Link a preset to any alter so their theme auto-applies the moment they become primary fronter.",
       },
