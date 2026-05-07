@@ -292,7 +292,7 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
     <motion.div ref={menuRef} data-tour="quick-actions-menu"
       initial={{ opacity: 0, scale: 0.95, y: -8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95, y: -8 }} transition={{ duration: 0.15, ease: "easeOut" }}
-      className="absolute left-0 top-full mt-2 z-50 flex flex-col gap-1.5 min-w-[240px] max-w-xs">
+      className="absolute left-0 top-full mt-2 z-50 flex flex-col gap-1.5 min-w-[240px] max-w-xs bg-background/95 backdrop-blur-sm rounded-2xl p-2 border border-border/50 shadow-xl">
       {actions.length === 0 && (
         <div className="px-4 py-3 bg-card border border-border/50 rounded-2xl text-sm text-muted-foreground shadow-lg">
           No quick actions yet. Add one below!
