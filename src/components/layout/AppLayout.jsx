@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
-import MigrationBanner from "@/components/fronting/MigrationBanner";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
@@ -332,7 +331,6 @@ const handleNotifClick = (mentionLog) => {
       )}
 
       <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <MigrationBanner />
       <FloatingGroundingButton />
       <ReminderToast />
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
