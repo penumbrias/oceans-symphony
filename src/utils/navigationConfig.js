@@ -49,4 +49,5 @@ export const DEFAULT_CONFIG = {
     "safety-plan",
     "home",
   ],
+  dashboardGridRemoved: [], // pages explicitly removed by the user — never auto-re-added
 };
