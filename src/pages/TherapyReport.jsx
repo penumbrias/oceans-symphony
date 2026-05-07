@@ -93,9 +93,26 @@ export default function TherapyReportPage() {
     queryFn: () => localEntities.StatusNote.list(),
   });
 
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => localEntities.Location.list(),
+  });
+
+  const { data: sleepLogs = [] } = useQuery({
+    queryKey: ["sleepLogs"],
+    queryFn: () => db.Sleep.list(),
+  });
+
+  const { data: supportEntries = [] } = useQuery({
+    queryKey: ["supportJournalEntries"],
+    queryFn: () => db.SupportJournalEntry.list(),
+  });
+
   const handleGenerate = async (config) => {
     try {
       setLoading(true);
+
+      const sectionOptions = config.config.sectionOptions || {};
 
       // Build section data
       const overview = reportSections.buildOverview({
@@ -111,12 +128,14 @@ export default function TherapyReportPage() {
         mode: config.mode,
       });
 
+      const includeAlterInfo = sectionOptions.alterNames !== false;
+
       const fronting = reportSections.buildFrontingSection({
         dateFrom: config.dateFrom,
         dateTo: config.dateTo,
         frontingSessions,
         alters,
-        includeAlterInfo: config.config.includeAlterInfo !== false,
+        includeAlterInfo,
         thresholds: config.thresholds,
         mode: config.mode,
       });
@@ -126,7 +145,7 @@ export default function TherapyReportPage() {
         dateTo: config.dateTo,
         emotionCheckIns,
         alters,
-        includeAlterInfo: config.config.includeAlterInfo !== false,
+        includeAlterInfo,
         thresholds: config.thresholds,
         mode: config.mode,
       });
@@ -159,9 +178,9 @@ export default function TherapyReportPage() {
         dateTo: config.dateTo,
         diaryCards,
         alters,
-        includeAlterInfo: config.config.includeAlterInfo !== false,
+        includeAlterInfo: sectionOptions.alterNames !== false,
         thresholds: config.thresholds,
-        mode: config.mode,
+        diaryDetail: sectionOptions.diaryDetail || "noteworthy",
       });
 
       const statusNotesSection = reportSections.buildStatusNotesSection({
@@ -175,7 +194,27 @@ export default function TherapyReportPage() {
         dateTo: config.dateTo,
         bulletins,
         alters,
-        includeAlterInfo: config.config.includeAlterInfo !== false,
+        includeAlterInfo: sectionOptions.alterNames !== false,
+        bulletinDetail: sectionOptions.bulletinDetail || "content",
+      });
+
+      const locationsData = reportSections.buildLocationsSection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        locations,
+      });
+
+      const sleepData = reportSections.buildSleepSection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        sleepLogs,
+      });
+
+      const supportJournalsData = reportSections.buildSupportJournalsSection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        supportEntries,
+        supportDetail: sectionOptions.supportDetail || "titles",
       });
 
       const systemCheckInsData = reportSections.buildSystemCheckInsSection({
@@ -183,7 +222,7 @@ export default function TherapyReportPage() {
         dateTo: config.dateTo,
         systemCheckIns,
         alters,
-        includeAlterInfo: config.config.includeAlterInfo !== false,
+        includeAlterInfo,
       });
 
       const tasksData = reportSections.buildTasksSummarySection({
@@ -225,8 +264,12 @@ export default function TherapyReportPage() {
         }
       });
 
-      const alterAppendix = config.config.includeAlterInfo !== false && config.selectedSections.has("alterAppendix")
-        ? reportSections.buildAlterAppendix({ alters, alterIdsInReport })
+      const alterAppendix = sectionOptions.alterNames !== false && config.selectedSections.has("alterAppendix")
+        ? reportSections.buildAlterAppendix({
+            alters,
+            alterIdsInReport,
+            alterDetail: sectionOptions.alterDetail || "full",
+          })
         : [];
 
       // Determine enabled sections
@@ -243,8 +286,11 @@ export default function TherapyReportPage() {
         activities: activitiesData,
         journals,
         diary,
+        locations: locationsData,
+        sleep: sleepData,
         bulletins: bulletinsData,
         systemCheckIns: systemCheckInsData,
+        supportJournals: supportJournalsData,
         tasks: tasksData,
         patterns,
         alterAppendix,
@@ -267,6 +313,7 @@ export default function TherapyReportPage() {
           config: config.config,
           sections,
           enabledSections,
+          sectionOptions,
         });
         const blobUrl = URL.createObjectURL(blob);
         setExportModal({ filename, format: "pdf", blobUrl });

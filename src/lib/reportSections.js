@@ -289,7 +289,7 @@ export function buildJournalsSection({ dateFrom, dateTo, journalEntries, journal
 
 // ── SECTION: DIARY CARDS ──────────────────────────────────────────────────────
 
-export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includeAlterInfo, thresholds, mode }) {
+export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includeAlterInfo, thresholds, diaryDetail = "noteworthy" }) {
   const cards = diaryCards
     .filter(d => inRange(d.date, dateFrom, dateTo))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -303,7 +303,7 @@ export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includ
     );
   };
 
-  const toInclude = mode === "smart" ? cards.filter(isNoteworthy) : cards;
+  const toInclude = diaryDetail === "all" ? cards : cards.filter(isNoteworthy);
 
   return toInclude.map(card => {
     const fronters = (card.fronting_alter_ids || [])
@@ -392,7 +392,7 @@ export function buildPatternsSummary({
 
 // ── SECTION: ALTER APPENDIX ───────────────────────────────────────────────────
 
-export function buildAlterAppendix({ alters, alterIdsInReport }) {
+export function buildAlterAppendix({ alters, alterIdsInReport, alterDetail = "full" }) {
   const ids = new Set(alterIdsInReport);
   return alters
     .filter(a => ids.has(a.id) && !a.is_archived)
@@ -400,13 +400,13 @@ export function buildAlterAppendix({ alters, alterIdsInReport }) {
       name: a.name,
       pronouns: a.pronouns || null,
       role: a.role || null,
-      bio: a.description ? a.description.slice(0, 200) : null,
+      bio: alterDetail === "full" ? (a.description || null) : null,
     }));
 }
 
 // ── SECTION: BULLETINS ────────────────────────────────────────────────────────
 
-export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, includeAlterInfo }) {
+export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, includeAlterInfo, bulletinDetail = "content" }) {
   const items = bulletins
     .filter(b => inRange(b.created_date, dateFrom, dateTo))
     .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
@@ -414,10 +414,97 @@ export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, inc
   return items.map(b => ({
     date: fmtDateTime(b.created_date),
     title: b.title || "Bulletin",
-    content: b.content ? b.content.slice(0, 500) : "",
+    content: bulletinDetail === "content" ? (b.content ? b.content.slice(0, 500) : "") : "",
     author: includeAlterInfo ? (alterName(b.author_alter_id, alters, true) || null) : null,
     isPinned: !!b.is_pinned,
   }));
+}
+
+// ── SECTION: LOCATIONS ────────────────────────────────────────────────────────
+
+export function buildLocationsSection({ dateFrom, dateTo, locations = [] }) {
+  const items = locations
+    .filter(l => inRange(l.timestamp, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  return items.map(l => ({
+    date: fmtDateTime(l.timestamp),
+    name: l.name || "Unnamed location",
+    category: l.category || null,
+    source: l.source || "manual",
+    notes: l.notes || null,
+    lat: l.latitude || null,
+    lng: l.longitude || null,
+  }));
+}
+
+// ── SECTION: SLEEP LOG ────────────────────────────────────────────────────────
+
+export function buildSleepSection({ dateFrom, dateTo, sleepLogs = [] }) {
+  const logs = sleepLogs
+    .filter(s => inRange(s.date || s.created_date, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.date || a.created_date) - new Date(b.date || b.created_date));
+
+  if (logs.length === 0) return { logs: [], stats: null };
+
+  const withDuration = logs.map(s => {
+    let durationHours = null;
+    if (s.bedtime && s.wake_time) {
+      const diff = new Date(s.wake_time) - new Date(s.bedtime);
+      if (diff > 0) durationHours = diff / 3600000;
+    }
+    const durStr = durationHours != null
+      ? `${Math.floor(durationHours)}h ${Math.round((durationHours % 1) * 60)}m`
+      : null;
+    return {
+      date: fmtDate(s.date || s.created_date),
+      bedtime: s.bedtime ? format(new Date(s.bedtime), "h:mm a") : null,
+      wakeTime: s.wake_time ? format(new Date(s.wake_time), "h:mm a") : null,
+      duration: durStr,
+      quality: s.quality != null ? s.quality : null,
+      isInterrupted: !!s.is_interrupted,
+      hadNightmare: !!s.had_nightmare,
+      notes: s.notes || null,
+    };
+  });
+
+  const qualityLogs = logs.filter(s => s.quality != null);
+  const avgQuality = qualityLogs.length > 0
+    ? (qualityLogs.reduce((sum, s) => sum + s.quality, 0) / qualityLogs.length).toFixed(1)
+    : null;
+
+  return {
+    logs: withDuration,
+    stats: {
+      totalNights: logs.length,
+      avgQuality,
+      nightmareNights: logs.filter(s => s.had_nightmare).length,
+      interruptedNights: logs.filter(s => s.is_interrupted).length,
+    },
+  };
+}
+
+// ── SECTION: SKILLS & EXERCISES ───────────────────────────────────────────────
+
+export function buildSupportJournalsSection({ dateFrom, dateTo, supportEntries = [], supportDetail = "titles" }) {
+  const items = supportEntries
+    .filter(e => inRange(e.created_date, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+
+  return items.map(e => {
+    const base = {
+      date: fmtDate(e.created_date),
+      title: e.exercise_title || e.exercise_id || "Exercise",
+    };
+    if (supportDetail === "responses" && e.responses && typeof e.responses === "object") {
+      const responseLines = Object.entries(e.responses)
+        .filter(([, v]) => v != null && String(v).trim())
+        .slice(0, 10)
+        .map(([k, v]) => `${k.replace(/_/g, " ")}: ${String(v).trim()}`);
+      return { ...base, responses: responseLines };
+    }
+    return { ...base, responses: [] };
+  });
 }
 
 // ── SECTION: SYSTEM CHECK-INS ─────────────────────────────────────────────────

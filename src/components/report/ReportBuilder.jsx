@@ -3,55 +3,209 @@ import { addDays, format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import NoteworthySettings from "./NoteworthySettings";
-import ReportPreview from "./ReportPreview";
 import { DEFAULT_THRESHOLDS } from "@/lib/reportSections";
+import { useTerms } from "@/lib/useTerms";
 
-const SECTIONS = [
-  "fronting",
-  "emotions",
-  "symptoms",
-  "activities",
-  "journals",
-  "diary",
-  "bulletins",
-  "systemCheckIns",
-  "tasks",
-  "patterns",
-  "alterAppendix",
+function RadioGroup({ value, onChange, options }) {
+  return (
+    <div className="space-y-1 pt-1">
+      {options.map(opt => (
+        <label key={opt.value} className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="radio"
+            checked={value === opt.value}
+            onChange={() => onChange(opt.value)}
+            className="accent-primary"
+          />
+          <span className="text-xs text-muted-foreground">{opt.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+const buildSectionDefs = (t) => [
+  {
+    id: "fronting",
+    label: `${t.Fronting} History`,
+    desc: `Who ${t.fronted || t.fronting}, session durations, and notable ${t.switches}`,
+    subOptions: (opts, set) => (
+      <RadioGroup value={opts.frontingDetail} onChange={v => set("frontingDetail", v)} options={[
+        { value: "summary", label: `Summary table only` },
+        { value: "full", label: `Summary + full session-by-session log` },
+      ]} />
+    ),
+  },
+  {
+    id: "emotions",
+    label: "Emotion Check-Ins",
+    desc: "Most frequent emotions and crisis-level check-ins",
+    subOptions: (opts, set) => (
+      <RadioGroup value={opts.emotionDetail} onChange={v => set("emotionDetail", v)} options={[
+        { value: "highlights", label: "Top emotions + notable events" },
+        { value: "full", label: "Include all check-ins" },
+      ]} />
+    ),
+  },
+  {
+    id: "statusNotes",
+    label: "Custom Status Notes",
+    desc: "Status messages set from the dashboard",
+  },
+  {
+    id: "symptoms",
+    label: "Symptoms & Habits",
+    desc: "Symptom frequency, severity averages, and notable events",
+  },
+  {
+    id: "activities",
+    label: "Activities",
+    desc: "Logged activities and total durations",
+  },
+  {
+    id: "journals",
+    label: "Journal Entries",
+    desc: "Personal journal entries",
+    subOptions: (opts, set) => (
+      <RadioGroup value={opts.journalDetail} onChange={v => set("journalDetail", v)} options={[
+        { value: "summaries", label: "Titles only" },
+        { value: "excerpts", label: "First 400 characters per entry" },
+        { value: "full", label: "Full entries" },
+      ]} />
+    ),
+  },
+  {
+    id: "diary",
+    label: "Diary Cards",
+    desc: "DBT-style diary card data including urges, emotions, body/mind",
+    subOptions: (opts, set) => (
+      <RadioGroup value={opts.diaryDetail} onChange={v => set("diaryDetail", v)} options={[
+        { value: "noteworthy", label: "Noteworthy entries only (high urges / distress)" },
+        { value: "all", label: "All diary cards" },
+      ]} />
+    ),
+  },
+  {
+    id: "locations",
+    label: "Locations",
+    desc: "Places visited, logged manually or by GPS",
+  },
+  {
+    id: "sleep",
+    label: "Sleep Log",
+    desc: "Sleep duration, quality, nightmares, and interruptions",
+  },
+  {
+    id: "bulletins",
+    label: "Bulletin Board",
+    desc: "Internal system bulletin posts",
+    subOptions: (opts, set) => (
+      <RadioGroup value={opts.bulletinDetail} onChange={v => set("bulletinDetail", v)} options={[
+        { value: "titles", label: "Titles only" },
+        { value: "content", label: "Include post content" },
+      ]} />
+    ),
+  },
+  {
+    id: "systemCheckIns",
+    label: `${t.System} Meetings`,
+    desc: `${t.System} check-in and meeting records`,
+  },
+  {
+    id: "supportJournals",
+    label: "Skills & Exercises",
+    desc: "Completed grounding and skills exercises from the Learn section",
+    subOptions: (opts, set) => (
+      <RadioGroup value={opts.supportDetail} onChange={v => set("supportDetail", v)} options={[
+        { value: "titles", label: "Exercise names only" },
+        { value: "responses", label: "Include written responses" },
+      ]} />
+    ),
+  },
+  {
+    id: "tasks",
+    label: "Tasks & Habits",
+    desc: "Daily, weekly, and monthly task completion summary",
+  },
+  {
+    id: "patterns",
+    label: "Patterns & Narrative",
+    desc: "Auto-generated summary of patterns across all your data",
+  },
+  {
+    id: "alterAppendix",
+    label: `${t.Alter} Profiles`,
+    desc: `Profile cards for ${t.alters} who appeared during this period`,
+    subOptions: (opts, set) => (
+      <div className="space-y-2 pt-1">
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <Checkbox checked={opts.alterNames} onCheckedChange={v => set("alterNames", !!v)} />
+          <span className="text-xs text-muted-foreground">
+            Include {opts.alterNames ? `${t.alter} names` : `names`} (uncheck to anonymize all references)
+          </span>
+        </label>
+        {opts.alterNames && (
+          <RadioGroup value={opts.alterDetail} onChange={v => set("alterDetail", v)} options={[
+            { value: "brief", label: "Name, pronouns, and role only" },
+            { value: "full", label: "Full profiles including bios" },
+          ]} />
+        )}
+      </div>
+    ),
+  },
 ];
 
-export default function ReportBuilder({
-  templates,
-  onGenerate,
-  loading,
-}) {
+const DEFAULT_SELECTED = new Set([
+  "fronting", "emotions", "statusNotes", "symptoms", "activities",
+  "journals", "diary", "locations", "sleep", "bulletins",
+  "systemCheckIns", "supportJournals", "tasks", "patterns", "alterAppendix",
+]);
+
+const DEFAULT_OPTIONS = {
+  frontingDetail: "summary",
+  emotionDetail: "highlights",
+  diaryDetail: "noteworthy",
+  journalDetail: "summaries",
+  bulletinDetail: "content",
+  supportDetail: "titles",
+  alterNames: true,
+  alterDetail: "full",
+};
+
+export default function ReportBuilder({ templates, onGenerate, loading }) {
+  const t = useTerms();
+  const SECTIONS = useMemo(() => buildSectionDefs(t), [t]);
+
   const today = format(new Date(), "yyyy-MM-dd");
   const weekAgo = format(addDays(new Date(), -7), "yyyy-MM-dd");
 
   const [dateFrom, setDateFrom] = useState(weekAgo);
   const [dateTo, setDateTo] = useState(today);
   const [periodType, setPeriodType] = useState("week");
-  const [mode, setMode] = useState("smart");
   const [thresholds, setThresholds] = useState(DEFAULT_THRESHOLDS);
-  const [selectedSections, setSelectedSections] = useState(new Set(SECTIONS));
-  const [includeAlterInfo, setIncludeAlterInfo] = useState(true);
-  const [includeAlterAppendix, setIncludeAlterAppendix] = useState(false);
+  const [selectedSections, setSelectedSections] = useState(new Set(DEFAULT_SELECTED));
+  const [sectionOptions, setSectionOptions] = useState(DEFAULT_OPTIONS);
+  const [showThresholds, setShowThresholds] = useState(false);
+
   const [showCoverPage, setShowCoverPage] = useState(true);
   const [systemName, setSystemName] = useState("");
   const [therapistName, setTherapistName] = useState("");
   const [sessionDate, setSessionDate] = useState("");
   const [coverNote, setCoverNote] = useState("");
   const [confidentialityNotice, setConfidentialityNotice] = useState(true);
-  const [journalDetail, setJournalDetail] = useState("summaries");
+
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
 
-  const handleToggleSection = (sec) => {
-    const updated = new Set(selectedSections);
-    if (updated.has(sec)) updated.delete(sec);
-    else updated.add(sec);
-    setSelectedSections(updated);
+  const setOpt = (key, value) => setSectionOptions(prev => ({ ...prev, [key]: value }));
+
+  const handleToggle = (id) => {
+    const next = new Set(selectedSections);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedSections(next);
   };
 
   const handleSetPeriod = (type) => {
@@ -65,289 +219,225 @@ export default function ReportBuilder({
     }
   };
 
-  const handleGenerate = async () => {
-    await onGenerate({
+  const buildConfig = (exportAsText = false) => ({
+    dateFrom,
+    dateTo,
+    mode: "smart",
+    thresholds,
+    selectedSections,
+    config: {
+      systemName,
       dateFrom,
       dateTo,
-      mode,
-      thresholds,
-      selectedSections,
-      config: {
-        systemName,
-        dateFrom,
-        dateTo,
-        therapistName,
-        sessionDate,
-        coverNote,
-        showCoverPage,
-        confidentialityNotice,
-        journalDetail,
-        includeAlterInfo,
-      },
-      saveAsTemplate: saveAsTemplate ? { name: templateName } : null,
-    });
-  };
+      therapistName,
+      sessionDate,
+      coverNote,
+      showCoverPage,
+      confidentialityNotice,
+      journalDetail: sectionOptions.journalDetail,
+      includeAlterInfo: sectionOptions.alterNames,
+      sectionOptions,
+    },
+    exportAsText,
+    saveAsTemplate: saveAsTemplate && templateName ? { name: templateName } : null,
+  });
 
   return (
     <div className="space-y-8 max-w-2xl">
-      {/* Step 1: Time period */}
-      <div className="space-y-3">
+
+      {/* Time period */}
+      <section className="space-y-3">
         <h3 className="font-semibold text-foreground">Time period</h3>
-        <div className="flex gap-2">
-          {["week", "month", "custom"].map(type => (
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { id: "week", label: "Last 7 days" },
+            { id: "month", label: "Last 30 days" },
+            { id: "custom", label: "Custom range" },
+          ].map(p => (
             <button
-              key={type}
-              onClick={() => handleSetPeriod(type)}
+              key={p.id}
+              onClick={() => handleSetPeriod(p.id)}
               className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                periodType === type
+                periodType === p.id
                   ? "bg-primary text-white border-primary"
                   : "border-border text-foreground hover:bg-muted/40"
               }`}
             >
-              {type === "week" ? "Last 7 days" : type === "month" ? "Last 30 days" : "Custom range"}
+              {p.label}
             </button>
           ))}
         </div>
-
         {periodType === "custom" && (
           <div className="flex gap-4">
             <div>
-              <label className="text-sm text-muted-foreground">From</label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="mt-1"
-              />
+              <label className="text-xs text-muted-foreground">From</label>
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="mt-1" />
             </div>
             <div>
-              <label className="text-sm text-muted-foreground">To</label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="mt-1"
-              />
+              <label className="text-xs text-muted-foreground">To</label>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="mt-1" />
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Step 2: Report mode */}
-      <div className="space-y-3">
-        <h3 className="font-semibold text-foreground">Report mode</h3>
+      {/* What to include */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-foreground">What to include</h3>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setSelectedSections(new Set(SECTIONS.map(s => s.id)))}
+              className="text-xs text-primary hover:underline"
+            >
+              Select all
+            </button>
+            <button
+              onClick={() => setSelectedSections(new Set())}
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
+        </div>
+
         <div className="space-y-2">
-          {[
-            { id: "everything", label: "Everything", desc: "All data in the date range" },
-            { id: "smart", label: "Smart highlights", desc: "Auto-surface notable events" },
-            { id: "custom", label: "I'll choose", desc: "Manually select sections" },
-          ].map(m => (
-            <label key={m.id} className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/20 transition-colors">
-              <input
-                type="radio"
-                value={m.id}
-                checked={mode === m.id}
-                onChange={(e) => setMode(e.target.value)}
-                className="mt-1"
-              />
-              <div>
-                <p className="font-medium text-sm text-foreground">{m.label}</p>
-                <p className="text-xs text-muted-foreground">{m.desc}</p>
+          {SECTIONS.map(sec => {
+            const isOn = selectedSections.has(sec.id);
+            return (
+              <div
+                key={sec.id}
+                className={`rounded-xl border transition-colors ${
+                  isOn ? "border-primary/25 bg-primary/5" : "border-border/60 bg-background"
+                }`}
+              >
+                <label className="flex items-start gap-3 p-3 cursor-pointer select-none">
+                  <Checkbox
+                    checked={isOn}
+                    onCheckedChange={() => handleToggle(sec.id)}
+                    className="mt-0.5 flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium leading-snug ${isOn ? "text-foreground" : "text-muted-foreground"}`}>
+                      {sec.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{sec.desc}</p>
+                  </div>
+                </label>
+
+                {isOn && sec.subOptions && (
+                  <div className="px-10 pb-3">
+                    {sec.subOptions(sectionOptions, setOpt)}
+                  </div>
+                )}
               </div>
-            </label>
-          ))}
+            );
+          })}
         </div>
-      </div>
+      </section>
 
-      {/* Step 3: Thresholds (smart mode) */}
-      {mode !== "custom" && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-foreground">Noteworthy thresholds</h3>
-          <NoteworthySettings thresholds={thresholds} onChange={setThresholds} />
-        </div>
-      )}
-
-      {/* Step 4: Sections (custom mode) */}
-      {mode === "custom" && (
-        <div className="space-y-3">
-          <h3 className="font-semibold text-foreground">Sections to include</h3>
-          <div className="space-y-2">
-            {SECTIONS.map(sec => (
-              <label key={sec} className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/20 rounded">
-                <Checkbox
-                  checked={selectedSections.has(sec)}
-                  onCheckedChange={() => handleToggleSection(sec)}
-                />
-                <span className="text-sm text-foreground capitalize">{sec.replace(/([A-Z])/g, " $1")}</span>
-              </label>
-            ))}
+      {/* Noteworthy thresholds */}
+      <section>
+        <button
+          onClick={() => setShowThresholds(v => !v)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showThresholds ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          <span className="font-medium">Noteworthy thresholds</span>
+          <span className="text-xs">(when to flag events as notable)</span>
+        </button>
+        {showThresholds && (
+          <div className="mt-3">
+            <NoteworthySettings thresholds={thresholds} onChange={setThresholds} />
           </div>
-        </div>
-      )}
-
-      {/* Step 5: Alter info */}
-      <div className="space-y-3">
-        <h3 className="font-semibold text-foreground">Alter information</h3>
-        <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/20">
-          <input
-            type="checkbox"
-            checked={includeAlterInfo}
-            onChange={(e) => setIncludeAlterInfo(e.target.checked)}
-            className="mt-1"
-          />
-          <div>
-            <p className="font-medium text-sm text-foreground">Include alter names in report</p>
-            <p className="text-xs text-muted-foreground">If off, all alter references are anonymized</p>
-          </div>
-        </label>
-
-        {includeAlterInfo && (
-          <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/20">
-            <input
-              type="checkbox"
-              checked={includeAlterAppendix}
-              onChange={(e) => setIncludeAlterAppendix(e.target.checked)}
-              className="mt-1"
-            />
-            <div>
-              <p className="font-medium text-sm text-foreground">Include alter profiles appendix</p>
-              <p className="text-xs text-muted-foreground">Role, pronouns, bio for context</p>
-            </div>
-          </label>
         )}
-      </div>
+      </section>
 
-      {/* Step 6: Cover page */}
-      <div className="space-y-3">
+      {/* Cover page */}
+      <section className="space-y-3">
         <h3 className="font-semibold text-foreground">Cover page</h3>
-        <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/20">
+        <label className="flex items-center gap-3 p-3 border border-border rounded-xl cursor-pointer hover:bg-muted/20 select-none">
           <input
             type="checkbox"
             checked={showCoverPage}
-            onChange={(e) => setShowCoverPage(e.target.checked)}
-            className="mt-1"
+            onChange={e => setShowCoverPage(e.target.checked)}
           />
-          <div>
-            <p className="font-medium text-sm text-foreground">Include cover page</p>
-          </div>
+          <span className="text-sm font-medium text-foreground">Include cover page</span>
         </label>
-
         {showCoverPage && (
-          <div className="space-y-3 pl-8">
+          <div className="space-y-3 pl-6">
             <Input
-              placeholder="System name (e.g. 'Our System')"
+              placeholder={`System name (e.g. "Our System")`}
               value={systemName}
-              onChange={(e) => setSystemName(e.target.value)}
+              onChange={e => setSystemName(e.target.value)}
             />
             <Input
               placeholder="Therapist name (optional)"
               value={therapistName}
-              onChange={(e) => setTherapistName(e.target.value)}
+              onChange={e => setTherapistName(e.target.value)}
             />
             <Input
               type="date"
-              placeholder="Session date (optional)"
               value={sessionDate}
-              onChange={(e) => setSessionDate(e.target.value)}
+              onChange={e => setSessionDate(e.target.value)}
             />
             <textarea
               placeholder="Personal note to therapist (optional)"
               value={coverNote}
-              onChange={(e) => setCoverNote(e.target.value)}
-              className="w-full h-20 p-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none"
+              onChange={e => setCoverNote(e.target.value)}
+              className="w-full h-20 p-2 border border-border rounded-lg bg-background text-foreground text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
             />
-
-            <label className="flex items-start gap-2 text-sm">
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={confidentialityNotice}
-                onChange={(e) => setConfidentialityNotice(e.target.checked)}
-                className="mt-0.5"
+                onChange={e => setConfidentialityNotice(e.target.checked)}
               />
               <span className="text-muted-foreground">Include confidentiality notice on every page</span>
             </label>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Step 7: Journal detail */}
-      <div className="space-y-3">
-        <h3 className="font-semibold text-foreground">Journal entries</h3>
-        <select
-          value={journalDetail}
-          onChange={(e) => setJournalDetail(e.target.value)}
-          className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm"
-        >
-          <option value="summaries">Titles only</option>
-          <option value="excerpts">First 400 chars per entry</option>
-          <option value="full">Full entries</option>
-        </select>
-      </div>
-
-      {/* Step 8: Save as template */}
-      <div className="space-y-3">
-        <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/20">
+      {/* Save as template */}
+      <section>
+        <label className="flex items-start gap-3 p-3 border border-border rounded-xl cursor-pointer hover:bg-muted/20 select-none">
           <input
             type="checkbox"
             checked={saveAsTemplate}
-            onChange={(e) => setSaveAsTemplate(e.target.checked)}
+            onChange={e => setSaveAsTemplate(e.target.checked)}
             className="mt-1"
           />
           <div className="flex-1">
-            <p className="font-medium text-sm text-foreground">Save these settings as a template</p>
+            <p className="text-sm font-medium text-foreground">Save these settings as a template</p>
             {saveAsTemplate && (
               <Input
                 placeholder="Template name"
                 value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
+                onChange={e => setTemplateName(e.target.value)}
                 className="mt-2"
               />
             )}
           </div>
         </label>
-      </div>
+      </section>
 
-      {/* Preview */}
-      <ReportPreview sections={selectedSections} mode={mode} />
-
-      {/* Generate buttons */}
+      {/* Generate */}
       <div className="flex gap-3">
         <Button
-          onClick={handleGenerate}
-          disabled={loading}
+          onClick={() => onGenerate(buildConfig(false))}
+          disabled={loading || selectedSections.size === 0}
           className="flex-1 py-6 text-base"
         >
-          {loading ? "Generating..." : "Download PDF"}
+          {loading ? "Generating…" : "Download PDF"}
         </Button>
         <Button
-          onClick={() => {
-            onGenerate({
-              dateFrom,
-              dateTo,
-              mode,
-              thresholds,
-              selectedSections,
-              config: {
-                systemName,
-                dateFrom,
-                dateTo,
-                therapistName,
-                sessionDate,
-                coverNote,
-                showCoverPage,
-                confidentialityNotice,
-                journalDetail,
-                includeAlterInfo,
-              },
-              exportAsText: true,
-              saveAsTemplate: saveAsTemplate ? { name: templateName } : null,
-            });
-          }}
-          disabled={loading}
+          onClick={() => onGenerate(buildConfig(true))}
+          disabled={loading || selectedSections.size === 0}
           variant="outline"
           className="flex-1 py-6 text-base"
         >
-          {loading ? "..." : "Copy as Text"}
+          {loading ? "…" : "Copy as Text"}
         </Button>
       </div>
     </div>
