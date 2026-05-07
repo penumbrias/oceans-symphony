@@ -7,7 +7,7 @@ import {
 } from '@/lib/useAccessibility';
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Palette, X, ChevronDown, Search, Check, Trash2, Link2, LinkOff, Save } from 'lucide-react';
+import { Palette, X, ChevronDown, Search, Check, Trash2, Link2, Unlink, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import '@/lib/editorFonts.js'; // ensure all fonts are loaded
 
@@ -483,7 +483,7 @@ export default function AdvancedAppearance() {
                       onClick={() => unlinkAlterTheme(alter.id)}
                       className="p-1 rounded text-muted-foreground hover:text-foreground flex-shrink-0"
                     >
-                      <LinkOff className="w-3.5 h-3.5" />
+                      <Unlink className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
