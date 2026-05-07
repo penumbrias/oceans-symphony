@@ -53,6 +53,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
   // Members/groups/polls/notes import
   const [importMode, setImportMode] = useState("standard");
+  const [includeAlters, setIncludeAlters] = useState(true);
   const [includeGroups, setIncludeGroups] = useState(true);
   const [includeCustomFields, setIncludeCustomFields] = useState(true);
   const [includeAvatars, setIncludeAvatars] = useState(false);
@@ -106,12 +107,14 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       if (localMode) {
         const { sp_token: tok, sp_system_id: sysId } = effectiveSettings;
 
-        // ── Step 1: Fetch members & groups (always needed) ──
-        setImportProgress("Fetching members…");
-        const members = await getMembers(tok, sysId);
+        // ── Step 1: Fetch members & groups (only when needed) ──
+        const members = (includeAlters || includeNotes)
+          ? (setImportProgress("Fetching members…"), await getMembers(tok, sysId))
+          : [];
 
-        setImportProgress("Fetching groups…");
-        const groups = await getGroups(tok, sysId);
+        const groups = (includeAlters || includeGroups)
+          ? (setImportProgress("Fetching groups…"), await getGroups(tok, sysId))
+          : [];
 
         const groupsById = {};
         for (const g of groups) {
@@ -163,48 +166,52 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           }
         }
 
-        // Pass only groupsById when groups are being included (otherwise preserve local group assignments)
-        const effectiveGroupsById = includeGroups ? groupsById : {};
-        const mappedAlters = members.map((m) => mapMemberToAlter(m, effectiveGroupsById, fieldIdMap));
-
-        // ── Step 3: Alters ──
-        setImportProgress("Importing alters…");
-        const existingAlters = await localEntities.Alter.list();
+        // ── Step 3: Alters (optional) ──
         let altersCreated = 0, altersUpdated = 0;
         const alterIdBySpId = {};
-        if (importMode === "replace_all") {
-          for (const a of existingAlters) await localEntities.Alter.delete(a.id);
-          for (const a of mappedAlters) {
-            const created = await localEntities.Alter.create(a);
-            alterIdBySpId[a.sp_id] = created.id;
-            altersCreated++;
-          }
-        } else {
-          const existingBySpId = {};
-          for (const a of existingAlters) {
-            if (a.sp_id) existingBySpId[a.sp_id] = a;
-            if (a.sp_id) alterIdBySpId[a.sp_id] = a.id;
-          }
-          for (const incoming of mappedAlters) {
-            const existing = existingBySpId[incoming.sp_id];
-            if (existing) {
-              if (importMode !== "new_only") {
-                const updateData = { ...incoming };
-                if (!includeAvatars) {
-                  delete updateData.avatar_url;
-                  delete updateData.banner_url;
-                }
-                await localEntities.Alter.update(existing.id, updateData);
-                altersUpdated++;
-              }
-              alterIdBySpId[incoming.sp_id] = existing.id;
-            } else {
-              // New alter — always include avatar (nothing to overwrite)
-              const created = await localEntities.Alter.create(incoming);
-              alterIdBySpId[incoming.sp_id] = created.id;
+
+        if (includeAlters) {
+          const effectiveGroupsById = includeGroups ? groupsById : {};
+          const mappedAlters = members.map((m) => mapMemberToAlter(m, effectiveGroupsById, fieldIdMap));
+          setImportProgress("Importing alters…");
+          const existingAlters = await localEntities.Alter.list();
+          if (importMode === "replace_all") {
+            for (const a of existingAlters) await localEntities.Alter.delete(a.id);
+            for (const a of mappedAlters) {
+              const created = await localEntities.Alter.create(a);
+              alterIdBySpId[a.sp_id] = created.id;
               altersCreated++;
             }
+          } else {
+            const existingBySpId = {};
+            for (const a of existingAlters) {
+              if (a.sp_id) existingBySpId[a.sp_id] = a;
+              if (a.sp_id) alterIdBySpId[a.sp_id] = a.id;
+            }
+            for (const incoming of mappedAlters) {
+              const existing = existingBySpId[incoming.sp_id];
+              if (existing) {
+                if (importMode !== "new_only") {
+                  const updateData = { ...incoming };
+                  if (!includeAvatars) {
+                    delete updateData.avatar_url;
+                    delete updateData.banner_url;
+                  }
+                  await localEntities.Alter.update(existing.id, updateData);
+                  altersUpdated++;
+                }
+                alterIdBySpId[incoming.sp_id] = existing.id;
+              } else {
+                const created = await localEntities.Alter.create(incoming);
+                alterIdBySpId[incoming.sp_id] = created.id;
+                altersCreated++;
+              }
+            }
           }
+        } else {
+          // Alters skipped — still build alterIdBySpId so polls/notes can resolve alter references
+          const existingAlters = await localEntities.Alter.list();
+          for (const a of existingAlters) { if (a.sp_id) alterIdBySpId[a.sp_id] = a.id; }
         }
 
         // ── Step 3b: Custom fronts as alters (optional) ──
@@ -342,7 +349,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         setImportProgress("");
 
         const parts = [
-          `Alters: ${altersCreated} new, ${altersUpdated} updated`,
+          includeAlters && `Alters: ${altersCreated} new, ${altersUpdated} updated`,
           includeCustomFronts && (customFrontsCreated > 0 || customFrontsUpdated > 0) && `Custom fronts: ${customFrontsCreated} new, ${customFrontsUpdated} updated`,
           includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
           includeCustomFields && fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
@@ -539,24 +546,31 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               {/* What to include */}
               <div className="space-y-1.5">
                 <p className="text-xs text-muted-foreground font-medium">Include:</p>
-                <label className="flex items-center gap-2 text-sm cursor-default opacity-60 select-none">
-                  <input type="checkbox" checked disabled readOnly className="rounded" />
-                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                  Alters (always)
-                </label>
-                <label className="flex items-center gap-2 text-sm cursor-pointer select-none ml-5">
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    checked={includeAvatars}
-                    onChange={(e) => setIncludeAvatars(e.target.checked)}
+                    checked={includeAlters}
+                    onChange={(e) => setIncludeAlters(e.target.checked)}
                     className="rounded"
                   />
-                  <ImageOff className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>
-                    Overwrite avatars on existing alters
-                    <span className="text-muted-foreground/60 text-xs ml-1">(new alters always get theirs)</span>
-                  </span>
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  Alters
                 </label>
+                {includeAlters && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none ml-5">
+                    <input
+                      type="checkbox"
+                      checked={includeAvatars}
+                      onChange={(e) => setIncludeAvatars(e.target.checked)}
+                      className="rounded"
+                    />
+                    <ImageOff className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>
+                      Overwrite avatars on existing alters
+                      <span className="text-muted-foreground/60 text-xs ml-1">(new alters always get theirs)</span>
+                    </span>
+                  </label>
+                )}
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input
                     type="checkbox"
