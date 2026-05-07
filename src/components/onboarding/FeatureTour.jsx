@@ -424,10 +424,10 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "activities", sectionLabel: "Activities",
       emoji: "⏱️",
-      title: "Categories, Duration & Notes",
-      body: `When logging an activity, give it a name, an optional category (from your configured list or create new), an optional duration in minutes, and optional notes. Duration and category unlock the Activities analytics charts — the more you fill in, the richer the analysis.`,
+      title: "Activity Type, Duration & Notes",
+      body: `When logging an activity, give it a name, an optional activity type (from your configured list or create new), an optional duration in minutes, and optional notes. Duration and activity type unlock the Activities analytics charts — the more you fill in, the richer the analysis.`,
       route: "/activities", target: "activities-log",
-      look: `tap any time slot in the grid to open the activity log form — notice the category and duration fields`, action: null,
+      look: `tap any time slot in the grid to open the activity log form — notice the activity type and duration fields`, action: null,
     },
 
     // ─── POLLS ──────────────────────────────────────────────────────────────
@@ -495,7 +495,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "analytics", sectionLabel: "Analytics",
       emoji: "💜",
       title: "Emotions, Symptoms & Activities",
-      body: `Emotions shows mood trends and check-in frequency over time. Symptoms tracks recurring patterns and can correlate with specific ${t.alters}. Activities shows time-per-category trends and an ${t.Alter} × Activity matrix. All three sections have date range pickers — 7d, 30d, 90d, 1y, All Time, or Custom.`,
+      body: `Emotions shows mood trends and check-in frequency over time. Symptoms tracks recurring patterns and can correlate with specific ${t.alters}. Activities shows time-per-activity-type trends and an ${t.Alter} × Activity matrix. All three sections have date range pickers — 7d, 30d, 90d, 1y, All Time, or Custom.`,
       route: "/analytics", target: "analytics-charts",
       look: `tap Emotions, Symptoms, or Activities on the analytics grid`, action: null,
     },

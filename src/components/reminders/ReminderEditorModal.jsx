@@ -703,7 +703,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                   )}
                   {rule.on === "activity" && (
                     <div>
-                      <Label className="text-xs text-muted-foreground">Which activity category</Label>
+                      <Label className="text-xs text-muted-foreground">Which activity</Label>
                       <SearchableSelect
                         className="mt-1"
                         value={rule.category_id || null}
@@ -713,7 +713,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                           label: c.name,
                           color: c.color,
                         }))}
-                        placeholder="— any category —"
+                        placeholder="— any activity —"
                         allowClear
                       />
                     </div>

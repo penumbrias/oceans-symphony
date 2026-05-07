@@ -148,7 +148,7 @@ export default function ActivityEntryModal({
 
           {/* Category */}
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="category">Activity Type</Label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger id="category">
                 <SelectValue />
