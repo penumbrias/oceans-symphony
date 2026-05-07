@@ -17,6 +17,26 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Friends: \"Notify on change\" push notifications now work correctly. Fixed a bug where the notification preference wasn't visible to the friend's account when they updated their front. Also re-syncs your push subscription to the server automatically when you open the Friends page.",
+      },
+      {
+        type: "feature",
+        text: "Alter directory: view toggle now cycles through list → 2 → 3 → 4 → 5 columns → list on each tap, replacing the separate column-count button.",
+      },
+      {
+        type: "feature",
+        text: "Alter directory: new screenshot/anonymize toggle (camera icon) cycles through off → blur names → blur names & avatars. Useful for taking screenshots without revealing identities.",
+      },
+      {
+        type: "improve",
+        text: "Settings reorganized: \"System\" section renamed to \"Profile\"; Analytics grouping moved into \"Tracking & Analytics\" (was a separate section); Archived Alters list now scrollable when long.",
+      },
+      {
+        type: "fix",
+        text: "Archived Alters header now uses your custom terminology instead of the hardcoded word \"Members\".",
+      },
+      {
+        type: "fix",
         text: "Reminder delivery channels are now respected: reminders set to \"Browser push\" only no longer incorrectly show an in-app banner. The push channel only fires when the reminder has it selected.",
       },
       {

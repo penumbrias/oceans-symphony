@@ -24,7 +24,7 @@ import {
   toggleNotify,
   pushFrontStatus,
 } from "@/lib/friendsApi";
-import { isPushEnabled } from "@/lib/pushRegistration";
+import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -475,6 +475,23 @@ export default function FriendsPage() {
       } catch (_) {}
     })();
   }, [identity, terms.fronting, terms.front, terms.alter, terms.system]);
+
+  // On mount, re-save push subscription to KV if push is enabled.
+  // This handles the case where VAPID keys were added after notifyOnChange was set.
+  useEffect(() => {
+    if (!identity) return;
+    isPushEnabled().then(enabled => {
+      if (!enabled) return;
+      return getActivePushSubscription().then(sub => {
+        if (!sub) return;
+        fetch('/api/friends/save-push-sub', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: identity.userId, secret: identity.secret, subscription: sub }),
+        }).catch(() => {});
+      });
+    }).catch(() => {});
+  }, [identity]);
 
   const copyCode = useCallback(() => {
     if (!identity?.friendCode) return;

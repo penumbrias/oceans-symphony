@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-function AlterCard({ alter, fronting, isPrimary, compact, onDoubleClick, onMouseDown, onMouseUp, onMouseLeave }) {
+function AlterCard({ alter, fronting, isPrimary, compact, onDoubleClick, onMouseDown, onMouseUp, onMouseLeave, anonymize = "off" }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -31,7 +31,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onDoubleClick, onMouse
           src={resolvedUrl}
           alt={alter.name}
           style={{ boxShadow }}
-          className={`rounded-full object-cover transition-all cursor-pointer select-none ${sizeClass}`}
+          className={`rounded-full object-cover transition-all cursor-pointer select-none ${sizeClass} ${anonymize === "all" ? "blur-sm" : ""}`}
           draggable={false}
           onError={() => setImgError(true)}
         />
@@ -41,21 +41,21 @@ function AlterCard({ alter, fronting, isPrimary, compact, onDoubleClick, onMouse
             backgroundColor: fronting ? `${alterColor}30` : "hsl(var(--muted))",
             boxShadow,
           }}
-          className={`rounded-full flex items-center justify-center transition-all cursor-pointer select-none ${sizeClass}`}
+          className={`rounded-full flex items-center justify-center transition-all cursor-pointer select-none ${sizeClass} ${anonymize === "all" ? "blur-sm" : ""}`}
         >
           <span className="text-xs font-semibold text-muted-foreground">
             {alter.name.slice(0, 2)}
           </span>
         </div>
       )}
-      <span className="text-xs text-center font-medium truncate w-full px-1">
+      <span className={`text-xs text-center font-medium truncate w-full px-1 ${anonymize !== "off" ? "blur-sm" : ""}`}>
         {alter.alias?.slice(0, 5) || alter.name.slice(0, 5)}
       </span>
     </div>
   );
 }
 
-export default function AlterGridView({ alters, activeSessions = [], allAlters = [], cols = 3 }) {
+export default function AlterGridView({ alters, activeSessions = [], allAlters = [], cols = 3, anonymize = "off" }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
@@ -112,9 +112,12 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     }
   };
 
-  const colsClass = cols === 4
-    ? "grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7"
-    : "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6";
+  const colsClass = {
+    2: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
+    3: "grid-cols-3 sm:grid-cols-4 md:grid-cols-5",
+    4: "grid-cols-4 sm:grid-cols-5 md:grid-cols-6",
+    5: "grid-cols-5 sm:grid-cols-6 md:grid-cols-7",
+  }[cols] || "grid-cols-3 sm:grid-cols-4 md:grid-cols-5";
 
   return (
     <div className={`grid ${colsClass} gap-3`}>
@@ -129,6 +132,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           onMouseDown={() => handleMouseDown(alter)}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseLeave}
+          anonymize={anonymize}
         />
       ))}
     </div>

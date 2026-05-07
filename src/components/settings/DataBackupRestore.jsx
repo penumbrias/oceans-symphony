@@ -21,6 +21,7 @@ const LS_SETTINGS_KEYS = [
   "symphony_a11y_navHeight",
   "alter_hide_grouped",
   "alter_grid_cols",
+  "alter_display_mode",
   "nav_grid_layout",
   "nav_grid_cols",
 ];
