@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
 import { Activity, Heart } from "lucide-react";
@@ -45,7 +45,6 @@ function AlterAvatar({ alter, color, heightPx, topOffsetPx }) {
 }
 
 export default function HourlyTimeline({ hours, sessions, activities, emotions, alters, dayStart }) {
-  const [expandedItem, setExpandedItem] = useState(null);
 
   const totalMinutes = hours.length * 60;
   const containerHeight = hours.length * HOUR_HEIGHT;
@@ -176,16 +175,14 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
             {events.map((evt, idx) => {
               const topPx = (evt.mins / 60) * HOUR_HEIGHT;
               const key = `${evt.type}-${idx}`;
-              const isExpanded = expandedItem === key;
 
               if (evt.type === "activity") {
                 const a = evt.data;
                 return (
                   <div
                     key={key}
-                    className="absolute left-1 right-1 cursor-pointer"
+                    className="absolute left-1 right-1"
                     style={{ top: `${topPx}px` }}
-                    onClick={() => setExpandedItem(isExpanded ? null : key)}
                   >
                     <div className="flex items-start gap-1.5">
                       <div
@@ -196,15 +193,6 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
                       </div>
                       <div className="text-xs pt-0.5 overflow-hidden">
                         <p className="font-semibold leading-tight truncate">{a.activity_name}</p>
-                        {isExpanded && (
-                          <>
-                            <p className="text-muted-foreground">{format(new Date(a.timestamp), "h:mm a")}</p>
-                            {a.duration_minutes && (
-                              <p className="text-muted-foreground">{a.duration_minutes}m</p>
-                            )}
-                            {a.notes && <p className="italic text-muted-foreground">{a.notes}</p>}
-                          </>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -212,35 +200,18 @@ export default function HourlyTimeline({ hours, sessions, activities, emotions, 
               }
 
               if (evt.type === "emotion") {
-                const e = evt.data;
                 return (
                   <div
                     key={key}
-                    className="absolute left-1 right-1 cursor-pointer"
+                    className="absolute left-1 right-1"
                     style={{ top: `${topPx}px` }}
-                    onClick={() => setExpandedItem(isExpanded ? null : key)}
                   >
                     <div className="flex items-start gap-1.5">
                       <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 bg-destructive/20">
                         <Heart className="w-3 h-3 text-destructive" />
                       </div>
                       <div className="text-xs pt-0.5 overflow-hidden">
-                        {isExpanded ? (
-                          <>
-                            <p className="text-muted-foreground">{format(new Date(e.timestamp), "h:mm a")}</p>
-                            {e.emotions?.length > 0 && (
-                              <div className="flex gap-1 flex-wrap mt-0.5">
-                                {e.emotions.map((em) => (
-                                  <span key={em} className="px-1 py-0.5 rounded-full bg-muted text-muted-foreground text-xs">
-                                    {em}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <p className="font-semibold leading-tight text-muted-foreground truncate">Check-in</p>
-                        )}
+                        <p className="font-semibold leading-tight text-muted-foreground truncate">Check-in</p>
                       </div>
                     </div>
                   </div>
