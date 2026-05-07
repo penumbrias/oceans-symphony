@@ -47,8 +47,13 @@ function checkPageBreak(doc, y, needed = 20) {
 }
 
 function wrappedText(doc, text, x, y, maxWidth, lineHeight = 5) {
-  const lines = doc.splitTextToSize(text, maxWidth);
+  const lines = doc.splitTextToSize(String(text || ""), maxWidth);
+  const pageH = doc.internal.pageSize.height;
   lines.forEach(line => {
+    if (y + lineHeight > pageH - 18) {
+      doc.addPage();
+      y = 18;
+    }
     doc.text(line, x, y);
     y += lineHeight;
   });
@@ -88,6 +93,10 @@ function drawTable(doc, headers, rows, y, colWidths = null) {
   doc.setTextColor(50, 50, 50);
   doc.setFont("helvetica", "normal");
   rows.forEach((row, ri) => {
+    if (y + rowH > doc.internal.pageSize.height - 18) {
+      doc.addPage();
+      y = 18;
+    }
     if (ri % 2 === 1) {
       x = MARGIN;
       doc.setFillColor(...LIGHT_BG);

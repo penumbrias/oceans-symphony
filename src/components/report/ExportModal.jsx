@@ -39,6 +39,15 @@ export default function ExportModal({ isOpen, onClose, content, filename, format
     }
   };
 
+  const handleDownload = () => {
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
@@ -53,17 +62,13 @@ export default function ExportModal({ isOpen, onClose, content, filename, format
             <p className="text-sm text-muted-foreground text-center max-w-sm">
               Your PDF is ready. Tap <strong>Download PDF</strong> to save it, or use <strong>Share</strong> to send it directly to another app.
             </p>
-            <a
-              href={blobUrl}
-              download={filename}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              onClick={handleDownload}
               className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity"
-              onClick={onClose}
             >
               <Download className="w-4 h-4" />
               Download PDF
-            </a>
+            </button>
             <p className="text-xs text-muted-foreground text-center">
               On iOS: tap Download, then use the share icon in the PDF viewer to save to Files.
             </p>
