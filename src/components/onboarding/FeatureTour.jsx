@@ -692,6 +692,24 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       look: `the highlighted Data & Privacy section — tap its header to expand it`, action: null,
     },
 
+    // ─── FRIENDS ────────────────────────────────────────────────────────────
+    {
+      section: "friends", sectionLabel: "Friends",
+      emoji: "🤝",
+      title: "Friends & Front Sharing",
+      body: `The Friends page lets you share who is ${t.fronting} with trusted people outside your ${t.system}. You get a unique friend code — share it with a friend and they share theirs, then you each accept the request. Once connected, you can each see the other's front status in real time.`,
+      route: "/friends", target: "friends-code",
+      look: `the highlighted Friends page with your unique friend code`, action: null,
+    },
+    {
+      section: "friends", sectionLabel: "Friends",
+      emoji: "🔔",
+      title: "Front Change Notifications",
+      body: `For each friend you can toggle "Notify on change" — when their front updates, you'll get a push notification. If you prefer not to be pinged, their front status still refreshes in the Friends list every minute so you can check at your own pace. Privacy levels let you share names, count only, or keep the front fully hidden.`,
+      route: "/friends", target: null,
+      look: `the Friends list with a friend card expanded to show the notify toggle`, action: null,
+    },
+
     // ─── DONE ───────────────────────────────────────────────────────────────
     {
       section: "done", sectionLabel: "Done!",

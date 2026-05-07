@@ -500,7 +500,7 @@ export default function FriendsPage() {
       </div>
 
       {/* Friend code card */}
-      <div className="rounded-xl border border-border/50 bg-card p-4">
+      <div data-tour="friends-code" className="rounded-xl border border-border/50 bg-card p-4">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
           Your Friend Code
         </p>
