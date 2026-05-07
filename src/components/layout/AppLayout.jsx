@@ -18,6 +18,8 @@ import FeatureTour from "@/components/onboarding/FeatureTour";
 import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
+import { toast } from "sonner";
+import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
@@ -34,6 +36,58 @@ export default function AppLayout() {
   const [showFeatureTour, setShowFeatureTour] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useRemindersScheduler();
+
+  // Poll friends every 60 s and show in-app banner when a friend's front changes.
+  // On first run (app open) this replaces the old one-time check.
+  useEffect(() => {
+    async function checkFriendFrontChanges() {
+      try {
+        const identity = await getLocalIdentity();
+        if (!identity) return;
+        const data = await fetchFriendsList().catch(() => null);
+        if (!data?.friends?.length) return;
+
+        const snapshots = JSON.parse(localStorage.getItem("friends_front_snapshots") || "{}");
+        const newSnapshots = { ...snapshots };
+
+        for (const friend of data.friends) {
+          const updatedAt = friend.front?.updatedAt;
+          const fronters = friend.front?.fronters || [];
+          const privacyLevel = friend.front?.privacyLevel || 'names';
+
+          const prev = snapshots[friend.userId];
+          // Initialise snapshot without toasting on first sight
+          if (!prev) { newSnapshots[friend.userId] = { updatedAt, fronters }; continue; }
+          if (!updatedAt || updatedAt === prev.updatedAt) continue;
+
+          const label = friend.displayName || friend.systemName || 'A friend';
+          let fronterLine;
+          if (privacyLevel === 'hidden') {
+            fronterLine = 'updated their front';
+          } else if (privacyLevel === 'count_only') {
+            fronterLine = `${fronters.length} fronting`;
+          } else {
+            fronterLine = fronters.length
+              ? fronters.map(f => f.name).join(', ')
+              : 'no one fronting';
+          }
+
+          toast(`🔔 ${label}: ${fronterLine}`, {
+            description: 'Front updated',
+            duration: 10000,
+          });
+
+          newSnapshots[friend.userId] = { updatedAt, fronters };
+        }
+
+        localStorage.setItem("friends_front_snapshots", JSON.stringify(newSnapshots));
+      } catch (_) {}
+    }
+
+    checkFriendFrontChanges();
+    const id = setInterval(checkFriendFrontChanges, 60_000);
+    return () => clearInterval(id);
+  }, []); // intentional — runs once on mount, interval keeps it live
 
 const { data: systemSettings = [] } = useQuery({
   queryKey: ["systemSettings"],

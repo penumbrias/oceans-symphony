@@ -26,16 +26,45 @@ function capitalize(word) {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-// Gerund helper: word → word + "ing" with basic English rules
+const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
+// Consonants that are never doubled (digraphs, semivowels, etc.)
+const NO_DOUBLE = new Set(['w', 'x', 'y', 'h']);
+
+// Returns true if appending a vowel suffix needs consonant doubling.
+// Rule: final consonant (CVC pattern) after a single vowel preceded by a consonant.
+// Handles: control→controlling, run→running, sit→sitting
+// Does NOT double for: front→fronting (t after n), head→heading (ea digraph), shift→shifting (ft cluster)
+function needsDoubling(word) {
+  const len = word.length;
+  if (len < 3) return false;
+  const c = word[len - 1]; // final char
+  const v = word[len - 2]; // penultimate
+  const b = word[len - 3]; // antepenultimate
+  return (
+    !VOWELS.has(c) && !NO_DOUBLE.has(c) && // final is a doubleable consonant
+    VOWELS.has(v) &&                         // preceded by single vowel
+    !VOWELS.has(b)                           // preceded by a consonant (not a vowel digraph)
+  );
+}
+
+// Gerund helper: word → word + "ing" with correct English spelling rules
 function gerund(word) {
   if (!word) return word;
-  // Drop silent 'e' and add 'ing' (but not 'ee' words)
-  if (word.endsWith('e') && !word.endsWith('ee')) {
-    return word.slice(0, -1) + 'ing';
-  }
-  // For simple single-syllable CVC, double final consonant (but keep simple)
-  // e.g., "run" -> "running". We'll skip this for now to keep simple.
+  // Drop silent 'e' before vowel suffix (drive→driving, but not agree→agreeing)
+  if (word.endsWith('e') && !word.endsWith('ee')) return word.slice(0, -1) + 'ing';
+  // Double final consonant in CVC pattern (control→controlling, run→running)
+  if (needsDoubling(word)) return word + word[word.length - 1] + 'ing';
   return word + 'ing';
+}
+
+// Agent noun: word → word + "er" with correct English spelling rules
+function agent(word) {
+  if (!word) return word;
+  // Words ending in 'e': just add 'r' (drive→driver)
+  if (word.endsWith('e') && !word.endsWith('ee')) return word + 'r';
+  // Double final consonant in CVC pattern (control→controller, run→runner)
+  if (needsDoubling(word)) return word + word[word.length - 1] + 'er';
+  return word + 'er';
 }
 
 export function useTerms() {
@@ -84,14 +113,14 @@ export function useTerms() {
     const Fronts_cap = capitalize(fronts_lower);
     const fronting_lower = gerund(fr);
     const Fronting_cap = capitalize(fronting_lower);
-    const fronter_lower = fr + 'er';
+    const fronter_lower = agent(fr);
     const Fronter_cap = capitalize(fronter_lower);
     const fronters_lower = pluralize(fronter_lower);
     const Fronters_cap = capitalize(fronters_lower);
 
     // Co-fronter variants
-    const cofronter_lower = `co-${alter_lower}`;
-    const Cofronter_cap = `Co-${Alter_cap}`;
+    const cofronter_lower = `co-${fronter_lower}`;
+    const Cofronter_cap = `Co-${Fronter_cap}`;
     const cofronters_lower = pluralize(cofronter_lower);
     const Cofronters_cap = capitalize(cofronters_lower);
     const cofronting_lower = `co-${fronting_lower}`;

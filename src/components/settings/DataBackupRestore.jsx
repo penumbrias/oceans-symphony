@@ -19,6 +19,12 @@ const LS_SETTINGS_KEYS = [
   "symphony_a11y_highContrast",
   "symphony_a11y_largeTouch",
   "symphony_a11y_navHeight",
+  "alter_hide_grouped",
+  "alter_grid_cols",
+  "alter_display_mode",
+  "nav_grid_layout",
+  "nav_grid_cols",
+  "nav_display_mode",
 ];
 
 function exportLocalSettings() {

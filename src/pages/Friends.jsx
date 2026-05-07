@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   Users, Copy, UserPlus, Check, X, Bell, BellOff, UserMinus,
-  ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw
+  ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw, Eye, EyeOff, ShieldCheck
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
@@ -23,7 +23,9 @@ import {
   removeFriend,
   toggleNotify,
   pushFrontStatus,
+  saveFriendVisibility,
 } from "@/lib/friendsApi";
+import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -72,10 +74,56 @@ function FronterBubble({ fronter }) {
 
 // ── Friend card ───────────────────────────────────────────────────────────────
 
-function FriendCard({ friend, onRemove, onToggleNotify }) {
+function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilitySettings = {}, onVisibilityChange, globalPrivacyLevel = 'names', terms }) {
   const [expanded, setExpanded] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [togglingNotify, setTogglingNotify] = useState(false);
+  const [pushReady, setPushReady] = useState(null); // null = not yet checked
+  const [showVisibility, setShowVisibility] = useState(false);
+  const [savingVis, setSavingVis] = useState(false);
+  const [savedVis, setSavedVis] = useState(false);
+
+  // Local copies of visibility settings so toggles feel instant
+  const [hiddenAlterIds, setHiddenAlterIds] = useState(() => visibilitySettings.hiddenAlterIds || []);
+  const [privacyOverride, setPrivacyOverride] = useState(() => visibilitySettings.privacyOverride || null);
+
+  // Keep in sync if parent reloads identity
+  useEffect(() => {
+    setHiddenAlterIds(visibilitySettings.hiddenAlterIds || []);
+    setPrivacyOverride(visibilitySettings.privacyOverride || null);
+  }, [visibilitySettings.hiddenAlterIds, visibilitySettings.privacyOverride]);
+
+  const saveVisibility = useCallback(async (newHiddenIds, newPrivacyOverride) => {
+    setSavingVis(true);
+    setSavedVis(false);
+    try {
+      await onVisibilityChange(friend.userId, { hiddenAlterIds: newHiddenIds, privacyOverride: newPrivacyOverride });
+      setSavedVis(true);
+      setTimeout(() => setSavedVis(false), 2000);
+    } finally {
+      setSavingVis(false);
+    }
+  }, [friend.userId, onVisibilityChange]);
+
+  const toggleAlterHidden = useCallback((alterId) => {
+    setHiddenAlterIds(prev => {
+      const next = prev.includes(alterId) ? prev.filter(id => id !== alterId) : [...prev, alterId];
+      saveVisibility(next, privacyOverride);
+      return next;
+    });
+  }, [privacyOverride, saveVisibility]);
+
+  const handlePrivacyOverride = useCallback((val) => {
+    const next = val === 'global' ? null : val;
+    setPrivacyOverride(next);
+    saveVisibility(hiddenAlterIds, next);
+  }, [hiddenAlterIds, saveVisibility]);
+
+  useEffect(() => {
+    if (expanded && pushReady === null) {
+      isPushEnabled().then(setPushReady).catch(() => setPushReady(false));
+    }
+  }, [expanded, pushReady]);
 
   const ft = buildTermsFromFriend(friend.front?.terms);
   const fronters = friend.front?.fronters || [];
@@ -192,31 +240,131 @@ function FriendCard({ friend, onRemove, onToggleNotify }) {
 
               {/* Controls */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  {togglingNotify ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                  ) : friend.notifyOnChange ? (
-                    <Bell className="w-4 h-4 text-primary" />
-                  ) : (
-                    <BellOff className="w-4 h-4 text-muted-foreground" />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    {togglingNotify ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    ) : friend.notifyOnChange ? (
+                      <Bell className="w-4 h-4 text-primary" />
+                    ) : (
+                      <BellOff className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm text-foreground">Notify on change</span>
+                    <Switch
+                      checked={friend.notifyOnChange}
+                      onCheckedChange={handleNotify}
+                      disabled={togglingNotify}
+                    />
+                  </div>
+                  {pushReady === false && (
+                    <p className="text-xs text-amber-500 dark:text-amber-400 pl-6">
+                      Push notifications aren't enabled — go to Settings → Reminders to turn them on first.
+                    </p>
                   )}
-                  <span className="text-sm text-foreground">Notify on change</span>
-                  <Switch
-                    checked={friend.notifyOnChange}
-                    onCheckedChange={handleNotify}
-                    disabled={togglingNotify}
-                  />
                 </div>
 
-                <button
-                  onClick={handleRemove}
-                  disabled={removing}
-                  className="flex items-center gap-1.5 text-xs text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50"
-                >
-                  {removing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserMinus className="w-3.5 h-3.5" />}
-                  Remove friend
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowVisibility(v => !v)}
+                    className={`flex items-center gap-1.5 text-xs transition-colors ${showVisibility ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Visibility
+                  </button>
+                  <button
+                    onClick={handleRemove}
+                    disabled={removing}
+                    className="flex items-center gap-1.5 text-xs text-destructive hover:text-destructive/80 transition-colors disabled:opacity-50"
+                  >
+                    {removing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserMinus className="w-3.5 h-3.5" />}
+                    Remove
+                  </button>
+                </div>
               </div>
+
+              {/* Per-friend visibility settings */}
+              {showVisibility && (
+                <div className="border border-border/40 rounded-xl p-3 space-y-3 bg-muted/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">Visibility for this friend</span>
+                    <span className="text-xs text-muted-foreground">
+                      {savingVis ? <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving…</span>
+                       : savedVis ? <span className="text-green-500">Saved</span>
+                       : null}
+                    </span>
+                  </div>
+
+                  {/* Privacy level override */}
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted-foreground">Privacy override</span>
+                    <Select value={privacyOverride || 'global'} onValueChange={handlePrivacyOverride}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="global">
+                          Use global setting ({globalPrivacyLevel === 'count_only' ? 'count only' : globalPrivacyLevel === 'hidden' ? 'hidden' : 'names & colours'})
+                        </SelectItem>
+                        <SelectItem value="names">Show names & colours</SelectItem>
+                        <SelectItem value="count_only">Count only</SelectItem>
+                        <SelectItem value="hidden">Hidden</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Per-alter toggles — only when effective privacy shows names */}
+                  {(privacyOverride === 'names' || (!privacyOverride && globalPrivacyLevel === 'names')) && alters.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground">
+                        Which {terms?.alters || 'alters'} can they see?
+                      </span>
+                      <div className="space-y-0.5 max-h-44 overflow-y-auto">
+                        {alters.map(alter => {
+                          const globallyHidden = alter.friends_visible === false;
+                          const locallyHidden = hiddenAlterIds.includes(alter.id);
+                          const isVisible = !globallyHidden && !locallyHidden;
+                          return (
+                            <div
+                              key={alter.id}
+                              className={`flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${
+                                globallyHidden ? 'opacity-40' : 'hover:bg-muted/30'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ background: alter.color || '#6b7280' }}
+                                />
+                                <span className="text-xs text-foreground truncate">{alter.name}</span>
+                                {globallyHidden && (
+                                  <span className="text-xs text-muted-foreground flex-shrink-0">(hidden from all friends)</span>
+                                )}
+                              </div>
+                              <button
+                                disabled={globallyHidden}
+                                onClick={() => !globallyHidden && toggleAlterHidden(alter.id)}
+                                className={`flex-shrink-0 p-1 rounded transition-colors ${
+                                  globallyHidden
+                                    ? 'cursor-not-allowed'
+                                    : isVisible
+                                      ? 'text-primary hover:text-primary/70'
+                                      : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                                title={isVisible ? 'Visible — click to hide' : 'Hidden — click to show'}
+                              >
+                                {isVisible
+                                  ? <Eye className="w-3.5 h-3.5" />
+                                  : <EyeOff className="w-3.5 h-3.5" />
+                                }
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {updatedAt && (
                 <p className="text-xs text-muted-foreground">
@@ -408,7 +556,21 @@ export default function FriendsPage() {
   const { data: identity, isLoading: identityLoading, refetch: refetchIdentity } = useQuery({
     queryKey: ['friendIdentity'],
     queryFn: getLocalIdentity,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  const { data: altersRaw = [] } = useQuery({
+    queryKey: ['alters'],
+    queryFn: () => base44.entities.Alter.filter({}),
+    staleTime: 60_000,
+  });
+  const alters = altersRaw.filter(a => !a.is_archived);
+
+  const { data: activeFront = [] } = useQuery({
+    queryKey: ['activeFront'],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+    staleTime: 15_000,
   });
 
   const { data: friendsData, isLoading: friendsLoading, refetch: refetchFriends } = useQuery({
@@ -416,7 +578,10 @@ export default function FriendsPage() {
     queryFn: fetchFriendsList,
     enabled: !!identity,
     refetchInterval: 30_000,
-    staleTime: 15_000,
+    refetchIntervalInBackground: true,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const friends = friendsData?.friends || [];
@@ -442,6 +607,7 @@ export default function FriendsPage() {
           .map(s => alters.find(a => a.id === s.alter_id))
           .filter(a => a && !a.is_archived && a.friends_visible !== false)
           .map(a => ({
+            id: a.id,
             name: a.name,
             initial: a.name?.[0] || '?',
             color: a.color || null,
@@ -460,6 +626,37 @@ export default function FriendsPage() {
       } catch (_) {}
     })();
   }, [identity, terms.fronting, terms.front, terms.alter, terms.system]);
+
+  // On mount, re-save push subscription to KV if push is enabled.
+  // This handles the case where VAPID keys were added after notifyOnChange was set.
+  useEffect(() => {
+    if (!identity) return;
+    isPushEnabled().then(enabled => {
+      if (!enabled) return;
+      return getActivePushSubscription().then(sub => {
+        if (!sub) return;
+        fetch('/api/friends/save-push-sub', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: identity.userId, secret: identity.secret, subscription: sub }),
+        }).catch(() => {});
+      });
+    }).catch(() => {});
+  }, [identity]);
+
+  // When the Friends page is open and friendsData loads/refreshes, update the snapshot
+  // so changes already seen here don't re-trigger alerts on next app open.
+  useEffect(() => {
+    if (!friendsData?.friends?.length) return;
+    const snapshots = {};
+    for (const friend of friendsData.friends) {
+      snapshots[friend.userId] = {
+        updatedAt: friend.front?.updatedAt,
+        fronters: friend.front?.fronters || [],
+      };
+    }
+    localStorage.setItem("friends_front_snapshots", JSON.stringify(snapshots));
+  }, [friendsData]);
 
   const copyCode = useCallback(() => {
     if (!identity?.friendCode) return;
@@ -505,6 +702,29 @@ export default function FriendsPage() {
       toast.error(e.message || 'Failed.');
     }
   };
+
+  const handleVisibilityChange = useCallback(async (friendUserId, settings) => {
+    await saveFriendVisibility(friendUserId, settings);
+    // Refresh identity so visibility changes are reflected in the UI
+    await refetchIdentity();
+    // Re-push front status so this friend immediately sees the change
+    const primaryAlterId = activeFront.find(s => s.is_primary)?.alter_id || activeFront[0]?.alter_id;
+    const fronters = activeFront
+      .map(s => alters.find(a => a.id === s.alter_id))
+      .filter(a => a && !a.is_archived && a.friends_visible !== false)
+      .map(a => ({
+        id: a.id,
+        name: a.name,
+        initial: a.name?.[0] || '?',
+        color: a.color || null,
+        isPrimary: a.id === primaryAlterId,
+        isCofronter: a.id !== primaryAlterId,
+      }));
+    pushFrontStatus({
+      fronters,
+      terms: { fronting: terms.fronting, front: terms.front, alter: terms.alter, system: terms.system },
+    }).catch(() => {});
+  }, [activeFront, alters, terms, refetchIdentity]);
 
   if (identityLoading) {
     return (
@@ -676,6 +896,11 @@ export default function FriendsPage() {
                 friend={friend}
                 onRemove={handleRemove}
                 onToggleNotify={handleToggleNotify}
+                alters={alters}
+                visibilitySettings={identity?.perFriendVisibility?.[friend.userId] || {}}
+                onVisibilityChange={handleVisibilityChange}
+                globalPrivacyLevel={identity?.privacyLevel || 'names'}
+                terms={terms}
               />
             ))}
           </div>

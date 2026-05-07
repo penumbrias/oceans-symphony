@@ -20,7 +20,7 @@ const STEPS = (t) => [
   {
     title: `Your ${t.Alters}`,
     subtitle: `Every part of the ${t.system}, all in one place`,
-    body: `Create profiles for each ${t.alter} with their own name, pronouns, color, avatar, role, and bio. ${t.Alters} can have custom fields, notes from other parts, and their own journal entries.`,
+    body: `Create profiles for each ${t.alter} with their own name, pronouns, color, avatar, role, and bio. ${t.Alters} can have custom fields, notes from other ${t.alters}, and their own journal entries.`,
     icon: <Users className='w-8 h-8' />,
     color: 'from-purple-500/20 to-pink-500/20',
     tip: `Press the thunder/active icon next to an ${t.alter} card to set their ${t.front} status; long press to set/remove as primary`,

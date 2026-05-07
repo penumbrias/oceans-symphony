@@ -154,9 +154,41 @@ export async function toggleNotify(friendUserId, notifyOnChange) {
 
 // ─── Push own front status to server ──────────────────────────────────────────
 
+// fronters may include an `id` field (local alter ID) used for per-friend filtering;
+// it is stripped before being sent to the server.
 export async function pushFrontStatus({ fronters, terms, systemName, displayName, privacyLevel }) {
   const identity = await getLocalIdentity();
   if (!identity) return;
+
+  // Compute per-friend fronter overrides from local visibility settings
+  const perFriendVisibility = identity.perFriendVisibility || {};
+  const perFriendFronters = {};
+
+  for (const [friendId, vis] of Object.entries(perFriendVisibility)) {
+    if (!vis) continue;
+
+    if (vis.privacyOverride === 'hidden') {
+      perFriendFronters[friendId] = { fronters: [], privacyLevel: 'hidden' };
+    } else if (vis.privacyOverride === 'count_only') {
+      perFriendFronters[friendId] = {
+        fronters: fronters.map(({ id: _, ...rest }) => ({ ...rest, name: '?', initial: '?', color: null })),
+        privacyLevel: 'count_only',
+      };
+    } else {
+      // Filter by hidden alter IDs (fronters include local `id` for this purpose)
+      const hiddenIds = new Set(vis.hiddenAlterIds || []);
+      if (hiddenIds.size > 0) {
+        const filtered = fronters.filter(f => !hiddenIds.has(f.id));
+        perFriendFronters[friendId] = {
+          fronters: filtered.map(({ id: _, ...rest }) => rest),
+          privacyLevel: vis.privacyOverride || privacyLevel || identity.privacyLevel || 'names',
+        };
+      }
+    }
+  }
+
+  // Strip local IDs from default fronters before sending
+  const cleanFronters = fronters.map(({ id: _, ...rest }) => rest);
 
   await fetch(`${BASE}/update-front`, {
     method: 'POST',
@@ -164,11 +196,33 @@ export async function pushFrontStatus({ fronters, terms, systemName, displayName
     body: JSON.stringify({
       userId: identity.userId,
       secret: identity.secret,
-      fronters,
+      fronters: cleanFronters,
       terms,
       systemName: systemName ?? identity.systemName,
       displayName: displayName ?? identity.displayName,
       privacyLevel: privacyLevel ?? identity.privacyLevel ?? 'names',
+      perFriendFronters,
     }),
   }).catch(() => {});  // fire and forget
+}
+
+// ─── Per-friend visibility settings ───────────────────────────────────────────
+
+// Save per-friend visibility settings locally.
+// hiddenAlterIds: string[] of local alter IDs to hide from this friend
+// privacyOverride: null | 'names' | 'count_only' | 'hidden'
+export async function saveFriendVisibility(friendUserId, { hiddenAlterIds = [], privacyOverride = null } = {}) {
+  const existing = await getLocalIdentity();
+  if (!existing) return null;
+
+  const perFriendVisibility = { ...(existing.perFriendVisibility || {}) };
+
+  if (!hiddenAlterIds.length && !privacyOverride) {
+    delete perFriendVisibility[friendUserId];
+  } else {
+    perFriendVisibility[friendUserId] = { hiddenAlterIds, privacyOverride };
+  }
+
+  await localEntities.FriendIdentity.update(existing.id, { perFriendVisibility });
+  return perFriendVisibility;
 }

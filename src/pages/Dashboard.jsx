@@ -264,7 +264,18 @@ export default function Dashboard() {
       }
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
 
-      await base44.entities.SymptomCheckIn.create({ symptom_id, severity, timestamp: now });
+      // Create a parent check-in to tie the symptom to fronting alters (mirrors QuickCheckInModal)
+      let checkInId = null;
+      if (frontingAlterIds.length > 0) {
+        const parent = await base44.entities.EmotionCheckIn.create({
+          timestamp: now,
+          emotions: [],
+          fronting_alter_ids: frontingAlterIds,
+        }).catch(() => null);
+        checkInId = parent?.id || null;
+        if (checkInId) queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      }
+      await base44.entities.SymptomCheckIn.create({ symptom_id, severity, timestamp: now, check_in_id: checkInId });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success("Logged");
     } else if (action.type === "log_emotion") {
@@ -351,9 +362,15 @@ export default function Dashboard() {
             className="relative mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
             
           <Bell className="w-5 h-5" />
-          {mentionLogs.length > 0 &&
+          {mentionLogs.some(m =>
+            m.log_type !== "authored" &&
+            (m.mentioned_alter_id || m.alter_id) &&
+            frontingAlterIds.includes(m.mentioned_alter_id || m.alter_id) &&
+            !(m.dismissed_by_alter_ids || []).includes(m.mentioned_alter_id || m.alter_id) &&
+            m.is_read !== true
+          ) && (
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />
-            }
+          )}
         </button>
         </div>
       </div>

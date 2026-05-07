@@ -127,39 +127,61 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
   const navigateTo = (group) => setNavStack([...navStack, group]);
   const navigateBack = () => setNavStack(navStack.slice(0, -1));
 
-  const breadcrumb = ["Root", ...navStack.map((g) => g.name)];
-  const breadcrumbDisplay =
-  breadcrumb.length > 3 ?
-  ["Root/...", ...breadcrumb.slice(-2)].join(" / ") :
-  breadcrumb.join(" / ");
-
   return (
     <div>
       {/* Breadcrumb Navigation with Action Buttons */}
-      <div className="pb-1 flex items-center gap-2 border-b border-border">
+      <div className="pb-1 flex items-center gap-1 border-b border-border min-w-0">
         {navStack.length > 0 &&
         <Button
           onClick={navigateBack}
           variant="ghost"
           size="sm"
-          className="gap-2">
-          
+          className="gap-1.5 flex-shrink-0 px-2">
             <ArrowLeft className="w-4 h-4" />
             Back
           </Button>
         }
-        <p className="text-sm font-medium text-muted-foreground flex-1">
-          {navStack.length > 0 ? breadcrumbDisplay : "Root"}
-        </p>
+
+        {/* Clickable breadcrumb — each ancestor navigates back to that level */}
+        <div className="flex items-center gap-0.5 min-w-0 flex-1 text-sm overflow-hidden">
+          {navStack.length === 0 ? (
+            <span className="text-muted-foreground font-medium px-1">Root</span>
+          ) : (
+            <>
+              <button
+                onClick={() => setNavStack([])}
+                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 px-1">
+                Root
+              </button>
+              {navStack.map((group, i) => {
+                const isLast = i === navStack.length - 1;
+                return (
+                  <React.Fragment key={group.id}>
+                    <span className="text-muted-foreground/40 flex-shrink-0">/</span>
+                    {isLast ? (
+                      <span className="font-medium text-foreground truncate min-w-0 px-1">{group.name}</span>
+                    ) : (
+                      <button
+                        onClick={() => setNavStack(navStack.slice(0, i + 1))}
+                        className="text-muted-foreground hover:text-foreground transition-colors truncate min-w-0 max-w-[7rem] px-1">
+                        {group.name}
+                      </button>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </>
+          )}
+        </div>
+
         {currentGroup &&
         <Button
           onClick={() => setManageMembersOpen(true)}
           variant="ghost"
-          size="sm"
-          className="gap-2">
-
+          size="icon"
+          className="flex-shrink-0 w-8 h-8"
+          title="Manage members">
             <Users className="w-4 h-4" />
-            Members
           </Button>
         }
         {headerControls || (
@@ -167,7 +189,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
             onClick={() => setCreateGroupOpen(true)}
             variant="ghost"
             size="sm"
-            className="gap-2">
+            className="gap-1.5 flex-shrink-0 px-2">
             <Plus className="w-4 h-4" />
             New Group
           </Button>

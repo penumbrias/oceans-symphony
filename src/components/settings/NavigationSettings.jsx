@@ -135,13 +135,15 @@ export default function NavigationSettings({ settings }) {
 
   useEffect(() => {
     if (settings?.navigation_config) {
-      // Merge any new pages from DEFAULT_CONFIG that aren't in the saved dashboardGrid yet
       const saved = settings.navigation_config;
+      const removed = saved.dashboardGridRemoved || [];
+      // Add new DEFAULT pages only if the user hasn't explicitly removed them
       const merged = {
         ...saved,
+        dashboardGridRemoved: removed,
         dashboardGrid: [
           ...saved.dashboardGrid,
-          ...DEFAULT_CONFIG.dashboardGrid.filter(id => !saved.dashboardGrid.includes(id)),
+          ...DEFAULT_CONFIG.dashboardGrid.filter(id => !saved.dashboardGrid.includes(id) && !removed.includes(id)),
         ],
       };
       setConfig(merged);
@@ -156,9 +158,20 @@ export default function NavigationSettings({ settings }) {
       const idx = list.indexOf(pageId);
       if (idx >= 0) {
         list.splice(idx, 1);
+        if (location === "dashboardGrid") {
+          const removed = [...(prev.dashboardGridRemoved || [])];
+          if (!removed.includes(pageId)) removed.push(pageId);
+          return { ...prev, dashboardGrid: list, dashboardGridRemoved: removed };
+        }
       } else {
         const maxLen = location === "topBar" ? 6 : location === "bottomBar" ? 5 : 999;
-        if (list.length < maxLen) list.push(pageId);
+        if (list.length < maxLen) {
+          list.push(pageId);
+          if (location === "dashboardGrid") {
+            const removed = (prev.dashboardGridRemoved || []).filter(id => id !== pageId);
+            return { ...prev, dashboardGrid: list, dashboardGridRemoved: removed };
+          }
+        }
       }
       return { ...prev, [location]: list };
     });

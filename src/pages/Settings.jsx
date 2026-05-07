@@ -21,24 +21,13 @@ import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Palette, Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "lucide-react";
+import { Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
 import MigrationBanner from "@/components/shared/MigrationBanner";
 import RecentUpdates from "@/components/settings/RecentUpdates";
 
-const SECTIONS = [
-  { id: "system", label: "System", icon: "⚙️" },
-  { id: "appearance", label: "Appearance", icon: "🎨" },
-  { id: "accessibility", label: "Accessibility", icon: "♿" },
-  { id: "alters", label: "Alters & Fields", icon: "👥" },
-  { id: "checkin", label: "Check-In & Tracking", icon: "⚡" },
-  { id: "analytics", label: "Analytics", icon: "📊" },
-  { id: "reminders", label: "Reminders", icon: "🔔" },
-  { id: "data", label: "Data & Privacy", icon: "💾" },
-  { id: "updates", label: "Recent Updates", icon: "📋" },
-];
 
 function Section({ id, icon, label, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -67,6 +56,17 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
+
+  const SECTIONS = [
+    { id: "system", label: "Profile", icon: "⚙️" },
+    { id: "appearance", label: "Appearance", icon: "🎨" },
+    { id: "accessibility", label: "Accessibility", icon: "♿" },
+    { id: "alters", label: `${terms.Alters} & Fields`, icon: "👥" },
+    { id: "checkin", label: "Tracking & Analytics", icon: "⚡" },
+    { id: "reminders", label: "Reminders", icon: "🔔" },
+    { id: "data", label: "Data & Privacy", icon: "💾" },
+    { id: "updates", label: "Recent Updates", icon: "📋" },
+  ];
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
@@ -148,8 +148,8 @@ export default function Settings() {
 
       <div data-tour="settings-content" className="space-y-3 max-w-2xl">
 
-        {/* ── SYSTEM ── */}
-        <Section id="system" icon="⚙️" label="System" defaultOpen={true}>
+        {/* ── PROFILE ── */}
+        <Section id="system" icon="⚙️" label="Profile" defaultOpen={true}>
           <div className="space-y-4">
             <div>
               <Label className="text-sm font-medium">{terms.System} Name</Label>
@@ -182,7 +182,7 @@ export default function Settings() {
         </Section>
 
         {/* ── ALTERS & FIELDS ── */}
-        <Section id="alters" icon="👥" label="Alters & Fields">
+        <Section id="alters" icon="👥" label={`${terms.Alters} & Fields`}>
           <CustomFieldsManager />
           <div className="border-t border-border/30 pt-4">
             <RelationshipTypesManager />
@@ -192,8 +192,8 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── CHECK-IN & TRACKING ── */}
-        <Section id="checkin" icon="⚡" label="Check-In & Tracking">
+        {/* ── TRACKING & ANALYTICS ── */}
+        <Section id="checkin" icon="⚡" label="Tracking & Analytics">
           <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -215,21 +215,17 @@ export default function Settings() {
           <div className="border-t border-border/30 pt-4">
             <QuickActionsConfig />
           </div>
-        </Section>
-
-        {/* ── ANALYTICS ── */}
-        <Section id="analytics" icon="📊" label="Analytics">
-          <div className="space-y-4">
+          <div className="border-t border-border/30 pt-4">
             <div>
-              <p className="text-sm font-semibold mb-1">Grouping mode</p>
+              <p className="text-sm font-semibold mb-1">Analytics grouping</p>
               <p className="text-xs text-muted-foreground mb-3">
-                For large systems, analytics can aggregate data by group instead of by individual member.
+                For large {terms.systems}, analytics can aggregate data by group instead of by individual {terms.alter}.
                 Groups are managed from the {terms.System} Members page.
               </p>
               <div className="flex gap-2">
                 {[
-                  { id: "individual", label: "By member", desc: "Show each member separately" },
-                  { id: "group", label: "By group", desc: "Aggregate members into their groups" },
+                  { id: "individual", label: `By ${terms.alter}`, desc: `Show each ${terms.alter} separately` },
+                  { id: "group", label: "By group", desc: `Aggregate ${terms.alters} into their groups` },
                 ].map(opt => (
                   <button
                     key={opt.id}
@@ -252,8 +248,8 @@ export default function Settings() {
               </div>
               {analyticsGrouping === "group" && (
                 <p className="text-xs text-muted-foreground mt-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
-                  Group mode is active. The Patterns & Insights section will show data aggregated by group.
-                  Alters without a group appear under "Ungrouped."
+                  Group mode is active. Patterns & Insights will show data aggregated by group.
+                  {terms.Alters} without a group appear under "Ungrouped."
                 </p>
               )}
             </div>

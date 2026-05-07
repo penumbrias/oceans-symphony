@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Bell } from "lucide-react";
+import { Bell, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -9,6 +9,7 @@ const PAGE_SIZE = 20;
 
 export default function NotificationHistoryModal({ open, onClose, alters = [], onNotifClick, frontingAlterIds = [] }) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [clearing, setClearing] = useState(false);
   const loaderRef = useRef(null);
   const queryClient = useQueryClient();
 
@@ -32,6 +33,20 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
     return () => observer.disconnect();
   }, [open, mentionLogs.length]);
 
+  const handleClearAll = async () => {
+    setClearing(true);
+    try {
+      await Promise.all(
+        rawLogs.map(m =>
+          base44.entities.MentionLog.delete(m.id).catch(() => null)
+        )
+      );
+      queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const handleDismiss = async (e, m) => {
     e.stopPropagation();
     if (!m.mentioned_alter_id) {
@@ -52,10 +67,23 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-primary" />
-            Notification History
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-primary" />
+              Notification History
+            </DialogTitle>
+            {rawLogs.length > 0 && (
+              <button
+                onClick={handleClearAll}
+                disabled={clearing}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                title="Delete all notification history"
+              >
+                {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Clear all
+              </button>
+            )}
+          </div>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto space-y-2 mt-2">
           {mentionLogs.length === 0 && (

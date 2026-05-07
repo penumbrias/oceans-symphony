@@ -362,10 +362,12 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
 
         // Push front status to friends server (fire-and-forget)
+        // id is included so pushFrontStatus can apply per-friend visibility filtering
         const visibleFronters = allSelectedIds
           .map(id => alters.find(a => a.id === id))
           .filter(a => a && a.friends_visible !== false)
           .map(a => ({
+            id: a.id,
             name: a.name,
             initial: a.name?.[0] || '?',
             color: a.color || null,

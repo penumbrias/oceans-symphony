@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp, FolderMinus, Camera } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -20,14 +20,28 @@ export default function AlterGrid({ alters, currentSession = null }) {
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [showFolders, setShowFolders] = useState(true);
-  const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
-  const [gridCols, setGridCols] = useState(() => parseInt(localStorage.getItem("alter_grid_cols") || "3", 10));
+  // displayMode cycles: "list" | "2" | "3" | "4" | "5"
+  const [displayMode, setDisplayMode] = useState(() => {
+    const saved = localStorage.getItem("alter_display_mode");
+    if (saved) return saved;
+    const oldCols = localStorage.getItem("alter_grid_cols");
+    if (oldCols) return oldCols;
+    return "list";
+  });
+  // anonymize cycles: "off" | "names" | "all"
+  const [anonymize, setAnonymize] = useState("off");
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [hideGrouped, setHideGrouped] = useState(() => localStorage.getItem("alter_hide_grouped") === "true");
 
-  const toggleGridCols = () => {
-    const next = gridCols === 3 ? 4 : 3;
-    setGridCols(next);
-    localStorage.setItem("alter_grid_cols", String(next));
+  const DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
+  const cycleDisplayMode = () => {
+    const next = DISPLAY_CYCLE[(DISPLAY_CYCLE.indexOf(displayMode) + 1) % DISPLAY_CYCLE.length];
+    setDisplayMode(next);
+    localStorage.setItem("alter_display_mode", next);
+  };
+
+  const cycleAnonymize = () => {
+    setAnonymize(a => ({ "off": "names", "names": "all", "all": "off" }[a]));
   };
 
   const { data: allGroups = [] } = useQuery({
@@ -85,10 +99,27 @@ export default function AlterGrid({ alters, currentSession = null }) {
     return map;
   }, [activeSessions]);
 
+  // Build set of alter IDs that belong to at least one group
+  const groupedAlterIds = useMemo(() => {
+    const ids = new Set();
+    for (const g of allGroups) {
+      for (const spId of (g.member_sp_ids || [])) {
+        const alter = effectiveAlters.find(a => a.sp_id === spId);
+        if (alter) ids.add(alter.id);
+      }
+    }
+    // Also catch legacy: alter.groups array
+    for (const a of effectiveAlters) {
+      if ((a.groups || []).length > 0) ids.add(a.id);
+    }
+    return ids;
+  }, [allGroups, effectiveAlters]);
+
   const filtered = effectiveAlters.
   filter(
     (a) =>
-    !a.is_archived && (
+    !a.is_archived &&
+    (!hideGrouped || !groupedAlterIds.has(a.id)) && (
     a.name?.toLowerCase().includes(search.toLowerCase()) ||
     a.role?.toLowerCase().includes(search.toLowerCase()) ||
     a.pronouns?.toLowerCase().includes(search.toLowerCase()))
@@ -159,24 +190,40 @@ export default function AlterGrid({ alters, currentSession = null }) {
           {sortMode === "least" && <TrendingUp className="w-4 h-4" />}
         </button>
 
-        {/* View mode */}
+        {/* Hide grouped */}
         <button
-          data-tour="alter-view-toggle"
-          onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
-          title={viewMode === "list" ? "Switch to grid view" : "Switch to list view"}
-          className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-          {viewMode === "list" ? <Grid3X3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
+          onClick={() => {
+            const next = !hideGrouped;
+            setHideGrouped(next);
+            localStorage.setItem("alter_hide_grouped", next ? "true" : "false");
+          }}
+          title={hideGrouped ? `Show all ${terms.alters}` : `Hide ${terms.alters} already in a group`}
+          className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 transition-colors ${hideGrouped ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
+          <FolderMinus className="w-4 h-4" />
         </button>
 
-        {/* Column count toggle — only in grid mode */}
-        {viewMode === "grid" && (
-          <button
-            onClick={toggleGridCols}
-            title={`Switch to ${gridCols === 3 ? 4 : 3}-column grid`}
-            className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-xs font-bold">
-            {gridCols === 3 ? "4" : "3"}
-          </button>
-        )}
+        {/* View / column cycle */}
+        <button
+          data-tour="alter-view-toggle"
+          onClick={cycleDisplayMode}
+          title={displayMode === "list" ? "Switch to 2-column grid" : `${displayMode}-col grid — tap to ${displayMode === "5" ? "switch to list" : "add a column"}`}
+          className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-xs font-bold">
+          {displayMode === "list" ? <Grid3X3 className="w-4 h-4" /> : displayMode}
+        </button>
+
+        {/* Anonymize toggle */}
+        <button
+          onClick={cycleAnonymize}
+          title={{ "off": "Screenshot mode: tap to blur names", "names": "Blurring names — tap to also blur avatars", "all": "Blurring names & avatars — tap to disable" }[anonymize]}
+          className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border transition-colors ${
+            anonymize === "off"
+              ? "border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent"
+              : anonymize === "names"
+              ? "border-amber-500/60 bg-amber-500/10 text-amber-500"
+              : "border-primary/60 bg-primary/10 text-primary"
+          }`}>
+          {anonymize === "off" ? <Camera className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </button>
       </div>
 
       {/* Content */}
@@ -207,23 +254,23 @@ export default function AlterGrid({ alters, currentSession = null }) {
             <div className="flex-1 h-px bg-border/50" />
           </div>
           {filtered.length > 0 ?
-          viewMode === "list" ?
+          displayMode === "list" ?
           <div className="mx-auto flex flex-col gap-2">
-          {filtered.map((alter, i) =>
-  <AlterCard key={alter.id} alter={alter} index={i} activeSessions={activeSessions} />
-)}
-              </div> :
+            {filtered.map((alter, i) =>
+              <AlterCard key={alter.id} alter={alter} index={i} activeSessions={activeSessions} anonymize={anonymize} />
+            )}
+          </div> :
 
-          <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={effectiveAlters} cols={gridCols} /> :
+          <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={effectiveAlters} cols={parseInt(displayMode)} anonymize={anonymize} /> :
 
 
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-              <div className="text-4xl mb-3">{search ? "🔍" : "👥"}</div>
+              <div className="text-4xl mb-3">{search ? "🔍" : hideGrouped ? "📁" : "👥"}</div>
               <p className="text-sm font-medium text-foreground mb-1">
-                {search ? "No matches found" : `No ${terms.alters} yet`}
+                {search ? "No matches found" : hideGrouped ? `All ${terms.alters} are in groups` : `No ${terms.alters} yet`}
               </p>
               <p className="text-xs text-muted-foreground">
-                {search ? `Try a different search term` : `Add your first ${terms.alter} to get started`}
+                {search ? `Try a different search term` : hideGrouped ? `Toggle the group filter to see them` : `Add your first ${terms.alter} to get started`}
               </p>
             </div>
           }

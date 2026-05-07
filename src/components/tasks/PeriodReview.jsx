@@ -104,7 +104,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
       {/* Hint shown when no tapInfo */}
       {!tapInfo && (
         <p className="text-[11px] text-muted-foreground px-1">
-          Tap ✓ to see completion date · Hold 2s to change
+          Tap ✓ to see {frequency === "daily" ? "completion time" : "completion date"} · Hold 2s to change
         </p>
       )}
 
@@ -255,10 +255,15 @@ function formatPeriodKeyShort(frequency, key) {
 function formatCompletionDate(frequency, key, record) {
   if (!key) return "";
 
-  // For daily tasks the key IS the date — most precise
+  // For daily tasks the date is already on the column header — show time instead
   if (frequency === "daily") {
-    const d = new Date(key + "T00:00:00");
-    return `✓ Completed ${d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}`;
+    const ts = record?.updated_date || record?.created_date;
+    if (ts) {
+      const d = new Date(ts);
+      const timeStr = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      return `✓ Completed at ${timeStr}`;
+    }
+    return `✓ Completed`;
   }
 
   // For other frequencies, prefer the record's created/updated timestamp

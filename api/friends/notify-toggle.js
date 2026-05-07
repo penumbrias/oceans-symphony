@@ -30,7 +30,13 @@ export default async function handler(req, res) {
   friends[friendUserId].notifyOnChange = !!notifyOnChange;
   await setFriends(myUserId, friends);
 
-  // Also save/clear the viewer's push subscription on the server so the
-  // friend's update-front endpoint can push to us
+  // Mirror the preference onto the subject's side so that update-front
+  // (which runs under friendUserId) can find who to notify.
+  const subjectFriends = await getFriends(friendUserId);
+  if (subjectFriends[myUserId]) {
+    subjectFriends[myUserId].notifyOnChange = !!notifyOnChange;
+    await setFriends(friendUserId, subjectFriends);
+  }
+
   return res.status(200).json({ ok: true });
 }

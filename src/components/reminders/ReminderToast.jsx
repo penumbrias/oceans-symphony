@@ -87,7 +87,12 @@ export default function ReminderToast() {
       }
       return reminder ? { instance: inst, reminder } : null;
     })).then(results => {
-      const valid = results.filter(Boolean);
+      // Only show toast if reminder has in_app delivery (or no channels set, for backward compat)
+      const valid = results.filter(r => {
+        if (!r) return false;
+        const ch = r.reminder.delivery_channels;
+        return !ch?.length || ch.includes("in_app");
+      });
       valid.forEach(({ instance }) => addShownId(instance.id));
       setVisible(prev => {
         const existingReminderIds = new Set(prev.map(v => v.reminder.id));

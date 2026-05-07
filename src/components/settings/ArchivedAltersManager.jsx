@@ -55,13 +55,13 @@ export default function ArchivedAltersManager() {
             <Archive className="w-5 h-5 text-muted-foreground" />
           </div>
           <div>
-            <CardTitle className="text-lg">Archived Members</CardTitle>
-            <CardDescription>Manage archived system members</CardDescription>
+            <CardTitle className="text-lg">Archived {terms.Alters}</CardTitle>
+            <CardDescription>Manage archived {terms.system} {terms.alters}</CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {archived.map((alter) => (
             <div key={alter.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
               <div>

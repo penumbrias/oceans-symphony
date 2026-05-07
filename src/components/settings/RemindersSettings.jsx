@@ -88,19 +88,26 @@ export default function RemindersSettings() {
       <TimezoneSettings />
 
       {/* Browser push */}
-      <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-            {pushEnabled ? <Bell className="w-4 h-4 text-primary" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+      <div className="p-3 bg-muted/20 rounded-xl border border-border/40 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              {pushEnabled ? <Bell className="w-4 h-4 text-primary" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Push notifications</p>
+              <p className="text-xs text-muted-foreground">{pushEnabled ? "Enabled — reminders appear as native notifications even when the app is in the background" : "Disabled — reminders only show while the app is open"}</p>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold text-sm">Push notifications</p>
-            <p className="text-xs text-muted-foreground">{pushEnabled ? "Enabled — reminders will appear as native notifications even when the app is in the background" : "Disabled — reminders only show while the app is open"}</p>
-          </div>
+          <Button size="sm" variant={pushEnabled ? "outline" : "default"} onClick={handleTogglePush} disabled={pushLoading || !import.meta.env.VITE_VAPID_PUBLIC_KEY}>
+            {pushLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : pushEnabled ? "Disable" : "Enable"}
+          </Button>
         </div>
-        <Button size="sm" variant={pushEnabled ? "outline" : "default"} onClick={handleTogglePush} disabled={pushLoading}>
-          {pushLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : pushEnabled ? "Disable" : "Enable"}
-        </Button>
+        {!import.meta.env.VITE_VAPID_PUBLIC_KEY && (
+          <p className="text-xs text-amber-500 dark:text-amber-400 pl-12">
+            Push not configured — add <code className="font-mono bg-muted px-1 rounded">VITE_VAPID_PUBLIC_KEY</code>, <code className="font-mono bg-muted px-1 rounded">VAPID_PUBLIC_KEY</code>, and <code className="font-mono bg-muted px-1 rounded">VAPID_PRIVATE_KEY</code> to your Vercel environment variables. Generate keys with: <code className="font-mono bg-muted px-1 rounded">npx web-push generate-vapid-keys</code>
+          </p>
+        )}
       </div>
 
       {/* Pause all */}

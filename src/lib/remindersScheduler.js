@@ -16,7 +16,9 @@ function inQuietWindow(minuteOfDay, start, end) {
   return minuteOfDay >= start || minuteOfDay < end;
 }
 
-const WINDOW = 60 * 1000;
+// WINDOW must be wider than the polling interval (60s) to avoid missed firings.
+// 90s means the scheduler can run up to 30s late and still catch the reminder.
+const WINDOW = 90 * 1000;
 
 // ── client-side evaluator (mirrors backend logic, no push) ───────────────────
 
@@ -430,12 +432,15 @@ export async function runClientScheduler(queryClient) {
            }
          }
 
+        const channels = reminder.delivery_channels?.length ? reminder.delivery_channels : ["in_app"];
+        const deliveryAttempted = channels.includes("in_app") ? ["in_app"] : [];
+
         const inst = await base44.entities.ReminderInstance.create({
           reminder_id: reminder.id,
           scheduled_for: due.scheduled_for,
           fired_at: now.toISOString(),
           status: "fired",
-          delivery_attempted: ["in_app"],
+          delivery_attempted: deliveryAttempted,
         });
 
         await base44.entities.Reminder.update(reminder.id, {
@@ -445,16 +450,33 @@ export async function runClientScheduler(queryClient) {
         recentInstances.push(inst);
         newInstances.push(inst);
 
-        // Send native push notification if enabled (fire-and-forget)
-        isPushEnabled().then(enabled => {
-          if (!enabled) return;
-          sendPushNotification({
-            title: reminder.title,
-            body: reminder.body || '',
-            reminderInstanceId: inst.id,
-            inlineActions: reminder.inline_actions || [],
+        // Send native push notification if push is in delivery channels (fire-and-forget)
+        if (channels.includes("push")) {
+          isPushEnabled().then(async enabled => {
+            if (enabled) {
+              try {
+                await sendPushNotification({
+                  title: reminder.title,
+                  body: reminder.body || '',
+                  reminderInstanceId: inst.id,
+                  inlineActions: reminder.inline_actions || [],
+                });
+              } catch (e) {
+                console.warn(`[remindersScheduler] push send failed for ${reminder.id}:`, e.message);
+              }
+            } else {
+              // Push not subscribed — upgrade this instance to in_app so it shows
+              // as a banner rather than disappearing silently.
+              console.warn(`[remindersScheduler] push not enabled for reminder "${reminder.title}" — falling back to in-app`);
+              await base44.entities.ReminderInstance.update(inst.id, {
+                delivery_attempted: ["in_app"],
+              }).catch(() => {});
+              if (queryClient) {
+                queryClient.invalidateQueries({ queryKey: ["reminderInstances", "pending"] });
+              }
+            }
           }).catch(() => {});
-        }).catch(() => {});
+        }
       } catch (err) {
         console.warn(`[remindersScheduler] reminder ${reminder.id} error:`, err.message);
       }

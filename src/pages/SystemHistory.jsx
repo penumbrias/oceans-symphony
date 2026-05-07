@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal";
+import { useTerms } from "@/lib/useTerms";
 
 const TYPE_META = {
   fusion:    { label: "Fusion",     icon: GitMerge,  color: "text-violet-500",  bg: "bg-violet-500/10 border-violet-500/20",  dot: "bg-violet-500" },
@@ -98,7 +99,7 @@ function TimelineEvent({ event, altersById, onDelete, isLast }) {
   );
 }
 
-function SystemBirthMarker({ date, onEdit }) {
+function SystemBirthMarker({ date, onEdit, t }) {
   const age = differenceInYears(new Date(), date);
   const months = differenceInMonths(new Date(), date) % 12;
   const days = differenceInDays(new Date(), date);
@@ -116,7 +117,7 @@ function SystemBirthMarker({ date, onEdit }) {
       <div className="pb-4 flex-1">
         <div className="flex items-center gap-1.5 mb-0.5">
           <CalendarDays className="w-3.5 h-3.5 text-primary" />
-          <span className="text-sm font-semibold text-primary">System birth</span>
+          <span className="text-sm font-semibold text-primary">{t.System} birth</span>
           <button type="button" onClick={onEdit} className="text-muted-foreground hover:text-foreground transition-colors ml-1">
             <Pencil className="w-3 h-3" />
           </button>
@@ -127,7 +128,7 @@ function SystemBirthMarker({ date, onEdit }) {
   );
 }
 
-function NoBirthMarker({ onEdit }) {
+function NoBirthMarker({ onEdit, t }) {
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center flex-shrink-0">
@@ -140,7 +141,7 @@ function NoBirthMarker({ onEdit }) {
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <CalendarDays className="w-3.5 h-3.5" />
-          <span>Set system birth date</span>
+          <span>Set {t.system} birth date</span>
           <Pencil className="w-3 h-3" />
         </button>
       </div>
@@ -148,7 +149,7 @@ function NoBirthMarker({ onEdit }) {
   );
 }
 
-function BirthDateEditor({ currentDate, settings, queryClient, onClose }) {
+function BirthDateEditor({ currentDate, settings, queryClient, onClose, t }) {
   const [value, setValue] = useState(currentDate ? format(currentDate, "yyyy-MM-dd") : "");
   const [saving, setSaving] = useState(false);
 
@@ -176,7 +177,7 @@ function BirthDateEditor({ currentDate, settings, queryClient, onClose }) {
       <div className="pb-4 flex-1">
         <div className="flex items-center gap-1.5 mb-1.5">
           <CalendarDays className="w-3.5 h-3.5 text-primary" />
-          <span className="text-sm font-semibold text-primary">System birth</span>
+          <span className="text-sm font-semibold text-primary">{t.System} birth</span>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -200,6 +201,7 @@ function BirthDateEditor({ currentDate, settings, queryClient, onClose }) {
 
 export default function SystemHistory() {
   const queryClient = useQueryClient();
+  const t = useTerms();
   const [modalOpen, setModalOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
   const [editingBirth, setEditingBirth] = useState(false);
@@ -245,7 +247,7 @@ export default function SystemHistory() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-display font-bold text-foreground">System History</h1>
+          <h1 className="text-xl font-display font-bold text-foreground">{t.System} History</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Fusions, splits, emergences, dormancy, and returns</p>
         </div>
         <Button size="sm" onClick={() => setModalOpen(true)}>
@@ -277,7 +279,7 @@ export default function SystemHistory() {
         <div className="text-center py-16">
           <GitMerge className="w-10 h-10 text-muted-foreground/30 mx-auto mb-4" />
           <p className="text-base font-medium text-muted-foreground">No events yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Record a fusion, split, emergence, dormancy, or return to build your system's history.</p>
+          <p className="text-sm text-muted-foreground mt-1">Record a fusion, split, emergence, dormancy, or return to build your {t.system}'s history.</p>
           <Button size="sm" className="mt-4" onClick={() => setModalOpen(true)}>
             <Plus className="w-4 h-4 mr-1" /> Add first event
           </Button>
@@ -299,10 +301,10 @@ export default function SystemHistory() {
           {/* System birth at the bottom */}
           {typeFilter === "all" && (
             editingBirth
-              ? <BirthDateEditor currentDate={systemBirthDate} settings={settingsArr[0]} queryClient={queryClient} onClose={() => setEditingBirth(false)} />
+              ? <BirthDateEditor currentDate={systemBirthDate} settings={settingsArr[0]} queryClient={queryClient} onClose={() => setEditingBirth(false)} t={t} />
               : systemBirthDate
-                ? <SystemBirthMarker date={systemBirthDate} onEdit={() => setEditingBirth(true)} />
-                : <NoBirthMarker onEdit={() => setEditingBirth(true)} />
+                ? <SystemBirthMarker date={systemBirthDate} onEdit={() => setEditingBirth(true)} t={t} />
+                : <NoBirthMarker onEdit={() => setEditingBirth(true)} t={t} />
           )}
         </div>
       )}
