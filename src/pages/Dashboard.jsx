@@ -229,6 +229,8 @@ export default function Dashboard() {
         activity_category_ids: [category_id],
         duration_minutes: duration_minutes || null,
         fronting_alter_ids: frontingAlterIds,
+        emotions: [],
+        notes: null,
         timestamp: now,
       });
       queryClient.invalidateQueries({ queryKey: ["activities"] });
