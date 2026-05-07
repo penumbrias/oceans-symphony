@@ -11,6 +11,7 @@ import { Loader2, MapPin, Plus, Trash2, Pencil } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
+import { findNearbyLocationName } from "@/lib/locationUtils";
 
 function toDatetimeLocal(iso) {
   const d = iso ? new Date(iso) : new Date();
@@ -35,7 +36,7 @@ function formatDayLabel(dateStr) {
   return format(d, "EEEE, MMMM d");
 }
 
-function LocationLogForm({ location, onSave, onClose }) {
+function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
   const [name, setName] = useState(location?.name || "");
   const [category, setCategory] = useState(location?.category || "");
   const [lat, setLat] = useState(location?.latitude ?? null);
@@ -50,9 +51,15 @@ function LocationLogForm({ location, onSave, onClose }) {
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setLat(pos.coords.latitude);
-        setLng(pos.coords.longitude);
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLat(lat);
+        setLng(lng);
         setGpsLoading(false);
+        if (!name.trim()) {
+          const nearby = findNearbyLocationName(lat, lng, allLocations);
+          if (nearby) setName(nearby);
+        }
         toast.success("GPS location captured");
       },
       (err) => {
@@ -341,6 +348,7 @@ export default function LocationHistory() {
           </DialogHeader>
           <LocationLogForm
             location={editingLocation}
+            allLocations={locations}
             onSave={handleSaved}
             onClose={handleClose}
           />

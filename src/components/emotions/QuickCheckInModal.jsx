@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
+import { findNearbyLocationName } from "@/lib/locationUtils";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -107,6 +108,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     queryFn: () => base44.entities.ActivityCategory.list()
   });
 
+  const { data: pastLocations = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => localEntities.Location.list(),
+  });
+
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
 
 
@@ -195,7 +201,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     if (!navigator.geolocation) { toast.error("GPS not available on this device"); return; }
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => { setLocationLat(pos.coords.latitude); setLocationLng(pos.coords.longitude); setGpsLoading(false); toast.success("Location captured"); },
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLocationLat(lat);
+        setLocationLng(lng);
+        setGpsLoading(false);
+        if (!locationName.trim()) {
+          const nearby = findNearbyLocationName(lat, lng, pastLocations);
+          if (nearby) setLocationName(nearby);
+        }
+        toast.success("Location captured");
+      },
       (err) => { toast.error("Could not get location: " + err.message); setGpsLoading(false); },
       { timeout: 10000, maximumAge: 60000 }
     );

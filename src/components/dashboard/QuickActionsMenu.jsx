@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
+import { findNearbyLocationName } from "@/lib/locationUtils";
 import { Plus, MapPin, Loader2, UserPlus, RefreshCw, Check } from "lucide-react";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import RatingRow from "@/components/diary/RatingRow";
@@ -185,11 +186,25 @@ function LocationRow({ action, onAction }) {
   const [coords, setCoords] = useState(null);
   const [gpsLoading, setGpsLoading] = useState(false);
 
+  const { data: pastLocations = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => localEntities.Location.list(),
+  });
+
   const handleGPS = () => {
     if (!navigator.geolocation) return;
     setGpsLoading(true);
     navigator.geolocation.getCurrentPosition(
-      pos => { setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGpsLoading(false); },
+      pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setCoords({ lat, lng });
+        setGpsLoading(false);
+        if (!name.trim()) {
+          const nearby = findNearbyLocationName(lat, lng, pastLocations);
+          if (nearby) setName(nearby);
+        }
+      },
       () => setGpsLoading(false),
       { timeout: 8000 }
     );

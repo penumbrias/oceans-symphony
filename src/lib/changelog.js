@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "feature",
+        text: "GPS location auto-naming — when you tap GPS in any location log, Symphony checks if the coordinates match a previously named place (within ~150 m) and pre-fills the name. The most recently used name for that spot is always used, so renaming a place only affects future entries.",
+      },
+      {
+        type: "improve",
+        text: "Delete All Local Data now returns to first-run onboarding (privacy notice + encryption setup + terminology chooser) instead of just reloading the app.",
+      },
+      {
         type: "fix",
         text: "First-run onboarding screen (privacy & data notice, local encryption setup) was being skipped entirely — now correctly displays before the app loads on a fresh install.",
       },
