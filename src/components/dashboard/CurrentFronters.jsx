@@ -81,7 +81,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       role="button"
       tabIndex={0}
       aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Long press for options.`}
-      aria-expanded={isExpanded}
+      aria-expanded={false}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
