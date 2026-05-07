@@ -107,6 +107,20 @@ Rules:
 
 ---
 
+## Critical: Keep the Changelog Up to Date
+
+**Whenever a feature, improvement, or notable fix ships, add an entry to `src/lib/changelog.js`.**
+
+Rules:
+- Add a new date block at the top of the `CHANGELOG` array when starting a new session's work.
+- Use `type: "feature"` for new capabilities, `"improve"` for enhancements, `"fix"` for user-visible bug fixes, `"hotfix"` for minor/internal fixes (brief text only).
+- For hotfixes, write "Hotfixes on [ComponentName]: [brief description]" — no need for detail.
+- For larger features, write 1–2 sentences describing what the user can now do.
+- Do not add entries for refactors, renames, or changes that have no user-visible effect.
+- The changelog is shown in Settings → Recent Updates — keep it user-facing, not technical jargon.
+
+---
+
 ## User Data Preservation — Non-Negotiable
 
 **User data must never be silently lost or overwritten.** Specific rules:

@@ -26,6 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
 import MigrationBanner from "@/components/shared/MigrationBanner";
+import RecentUpdates from "@/components/settings/RecentUpdates";
 
 const SECTIONS = [
   { id: "system", label: "System", icon: "⚙️" },
@@ -36,6 +37,7 @@ const SECTIONS = [
   { id: "analytics", label: "Analytics", icon: "📊" },
   { id: "reminders", label: "Reminders", icon: "🔔" },
   { id: "data", label: "Data & Privacy", icon: "💾" },
+  { id: "updates", label: "Recent Updates", icon: "📋" },
 ];
 
 function Section({ id, icon, label, defaultOpen = false, children }) {
@@ -296,6 +298,10 @@ export default function Settings() {
           </div>
         </Section>
 
+        {/* ── RECENT UPDATES ── */}
+        <Section id="updates" icon="📋" label="Recent Updates" defaultOpen={false}>
+          <RecentUpdates />
+        </Section>
 
       </div>
     </motion.div>
