@@ -415,8 +415,8 @@ export default function FriendsPage() {
     queryKey: ['friendsList'],
     queryFn: fetchFriendsList,
     enabled: !!identity,
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
   });
 
   const friends = friendsData?.friends || [];
@@ -664,9 +664,12 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Friends ({friends.length})
-            </p>
+            <div className="flex items-baseline justify-between">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Friends ({friends.length})
+              </p>
+              <p className="text-xs text-muted-foreground/60">Updates every 30 s</p>
+            </div>
             {friends.map((friend) => (
               <FriendCard
                 key={friend.userId}
