@@ -470,7 +470,7 @@ export default function QuickActionsConfig() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold">Quick Actions</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Hold the Quick Check-In button for 1.5 seconds to pop these up.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Hold the Quick Check-In button for 0.5 seconds to pop these up.</p>
         </div>
         {!adding && (
           <Button size="sm" variant="outline" className="gap-1.5 flex-shrink-0" onClick={() => setAdding(true)}>

@@ -164,7 +164,7 @@ export default function Dashboard() {
     const tick = () => {
       if (!holdStartRef.current) return;
       const elapsed = Date.now() - holdStartRef.current;
-      const progress = Math.min(100, (elapsed / 1500) * 100);
+      const progress = Math.min(100, (elapsed / 500) * 100);
       setHoldProgress(progress);
       if (progress < 100) {
         holdTimerRef.current = setTimeout(tick, 50);
