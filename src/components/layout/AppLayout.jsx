@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import MigrationBanner from "@/components/shared/MigrationBanner";
 import { Settings, ChevronLeft, Wifi, Menu } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
@@ -250,7 +251,9 @@ const handleNotifClick = (mentionLog) => {
       {/* ── Page content ── */}
       <main
         className="app-content-main flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8 sm:pb-8">
-        
+        <div className="pt-3 sm:pt-0 pb-2 sm:pb-4">
+          <MigrationBanner />
+        </div>
         <Outlet context={{ setShowFeatureTour }} />
       </main>
 

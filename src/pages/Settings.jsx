@@ -25,6 +25,7 @@ import { Palette, Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "luci
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
+import MigrationBanner from "@/components/shared/MigrationBanner";
 
 const SECTIONS = [
   { id: "system", label: "System", icon: "⚙️" },
@@ -129,6 +130,9 @@ export default function Settings() {
                 className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
         </p></p>
       </div>
+
+      {/* Migration banner */}
+      <div className="mb-4"><MigrationBanner /></div>
 
       {/* Quick Nav */}
       <div data-tour="settings-quick-nav" className="flex flex-wrap gap-2 mb-6 p-3 bg-muted/20 border border-border/40 rounded-xl">
