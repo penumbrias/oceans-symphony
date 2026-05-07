@@ -21,7 +21,7 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
-        text: "Backup size warning no longer references 'Migrate All Images' (that feature no longer exists). Message now points to the Recompress Images button instead.",
+        text: "Term pluralization — words ending in 'ch' or 'sh' now correctly pluralize with 'es' (e.g. 'switch' → 'switches', not 'switchs').",
       },
       {
         type: "improve",
