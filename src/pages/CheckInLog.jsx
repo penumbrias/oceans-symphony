@@ -242,7 +242,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
   );
 }
 
-function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations, statusNotes }) {
+function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations }) {
   const allEmotions = useMemo(() => {
     const tally = {};
     checkIns.forEach(ci => (ci.emotions || []).forEach(em => { tally[em] = (tally[em] || 0) + 1; }));
@@ -268,7 +268,7 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   const allActivities = [...new Set(activities.map(a => a.activity_name))];
 
   const isEmpty = allEmotions.length === 0 && fronters.length === 0 && allSymptoms.length === 0
-    && allActivities.length === 0 && locations.length === 0 && (statusNotes || []).length === 0;
+    && allActivities.length === 0 && locations.length === 0;
   if (isEmpty) return null;
 
   return (
@@ -338,36 +338,63 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
         </div>
       )}
 
-      {(statusNotes || []).length > 0 && (
-        <div className="space-y-1">
-          {statusNotes.map((sn, i) => (
-            <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-              <span className="flex-shrink-0 mt-0.5">💬</span>
-              <span className="italic">{sn.note}</span>
-              <span className="flex-shrink-0 ml-auto pl-2">{format(new Date(sn.timestamp), "h:mm a")}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
-function SymptomUpdateEntry({ sc, symptomsById }) {
-  const timeStr = format(new Date(sc.timestamp), "h:mm a");
-  const symptom = symptomsById[sc.symptom_id];
-  const color = symptom?.color || "#8b5cf6";
+function StandaloneEntry({ timestamp, children }) {
+  const timeStr = format(new Date(timestamp), "h:mm a");
   return (
     <div className="px-4 py-2.5 hover:bg-muted/10">
       <div className="flex items-center gap-2 mb-1.5 text-xs text-muted-foreground">
         <Clock className="w-3 h-3 flex-shrink-0" />
         <span>{timeStr}</span>
       </div>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  );
+}
+
+function SymptomUpdateEntry({ sc, symptomsById }) {
+  const symptom = symptomsById[sc.symptom_id];
+  const color = symptom?.color || "#8b5cf6";
+  return (
+    <StandaloneEntry timestamp={sc.timestamp}>
       <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
         style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
         {symptom?.label || "Symptom"}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
       </span>
-    </div>
+    </StandaloneEntry>
+  );
+}
+
+function ActivityEntry({ act }) {
+  return (
+    <StandaloneEntry timestamp={act.timestamp}>
+      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+        ⚡ {act.activity_name}{act.duration_minutes ? ` · ${act.duration_minutes}m` : ""}
+      </span>
+    </StandaloneEntry>
+  );
+}
+
+function LocationEntry({ loc }) {
+  const meta = getCategoryMeta(loc.category);
+  return (
+    <StandaloneEntry timestamp={loc.timestamp}>
+      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
+        <MapPin className="w-3 h-3 flex-shrink-0" />
+        {loc.name || meta?.label || "Location"}
+      </span>
+    </StandaloneEntry>
+  );
+}
+
+function StatusNoteEntry({ sn }) {
+  return (
+    <StandaloneEntry timestamp={sn.timestamp}>
+      <span className="text-sm text-foreground/80 italic">💬 {sn.note}</span>
+    </StandaloneEntry>
   );
 }
 
@@ -389,7 +416,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
     catch { return false; }
   });
 
-  // Standalone symptom updates (logged outside a formal check-in) shown as their own entries
+  // Standalone symptom updates (no check_in_id = logged outside a formal check-in)
   const standaloneSymptomCheckIns = daySymptomCheckIns.filter(sc => !sc.check_in_id);
 
   const dayActivities = allActivities.filter(act => {
@@ -406,6 +433,14 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
     try { return format(new Date(sn.timestamp), "yyyy-MM-dd") === date; }
     catch { return false; }
   });
+
+  // Activities/locations within ±2min of a check-in are shown inside that CheckInCard.
+  // Anything outside that window appears as its own standalone entry.
+  const checkInTimes = checkIns.map(ci => new Date(ci.timestamp).getTime());
+  const TWO_MIN = 2 * 60 * 1000;
+  const nearCheckIn = (ts) => checkInTimes.length > 0 && checkInTimes.some(t => Math.abs(ts - t) < TWO_MIN);
+  const standaloneActivities = dayActivities.filter(act => !nearCheckIn(new Date(act.timestamp).getTime()));
+  const standaloneLocations = dayLocations.filter(loc => !nearCheckIn(new Date(loc.timestamp).getTime()));
 
   const dayDiaryCards = diaryCardsByDate[date] || [];
 
@@ -446,9 +481,21 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
           {[
             ...checkIns.map(ci => ({ kind: "checkin", data: ci, ts: new Date(ci.timestamp).getTime() })),
             ...standaloneSymptomCheckIns.map(sc => ({ kind: "symptom", data: sc, ts: new Date(sc.timestamp).getTime() })),
+            ...standaloneActivities.map(act => ({ kind: "activity", data: act, ts: new Date(act.timestamp).getTime() })),
+            ...standaloneLocations.map(loc => ({ kind: "location", data: loc, ts: new Date(loc.timestamp).getTime() })),
+            ...dayStatusNotes.map(sn => ({ kind: "status", data: sn, ts: new Date(sn.timestamp).getTime() })),
           ].sort((a, b) => a.ts - b.ts).map((entry, i) => {
             if (entry.kind === "symptom") {
               return <SymptomUpdateEntry key={`sym-${entry.data.id || i}`} sc={entry.data} symptomsById={symptomsById} />;
+            }
+            if (entry.kind === "activity") {
+              return <ActivityEntry key={`act-${entry.data.id || i}`} act={entry.data} />;
+            }
+            if (entry.kind === "location") {
+              return <LocationEntry key={`loc-${entry.data.id || i}`} loc={entry.data} />;
+            }
+            if (entry.kind === "status") {
+              return <StatusNoteEntry key={`sn-${entry.data.id || i}`} sn={entry.data} />;
             }
             const ci = entry.data;
             const matchedDiaryCard = dayDiaryCards.find(dc => {
@@ -478,7 +525,6 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
             symptomsById={symptomsById}
             activities={dayActivities}
             locations={dayLocations}
-            statusNotes={dayStatusNotes}
           />
         </div>
       )}
@@ -548,15 +594,28 @@ export default function CheckInLog() {
   }, [diaryCards]);
 
   const byDate = useMemo(() => {
-    const grouped = {};
+    const checkInsByDate = {};
     checkIns.forEach(ci => {
-      const dateKey = format(startOfDay(parseISO(ci.timestamp)), "yyyy-MM-dd");
-      if (!grouped[dateKey]) grouped[dateKey] = [];
-      grouped[dateKey].push(ci);
+      const d = format(startOfDay(parseISO(ci.timestamp)), "yyyy-MM-dd");
+      if (!checkInsByDate[d]) checkInsByDate[d] = [];
+      checkInsByDate[d].push(ci);
     });
-    Object.values(grouped).forEach(arr => arr.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
-    return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
-  }, [checkIns]);
+
+    // Collect dates from all standalone data so days with no formal check-in still appear
+    const allDates = new Set(Object.keys(checkInsByDate));
+    const addDate = (ts) => { try { allDates.add(format(new Date(ts), "yyyy-MM-dd")); } catch {} };
+    symptomCheckIns.filter(sc => !sc.check_in_id).forEach(sc => addDate(sc.timestamp));
+    activities.forEach(act => addDate(act.timestamp));
+    locations.forEach(loc => addDate(loc.timestamp));
+    statusNotes.forEach(sn => addDate(sn.timestamp));
+
+    const result = [...allDates].map(date => {
+      const cis = checkInsByDate[date] || [];
+      cis.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      return [date, cis];
+    });
+    return result.sort(([a], [b]) => b.localeCompare(a));
+  }, [checkIns, symptomCheckIns, activities, locations, statusNotes]);
 
   const highlightDate = useMemo(() => {
     if (dateParam) return dateParam;
@@ -604,11 +663,11 @@ export default function CheckInLog() {
         )}
       </div>
 
-      {checkIns.length === 0 ? (
+      {byDate.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center px-4">
           <div className="text-4xl mb-3">💭</div>
-          <p className="text-sm font-medium text-foreground mb-1">No check-ins yet</p>
-          <p className="text-xs text-muted-foreground">Use Quick Check-In to log your emotions and notes.</p>
+          <p className="text-sm font-medium text-foreground mb-1">Nothing logged yet</p>
+          <p className="text-xs text-muted-foreground">Use Quick Check-In to log emotions, symptoms, activities, and more.</p>
         </div>
       ) : (
         <div className="space-y-3">

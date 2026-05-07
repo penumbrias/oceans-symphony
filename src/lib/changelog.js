@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Check-In Log now shows all tracked data, not just formal check-ins. Days with standalone symptom updates, activities, locations, or status notes appear as their own entries in the timeline even when no check-in was done. Days with only standalone data now appear in the log at all.",
+      },
+      {
+        type: "fix",
+        text: "BioEditor Simple Mode — clicking static template text no longer opens an edit dialog. Only the dotted-underline span fields are tappable.",
+      },
+      {
         type: "feature",
         text: "Migration banner — users coming from the old base44 version are now shown a banner with a link to recover their data.",
       },
