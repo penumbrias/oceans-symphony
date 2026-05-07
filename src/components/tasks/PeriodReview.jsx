@@ -163,9 +163,8 @@ function getDayOfWeek(dateKey) {
 function formatPeriodKeyShort(frequency, key) {
   if (!key) return "";
   if (frequency === "daily") {
-    // Show Mon 4/21 style
     const d = new Date(key + "T00:00:00");
-    return d.toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
   if (frequency === "weekly") {
     const [, week] = key.split("-W");
