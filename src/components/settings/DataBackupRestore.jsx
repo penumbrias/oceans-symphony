@@ -6,6 +6,37 @@ import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRa
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
+const LS_SETTINGS_KEYS = [
+  "symphony_themeMode",
+  "symphony_selectedTheme",
+  "symphony_customColors",
+  "symphony_selectedFont",
+  "symphony_userCustomPresets",
+  "symphony_alterThemeLinks",
+  "symphony_a11y_fontSize",
+  "symphony_a11y_fontFamily",
+  "symphony_a11y_reduceMotion",
+  "symphony_a11y_highContrast",
+  "symphony_a11y_largeTouch",
+  "symphony_a11y_navHeight",
+];
+
+function exportLocalSettings() {
+  const out = {};
+  for (const key of LS_SETTINGS_KEYS) {
+    const val = localStorage.getItem(key);
+    if (val !== null) out[key] = val;
+  }
+  return out;
+}
+
+function importLocalSettings(settings) {
+  if (!settings || typeof settings !== "object") return;
+  for (const key of LS_SETTINGS_KEYS) {
+    if (settings[key] != null) localStorage.setItem(key, settings[key]);
+  }
+}
+
 function compressBackup(data) {
   const json = JSON.stringify(data);
   const compressed = pako.deflate(json);
@@ -201,6 +232,7 @@ export default function DataBackupRestore() {
       __exported_at: new Date().toISOString(),
       data: filteredDump,
       __local_images: imagesExport,
+      __local_settings: exportLocalSettings(),
     };
 
     // Size warning — check before compression
@@ -378,6 +410,9 @@ const handleExportFull = async () => {
       try { await restoreLocalImages(parsed.__local_images); } catch (e) {
         console.warn("Failed to restore local images:", e);
       }
+    }
+    if (parsed.__local_settings) {
+      importLocalSettings(parsed.__local_settings);
     }
     if (importMode === "replace") {
       await loadDbDump(parsed.data);
