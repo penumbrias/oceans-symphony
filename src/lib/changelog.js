@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Per-friend alter visibility: expand any friend card and tap \"Visibility\" to control exactly which alters they can see, or override the privacy level (names / count only / hidden) for that friend specifically. Alters already hidden from all friends are shown as non-toggleable.",
+      },
+      {
         type: "fix",
         text: "Friends list now auto-refreshes every 30 seconds without needing to manually tap the refresh button. It also loads fresh data immediately whenever you open the Friends page.",
       },

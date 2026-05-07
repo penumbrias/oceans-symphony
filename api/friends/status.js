@@ -29,10 +29,14 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Not friends.' });
   }
 
-  const [frontData, profile] = await Promise.all([
+  const [frontDefault, frontForViewer, profile] = await Promise.all([
     kv.get(`user:${userId}:front`),
+    kv.get(`user:${userId}:front:${viewerUserId}`),  // per-friend override
     getProfile(userId),
   ]);
+
+  // Per-friend blob takes precedence over the default
+  const frontData = frontForViewer || frontDefault;
 
   if (!frontData) {
     return res.status(200).json({

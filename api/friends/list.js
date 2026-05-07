@@ -31,9 +31,10 @@ export default async function handler(req, res) {
     .map(([id]) => id);
 
   const enriched = await Promise.all(approvedIds.map(async (fId) => {
-    const [profile, front] = await Promise.all([
+    const [profile, frontDefault, frontForMe] = await Promise.all([
       getProfile(fId),
       kv.get(`user:${fId}:front`),
+      kv.get(`user:${fId}:front:${userId}`),  // per-friend override
     ]);
     return {
       userId: fId,
@@ -42,7 +43,7 @@ export default async function handler(req, res) {
       friendCode: profile?.friendCode || '',
       notifyOnChange: friendsMap[fId].notifyOnChange || false,
       addedAt: friendsMap[fId].addedAt,
-      front: front || null,
+      front: frontForMe || frontDefault || null,
     };
   }));
 
