@@ -180,7 +180,11 @@ export default function Dashboard() {
     holdTimerRef.current = setTimeout(tick, 50);
   };
 
-  const endHold = () => {
+  const endHold = (e) => {
+    // Prevent the synthetic click event mobile browsers fire after pointerup —
+    // without this, the click lands on the modal's date field which is now
+    // positioned where the button was.
+    e?.preventDefault?.();
     if (!holdStartRef.current) return;
     clearTimeout(holdTimerRef.current);
     holdStartRef.current = null;
@@ -369,7 +373,7 @@ export default function Dashboard() {
           onPointerLeave={endHold}
           onPointerCancel={endHold}
           onContextMenu={(e) => e.preventDefault()}
-          style={{ userSelect: "none", WebkitUserSelect: "none" }}
+          style={{ userSelect: "none", WebkitUserSelect: "none", touchAction: "manipulation" }}
           aria-label="Quick emotional check-in"
           className={`bg-destructive/10 text-destructive px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors relative overflow-hidden${showQuickActions ? " ring-2 ring-destructive/30" : ""}`}
         >
