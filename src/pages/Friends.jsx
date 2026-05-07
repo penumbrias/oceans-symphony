@@ -431,7 +431,10 @@ export default function FriendsPage() {
     queryFn: fetchFriendsList,
     enabled: !!identity,
     refetchInterval: 30_000,
-    staleTime: 15_000,
+    refetchIntervalInBackground: true,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const friends = friendsData?.friends || [];
