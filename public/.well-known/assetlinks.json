@@ -3,6 +3,6 @@
   "target": {
     "namespace": "android_app",
     "package_name": "app.oceans_symphony.twa",
-    "sha256_cert_fingerprints": ["FINGERPRINT_PLACEHOLDER"]
+    "sha256_cert_fingerprints": ["7B:E4:32:89:BE:22:FA:3C:AE:75:DD:F4:39:51:6C:11:CC:23:3F:5F:0E:4A:B2:C1:CC:8E:C0:6C:6F:6A:D7:42"]
   }
 }]
