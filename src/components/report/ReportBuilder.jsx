@@ -3,7 +3,7 @@ import { addDays, format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import NoteworthySettings from "./NoteworthySettings";
 import { DEFAULT_THRESHOLDS } from "@/lib/reportSections";
 import { useTerms } from "@/lib/useTerms";
@@ -220,7 +220,7 @@ const DEFAULT_OPTIONS = {
   excludedAlterIds: [],
 };
 
-export default function ReportBuilder({ templates, onGenerate, loading, symptoms = [], activities = [], alters = [] }) {
+export default function ReportBuilder({ templates = [], onDeleteTemplate, onGenerate, loading, symptoms = [], activities = [], alters = [] }) {
   const t = useTerms();
   const SECTIONS = useMemo(() => buildSectionDefs(t), [t]);
 
@@ -263,6 +263,20 @@ export default function ReportBuilder({ templates, onGenerate, loading, symptoms
   const [templateName, setTemplateName] = useState("");
 
   const setOpt = (key, value) => setSectionOptions(prev => ({ ...prev, [key]: value }));
+
+  const handleLoadTemplate = (tpl) => {
+    if (tpl.sections_config) {
+      setSelectedSections(new Set(Object.keys(tpl.sections_config).filter(k => tpl.sections_config[k])));
+    }
+    if (tpl.noteworthy_thresholds) setThresholds(tpl.noteworthy_thresholds);
+    if (tpl.show_cover_page != null) setShowCoverPage(tpl.show_cover_page);
+    if (tpl.cover_note) setCoverNote(tpl.cover_note);
+    if (tpl.system_name) setSystemName(tpl.system_name);
+    if (tpl.therapist_name) setTherapistName(tpl.therapist_name);
+    if (tpl.confidentiality_notice != null) setConfidentialityNotice(tpl.confidentiality_notice);
+    if (tpl.journal_detail) setOpt("journalDetail", tpl.journal_detail);
+    if (tpl.section_options) setSectionOptions(prev => ({ ...prev, ...tpl.section_options }));
+  };
 
   const handleToggle = (id) => {
     const next = new Set(selectedSections);
@@ -307,6 +321,37 @@ export default function ReportBuilder({ templates, onGenerate, loading, symptoms
 
   return (
     <div className="space-y-8 max-w-2xl">
+
+      {/* Saved templates */}
+      {templates.length > 0 && (
+        <section className="space-y-2">
+          <h3 className="font-semibold text-foreground">Saved templates</h3>
+          <div className="space-y-1.5">
+            {templates.map(tpl => (
+              <div key={tpl.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border/50 bg-card">
+                <span className="flex-1 text-sm font-medium truncate">{tpl.name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleLoadTemplate(tpl)}
+                  className="text-xs px-3 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium flex-shrink-0"
+                >
+                  Load
+                </button>
+                {onDeleteTemplate && (
+                  <button
+                    type="button"
+                    onClick={() => { if (confirm(`Delete template "${tpl.name}"?`)) onDeleteTemplate(tpl.id); }}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+                    aria-label="Delete template"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Time period */}
       <section className="space-y-3">

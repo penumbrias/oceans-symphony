@@ -345,6 +345,7 @@ export default function TherapyReportPage() {
           therapist_name: config.config.therapistName,
           confidentiality_notice: config.config.confidentialityNotice,
           journal_detail: config.config.journalDetail,
+          section_options: sectionOptions,
         });
         queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
       }
@@ -368,6 +369,10 @@ export default function TherapyReportPage() {
       <ReportBuilder
         templates={templates}
         onGenerate={handleGenerate}
+        onDeleteTemplate={async (id) => {
+          await db.ReportTemplate.delete(id);
+          queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
+        }}
         loading={loading}
         symptoms={symptoms}
         activities={activities}
