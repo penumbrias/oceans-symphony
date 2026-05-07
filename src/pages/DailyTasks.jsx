@@ -101,6 +101,12 @@ export default function DailyTasks() {
     [hasJournalToday, systemCheckIns.length]
   );
 
+  // IDs of AUTO tasks that are currently triggered today
+  const autoCompletedIds = useMemo(
+    () => activeTasks.filter(t => t.mode === "AUTO" && autoTriggers.has(t.auto_trigger)).map(t => t.id),
+    [activeTasks, autoTriggers]
+  );
+
   // Current period key per frequency
   const currentPeriodKey = useMemo(() => getPeriodKey(activeFreq), [activeFreq]);
 
@@ -209,12 +215,15 @@ export default function DailyTasks() {
       return done ? sum + (t.points || 0) : sum;
     }, 0);
 
+    // Merge manual + auto IDs so the review grid can see both
+    const allCompleted = [...new Set([...newCompleted, ...autoCompletedIds])];
+
     // Optimistic update
     const optimistic = {
       date: TODAY,
       period_key: currentPeriodKey,
       frequency: activeFreq,
-      completed_task_ids: [...newCompleted],
+      completed_task_ids: allCompleted,
       xp_earned: newXP,
     };
     queryClient.setQueryData(["dailyProgress"], (old) => {
@@ -232,7 +241,7 @@ export default function DailyTasks() {
 
     if (currentRecord) {
       await base44.entities.DailyProgress.update(currentRecord.id, {
-        completed_task_ids: [...newCompleted],
+        completed_task_ids: allCompleted,
         xp_earned: newXP,
       });
     } else {
@@ -240,35 +249,38 @@ export default function DailyTasks() {
         date: TODAY,
         period_key: currentPeriodKey,
         frequency: activeFreq,
-        completed_task_ids: [...newCompleted],
+        completed_task_ids: allCompleted,
         xp_earned: newXP,
       });
     }
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
 
-  // Persist auto XP for daily tasks
+  // Persist auto XP + auto task IDs for daily tasks so the review grid shows them
   useEffect(() => {
     if (progressLoading || templatesLoading || activeFreq !== "daily") return;
-    const dailyAutoXP = activeTasks.reduce((sum, t) => {
-      const done = isTaskCompleted(t, manualCompletedIds, autoTriggers);
-      return done ? sum + (t.points || 0) : sum;
-    }, 0);
-    if (!currentRecord && dailyAutoXP > 0) {
+    const allIds = [...new Set([...manualCompletedIds, ...autoCompletedIds])];
+    if (!currentRecord && todayXP > 0) {
       base44.entities.DailyProgress.create({
         date: TODAY,
         period_key: currentPeriodKey,
         frequency: "daily",
-        completed_task_ids: [],
-        xp_earned: dailyAutoXP,
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
-    } else if (currentRecord && dailyAutoXP !== (currentRecord.xp_earned || 0) && manualCompletedIds.size === 0) {
-      base44.entities.DailyProgress.update(currentRecord.id, {
-        completed_task_ids: [...manualCompletedIds],
+        completed_task_ids: allIds,
         xp_earned: todayXP,
       }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
+    } else if (currentRecord) {
+      // Backfill any auto IDs missing from the stored record
+      const stored = new Set(currentRecord.completed_task_ids || []);
+      const missingAuto = autoCompletedIds.some(id => !stored.has(id));
+      if (missingAuto) {
+        const merged = [...new Set([...stored, ...autoCompletedIds])];
+        base44.entities.DailyProgress.update(currentRecord.id, {
+          completed_task_ids: merged,
+          xp_earned: todayXP,
+        }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
+      }
     }
-  }, [progressLoading, templatesLoading, todayXP, currentRecord, activeFreq]);
+  }, [progressLoading, templatesLoading, currentRecord?.id, activeFreq, autoTriggers]);
 
   const freqCounts = useMemo(() => {
     const counts = {};
