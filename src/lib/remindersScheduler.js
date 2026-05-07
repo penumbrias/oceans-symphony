@@ -16,7 +16,9 @@ function inQuietWindow(minuteOfDay, start, end) {
   return minuteOfDay >= start || minuteOfDay < end;
 }
 
-const WINDOW = 60 * 1000;
+// WINDOW must be wider than the polling interval (60s) to avoid missed firings.
+// 90s means the scheduler can run up to 30s late and still catch the reminder.
+const WINDOW = 90 * 1000;
 
 // ── client-side evaluator (mirrors backend logic, no push) ───────────────────
 
@@ -450,14 +452,29 @@ export async function runClientScheduler(queryClient) {
 
         // Send native push notification if push is in delivery channels (fire-and-forget)
         if (channels.includes("push")) {
-          isPushEnabled().then(enabled => {
-            if (!enabled) return;
-            sendPushNotification({
-              title: reminder.title,
-              body: reminder.body || '',
-              reminderInstanceId: inst.id,
-              inlineActions: reminder.inline_actions || [],
-            }).catch(() => {});
+          isPushEnabled().then(async enabled => {
+            if (enabled) {
+              try {
+                await sendPushNotification({
+                  title: reminder.title,
+                  body: reminder.body || '',
+                  reminderInstanceId: inst.id,
+                  inlineActions: reminder.inline_actions || [],
+                });
+              } catch (e) {
+                console.warn(`[remindersScheduler] push send failed for ${reminder.id}:`, e.message);
+              }
+            } else {
+              // Push not subscribed — upgrade this instance to in_app so it shows
+              // as a banner rather than disappearing silently.
+              console.warn(`[remindersScheduler] push not enabled for reminder "${reminder.title}" — falling back to in-app`);
+              await base44.entities.ReminderInstance.update(inst.id, {
+                delivery_attempted: ["in_app"],
+              }).catch(() => {});
+              if (queryClient) {
+                queryClient.invalidateQueries({ queryKey: ["reminderInstances", "pending"] });
+              }
+            }
           }).catch(() => {});
         }
       } catch (err) {
