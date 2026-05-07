@@ -204,6 +204,7 @@ export default function AdvancedAppearance() {
     const preset = allPresets[name] || userCustomPresets[name];
     if (preset?.font) { setCurrentFont(preset.font); setAccessibilityFontFamily(preset.font); }
     if (preset?.themeMode) setThemeMode(preset.themeMode);
+    if (preset?.fontSize) { setCurrentSize(preset.fontSize); setAccessibilityFontSize(preset.fontSize); }
   };
 
   // ── Color editing ────────────────────────────────────────────
@@ -243,7 +244,7 @@ export default function AdvancedAppearance() {
     if (!name) return;
     const colors = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
     if (!colors) return;
-    saveCustomPreset(name, { ...colors, font: currentFont, themeMode });
+    saveCustomPreset(name, { ...colors, font: currentFont, themeMode, fontSize: currentSize });
     setPresetName('');
     setShowSaveForm(false);
     toast.success(`Theme "${name}" saved`);

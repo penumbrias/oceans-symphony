@@ -17,7 +17,7 @@ import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
 import FeatureTour from "@/components/onboarding/FeatureTour";
 import { useTheme } from "@/lib/ThemeContext";
-import { setAccessibilityFontFamily } from "@/lib/useAccessibility";
+import { setAccessibilityFontFamily, setAccessibilityFontSize } from "@/lib/useAccessibility";
 
 function OfflineReadyBadge() {
   const [ready, setReady] = useState(false);
@@ -132,6 +132,7 @@ useEffect(() => {
   setSelectedTheme(linkedPreset);
   if (preset.font) setAccessibilityFontFamily(preset.font);
   if (preset.themeMode) setThemeMode(preset.themeMode);
+  if (preset.fontSize) setAccessibilityFontSize(preset.fontSize);
 }, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {
