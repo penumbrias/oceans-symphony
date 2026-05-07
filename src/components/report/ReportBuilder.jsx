@@ -220,7 +220,7 @@ const DEFAULT_OPTIONS = {
   excludedAlterIds: [],
 };
 
-export default function ReportBuilder({ templates = [], onDeleteTemplate, onGenerate, loading, symptoms = [], activities = [], alters = [] }) {
+export default function ReportBuilder({ templates = [], onDeleteTemplate, onSaveTemplate, onGenerate, loading, symptoms = [], activities = [], alters = [] }) {
   const t = useTerms();
   const SECTIONS = useMemo(() => buildSectionDefs(t), [t]);
 
@@ -259,8 +259,8 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onGene
   const [coverNote, setCoverNote] = useState("");
   const [confidentialityNotice, setConfidentialityNotice] = useState(true);
 
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const setOpt = (key, value) => setSectionOptions(prev => ({ ...prev, [key]: value }));
 
@@ -316,16 +316,19 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onGene
       sectionOptions,
     },
     exportAsText,
-    saveAsTemplate: saveAsTemplate && templateName ? { name: templateName } : null,
+    saveAsTemplate: null,
   });
 
   return (
     <div className="space-y-8 max-w-2xl">
 
-      {/* Saved templates */}
-      {templates.length > 0 && (
-        <section className="space-y-2">
-          <h3 className="font-semibold text-foreground">Saved templates</h3>
+      {/* Templates */}
+      <section className="space-y-2">
+        <h3 className="font-semibold text-foreground">Templates</h3>
+
+        {templates.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No saved templates yet. Name your current settings below and tap Save.</p>
+        ) : (
           <div className="space-y-1.5">
             {templates.map(tpl => (
               <div key={tpl.id} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border/50 bg-card">
@@ -350,8 +353,35 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onGene
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+
+        {/* Save current settings as a new template */}
+        <div className="flex gap-2 pt-1">
+          <Input
+            placeholder="Template name…"
+            value={templateName}
+            onChange={e => setTemplateName(e.target.value)}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!templateName.trim() || savingTemplate}
+            onClick={async () => {
+              if (!onSaveTemplate) return;
+              setSavingTemplate(true);
+              try {
+                await onSaveTemplate(buildConfig(), templateName.trim());
+                setTemplateName("");
+              } finally {
+                setSavingTemplate(false);
+              }
+            }}
+          >
+            {savingTemplate ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </section>
 
       {/* Time period */}
       <section className="space-y-3">
@@ -529,29 +559,6 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onGene
             </label>
           </div>
         )}
-      </section>
-
-      {/* Save as template */}
-      <section>
-        <label className="flex items-start gap-3 p-3 border border-border rounded-xl cursor-pointer hover:bg-muted/20 select-none">
-          <input
-            type="checkbox"
-            checked={saveAsTemplate}
-            onChange={e => setSaveAsTemplate(e.target.checked)}
-            className="mt-1"
-          />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">Save these settings as a template</p>
-            {saveAsTemplate && (
-              <Input
-                placeholder="Template name"
-                value={templateName}
-                onChange={e => setTemplateName(e.target.value)}
-                className="mt-2"
-              />
-            )}
-          </div>
-        </label>
       </section>
 
       {/* Generate */}

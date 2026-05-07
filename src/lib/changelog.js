@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Therapy report templates — the old 'save as template' checkbox was tied to generating a report and didn't work on its own. Templates section is now always visible at the top of the report builder with a name field and a standalone Save button. Tap Save to save at any time without generating a report.",
+      },
+      {
+        type: "fix",
         text: "Backup size warning no longer references 'Migrate All Images' (that feature no longer exists). Message now points to the Recompress Images button instead.",
       },
       {
