@@ -160,6 +160,9 @@ export default function AdvancedAppearance() {
   const [pendingColors, setPendingColors] = useState(null);
   const [originalTheme, setOriginalTheme] = useState(selectedTheme);
 
+  // Fronter theme search
+  const [alterSearch, setAlterSearch] = useState('');
+
   // Save preset state
   const [presetName, setPresetName] = useState('');
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -456,8 +459,22 @@ export default function AdvancedAppearance() {
           <p className="text-xs text-muted-foreground">
             When a {t.alter} becomes primary {t.fronter}, their linked theme (including light/dark mode) switches automatically.
           </p>
-          <div className="max-h-[260px] overflow-y-auto space-y-1 pr-0.5">
-            {alters.filter(a => !a.is_archived).map(alter => {
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input bg-background">
+            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <input
+              value={alterSearch}
+              onChange={e => setAlterSearch(e.target.value)}
+              placeholder={`Search ${t.alters}…`}
+              className="flex-1 bg-transparent text-xs outline-none"
+            />
+            {alterSearch && (
+              <button type="button" onClick={() => setAlterSearch('')} className="text-muted-foreground hover:text-foreground">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          <div className="max-h-[240px] overflow-y-auto space-y-1 pr-0.5">
+            {alters.filter(a => !a.is_archived && (alterSearch === '' || (a.alias || a.name).toLowerCase().includes(alterSearch.toLowerCase()))).map(alter => {
               const linked = alterThemeLinks[alter.id];
               return (
                 <div key={alter.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/40 bg-card">
