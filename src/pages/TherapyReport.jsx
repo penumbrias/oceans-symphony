@@ -158,12 +158,14 @@ export default function TherapyReportPage() {
         symptomSessions,
         thresholds: config.thresholds,
         mode: config.mode,
+        excludedSymptomIds: new Set(sectionOptions.excludedSymptomIds || []),
       });
 
       const activitiesData = reportSections.buildActivitiesSection({
         dateFrom: config.dateFrom,
         dateTo: config.dateTo,
         activities,
+        excludedActivityNames: new Set(sectionOptions.excludedActivityNames || []),
       });
 
       const journals = reportSections.buildJournalsSection({
@@ -269,6 +271,7 @@ export default function TherapyReportPage() {
             alters,
             alterIdsInReport,
             alterDetail: sectionOptions.alterDetail || "full",
+            excludedAlterIds: new Set(sectionOptions.excludedAlterIds || []),
           })
         : [];
 
@@ -366,6 +369,9 @@ export default function TherapyReportPage() {
         templates={templates}
         onGenerate={handleGenerate}
         loading={loading}
+        symptoms={symptoms}
+        activities={activities}
+        alters={alters}
       />
 
       <ExportModal

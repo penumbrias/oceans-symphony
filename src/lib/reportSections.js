@@ -193,9 +193,13 @@ export function buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters,
 
 // ── SECTION: SYMPTOMS ─────────────────────────────────────────────────────────
 
-export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckIns, symptomSessions, thresholds, mode }) {
-  const checkIns = symptomCheckIns.filter(c => inRange(c.timestamp, dateFrom, dateTo));
-  const sessions = symptomSessions.filter(s => inRange(s.start_time, dateFrom, dateTo));
+export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckIns, symptomSessions, thresholds, mode, excludedSymptomIds = new Set() }) {
+  const checkIns = symptomCheckIns
+    .filter(c => inRange(c.timestamp, dateFrom, dateTo))
+    .filter(c => !excludedSymptomIds.has(c.symptom_id));
+  const sessions = symptomSessions
+    .filter(s => inRange(s.start_time, dateFrom, dateTo))
+    .filter(s => !excludedSymptomIds.has(s.symptom_id));
 
   const symptomMap = Object.fromEntries(symptoms.map(s => [s.id, s]));
 
@@ -274,8 +278,10 @@ export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckI
 
 // ── SECTION: ACTIVITIES ────────────────────────────────────────────────────────
 
-export function buildActivitiesSection({ dateFrom, dateTo, activities }) {
-  const acts = activities.filter(a => inRange(a.timestamp || a.start_time || a.created_date, dateFrom, dateTo));
+export function buildActivitiesSection({ dateFrom, dateTo, activities, excludedActivityNames = new Set() }) {
+  const acts = activities
+    .filter(a => inRange(a.timestamp || a.start_time || a.created_date, dateFrom, dateTo))
+    .filter(a => !excludedActivityNames.has(a.activity_name || a.name || "Activity"));
 
   const freq = {};
   acts.forEach(a => {
@@ -413,10 +419,10 @@ export function buildPatternsSummary({
 
 // ── SECTION: ALTER APPENDIX ───────────────────────────────────────────────────
 
-export function buildAlterAppendix({ alters, alterIdsInReport, alterDetail = "full" }) {
+export function buildAlterAppendix({ alters, alterIdsInReport, alterDetail = "full", excludedAlterIds = new Set() }) {
   const ids = new Set(alterIdsInReport);
   return alters
-    .filter(a => ids.has(a.id) && !a.is_archived)
+    .filter(a => ids.has(a.id) && !a.is_archived && !excludedAlterIds.has(a.id))
     .map(a => ({
       name: a.name,
       pronouns: a.pronouns || null,

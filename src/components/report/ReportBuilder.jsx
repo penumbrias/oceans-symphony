@@ -8,6 +8,49 @@ import NoteworthySettings from "./NoteworthySettings";
 import { DEFAULT_THRESHOLDS } from "@/lib/reportSections";
 import { useTerms } from "@/lib/useTerms";
 
+function ExclusionPicker({ items, excluded, onChange, nounSingular = "item" }) {
+  const [open, setOpen] = useState(false);
+  const excludedCount = items.filter(i => excluded.includes(i.id)).length;
+  const toggle = (id) => {
+    if (excluded.includes(id)) onChange(excluded.filter(x => x !== id));
+    else onChange([...excluded, id]);
+  };
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        {excludedCount > 0
+          ? <span className="text-amber-600 dark:text-amber-400 font-medium">{excludedCount} excluded from report</span>
+          : <span>All {nounSingular}s included · manage exclusions</span>
+        }
+      </button>
+      {open && (
+        <div className="mt-2 rounded-lg border border-border/60 divide-y divide-border/40 max-h-48 overflow-y-auto">
+          {items.length === 0 && (
+            <p className="text-xs text-muted-foreground px-3 py-2">No {nounSingular}s found in your data.</p>
+          )}
+          {items.map(item => {
+            const isExcluded = excluded.includes(item.id);
+            return (
+              <label key={item.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/20 select-none">
+                <Checkbox checked={!isExcluded} onCheckedChange={() => toggle(item.id)} />
+                <span className={`text-xs flex-1 ${isExcluded ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                  {item.label}
+                </span>
+                {isExcluded && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">excluded</span>}
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RadioGroup({ value, onChange, options }) {
   return (
     <div className="space-y-1 pt-1">
@@ -172,11 +215,31 @@ const DEFAULT_OPTIONS = {
   supportDetail: "titles",
   alterNames: true,
   alterDetail: "full",
+  excludedSymptomIds: [],
+  excludedActivityNames: [],
+  excludedAlterIds: [],
 };
 
-export default function ReportBuilder({ templates, onGenerate, loading }) {
+export default function ReportBuilder({ templates, onGenerate, loading, symptoms = [], activities = [], alters = [] }) {
   const t = useTerms();
   const SECTIONS = useMemo(() => buildSectionDefs(t), [t]);
+
+  const symptomItems = useMemo(() =>
+    symptoms.filter(s => !s.is_archived).map(s => ({ id: s.id, label: s.label || "Unnamed" })),
+    [symptoms]);
+
+  const activityNameItems = useMemo(() => {
+    const seen = new Set();
+    return activities
+      .map(a => a.activity_name || a.name)
+      .filter(n => n && !seen.has(n) && seen.add(n))
+      .sort()
+      .map(n => ({ id: n, label: n }));
+  }, [activities]);
+
+  const alterItems = useMemo(() =>
+    alters.filter(a => !a.is_archived).map(a => ({ id: a.id, label: a.name || "Unnamed" })),
+    [alters]);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const weekAgo = format(addDays(new Date(), -7), "yyyy-MM-dd");
@@ -325,9 +388,33 @@ export default function ReportBuilder({ templates, onGenerate, loading }) {
                   </div>
                 </label>
 
-                {isOn && sec.subOptions && (
+                {isOn && (sec.subOptions || sec.id === "symptoms" || sec.id === "activities" || sec.id === "alterAppendix") && (
                   <div className="px-10 pb-3">
-                    {sec.subOptions(sectionOptions, setOpt)}
+                    {sec.subOptions && sec.subOptions(sectionOptions, setOpt)}
+                    {sec.id === "symptoms" && symptomItems.length > 0 && (
+                      <ExclusionPicker
+                        items={symptomItems}
+                        excluded={sectionOptions.excludedSymptomIds}
+                        onChange={v => setOpt("excludedSymptomIds", v)}
+                        nounSingular="symptom/habit"
+                      />
+                    )}
+                    {sec.id === "activities" && activityNameItems.length > 0 && (
+                      <ExclusionPicker
+                        items={activityNameItems}
+                        excluded={sectionOptions.excludedActivityNames}
+                        onChange={v => setOpt("excludedActivityNames", v)}
+                        nounSingular="activity"
+                      />
+                    )}
+                    {sec.id === "alterAppendix" && sectionOptions.alterNames && alterItems.length > 0 && (
+                      <ExclusionPicker
+                        items={alterItems}
+                        excluded={sectionOptions.excludedAlterIds}
+                        onChange={v => setOpt("excludedAlterIds", v)}
+                        nounSingular={t.alter}
+                      />
+                    )}
                   </div>
                 )}
               </div>
