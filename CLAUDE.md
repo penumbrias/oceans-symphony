@@ -109,7 +109,7 @@ Rules:
 
 ## Critical: Keep the Changelog Up to Date
 
-**Whenever a feature, improvement, or notable fix ships, add an entry to `src/lib/changelog.js`.**
+**Whenever a feature, improvement, or notable fix ships, add an entry to `src/lib/changelog.js`. Do this as part of the same commit — never leave it for later.**
 
 Rules:
 - Add a new date block at the top of the `CHANGELOG` array when starting a new session's work.
@@ -118,6 +118,14 @@ Rules:
 - For larger features, write 1–2 sentences describing what the user can now do.
 - Do not add entries for refactors, renames, or changes that have no user-visible effect.
 - The changelog is shown in Settings → Recent Updates — keep it user-facing, not technical jargon.
+- **Every shipped task gets a changelog entry in the same commit — do not batch them up or forget mid-session.**
+
+Recent features that must always be logged (examples of what counts):
+- New settings sections or pages
+- New data entities or logging types
+- UI/UX behaviour changes visible to the user
+- Onboarding changes
+- Bug fixes the user would notice
 
 ---
 
