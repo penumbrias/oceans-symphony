@@ -33,7 +33,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "👥",
       title: `Currently ${t.Fronting}`,
-      body: `The ${t.fronting} widget shows every ${t.alter} who is currently ${t.fronting}. Tap any ${t.alter} chip to expand it — you can add a session note, log emotions or symptoms, or mark the ${t.switch} as triggered right there without leaving the home screen.`,
+      body: `The ${t.fronting} widget shows every ${t.alter} who is currently ${t.fronting}. Tap any ${t.alter} chip to open their full profile. Hold for 500 ms to get quick options: make primary, demote to co-${t.fronter}, or remove from ${t.front}.`,
       route: "/", target: "fronters-widget",
       look: `the highlighted "Currently ${t.Fronting}" card with ${t.alter} chips`, action: null,
     },

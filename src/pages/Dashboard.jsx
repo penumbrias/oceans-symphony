@@ -264,7 +264,18 @@ export default function Dashboard() {
       }
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
 
-      await base44.entities.SymptomCheckIn.create({ symptom_id, severity, timestamp: now });
+      // Create a parent check-in to tie the symptom to fronting alters (mirrors QuickCheckInModal)
+      let checkInId = null;
+      if (frontingAlterIds.length > 0) {
+        const parent = await base44.entities.EmotionCheckIn.create({
+          timestamp: now,
+          emotions: [],
+          fronting_alter_ids: frontingAlterIds,
+        }).catch(() => null);
+        checkInId = parent?.id || null;
+        if (checkInId) queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      }
+      await base44.entities.SymptomCheckIn.create({ symptom_id, severity, timestamp: now, check_in_id: checkInId });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success("Logged");
     } else if (action.type === "log_emotion") {

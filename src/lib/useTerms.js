@@ -90,8 +90,8 @@ export function useTerms() {
     const Fronters_cap = capitalize(fronters_lower);
 
     // Co-fronter variants
-    const cofronter_lower = `co-${alter_lower}`;
-    const Cofronter_cap = `Co-${Alter_cap}`;
+    const cofronter_lower = `co-${fronter_lower}`;
+    const Cofronter_cap = `Co-${Fronter_cap}`;
     const cofronters_lower = pluralize(cofronter_lower);
     const Cofronters_cap = capitalize(cofronters_lower);
     const cofronting_lower = `co-${fronting_lower}`;

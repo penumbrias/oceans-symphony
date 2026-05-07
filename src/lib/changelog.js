@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Co-fronter terminology was incorrectly derived from the alter term (showing \"co-alter\") instead of the fronter term. It now correctly shows \"co-fronter\" by default and respects custom front terms.",
+      },
+      {
+        type: "fix",
+        text: "Quick Action symptom logs are now tied to currently-fronting alters (matching what happens when you log via Quick Check-In), and the guide's \"notes from other parts\" now uses your configured alter term.",
+      },
+      {
         type: "improve",
         text: "Tapping a currently-fronting alter on the dashboard now opens their full profile page, consistent with tapping them in the alter directory.",
       },
