@@ -40,6 +40,10 @@ export const CHANGELOG = [
         text: "Dashboard grid now supports drag-and-drop rearranging. Tap the pencil icon to enter edit mode, drag tiles to reorder, tap × to remove a tile, then tap Done to save. The layout and remove buttons are preserved across sessions.",
       },
       {
+        type: "improve",
+        text: "Friends page now clearly explains where your data lives: personal data (alters, journals, sessions, check-ins) stays in IndexedDB on your device; the Friends feature uses a separate minimal cloud relay that only ever holds your display name and the front snapshot you explicitly choose to share. A collapsible \"Data & Privacy\" section is always visible on the Friends page, and the same info appears on the opt-in screen before you create a profile.",
+      },
+      {
         type: "feature",
         text: "Per-friend alter visibility: expand any friend card and tap \"Visibility\" to control exactly which alters they can see, or override the privacy level (names / count only / hidden) for that friend specifically. Alters already hidden from all friends are shown as non-toggleable.",
       },

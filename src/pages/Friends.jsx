@@ -10,7 +10,8 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   Users, Copy, UserPlus, Check, X, Bell, BellOff, UserMinus,
-  ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw, Eye, EyeOff, ShieldCheck
+  ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw, Eye, EyeOff, ShieldCheck,
+  Database, Lock,
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
@@ -545,6 +546,78 @@ function AddFriendModal({ open, onClose, onAdded }) {
   );
 }
 
+// ── Privacy disclosure ────────────────────────────────────────────────────────
+
+function PrivacyDisclosure() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-border/40 bg-muted/5 overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-muted/20 transition-colors"
+      >
+        <ShieldCheck className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        <span className="text-sm font-medium text-foreground flex-1">Data &amp; Privacy</span>
+        {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-4 border-t border-border/30 pt-3">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Database className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                  <span className="text-xs font-semibold text-foreground">Your personal data — stays on your device</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed pl-5">
+                  Alters, journals, fronting sessions, symptoms, check-ins, and all other personal data live in IndexedDB on your device only. No server ever sees this. The optional AES-256 encryption protects it at rest.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                  <span className="text-xs font-semibold text-foreground">What Friends stores online</span>
+                </div>
+                <ul className="pl-5 space-y-1.5">
+                  {[
+                    "Your chosen display name and friend code",
+                    "A snapshot of who's currently fronting — only what you choose to share, filtered by your privacy level and per-friend visibility settings",
+                    "Friend connections (who approved who)",
+                    "Push notification tokens, only if you enable push notifications",
+                  ].map((item, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                      <span className="text-muted-foreground/40 flex-shrink-0 mt-px">·</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-lg bg-muted/20 px-3 py-2.5">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="text-foreground font-medium">Never shared: </span>
+                  alter profiles, journal text, check-in data, symptom logs, and timeline history never touch the Friends server. The server only ever knows exactly what you explicitly push via Update Front.
+                </p>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Friends is fully opt-in. If you never create a profile, zero data leaves your device.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function FriendsPage() {
@@ -741,10 +814,37 @@ export default function FriendsPage() {
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-2">
           <Users className="w-8 h-8 text-primary" />
         </div>
-        <h1 className="text-xl font-semibold">Friends & Front Sharing</h1>
+        <h1 className="text-xl font-semibold">Friends &amp; Front Sharing</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Share your front status with trusted friends. Create a profile to get your unique friend code, then exchange codes to connect with others.
         </p>
+
+        {/* Data transparency — before opt-in */}
+        <div className="w-full space-y-2 text-left">
+          <div className="rounded-xl border border-border/40 bg-muted/5 p-3">
+            <div className="flex items-start gap-2.5">
+              <Database className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-foreground mb-0.5">Your personal data stays on-device</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Alters, journals, sessions, check-ins, and all personal data live in IndexedDB on your device. No server ever accesses this.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border/40 bg-muted/5 p-3">
+            <div className="flex items-start gap-2.5">
+              <Lock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-foreground mb-0.5">Friends uses a minimal cloud relay</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Only your display name and the front snapshot you explicitly choose to share ever leave your device. This feature is entirely opt-in — if you skip it, nothing goes online.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <Button onClick={() => setShowSetup(true)} className="mt-2">
           Set Up Profile
         </Button>
@@ -808,6 +908,9 @@ export default function FriendsPage() {
           </p>
         )}
       </div>
+
+      {/* Data & privacy disclosure */}
+      <PrivacyDisclosure />
 
       {/* Incoming requests */}
       {pending.length > 0 && (
