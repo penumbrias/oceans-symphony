@@ -14,12 +14,6 @@ import '@/lib/editorFonts.js'; // ensure all fonts are loaded
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
 
-// Natural light/dark mode for each built-in preset
-const PRESET_DEFAULT_MODE = {
-  warm: 'light', cool: 'light', forest: 'light', sunset: 'light',
-  ocean: 'light', berry: 'light', charcoal: 'dark', ivory: 'light',
-};
-
 const COLOR_LABELS = {
   bg: 'Background', surface: 'Surface', primary: 'Primary',
   secondary: 'Secondary', accent: 'Accent', muted: 'Muted',
@@ -209,8 +203,7 @@ export default function AdvancedAppearance() {
     setEditingColor(null);
     const preset = allPresets[name] || userCustomPresets[name];
     if (preset?.font) { setCurrentFont(preset.font); setAccessibilityFontFamily(preset.font); }
-    const mode = preset?.themeMode || PRESET_DEFAULT_MODE[name];
-    if (mode) setThemeMode(mode);
+    if (preset?.themeMode) setThemeMode(preset.themeMode);
   };
 
   // ── Color editing ────────────────────────────────────────────
