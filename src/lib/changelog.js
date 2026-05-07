@@ -25,7 +25,7 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
-        text: "Custom front terms that need consonant doubling (e.g. \"control\" → \"controlling\", \"controller\") now produce correct English spelling. Previously all terms just appended -ing/-er without doubling.",
+        text: "Custom front terms that need consonant doubling (e.g. \"control\" → \"controlling\", \"controller\") now produce correct English spelling everywhere, including on the Friends page where a friend's own front term is displayed. Previously the Friends card used a simplified helper that ignored doubling rules.",
       },
       {
         type: "fix",

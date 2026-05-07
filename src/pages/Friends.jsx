@@ -13,7 +13,7 @@ import {
   ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw, Eye, EyeOff, ShieldCheck,
   Database, Lock,
 } from "lucide-react";
-import { useTerms } from "@/lib/useTerms";
+import { useTerms, gerund, agent } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import {
   getLocalIdentity,
@@ -33,11 +33,6 @@ import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration
 function buildTermsFromFriend(friendTerms = {}) {
   const t = { ...friendTerms };
   const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-  const ger = (s) => {
-    if (!s) return s;
-    if (s.endsWith('e') && !s.endsWith('ee')) return s.slice(0, -1) + 'ing';
-    return s + 'ing';
-  };
   const plu = (s) => {
     if (!s) return s;
     if (s.endsWith('s')) return s;
@@ -45,17 +40,19 @@ function buildTermsFromFriend(friendTerms = {}) {
     return s + 's';
   };
   const fr = t.front || 'front';
+  const fronter = agent(fr);
+  const fronting = gerund(fr);
   return {
     system: t.system || 'system',
     System: cap(t.system || 'system'),
     alter: t.alter || 'alter',
     Alter: cap(t.alter || 'alter'),
     alters: t.alters || plu(t.alter || 'alter'),
-    fronting: t.fronting || ger(fr),
-    Fronting: cap(t.fronting || ger(fr)),
-    fronter: fr + 'er',
-    Fronter: cap(fr + 'er'),
-    fronters: plu(fr + 'er'),
+    fronting: t.fronting || fronting,
+    Fronting: cap(t.fronting || fronting),
+    fronter,
+    Fronter: cap(fronter),
+    fronters: plu(fronter),
   };
 }
 

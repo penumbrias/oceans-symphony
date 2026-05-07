@@ -48,7 +48,7 @@ function needsDoubling(word) {
 }
 
 // Gerund helper: word → word + "ing" with correct English spelling rules
-function gerund(word) {
+export function gerund(word) {
   if (!word) return word;
   // Drop silent 'e' before vowel suffix (drive→driving, but not agree→agreeing)
   if (word.endsWith('e') && !word.endsWith('ee')) return word.slice(0, -1) + 'ing';
@@ -58,7 +58,7 @@ function gerund(word) {
 }
 
 // Agent noun: word → word + "er" with correct English spelling rules
-function agent(word) {
+export function agent(word) {
   if (!word) return word;
   // Words ending in 'e': just add 'r' (drive→driver)
   if (word.endsWith('e') && !word.endsWith('ee')) return word + 'r';
