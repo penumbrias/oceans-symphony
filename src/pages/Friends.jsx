@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { base44 } from "@/api/base44Client";
 import {
   getLocalIdentity,
   registerIdentity,
@@ -21,6 +22,7 @@ import {
   respondToRequest,
   removeFriend,
   toggleNotify,
+  pushFrontStatus,
 } from "@/lib/friendsApi";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -420,6 +422,44 @@ export default function FriendsPage() {
   const friends = friendsData?.friends || [];
   const pending = friendsData?.pending || [];
   const pendingSent = friendsData?.pendingSent || [];
+
+  const terms = useTerms();
+  // Sync current front status to KV once when identity is available (catches cases where
+  // the user was already fronting before they set up the Friends profile).
+  const syncedRef = useRef(false);
+  useEffect(() => {
+    if (!identity || syncedRef.current) return;
+    syncedRef.current = true;
+    (async () => {
+      try {
+        const [activeSessions, alters] = await Promise.all([
+          base44.entities.FrontingSession.filter({ is_active: true }),
+          base44.entities.Alter.filter({}),
+        ]);
+        const primaryAlterId = activeSessions.find(s => s.is_primary)?.alter_id
+          || activeSessions[0]?.alter_id;
+        const visibleFronters = activeSessions
+          .map(s => alters.find(a => a.id === s.alter_id))
+          .filter(a => a && !a.is_archived && a.friends_visible !== false)
+          .map(a => ({
+            name: a.name,
+            initial: a.name?.[0] || '?',
+            color: a.color || null,
+            isPrimary: a.id === primaryAlterId,
+            isCofronter: a.id !== primaryAlterId,
+          }));
+        await pushFrontStatus({
+          fronters: visibleFronters,
+          terms: {
+            fronting: terms.fronting,
+            front: terms.front,
+            alter: terms.alter,
+            system: terms.system,
+          },
+        });
+      } catch (_) {}
+    })();
+  }, [identity, terms.fronting, terms.front, terms.alter, terms.system]);
 
   const copyCode = useCallback(() => {
     if (!identity?.friendCode) return;

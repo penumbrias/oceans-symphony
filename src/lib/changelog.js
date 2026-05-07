@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Friends: front status now syncs to the server when you open the Friends page, so friends who were already fronting before setting up Friends will show correctly — not stuck on \"No one fronting\".",
+      },
+      {
         type: "feature",
         text: "Theme presets now save and restore your terminology. When you save a custom preset, your current system/alter/switch/front terms are captured with it. Applying the preset restores all four terms automatically — including when a preset is applied via a fronter-linked theme.",
       },
