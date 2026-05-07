@@ -117,7 +117,7 @@ const frontingAlterIds = activeSession
   : [];
 
 // Fronter-linked theme: when primary fronter changes, apply their linked preset
-const { alterThemeLinks, setSelectedTheme, clearCustomColors, allPresets, userCustomPresets } = useTheme();
+const { alterThemeLinks, setSelectedTheme, setThemeMode, clearCustomColors, allPresets, userCustomPresets } = useTheme();
 const primaryFronter = frontingAlterIds[0] ?? null;
 const lastAppliedFronterRef = useRef(null);
 useEffect(() => {
@@ -131,6 +131,7 @@ useEffect(() => {
   clearCustomColors();
   setSelectedTheme(linkedPreset);
   if (preset.font) setAccessibilityFontFamily(preset.font);
+  if (preset.themeMode) setThemeMode(preset.themeMode);
 }, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {

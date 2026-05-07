@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Palette, X, ChevronDown, Search, Check, Trash2, Link2, Unlink, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTerms } from '@/lib/useTerms';
 import '@/lib/editorFonts.js'; // ensure all fonts are loaded
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
@@ -139,8 +140,9 @@ function ColorSwatch({ label, color, onClick }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AdvancedAppearance() {
+  const t = useTerms();
   const {
-    themeMode, cycleThemeMode,
+    themeMode, setThemeMode, cycleThemeMode,
     selectedTheme, setSelectedTheme,
     customColors, updateCustomColors, clearCustomColors,
     presets, allPresets,
@@ -199,6 +201,9 @@ export default function AdvancedAppearance() {
     setSelectedTheme(name);
     setPendingColors(null);
     setEditingColor(null);
+    const preset = allPresets[name] || userCustomPresets[name];
+    if (preset?.font) { setCurrentFont(preset.font); setAccessibilityFontFamily(preset.font); }
+    if (preset?.themeMode) setThemeMode(preset.themeMode);
   };
 
   // ── Color editing ────────────────────────────────────────────
@@ -236,9 +241,9 @@ export default function AdvancedAppearance() {
   const handleSavePreset = () => {
     const name = presetName.trim();
     if (!name) return;
-    const colors = customColors || allPresets[selectedTheme];
+    const colors = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
     if (!colors) return;
-    saveCustomPreset(name, { ...colors, font: currentFont });
+    saveCustomPreset(name, { ...colors, font: currentFont, themeMode });
     setPresetName('');
     setShowSaveForm(false);
     toast.success(`Theme "${name}" saved`);
@@ -446,17 +451,17 @@ export default function AdvancedAppearance() {
       {/* ── Fronter-linked Themes ─────────────────────────────── */}
       {alters.length > 0 && allPresetNames.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fronter Themes</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.Fronter} Themes</p>
           <p className="text-xs text-muted-foreground">
-            When a specific {alters.length > 0 ? 'alter' : 'member'} becomes primary front, their linked theme switches automatically.
+            When a {t.alter} becomes primary {t.fronter}, their linked theme (including light/dark mode) switches automatically.
           </p>
-          <div className="space-y-1.5">
+          <div className="max-h-[260px] overflow-y-auto space-y-1 pr-0.5">
             {alters.filter(a => !a.is_archived).map(alter => {
               const linked = alterThemeLinks[alter.id];
               return (
-                <div key={alter.id} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-card">
+                <div key={alter.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/40 bg-card">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || '#8b5cf6' }} />
-                  <span className="flex-1 text-sm truncate min-w-0">{alter.alias || alter.name}</span>
+                  <span className="flex-1 text-xs truncate min-w-0">{alter.alias || alter.name}</span>
                   <select
                     value={linked || ''}
                     onChange={e => {
@@ -464,7 +469,7 @@ export default function AdvancedAppearance() {
                       if (val) linkAlterTheme(alter.id, val);
                       else unlinkAlterTheme(alter.id);
                     }}
-                    className="text-xs rounded-lg border border-input bg-background px-2 py-1.5 focus:outline-none max-w-[140px]"
+                    className="text-xs rounded-md border border-input bg-background px-1.5 py-1 focus:outline-none max-w-[130px]"
                   >
                     <option value="">No theme</option>
                     <optgroup label="Built-in">
@@ -476,15 +481,17 @@ export default function AdvancedAppearance() {
                       </optgroup>
                     )}
                   </select>
-                  {linked && (
+                  {linked ? (
                     <button
                       type="button"
                       title="Remove link"
                       onClick={() => unlinkAlterTheme(alter.id)}
                       className="p-1 rounded text-muted-foreground hover:text-foreground flex-shrink-0"
                     >
-                      <Unlink className="w-3.5 h-3.5" />
+                      <Unlink className="w-3 h-3" />
                     </button>
+                  ) : (
+                    <div className="w-5 flex-shrink-0" />
                   )}
                 </div>
               );

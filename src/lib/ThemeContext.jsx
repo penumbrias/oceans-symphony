@@ -360,12 +360,14 @@ export function ThemeProvider({ children }) {
     if (customColors) {
       colors = isDark ? customColors.dark : customColors.light;
     } else {
-      const theme = ALL_PRESETS[selectedTheme];
-      colors = isDark ? theme.dark : theme.light;
+      const theme = ALL_PRESETS[selectedTheme] || userCustomPresets[selectedTheme];
+      colors = isDark ? theme?.dark : theme?.light;
     }
-    
-    for (const [key, value] of Object.entries(colors)) {
-      document.documentElement.style.setProperty(`--color-${key}`, value);
+
+    if (colors) {
+      for (const [key, value] of Object.entries(colors)) {
+        document.documentElement.style.setProperty(`--color-${key}`, value);
+      }
     }
 
     // Update theme-color meta tag to match the app background (for APK status bar)
@@ -432,6 +434,7 @@ export function ThemeProvider({ children }) {
   return (
     <ThemeContext.Provider value={{
       themeMode,
+      setThemeMode,
       selectedTheme,
       customColors,
       updateCustomColors,
