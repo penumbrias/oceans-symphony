@@ -36,6 +36,10 @@ export const CHANGELOG = [
         text: "Record System Event modal now uses your configured alter term in event type descriptions (e.g. \"Two or more [alters] merge...\") and the dialog title uses your system term.",
       },
       {
+        type: "improve",
+        text: "Dashboard grid now supports drag-and-drop rearranging. Tap the pencil icon to enter edit mode, drag tiles to reorder, tap × to remove a tile, then tap Done to save. The layout and remove buttons are preserved across sessions.",
+      },
+      {
         type: "feature",
         text: "Per-friend alter visibility: expand any friend card and tap \"Visibility\" to control exactly which alters they can see, or override the privacy level (names / count only / hidden) for that friend specifically. Alters already hidden from all friends are shown as non-toggleable.",
       },
