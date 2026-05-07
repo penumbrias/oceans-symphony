@@ -135,7 +135,16 @@ export default function NavigationSettings({ settings }) {
 
   useEffect(() => {
     if (settings?.navigation_config) {
-      setConfig(settings.navigation_config);
+      // Merge any new pages from DEFAULT_CONFIG that aren't in the saved dashboardGrid yet
+      const saved = settings.navigation_config;
+      const merged = {
+        ...saved,
+        dashboardGrid: [
+          ...saved.dashboardGrid,
+          ...DEFAULT_CONFIG.dashboardGrid.filter(id => !saved.dashboardGrid.includes(id)),
+        ],
+      };
+      setConfig(merged);
     } else {
       setConfig(DEFAULT_CONFIG);
     }

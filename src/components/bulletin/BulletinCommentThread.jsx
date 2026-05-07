@@ -6,6 +6,7 @@ import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown
 import { Link } from "react-router-dom";
 import AuthorsRow from "./AuthorsRow";
 import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
+import { useTerms } from "@/lib/useTerms";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -28,6 +29,7 @@ function parseSignposts(content, alters) {
 }
 
 function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, onRefresh }) {
+  const terms = useTerms();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -152,7 +154,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       {showMenu && filteredAlters.length > 0 && (
         <div className="absolute z-50 left-0 right-16 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto">
           <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">
-            {menuMode === "mention" ? "Mention alter…" : "Sign as author…"}
+            {menuMode === "mention" ? `Mention ${terms.alter}…` : "Sign as author…"}
           </div>
           {filteredAlters.slice(0, 6).map(a => (
             <button key={a.id} onClick={() => handleSelect(a)}

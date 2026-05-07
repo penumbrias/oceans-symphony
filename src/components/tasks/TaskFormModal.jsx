@@ -8,8 +8,10 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
+import { useTerms } from "@/lib/useTerms";
 
 export default function TaskFormModal({ open, onClose, editingTask, parentTaskId, allTasks = [] }) {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [loading, setLoading] = useState(false);
@@ -114,7 +116,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
               value={formData.description}
               onChange={(val) => setFormData({ ...formData, description: val })}
               alters={alters}
-              placeholder="Add details… use @ to mention an alter"
+              placeholder={`Add details… use @ to mention an ${terms.alter}`}
               rows={3}
             />
           </div>

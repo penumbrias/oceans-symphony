@@ -1,7 +1,9 @@
 import React, { useState, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import { useTerms } from "@/lib/useTerms";
 
 export default function MentionTextarea({ value = "", onChange, alters = [], placeholder, className, rows }) {
+  const terms = useTerms();
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const ref = useRef(null);
@@ -43,7 +45,7 @@ export default function MentionTextarea({ value = "", onChange, alters = [], pla
         ref={ref}
         value={value}
         onChange={handleChange}
-        placeholder={placeholder || "Type a note… use @ to mention an alter"}
+        placeholder={placeholder || `Type a note… use @ to mention an ${terms.alter}`}
         className={className}
         rows={rows}
       />

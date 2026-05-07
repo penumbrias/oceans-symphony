@@ -16,7 +16,7 @@ function pluralize(word) {
   if (!word) return word;
   if (word.endsWith('s')) return word; // already plural — don't double-pluralize
   if (word.endsWith('y')) return word.slice(0, -1) + 'ies';
-  if (word.endsWith('x') || word.endsWith('z')) return word + 'es';
+  if (word.endsWith('ch') || word.endsWith('sh') || word.endsWith('x') || word.endsWith('z')) return word + 'es';
   return word + 's';
 }
 

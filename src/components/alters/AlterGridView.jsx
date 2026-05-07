@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-function AlterCard({ alter, fronting, isPrimary, onDoubleClick, onMouseDown, onMouseUp, onMouseLeave }) {
+function AlterCard({ alter, fronting, isPrimary, compact, onDoubleClick, onMouseDown, onMouseUp, onMouseLeave }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -14,7 +14,9 @@ function AlterCard({ alter, fronting, isPrimary, onDoubleClick, onMouseDown, onM
       ? `inset 0 0 0 3px #fbbf24, inset 0 0 0 5px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 24px ${alterColor}ff`
       : `inset 0 0 0 3px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 20px ${alterColor}ff`
     : `inset 0 0 0 2px ${alterColor}80`;
-  const sizeClass = fronting ? "w-20 h-20" : "w-16 h-16";
+  const sizeClass = compact
+    ? (fronting ? "w-16 h-16" : "w-14 h-14")
+    : (fronting ? "w-20 h-20" : "w-16 h-16");
 
   return (
     <div
@@ -53,10 +55,11 @@ function AlterCard({ alter, fronting, isPrimary, onDoubleClick, onMouseDown, onM
   );
 }
 
-export default function AlterGridView({ alters, activeSessions = [], allAlters = [] }) {
+export default function AlterGridView({ alters, activeSessions = [], allAlters = [], cols = 3 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
+  const compact = cols >= 4;
 
   const handleDoubleClick = async (alter) => {
     try {
@@ -109,22 +112,25 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     }
   };
 
+  const colsClass = cols === 4
+    ? "grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7"
+    : "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6";
+
   return (
-    <>
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
-        {alters.map((alter) => (
-          <AlterCard
-            key={alter.id}
-            alter={alter}
-            fronting={isFronting(alter.id)}
-            isPrimary={activeSessions.find(s => s.alter_id === alter.id)?.is_primary ?? false}
-            onDoubleClick={() => handleDoubleClick(alter)}
-            onMouseDown={() => handleMouseDown(alter)}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
-          />
-        ))}
-      </div>
-      </>
-      );
-      }
+    <div className={`grid ${colsClass} gap-3`}>
+      {alters.map((alter) => (
+        <AlterCard
+          key={alter.id}
+          alter={alter}
+          fronting={isFronting(alter.id)}
+          isPrimary={activeSessions.find(s => s.alter_id === alter.id)?.is_primary ?? false}
+          compact={compact}
+          onDoubleClick={() => handleDoubleClick(alter)}
+          onMouseDown={() => handleMouseDown(alter)}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+        />
+      ))}
+    </div>
+  );
+}

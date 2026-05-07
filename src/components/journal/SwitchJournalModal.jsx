@@ -7,6 +7,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, BookOpen } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 const SYMPTOMS = [
   { key: "anxiety", label: "Anxiety / worry" },
@@ -67,8 +68,9 @@ ${notes || "—"}`;
 }
 
 export default function SwitchJournalModal({ open, onClose, sessionId, authorAlterId, defaultTrigger = "" }) {
+  const terms = useTerms();
   const now = new Date();
-  const [title, setTitle] = useState(`Switch Log — ${format(now, "MMM d, yyyy")}`);
+  const [title, setTitle] = useState(`${terms.Switch} Log — ${format(now, "MMM d, yyyy")}`);
   const [trigger, setTrigger] = useState(defaultTrigger);
   const [before, setBefore] = useState("");
   const [after, setAfter] = useState("");
@@ -107,7 +109,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
         patch.session_symptoms = symptomEntries;
         try { await base44.entities.FrontingSession.update(sessionId, patch); } catch {}
       }
-      toast.success("Switch journal saved!");
+      toast.success(`${terms.Switch} journal saved!`);
       onClose();
     } catch (err) {
       toast.error(err.message || "Failed to save journal");
@@ -122,7 +124,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-primary" />
-            Switch Journal
+            {terms.Switch} Journal
           </DialogTitle>
         </DialogHeader>
 
@@ -135,7 +137,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
           />
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-foreground">What triggered the switch?</label>
+            <label className="text-sm font-medium text-foreground">What triggered the {terms.switch}?</label>
             <Textarea
               value={trigger}
               onChange={(e) => setTrigger(e.target.value)}
@@ -149,7 +151,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
             <Textarea
               value={before}
               onChange={(e) => setBefore(e.target.value)}
-              placeholder="Emotional state before the switch..."
+              placeholder={`Emotional state before the ${terms.switch}...`}
               className="resize-none min-h-[60px] text-sm"
             />
           </div>
@@ -159,7 +161,7 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
             <Textarea
               value={after}
               onChange={(e) => setAfter(e.target.value)}
-              placeholder="Emotional state after the switch..."
+              placeholder={`Emotional state after the ${terms.switch}...`}
               className="resize-none min-h-[60px] text-sm"
             />
           </div>

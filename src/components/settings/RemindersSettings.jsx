@@ -94,8 +94,8 @@ export default function RemindersSettings() {
             {pushEnabled ? <Bell className="w-4 h-4 text-primary" /> : <BellOff className="w-4 h-4 text-muted-foreground" />}
           </div>
           <div>
-            <p className="font-semibold text-sm">Browser push notifications</p>
-            <p className="text-xs text-muted-foreground">{pushEnabled ? "Enabled — you'll get push alerts even when the app is closed" : "Disabled"}</p>
+            <p className="font-semibold text-sm">Push notifications</p>
+            <p className="text-xs text-muted-foreground">{pushEnabled ? "Enabled — reminders will appear as native notifications even when the app is in the background" : "Disabled — reminders only show while the app is open"}</p>
           </div>
         </div>
         <Button size="sm" variant={pushEnabled ? "outline" : "default"} onClick={handleTogglePush} disabled={pushLoading}>

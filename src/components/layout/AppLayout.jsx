@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import Base44MigrationBanner from "@/components/shared/MigrationBanner";
-import { Settings, ChevronLeft, Wifi, Menu } from "lucide-react";
+import { Settings, ChevronLeft, Wifi, Menu, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -114,6 +114,20 @@ useEffect(() => {
   if (preset.font) setAccessibilityFontFamily(preset.font);
   if (preset.themeMode) setThemeMode(preset.themeMode);
   if (preset.fontSize) setAccessibilityFontSize(preset.fontSize);
+  // Apply terminology saved with the preset
+  if (preset.terms) {
+    const settings = systemSettings?.[0];
+    const termData = {
+      term_system: preset.terms.system || 'system',
+      term_alter:  preset.terms.alter  || 'alter',
+      term_switch: preset.terms.switch || 'switch',
+      term_front:  preset.terms.front  || 'front',
+    };
+    const op = settings?.id
+      ? base44.entities.SystemSettings.update(settings.id, termData)
+      : base44.entities.SystemSettings.create(termData);
+    op.catch(() => {});
+  }
 }, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {
@@ -251,14 +265,109 @@ const handleNotifClick = (mentionLog) => {
         </div>
       </header>
 
-      {/* ── Page content ── */}
-      <main
-        className="app-content-main flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8 sm:pb-8">
-        <div className="pt-3 sm:pt-0 pb-2 sm:pb-4">
-          <Base44MigrationBanner />
-        </div>
-        <Outlet context={{ setShowFeatureTour }} />
-      </main>
+      {/* ── Desktop: sidebar + content / Mobile: content only ── */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Desktop persistent sidebar */}
+        <aside className="hidden sm:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto sticky top-16 self-start h-[calc(100vh-4rem)]">
+          <nav className="px-2 py-4 space-y-5 flex-1 overflow-y-auto" aria-label="Sidebar navigation">
+            {[
+              {
+                label: terms.System,
+                items: [
+                  { id: "alters",   label: terms.Alters,           icon: Users,       path: "/Home" },
+                  { id: "friends",  label: "Friends",              icon: UserRound,   path: "/friends" },
+                  { id: "groups",   label: "Groups",               icon: Users,       path: "/groups" },
+                  { id: "settings", label: "Settings",             icon: Settings,    path: "/settings" },
+                ],
+              },
+              {
+                label: "Tracking",
+                items: [
+                  { id: "checkin",         label: `${terms.System} Meeting`, icon: Sparkles,    path: "/system-checkin" },
+                  { id: "checkin-log",     label: "Check-In Log",           icon: Heart,       path: "/checkin-log" },
+                  { id: "activities",      label: "Activities",             icon: Zap,         path: "/activities" },
+                  { id: "tasks",           label: "Daily Tasks",            icon: CheckSquare, path: "/tasks" },
+                  { id: "todo",            label: "To-Do List",             icon: ClipboardList,path: "/todo" },
+                  { id: "sleep",           label: "Sleep",                  icon: Activity,    path: "/sleep" },
+                  { id: "location-history",label: "Locations",              icon: MapPin,      path: "/location-history" },
+                ],
+              },
+              {
+                label: "Journal & Content",
+                items: [
+                  { id: "journals", label: "Journals", icon: BookOpen, path: "/journals" },
+                  { id: "polls",    label: "Polls",    icon: Vote,     path: "/polls" },
+                ],
+              },
+              {
+                label: "Tools",
+                items: [
+                  { id: "reminders",      label: "Reminders",       icon: Bell,     path: "/reminders" },
+                  { id: "therapy-report", label: "Therapy Report",  icon: FileText, path: "/therapy-report" },
+                  { id: "support",        label: "Support & Learn", icon: BookOpen, path: "/grounding" },
+                  { id: "safety-plan",    label: "Safety Plan",     icon: Shield,   path: "/safety-plan" },
+                ],
+              },
+              {
+                label: "Analytics",
+                items: [
+                  { id: "analytics",      label: "Analytics",              icon: BarChart2, path: "/analytics" },
+                  { id: "system-map",     label: `${terms.System} Map`,    icon: GitBranch, path: "/system-map" },
+                  { id: "timeline",       label: "Timeline",               icon: Clock,     path: "/timeline" },
+                  { id: "system-history", label: `${terms.System} History`,icon: GitMerge,  path: "/system-history" },
+                ],
+              },
+            ].map(({ label, items }) => (
+              <div key={label}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
+                  {label}
+                </p>
+                <div className="space-y-0.5">
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.path === "/"
+                      ? location.pathname === "/"
+                      : item.path === "/Home"
+                      ? location.pathname === "/Home" || location.pathname.startsWith("/alter")
+                      : location.pathname.startsWith(item.path);
+                    return (
+                      <Link
+                        key={item.id}
+                        to={item.path}
+                        aria-current={isActive ? "page" : undefined}
+                        className={cn(
+                          "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        )}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {item.id === "reminders" && pendingCount > 0 && (
+                          <span className="w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center shrink-0">
+                            {pendingCount > 9 ? "9+" : pendingCount}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Main content */}
+        <main className="app-content-main flex-1 min-w-0 px-4 sm:px-6 py-0 sm:py-8 sm:pb-8 overflow-auto">
+          <div className="pt-3 sm:pt-0 pb-2 sm:pb-4">
+            <Base44MigrationBanner />
+          </div>
+          <Outlet context={{ setShowFeatureTour }} />
+        </main>
+
+      </div>
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav

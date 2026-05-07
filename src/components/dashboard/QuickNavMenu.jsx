@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -12,9 +12,10 @@ import GlobalSearch from "./GlobalSearch";
 function buildNavGroups(altersLabel, systemLabel) {
   return {
     [systemLabel]: [
-      { id: "alters",    label: altersLabel,              icon: Users,       path: "/Home" },
-      { id: "groups",    label: "Groups",                 icon: Users,       path: "/groups" },
-      { id: "settings",  label: "Settings",               icon: Settings,    path: "/settings" },
+      { id: "alters",   label: altersLabel, icon: Users,     path: "/Home" },
+      { id: "friends",  label: "Friends",   icon: UserRound, path: "/friends" },
+      { id: "groups",   label: "Groups",    icon: Users,     path: "/groups" },
+      { id: "settings", label: "Settings",  icon: Settings,  path: "/settings" },
     ],
     "Tracking": [
       { id: "checkin",      label: `${systemLabel} Meeting`,  icon: Sparkles,   path: "/system-checkin" },
@@ -67,6 +68,7 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "location-history",  label: "Location History", icon: MapPin,      path: "/location-history", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
     { id: "settings",          label: "Settings",         icon: Settings,    path: "/settings",         color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
     { id: "home",              label: "Home",             icon: CheckSquare, path: "/",                 color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
+    { id: "friends",          label: "Friends",          icon: UserRound,   path: "/friends",          color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
   ];
 }
 
@@ -90,7 +92,12 @@ export default function QuickNavMenu() {
   const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System]);
 
   const configuredGridItems = useMemo(() => {
-    return navConfig.dashboardGrid
+    // Merge any new default pages that aren't in the saved config yet
+    const mergedGrid = [
+      ...navConfig.dashboardGrid,
+      ...DEFAULT_CONFIG.dashboardGrid.filter(id => !navConfig.dashboardGrid.includes(id)),
+    ];
+    return mergedGrid
       .map(id => GRID_ITEMS.find(item => item.id === id))
       .filter(Boolean);
   }, [GRID_ITEMS, navConfig.dashboardGrid]);

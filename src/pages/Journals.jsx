@@ -304,7 +304,7 @@ export default function Journals() {
                       autoFocus
                       value={authorFilterSearch}
                       onChange={e => setAuthorFilterSearch(e.target.value)}
-                      placeholder="Search members..."
+                      placeholder={`Search ${terms.alters}...`}
                       className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
                     />
                   </div>

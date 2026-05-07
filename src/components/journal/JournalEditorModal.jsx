@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export default function JournalEditorModal({
   isOpen, open, onClose, editingEntry, entry, alters,
   defaultFolder, currentAlterId,
 }) {
+  const terms = useTerms();
   const isOpenFinal = isOpen ?? open;
   const editingEntryFinal = editingEntry ?? entry;
   const queryClient = useQueryClient();
@@ -226,7 +228,7 @@ useEffect(() => {
                     <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 overflow-hidden">
                       <div className="px-3 py-2 border-b border-border/50">
                         <input autoFocus value={authorSearch} onChange={e => setAuthorSearch(e.target.value)}
-                          placeholder="Search members..."
+                          placeholder={`Search ${terms.alters}...`}
                           className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground" />
                       </div>
                       <div className="max-h-52 overflow-y-auto">
@@ -239,7 +241,7 @@ useEffect(() => {
                             className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${authorAlterId === a.id ? "bg-primary/5 text-primary" : ""}`}>
                             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
                             <span className="flex-1 truncate">{a.name}</span>
-                            {a.id === currentAlterId && <span className="text-[10px] text-primary/70 flex-shrink-0">fronting</span>}
+                            {a.id === currentAlterId && <span className="text-[10px] text-primary/70 flex-shrink-0">{terms.fronting}</span>}
                           </button>
                         ))}
                       </div>
@@ -409,9 +411,9 @@ useEffect(() => {
           )}
 
           <div>
-            <label className="text-sm font-medium">Mention alters</label>
-            <p className="text-xs text-muted-foreground mb-1">Tag alters to notify them of this entry</p>
-            <MentionTextarea value={mentionNote} onChange={setMentionNote} alters={alters || []} placeholder="Use @ to mention alters..." className="h-16" />
+            <label className="text-sm font-medium">Mention {terms.alters}</label>
+            <p className="text-xs text-muted-foreground mb-1">Tag {terms.alters} to notify them of this entry</p>
+            <MentionTextarea value={mentionNote} onChange={setMentionNote} alters={alters || []} placeholder={`Use @ to mention ${terms.alters}...`} className="h-16" />
           </div>
         </div>
 

@@ -330,25 +330,6 @@ export default function TherapyReportPage() {
         sections_included: Array.from(config.selectedSections),
       });
 
-      // Save template if requested
-      if (config.saveAsTemplate) {
-        await db.ReportTemplate.create({
-          name: config.saveAsTemplate.name,
-          period_type: "custom",
-          mode: config.mode,
-          sections_config: Object.fromEntries(config.selectedSections.map(s => [s, true])),
-          noteworthy_thresholds: config.thresholds,
-          include_alter_info: config.config.includeAlterInfo,
-          show_cover_page: config.config.showCoverPage,
-          cover_note: config.config.coverNote,
-          system_name: config.config.systemName,
-          therapist_name: config.config.therapistName,
-          confidentiality_notice: config.config.confidentialityNotice,
-          journal_detail: config.config.journalDetail,
-          section_options: sectionOptions,
-        });
-        queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
-      }
     } catch (error) {
       toast.error(`Error: ${error.message}`);
       console.error("Report generation error:", error);
@@ -369,6 +350,26 @@ export default function TherapyReportPage() {
       <ReportBuilder
         templates={templates}
         onGenerate={handleGenerate}
+        onSaveTemplate={async (config, name) => {
+          const sectionOptions = config.config.sectionOptions || {};
+          await db.ReportTemplate.create({
+            name,
+            period_type: "custom",
+            mode: config.mode,
+            sections_config: Object.fromEntries(Array.from(config.selectedSections).map(s => [s, true])),
+            noteworthy_thresholds: config.thresholds,
+            include_alter_info: config.config.includeAlterInfo,
+            show_cover_page: config.config.showCoverPage,
+            cover_note: config.config.coverNote,
+            system_name: config.config.systemName,
+            therapist_name: config.config.therapistName,
+            confidentiality_notice: config.config.confidentialityNotice,
+            journal_detail: config.config.journalDetail,
+            section_options: sectionOptions,
+          });
+          queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });
+          toast.success(`Template "${name}" saved!`);
+        }}
         onDeleteTemplate={async (id) => {
           await db.ReportTemplate.delete(id);
           queryClient.invalidateQueries({ queryKey: ["reportTemplates"] });

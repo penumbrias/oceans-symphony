@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save, Search, User } from "lucide-react";
 import { toast } from "sonner";
+import { useTerms } from "@/lib/useTerms";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -19,6 +20,7 @@ function getContrastColor(hex) {
 }
 
 export default function ManageMembersModal({ group, allAlters, open, onClose }) {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -116,7 +118,7 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search alters..."
+            placeholder={`Search ${terms.alters}...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"

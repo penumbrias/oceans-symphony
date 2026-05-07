@@ -21,7 +21,14 @@ export default function AlterGrid({ alters, currentSession = null }) {
   const [sortMode, setSortMode] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [showFolders, setShowFolders] = useState(true);
   const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
+  const [gridCols, setGridCols] = useState(() => parseInt(localStorage.getItem("alter_grid_cols") || "3", 10));
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+
+  const toggleGridCols = () => {
+    const next = gridCols === 3 ? 4 : 3;
+    setGridCols(next);
+    localStorage.setItem("alter_grid_cols", String(next));
+  };
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],
@@ -160,6 +167,16 @@ export default function AlterGrid({ alters, currentSession = null }) {
           className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           {viewMode === "list" ? <Grid3X3 className="w-4 h-4" /> : <List className="w-4 h-4" />}
         </button>
+
+        {/* Column count toggle — only in grid mode */}
+        {viewMode === "grid" && (
+          <button
+            onClick={toggleGridCols}
+            title={`Switch to ${gridCols === 3 ? 4 : 3}-column grid`}
+            className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-xs font-bold">
+            {gridCols === 3 ? "4" : "3"}
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -197,7 +214,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
 )}
               </div> :
 
-          <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={effectiveAlters} /> :
+          <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={effectiveAlters} cols={gridCols} /> :
 
 
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">

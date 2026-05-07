@@ -12,6 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const CATEGORY_DEFAULT_ACTIONS = {
+  check_in: { label: "Check In", action_type: "open_check_in" },
+  grounding: { label: "Open Grounding", action_type: "open_grounding" },
+};
+
 const STATUS_LABELS = {
   acted: "Done",
   dismissed: "Dismissed",
@@ -57,6 +62,12 @@ export default function ReminderInstanceCard({ instance, reminder, alter, onActi
   const isSnoozed = instance.status === "snoozed";
 
   const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
+
+  const effectiveActions = (reminder.inline_actions || []).length > 0
+    ? reminder.inline_actions
+    : CATEGORY_DEFAULT_ACTIONS[reminder.category]
+      ? [CATEGORY_DEFAULT_ACTIONS[reminder.category]]
+      : [];
 
   return (
     <div className={`bg-card border border-border/50 rounded-xl p-4 space-y-3 transition-all ${readOnly ? "opacity-60" : ""} ${isSnoozed ? "border-amber-200/60 dark:border-amber-800/40" : ""}`}>
@@ -121,9 +132,9 @@ export default function ReminderInstanceCard({ instance, reminder, alter, onActi
 
       {!readOnly && !isSnoozed && (
         <>
-          {(reminder.inline_actions || []).length > 0 && (
+          {effectiveActions.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {reminder.inline_actions.map((action, idx) => (
+              {effectiveActions.map((action, idx) => (
                 <Button key={idx} size="sm" variant="outline" className="text-xs h-7 px-3" onClick={() => onAction(action)}>
                   {action.label}
                 </Button>

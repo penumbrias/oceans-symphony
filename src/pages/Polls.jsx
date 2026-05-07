@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Plus, X, Lock, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { useTerms } from "@/lib/useTerms";
 
 function PollListView({ polls, alters, onSelectPoll }) {
   if (!polls || polls.length === 0) {
@@ -71,6 +72,7 @@ function PollListView({ polls, alters, onSelectPoll }) {
 }
 
 function CreatePollModal({ open, onClose, alters }) {
+  const terms = useTerms();
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
   const [selectedAlter, setSelectedAlter] = useState("");
@@ -95,7 +97,7 @@ function CreatePollModal({ open, onClose, alters }) {
       return;
     }
     if (!selectedAlter) {
-      toast.error("Select an alter");
+      toast.error(`Select an ${terms.alter}`);
       return;
     }
     const filledOptions = options.filter(o => o.trim());
@@ -195,7 +197,7 @@ function CreatePollModal({ open, onClose, alters }) {
               onChange={(e) => setSelectedAlter(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
             >
-              <option value="">Select an alter...</option>
+              <option value="">Select an {terms.alter}...</option>
               {alters.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -213,6 +215,7 @@ function CreatePollModal({ open, onClose, alters }) {
 }
 
 function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
+  const terms = useTerms();
   const [selectedAlter, setSelectedAlter] = useState("");
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
@@ -220,7 +223,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
 
   const handleVote = async (optionIdx) => {
     if (!selectedAlter) {
-      toast.error("Select an alter first");
+      toast.error(`Select an ${terms.alter} first`);
       return;
     }
     if (poll.is_closed) return;
@@ -348,7 +351,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
             onChange={(e) => setSelectedAlter(e.target.value)}
             className="w-full mt-2 px-3 py-2 rounded-md border border-input bg-background text-sm"
           >
-            <option value="">Select an alter...</option>
+            <option value="">Select an {terms.alter}...</option>
             {alters.map((a) => (
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}

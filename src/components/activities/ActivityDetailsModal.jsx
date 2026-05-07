@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,6 +122,7 @@ function AlterSelector({ selectedIds, onChange, alters }) {
 }
 
 export default function ActivityDetailsModal({ isOpen, onClose, activity, alters = [], onSave }) {
+  const terms = useTerms();
   const [editingId, setEditingId] = useState(null);
   // keyed by act.id so each activity has independent edit state
   const [editDataMap, setEditDataMap] = useState({});
@@ -282,7 +284,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                     value={(editDataMap[act.id] || {}).notes || ""}
                     onChange={(v) => setEditDataForAct(act.id, d => ({ ...d, notes: v }))}
                     alters={alters}
-                    placeholder="Add any notes... use @ to mention an alter"
+                    placeholder={`Add any notes... use @ to mention an ${terms.alter}`}
                     className="h-20"
                   />
                 </div>

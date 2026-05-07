@@ -32,11 +32,11 @@ export default function StorageModeSettings() {
       await loadDbDump({});
       // Clear all Symphony localStorage keys so the app re-runs first-time onboarding
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith("symphony_") || key === "terms_setup_done") {
+        if (key.startsWith("symphony_") || key === "terms_setup_done" || key === "tour_seen") {
           localStorage.removeItem(key);
         }
       });
-      window.location.reload();
+      window.location.href = "/";
     } catch (e) {
       setError("Failed to delete data: " + e.message);
       setDeleting(false);

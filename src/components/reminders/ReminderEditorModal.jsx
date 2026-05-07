@@ -26,7 +26,7 @@ const CONTEXTUAL_ON_BASE = [
   { value: "symptom_logged", label: "Symptom logged" },
   { value: "sleep_ended", label: "After sleep ends" },
 ];
-const AUTO_RESOLVE_ON = [
+const AUTO_RESOLVE_ON_BASE = [
   { value: "check_in", label: "Check-in saved" },
   { value: "symptom_checkin", label: "Symptom logged" },
   { value: "activity", label: "Activity logged" },
@@ -35,14 +35,14 @@ const AUTO_RESOLVE_ON = [
 const DISTRESS_EMOTIONS = ["anxious", "overwhelmed", "panic", "scared", "terrified", "crisis", "unsafe", "dissociated", "numb", "frozen"];
 const BASE_EMOTIONS = ["happy", "content", "calm", "grateful", "hopeful", "excited", "proud", "loved", "safe", "sad", "anxious", "overwhelmed", "angry", "scared", "frustrated", "ashamed", "guilty", "lonely", "confused", "dissociated", "numb", "depressed", "panic", "terrified", "crisis", "unsafe", "frozen", "tired", "bored", "curious"];
 
-const ACTION_TYPE_OPTIONS = [
+const getActionTypeOptions = (terms) => [
   { value: "open_check_in",        label: "Check in" },
   { value: "open_grounding",       label: "Grounding exercise" },
-  { value: "open_set_front",       label: "Set who's fronting" },
+  { value: "open_set_front",       label: `Set who's ${terms.fronting}` },
   { value: "open_journal",         label: "Open journal" },
   { value: "open_diary",           label: "Open diary" },
   { value: "open_symptom_check_in",label: "Log a symptom" },
-  { value: "open_system_map",      label: "View system map" },
+  { value: "open_system_map",      label: `View ${terms.system} map` },
   { value: "open_timeline",        label: "View timeline" },
   { value: "open_todo",            label: "View to-do list" },
   { value: "log_symptom",          label: "Log a specific symptom" },
@@ -422,6 +422,11 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
+  const actionTypeOptions = getActionTypeOptions(terms);
+  const autoResolveOn = AUTO_RESOLVE_ON_BASE.map(o =>
+    o.labelKey === "front" ? { ...o, label: `${terms.Front} updated` } : o
+  );
+
   const handlePushRequest = async () => {
     try {
       await registerPush();
@@ -606,7 +611,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                       value={action.action_type || "open_check_in"}
                       onChange={e => updateAction({ action_type: e.target.value, payload: {} })}
                     >
-                      {ACTION_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {actionTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                     {action.action_type === "log_symptom" && (
                       <SearchableSelect
@@ -655,7 +660,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
               const r = form.auto_resolve_rule;
               if (!r) return "Off";
               if (r.on === "check_in") return "Resolves when any check-in is logged";
-              if (r.on === "front_update") return "Resolves when front is updated";
+              if (r.on === "front_update") return `Resolves when ${terms.front} is updated`;
               if (r.on === "symptom_checkin") return "Resolves when symptom is logged";
               if (r.on === "activity") return "Resolves when activity is logged";
               return "Enabled";
@@ -681,7 +686,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                     <select className="mt-1 h-8 text-sm border border-border/50 rounded-lg px-2 bg-background w-full"
                       value={rule.on || "check_in"}
                       onChange={e => setRule({ on: e.target.value, lookback_minutes: defaultLookback[e.target.value] || 60, symptom_id: undefined, category_id: undefined })}>
-                      {AUTO_RESOLVE_ON.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {autoResolveOn.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                   {rule.on === "symptom_checkin" && (

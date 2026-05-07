@@ -255,11 +255,11 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
   const derivedLabel = () => {
     if (data.type === "set_front_alter") {
       const a = activeAlters.find(a => a.id === data.config?.alter_id);
-      return a?.name || "Set fronter";
+      return a?.name || `Set ${terms.fronter}`;
     }
     if (data.type === "add_to_front_alter") {
       const a = activeAlters.find(a => a.id === data.config?.alter_id);
-      return a?.name || "Add to front";
+      return a?.name || `Add to ${terms.front}`;
     }
     if (data.type === "log_diary") return data.config?.field_label || "Diary field";
     if (data.type === "log_activity") {

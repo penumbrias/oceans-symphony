@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const SESSION_KEY = "symphony_shown_toast_ids";
-// Map of instanceId -> snoozed_until ISO string (so we know when to re-show)
 const SNOOZE_KEY = "symphony_snoozed_until";
 
 function getShownIds() {
@@ -43,13 +42,11 @@ function clearSnoozedUntil(id) {
   delete map[id];
   sessionStorage.setItem(SNOOZE_KEY, JSON.stringify(map));
 }
-// Returns true if this instance id is currently snoozed (snooze not yet expired)
 function isSnoozedInSession(id) {
   const map = getSnoozedUntil();
   const until = map[id];
   if (!until) return false;
   if (new Date(until) <= new Date()) {
-    // Snooze expired — clear it
     clearSnoozedUntil(id);
     return false;
   }
@@ -64,12 +61,12 @@ export default function ReminderToast() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const reminderCacheRef = useRef({});
-  // Each opened modal is tracked independently so dismissing/acting on other
-  // toasts doesn't close modals that are already open.
-  // openModals: array of { key, type, instance, reminder }
-  const [openModals, setOpenModals] = useState([]);
 
-  // Load reminder data for each instance we need
+  // Dedicated modal state — always rendered, open controlled by boolean (same pattern as RemindersInbox)
+  const [setFrontOpen, setSetFrontOpen] = useState(false);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [pendingActInstance, setPendingActInstance] = useState(null);
+
   useEffect(() => {
     const shownIds = getShownIds();
     const newOnes = pendingInstances.filter(i =>
@@ -113,11 +110,13 @@ export default function ReminderToast() {
   const handleAction = async ({ instance, reminder }, action) => {
     const type = action.action_type;
     if (type === "open_set_front") {
-      setOpenModals(prev => [...prev, { key: `${instance.id}-${Date.now()}`, type: "set_front", instance, reminder }]);
+      setPendingActInstance(instance);
+      setSetFrontOpen(true);
       dismiss(instance.id);
       return;
     } else if (type === "open_check_in") {
-      setOpenModals(prev => [...prev, { key: `${instance.id}-${Date.now()}`, type: "check_in", instance, reminder }]);
+      setPendingActInstance(instance);
+      setCheckInOpen(true);
       dismiss(instance.id);
       return;
     } else if (type === "open_grounding") {
@@ -135,7 +134,9 @@ export default function ReminderToast() {
     } else if (type === "open_todo") {
       navigate("/todo");
     } else if (type === "open_route") {
-      navigate(action.payload?.path || "/");
+      const path = action.payload?.path;
+      if (path && path !== "/") navigate(path);
+      else return;
     } else if (type === "log_symptom") {
       await base44.entities.SymptomCheckIn.create({ symptom_id: action.payload?.symptom_id, timestamp: new Date().toISOString() });
     } else if (type === "dismiss") {
@@ -147,121 +148,116 @@ export default function ReminderToast() {
 
   const handleSnooze = async ({ instance }, opt) => {
     const until = snoozeUntilDate(opt);
-    // Mark in session storage so we suppress this toast until snooze expires,
-    // even if the query briefly returns it as "fired" before the DB update propagates.
     setSnoozedUntil(instance.id, until);
     await updateInstance(instance.id, { status: "snoozed", snoozed_until: until });
   };
 
-  if (!visible.length && !openModals.length) return null;
-
   return (
     <>
-      {!openModals.length && <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
-      {visible.slice(0, 3).map(({ instance, reminder }) => {
-        const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
-        const inlineActions = reminder.inline_actions || [];
-        const visibleActions = inlineActions.slice(0, 2);
-        const moreActions = inlineActions.slice(2);
-        const snoozeOptions = reminder.snooze_options || DEFAULT_SNOOZE;
+      {visible.length > 0 && (
+        <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
+          {visible.slice(0, 3).map(({ instance, reminder }) => {
+            const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
+            const inlineActions = reminder.inline_actions || [];
+            const visibleActions = inlineActions.slice(0, 2);
+            const moreActions = inlineActions.slice(2);
+            const snoozeOptions = reminder.snooze_options || DEFAULT_SNOOZE;
 
-        return (
-          <div key={instance.id}
-            className="bg-card border border-border shadow-xl rounded-2xl p-4 space-y-3 animate-in slide-in-from-bottom-4 duration-300 pointer-events-auto">
-            {/* Header */}
-            <div className="flex items-start gap-3">
-              <span className="text-xl flex-shrink-0 mt-0.5">{Icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-foreground leading-tight">{reminder.title}</p>
-                {reminder.body && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{reminder.body}</p>
+            return (
+              <div key={instance.id}
+                className="bg-card border border-border shadow-xl rounded-2xl p-4 space-y-3 animate-in slide-in-from-bottom-4 duration-300 pointer-events-auto">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl flex-shrink-0 mt-0.5">{Icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-foreground leading-tight">{reminder.title}</p>
+                    {reminder.body && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{reminder.body}</p>
+                    )}
+                  </div>
+                  <button onClick={() => dismiss(instance.id)}
+                    className="text-muted-foreground hover:text-foreground transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {(visibleActions.length > 0 || moreActions.length > 0) && (
+                  <div className="flex items-center gap-2">
+                    {visibleActions.map((action, i) => (
+                      <Button key={i} size="sm" variant="outline" className="text-xs h-7 flex-1"
+                        onClick={() => handleAction({ instance, reminder }, action)}>
+                        {action.label}
+                      </Button>
+                    ))}
+                    {moreActions.length > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="outline" className="h-7 w-7">
+                            <MoreHorizontal className="w-3.5 h-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="z-[210]">
+                          {moreActions.map((action, i) => (
+                            <DropdownMenuItem key={i} onClick={() => handleAction({ instance, reminder }, action)}>
+                              {action.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                 )}
-              </div>
-              <button onClick={() => dismiss(instance.id)}
-                className="text-muted-foreground hover:text-foreground transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Inline actions */}
-            {(visibleActions.length > 0 || moreActions.length > 0) && (
-              <div className="flex items-center gap-2">
-                {visibleActions.map((action, i) => (
-                  <Button key={i} size="sm" variant="outline" className="text-xs h-7 flex-1"
-                    onClick={() => handleAction({ instance, reminder }, action)}>
-                    {action.label}
+                <div className="flex items-center gap-2">
+                  <Button size="sm" className="text-xs h-7 flex-1"
+                    onClick={() => updateInstance(instance.id, { status: "acted", acted_action: "done" })}>
+                    Done
                   </Button>
-                ))}
-                {moreActions.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="outline" className="h-7 w-7">
-                        <MoreHorizontal className="w-3.5 h-3.5" />
+                      <Button size="sm" variant="outline" className="text-xs h-7 gap-1">
+                        Snooze <ChevronDown className="w-3 h-3" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="z-[210]">
-                      {moreActions.map((action, i) => (
-                        <DropdownMenuItem key={i} onClick={() => handleAction({ instance, reminder }, action)}>
-                          {action.label}
+                      {snoozeOptions.map((opt, i) => (
+                        <DropdownMenuItem key={i} onClick={() => handleSnooze({ instance, reminder }, opt)}>
+                          {formatSnoozeLabel(opt)}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                )}
-              </div>
-            )}
-
-            {/* Done / Snooze / Dismiss */}
-            <div className="flex items-center gap-2">
-              <Button size="sm" className="text-xs h-7 flex-1"
-                onClick={() => updateInstance(instance.id, { status: "acted", acted_action: "done" })}>
-                Done
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" className="text-xs h-7 gap-1">
-                    Snooze <ChevronDown className="w-3 h-3" />
+                  <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground"
+                    onClick={() => updateInstance(instance.id, { status: "dismissed" })}>
+                    Dismiss
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="z-[210]">
-                  {snoozeOptions.map((opt, i) => (
-                    <DropdownMenuItem key={i} onClick={() => handleSnooze({ instance, reminder }, opt)}>
-                      {formatSnoozeLabel(opt)}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button size="sm" variant="ghost" className="text-xs h-7 text-muted-foreground"
-                onClick={() => updateInstance(instance.id, { status: "dismissed" })}>
-                Dismiss
-              </Button>
-            </div>
-          </div>
-        );
-      })}
-      </div>}
-
-      {openModals.map((modal) => (
-        <div key={modal.key}>
-          {modal.type === "set_front" ? (
-            <SetFrontModal
-              open={true}
-              onClose={() => {
-                setOpenModals(prev => prev.filter(m => m.key !== modal.key));
-                updateInstance(modal.instance.id, { status: "acted", acted_action: "open_set_front" });
-              }}
-            />
-          ) : (
-            <QuickCheckInModal
-              isOpen={true}
-              onClose={() => {
-                setOpenModals(prev => prev.filter(m => m.key !== modal.key));
-                updateInstance(modal.instance.id, { status: "acted", acted_action: "open_check_in" });
-              }}
-            />
-          )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
+
+      <SetFrontModal
+        open={setFrontOpen}
+        onClose={() => {
+          setSetFrontOpen(false);
+          if (pendingActInstance) {
+            updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_set_front" });
+          }
+          setPendingActInstance(null);
+        }}
+      />
+
+      <QuickCheckInModal
+        isOpen={checkInOpen}
+        onClose={(saved) => {
+          setCheckInOpen(false);
+          if (saved && pendingActInstance) {
+            updateInstance(pendingActInstance.id, { status: "acted", acted_action: "open_check_in" });
+          }
+          setPendingActInstance(null);
+        }}
+      />
     </>
   );
 }
