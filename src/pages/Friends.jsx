@@ -641,7 +641,6 @@ function PrivacyDisclosure() {
                 <ul className="pl-5 space-y-1.5">
                   {[
                     "Your chosen display name and friend code",
-                    "A snapshot of who's currently fronting — only what you choose to share, filtered by your privacy level and per-friend visibility settings",
                     "Friend connections (who approved who)",
                     "Push notification tokens, only if you enable push notifications",
                   ].map((item, i) => (
@@ -650,6 +649,18 @@ function PrivacyDisclosure() {
                       <span>{item}</span>
                     </li>
                   ))}
+                  <li className="text-xs text-muted-foreground flex gap-2">
+                    <span className="text-muted-foreground/40 flex-shrink-0 mt-px">·</span>
+                    <span>
+                      A front snapshot — sent only when you tap "Update Front", containing exactly:
+                      <ul className="mt-1 space-y-0.5 pl-3">
+                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Names mode:</span> each fronting alter's display name, accent colour, and whether they are primary or co-fronting. No other alter data (no pronouns, roles, descriptions, journal entries, etc.).</span></li>
+                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Count-only mode:</span> just a number (e.g. "2 fronting") — no names or colours.</span></li>
+                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Hidden mode:</span> nothing — friends see only that front status is private.</span></li>
+                      </ul>
+                      Per-friend visibility lets you override this per person or hide specific alters entirely.
+                    </span>
+                  </li>
                 </ul>
               </div>
 
@@ -891,7 +902,7 @@ export default function FriendsPage() {
               <div>
                 <p className="text-xs font-semibold text-foreground mb-0.5">Friends uses a minimal cloud relay</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Only your display name and the front snapshot you explicitly choose to share ever leave your device. This feature is entirely opt-in — if you skip it, nothing goes online.
+                  Only your display name and — when you tap "Update Front" — each fronting alter's name, accent colour, and primary/co-front status ever leave your device. This feature is entirely opt-in — if you skip it, nothing goes online.
                 </p>
               </div>
             </div>
