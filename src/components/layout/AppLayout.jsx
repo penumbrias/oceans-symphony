@@ -131,7 +131,9 @@ useEffect(() => {
   clearCustomColors();
   setSelectedTheme(linkedPreset);
   if (preset.font) setAccessibilityFontFamily(preset.font);
-  if (preset.themeMode) setThemeMode(preset.themeMode);
+  const BUILTIN_MODES = { warm:'light',cool:'light',forest:'light',sunset:'light',ocean:'light',berry:'light',charcoal:'dark',ivory:'light' };
+  const mode = preset.themeMode || BUILTIN_MODES[linkedPreset];
+  if (mode) setThemeMode(mode);
 }, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {
