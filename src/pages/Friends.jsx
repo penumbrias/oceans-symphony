@@ -237,10 +237,12 @@ function ProfileSetupModal({ open, onClose, onSaved, existing }) {
   const [systemName, setSystemName] = useState(existing?.systemName || '');
   const [privacyLevel, setPrivacyLevel] = useState(existing?.privacyLevel || 'names');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSave = async () => {
+    setError('');
     if (!displayName.trim()) {
-      toast.error('Display name is required.');
+      setError('Display name is required.');
       return;
     }
     setSaving(true);
@@ -261,7 +263,8 @@ function ProfileSetupModal({ open, onClose, onSaved, existing }) {
       onSaved();
       onClose();
     } catch (e) {
-      toast.error(e.message || 'Failed to save profile.');
+      console.error('[Friends] registerIdentity failed:', e);
+      setError(e.message || 'Failed to save profile. Check your connection and try again.');
     } finally {
       setSaving(false);
     }
@@ -312,10 +315,18 @@ function ProfileSetupModal({ open, onClose, onSaved, existing }) {
               Controls what friends can see when you update your front.
             </p>
           </div>
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            {existing ? 'Save Changes' : 'Create Profile'}
-          </Button>
+          {error && (
+            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
+          )}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {saving ? 'Saving…' : (existing ? 'Save Changes' : 'Create Profile')}
+          </button>
         </div>
       </DialogContent>
     </Dialog>
@@ -327,8 +338,10 @@ function ProfileSetupModal({ open, onClose, onSaved, existing }) {
 function AddFriendModal({ open, onClose, onAdded }) {
   const [code, setCode] = useState('');
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSend = async () => {
+    setError('');
     const trimmed = code.trim().toUpperCase();
     if (!trimmed) return;
     setSending(true);
@@ -339,7 +352,8 @@ function AddFriendModal({ open, onClose, onAdded }) {
       onAdded();
       onClose();
     } catch (e) {
-      toast.error(e.message || 'Failed to send request.');
+      console.error('[Friends] sendFriendRequest failed:', e);
+      setError(e.message || 'Failed to send request. Check your connection and try again.');
     } finally {
       setSending(false);
     }
@@ -363,10 +377,18 @@ function AddFriendModal({ open, onClose, onAdded }) {
             className="font-mono text-center tracking-widest text-base"
             onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
           />
-          <Button onClick={handleSend} disabled={sending || !code.trim()} className="w-full">
-            {sending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <UserPlus className="w-4 h-4 mr-2" />}
-            Send Request
-          </Button>
+          {error && (
+            <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>
+          )}
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={sending || !code.trim()}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+            {sending ? 'Sending…' : 'Send Request'}
+          </button>
         </div>
       </DialogContent>
     </Dialog>
