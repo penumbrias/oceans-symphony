@@ -17,6 +17,7 @@ const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'cha
 const COLOR_LABELS = {
   bg: 'Background', surface: 'Surface', primary: 'Primary',
   secondary: 'Secondary', accent: 'Accent', muted: 'Muted',
+  'text-primary': 'Text', 'text-secondary': 'Text 2nd',
 };
 
 const FONT_SIZE_OPTIONS = [
