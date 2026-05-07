@@ -24,6 +24,7 @@ import {
   toggleNotify,
   pushFrontStatus,
 } from "@/lib/friendsApi";
+import { isPushEnabled } from "@/lib/pushRegistration";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,13 @@ function FriendCard({ friend, onRemove, onToggleNotify }) {
   const [expanded, setExpanded] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [togglingNotify, setTogglingNotify] = useState(false);
+  const [pushReady, setPushReady] = useState(null); // null = not yet checked
+
+  useEffect(() => {
+    if (expanded && pushReady === null) {
+      isPushEnabled().then(setPushReady).catch(() => setPushReady(false));
+    }
+  }, [expanded, pushReady]);
 
   const ft = buildTermsFromFriend(friend.front?.terms);
   const fronters = friend.front?.fronters || [];
@@ -192,20 +200,27 @@ function FriendCard({ friend, onRemove, onToggleNotify }) {
 
               {/* Controls */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  {togglingNotify ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                  ) : friend.notifyOnChange ? (
-                    <Bell className="w-4 h-4 text-primary" />
-                  ) : (
-                    <BellOff className="w-4 h-4 text-muted-foreground" />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    {togglingNotify ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    ) : friend.notifyOnChange ? (
+                      <Bell className="w-4 h-4 text-primary" />
+                    ) : (
+                      <BellOff className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm text-foreground">Notify on change</span>
+                    <Switch
+                      checked={friend.notifyOnChange}
+                      onCheckedChange={handleNotify}
+                      disabled={togglingNotify}
+                    />
+                  </div>
+                  {pushReady === false && (
+                    <p className="text-xs text-amber-500 dark:text-amber-400 pl-6">
+                      Push notifications aren't enabled — go to Settings → Reminders to turn them on first.
+                    </p>
                   )}
-                  <span className="text-sm text-foreground">Notify on change</span>
-                  <Switch
-                    checked={friend.notifyOnChange}
-                    onCheckedChange={handleNotify}
-                    disabled={togglingNotify}
-                  />
                 </div>
 
                 <button
