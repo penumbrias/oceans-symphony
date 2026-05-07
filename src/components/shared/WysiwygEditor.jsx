@@ -1,10 +1,10 @@
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
   Bold, Italic, Underline, Strikethrough,
-  Heading2, Heading3, List, ListOrdered, Quote, Minus,
-  AlignLeft, AlignCenter, AlignRight, Link, ChevronDown,
+  Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
+  AlignLeft, AlignCenter, AlignRight, Link, ChevronDown, X,
 } from "lucide-react";
-import { ColorPickerModal, PRESET_COLORS, PRESET_HIGHLIGHTS } from "@/components/shared/MiniToolbar";
+import { ColorPickerModal, PRESET_COLORS, PRESET_HIGHLIGHTS, FONTS } from "@/components/shared/MiniToolbar";
 
 const BASIC_TOOLS = [
   { icon: Bold,          cmd: "bold",                title: "Bold (Ctrl+B)" },
@@ -12,6 +12,7 @@ const BASIC_TOOLS = [
   { icon: Underline,     cmd: "underline",           title: "Underline (Ctrl+U)" },
   { icon: Strikethrough, cmd: "strikeThrough",       title: "Strikethrough" },
   { type: "sep" },
+  { icon: Heading1,      cmd: "formatBlock", val: "h1", title: "Heading 1" },
   { icon: Heading2,      cmd: "formatBlock", val: "h2", title: "Heading 2" },
   { icon: Heading3,      cmd: "formatBlock", val: "h3", title: "Heading 3" },
   { type: "sep" },
@@ -33,8 +34,8 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const savedRangeRef = useRef(null);
   const [colorModal, setColorModal] = useState(null); // "fg" | "hl" | null
   const [showMore, setShowMore] = useState(false);
+  const [showFontPicker, setShowFontPicker] = useState(false);
 
-  // Mount: set initial content
   useEffect(() => {
     if (editorRef.current) {
       editorRef.current.innerHTML = value || "";
@@ -42,7 +43,6 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync when value changes externally
   useEffect(() => {
     if (editorRef.current && value !== lastHtml.current) {
       editorRef.current.innerHTML = value || "";
@@ -77,7 +77,6 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     emit();
   };
 
-  // Insert HTML at cursor (for color/font/effects)
   const insertHTML = useCallback((before, after = "") => {
     editorRef.current?.focus();
     restoreSelection();
@@ -105,6 +104,11 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     }
   };
 
+  const applyFont = (fontValue) => {
+    insertHTML(`<span style="font-family:${fontValue};">`, "</span>");
+    setShowFontPicker(false);
+  };
+
   const handleKeyDown = (e) => {
     if (e.ctrlKey || e.metaKey) {
       if (e.key === "b") { e.preventDefault(); execCmd("bold"); }
@@ -120,6 +124,14 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
       onMouseDown={(e) => { e.preventDefault(); execCmd(cmd, val ?? null); }}
       className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
       <Icon className="w-3.5 h-3.5" />
+    </button>
+  );
+
+  const ihBtn = (label, before, after, title) => (
+    <button key={title} type="button" title={title}
+      onMouseDown={(e) => { e.preventDefault(); insertHTML(before, after); }}
+      className="h-6 px-1.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+      {label}
     </button>
   );
 
@@ -167,6 +179,13 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
             <span className="text-xs font-bold px-0.5 rounded" style={{ background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)", lineHeight: 1.6 }}>A</span>
           </button>
           {sep}
+          {/* Clear formatting */}
+          <button type="button" title="Clear formatting"
+            onMouseDown={(e) => { e.preventDefault(); execCmd("removeFormat"); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
+            <X className="w-3.5 h-3.5" />
+          </button>
+          {sep}
           {/* More toggle */}
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setShowMore(v => !v)}
             className={`h-6 px-1.5 flex items-center gap-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${showMore ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
@@ -177,21 +196,22 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
         {/* Extended row */}
         {showMore && (
           <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-t border-border/20 bg-muted/5">
-            {[
-              ["xs", "0.7em"], ["sm", "0.85em"], ["lg", "1.3em"], ["xl", "1.8em"],
-            ].map(([label, size]) => (
+            {/* Font size */}
+            {[["xs","0.7em"],["sm","0.85em"],["lg","1.3em"],["xl","1.8em;font-weight:bold;"]].map(([label, size]) => (
               <button key={label} type="button" title={`Font size ${label}`}
-                onMouseDown={(e) => { e.preventDefault(); insertHTML(`<span style="font-size:${size};">`, "</span>"); }}
+                onMouseDown={(e) => { e.preventDefault(); insertHTML(`<span style="font-size:${size}">`, "</span>"); }}
                 className="h-6 px-1.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
                 {label}
               </button>
             ))}
             {sep}
+            {/* Gradients */}
             {[
-              ["✨", "rainbow", "background:linear-gradient(90deg,#ff6ec7,#ffe680,#6effc8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;"],
-              ["🌊", "ocean", "background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;"],
-              ["🔥", "fire", "background:linear-gradient(90deg,#ff4d00,#ff9900,#ffee00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;"],
-            ].map(([emoji, title, style]) => (
+              ["✨", "background:linear-gradient(90deg,#ff6ec7,#ffe680,#6effc8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;", "Rainbow"],
+              ["🌊", "background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;", "Ocean"],
+              ["🔥", "background:linear-gradient(90deg,#ff4d00,#ff9900,#ffee00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;", "Fire"],
+              ["🌿", "background:linear-gradient(90deg,#00c853,#64dd17,#b2ff59);-webkit-background-clip:text;-webkit-text-fill-color:transparent;", "Nature"],
+            ].map(([emoji, style, title]) => (
               <button key={title} type="button" title={`${title} gradient text`}
                 onMouseDown={(e) => { e.preventDefault(); insertHTML(`<span style="${style}">`, "</span>"); }}
                 className="h-6 px-1 rounded text-xs hover:bg-muted/60 transition-colors flex-shrink-0">
@@ -199,17 +219,50 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
               </button>
             ))}
             {sep}
-            {[
-              ["X²", "<sup>", "</sup>", "Superscript"],
-              ["X₂", "<sub>", "</sub>", "Subscript"],
-              ["blur", `<span style="filter:blur(3px);">`, "</span>", "Blur"],
-            ].map(([label, before, after, title]) => (
-              <button key={title} type="button" title={title}
-                onMouseDown={(e) => { e.preventDefault(); insertHTML(before, after); }}
-                className="h-6 px-1.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-                {label}
+            {/* Super / sub / code / blur / rot */}
+            {ihBtn("X²", "<sup>", "</sup>", "Superscript")}
+            {ihBtn("X₂", "<sub>", "</sub>", "Subscript")}
+            {ihBtn("</>", '<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">', "</code>", "Inline code")}
+            {ihBtn("blur", '<span style="filter:blur(3px);">', "</span>", "Blur")}
+            {ihBtn("rot", '<span style="display:inline-block;transform:rotate(-5deg);">', "</span>", "Slight rotation")}
+            {sep}
+            {/* Styled boxes */}
+            {ihBtn("🔲", '<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;">', "</div>", "Dark box")}
+            {ihBtn("💠", '<div style="border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px;background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);">', "</div>", "Glass box")}
+            {ihBtn("🟣", '<div style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e);border-radius:12px;padding:16px;border:1px solid rgba(147,51,234,0.3);">', "</div>", "Purple dark box")}
+            {ihBtn("🌑", '<div style="background:radial-gradient(ellipse at top,#1a0533,#000);border-radius:16px;padding:20px;">', "</div>", "Dark radial box")}
+            {sep}
+            {/* Animation / effects */}
+            {ihBtn("⚡", '<span style="animation:float 3s ease-in-out infinite;display:inline-block;">', "</span>", "Float animation")}
+            {ihBtn("💥", '<span style="text-shadow:0 0 10px currentColor;">', "</span>", "Glow")}
+            {ihBtn("🌀", '<span style="display:inline-block;animation:spin 3s linear infinite;">', "</span>", "Spin")}
+            {ihBtn("〰", '<span style="display:inline-block;animation:wave 1s ease-in-out infinite alternate;transform-origin:bottom;">', "</span>", "Wave")}
+            {ihBtn("👻", '<span style="opacity:0.6;">', "</span>", "Faded/ghost")}
+            {ihBtn("📦", '<span style="border:1px solid currentColor;border-radius:4px;padding:1px 6px;">', "</span>", "Boxed text")}
+            {sep}
+            {/* Font family picker */}
+            <div className="relative flex-shrink-0">
+              <button type="button" onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { saveSelection(); setShowFontPicker(f => !f); }}
+                className={`h-6 px-1.5 flex items-center gap-0.5 rounded text-xs transition-colors ${showFontPicker ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+                Aa <ChevronDown className="w-2.5 h-2.5" />
               </button>
-            ))}
+              {showFontPicker && (
+                <div className="absolute bottom-full left-0 mb-1 w-48 bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden z-[70]">
+                  <div className="max-h-64 overflow-y-auto p-1 space-y-0.5">
+                    {FONTS.map(f => (
+                      <button key={f.value} type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => applyFont(f.value)}
+                        className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors text-sm"
+                        style={{ fontFamily: f.value }}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
