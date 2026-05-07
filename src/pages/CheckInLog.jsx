@@ -353,6 +353,24 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   );
 }
 
+function SymptomUpdateEntry({ sc, symptomsById }) {
+  const timeStr = format(new Date(sc.timestamp), "h:mm a");
+  const symptom = symptomsById[sc.symptom_id];
+  const color = symptom?.color || "#8b5cf6";
+  return (
+    <div className="px-4 py-2.5 hover:bg-muted/10">
+      <div className="flex items-center gap-2 mb-1.5 text-xs text-muted-foreground">
+        <Clock className="w-3 h-3 flex-shrink-0" />
+        <span>{timeStr}</span>
+      </div>
+      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
+        style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
+        {symptom?.label || "Symptom"}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
+      </span>
+    </div>
+  );
+}
+
 function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, diaryCardsByDate, highlightId, defaultExpanded, onDelete }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const dateObj = parseISO(date + "T12:00:00");
@@ -370,6 +388,9 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
     try { return format(new Date(sc.timestamp), "yyyy-MM-dd") === date; }
     catch { return false; }
   });
+
+  // Standalone symptom updates (logged outside a formal check-in) shown as their own entries
+  const standaloneSymptomCheckIns = daySymptomCheckIns.filter(sc => !sc.check_in_id);
 
   const dayActivities = allActivities.filter(act => {
     try { return format(new Date(act.timestamp), "yyyy-MM-dd") === date; }
@@ -422,7 +443,14 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
 
       {expanded && (
         <div className="border-t border-border/30 divide-y divide-border/20">
-          {checkIns.map((ci) => {
+          {[
+            ...checkIns.map(ci => ({ kind: "checkin", data: ci, ts: new Date(ci.timestamp).getTime() })),
+            ...standaloneSymptomCheckIns.map(sc => ({ kind: "symptom", data: sc, ts: new Date(sc.timestamp).getTime() })),
+          ].sort((a, b) => a.ts - b.ts).map((entry, i) => {
+            if (entry.kind === "symptom") {
+              return <SymptomUpdateEntry key={`sym-${entry.data.id || i}`} sc={entry.data} symptomsById={symptomsById} />;
+            }
+            const ci = entry.data;
             const matchedDiaryCard = dayDiaryCards.find(dc => {
               try {
                 return Math.abs(new Date(dc.created_date).getTime() - new Date(ci.timestamp).getTime()) < 5 * 60 * 1000;
