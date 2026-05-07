@@ -7,6 +7,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import AppLayout from '@/components/layout/AppLayout';
+import Privacy from '@/pages/Privacy';
 import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
 import { Navigate } from 'react-router-dom';
@@ -100,6 +101,19 @@ const AuthenticatedApp = () => {
 
 
 function App() {
+  // Privacy page is always accessible — bypass all setup/unlock state
+  if (window.location.pathname === '/privacy') {
+    return (
+      <ThemeProvider>
+        <Router>
+          <Routes>
+            <Route path="/privacy" element={<Privacy />} />
+          </Routes>
+        </Router>
+      </ThemeProvider>
+    );
+  }
+
   // 'firstrun' → storage/encryption setup, 'unlock' → password prompt, 'loading' → init DB, null → ready
   const [setupState, setSetupState] = useState(() => {
     if (isFirstRun()) return 'firstrun';
