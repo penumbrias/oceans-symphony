@@ -236,11 +236,29 @@ export default function Dashboard() {
     } else if (action.type === "log_symptom") {
       const { symptom_id } = action.config || {};
       if (!symptom_id) return;
-      await base44.entities.SymptomCheckIn.create({
-        symptom_id,
-        severity: extraData.severity ?? null,
-        timestamp: now,
-      });
+      const severity = extraData.severity ?? null;
+
+      // Mirror SymptomsSection: create/update a SymptomSession so it shows on the dashboard
+      const activeSessions = await base44.entities.SymptomSession.filter({ is_active: true });
+      const existing = activeSessions.find(s => s.symptom_id === symptom_id);
+      if (existing) {
+        if (severity !== null) {
+          const snaps = existing.severity_snapshots || [];
+          await base44.entities.SymptomSession.update(existing.id, {
+            severity_snapshots: [...snaps, { severity, timestamp: now }],
+          });
+        }
+      } else {
+        await base44.entities.SymptomSession.create({
+          symptom_id,
+          start_time: now,
+          is_active: true,
+          severity_snapshots: severity !== null ? [{ severity, timestamp: now }] : [],
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+
+      await base44.entities.SymptomCheckIn.create({ symptom_id, severity, timestamp: now });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success("Logged");
     } else if (action.type === "log_emotion") {
