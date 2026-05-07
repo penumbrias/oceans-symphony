@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 8, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Check-In Log day total now aggregates all of the day's data — status notes, diary card values (joy, skills, urges, meds), and all standalone entries. The entry count in the total header reflects every tracked item for the day, not just formal check-ins.",
+      },
+      {
         type: "fix",
         text: "Therapy report templates — the old 'save as template' checkbox was tied to generating a report and didn't work on its own. Templates section is now always visible at the top of the report builder with a name field and a standalone Save button. Tap Save to save at any time without generating a report.",
       },
