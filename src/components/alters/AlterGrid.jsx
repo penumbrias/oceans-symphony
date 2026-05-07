@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp, FolderMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +23,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
   const [viewMode, setViewMode] = useState("list"); // "list" | "grid"
   const [gridCols, setGridCols] = useState(() => parseInt(localStorage.getItem("alter_grid_cols") || "3", 10));
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [hideGrouped, setHideGrouped] = useState(() => localStorage.getItem("alter_hide_grouped") === "true");
 
   const toggleGridCols = () => {
     const next = gridCols === 3 ? 4 : 3;
@@ -85,10 +86,27 @@ export default function AlterGrid({ alters, currentSession = null }) {
     return map;
   }, [activeSessions]);
 
+  // Build set of alter IDs that belong to at least one group
+  const groupedAlterIds = useMemo(() => {
+    const ids = new Set();
+    for (const g of allGroups) {
+      for (const spId of (g.member_sp_ids || [])) {
+        const alter = effectiveAlters.find(a => a.sp_id === spId);
+        if (alter) ids.add(alter.id);
+      }
+    }
+    // Also catch legacy: alter.groups array
+    for (const a of effectiveAlters) {
+      if ((a.groups || []).length > 0) ids.add(a.id);
+    }
+    return ids;
+  }, [allGroups, effectiveAlters]);
+
   const filtered = effectiveAlters.
   filter(
     (a) =>
-    !a.is_archived && (
+    !a.is_archived &&
+    (!hideGrouped || !groupedAlterIds.has(a.id)) && (
     a.name?.toLowerCase().includes(search.toLowerCase()) ||
     a.role?.toLowerCase().includes(search.toLowerCase()) ||
     a.pronouns?.toLowerCase().includes(search.toLowerCase()))
@@ -159,6 +177,18 @@ export default function AlterGrid({ alters, currentSession = null }) {
           {sortMode === "least" && <TrendingUp className="w-4 h-4" />}
         </button>
 
+        {/* Hide grouped */}
+        <button
+          onClick={() => {
+            const next = !hideGrouped;
+            setHideGrouped(next);
+            localStorage.setItem("alter_hide_grouped", next ? "true" : "false");
+          }}
+          title={hideGrouped ? `Show all ${terms.alters}` : `Hide ${terms.alters} already in a group`}
+          className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 transition-colors ${hideGrouped ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
+          <FolderMinus className="w-4 h-4" />
+        </button>
+
         {/* View mode */}
         <button
           data-tour="alter-view-toggle"
@@ -218,12 +248,12 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
 
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-              <div className="text-4xl mb-3">{search ? "🔍" : "👥"}</div>
+              <div className="text-4xl mb-3">{search ? "🔍" : hideGrouped ? "📁" : "👥"}</div>
               <p className="text-sm font-medium text-foreground mb-1">
-                {search ? "No matches found" : `No ${terms.alters} yet`}
+                {search ? "No matches found" : hideGrouped ? `All ${terms.alters} are in groups` : `No ${terms.alters} yet`}
               </p>
               <p className="text-xs text-muted-foreground">
-                {search ? `Try a different search term` : `Add your first ${terms.alter} to get started`}
+                {search ? `Try a different search term` : hideGrouped ? `Toggle the group filter to see them` : `Add your first ${terms.alter} to get started`}
               </p>
             </div>
           }
