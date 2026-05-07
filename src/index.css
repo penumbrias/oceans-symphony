@@ -99,9 +99,14 @@ button, [role="button"] {
 }
 
 /* ── Accessibility ── */
-html.a11y-text-sm { font-size: 87.5%; }
-html.a11y-text-lg { font-size: 112.5%; }
-html.a11y-text-xl { font-size: 125%; }
+html.a11y-text-xs3 { font-size: 50%; }
+html.a11y-text-xs2 { font-size: 62.5%; }
+html.a11y-text-xs  { font-size: 75%; }
+html.a11y-text-sm  { font-size: 87.5%; }
+html.a11y-text-lg  { font-size: 112.5%; }
+html.a11y-text-xl  { font-size: 125%; }
+html.a11y-text-xl2 { font-size: 137.5%; }
+html.a11y-text-xl3 { font-size: 150%; }
 
 html.a11y-touch-comfortable button,
 html.a11y-touch-comfortable [role="button"],

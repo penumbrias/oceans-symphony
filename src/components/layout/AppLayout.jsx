@@ -18,29 +18,7 @@ import FeatureTour from "@/components/onboarding/FeatureTour";
 import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize } from "@/lib/useAccessibility";
 
-function OfflineReadyBadge() {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const check = () => setReady(!!navigator.serviceWorker?.controller);
-    check();
-    navigator.serviceWorker?.addEventListener('controllerchange', check);
-    return () => navigator.serviceWorker?.removeEventListener('controllerchange', check);
-  }, []);
-  return (
-    <span
-      title={ready ? "Offline Ready — works without internet" : "Registering offline support…"}
-      className={cn(
-        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors select-none",
-        ready
-          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-          : "bg-muted text-muted-foreground"
-      )}
-    >
-      <span className={cn("w-1.5 h-1.5 rounded-full", ready ? "bg-emerald-500" : "bg-muted-foreground/50")} />
-      {ready ? "Offline Ready" : "…"}
-    </span>
-  );
-}
+
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
@@ -169,7 +147,6 @@ const handleNotifClick = (mentionLog) => {
               <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
             </div>
             <span className="font-display text-lg font-semibold tracking-tight text-foreground">Symphony</span>
-            <OfflineReadyBadge />
           </Link>
 
           <nav className="flex items-center gap-1" aria-label="Main navigation">
@@ -240,7 +217,6 @@ const handleNotifClick = (mentionLog) => {
               <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
             </div>
             <span className="font-display text-base font-semibold text-foreground">Oceans Symphony</span>
-            <OfflineReadyBadge />
           </button>
         }
 
@@ -307,7 +283,7 @@ const handleNotifClick = (mentionLog) => {
                 )}>
 
                 <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
-                <span className="text-[11px] font-medium">{item.label}</span>
+                <span className="text-[11px] font-medium text-center leading-tight">{item.label}</span>
               </Link>);
 
             })}

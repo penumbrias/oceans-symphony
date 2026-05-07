@@ -21,10 +21,15 @@ const COLOR_LABELS = {
 };
 
 const FONT_SIZE_OPTIONS = [
+  { value: 'xs3',     label: 'Tiny',        desc: '50%' },
+  { value: 'xs2',     label: 'XS',          desc: '62.5%' },
+  { value: 'xs',      label: 'S−',          desc: '75%' },
   { value: 'sm',      label: 'Small',       desc: '87.5%' },
   { value: 'default', label: 'Default',     desc: '100%' },
   { value: 'lg',      label: 'Large',       desc: '112.5%' },
-  { value: 'xl',      label: 'Extra Large', desc: '125%' },
+  { value: 'xl',      label: 'XL',          desc: '125%' },
+  { value: 'xl2',     label: 'XXL',         desc: '137.5%' },
+  { value: 'xl3',     label: 'XXXL',        desc: '150%' },
 ];
 
 // ── Font Picker ──────────────────────────────────────────────────────────────
@@ -304,7 +309,7 @@ export default function AdvancedAppearance() {
       {/* ── Text & UI Size ─────────────────────────────────────── */}
       <div className="space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Text & UI Size</p>
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           {FONT_SIZE_OPTIONS.map(opt => (
             <button
               key={opt.value}

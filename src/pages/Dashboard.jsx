@@ -331,18 +331,20 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-1">
+        <div className="flex flex-col items-end gap-0.5">
         <button
             onClick={() => setShowTour(true)}
-            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted/50 transition-colors whitespace-nowrap"
             title="Open guide">
           Guide
         </button>
         <button
             onClick={() => setShowFeatureTour(true)}
-            className="text-xs text-primary hover:text-primary/80 px-2 py-1.5 rounded-lg hover:bg-primary/10 transition-colors font-medium"
+            className="text-xs text-primary hover:text-primary/80 px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors font-medium whitespace-nowrap"
             title="Interactive feature tour">
           Tour ✨
         </button>
+        </div>
         <button
             onClick={() => setShowNotifHistory(true)}
             aria-label="Notifications"
