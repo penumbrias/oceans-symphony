@@ -50,14 +50,14 @@ function AlterChip({ alter, selected, onClick, disabled }) {
 
 // ─── Type config ──────────────────────────────────────────────────────────────
 
-const TYPES = [
+const getTypes = (t) => [
   {
     id: "fusion",
     label: "Fusion",
     icon: GitMerge,
     color: "text-violet-500",
     bg: "bg-violet-500/10 border-violet-500/30",
-    description: "Two or more alters merge into one or form a new alter.",
+    description: `Two or more ${t.alters} merge into one or form a new ${t.alter}.`,
   },
   {
     id: "split",
@@ -65,7 +65,7 @@ const TYPES = [
     icon: Split,
     color: "text-blue-500",
     bg: "bg-blue-500/10 border-blue-500/30",
-    description: "One alter splits into two or more distinct alters.",
+    description: `One ${t.alter} splits into two or more distinct ${t.alters}.`,
   },
   {
     id: "dormancy",
@@ -73,7 +73,7 @@ const TYPES = [
     icon: MoonStar,
     color: "text-indigo-500",
     bg: "bg-indigo-500/10 border-indigo-500/30",
-    description: "One or more alters go dormant / become less active.",
+    description: `One or more ${t.alters} go dormant / become less active.`,
   },
   {
     id: "return",
@@ -81,7 +81,7 @@ const TYPES = [
     icon: Sunrise,
     color: "text-amber-500",
     bg: "bg-amber-500/10 border-amber-500/30",
-    description: "One or more alters return from dormancy.",
+    description: `One or more ${t.alters} return from dormancy.`,
   },
   {
     id: "emergence",
@@ -89,13 +89,15 @@ const TYPES = [
     icon: Sparkles,
     color: "text-emerald-500",
     bg: "bg-emerald-500/10 border-emerald-500/30",
-    description: "One or more alters emerge or are first recognized in the system.",
+    description: `One or more ${t.alters} emerge or are first recognized in the ${t.system}.`,
   },
 ];
 
 // ─── Step components ──────────────────────────────────────────────────────────
 
 function StepType({ value, onChange }) {
+  const terms = useTerms();
+  const TYPES = getTypes(terms);
   return (
     <div className="grid grid-cols-2 gap-3">
       {TYPES.map((t) => {
@@ -573,6 +575,7 @@ function StepDetails({ year, onYear, cause, onCause, notes, onNotes }) {
 
 export default function RecordSystemChangeModal({ open, onClose, preselectedAlterIds = [] }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => localEntities.Alter.list(),
@@ -736,7 +739,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Record System Event</DialogTitle>
+          <DialogTitle>Record {terms.System} Event</DialogTitle>
         </DialogHeader>
 
         {/* Step indicator */}
