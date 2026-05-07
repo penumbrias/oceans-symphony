@@ -101,12 +101,6 @@ export default function DailyTasks() {
     [hasJournalToday, systemCheckIns.length]
   );
 
-  // IDs of AUTO tasks that are currently triggered today
-  const autoCompletedIds = useMemo(
-    () => activeTasks.filter(t => t.mode === "AUTO" && autoTriggers.has(t.auto_trigger)).map(t => t.id),
-    [activeTasks, autoTriggers]
-  );
-
   // Current period key per frequency
   const currentPeriodKey = useMemo(() => getPeriodKey(activeFreq), [activeFreq]);
 
@@ -116,6 +110,12 @@ export default function DailyTasks() {
       .filter(t => t.is_active && (t.frequency || "daily") === activeFreq)
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
     [templates, activeFreq]
+  );
+
+  // IDs of AUTO tasks that are currently triggered today (must come after activeTasks)
+  const autoCompletedIds = useMemo(
+    () => activeTasks.filter(t => t.mode === "AUTO" && autoTriggers.has(t.auto_trigger)).map(t => t.id),
+    [activeTasks, autoTriggers]
   );
 
   // Find progress record for current period
