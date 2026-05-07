@@ -2,6 +2,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { zonedFireInstant, getUserLocalDate, getCurrentMinutesInZone } from "@/lib/timezoneHelpers";
+import { sendPushNotification, isPushEnabled } from "@/lib/pushRegistration";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -443,6 +444,17 @@ export async function runClientScheduler(queryClient) {
 
         recentInstances.push(inst);
         newInstances.push(inst);
+
+        // Send native push notification if enabled (fire-and-forget)
+        isPushEnabled().then(enabled => {
+          if (!enabled) return;
+          sendPushNotification({
+            title: reminder.title,
+            body: reminder.body || '',
+            reminderInstanceId: inst.id,
+            inlineActions: reminder.inline_actions || [],
+          }).catch(() => {});
+        }).catch(() => {});
       } catch (err) {
         console.warn(`[remindersScheduler] reminder ${reminder.id} error:`, err.message);
       }

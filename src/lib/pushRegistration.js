@@ -1,4 +1,4 @@
-import { base44 } from "@/api/base44Client";
+import { localEntities } from "@/api/base44Client";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
@@ -14,7 +14,7 @@ export async function registerPush() {
     throw new Error('Push notifications are not supported in this browser.');
   }
   if (!VAPID_PUBLIC_KEY) {
-    throw new Error('VITE_VAPID_PUBLIC_KEY is not set.');
+    throw new Error('Push not configured. Set VITE_VAPID_PUBLIC_KEY in your environment.');
   }
 
   const permission = await Notification.requestPermission();
@@ -31,12 +31,19 @@ export async function registerPush() {
   });
 
   const subJson = subscription.toJSON();
-  await base44.entities.PushSubscription.create({
-    endpoint: subJson.endpoint,
-    keys: subJson.keys,
-    user_agent: navigator.userAgent,
-    is_active: true,
-  });
+
+  // Store in local IDB so we can look it up later
+  const existing = await localEntities.PushSubscription.filter({ endpoint: subJson.endpoint });
+  if (existing.length) {
+    await localEntities.PushSubscription.update(existing[0].id, { is_active: true, keys: subJson.keys });
+  } else {
+    await localEntities.PushSubscription.create({
+      endpoint: subJson.endpoint,
+      keys: subJson.keys,
+      user_agent: navigator.userAgent,
+      is_active: true,
+    });
+  }
 
   return subscription;
 }
@@ -53,11 +60,10 @@ export async function unregisterPush() {
   const endpoint = subscription.endpoint;
   await subscription.unsubscribe();
 
-  // Mark matching record inactive
-  const records = await base44.entities.PushSubscription.filter({ is_active: true });
+  const records = await localEntities.PushSubscription.filter({ is_active: true });
   const match = (records || []).find(r => r.endpoint === endpoint);
   if (match) {
-    await base44.entities.PushSubscription.update(match.id, { is_active: false });
+    await localEntities.PushSubscription.update(match.id, { is_active: false });
   }
 }
 
@@ -71,6 +77,43 @@ export async function isPushEnabled() {
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return false;
 
-  const records = await base44.entities.PushSubscription.filter({ is_active: true });
+  const records = await localEntities.PushSubscription.filter({ is_active: true });
   return (records || []).some(r => r.endpoint === subscription.endpoint);
+}
+
+// Returns the raw subscription JSON, or null if not subscribed.
+export async function getActivePushSubscription() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  if (Notification.permission !== 'granted') return null;
+
+  const registration = await navigator.serviceWorker.getRegistration('/sw-reminders.js');
+  if (!registration) return null;
+
+  const sub = await registration.pushManager.getSubscription();
+  return sub ? sub.toJSON() : null;
+}
+
+// Call this whenever you want to deliver a notification via push.
+// payload: { title, body, reminderInstanceId?, inlineActions? }
+export async function sendPushNotification(payload) {
+  try {
+    const subscription = await getActivePushSubscription();
+    if (!subscription) return false;
+
+    const res = await fetch('/api/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription, payload }),
+    });
+
+    if (res.status === 410) {
+      // Subscription expired — clean up silently
+      await unregisterPush().catch(() => {});
+      return false;
+    }
+
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
