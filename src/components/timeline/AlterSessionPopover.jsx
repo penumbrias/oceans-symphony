@@ -3,12 +3,77 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
+
+function parseJsonSafe(str, fallback) {
+  try { return JSON.parse(str) || fallback; } catch { return fallback; }
+}
+
+function SessionDetails({ session }) {
+  const notes = parseJsonSafe(session.note, []);
+  const noteText = Array.isArray(notes) ? notes.map(n => n.text).filter(Boolean).join("\n") : (session.note || "");
+  const emotions = parseJsonSafe(session.session_emotions, []);
+  const symptoms = parseJsonSafe(session.session_symptoms, []);
+  const isTriggered = !!session.is_triggered_switch;
+
+  if (!noteText && emotions.length === 0 && symptoms.length === 0 && !isTriggered) return null;
+
+  return (
+    <div className="space-y-2.5 pt-2 border-t border-border/40">
+      {isTriggered && (
+        <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
+          <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
+          <div className="text-xs min-w-0">
+            <span className="font-semibold text-orange-600 dark:text-orange-400">Triggered switch</span>
+            {session.trigger_category && (
+              <span className="text-muted-foreground"> · {session.trigger_category}</span>
+            )}
+            {session.trigger_label && (
+              <p className="text-muted-foreground mt-0.5 truncate">{session.trigger_label}</p>
+            )}
+          </div>
+        </div>
+      )}
+      {noteText && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">💬 Note</p>
+          <p className="text-xs text-foreground whitespace-pre-wrap leading-relaxed">{noteText}</p>
+        </div>
+      )}
+      {emotions.length > 0 && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1.5">Emotions</p>
+          <div className="flex flex-wrap gap-1">
+            {emotions.map(e => (
+              <span key={e} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{e}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {symptoms.length > 0 && (
+        <div>
+          <p className="text-xs text-muted-foreground mb-1.5">Symptoms</p>
+          <div className="flex flex-col gap-1">
+            {symptoms.map(s => (
+              <div key={s.id} className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">{s.label}</span>
+                <span className="font-medium text-foreground">
+                  {s.type === "boolean" ? (s.value ? "Yes" : "No") : `${s.value}/5`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function formatDuration(minutes) {
   if (minutes < 60) return `${minutes}m`;
@@ -34,14 +99,24 @@ function localDatetimeToISO(val) {
 export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   const infoResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   const [infoImgError, setInfoImgError] = useState(false);
-  if (!session) return null;
-  const start = parseDate(session.start_time);
-  const end = session.end_time ? parseDate(session.end_time) : null;
+
+  // Always fetch fresh data so note/emotions/symptoms are current
+  const { data: freshSession } = useQuery({
+    queryKey: ["session", session?.id],
+    queryFn: () => base44.entities.FrontingSession.get(session.id),
+    enabled: !!session?.id,
+    staleTime: 0,
+  });
+  const s = freshSession || session;
+
+  if (!s) return null;
+  const start = parseDate(s.start_time);
+  const end = s.end_time ? parseDate(s.end_time) : null;
   const durationMins = end ? differenceInMinutes(end, start) : differenceInMinutes(new Date(), start);
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-xs">
+      <DialogContent className="max-w-xs max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {infoResolvedUrl && !infoImgError
@@ -70,9 +145,23 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
             <p className="font-semibold text-primary">{formatDuration(durationMins)}</p>
           </div>
 
-          <Button size="sm" variant="outline" className="w-full" onClick={onEdit}>
-            Edit session
-          </Button>
+          <SessionDetails session={s} />
+
+          <div className="flex gap-2">
+            {alter?.id && (
+              <Link
+                to={`/alter/${alter.id}`}
+                onClick={onClose}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm font-medium border border-input rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                View profile
+              </Link>
+            )}
+            <Button size="sm" variant="outline" className="flex-1" onClick={onEdit}>
+              Edit session
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

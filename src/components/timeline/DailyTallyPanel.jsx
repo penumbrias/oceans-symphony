@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { parseDate } from "@/lib/dateUtils";
 import { startOfDay, endOfDay, format } from "date-fns";
 import { ChevronRight } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -39,9 +40,10 @@ function NavRow({ label, sublabel, route, navigate }) {
 export default function DailyTallyPanel({
   day, sessions, activities, emotions, journals, alters,
   checkIns = [], tasks = [], symptoms = [], symptomSessions = [],
-  bulletins = [], categories = [],
+  bulletins = [], categories = [], statusNotes = [],
 }) {
   const navigate = useNavigate();
+  const terms = useTerms();
   const dayStart = useMemo(() => startOfDay(day), [day]);
   const dayEnd = useMemo(() => endOfDay(day), [day]);
   const inDay = (d) => d >= dayStart && d <= dayEnd;
@@ -145,14 +147,14 @@ export default function DailyTallyPanel({
 
         {/* Switches */}
         <div className="text-center flex flex-col items-center pt-0.5">
-          <SectionLabel>Switches</SectionLabel>
+          <SectionLabel>{terms.Switches}</SectionLabel>
           <span className="text-3xl font-bold text-primary leading-none">{switchCount}</span>
         </div>
 
         {/* Fronting */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <SectionLabel>Fronters</SectionLabel>
+            <SectionLabel>{terms.Fronters}</SectionLabel>
             <div className="flex gap-0.5 bg-muted/40 rounded-full p-0.5">
               {[{ id: "total", label: "All" }, { id: "primary", label: "⭐" }, { id: "cofronting", label: "co" }].map(opt => (
                 <button key={opt.id} onClick={() => setFrontingView(opt.id)}
@@ -256,6 +258,24 @@ export default function DailyTallyPanel({
                 navigate={navigate}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Custom Statuses ── */}
+      {statusNotes.length > 0 && (
+        <div>
+          <SectionLabel>Custom Statuses</SectionLabel>
+          <div className="space-y-0.5">
+            {statusNotes
+              .slice()
+              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+              .map(n => (
+                <div key={n.id} className="flex items-start gap-1.5">
+                  <span className="text-muted-foreground flex-shrink-0">💬</span>
+                  <span className="text-xs text-foreground flex-1 min-w-0 break-words">{n.note}</span>
+                </div>
+              ))}
           </div>
         </div>
       )}

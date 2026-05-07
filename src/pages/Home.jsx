@@ -106,6 +106,7 @@ export default function Home() {
           </p>
         </div>
         <Button
+          data-tour="alter-add-btn"
           size="sm"
           onClick={() => setShowAddAlter(true)}
           className="bg-primary hover:bg-primary/90 gap-1.5">

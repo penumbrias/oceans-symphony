@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Mail, Pin, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format, formatDistanceToNow } from "date-fns";
+import { useTerms } from "@/lib/useTerms";
 
-function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onTogglePinned, onMarkRead }) {
+function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onTogglePinned, onMarkRead, isHighlighted, cardRef }) {
   const isSent = message.from_alter_id === currentAlterId;
   const alterColor = fromAlter?.color;
 
@@ -18,13 +19,22 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onT
 
   return (
     <div
+      ref={cardRef}
       onClick={handleMarkRead}
-      className={`rounded-xl p-3 transition-colors cursor-pointer ${
-        message.is_read
+      className={`rounded-xl p-3 transition-all cursor-pointer ${
+        isHighlighted
+          ? "border-2 ring-2 ring-primary/40 bg-primary/5"
+          : message.is_read
           ? "border border-border/50 bg-card/50"
           : `border-2 bg-card`
       }`}
-      style={!message.is_read && alterColor ? { borderColor: `${alterColor}40` } : {}}
+      style={
+        isHighlighted
+          ? { borderColor: "hsl(var(--primary))" }
+          : !message.is_read && alterColor
+          ? { borderColor: `${alterColor}40` }
+          : {}
+      }
     >
       <div className="flex items-start gap-2.5">
         {/* Avatar */}
@@ -86,13 +96,16 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onT
   );
 }
 
-export default function PrivateMessagesTab({ alterId, alters }) {
+export default function PrivateMessagesTab({ alterId, alters, highlightMessageId }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const [composing, setComposing] = useState(false);
   const [fromAlterId, setFromAlterId] = useState(null);
   const [content, setContent] = useState("");
   const [pinToggle, setPinToggle] = useState(false);
   const [saving, setSaving] = useState(false);
+  const highlightRef = useRef(null);
+  const [activeHighlightId, setActiveHighlightId] = useState(highlightMessageId || null);
 
   const { data: messages = [] } = useQuery({
     queryKey: ["privateMessages", alterId],
@@ -117,6 +130,15 @@ export default function PrivateMessagesTab({ alterId, alters }) {
     }
   }, [currentFronter, fromAlterId]);
 
+  // Scroll to and highlight a specific message when arriving from a notification
+  useEffect(() => {
+    if (!highlightMessageId || !highlightRef.current) return;
+    const el = highlightRef.current;
+    setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 200);
+    const timer = setTimeout(() => setActiveHighlightId(null), 5000);
+    return () => clearTimeout(timer);
+  }, [highlightMessageId, messages]);
+
   const handleSendMessage = async () => {
     if (!content.trim() || !fromAlterId) return;
     setSaving(true);
@@ -132,14 +154,19 @@ export default function PrivateMessagesTab({ alterId, alters }) {
       // Create MentionLog for notification
       const fromAlter = altersById[fromAlterId];
       await base44.entities.MentionLog.create({
-        alter_id: alterId,
-        content: `New message from ${fromAlter?.name || "Unknown"}`,
-        navigate_path: `/alter/${alterId}?tab=private-messages`,
-        is_read: false,
-        created_date: new Date().toISOString(),
+        mentioned_alter_id: alterId,
+        author_alter_id: fromAlterId,
+        log_type: "mention",
+        source_type: "message",
+        source_id: msg.id,
+        source_label: `Message from ${fromAlter?.name || "Unknown"}`,
+        source_date: new Date().toISOString(),
+        preview_text: content.trim().slice(0, 120),
+        navigate_path: `/alter/${alterId}?tab=private-messages&messageId=${msg.id}`,
       });
 
       queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+      queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
       queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
       setContent("");
       setComposing(false);
@@ -152,16 +179,19 @@ export default function PrivateMessagesTab({ alterId, alters }) {
   const handleDelete = async (messageId) => {
     await base44.entities.AlterMessage.delete(messageId);
     queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
   };
 
   const handleTogglePinned = async (messageId, pinned) => {
     await base44.entities.AlterMessage.update(messageId, { pinned });
     queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
   };
 
   const handleMarkRead = async (messageId) => {
     await base44.entities.AlterMessage.update(messageId, { is_read: true });
     queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
   };
 
   return (
@@ -176,24 +206,32 @@ export default function PrivateMessagesTab({ alterId, alters }) {
 
       {/* Messages */}
       {messages.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          <Mail className="w-8 h-8 mx-auto mb-3 opacity-20" />
-          No messages yet
+        <div className="text-center py-10 text-muted-foreground text-sm space-y-3">
+          <Mail className="w-8 h-8 mx-auto opacity-20" />
+          <p>No messages yet</p>
+          <p className="text-xs text-muted-foreground/70 max-w-xs mx-auto leading-relaxed">
+            Messages left here appear on the dashboard while this {terms.alter} is {terms.fronting}. Pin a message to keep it always visible at the top of the home screen.
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
-          {messages.map((msg) => (
-            <MessageCard
-              key={msg.id}
-              message={msg}
-              fromAlter={altersById[msg.from_alter_id]}
-              currentAlterId={alterId}
-              alters={alters}
-              onDelete={handleDelete}
-              onTogglePinned={handleTogglePinned}
-              onMarkRead={handleMarkRead}
-            />
-          ))}
+          {messages.map((msg) => {
+            const isHighlighted = msg.id === activeHighlightId;
+            return (
+              <MessageCard
+                key={msg.id}
+                message={msg}
+                fromAlter={altersById[msg.from_alter_id]}
+                currentAlterId={alterId}
+                alters={alters}
+                onDelete={handleDelete}
+                onTogglePinned={handleTogglePinned}
+                onMarkRead={handleMarkRead}
+                isHighlighted={isHighlighted}
+                cardRef={isHighlighted ? highlightRef : null}
+              />
+            );
+          })}
         </div>
       )}
 

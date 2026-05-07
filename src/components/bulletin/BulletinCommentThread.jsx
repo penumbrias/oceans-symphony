@@ -102,13 +102,14 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     });
 
     const sourceType = parentCommentId ? "reply" : "comment";
+    const commentNavPath = `/bulletin/${bulletinId}?commentId=${comment.id}`;
     for (const authorId of finalAuthorIds) {
       await saveAuthoredLog({
         authorAlterId: authorId,
         sourceType,
-        sourceId: bulletinId,
+        sourceId: comment.id,
         sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
-        navigatePath: `/bulletin/${bulletinId}`,
+        navigatePath: commentNavPath,
         previewText: cleanContent,
       });
     }
@@ -116,9 +117,9 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       content: cleanContent,
       alters,
       sourceType,
-      sourceId: bulletinId,
+      sourceId: comment.id,
       sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
-      navigatePath: `/bulletin/${bulletinId}`,
+      navigatePath: commentNavPath,
       authorAlterId: finalAuthorIds[0] || null,
     });
     setText("");

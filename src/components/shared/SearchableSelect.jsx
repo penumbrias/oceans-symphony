@@ -162,6 +162,16 @@ export function SearchableSelect({
     return () => document.removeEventListener("mousedown", handler);
   }, [open, handleClose]);
 
+  // Stop touchmove from bubbling to document so react-remove-scroll (used by Radix Dialog)
+  // doesn't call preventDefault(), which suppresses click events on iOS
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const panel = panelRef.current;
+    const stop = (e) => e.stopPropagation();
+    panel.addEventListener("touchmove", stop);
+    return () => panel.removeEventListener("touchmove", stop);
+  }, [open, panelPos]);
+
   // Keyboard nav
   const handleKeyDown = (e) => {
     if (!open) {
@@ -243,8 +253,9 @@ export function SearchableSelect({
       {open && panelPos && createPortal(
         <div
           ref={panelRef}
+          data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight }}
+          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
         >
           {/* Search */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
@@ -387,6 +398,14 @@ export function SearchableMultiSelect({
     return () => document.removeEventListener("mousedown", handler);
   }, [open, handleClose]);
 
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const panel = panelRef.current;
+    const stop = (e) => e.stopPropagation();
+    panel.addEventListener("touchmove", stop);
+    return () => panel.removeEventListener("touchmove", stop);
+  }, [open, panelPos]);
+
   return (
     <div ref={containerRef} className={cn("relative", className)}>
       {/* Trigger */}
@@ -430,8 +449,9 @@ export function SearchableMultiSelect({
       {open && panelPos && createPortal(
         <div
           ref={panelRef}
+          data-searchable-dropdown=""
           className="fixed bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden flex flex-col"
-          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight }}
+          style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: panelPos.maxHeight, pointerEvents: 'auto' }}
         >
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50 flex-shrink-0">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
@@ -15,6 +15,7 @@ import NotesTab from "@/components/alters/profile/NotesTab";
 import MessagesTab from "@/components/alters/profile/MessagesTab";
 import PrivateMessagesTab from "@/components/alters/profile/PrivateMessagesTab";
 import OptionsTab from "@/components/alters/profile/OptionsTab";
+import LineageTab from "@/components/alters/profile/LineageTab";
 
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
@@ -23,12 +24,16 @@ const TABS = [
   { id: "private-messages", label: "Messages", icon: Mail },
   { id: "history", label: "History", icon: TrendingUp },
   { id: "notes", label: "Notes", icon: FileText },
+  { id: "lineage", label: "Lineage", icon: GitMerge },
   { id: "options", label: "Options", icon: SlidersHorizontal },
 ];
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
+const HEADER_IMAGE_KEY = "_header_image";
+const SECTION_BG_KEY = "_section_bg_opacity";
+const PAGE_TEXT_KEY = "_page_text_color";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -43,10 +48,24 @@ function getContrastColor(hex) {
 
 export default function AlterProfile() {
   const { id: alterId } = useParams();
-  const [tab, setTab] = useState("profile");
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => {
+    const t = searchParams.get("tab");
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
+    return valid.includes(t) ? t : "profile";
+  });
+  const highlightMessageId = searchParams.get("messageId") || null;
   const [editMode, setEditMode] = useState(false);
+
+  // Keep tab in sync when the URL ?tab= param changes (e.g. tour navigation)
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
+    if (t && valid.includes(t)) setTab(t);
+  }, [searchParams]);
   const [showComposeMessage, setShowComposeMessage] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
+  const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
   const saveRef = useRef(null);
 
   const { data: alter, isLoading } = useQuery({
@@ -67,6 +86,13 @@ export default function AlterProfile() {
       setAvatarSrc(null);
     }
   }, [alter?.avatar_url]);
+
+  // Resolve header image URL
+  useEffect(() => {
+    const img = alter?.custom_fields?.[HEADER_IMAGE_KEY];
+    if (img) resolveImageUrl(img).then(setResolvedHeaderImage).catch(() => setResolvedHeaderImage(null));
+    else setResolvedHeaderImage(null);
+  }, [alter?.custom_fields?.[HEADER_IMAGE_KEY]]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -103,6 +129,9 @@ export default function AlterProfile() {
   const pageBgColor = cf[BG_COLOR_KEY] || "";
   const pageBgImage = cf[BG_IMAGE_KEY] || "";
   const pageBgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
+  const pageHeaderImage = cf[HEADER_IMAGE_KEY] || "";
+  const sectionBgOpacity = cf[SECTION_BG_KEY] !== undefined ? cf[SECTION_BG_KEY] : 0;
+  const pageTextColor = cf[PAGE_TEXT_KEY] || "";
   const hasPageBg = pageBgColor || pageBgImage;
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -134,7 +163,10 @@ export default function AlterProfile() {
         </div>
       )}
 
-      <div className="relative z-10">
+      {pageTextColor && (
+        <style>{`.apc .text-foreground{color:${pageTextColor}}.apc .text-muted-foreground{color:${pageTextColor}99}.apc .text-muted-foreground\\/70{color:${pageTextColor}66}`}</style>
+      )}
+      <div className={pageTextColor ? "relative z-10 apc" : "relative z-10"} style={pageTextColor ? { color: pageTextColor } : {}}>
         <div className="flex items-center justify-between mb-4">
           <Link to="/Home">
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
@@ -182,6 +214,7 @@ export default function AlterProfile() {
                   </Button>
                 )}
                 <Button
+                  data-tour="alter-profile-edit-btn"
                   variant="outline"
                   size="sm"
                   onClick={() => setEditMode(e => !e)}
@@ -194,9 +227,9 @@ export default function AlterProfile() {
           </div>
         </div>
 
-        {tab !== "profile" && (
+          {tab !== "profile" && (
           <div
-            className="rounded-2xl p-4 mb-5 flex items-center gap-4"
+            className="rounded-2xl p-4 mb-5 flex items-center gap-4 relative overflow-hidden"
             style={{
               background: alterColor
                 ? `linear-gradient(135deg, ${alterColor}22, ${alterColor}08)`
@@ -204,8 +237,19 @@ export default function AlterProfile() {
               borderLeft: alterColor ? `4px solid ${alterColor}` : "4px solid hsl(var(--primary))",
             }}
           >
+            {resolvedHeaderImage && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage: `url("${resolvedHeaderImage}")`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  opacity: 0.45,
+                }}
+              />
+            )}
             <div
-              className="w-14 h-14 rounded-xl border-2 border-border/60 overflow-hidden flex-shrink-0"
+              className="w-14 h-14 rounded-xl border-2 border-border/60 overflow-hidden flex-shrink-0 relative z-10"
               style={{ backgroundColor: alterColor || "hsl(var(--muted))" }}
             >
               {avatarSrc ? (
@@ -216,15 +260,16 @@ export default function AlterProfile() {
                 </div>
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 relative z-10">
               <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
               {alter.pronouns && <p className="text-sm text-muted-foreground">{alter.pronouns}</p>}
               {alter.role && <p className="text-xs text-muted-foreground/70 mt-0.5">{alter.role}</p>}
+              {alter.origin_year && <p className="text-xs text-muted-foreground/60 mt-0.5">Since {alter.origin_year}</p>}
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
+        <div data-tour="alter-profile-tabs" className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
           {TABS.map((t) => {
             const Icon = t.icon;
             return (
@@ -257,9 +302,10 @@ export default function AlterProfile() {
           )}
           {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
           {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
-          {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} />}
+          {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} highlightMessageId={highlightMessageId} />}
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
+          {tab === "lineage" && <LineageTab alterId={alter.id} />}
           {tab === "options" && <OptionsTab alter={alter} />}
         </div>
       </div>

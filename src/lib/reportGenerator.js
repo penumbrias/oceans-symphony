@@ -47,8 +47,13 @@ function checkPageBreak(doc, y, needed = 20) {
 }
 
 function wrappedText(doc, text, x, y, maxWidth, lineHeight = 5) {
-  const lines = doc.splitTextToSize(text, maxWidth);
+  const lines = doc.splitTextToSize(String(text || ""), maxWidth);
+  const pageH = doc.internal.pageSize.height;
   lines.forEach(line => {
+    if (y + lineHeight > pageH - 18) {
+      doc.addPage();
+      y = 18;
+    }
     doc.text(line, x, y);
     y += lineHeight;
   });
@@ -88,6 +93,10 @@ function drawTable(doc, headers, rows, y, colWidths = null) {
   doc.setTextColor(50, 50, 50);
   doc.setFont("helvetica", "normal");
   rows.forEach((row, ri) => {
+    if (y + rowH > doc.internal.pageSize.height - 18) {
+      doc.addPage();
+      y = 18;
+    }
     if (ri % 2 === 1) {
       x = MARGIN;
       doc.setFillColor(...LIGHT_BG);
@@ -195,12 +204,12 @@ function addOverview(doc, overview, y) {
 
 // ── FRONTING HISTORY ──────────────────────────────────────────────────────────
 
-function addFrontingSection(doc, frontingData, y) {
+function addFrontingSection(doc, frontingData, sectionOptions, y) {
   y = checkPageBreak(doc, y, 30);
   y = sectionHeader(doc, "Fronting History", y);
 
   if (frontingData.summaryTable.length > 0) {
-    y = drawTable(doc, ["System Member", "Total Time", "Sessions", "Primary"], 
+    y = drawTable(doc, ["Member", "Total Time", "Sessions", "Primary"],
       frontingData.summaryTable.map(r => [r.name, r.total, r.sessions, r.primary]), y,
       [CONTENT_W * 0.4, CONTENT_W * 0.2, CONTENT_W * 0.2, CONTENT_W * 0.2]);
     y += 6;
@@ -225,12 +234,32 @@ function addFrontingSection(doc, frontingData, y) {
     });
   }
 
+  if (sectionOptions?.frontingDetail === "full" && frontingData.sessionList?.length > 0) {
+    y = checkPageBreak(doc, y, 14);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text("Full session log", MARGIN, y);
+    doc.setFont("helvetica", "normal");
+    y += 5;
+    y = drawTable(doc,
+      ["Date & Time", "Who", "Co-fronters", "Duration", "Note"],
+      frontingData.sessionList.map(s => [
+        s.date,
+        s.who,
+        s.coFronters || "—",
+        s.duration,
+        (s.note || "").slice(0, 22),
+      ]), y,
+      [CONTENT_W * 0.27, CONTENT_W * 0.17, CONTENT_W * 0.17, CONTENT_W * 0.14, CONTENT_W * 0.25]);
+  }
+
   return y + 4;
 }
 
 // ── EMOTION CHECK-INS ─────────────────────────────────────────────────────────
 
-function addEmotionSection(doc, emotionData, y) {
+function addEmotionSection(doc, emotionData, sectionOptions, y) {
   y = checkPageBreak(doc, y, 30);
   y = sectionHeader(doc, "Emotion Check-Ins", y);
 
@@ -269,6 +298,34 @@ function addEmotionSection(doc, emotionData, y) {
       doc.setTextColor(60, 60, 60);
       if (ev.emotions) doc.text(`Emotions: ${ev.emotions}`, MARGIN + 4, y);
       y += 5;
+    });
+  }
+
+  if (sectionOptions?.emotionDetail === "full" && emotionData.checkInList?.length > 0) {
+    y = checkPageBreak(doc, y, 14);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text("All check-ins", MARGIN, y);
+    doc.setFont("helvetica", "normal");
+    y += 5;
+    emotionData.checkInList.forEach(c => {
+      y = checkPageBreak(doc, y, 10);
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.text(c.date, MARGIN + 2, y);
+      if (c.emotions) {
+        doc.setTextColor(60, 60, 60);
+        y = wrappedText(doc, c.emotions, MARGIN + 55, y, CONTENT_W - 57, 4.5);
+      } else {
+        y += 5;
+      }
+      if (c.note) {
+        doc.setTextColor(...MUTED);
+        doc.setFontSize(7.5);
+        y = wrappedText(doc, c.note, MARGIN + 4, y, CONTENT_W - 6, 4);
+      }
+      y += 2;
     });
   }
 
@@ -403,13 +460,54 @@ function addStatusNotesSection(doc, statusNotes, y) {
 
 // ── PATTERNS SUMMARY ──────────────────────────────────────────────────────────
 
-function addPatternsSection(doc, summary, y) {
+function addPatternsSection(doc, patternsData, y) {
   y = checkPageBreak(doc, y, 30);
-  y = sectionHeader(doc, "Patterns Summary", y);
+  y = sectionHeader(doc, "Patterns & Narrative", y);
+
+  // Handle both legacy string format and new { paragraphs, earlyWarning } object
+  const paragraphs = typeof patternsData === "string"
+    ? [patternsData]
+    : (patternsData?.paragraphs || []);
+  const earlyWarning = typeof patternsData === "string" ? null : patternsData?.earlyWarning;
+
+  // Early warning banner
+  if (earlyWarning?.status === "warning" || earlyWarning?.status === "elevated") {
+    const isWarning = earlyWarning.status === "warning";
+    y = checkPageBreak(doc, y, 20);
+    const msgLines = earlyWarning.message
+      ? doc.splitTextToSize(earlyWarning.message, CONTENT_W - 8)
+      : [];
+    const bannerH = 10 + msgLines.length * 4.5;
+    doc.setFillColor(...(isWarning ? [254, 226, 226] : [255, 237, 213]));
+    doc.setDrawColor(...(isWarning ? [239, 68, 68] : [249, 115, 22]));
+    doc.setLineWidth(0.4);
+    doc.roundedRect(MARGIN, y, CONTENT_W, bannerH, 2, 2, "FD");
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...(isWarning ? [185, 28, 28] : [194, 65, 12]));
+    doc.text(isWarning ? "Pattern alert" : "Elevated pattern", MARGIN + 3, y + 6);
+    if (msgLines.length > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(50, 50, 50);
+      msgLines.forEach((line, i) => {
+        doc.text(line, MARGIN + 3, y + 11 + i * 4.5);
+      });
+    }
+    y += bannerH + 4;
+  }
+
+  // Narrative paragraphs
   doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(50, 50, 50);
-  y = wrappedText(doc, summary, MARGIN + 2, y, CONTENT_W - 4, 5.5);
-  return y + 8;
+  paragraphs.forEach(p => {
+    y = checkPageBreak(doc, y, 12);
+    y = wrappedText(doc, p, MARGIN + 2, y, CONTENT_W - 4, 5.5);
+    y += 3;
+  });
+
+  return y + 5;
 }
 
 // ── ALTER APPENDIX ────────────────────────────────────────────────────────────
@@ -456,6 +554,122 @@ function addSimpleListSection(doc, title, lines, y) {
     y += 2;
   });
   return y + 4;
+}
+
+// ── LOCATIONS ─────────────────────────────────────────────────────────────────
+
+function addLocationsSection(doc, locData, y) {
+  y = checkPageBreak(doc, y, 20);
+  y = sectionHeader(doc, "Locations", y);
+  if (!locData || locData.length === 0) {
+    doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text("No locations logged in this period.", MARGIN, y);
+    return y + 10;
+  }
+  y = drawTable(doc,
+    ["Date & Time", "Place", "Category", "How"],
+    locData.map(l => [
+      l.date,
+      l.name.length > 28 ? l.name.slice(0, 25) + "…" : l.name,
+      l.category || "—",
+      l.source || "manual",
+    ]), y,
+    [CONTENT_W * 0.32, CONTENT_W * 0.36, CONTENT_W * 0.18, CONTENT_W * 0.14]);
+
+  const withNotes = locData.filter(l => l.notes);
+  if (withNotes.length > 0) {
+    y = checkPageBreak(doc, y, 8);
+    doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 30, 30);
+    doc.text("Notes:", MARGIN, y); doc.setFont("helvetica", "normal"); y += 5;
+    withNotes.forEach(l => {
+      y = checkPageBreak(doc, y, 8);
+      doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+      doc.text(`${l.name}: `, MARGIN + 2, y);
+      doc.setTextColor(60, 60, 60);
+      y = wrappedText(doc, l.notes, MARGIN + 2, y + 4, CONTENT_W - 4, 4);
+      y += 2;
+    });
+  }
+  return y + 6;
+}
+
+// ── SLEEP LOG ─────────────────────────────────────────────────────────────────
+
+function addSleepSection(doc, sleepData, y) {
+  y = checkPageBreak(doc, y, 20);
+  y = sectionHeader(doc, "Sleep Log", y);
+  if (!sleepData || sleepData.logs.length === 0) {
+    doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text("No sleep logs in this period.", MARGIN, y);
+    return y + 10;
+  }
+  const { logs, stats } = sleepData;
+  if (stats) {
+    y = checkPageBreak(doc, y, 8);
+    doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(50, 50, 50);
+    const parts = [
+      `${stats.totalNights} night${stats.totalNights !== 1 ? "s" : ""} logged`,
+      stats.avgQuality ? `avg quality ${stats.avgQuality}/10` : null,
+      stats.nightmareNights > 0 ? `${stats.nightmareNights} with nightmares` : null,
+      stats.interruptedNights > 0 ? `${stats.interruptedNights} interrupted` : null,
+    ].filter(Boolean);
+    doc.text(parts.join("  ·  "), MARGIN, y);
+    y += 7;
+  }
+  y = drawTable(doc,
+    ["Date", "Bedtime", "Wake", "Duration", "Quality"],
+    logs.map(l => [
+      l.date,
+      l.bedtime || "—",
+      l.wakeTime || "—",
+      l.duration || "—",
+      l.quality != null ? `${l.quality}/10` : "—",
+    ]), y,
+    [CONTENT_W * 0.2, CONTENT_W * 0.18, CONTENT_W * 0.18, CONTENT_W * 0.22, CONTENT_W * 0.22]);
+
+  const withNotes = logs.filter(l => l.notes);
+  if (withNotes.length > 0) {
+    y += 2;
+    withNotes.forEach(l => {
+      y = checkPageBreak(doc, y, 6);
+      doc.setFontSize(7.5); doc.setTextColor(...MUTED);
+      doc.text(`${l.date} notes: `, MARGIN + 2, y);
+      doc.setTextColor(60, 60, 60);
+      y = wrappedText(doc, l.notes, MARGIN + 2, y + 4, CONTENT_W - 4, 4);
+    });
+  }
+  return y + 6;
+}
+
+// ── SKILLS & EXERCISES ────────────────────────────────────────────────────────
+
+function addSupportJournalsSection(doc, entries, y) {
+  y = checkPageBreak(doc, y, 20);
+  y = sectionHeader(doc, "Skills & Exercises", y);
+  if (!entries || entries.length === 0) {
+    doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text("No skills exercises completed in this period.", MARGIN, y);
+    return y + 10;
+  }
+  entries.forEach(e => {
+    y = checkPageBreak(doc, y, 12);
+    doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 30, 30);
+    doc.text(e.title, MARGIN + 2, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text(e.date, PAGE_W - MARGIN, y, { align: "right" });
+    y += 5;
+    if (e.responses?.length > 0) {
+      e.responses.forEach(resp => {
+        y = checkPageBreak(doc, y, 6);
+        doc.setFontSize(7.5); doc.setTextColor(60, 60, 60);
+        y = wrappedText(doc, `• ${resp}`, MARGIN + 4, y, CONTENT_W - 8, 4.5);
+        y += 1;
+      });
+    }
+    y += 4;
+  });
+  return y + 2;
 }
 
 // ── PLAIN TEXT EXPORT ─────────────────────────────────────────────────────────
@@ -613,6 +827,44 @@ function formatAsPlainText({
     text += "\n";
   }
 
+  // Locations
+  if (enabledSections.has("locations") && sections.locations?.length > 0) {
+    text += `LOCATIONS\n${"--------".padEnd(60, "-")}\n`;
+    sections.locations.forEach(l => {
+      text += `\n  [${l.date}] ${l.name}`;
+      if (l.category) text += ` (${l.category})`;
+      if (l.source === "gps") text += " [GPS]";
+      text += "\n";
+      if (l.notes) text += `  ${l.notes}\n`;
+    });
+    text += "\n";
+  }
+
+  // Sleep
+  if (enabledSections.has("sleep") && sections.sleep?.logs?.length > 0) {
+    text += `SLEEP LOG\n${"--------".padEnd(60, "-")}\n`;
+    const { logs, stats } = sections.sleep;
+    if (stats) {
+      const parts = [
+        `${stats.totalNights} night${stats.totalNights !== 1 ? "s" : ""}`,
+        stats.avgQuality ? `avg quality ${stats.avgQuality}/10` : null,
+        stats.nightmareNights > 0 ? `${stats.nightmareNights} with nightmares` : null,
+        stats.interruptedNights > 0 ? `${stats.interruptedNights} interrupted` : null,
+      ].filter(Boolean);
+      text += `\nSummary: ${parts.join(" · ")}\n`;
+    }
+    logs.forEach(l => {
+      text += `\n  ${l.date}: ${l.bedtime || "?"} → ${l.wakeTime || "?"}`;
+      if (l.duration) text += ` (${l.duration})`;
+      if (l.quality != null) text += `, quality ${l.quality}/10`;
+      if (l.hadNightmare) text += " [nightmare]";
+      if (l.isInterrupted) text += " [interrupted]";
+      text += "\n";
+      if (l.notes) text += `    ${l.notes}\n`;
+    });
+    text += "\n";
+  }
+
   // Bulletins
   if (enabledSections.has("bulletins") && sections.bulletins?.length > 0) {
     text += `BULLETIN BOARD\n${"--------".padEnd(60, "-")}\n`;
@@ -637,6 +889,18 @@ function formatAsPlainText({
     text += "\n";
   }
 
+  // Support Journals
+  if (enabledSections.has("supportJournals") && sections.supportJournals?.length > 0) {
+    text += `SKILLS & EXERCISES\n${"--------".padEnd(60, "-")}\n`;
+    sections.supportJournals.forEach(e => {
+      text += `\n  [${e.date}] ${e.title}\n`;
+      if (e.responses?.length > 0) {
+        e.responses.forEach(r => { text += `    • ${r}\n`; });
+      }
+    });
+    text += "\n";
+  }
+
   // Tasks
   if (enabledSections.has("tasks") && sections.tasks?.frequencySummary?.length > 0) {
     text += `TASKS & HABITS\n${"--------".padEnd(60, "-")}\n`;
@@ -648,8 +912,18 @@ function formatAsPlainText({
 
   // Patterns
   if (enabledSections.has("patterns") && sections.patterns) {
-    text += `PATTERNS SUMMARY\n${"--------".padEnd(60, "-")}\n`;
-    text += `${sections.patterns}\n\n`;
+    text += `PATTERNS & NARRATIVE\n${"--------".padEnd(60, "-")}\n`;
+    if (typeof sections.patterns === "string") {
+      text += `${sections.patterns}\n\n`;
+    } else {
+      const { paragraphs = [], earlyWarning } = sections.patterns;
+      if (earlyWarning?.status === "warning" || earlyWarning?.status === "elevated") {
+        text += `⚠ ${earlyWarning.status === "warning" ? "PATTERN ALERT" : "ELEVATED PATTERN"}\n`;
+        if (earlyWarning.message) text += `${earlyWarning.message}\n`;
+        text += "\n";
+      }
+      paragraphs.forEach(p => { text += `${p}\n\n`; });
+    }
   }
 
   // Alter Appendix
@@ -680,6 +954,7 @@ export async function generateTherapyReport({
   config,
   sections,
   enabledSections,
+  sectionOptions = {},
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
@@ -694,12 +969,12 @@ export async function generateTherapyReport({
     y = addOverview(doc, sections.overview, y);
   }
   if (enabledSections.has("fronting") && sections.fronting) {
-    y = addFrontingSection(doc, sections.fronting, y);
+    y = addFrontingSection(doc, sections.fronting, sectionOptions, y);
   }
   if (enabledSections.has("emotions") && sections.emotions) {
-    y = addEmotionSection(doc, sections.emotions, y);
+    y = addEmotionSection(doc, sections.emotions, sectionOptions, y);
   }
-  if (sections.statusNotes?.length > 0) {
+  if (enabledSections.has("statusNotes") && sections.statusNotes?.length > 0) {
     y = addStatusNotesSection(doc, sections.statusNotes, y);
   }
   if (enabledSections.has("symptoms") && sections.symptoms) {
@@ -714,15 +989,24 @@ export async function generateTherapyReport({
   if (enabledSections.has("diary") && sections.diary) {
     y = addDiarySection(doc, sections.diary, y);
   }
+  if (enabledSections.has("locations") && sections.locations?.length > 0) {
+    y = addLocationsSection(doc, sections.locations, y);
+  }
+  if (enabledSections.has("sleep") && sections.sleep?.logs?.length > 0) {
+    y = addSleepSection(doc, sections.sleep, y);
+  }
   if (enabledSections.has("bulletins") && sections.bulletins?.length > 0) {
     y = addSimpleListSection(doc, "Bulletin Board", sections.bulletins.map(b =>
       `[${b.date}]${b.isPinned ? " 📌" : ""} ${b.title}${b.author ? " — " + b.author : ""}${b.content ? "\n  " + b.content.slice(0, 200) : ""}`
     ), y);
   }
   if (enabledSections.has("systemCheckIns") && sections.systemCheckIns?.length > 0) {
-    y = addSimpleListSection(doc, "System Check-Ins", sections.systemCheckIns.map(c =>
+    y = addSimpleListSection(doc, "System Meetings", sections.systemCheckIns.map(c =>
       `[${c.date}] ${c.title}${c.overallRating != null ? " — Rating: " + c.overallRating : ""}${c.summary ? "\n  " + c.summary : ""}`
     ), y);
+  }
+  if (enabledSections.has("supportJournals") && sections.supportJournals?.length > 0) {
+    y = addSupportJournalsSection(doc, sections.supportJournals, y);
   }
   if (enabledSections.has("tasks") && sections.tasks?.frequencySummary?.length > 0) {
     y = addSimpleListSection(doc, "Tasks & Habits", sections.tasks.frequencySummary.map(f =>

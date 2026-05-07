@@ -41,6 +41,20 @@ export default function GuidedTechniqueView({
   const steps = technique.steps || [];
   const emoji = CATEGORY_EMOJIS[technique.category] || "✨";
 
+  // Per-step timer: divide total duration evenly across steps
+  const stepDuration = steps.length > 0 && technique.duration_seconds > 0
+    ? Math.ceil(technique.duration_seconds / steps.length)
+    : 0;
+  const [stepTimeLeft, setStepTimeLeft] = useState(stepDuration);
+
+  // Refs to avoid stale closures inside setInterval
+  const stepTimeLeftRef = useRef(stepTimeLeft);
+  const stepIdxRef = useRef(stepIdx);
+  const stepsRef = useRef(steps);
+  stepTimeLeftRef.current = stepTimeLeft;
+  stepIdxRef.current = stepIdx;
+  stepsRef.current = steps;
+
   useEffect(() => {
     if (!timerRunning || done || timeLeft <= 0) {
       clearInterval(timerRef.current);
@@ -52,9 +66,36 @@ export default function GuidedTechniqueView({
         if (t <= 1) { clearInterval(timerRef.current); setDone(true); return 0; }
         return t - 1;
       });
+      if (stepDuration > 0) {
+        const newStepTime = stepTimeLeftRef.current - 1;
+        if (newStepTime <= 0) {
+          const currentIdx = stepIdxRef.current;
+          if (currentIdx < stepsRef.current.length - 1) {
+            setStepIdx(i => i + 1);
+            setStepTimeLeft(stepDuration);
+            stepTimeLeftRef.current = stepDuration;
+          } else {
+            setDone(true);
+            setStepTimeLeft(0);
+            stepTimeLeftRef.current = 0;
+          }
+        } else {
+          setStepTimeLeft(newStepTime);
+          stepTimeLeftRef.current = newStepTime;
+        }
+      }
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [timerRunning, done]);
+
+  // Navigate to a specific step and reset its timer
+  const goToStep = (i) => {
+    setStepIdx(i);
+    if (stepDuration > 0) {
+      setStepTimeLeft(stepDuration);
+      stepTimeLeftRef.current = stepDuration;
+    }
+  };
 
   const toggleStepMode = () => {
     const next = stepMode === "one" ? "all" : "one";
@@ -100,7 +141,7 @@ export default function GuidedTechniqueView({
         </div>
       </div>
 
-      {/* Timer bar */}
+      {/* Total timer bar */}
       {technique.duration_seconds > 0 && (
         <div className="mb-4">
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
@@ -132,24 +173,38 @@ export default function GuidedTechniqueView({
             </div>
           ))
         ) : (
-          <div className="flex flex-col items-center gap-6 py-4">
+          <div className="flex flex-col items-center gap-4 py-4">
             <div className="w-full bg-muted/30 rounded-2xl border border-border/40 p-6 text-center">
               <p className="text-xs text-muted-foreground mb-3">Step {stepIdx + 1} of {steps.length}</p>
               <p className="text-base text-foreground leading-relaxed">{steps[stepIdx]}</p>
             </div>
+            {stepDuration > 0 && (
+              <div className="w-full space-y-1 px-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>This step</span>
+                  <span>{formatDuration(stepTimeLeft)}</span>
+                </div>
+                <div className="h-1 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary/40 rounded-full transition-all duration-1000"
+                    style={{ width: `${(stepTimeLeft / stepDuration) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-4">
-              <button onClick={() => setStepIdx(i => Math.max(0, i - 1))}
+              <button onClick={() => goToStep(Math.max(0, stepIdx - 1))}
                 disabled={stepIdx === 0}
                 className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-muted/40 disabled:opacity-30 transition-colors">
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <div className="flex gap-1.5">
                 {steps.map((_, i) => (
-                  <button key={i} onClick={() => setStepIdx(i)}
+                  <button key={i} onClick={() => goToStep(i)}
                     className={`w-1.5 h-1.5 rounded-full transition-colors ${i === stepIdx ? "bg-primary" : "bg-muted"}`} />
                 ))}
               </div>
-              <button onClick={() => { if (stepIdx < steps.length - 1) setStepIdx(i => i + 1); else setDone(true); }}
+              <button onClick={() => { if (stepIdx < steps.length - 1) goToStep(stepIdx + 1); else setDone(true); }}
                 className="w-10 h-10 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-muted/40 transition-colors">
                 <ArrowRight className="w-4 h-4" />
               </button>

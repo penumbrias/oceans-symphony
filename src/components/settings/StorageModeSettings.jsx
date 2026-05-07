@@ -30,13 +30,15 @@ export default function StorageModeSettings() {
     setDeleting(true);
     try {
       await loadDbDump({});
-      setShowDeleteConfirm(false);
-      setDeleteInput("");
-      setSuccess("All local data deleted.");
-      setTimeout(() => window.location.reload(), 1200);
+      // Clear all Symphony localStorage keys so the app re-runs first-time onboarding
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith("symphony_") || key === "terms_setup_done") {
+          localStorage.removeItem(key);
+        }
+      });
+      window.location.reload();
     } catch (e) {
       setError("Failed to delete data: " + e.message);
-    } finally {
       setDeleting(false);
     }
   };

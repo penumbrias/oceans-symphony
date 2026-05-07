@@ -5,16 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlarmClock, Cloud, ZapOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import SleepLogModal from "@/components/sleep/SleepLogModal";
+import SleepEditModal from "@/components/sleep/SleepEditModal";
 
 export default function SleepTracker() {
   const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [editingSleep, setEditingSleep] = useState(null);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -72,7 +74,7 @@ export default function SleepTracker() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="py-6">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Sleep Tracker</h1>
@@ -172,20 +174,55 @@ export default function SleepTracker() {
                               </span>
                             )}
                           </div>
+                          {(sleep.is_interrupted || sleep.dreamed || sleep.had_nightmare) && (
+                            <div className="flex gap-1.5 mt-2 flex-wrap">
+                              {sleep.is_interrupted && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                                  <AlarmClock className="w-3 h-3" />
+                                  {(() => { const n = sleep.interruption_count || sleep.interruption_times?.length; return n ? `Interrupted ×${n}` : "Interrupted"; })()}
+                                </span>
+                              )}
+                              {sleep.dreamed && !sleep.had_nightmare && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                                  <Cloud className="w-3 h-3" /> Dreamed
+                                </span>
+                              )}
+                              {sleep.had_nightmare && (
+                                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 border border-red-500/20">
+                                  <ZapOff className="w-3 h-3" /> Nightmare
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {sleep.is_interrupted && sleep.interruption_times?.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Woke at: {sleep.interruption_times.join(", ")}
+                            </p>
+                          )}
                           {sleep.notes && (
                             <p className="text-sm text-muted-foreground mt-2">
                               {sleep.notes}
                             </p>
                           )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(sleep.id)}
-                          className="text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingSleep(sleep)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(sleep.id)}
+                            className="text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -201,6 +238,17 @@ export default function SleepTracker() {
         onSave={handleSave}
         selectedDate={selectedDate}
       />
+
+      {editingSleep && (
+        <SleepEditModal
+          sleep={editingSleep}
+          onClose={() => setEditingSleep(null)}
+          onSave={() => {
+            queryClient.invalidateQueries({ queryKey: ["sleep"] });
+            setEditingSleep(null);
+          }}
+        />
+      )}
     </div>
   );
 }

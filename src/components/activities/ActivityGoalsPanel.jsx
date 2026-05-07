@@ -140,7 +140,7 @@ export default function ActivityGoalsPanel({ weekStart }) {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Category</label>
+              <label className="block text-sm font-medium mb-2">Activity</label>
               <select
                 value={selectedCategory?.id || ""}
                 onChange={(e) => {
@@ -149,7 +149,7 @@ export default function ActivityGoalsPanel({ weekStart }) {
                 }}
                 className="w-full px-3 py-2 border border-input rounded-md bg-transparent text-sm"
               >
-                <option value="">Select a category...</option>
+                <option value="">Select an activity...</option>
                 {availableCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}

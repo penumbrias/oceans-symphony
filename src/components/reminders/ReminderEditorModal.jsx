@@ -459,12 +459,21 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{existing ? "Edit Reminder" : "New Reminder"}</DialogTitle>
-        </DialogHeader>
+      <DialogContent
+        className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-0"
+        onInteractOutside={(e) => {
+          if (document.querySelector("[data-searchable-dropdown]")) e.preventDefault();
+        }}
+      >
+        {/* Fixed header */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
+          <DialogHeader>
+            <DialogTitle>{existing ? "Edit Reminder" : "New Reminder"}</DialogTitle>
+          </DialogHeader>
+        </div>
 
-        <div className="space-y-5 pb-2">
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-5">
           {/* Title */}
           <div>
             <Label className="text-xs font-medium text-muted-foreground">Title *</Label>
@@ -694,7 +703,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                   )}
                   {rule.on === "activity" && (
                     <div>
-                      <Label className="text-xs text-muted-foreground">Which activity category</Label>
+                      <Label className="text-xs text-muted-foreground">Which activity</Label>
                       <SearchableSelect
                         className="mt-1"
                         value={rule.category_id || null}
@@ -704,7 +713,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
                           label: c.name,
                           color: c.color,
                         }))}
-                        placeholder="— any category —"
+                        placeholder="— any activity —"
                         allowClear
                       />
                     </div>
@@ -741,8 +750,11 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
             </button>
           </Collapsible>
 
-          {/* Save */}
-          <div className="flex gap-2 pt-2">
+        </div>
+
+        {/* Fixed footer */}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
+          <div className="flex gap-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button type="button" className="flex-1" onClick={handleSave} loading={saving} disabled={saving}>
               {existing ? "Save Changes" : "Create Reminder"}

@@ -99,7 +99,7 @@ export default function ActivityLogModal({
           {/* Category */}
           <div>
             <label className="text-sm font-medium text-foreground">
-              Category
+              Activity Type
             </label>
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger className="mt-1">

@@ -18,6 +18,7 @@
     "@dnd-kit/sortable": "^8.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource/amiri": "^5.2.8",
+    "@fontsource/atkinson-hyperlegible": "^5.2.8",
     "@fontsource/bungee": "^5.2.7",
     "@fontsource/caveat": "^5.2.8",
     "@fontsource/dancing-script": "^5.2.8",

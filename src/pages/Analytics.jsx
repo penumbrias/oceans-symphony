@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
+import { buildAbsorptionMap } from "@/lib/absorptionUtils";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { motion } from "framer-motion";
@@ -23,6 +24,10 @@ import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import SleepAnalytics from "@/components/analytics/SleepAnalytics";
 import JournalAnalytics from "@/components/analytics/JournalAnalytics";
 import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
+import SwitchLogAnalytics from "@/components/analytics/SwitchLogAnalytics";
+import CheckInAnalytics from "@/components/analytics/CheckInAnalytics";
+import PatternInsights from "@/components/analytics/PatternInsights";
+import LocationAnalytics from "@/components/analytics/LocationAnalytics";
 
 const MODES = [
   { id: "total",      label: "Total",    icon: Clock },
@@ -88,14 +93,18 @@ function computeStats(sessions, alters, from, to) {
 // Landing page section cards
 function SectionGrid({ terms, onSelect }) {
   const sections = [
-    { id: "alters", emoji: "🧑‍🤝‍🧑", label: `${terms.System} Members`, desc: "Fronting time and patterns" },
+    { id: "alters", emoji: "🧑‍🤝‍🧑", label: `${terms.System} Members`, desc: `${terms.Fronting} time and patterns` },
     { id: "activities", emoji: "⚡", label: "Activities", desc: "What you've been doing" },
     { id: "emotions", emoji: "💜", label: "Emotions", desc: "Mood and check-in trends" },
     { id: "symptoms", emoji: "💊", label: "Symptoms", desc: "Symptom and habit tracking" },
     { id: "diary", emoji: "📔", label: "Daily Log", desc: "Diary card summaries" },
     { id: "sleep", emoji: "😴", label: "Sleep", desc: "Sleep patterns" },
     { id: "journals", emoji: "📖", label: "Journals", desc: "Writing activity" },
-    { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: "Who fronts together" },
+    { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: `Who ${terms.fronts} together` },
+    { id: "switchlogs", emoji: "🔄", label: `${terms.Switch} Logs`, desc: "Triggers, symptoms, and patterns" },
+    { id: "checkins", emoji: "✅", label: `${terms.System} Meetings`, desc: "Frequency and member insights" },
+    { id: "patterns", emoji: "🔍", label: "Patterns & Insights", desc: `Cross-${terms.system} correlations and trends` },
+    { id: "locations", emoji: "📍", label: "Locations", desc: "Where you go and patterns by place" },
   ];
 
   return (
@@ -118,11 +127,28 @@ function SectionGrid({ terms, onSelect }) {
 export default function Analytics() {
   const terms = useTerms();
   const [activeSection, setActiveSection] = useState(null);
+  const [preset, setPreset] = useState("30d");
   const [from, setFrom] = useState(subDays(new Date(), 30));
   const [to, setTo] = useState(new Date());
   const [mode, setMode] = useState("total");
+  const [showArchived, setShowArchived] = useState(false);
   const [topTab, setTopTab] = useState("stats");
   const [activitySubTab, setActivitySubTab] = useState("overview");
+
+  const PRESETS = [
+    { id: "7d",   label: "7d",       from: () => subDays(new Date(), 7) },
+    { id: "30d",  label: "30d",      from: () => subDays(new Date(), 30) },
+    { id: "90d",  label: "90d",      from: () => subDays(new Date(), 90) },
+    { id: "1y",   label: "1y",       from: () => subDays(new Date(), 365) },
+    { id: "all",  label: "All Time", from: () => new Date(0) },
+    { id: "custom", label: "Custom", from: null },
+  ];
+
+  const applyPreset = (id) => {
+    setPreset(id);
+    const p = PRESETS.find(x => x.id === id);
+    if (p?.from) { setFrom(p.from()); setTo(new Date()); }
+  };
 
   const ACTIVITY_SUB_TABS = [
     { id: "overview", label: "Overview" },
@@ -184,20 +210,62 @@ export default function Analytics() {
     queryFn: () => base44.entities.Bulletin.list("-created_date", 500),
   });
 
+  const { data: systemChangeEvents = [] } = useQuery({
+    queryKey: ["systemChangeEvents"],
+    queryFn: () => localEntities.SystemChangeEvent.list(),
+  });
+
+  const absorptionMap = useMemo(() => buildAbsorptionMap(systemChangeEvents), [systemChangeEvents]);
+
   const altersById = useMemo(() => {
     const map = {};
     alters.forEach((a) => { map[a.id] = a; });
     return map;
   }, [alters]);
 
-  const { alterMap, filtered } = useMemo(
+  const { alterMap: rawAlterMap, filtered } = useMemo(
     () => computeStats(sessions, alters, from, to),
     [sessions, alters, from, to]
   );
 
+  // Fold absorbed alters' stats into their persistent alter so analytics
+  // reflects total front history including pre-fusion sessions
+  const alterMap = useMemo(() => {
+    if (!Object.keys(absorptionMap).length) return rawAlterMap;
+    const result = {};
+    Object.entries(rawAlterMap).forEach(([id, d]) => {
+      result[id] = { ...d, sessions: [...d.sessions] };
+    });
+    Object.entries(absorptionMap).forEach(([absorbedId, persistentId]) => {
+      const src = result[absorbedId];
+      const dst = result[persistentId];
+      if (!src || !dst) return;
+      dst.total += src.total;
+      dst.primary += src.primary;
+      dst.cofronting += src.cofronting;
+      dst.sessions = [...dst.sessions, ...src.sessions];
+      dst.count += src.count;
+      delete result[absorbedId];
+    });
+    return result;
+  }, [rawAlterMap, absorptionMap]);
+
+  // Remap absorbed alter IDs in sessions so TimeOfDayFronters attributes
+  // pre-fusion sessions to the persistent alter, not the absorbed one
+  const foldedSessions = useMemo(() => {
+    if (!Object.keys(absorptionMap).length) return filtered;
+    return filtered.map(s => {
+      const newAlterId = absorptionMap[s.alter_id] || s.alter_id;
+      const newPrimaryId = absorptionMap[s.primary_alter_id] || s.primary_alter_id;
+      const newCoFronters = (s.co_fronter_ids || []).map(id => absorptionMap[id] || id);
+      if (newAlterId === s.alter_id && newPrimaryId === s.primary_alter_id) return s;
+      return { ...s, alter_id: newAlterId, primary_alter_id: newPrimaryId, co_fronter_ids: newCoFronters };
+    });
+  }, [filtered, absorptionMap]);
+
   const rows = useMemo(() => {
     return Object.values(alterMap)
-      .filter((d) => d.count > 0)
+      .filter((d) => d.count > 0 && (showArchived || !d.alter.is_archived))
       .map((d) => {
         let stat = 0;
         if (mode === "total")           stat = d.total;
@@ -210,7 +278,7 @@ export default function Analytics() {
         return { alter: d.alter, stat };
       })
       .sort((a, b) => b.stat - a.stat);
-  }, [alterMap, mode]);
+  }, [alterMap, mode, showArchived]);
 
   const maxStat = rows.length > 0 ? rows[0].stat : 1;
 
@@ -231,6 +299,10 @@ export default function Analytics() {
     sleep: "Sleep",
     journals: "Journals",
     cofronting: terms.Cofronting,
+    switchlogs: `${terms.Switch} Logs`,
+    checkins: `${terms.System} Meetings`,
+    patterns: "Patterns & Insights",
+    locations: "Locations",
   };
 
   return (
@@ -258,8 +330,27 @@ export default function Analytics() {
         )}
       </motion.div>
 
-      {/* Global Date Range — always visible */}
-      <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+      {/* Global Date Range — preset chips + optional custom pickers */}
+      <div className="space-y-2">
+        <div className="flex gap-1.5 flex-wrap">
+          {PRESETS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => applyPreset(p.id)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                preset === p.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted-foreground border-border hover:border-primary/40"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {preset === "custom" && (
+          <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+        )}
+      </div>
 
       {/* Landing grid */}
       {!activeSection && <SectionGrid terms={terms} onSelect={setActiveSection} />}
@@ -287,22 +378,34 @@ export default function Analytics() {
                 <ActivityHeatmap sessions={filtered} from={from} to={to} />
               </div>
 
-              {/* Mode pills — horizontal scroll */}
-              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                {MODES.map((m) => {
-                  const Icon = m.icon;
-                  return (
-                    <button key={m.id} onClick={() => setMode(m.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border flex-shrink-0 transition-all ${
-                        mode === m.id
-                          ? "bg-primary text-primary-foreground border-transparent"
-                          : "border-border text-muted-foreground hover:text-foreground"
-                      }`}>
-                      <Icon className="w-3.5 h-3.5" />
-                      {m.label}
-                    </button>
-                  );
-                })}
+              {/* Mode pills + archived toggle */}
+              <div className="flex items-center gap-2 justify-between flex-wrap">
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                  {MODES.map((m) => {
+                    const Icon = m.icon;
+                    return (
+                      <button key={m.id} onClick={() => setMode(m.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border flex-shrink-0 transition-all ${
+                          mode === m.id
+                            ? "bg-primary text-primary-foreground border-transparent"
+                            : "border-border text-muted-foreground hover:text-foreground"
+                        }`}>
+                        <Icon className="w-3.5 h-3.5" />
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setShowArchived(v => !v)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    showArchived
+                      ? "bg-muted text-foreground border-border"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {showArchived ? "Hide archived" : "Show archived"}
+                </button>
               </div>
 
               {rows.length === 0 ? (
@@ -335,7 +438,7 @@ export default function Analytics() {
           )}
 
           {topTab === "timeofday" && (
-            <TimeOfDayFronters sessions={filtered} alters={alters} />
+            <TimeOfDayFronters sessions={foldedSessions} alters={showArchived ? alters : alters.filter(a => !a.is_archived)} />
           )}
         </div>
       )}
@@ -407,6 +510,35 @@ export default function Analytics() {
       {/* ── CO-FRONTING ── */}
       {activeSection === "cofronting" && (
         <CoFrontingAnalytics sessions={sessions} alters={alters} altersById={altersById} from={from} to={to} />
+      )}
+
+      {/* ── SWITCH LOGS ── */}
+      {activeSection === "switchlogs" && (
+        <SwitchLogAnalytics journals={journals} sessions={sessions} from={from} to={to} />
+      )}
+
+      {/* ── CHECK-INS ── */}
+      {activeSection === "checkins" && (
+        <CheckInAnalytics checkIns={systemCheckIns} alters={alters} from={from} to={to} />
+      )}
+
+      {/* ── LOCATIONS ── */}
+      {activeSection === "locations" && (
+        <LocationAnalytics from={from} to={to} />
+      )}
+
+      {/* ── PATTERNS & INSIGHTS ── */}
+      {activeSection === "patterns" && (
+        <PatternInsights
+          sessions={sessions}
+          alters={alters}
+          altersById={altersById}
+          symptomCheckIns={symptomCheckIns}
+          symptoms={symptoms}
+          emotionCheckIns={emotionCheckIns}
+          from={from}
+          to={to}
+        />
       )}
     </div>
   );

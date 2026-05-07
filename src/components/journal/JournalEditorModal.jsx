@@ -6,28 +6,46 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
-import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye } from "lucide-react";
+import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye, Code, PenLine, ChevronDown } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
+import WysiwygEditor from "@/components/shared/WysiwygEditor";
 
 const getSavedFolders = () => {
   try { return JSON.parse(localStorage.getItem("os_journal_folders") || "[]"); }
   catch { return []; }
 };
 
+// Parse -name / -alias patterns to identify signing alters (same as bulletin board)
+function parseSignpostAuthors(text, alters) {
+  const pattern = /-(\w+)/g;
+  const found = [];
+  for (const match of [...text.matchAll(pattern)]) {
+    const term = match[1].toLowerCase();
+    const alter = (alters || []).find(a =>
+      a.name.toLowerCase() === term || (a.alias && a.alias.toLowerCase() === term)
+    );
+    if (alter && !found.find(f => f.id === alter.id)) found.push(alter);
+  }
+  return found;
+}
 
 
-export default function JournalEditorModal({ isOpen, open, onClose, editingEntry, entry, alters, defaultFolder }) {
+export default function JournalEditorModal({
+  isOpen, open, onClose, editingEntry, entry, alters,
+  defaultFolder, currentAlterId,
+}) {
   const isOpenFinal = isOpen ?? open;
   const editingEntryFinal = editingEntry ?? entry;
   const queryClient = useQueryClient();
+
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [folder, setFolder] = useState(defaultFolder || null);
-  const [editorMode, setEditorMode] = useState("simple");
+  const [editorMode, setEditorMode] = useState("plain");
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [encryptionPassword, setEncryptionPassword] = useState("");
   const [showPasswordField, setShowPasswordField] = useState(false);
@@ -35,17 +53,43 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [decryptionError, setDecryptionError] = useState("");
   const [mentionNote, setMentionNote] = useState("");
+  const [authorAlterId, setAuthorAlterId] = useState(null);
+  const [coAuthorIds, setCoAuthorIds] = useState([]);
+  const [showAuthorPicker, setShowAuthorPicker] = useState(false);
+  const [authorSearch, setAuthorSearch] = useState("");
+  const [signpostText, setSignpostText] = useState("");
+
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, content, setContent);
   const folders = getSavedFolders();
 
   const previewBlocks = useMemo(() => htmlToBlocks(content), [content]);
 
-  useEffect(() => {
+  const altersById = useMemo(() => {
+    const map = {};
+    (alters || []).forEach(a => { map[a.id] = a; });
+    return map;
+  }, [alters]);
+
+  // Parse -name/-alias patterns from the signpost field
+  const signpostAuthors = useMemo(
+    () => parseSignpostAuthors(signpostText, alters),
+    [signpostText, alters]
+  );
+
+  // If signpost field has results those override the dropdown; else fall back to manual selection
+  const effectiveAuthorId = signpostAuthors[0]?.id ?? authorAlterId;
+  const effectiveCoAuthorIds = signpostAuthors.length > 0
+    ? signpostAuthors.slice(1).map(a => a.id)
+    : coAuthorIds;
+
+useEffect(() => {
     if (editingEntryFinal) {
       setTitle(editingEntryFinal.title || "");
       setIsEncrypted(editingEntryFinal.is_encrypted || false);
       setFolder(editingEntryFinal.folder || null);
+      setAuthorAlterId(editingEntryFinal.author_alter_id || null);
+      setCoAuthorIds(editingEntryFinal.co_author_alter_ids || []);
       if (editingEntryFinal.is_encrypted) {
         setShowPasswordField(true);
         setContent("");
@@ -60,12 +104,23 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
       setIsEncrypted(false);
       setShowPasswordField(false);
       setFolder(defaultFolder || null);
-      setEditorMode("simple");
+      setEditorMode("plain");
+      setAuthorAlterId(currentAlterId || null);
+      setCoAuthorIds([]);
     }
     setEncryptionPassword("");
     setDecryptionPassword("");
     setDecryptionError("");
+    setShowAuthorPicker(false);
+    setAuthorSearch("");
+    setSignpostText("");
   }, [editingEntryFinal?.id, isOpenFinal]);
+
+  // Backfill author when fronting data arrives after the modal is already open
+  useEffect(() => {
+    if (!isOpenFinal || editingEntryFinal || !currentAlterId) return;
+    setAuthorAlterId((prev) => (prev == null ? currentAlterId : prev));
+  }, [currentAlterId, isOpenFinal]);
 
   const handleDecrypt = async () => {
     setIsDecrypting(true);
@@ -98,7 +153,7 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
           sourceId: savedEntry.id,
           sourceLabel: title || "Journal Entry",
           navigatePath: `/journals?id=${savedEntry.id}`,
-          authorAlterId: null,
+          authorAlterId: authorAlterId || null,
         });
       }
       queryClient.invalidateQueries({ queryKey: ["journals"] });
@@ -119,77 +174,149 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
       content: finalContent,
       is_encrypted: isEncrypted,
       folder: folder || null,
+      author_alter_id: effectiveAuthorId || null,
+      co_author_alter_ids: effectiveCoAuthorIds,
     });
   };
 
+  const authorAlter = altersById[authorAlterId] || null;
+  const filteredAltersForAuthor = useMemo(
+    () => (alters || []).filter(a => !authorSearch || a.name.toLowerCase().includes(authorSearch.toLowerCase())),
+    [alters, authorSearch]
+  );
+
   return (
     <Dialog open={isOpenFinal} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editingEntryFinal ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
 
-        <div className="space-y-4">
+        {/* ── Fixed header: modal title + entry title + author ── */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50 space-y-3">
+          <DialogHeader>
+            <DialogTitle>{editingEntryFinal ? "Edit Entry" : "New Journal Entry"}</DialogTitle>
+          </DialogHeader>
+
           <Input placeholder="Entry title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
-{/* Folder selector */}
-<div className="space-y-1.5">
-  <label className="text-sm font-medium flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Folder</label>
-  
-  {/* Build levels dynamically */}
-  {(() => {
-    const levels = [];
-    let currentPath = null;
-    
-    // Always show root level
-    const rootFolders = folders.filter(f => !f.includes("/"));
-    levels.push({ parent: null, items: rootFolders, depth: 0 });
-    
-    // If a folder is selected, show each level of children down to selection
-    if (folder) {
-      const parts = folder.split("/");
-      for (let i = 0; i < parts.length; i++) {
-        const parentPath = parts.slice(0, i + 1).join("/");
-        const childFolders = folders.filter(f => {
-          const fParts = f.split("/");
-          return fParts.length === i + 2 && f.startsWith(`${parentPath}/`);
-        });
-        if (childFolders.length > 0) {
-          levels.push({ parent: parentPath, items: childFolders, depth: i + 1 });
-        }
-      }
-    }
+          {/* Author — dropdown default + -name signpost field */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <PenLine className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              <span className="text-xs text-muted-foreground flex-shrink-0">Written by</span>
 
-    const colors = [
-      "border-primary/20",
-      "border-blue-500/30",
-      "border-purple-500/30",
-      "border-pink-500/30",
-      "border-amber-500/30",
-    ];
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => { setShowAuthorPicker(v => !v); setAuthorSearch(""); }}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-border/60 hover:border-border bg-background transition-colors"
+                >
+                  {(() => {
+                    const a = altersById[effectiveAuthorId];
+                    return a ? (
+                      <>
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }} />
+                        <span className="max-w-[120px] truncate">{a.name}</span>
+                      </>
+                    ) : <span className="text-muted-foreground">No attribution</span>;
+                  })()}
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                </button>
+                {showAuthorPicker && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowAuthorPicker(false)} />
+                    <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 overflow-hidden">
+                      <div className="px-3 py-2 border-b border-border/50">
+                        <input autoFocus value={authorSearch} onChange={e => setAuthorSearch(e.target.value)}
+                          placeholder="Search members..."
+                          className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground" />
+                      </div>
+                      <div className="max-h-52 overflow-y-auto">
+                        <button type="button" onClick={() => { setAuthorAlterId(null); setShowAuthorPicker(false); }}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors ${!authorAlterId ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                          No attribution
+                        </button>
+                        {filteredAltersForAuthor.map(a => (
+                          <button key={a.id} type="button" onClick={() => { setAuthorAlterId(a.id); setShowAuthorPicker(false); }}
+                            className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${authorAlterId === a.id ? "bg-primary/5 text-primary" : ""}`}>
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                            <span className="flex-1 truncate">{a.name}</span>
+                            {a.id === currentAlterId && <span className="text-[10px] text-primary/70 flex-shrink-0">fronting</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
 
-    return levels.map((level, li) => (
-      <div key={li} className={`flex flex-wrap gap-1.5 ${li > 0 ? `pl-3 border-l-2 ml-1 ${colors[li] || colors[colors.length - 1]}` : ""}`}>
-        {li === 0 && (
-          <button type="button" onClick={() => setFolder(null)}
-            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${!folder ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
-            None
-          </button>
-        )}
-        {level.items.map(f => (
-          <button key={f} type="button" onClick={() => setFolder(f)}
-            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
-              folder === f ? "border-primary/40 bg-primary/10 text-primary" :
-              folder?.startsWith(`${f}/`) ? "border-primary/20 bg-primary/5 text-primary/70" :
-              "border-border text-muted-foreground hover:border-primary/30"
-            }`}>
-            {f.split("/").pop()}
-          </button>
-        ))}
-      </div>
-    ));
-  })()}
-</div>
+              <input
+                value={signpostText}
+                onChange={e => setSignpostText(e.target.value)}
+                placeholder="-name or -alias to sign"
+                className="flex-1 min-w-[140px] text-xs font-mono bg-transparent border border-border/40 rounded-lg px-2.5 py-1 focus:border-primary/50 outline-none placeholder:text-muted-foreground/40"
+              />
+            </div>
+
+            {signpostAuthors.length > 0 && (
+              <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground">
+                <span>Signing as:</span>
+                {signpostAuthors.map((a, i) => (
+                  <span key={a.id} className="flex items-center gap-1">
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                    {a.name}
+                    {i === 0 && signpostAuthors.length > 1 && <span className="opacity-50">(primary)</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-4">
+
+          {/* Folder selector */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Folder</label>
+            {(() => {
+              const levels = [];
+              const rootFolders = folders.filter(f => !f.includes("/"));
+              levels.push({ parent: null, items: rootFolders, depth: 0 });
+              if (folder) {
+                const parts = folder.split("/");
+                for (let i = 0; i < parts.length; i++) {
+                  const parentPath = parts.slice(0, i + 1).join("/");
+                  const childFolders = folders.filter(f => {
+                    const fParts = f.split("/");
+                    return fParts.length === i + 2 && f.startsWith(`${parentPath}/`);
+                  });
+                  if (childFolders.length > 0) {
+                    levels.push({ parent: parentPath, items: childFolders, depth: i + 1 });
+                  }
+                }
+              }
+              const colors = ["border-primary/20", "border-blue-500/30", "border-purple-500/30", "border-pink-500/30", "border-amber-500/30"];
+              return levels.map((level, li) => (
+                <div key={li} className={`flex flex-wrap gap-1.5 ${li > 0 ? `pl-3 border-l-2 ml-1 ${colors[li] || colors[colors.length - 1]}` : ""}`}>
+                  {li === 0 && (
+                    <button type="button" onClick={() => setFolder(null)}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${!folder ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+                      None
+                    </button>
+                  )}
+                  {level.items.map(f => (
+                    <button key={f} type="button" onClick={() => setFolder(f)}
+                      className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex-shrink-0 ${
+                        folder === f ? "border-primary/40 bg-primary/10 text-primary" :
+                        folder?.startsWith(`${f}/`) ? "border-primary/20 bg-primary/5 text-primary/70" :
+                        "border-border text-muted-foreground hover:border-primary/30"
+                      }`}>
+                      {f.split("/").pop()}
+                    </button>
+                  ))}
+                </div>
+              ));
+            })()}
+          </div>
 
           {!editingEntryFinal && (
             <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border/50">
@@ -250,13 +377,19 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
                     <LayoutGrid className="w-3 h-3" /> Blocks
                   </button>
+                  <button type="button" onClick={() => setEditorMode("raw")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                    <Code className="w-3 h-3" /> Raw
+                  </button>
                 </div>
               </div>
 
               {editorMode === "plain" ? (
+                <WysiwygEditor value={content} onChange={setContent} placeholder="Write your entry..." />
+              ) : editorMode === "raw" ? (
                 <div className="rounded-xl border border-input bg-background">
                   <textarea ref={taRef} value={content} onChange={e => setContent(e.target.value)}
-                    placeholder="Write your entry..."
+                    placeholder="Write your entry... Use ~AlterName: to signpost sections."
                     className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
                     spellCheck={false} />
                   <MiniToolbar onInsert={insert} />
@@ -282,13 +415,17 @@ export default function JournalEditorModal({ isOpen, open, onClose, editingEntry
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={(isEncrypted && !encryptionPassword && !editingEntryFinal) || saveMutation.isPending}>
-            {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            Save Entry
-          </Button>
-        </DialogFooter>
+        {/* ── Fixed footer ── */}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={handleSave} disabled={(isEncrypted && !encryptionPassword && !editingEntryFinal) || saveMutation.isPending}>
+              {saveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Save Entry
+            </Button>
+          </DialogFooter>
+        </div>
+
       </DialogContent>
     </Dialog>
   );

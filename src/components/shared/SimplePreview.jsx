@@ -46,28 +46,13 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
       return;
     }
     if (readOnly) return;
-    // Check if a data-edit span was clicked
+    // Only open editor when a [data-edit] span (template variable) is clicked
     const editSpan = e.target.closest("[data-edit]");
     if (editSpan) {
       setEditModal({ block, field, span: editSpan, mode: "span" });
       setEditValue(editSpan.textContent);
-      return;
     }
-    // Otherwise edit all visible text
-    const html = field === "content" ? block.content : block.text;
-    const tmp = document.createElement("div");
-    tmp.innerHTML = html || "";
-    const walker = document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT);
-    const texts = [];
-    let node;
-    while ((node = walker.nextNode())) {
-      if (node.parentElement?.tagName !== "STYLE" && node.parentElement?.tagName !== "SCRIPT") {
-        const t = node.textContent.trim();
-        if (t) texts.push(t);
-      }
-    }
-    setEditModal({ block, field, mode: "full" });
-    setEditValue(texts.join(" "));
+    // Static template text outside spans is not editable here — clicking it does nothing
   };
 
   const commitEdit = () => {
@@ -88,37 +73,26 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
         }
       }
       onBlockChange(block.id, { [field]: tmp.innerHTML });
-    } else {
-      // Replace all visible text nodes
-      const tmp = document.createElement("div");
-      tmp.innerHTML = html || "";
-      const walker = document.createTreeWalker(tmp, NodeFilter.SHOW_TEXT);
-      const textNodes = [];
-      let node;
-      while ((node = walker.nextNode())) {
-        if (node.parentElement?.tagName !== "STYLE" && node.parentElement?.tagName !== "SCRIPT") {
-          if (node.textContent.trim()) textNodes.push(node);
-        }
-      }
-      if (textNodes.length > 0) {
-        textNodes[0].textContent = editValue;
-        for (let i = 1; i < textNodes.length; i++) textNodes[i].textContent = "";
-      }
-      onBlockChange(block.id, { [field]: tmp.innerHTML });
     }
     setEditModal(null);
   };
 
   return (
     <>
-      <div className={readOnly ? "space-y-2" : "space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]"}>
+      {!readOnly && (
+        <style>{`
+          .sp-editable [data-edit] { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; border-radius: 3px; padding: 0 2px; }
+          .sp-editable [data-edit]:hover { background: rgba(99,102,241,0.12); }
+        `}</style>
+      )}
+      <div className={readOnly ? "space-y-2" : "sp-editable space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]"}>
         {blocks.map(block => {
           if (block.type === "text") {
             return (
               <div key={block.id}
                 onClick={(e) => handleClick(e, block, "content")}
-                className={`px-2 py-1 rounded-lg transition-colors min-h-[24px] ${!readOnly ? "hover:bg-muted/30 cursor-text" : ""}`}
-                dangerouslySetInnerHTML={{ __html: block.content || (!readOnly ? '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit...</span>' : '') }}
+                className="px-2 py-1 rounded-lg min-h-[24px]"
+                dangerouslySetInnerHTML={{ __html: block.content || (!readOnly ? '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Tap a field to edit…</span>' : '') }}
               />
             );
           }
@@ -135,8 +109,8 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
                       : { width: block.size || 120, height: "auto", borderRadius: 8, flexShrink: 0 }} />
                 )}
                 <div onClick={(e) => handleClick(e, block, "text")}
-                  className={`flex-1 px-2 py-1 rounded-lg transition-colors min-h-[40px] ${!readOnly ? "hover:bg-muted/30 cursor-text" : ""}`}
-                  dangerouslySetInnerHTML={{ __html: block.text || (!readOnly ? '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Click to edit...</span>' : '') }} />
+                  className="flex-1 px-2 py-1 rounded-lg min-h-[40px]"
+                  dangerouslySetInnerHTML={{ __html: block.text || (!readOnly ? '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Tap a field to edit…</span>' : '') }} />
               </div>
             );
           }

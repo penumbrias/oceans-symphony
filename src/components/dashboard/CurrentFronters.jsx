@@ -1,16 +1,32 @@
-import React, { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
-import { User, Zap, RefreshCw, X, Edit2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { base44, localEntities } from "@/api/base44Client";
+import { TOUR_DEMO_ALTERS, TOUR_DEMO_SESSIONS } from "@/lib/tourDemoData";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
+  Check, Loader2, MessageSquare
+} from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
-import { saveMentions } from "@/lib/mentionUtils";
+import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
+
+const TRIGGER_CATEGORIES = [
+  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
+  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
+  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
+  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
+  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
+  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
+  { id: "unknown",         label: "Unknown",        emoji: "❓" },
+];
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -22,14 +38,29 @@ function getContrastColor(hex) {
   return lum > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
-  const navigate = useNavigate();
+function sessionNoteText(session) {
+  if (!session?.note) return "";
+  try {
+    const parsed = JSON.parse(session.note);
+    return Array.isArray(parsed) ? (parsed[parsed.length - 1]?.text || "") : session.note;
+  } catch { return session.note; }
+}
+
+function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel, isExpanded, onToggleExpand }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
+  const longPressFiredRef = useRef(false);
+
+  const hasNote = !!sessionNoteText(session);
+  const isTriggered = !!session?.is_triggered_switch;
 
   const handleMouseDown = () => {
-    const timeoutId = setTimeout(() => { onHold(alter); }, 500);
+    longPressFiredRef.current = false;
+    const timeoutId = setTimeout(() => {
+      longPressFiredRef.current = true;
+      onHold(alter);
+    }, 500);
     setLongPressTimeoutId(timeoutId);
   };
 
@@ -40,16 +71,29 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
     }
   };
 
-  const handleClick = () => { navigate(`/alter/${alter.id}`); };
+  const handleClick = () => {
+    if (!longPressFiredRef.current) onToggleExpand(alter.id);
+  };
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Long press for options.`}
+      aria-expanded={isExpanded}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleMouseDown}
+      onTouchEnd={handleMouseUp}
+      onTouchMove={handleMouseUp}
       onClick={handleClick}
-      className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2. hover:border-border transition-all min-w-0 cursor-pointer"
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? handleClick() : undefined}
+      className={`flex items-center gap-2.5 bg-card border rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none ${
+        isExpanded ? "border-primary/50 bg-primary/5" : "border-border/50 hover:border-border"
+      }`}
     >
+      {/* Avatar with badges */}
       <div className="relative flex-shrink-0">
         <div
           className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center border border-border/30"
@@ -61,16 +105,35 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
             <User className="w-5 h-5" style={{ color: text || "hsl(var(--muted-foreground))" }} />
           )}
         </div>
+        {/* Primary indicator */}
         {isPrimary && (
           <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
             <Zap className="w-2 h-2 text-white" />
           </div>
         )}
+        {/* Note indicator — thought bubble on this alter's avatar */}
+        {hasNote && !isPrimary && (
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-background border border-border/60 flex items-center justify-center text-[9px] leading-none">
+            💬
+          </div>
+        )}
+        {hasNote && isPrimary && (
+          <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-background border border-border/60 flex items-center justify-center text-[9px] leading-none">
+            💬
+          </div>
+        )}
+        {/* Triggered indicator */}
+        {isTriggered && (
+          <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-orange-500 border-2 border-background flex items-center justify-center text-[9px] leading-none">
+            ⚡
+          </div>
+        )}
       </div>
-      <div className="min-w-0">
+
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground truncate">{alter.name}</p>
-        <p className="text-[11px] text-muted-foreground">
-          {isPrimary ? `Primary · ` : `${coFronterLabel} · `}
+        <p className="text-[11px] text-muted-foreground truncate">
+          {isPrimary ? "Primary · " : `${coFronterLabel} · `}
           {startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "—"}
         </p>
       </div>
@@ -78,16 +141,260 @@ function FronterChip({ alter, isPrimary, startTime, onHold, coFronterLabel }) {
   );
 }
 
+function AlterPanel({ alter, session, onClose, onSaved }) {
+  const queryClient = useQueryClient();
+
+  const [note, setNote] = useState(() => sessionNoteText(session));
+
+  const [showEmotions, setShowEmotions] = useState(false);
+  const [localEmotions, setLocalEmotions] = useState(() => {
+    try { return JSON.parse(session?.session_emotions || "[]"); } catch { return []; }
+  });
+
+  const [showSymptoms, setShowSymptoms] = useState(false);
+  const [symptomValues, setSymptomValues] = useState(() => {
+    try { return JSON.parse(session?.session_symptoms || "{}"); } catch { return {}; }
+  });
+
+  const [showTrigger, setShowTrigger] = useState(!!session?.is_triggered_switch);
+  const [triggerCategory, setTriggerCategory] = useState(session?.trigger_category || "");
+  const [triggerLabel, setTriggerLabel] = useState(session?.trigger_label || "");
+  const [saving, setSaving] = useState(false);
+
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+  });
+  const { data: customEmotions = [] } = useQuery({
+    queryKey: ["customEmotions"],
+    queryFn: () => base44.entities.CustomEmotion.list(),
+  });
+  const { data: customTriggerTypes = [] } = useQuery({
+    queryKey: ["customTriggerTypes"],
+    queryFn: () => base44.entities.TriggerType.list(),
+  });
+  const allTriggerCategories = [
+    ...TRIGGER_CATEGORIES,
+    ...customTriggerTypes.map(t => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
+  ];
+
+  const activeSymptoms = symptoms.filter(s => !s.is_archived);
+
+  const handleSave = async () => {
+    if (!session) return;
+    setSaving(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const updates = {};
+
+      // Note — alter-specific, appended to this session's note array (shows as 💬 on timeline)
+      if (note.trim()) {
+        let existing = [];
+        try { const parsed = JSON.parse(session.note || "[]"); existing = Array.isArray(parsed) ? parsed : []; } catch {}
+        updates.note = JSON.stringify([...existing, { text: note.trim(), timestamp: nowIso }]);
+      }
+
+      if (localEmotions.length > 0) {
+        updates.session_emotions = JSON.stringify(localEmotions);
+      }
+
+      const symptomArr = Object.entries(symptomValues)
+        .filter(([, v]) => v !== null && v !== undefined && v !== 0 && v !== false)
+        .map(([id, value]) => {
+          const s = symptoms.find(x => x.id === id);
+          return s ? { id, label: s.label, value, type: s.type } : null;
+        })
+        .filter(Boolean);
+      if (symptomArr.length > 0) updates.session_symptoms = JSON.stringify(symptomArr);
+
+      if (showTrigger && triggerCategory) {
+        updates.is_triggered_switch = true;
+        updates.trigger_category = triggerCategory;
+        updates.trigger_label = triggerLabel;
+      }
+
+      await base44.entities.FrontingSession.update(session.id, updates);
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      toast.success("Saved");
+      onSaved();
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="col-span-2 rounded-xl bg-card border border-border/50 overflow-hidden">
+
+      {/* Note — bare textarea, no chrome */}
+      <div className="px-3 pt-3 pb-2">
+        <Textarea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder={`Note for ${alter.name}... appears as 💬 on their timeline`}
+          className="text-sm resize-none border-0 bg-transparent p-0 focus-visible:ring-0 min-h-[52px] placeholder:text-muted-foreground/40 placeholder:text-xs"
+          rows={2}
+        />
+      </div>
+
+      {/* Action row */}
+      <div className="px-3 pb-3 flex items-center gap-1.5">
+        <button
+          onClick={() => { setShowEmotions(v => !v); setShowSymptoms(false); setShowTrigger(false); }}
+          aria-label="Add emotions"
+          aria-expanded={showEmotions}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
+            showEmotions ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground border-border hover:bg-muted/50"
+          }`}
+        >
+          <Smile className="w-3 h-3" />
+          {localEmotions.length > 0 ? <span>{localEmotions.length}</span> : <span>Emotions</span>}
+        </button>
+
+        <button
+          onClick={() => { setShowSymptoms(v => !v); setShowEmotions(false); setShowTrigger(false); }}
+          aria-label="Add symptoms"
+          aria-expanded={showSymptoms}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
+            showSymptoms ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground border-border hover:bg-muted/50"
+          }`}
+        >
+          <Activity className="w-3 h-3" />
+          <span>Symptoms</span>
+        </button>
+
+        <button
+          onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
+          aria-label="Mark triggered switch"
+          aria-expanded={showTrigger}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
+            showTrigger
+              ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+              : "text-muted-foreground border-border hover:bg-muted/50"
+          }`}
+        >
+          <AlertTriangle className="w-3 h-3" />
+          <span>Triggered</span>
+        </button>
+
+        <div className="ml-auto flex items-center gap-1.5">
+          <button onClick={onClose} aria-label="Close panel" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+            Save
+          </button>
+        </div>
+      </div>
+
+      {/* Emotion picker */}
+      {showEmotions && (
+        <div className="border-t border-border/30 px-3 py-2">
+          <EmotionWheelPicker
+            selectedEmotions={localEmotions}
+            onToggle={label => setLocalEmotions(prev =>
+              prev.includes(label) ? prev.filter(e => e !== label) : [...prev, label]
+            )}
+            customEmotions={customEmotions}
+            onAddCustom={() => {}}
+          />
+        </div>
+      )}
+
+      {/* Symptom list */}
+      {showSymptoms && (
+        <div className="border-t border-border/30 px-3 py-2 space-y-2 max-h-44 overflow-y-auto">
+          {activeSymptoms.length === 0 && (
+            <p className="text-xs text-muted-foreground/60 italic">No symptoms configured yet.</p>
+          )}
+          {activeSymptoms.map(s => (
+            <div key={s.id} className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color || "#8b5cf6" }} />
+              <span className="text-xs flex-1 truncate text-muted-foreground">{s.label}</span>
+              {s.type === "boolean" ? (
+                <input
+                  type="checkbox"
+                  checked={!!symptomValues[s.id]}
+                  onChange={e => setSymptomValues(v => ({ ...v, [s.id]: e.target.checked ? 1 : 0 }))}
+                  className="w-3.5 h-3.5 accent-primary"
+                />
+              ) : (
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setSymptomValues(v => ({ ...v, [s.id]: v[s.id] === n ? 0 : n }))}
+                      className={`w-5 h-5 rounded text-[10px] border transition-colors ${
+                        (symptomValues[s.id] || 0) >= n
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "border-border text-muted-foreground"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Trigger selector */}
+      {showTrigger && (
+        <div className="border-t border-border/30 px-3 py-2.5 space-y-2">
+          <div className="flex flex-wrap gap-1">
+            {allTriggerCategories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
+                title={cat.hint}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
+                  triggerCategory === cat.id
+                    ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+                    : "text-muted-foreground border-border/60 hover:bg-muted/50"
+                }`}
+              >
+                {cat.emoji} {cat.label}
+              </button>
+            ))}
+          </div>
+          <input
+            value={triggerLabel}
+            onChange={e => setTriggerLabel(e.target.value)}
+            placeholder="Describe what happened..."
+            className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CurrentFronters({ alters }) {
   const [showModal, setShowModal] = useState(false);
+  const [expandedAlterId, setExpandedAlterId] = useState(null);
+  const [holdMenuAlter, setHoldMenuAlter] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const handler = () => setShowModal(true);
-    window.addEventListener("open-set-front", handler);
-    return () => window.removeEventListener("open-set-front", handler);
+    const open = () => setShowModal(true);
+    const close = () => setShowModal(false);
+    window.addEventListener("open-set-front", open);
+    window.addEventListener("open-set-front-close", close);
+    return () => {
+      window.removeEventListener("open-set-front", open);
+      window.removeEventListener("open-set-front-close", close);
+    };
   }, []);
+
   const [editingStatus, setEditingStatus] = useState(false);
-  const [statusText, setStatusText] = useState("");
   const [tempStatus, setTempStatus] = useState("");
   const queryClient = useQueryClient();
   const terms = useTerms();
@@ -97,76 +404,78 @@ export default function CurrentFronters({ alters }) {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 
-  const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
+  // Latest status note for display — sorted descending, just grab first
+  const { data: allStatusNotes = [] } = useQuery({
+    queryKey: ["statusNotes"],
+    queryFn: () => localEntities.StatusNote.list(),
+  });
+  const latestStatusNote = allStatusNotes
+    .slice()
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] ?? null;
 
-  // New model: each active session = one alter
-  const activeSessions = sessions.filter(s => s.is_active);
-  // Support both new (alter_id) and legacy (primary_alter_id)
+  const realActiveSessions = sessions.filter(s => s.is_active);
+  const isDemo = realActiveSessions.length === 0 && !!window.__tourActive;
+  const demoAlterSource = alters.length > 0 ? alters.slice(0, 2) : TOUR_DEMO_ALTERS.slice(0, 2);
+  const demoSessions = isDemo
+    ? demoAlterSource.map((a, i) => ({
+        id: `_tour_s${i}`, alter_id: a.id, is_primary: false, is_active: true,
+        start_time: new Date(Date.now() - (i + 1) * 20 * 60 * 1000).toISOString(),
+      }))
+    : [];
+  const activeSessions = isDemo ? demoSessions : realActiveSessions;
+  const demoAltersById = Object.fromEntries(demoAlterSource.map(a => [a.id, a]));
+  const altersById = isDemo
+    ? { ...Object.fromEntries(alters.map((a) => [a.id, a])), ...demoAltersById }
+    : Object.fromEntries(alters.map((a) => [a.id, a]));
   const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : true);
   const active = primarySession || activeSessions[0] || null;
 
-  useEffect(() => {
-    if (!active) { setStatusText(""); setTempStatus(""); return; }
-    // Load persisted note from the active session
-    try {
-      const raw = active.note;
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const text = Array.isArray(parsed) ? (parsed[parsed.length - 1]?.text || "") : raw;
-        setStatusText(text);
-        setTempStatus(text);
-      } else {
-        setStatusText("");
-        setTempStatus("");
-      }
-    } catch {
-      setStatusText(active.note || "");
-      setTempStatus(active.note || "");
-    }
-  }, [active?.id]);
+  const primaryAlterId = primarySession?.alter_id || active?.primary_alter_id || null;
+
+  useEffect(() => { setExpandedAlterId(null); }, [active?.id]);
 
   const handleSetPrimaryFromHold = async (alter) => {
     try {
-      // New model: update is_primary on the individual session records
       const targetSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
       const currentPrimarySession = activeSessions.find(s => s.alter_id ? s.is_primary : s.primary_alter_id === alter.id);
-
       if (targetSession?.alter_id) {
-        // New model
         if (currentPrimarySession && currentPrimarySession.id !== targetSession.id) {
           await base44.entities.FrontingSession.update(currentPrimarySession.id, { is_primary: false });
         }
         await base44.entities.FrontingSession.update(targetSession.id, { is_primary: true });
       } else if (active) {
-        // Legacy fallback
         const newCoFronters = [active.primary_alter_id, ...(active.co_fronter_ids || [])].filter(id => id !== alter.id);
         await base44.entities.FrontingSession.update(active.id, { primary_alter_id: alter.id, co_fronter_ids: newCoFronters });
       }
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       toast.success(`${alter.name} is now primary!`);
-    } catch (e) {
-      toast.error("Failed to update primary fronter");
-    }
+    } catch { toast.error("Failed to update primary fronter"); }
+  };
+
+  const handleRemoveFromFront = async (alter) => {
+    try {
+      const targetSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
+      if (targetSession) {
+        await base44.entities.FrontingSession.update(targetSession.id, { is_active: false, end_time: new Date().toISOString() });
+      }
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      toast.success(`${alter.name} removed from front`);
+    } catch { toast.error("Failed to remove"); }
+    setHoldMenuAlter(null);
   };
 
   const handleSaveStatus = async () => {
     const note = tempStatus.trim();
-    setStatusText(note);
+    if (!note) { setEditingStatus(false); return; }
     setEditingStatus(false);
-    // Persist the note — append to existing notes array to preserve history
-    try {
-      const nowIso = new Date().toISOString();
-      for (const s of activeSessions) {
-        let existing = [];
-        try {
-          const parsed = JSON.parse(s.note || "[]");
-          existing = Array.isArray(parsed) ? parsed : [];
-        } catch {}
-        const updated = [...existing, { text: note, timestamp: nowIso }];
-        await base44.entities.FrontingSession.update(s.id, { note: JSON.stringify(updated) });
-      }
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch {}
+    setTempStatus("");
+    // Each save creates a NEW immutable timestamped record — never overwrites old ones
+    await localEntities.StatusNote.create({
+      timestamp: new Date().toISOString(),
+      note,
+    });
+    queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
     toast.success("Status saved");
   };
 
@@ -179,8 +488,7 @@ export default function CurrentFronters({ alters }) {
             <p className="text-sm text-muted-foreground">No one is currently {terms.fronting}</p>
           </div>
           <Button data-tour="set-front" size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs">
-            <RefreshCw className="w-3 h-3" />
-            Set {terms.Front}
+            <RefreshCw className="w-3 h-3" /> Set {terms.Front}
           </Button>
         </div>
         <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={null} />
@@ -188,33 +496,40 @@ export default function CurrentFronters({ alters }) {
     );
   }
 
-  // New model: collect all active alter IDs from individual session records
   let primary = null;
   let coFronters = [];
   if (activeSessions.some(s => s.alter_id)) {
-    // New model
     const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
     const coSessions = activeSessions.filter(s => s.alter_id && !s.is_primary);
     primary = primarySess ? altersById[primarySess.alter_id] : null;
-    coFronters = coSessions.map(s => altersById[s.alter_id]).filter(Boolean);
+    const seenIds = new Set(primarySess?.alter_id ? [primarySess.alter_id] : []);
+    coFronters = coSessions
+      .filter(s => !seenIds.has(s.alter_id) && seenIds.add(s.alter_id))
+      .map(s => altersById[s.alter_id]).filter(Boolean);
   } else {
-    // Legacy fallback
     primary = altersById[active.primary_alter_id];
     coFronters = (active.co_fronter_ids || []).map(id => altersById[id]).filter(Boolean);
   }
   const all = [primary, ...coFronters].filter(Boolean);
 
+  const expandedAlter = expandedAlterId ? altersById[expandedAlterId] : null;
+  const expandedSession = expandedAlterId ? activeSessions.find(s => (s.alter_id || s.primary_alter_id) === expandedAlterId) : null;
+
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4" data-tour="fronters-widget">
+        {isDemo && (
+          <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[10px] text-primary/80 text-center">
+            Tour Preview — sample data
+          </div>
+        )}
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Currently {terms.Fronting}</p>
           </div>
           <Button data-tour="set-front" size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs h-7 px-2.5">
-            <RefreshCw className="w-3 h-3" />
-            {terms.Switch}
+            <RefreshCw className="w-3 h-3" /> {terms.Switch}
           </Button>
         </div>
 
@@ -223,58 +538,119 @@ export default function CurrentFronters({ alters }) {
             const alterSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
             return (
               <FronterChip
-                 key={alter.id}
-                 alter={alter}
-                 isPrimary={i === 0}
-                 startTime={alterSession?.start_time}
-                 onHold={handleSetPrimaryFromHold}
-                 coFronterLabel={`Co-${terms.fronting}`}
-               />
+                key={alter.id}
+                alter={alter}
+                isPrimary={i === 0}
+                startTime={alterSession?.start_time}
+                session={alterSession}
+                onHold={setHoldMenuAlter}
+                coFronterLabel={`Co-${terms.fronting}`}
+                isExpanded={expandedAlterId === alter.id}
+                onToggleExpand={id => setExpandedAlterId(prev => prev === id ? null : id)}
+              />
             );
           })}
+
+          {expandedAlter && expandedSession && (
+            <AlterPanel
+              alter={expandedAlter}
+              session={expandedSession}
+              onClose={() => setExpandedAlterId(null)}
+              onSaved={() => setExpandedAlterId(null)}
+            />
+          )}
         </div>
 
-        {/* Private Messages Indicator */}
         <PrivateMessagesIndicator activeFronters={all} />
 
-        {/* Custom Status */}
+        {/* Custom status — each save is a new timestamped record, old ones never change */}
         {editingStatus ? (
           <div className="flex gap-2 items-center">
             <Input
               value={tempStatus}
-              onChange={(e) => setTempStatus(e.target.value)}
-              placeholder="Add a status..."
+              onChange={e => setTempStatus(e.target.value)}
+              placeholder="What's happening right now..."
               className="text-sm h-8 flex-1"
               autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") handleSaveStatus(); }}
+              onKeyDown={e => { if (e.key === "Enter") handleSaveStatus(); if (e.key === "Escape") { setTempStatus(""); setEditingStatus(false); } }}
             />
-            <Button size="sm" onClick={handleSaveStatus} className="gap-1.5 text-xs h-8 px-2.5">
-              Save
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => { setTempStatus(statusText); setEditingStatus(false); }} className="h-8 px-2">
+            <Button size="sm" onClick={handleSaveStatus} className="gap-1.5 text-xs h-8 px-2.5">Save</Button>
+            <Button size="sm" variant="outline" onClick={() => { setTempStatus(""); setEditingStatus(false); }} className="h-8 px-2">
               <X className="w-3 h-3" />
             </Button>
           </div>
         ) : (
           <button
-            onClick={() => setEditingStatus(true)}
-            className="w-full text-left px-3 py-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => { setTempStatus(""); setEditingStatus(true); }}
+            data-tour="status-note"
+            className="w-full text-left px-3 py-2 rounded-lg bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors text-xs text-muted-foreground hover:text-foreground flex items-center justify-between gap-2"
           >
-            {statusText ? (
-              <div className="flex items-center justify-between">
-                <span>{statusText}</span>
-                <Edit2 className="w-3 h-3" />
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <span className="italic">Add a custom status...</span>
-                <Edit2 className="w-3 h-3" />
-              </div>
-            )}
+            {latestStatusNote
+              ? <span className="truncate">💬 {latestStatusNote.note}</span>
+              : <span className="italic">Set a new status...</span>
+            }
+            <Edit2 className="w-3 h-3 flex-shrink-0" />
           </button>
         )}
       </div>
       <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={active} />
+
+      {holdMenuAlter && (
+        <Dialog open={!!holdMenuAlter} onOpenChange={() => setHoldMenuAlter(null)}>
+          <DialogContent className="max-w-[280px] p-4 gap-0">
+            <div className="flex items-center gap-3 pb-3 mb-3 border-b border-border/50">
+              <div
+                className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
+                style={{ backgroundColor: holdMenuAlter.color || "hsl(var(--muted))" }}
+              >
+                {holdMenuAlter.avatar_url
+                  ? <img src={holdMenuAlter.avatar_url} alt={holdMenuAlter.name} className="w-full h-full object-cover" />
+                  : <User className="w-5 h-5 text-muted-foreground" />}
+              </div>
+              <div>
+                <p className="font-semibold text-sm">{holdMenuAlter.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {holdMenuAlter.id === primaryAlterId ? `Primary ${terms.fronter || terms.alter}` : `Co-${terms.fronting}`}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-0.5">
+              <button
+                onClick={async () => {
+                  if (holdMenuAlter.id === primaryAlterId) {
+                    try {
+                      const sess = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === holdMenuAlter.id);
+                      if (sess?.alter_id) {
+                        await base44.entities.FrontingSession.update(sess.id, { is_primary: false });
+                        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+                        toast.success(`${holdMenuAlter.name} is now co-${terms.fronting}`);
+                      }
+                    } catch { toast.error("Failed to update"); }
+                  } else {
+                    await handleSetPrimaryFromHold(holdMenuAlter);
+                  }
+                  setHoldMenuAlter(null);
+                }}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
+              >
+                {holdMenuAlter.id === primaryAlterId ? `Make Co-${terms.front}` : "Make Primary"}
+              </button>
+              <button
+                onClick={() => handleRemoveFromFront(holdMenuAlter)}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                Remove from {terms.Front}
+              </button>
+              <button
+                onClick={() => { navigate(`/alter/${holdMenuAlter.id}`); setHoldMenuAlter(null); }}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
+              >
+                View Profile
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }

@@ -509,7 +509,7 @@ export async function runSnoozeOptionsMigration(defaultSnoozeOptions) {
 }
 
 export async function runReminderMigration() {
-  const FLAG = "reminders_migration_v1_done";
+  const FLAG = "reminders_migration_v2_done";
   if (localStorage.getItem(FLAG)) return;
   try {
     const reminders = await base44.entities.Reminder.list();
@@ -519,8 +519,14 @@ export async function runReminderMigration() {
       const migrated = actions.map(a => {
         if (a.action_type !== "open_route") return a;
         const path = a.payload?.path || "";
-        // open_set_front detection
-        if (path.includes("openSetFront") || path.includes("set_front")) {
+        const label = (a.label || "").toLowerCase();
+        // open_set_front detection — path-based or label-based (empty/root path + "front" label)
+        if (
+          path.includes("openSetFront") ||
+          path.includes("set_front") ||
+          path === "/fronting" ||
+          (label.includes("front") && (!path || path === "/"))
+        ) {
           changed = true;
           return { ...a, action_type: "open_set_front", payload: {} };
         }
@@ -546,6 +552,28 @@ export async function runReminderMigration() {
 export function useRemindersScheduler() {
   const queryClient = useQueryClient();
   const intervalRef = useRef(null);
+  // undefined = not yet initialized (skip first render to avoid double-run on mount)
+  const latestSessionIdRef = useRef(undefined);
+
+  // Watch frontHistory so we can run the scheduler immediately when a new
+  // session is created, rather than waiting for the 60-second interval.
+  const { data: recentSessions = [] } = useQuery({
+    queryKey: ["frontHistory"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
+  });
+
+  useEffect(() => {
+    const latestId = recentSessions[0]?.id ?? null;
+    if (latestSessionIdRef.current === undefined) {
+      // First data arrival — record baseline, mount effect already ran the scheduler
+      latestSessionIdRef.current = latestId;
+      return;
+    }
+    if (latestId !== latestSessionIdRef.current) {
+      latestSessionIdRef.current = latestId;
+      runClientScheduler(queryClient);
+    }
+  }, [recentSessions, queryClient]);
 
   useEffect(() => {
     // Run migrations once

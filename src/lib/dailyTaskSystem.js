@@ -36,7 +36,7 @@ export const DEFAULT_TASK_TEMPLATES = [
     nav_path: "/diary",
   },
 {
-  title: "{{system}} check-in",
+  title: "{{system}} meeting",
   description: "Gently notice any parts that want attention and what your body is feeling. No fixing, just noticing.",
   points: 4,
   mode: "AUTO",
@@ -105,7 +105,7 @@ export const AUTO_TRIGGER_LABELS = {
   check_in: "App opened (daily check-in)",
   journal_entry: "Journal entry created",
   card_entry: "Diary card created",
-  parts_checkin: "{{System}} check-in completed",
+  parts_checkin: "{{System}} meeting completed",
 };
 
 export const AUTO_TRIGGER_OPTIONS = Object.entries(AUTO_TRIGGER_LABELS).map(([value, label]) => ({

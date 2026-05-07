@@ -12,9 +12,10 @@ import { AlterSessionInfo, AlterSessionEdit } from "@/components/timeline/AlterS
 import { SymptomBar, SymptomDetailModal } from "@/components/timeline/SymptomBar";
 import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+import { getCategoryMeta } from "@/lib/locationCategories";
 
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 44 };
+const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32, locationCol: 44 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
 const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
 
@@ -104,7 +105,7 @@ function StatusNoteBadge({ note, topPx, id }) {
   const [open, setOpen] = React.useState(false);
   return (
     <>
-      <div className="absolute left-0 right-0 z-10 flex items-start pointer-events-none" style={{ top: topPx, userSelect: "none" }} data-status-id={id}>
+      <div className="absolute z-10 flex items-start pointer-events-none" style={{ top: topPx, left: LABEL_WIDTH - 22, userSelect: "none" }} data-status-id={id}>
         <div className="mx-1 flex items-center gap-1" style={{ fontSize: 9 }}>
           {/* Only the icon is clickable — rest is pointer-events-none so alters behind are tappable */}
           <button
@@ -135,7 +136,7 @@ function StatusNoteBadge({ note, topPx, id }) {
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress }) {
+function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress, hasNote }) {
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
@@ -147,7 +148,8 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
     e.stopPropagation();
     touchFiredRef.current = false;
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
+    const barTop = e.currentTarget.getBoundingClientRect().top;
+    lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.({ clientY, barTop }); }, 500);
   };
   const cancelPress = (e) => {
     e?.stopPropagation();
@@ -162,22 +164,33 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
 
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={`${alter?.name}${isPrimary ? " (primary)" : ""} — tap to view session details`}
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
       onMouseDown={startPress} onMouseUp={cancelPress} onMouseLeave={cancelPress}
       onTouchStart={startPress} onTouchEnd={handleTouchEnd}>
-      <div
-        className="rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
-        style={{
-          width: sz, height: sz,
-          backgroundColor: color,
-          border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
-          boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
-        }}
-        title={alter?.name + (isPrimary ? " (primary)" : "")}>
-        {resolvedUrl && !imgError
-          ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
-          : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
+      <div className="relative flex-shrink-0">
+        <div
+          className="rounded-full overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
+          style={{
+            width: sz, height: sz,
+            backgroundColor: color,
+            border: isPrimary ? "2px solid #f59e0b" : "2px solid var(--background)",
+            boxShadow: isPrimary ? "0 0 0 1px #f59e0b" : "none"
+          }}
+          aria-hidden="true">
+          {resolvedUrl && !imgError
+            ? <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+            : <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>}
+        </div>
+        {hasNote && (
+          <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-background border border-border/60 flex items-center justify-center" style={{ fontSize: 7, lineHeight: 1 }}>
+            💬
+          </div>
+        )}
       </div>
       {heightPx > sz + 4 && (
         <div className="w-0.5 rounded-full mt-0.5" style={{
@@ -300,7 +313,7 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
             onClick={() => { if (!stillFronting && endTime) { const t = startTime; setStartTime(endTime); setEndTime(t); } }}
             disabled={stillFronting || !endTime}
             className="flex-shrink-0 h-8 px-2 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-30 text-sm"
-            title="Swap start and end times">
+            aria-label="Swap start and end times">
             ⇄
           </button>
           <div className="flex-1">
@@ -365,23 +378,36 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
 }
 
 function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onClose }) {
-  const h = Math.floor(startMins / 60) % 12 || 12;
-  const m = startMins % 60;
-  const period = Math.floor(startMins / 60) < 12 ? "am" : "pm";
+  const [adjustedMins, setAdjustedMins] = useState(startMins);
+  const timeInputValue = `${String(Math.floor(adjustedMins / 60)).padStart(2, "0")}:${String(adjustedMins % 60).padStart(2, "0")}`;
+  const h = Math.floor(adjustedMins / 60) % 12 || 12;
+  const m = adjustedMins % 60;
+  const period = Math.floor(adjustedMins / 60) < 12 ? "am" : "pm";
   const timeStr = `${h}:${String(m).padStart(2, "0")}${period}`;
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40" onClick={onClose}>
       <div className="bg-card rounded-xl border border-border shadow-xl p-4 max-w-xs w-full mx-4 mb-24 space-y-3" onClick={e => e.stopPropagation()}>
-        <p className="text-sm font-semibold text-center">Add entry at {timeStr}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">Add entry at</p>
+          <input
+            type="time"
+            value={timeInputValue}
+            onChange={e => {
+              const [hh, mm] = e.target.value.split(":").map(Number);
+              if (!isNaN(hh) && !isNaN(mm)) setAdjustedMins(hh * 60 + mm);
+            }}
+            className="h-7 text-sm border border-border/50 rounded-lg px-2 bg-background"
+          />
+        </div>
         <div className="space-y-2">
-          <button onClick={onFrontSession} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
+          <button onClick={() => onFrontSession(adjustedMins)} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
             <Users className="w-5 h-5 text-primary flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">Front Session</p>
               <p className="text-xs text-muted-foreground">Log who was fronting at this time</p>
             </div>
           </button>
-          <button onClick={onCheckIn} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
+          <button onClick={() => onCheckIn(adjustedMins)} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
             <Heart className="w-5 h-5 text-rose-400 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">Quick Check-In</p>
@@ -396,8 +422,10 @@ function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onClose }) {
 }
 
 function DetailPopup({ title, icon, timeStr, onClose, children }) {
+  const openedAt = useRef(Date.now());
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={() => { if (Date.now() - openedAt.current > 350) onClose(); }}>
       <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs w-full mx-4" onClick={e => e.stopPropagation()}>
         <p className="text-xs text-muted-foreground mb-2">{icon} {timeStr}</p>
         {children}
@@ -416,11 +444,15 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
   const handleTouchEnd = (e) => { touchFiredRef.current = true; onTap?.(); };
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
+      role="button"
+      tabIndex={0}
+      aria-label={`${activityName || "Activity"} — tap to view details`}
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
       onTouchEnd={handleTouchEnd}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}>
       <div className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
-        style={{ width: sz, height: sz, backgroundColor: color }}>
+        style={{ width: sz, height: sz, backgroundColor: color }} aria-hidden="true">
         <span className="text-xs font-bold text-white leading-none">
           {activityName?.charAt(0)?.toUpperCase() || "A"}
         </span>
@@ -455,7 +487,13 @@ function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   const note = entry.data.note;
   const tap = useDoubleTap(onTap, onDoubleTap);
   return (
-    <div className="absolute right-0 left-0 cursor-pointer z-10 px-1" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+    <div className="absolute right-0 left-0 cursor-pointer z-10 px-1"
+      role="button"
+      tabIndex={0}
+      aria-label={`Emotion check-in${emotions.length > 0 ? `: ${emotions.slice(0, 3).join(", ")}${emotions.length > 3 ? ` and ${emotions.length - 3} more` : ""}` : ""}${note ? " — has note" : ""} — tap to view`}
+      style={{ top: topPx, userSelect: "none" }}
+      onClick={tap}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
       <div className="relative">
         {emotions.length > 0 ? (
           <div className="flex flex-col gap-px">
@@ -484,6 +522,29 @@ function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   );
 }
 
+function LocationBubble({ entry, topPx, colWidth, onTap }) {
+  const cat = getCategoryMeta(entry.data.category);
+  return (
+    <div
+      className="absolute right-0 left-0 cursor-pointer z-10 px-1"
+      role="button"
+      tabIndex={0}
+      aria-label={`${entry.data.name || cat.label} — tap to view`}
+      style={{ top: topPx, userSelect: "none" }}
+      onClick={onTap}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
+    >
+      <div className="flex items-center gap-0.5 overflow-hidden" title={entry.data.name || cat.label}>
+        <div className="rounded-full flex-shrink-0 border border-background"
+          style={{ width: 7, height: 7, backgroundColor: cat.color }} />
+        <span className="font-medium truncate" style={{ fontSize: 9, color: cat.color, maxWidth: "100%", lineHeight: "1.1" }}>
+          {entry.data.name || cat.label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
   const meta = TYPE_META[entry.type] || { icon: "•" };
@@ -497,7 +558,13 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
       .sort((a, b) => (b.checkIn.severity ?? -1) - (a.checkIn.severity ?? -1))
       .slice(0, 3);
     return (
-      <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+      <div className="absolute left-1 cursor-pointer z-10"
+        role="button"
+        tabIndex={0}
+        aria-label={`Symptom check-in — tap to view`}
+        style={{ top: topPx, userSelect: "none" }}
+        onClick={tap}
+        onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
         <div className="flex flex-col gap-px" style={{ maxWidth: colWidth - 8 }}>
           {items.map(({ symptom, checkIn }, i) => {
             const color = symptom?.color || "#8b5cf6";
@@ -526,7 +593,13 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
     entry.type === 'bulletin' ? 'Bulletin' :
     (entry.label || 'Task');
   return (
-    <div className="absolute left-1 cursor-pointer z-10" style={{ top: topPx, userSelect: "none" }} onClick={tap}>
+    <div className="absolute left-1 cursor-pointer z-10"
+      role="button"
+      tabIndex={0}
+      aria-label={`${shortLabel}${entry.label && entry.label !== shortLabel ? `: ${entry.label}` : ""} — tap to view`}
+      style={{ top: topPx, userSelect: "none" }}
+      onClick={tap}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
       {showLabel ? (
         <div className="flex items-center gap-1 rounded-full border shadow-sm bg-card border-border/60 px-1.5 py-0.5 hover:scale-105 transition-transform"
           style={{ maxWidth: colWidth - 8 }} title={entry.label}>
@@ -551,6 +624,8 @@ export default function InfiniteTimeline({
   showSymptoms = true,
   symptomSessions = [], symptomCheckIns = [], symptoms = [],
   categories = [],
+  locations = [], showLocations = true,
+  statusNotes = [],
 }) {
   const queryClient = useQueryClient();
 
@@ -679,6 +754,30 @@ export default function InfiniteTimeline({
     return result;
   }, [sessions, dayStart, isToday]);
 
+  const statusNoteEntries = useMemo(() => {
+    // New: proper timestamped StatusNote records (one entry per save, never overwritten)
+    const fromRecords = statusNotes.map(n => ({
+      id: n.id,
+      note: n.note,
+      startMins: Math.max(0, minutesInDay(parseDate(n.timestamp), dayStart)),
+    }));
+
+    // Legacy: localStorage notes for old sessions that predate the new system
+    const fromLS = [];
+    const seen = new Set();
+    for (const session of sessions) {
+      const isPrimary = session.alter_id ? (session.is_primary ?? false) : true;
+      if (!isPrimary || seen.has(session.id)) continue;
+      seen.add(session.id);
+      const note = localStorage.getItem(`symphony_status_${session.id}`) || "";
+      if (!note) continue;
+      const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+      fromLS.push({ id: `ls-${session.id}`, note, startMins });
+    }
+
+    return [...fromRecords, ...fromLS].sort((a, b) => a.startMins - b.startMins);
+  }, [statusNotes, sessions, dayStart]);
+
   const alterColumns = useMemo(() => {
     const cols = [];
     const alterIds = [...new Set(alterEntries.map(e => e.alterId))];
@@ -780,6 +879,17 @@ export default function InfiniteTimeline({
       .sort((a, b) => a.mins - b.mins);
   }, [emotions, dayStart]);
 
+  const locationEntries = useMemo(() => {
+    if (!showLocations) return [];
+    return locations
+      .map((loc, i) => {
+        const mins = minutesInDay(parseDate(loc.timestamp), dayStart);
+        return { mins, type: "location", id: loc.id, data: loc, key: `loc-${i}-${loc.id}` };
+      })
+      .filter(e => e.mins >= 0 && e.mins < 24 * 60)
+      .sort((a, b) => a.mins - b.mins);
+  }, [locations, showLocations, dayStart]);
+
   const eventEntries = useMemo(() => {
     const inDay = (mins) => mins >= 0 && mins < 24 * 60;
     const entries = [];
@@ -790,7 +900,7 @@ export default function InfiniteTimeline({
     });
     checkIns.forEach((c) => {
       const mins = minutesInDay(parseDate(c.created_date), dayStart);
-      if (inDay(mins)) entries.push({ mins, type: "checkin", id: c.id, label: "System Check-In", data: c });
+      if (inDay(mins)) entries.push({ mins, type: "checkin", id: c.id, label: "System Meeting", data: c });
     });
     bulletins.forEach((b) => {
       const mins = minutesInDay(parseDate(b.created_date), dayStart);
@@ -848,6 +958,16 @@ export default function InfiniteTimeline({
     });
   }, [emotionEntries, getTopPx]);
 
+  const locationPositioned = useMemo(() => {
+    let minNext = -Infinity;
+    return locationEntries.map((entry) => {
+      const raw = getTopPx(entry.mins);
+      const top = Math.max(raw, minNext);
+      minNext = top + MIN_EMOTION_GAP;
+      return { ...entry, adjustedTop: top };
+    });
+  }, [locationEntries, getTopPx]);
+
   const eventPositioned = useMemo(() => {
     let minNext = -Infinity;
     return eventEntries.map((entry) => {
@@ -902,15 +1022,20 @@ export default function InfiniteTimeline({
 
   const eventColWidth_actual = showCheckIns && eventEntries.length > 0 ? eventColWidth : 0;
   const emotionColWidth_actual = showEmotions && emotionEntries.length > 0 ? emotionColWidth : 0;
+  const locationColWidth_actual = showLocations && locationEntries.length > 0 ? colWidths.locationCol : 0;
 
-  // New column order: [time label | alters | symptoms | events | emotions | activities]
+  // Column order: [time label | alters | symptoms | events | emotions | locations | activities]
   const alterLeft = LABEL_WIDTH;
   const symptomLeft = alterLeft + alterAreaWidth;
   const eventColLeft = symptomLeft + symptomAreaWidth;
   const emotionColLeft = eventColLeft + eventColWidth_actual;
-  const activityLeft = emotionColLeft + emotionColWidth_actual;
+  const locationColLeft = emotionColLeft + emotionColWidth_actual;
+  const activityLeft = locationColLeft + locationColWidth_actual;
   const totalWidth = activityLeft + activityAreaWidth;
-  const dateLabel = isToday ? "Today" : format(day, "EEEE, MMM d");
+  const dateLabel = isToday ? "Today"
+    : day.getFullYear() !== new Date().getFullYear()
+      ? format(day, "EEEE, MMM d, yyyy")
+      : format(day, "EEEE, MMM d");
 
   const handleSplitSave = async (action, splitMins) => {
     if (!splitPopover) return;
@@ -1141,7 +1266,7 @@ export default function InfiniteTimeline({
                       {isCurrentHour && (
                         <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
                       )}
-                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pr-1 text-right" style={{ width: LABEL_WIDTH }}>
+                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
                         {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
                       </div>
                       <div className="flex-1 border-t border-border/30 mt-2" />
@@ -1203,6 +1328,10 @@ export default function InfiniteTimeline({
                 {emotionColWidth_actual > 0 && (
                   <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
                     style={{ left: emotionColLeft, height: totalHeight }} />
+                )}
+                {locationColWidth_actual > 0 && (
+                  <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
+                    style={{ left: locationColLeft, height: totalHeight }} />
                 )}
                 {numActivityCols > 0 && (
                   <div className="absolute top-0 bottom-0 border-l border-border/20 pointer-events-none"
@@ -1274,6 +1403,20 @@ export default function InfiniteTimeline({
                   </div>
                 )}
 
+                {locationColWidth_actual > 0 && (
+                  <div className="absolute" style={{ left: locationColLeft, top: 0, width: locationColWidth_actual, height: totalHeight }}>
+                    {locationPositioned.map((entry) => (
+                      <LocationBubble
+                        key={entry.key}
+                        entry={entry}
+                        topPx={entry.adjustedTop}
+                        colWidth={locationColWidth_actual}
+                        onTap={() => setDetailPopup({ type: "location", entry })}
+                      />
+                    ))}
+                  </div>
+                )}
+
                 <div
                   className="absolute"
                   style={{ left: alterLeft, top: 0, width: alterAreaWidth, height: totalHeight, zIndex: 1 }}
@@ -1296,14 +1439,15 @@ export default function InfiniteTimeline({
                             heightPx={heightPx}
                             isPrimary={entry.isPrimary}
                             rowH={rowH}
+                            hasNote={!!entrySession?.note}
                             onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
                             onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
-                            onLongPress={(clientY) => {
+                            onLongPress={({ clientY, barTop }) => {
                               if (!entrySession) return;
-                              const gridEl = document.querySelector(".overflow-y-auto");
-                              const gridRect = gridEl?.getBoundingClientRect();
-                              const scrollTop = gridEl?.scrollTop || 0;
-                              const relY = clientY - (gridRect?.top || 0) + scrollTop;
+                              // barTop = viewport Y of the bar's top edge; topPx = bar's Y in the day grid
+                              // gridOriginY = viewport Y of the day grid's 00:00 row
+                              const gridOriginY = barTop - topPx;
+                              const relY = clientY - gridOriginY;
                               const pressedMins = Math.round((relY / totalHeight) * 24 * 60 / 5) * 5;
                               const clampedMins = Math.min(Math.max(pressedMins, entry.startMins), entry.endMins);
                               setSplitPopover({ alter, session: entrySession, splitMins: clampedMins });
@@ -1315,30 +1459,9 @@ export default function InfiniteTimeline({
                   ))}
                 </div>
 
-                {/* Legacy session notes */}
-                {sessions.flatMap((session) => {
-
-                  if (!session.note) return [];
-                  let notes = [];
-                  try {
-                    const parsed = JSON.parse(session.note);
-                    notes = Array.isArray(parsed) ? parsed : [{ text: session.note, timestamp: session.start_time }];
-                  } catch {
-                    notes = [{ text: session.note, timestamp: session.start_time }];
-                  }
-                  return notes.map((sn, i) => {
-                    const mins = Math.max(0, minutesInDay(parseDate(sn.timestamp), dayStart));
-                    const topPx = getTopPx(mins);
-                    return (
-                      <div key={`note-${session.id}-${i}`} className="absolute"
-                        style={{ left: Math.max(0, alterLeft - 20), right: 0, top: 0, height: totalHeight }}>
-                        <StatusNoteBadge note={sn.text} topPx={topPx} />
-                      </div>
-                    );
-                  });
-                })}
-
-
+                {statusNoteEntries.map(({ id, note, startMins }) => (
+                  <StatusNoteBadge key={id} id={id} note={note} topPx={getTopPx(startMins)} />
+                ))}
 
               </div>
             </div>
@@ -1352,6 +1475,7 @@ export default function InfiniteTimeline({
           journals={journals} checkIns={checkIns} tasks={tasks} alters={alters}
           symptoms={symptoms} symptomSessions={symptomSessions}
           bulletins={bulletins} categories={categories}
+          statusNotes={statusNotes}
         />
       )}
 
@@ -1412,8 +1536,8 @@ export default function InfiniteTimeline({
       {retroPickerState && (
         <RetroEntryPicker
           startMins={retroPickerState.startMins}
-          onFrontSession={() => { setNewSessionPopover({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
-          onCheckIn={() => { setRetroCheckIn({ startMins: retroPickerState.startMins }); setRetroPickerState(null); }}
+          onFrontSession={(mins) => { setNewSessionPopover({ startMins: mins ?? retroPickerState.startMins }); setRetroPickerState(null); }}
+          onCheckIn={(mins) => { setRetroCheckIn({ startMins: mins ?? retroPickerState.startMins }); setRetroPickerState(null); }}
           onClose={() => setRetroPickerState(null)}
         />
       )}
@@ -1465,6 +1589,35 @@ export default function InfiniteTimeline({
         );
       })()}
 
+      {detailPopup?.type === "location" && (() => {
+        const { entry } = detailPopup;
+        const cat = getCategoryMeta(entry.data.category);
+        const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+        return (
+          <DetailPopup icon={cat.emoji} timeStr={timeStr} onClose={() => setDetailPopup(null)}>
+            <p className="text-sm font-semibold">{entry.data.name || cat.label}</p>
+            <p className="text-xs mt-0.5" style={{ color: cat.color }}>{cat.label}</p>
+            {entry.data.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{entry.data.notes}</p>}
+            {entry.data.latitude != null && entry.data.longitude != null && (
+              <div className="mt-2 space-y-1">
+                <p className="text-xs text-muted-foreground font-mono">
+                  {entry.data.latitude.toFixed(5)}, {entry.data.longitude.toFixed(5)}
+                </p>
+                <a
+                  href={`https://www.google.com/maps?q=${entry.data.latitude},${entry.data.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  Open in Maps ↗
+                </a>
+              </div>
+            )}
+          </DetailPopup>
+        );
+      })()}
+
       {detailPopup?.type === "event" && (() => {
         const { entry } = detailPopup;
         const meta = TYPE_META[entry.type] || { icon: "•" };
@@ -1472,7 +1625,7 @@ export default function InfiniteTimeline({
         return (
           <DetailPopup icon={meta.icon} timeStr={timeStr} onClose={() => setDetailPopup(null)}>
             {entry.type === "journal" && <p className="text-sm font-semibold">{entry.label}</p>}
-            {entry.type === "checkin" && <p className="text-sm font-semibold">System Check-In</p>}
+            {entry.type === "checkin" && <p className="text-sm font-semibold">System Meeting</p>}
             {entry.type === "bulletin" && <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">{entry.data.content}</p>}
             {(entry.type === "task" || entry.type === "task_done") && <p className="text-sm font-semibold">{entry.label}</p>}
             {entry.type === "symptom_checkin" && (

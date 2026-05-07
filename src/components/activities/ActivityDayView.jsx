@@ -3,15 +3,17 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format } from "date-fns";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { parseDate } from "@/lib/dateUtils";
+import { getCategoryMeta } from "@/lib/locationCategories";
 import {
   emotionColor,
   getActivityColor,
   getActivitiesForSlot,
   getAlterIdsForSlot,
   getEmotionsForSlot,
+  getLocationsForSlot,
 } from "./activityHelpers";
 
 function EmotionPills({ emotions }) {
@@ -27,6 +29,26 @@ function EmotionPills({ emotions }) {
           {em}
         </span>
       ))}
+    </div>
+  );
+}
+
+function LocationPills({ locations }) {
+  if (!locations || locations.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {locations.map((loc, i) => {
+        const cat = getCategoryMeta(loc.category);
+        return (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+            style={{ backgroundColor: cat.color + "22", color: cat.color, border: `1px solid ${cat.color}66` }}
+          >
+            {cat.emoji} {loc.name || cat.label}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -193,6 +215,10 @@ export default function ActivityDayView({
     queryKey: ["symptoms"],
     queryFn: () => base44.entities.Symptom.list(),
   });
+  const { data: locationRecords = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => localEntities.Location.list(),
+  });
   const symptomsMap = useMemo(() => {
     const m = {};
     symptoms.forEach(s => { m[s.id] = s; });
@@ -208,26 +234,45 @@ export default function ActivityDayView({
   const dateStr = format(date, "yyyy-MM-dd");
   const isToday = dateStr === format(new Date(), "yyyy-MM-dd");
 
-  const dayActivities = useMemo(() =>
-    activities.filter(a => format(parseDate(a.timestamp), "yyyy-MM-dd") === dateStr),
-    [activities, dateStr]
-  );
+  const dayActivities = useMemo(() => {
+    const dayStart = parseDate(dateStr);
+    return activities.filter(a => {
+      const actStart = parseDate(a.timestamp);
+      if (format(actStart, "yyyy-MM-dd") === dateStr) return true;
+      // Include activities that started the previous day and extend past midnight into this day
+      if (a.duration_minutes > 0) {
+        const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
+        return actEnd > dayStart;
+      }
+      return false;
+    });
+  }, [activities, dateStr]);
 
-  const totalDuration = useMemo(() =>
-    dayActivities.reduce((s, a) => s + (a.duration_minutes || 0), 0),
-    [dayActivities]
-  );
+  const totalDuration = useMemo(() => {
+    const dayStart = parseDate(dateStr);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    return dayActivities.reduce((s, a) => {
+      if (!a.duration_minutes) return s;
+      const actStart = parseDate(a.timestamp);
+      const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
+      // Clip to the current day's bounds
+      const clippedStart = actStart < dayStart ? dayStart : actStart;
+      const clippedEnd = actEnd > dayEnd ? dayEnd : actEnd;
+      return s + Math.round((clippedEnd - clippedStart) / 60000);
+    }, 0);
+  }, [dayActivities, dateStr]);
 
   const getColor = useCallback((act) => getActivityColor(act, catById), [catById]);
 
   const getSlotData = useCallback((hour) => {
     const { timed, logged } = getActivitiesForSlot(date, hour, 0, INTERVAL, dayActivities);
     const hasActivities = timed.length > 0 || logged.length > 0;
-    // Only attach alters/emotions to rows that actually have activities
+    // Only attach alters/emotions/locations to rows that actually have activities
     const alterIds = hasActivities ? getAlterIdsForSlot(date, hour, 0, INTERVAL, frontingHistory) : [];
     const emotions = hasActivities ? getEmotionsForSlot(date, hour, 0, INTERVAL, dayActivities, emotionCheckIns) : [];
-    return { timed, logged, alterIds, emotions };
-  }, [date, dayActivities, frontingHistory, emotionCheckIns]);
+    const locations = hasActivities ? getLocationsForSlot(date, hour, 0, INTERVAL, locationRecords) : [];
+    return { timed, logged, alterIds, emotions, locations };
+  }, [date, dayActivities, frontingHistory, emotionCheckIns, locationRecords]);
 
   const segments = useMemo(() => buildSegments(getSlotData), [getSlotData]);
   const allEmpty = dayActivities.length === 0;
@@ -354,7 +399,7 @@ export default function ActivityDayView({
               }
 
               /* ── Active hour row ── */
-              const { timed, logged, alterIds, emotions } = seg.data;
+              const { timed, logged, alterIds, emotions, locations } = seg.data;
               const isCurrentHour = isToday && nowHour === seg.hour;
               const isFirstActivity = !firstActivitySet;
               if (isFirstActivity) firstActivitySet = true;
@@ -412,6 +457,7 @@ export default function ActivityDayView({
                     {logged.map(a => (
                       <LoggedPill key={a.id} activity={a} getColor={getColor} alters={alters} slotEmotions={emotions} slotAlterIds={alterIds} symptomsMap={symptomsMap} />
                     ))}
+                    <LocationPills locations={locations} />
                   </div>
                 </div>
               );

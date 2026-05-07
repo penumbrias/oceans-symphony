@@ -18,7 +18,10 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
     enabled: open,
   });
 
-  const mentionLogs = rawLogs.filter((m) => m.log_type !== "authored");
+  // Filter out authored self-logs; also skip entries with no identifiable recipient
+  const mentionLogs = rawLogs.filter(
+    (m) => m.log_type !== "authored" && (m.mentioned_alter_id || m.alter_id)
+  );
 
   useEffect(() => {
     if (!open) { setVisibleCount(PAGE_SIZE); return; }
@@ -31,6 +34,12 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
 
   const handleDismiss = async (e, m) => {
     e.stopPropagation();
+    if (!m.mentioned_alter_id) {
+      // Legacy format — mark via is_read field
+      await base44.entities.MentionLog.update(m.id, { is_read: true });
+      queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
+      return;
+    }
     const dismissedBy = m.dismissed_by_alter_ids || [];
     if (dismissedBy.includes(m.mentioned_alter_id)) return;
     await base44.entities.MentionLog.update(m.id, {
@@ -53,10 +62,15 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
             <p className="text-sm text-muted-foreground text-center py-8">No mentions yet</p>
           )}
           {mentionLogs.slice(0, visibleCount).map((m) => {
-            const alter = alters.find((a) => a.id === m.mentioned_alter_id);
+            // Graceful fallbacks for legacy notifications created with wrong field names
+            const recipientId = m.mentioned_alter_id || m.alter_id;
+            const alter = alters.find((a) => a.id === recipientId);
             const dismissedBy = m.dismissed_by_alter_ids || [];
-            const isDismissed = dismissedBy.includes(m.mentioned_alter_id);
-            const isForCurrentFronter = frontingAlterIds.includes(m.mentioned_alter_id);
+            const isDismissed = m.is_read === true || dismissedBy.includes(recipientId);
+            const isForCurrentFronter = frontingAlterIds.includes(recipientId);
+            const displayLabel = m.source_label || (m.content ? "Message" : "Notification");
+            const displayPreview = m.preview_text || m.content || null;
+            const displayDate = m.source_date || m.created_date || null;
 
             return (
               <button
@@ -74,24 +88,24 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
                   className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold mt-0.5"
                   style={{ backgroundColor: alter?.color || "#8b5cf6" }}
                 >
-                  {alter?.name?.charAt(0)}
+                  {alter?.name?.charAt(0) || "?"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-0.5">
                     <span className="text-xs font-semibold text-foreground truncate">
-                      {alter?.name} · {m.source_label}
+                      {alter?.name || "Unknown"} · {displayLabel}
                     </span>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {!isDismissed && isForCurrentFronter && (
                         <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                       )}
                       <span className="text-[10px] text-muted-foreground">
-                        {m.source_date ? format(new Date(m.source_date), "MM/dd/yyyy") : ""}
+                        {displayDate ? format(new Date(displayDate), "MM/dd/yyyy") : ""}
                       </span>
                     </div>
                   </div>
-                  {m.preview_text && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 italic">"{m.preview_text}"</p>
+                  {displayPreview && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 italic">"{displayPreview}"</p>
                   )}
                   {isDismissed && (
                     <p className="text-[10px] text-muted-foreground mt-0.5">Seen</p>

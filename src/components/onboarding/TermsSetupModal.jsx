@@ -100,6 +100,10 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
             <p>Preview: <span className="text-foreground font-medium capitalize">{terms.system}</span> · <span className="text-foreground font-medium capitalize">{terms.alter}</span> · <span className="text-foreground font-medium capitalize">{terms.switch}</span> · <span className="text-foreground font-medium capitalize">{terms.front}ing</span></p>
           </div>
 
+          <p className="text-xs text-center text-muted-foreground">
+            🗺️ Once you're in, open <strong className="text-foreground">Settings → Feature Tour</strong> for an in-depth walkthrough of everything Symphony can do.
+          </p>
+
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving ? "Saving..." : "Save & Continue"}
           </Button>

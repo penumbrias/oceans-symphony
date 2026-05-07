@@ -1,16 +1,26 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowUpDown, Trash2 } from "lucide-react";
+import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { useTerms } from "@/lib/useTerms";
 import { formatInTimeZone } from "date-fns-tz";
+
+const TRIGGER_CATEGORIES = [
+  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
+  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
+  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
+  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
+  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
+  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
+  { id: "unknown",         label: "Unknown",        emoji: "❓" },
+];
 
 // Returns an ISO string in the user's detected local timezone (not hardcoded)
 function nowLocalIso() {
@@ -33,10 +43,36 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
   const text = bg ? getContrastColor(bg) : null;
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
+  const timerRef = useRef(null);
+  const longFiredRef = useRef(false);
+
+  const startPress = () => {
+    longFiredRef.current = false;
+    timerRef.current = setTimeout(() => {
+      longFiredRef.current = true;
+      onSetPrimary();
+    }, 500);
+  };
+  const cancelPress = () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+  };
+  const handleClick = () => { if (!longFiredRef.current) onToggle(); };
+
   return (
     <div
-      onClick={onToggle}
-      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all ${
+      role="button"
+      tabIndex={0}
+      aria-label={`${selected ? "Deselect" : "Select"} ${alter.name}${selected ? ". Long-press to toggle primary" : ""}`}
+      aria-pressed={selected}
+      onMouseDown={startPress}
+      onMouseUp={cancelPress}
+      onMouseLeave={cancelPress}
+      onTouchStart={startPress}
+      onTouchEnd={cancelPress}
+      onTouchMove={cancelPress}
+      onClick={handleClick}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? handleClick() : undefined}
+      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all select-none ${
       selected ?
       "border-primary/60 bg-primary/5" :
       "border-border/50 bg-card hover:bg-muted/30"}`
@@ -59,14 +95,12 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
       {selected &&
       <button
         onClick={(e) => {e.stopPropagation();onSetPrimary();}}
-        title="Set as primary"
+        aria-label={isPrimary ? `${alter.name} is primary — click to demote` : `Set ${alter.name} as primary`}
         className={`p-1 rounded-md transition-colors ${isPrimary ? "text-amber-500" : "text-muted-foreground hover:text-amber-400"}`}>
-        
           <Star className={`w-4 h-4 ${isPrimary ? "fill-amber-500" : ""}`} />
         </button>
       }
     </div>);
-
 }
 
 export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession }) {
@@ -108,24 +142,50 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const [newSessionId, setNewSessionId] = useState(null);
   const [isUnsure, setIsUnsure] = useState(false);
   const [viewMode, setViewMode] = useState("list");
-  const [sortBy, setSortBy] = useState("alpha"); // "alpha" | "most" | "least"
+  const [sortBy, setSortBy] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
+  const [triggeredSwitch, setTriggeredSwitch] = useState(false);
+  const [triggerCategory, setTriggerCategory] = useState("");
+  const [triggerLabel, setTriggerLabel] = useState("");
 
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
     queryFn: () => base44.entities.FrontingSession.filter({}),
-    enabled: open && sortBy !== "alpha",
+    enabled: open && (sortBy === "most" || sortBy === "least"),
     staleTime: 60000,
   });
 
+  const { data: customTriggerTypes = [] } = useQuery({
+    queryKey: ["customTriggerTypes"],
+    queryFn: () => base44.entities.TriggerType.list(),
+    enabled: open,
+  });
+  const allTriggerCategories = useMemo(() => [
+    ...TRIGGER_CATEGORIES,
+    ...customTriggerTypes.map(t => ({ id: t.id, label: t.label, emoji: t.emoji || "🏷️", hint: t.hint || "" })),
+  ], [customTriggerTypes]);
+
+  const triggerDefaultText = useMemo(() => {
+    if (!triggeredSwitch) return "";
+    const cat = allTriggerCategories.find(c => c.id === triggerCategory);
+    const parts = [cat ? `${cat.emoji} ${cat.label}` : "", triggerLabel].filter(Boolean);
+    return parts.join(": ");
+  }, [triggeredSwitch, triggerCategory, triggerLabel, allTriggerCategories]);
+
   const alterFrontTotals = useMemo(() => {
-    if (sortBy === "alpha") return {};
+    if (sortBy === "alpha-asc" || sortBy === "alpha-desc") return {};
     const totals = {};
     for (const s of allSessions) {
-      if (!s.alter_id) continue;
       const dur = s.end_time && s.start_time
         ? new Date(s.end_time) - new Date(s.start_time)
         : 0;
-      totals[s.alter_id] = (totals[s.alter_id] || 0) + dur;
+      if (s.alter_id) {
+        totals[s.alter_id] = (totals[s.alter_id] || 0) + dur;
+      } else {
+        if (s.primary_alter_id) totals[s.primary_alter_id] = (totals[s.primary_alter_id] || 0) + dur;
+        for (const id of (s.co_fronter_ids || [])) {
+          totals[id] = (totals[id] || 0) + dur;
+        }
+      }
     }
     return totals;
   }, [allSessions, sortBy]);
@@ -135,6 +195,9 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     if (open) {
       setIsUnsure(false);
       setJournalSwitch(false);
+      setTriggeredSwitch(false);
+      setTriggerCategory("");
+      setTriggerLabel("");
       // Re-initialize from live active sessions (new model)
       base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
         const newModelSessions = active.filter(s => s.alter_id);
@@ -156,10 +219,16 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const activeAlters = useMemo(() => (alters || []).filter((a) => !a.is_archived), [alters]);
   const filtered = useMemo(() => {
     const list = activeAlters.filter((a) => a.name?.toLowerCase().includes(search.toLowerCase()));
-    if (sortBy === "most") return [...list].sort((a, b) => (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0));
-    if (sortBy === "least") return [...list].sort((a, b) => (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0));
-    return list;
-  }, [activeAlters, search, sortBy, alterFrontTotals]);
+    const rank = (a) => a.id === primaryId ? 0 : coFronterIds.includes(a.id) ? 1 : 2;
+    return [...list].sort((a, b) => {
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      if (sortBy === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
+      if (sortBy === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
+      const cmp = (a.name || "").localeCompare(b.name || "");
+      return sortBy === "alpha-desc" ? -cmp : cmp;
+    });
+  }, [activeAlters, search, sortBy, alterFrontTotals, primaryId, coFronterIds]);
 
   const selectedIds = useMemo(() => {
     const ids = new Set(coFronterIds);
@@ -231,24 +300,39 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
         const newModelSessions = activeSessions.filter(s => s.alter_id);
 
-        // 1. End sessions for alters who are removed OR whose is_primary status changed
-        for (const session of newModelSessions) {
-          const desiredPrimary = desiredMap[session.alter_id];
-          const isStillPresent = session.alter_id in desiredMap;
-          const primaryStatusChanged = isStillPresent && session.is_primary !== desiredPrimary;
+        // Group by alter_id — duplicates (>1 session per alter) get fully cleared
+        const sessionsByAlterId = {};
+        for (const s of newModelSessions) {
+          if (!sessionsByAlterId[s.alter_id]) sessionsByAlterId[s.alter_id] = [];
+          sessionsByAlterId[s.alter_id].push(s);
+        }
 
-          if (!isStillPresent || primaryStatusChanged) {
-            await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: now });
+        // 1. End sessions for removed alters, status-changed alters, and ALL duplicates
+        for (const [alterId, sessions] of Object.entries(sessionsByAlterId)) {
+          const isStillPresent = alterId in desiredMap;
+          const hasDuplicates = sessions.length > 1;
+          if (hasDuplicates) {
+            // End every copy — a clean single session will be created in step 2
+            for (const s of sessions) {
+              await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+            }
+          } else {
+            const primaryStatusChanged = isStillPresent && sessions[0].is_primary !== desiredMap[alterId];
+            if (!isStillPresent || primaryStatusChanged) {
+              await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
+            }
           }
         }
 
-        // 2. Create new sessions for alters who are new OR whose status changed (old session was ended above)
+        // 2. Create sessions for new alters, status-changed alters, or duplicates that were cleared
         let firstSessionId = null;
         for (const id of allSelectedIds) {
-          const existingSession = newModelSessions.find(s => s.alter_id === id);
-          const statusUnchanged = existingSession && existingSession.is_primary === desiredMap[id];
+          const sessions = sessionsByAlterId[id] || [];
+          const hasDuplicates = sessions.length > 1;
+          const single = sessions.length === 1 ? sessions[0] : null;
+          const statusUnchanged = single && single.is_primary === desiredMap[id];
 
-          if (!statusUnchanged) {
+          if (hasDuplicates || !statusUnchanged) {
             const newSession = await base44.entities.FrontingSession.create({
               alter_id: id,
               is_primary: desiredMap[id],
@@ -257,6 +341,17 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             });
             if (!firstSessionId) firstSessionId = newSession?.id || null;
           }
+        }
+
+        if (triggeredSwitch && triggerCategory) {
+          const nowActive = await base44.entities.FrontingSession.filter({ is_active: true });
+          await Promise.all(nowActive.map(s =>
+            base44.entities.FrontingSession.update(s.id, {
+              is_triggered_switch: true,
+              trigger_category: triggerCategory,
+              trigger_label: triggerLabel,
+            })
+          ));
         }
 
         toast.success("✅ Front updated!");
@@ -279,7 +374,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-md max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Set {terms.Front}ers</DialogTitle>
           </DialogHeader>
@@ -303,16 +398,13 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                         {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
                         <button
                       onClick={() => setPrimary(id)} className="text-sm hover:underline"
-
-                      title="Set as primary">
-                      
+                      aria-label={id === primaryId ? `${a.name} is primary — click to demote` : `Set ${a.name} as primary`}>
                           {a.name}
                         </button>
                         <button
                       onClick={(e) => {e.stopPropagation();toggleAlter(id);}}
-                      className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Remove">
-                      
+                      aria-label={`Remove ${a.name}`}
+                      className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
                           <X className="lucide lucide-x w-3 h-3" />
                         </button>
                       </span>);
@@ -324,8 +416,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           }
 
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>Click to select · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
-            {selectedIds.size > 0 && <p className="text-primary">Click primary to make them co-{terms.front} only</p>}
+            <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
+            {selectedIds.size > 0 && <p className="text-primary">Tap primary name to make them co-{terms.front} only</p>}
           </div>
 
           {/* Search and View Toggle */}
@@ -339,24 +431,28 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 className="pl-9" />
             </div>
             <button
-              onClick={() => setSortBy(s => s === "alpha" ? "most" : s === "most" ? "least" : "alpha")}
-              title={sortBy === "alpha" ? "Sort: A→Z" : sortBy === "most" ? "Sort: Most fronted" : "Sort: Least fronted"}
-              className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
-              <ArrowUpDown className="w-4 h-4" />
+              data-tour="setfront-sort"
+              onClick={() => setSortBy(s => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[s]))}
+              title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortBy]}
+              className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha-asc" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
+              {sortBy === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
+              {sortBy === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
+              {sortBy === "most" && <TrendingDown className="w-4 h-4" />}
+              {sortBy === "least" && <TrendingUp className="w-4 h-4" />}
             </button>
-            <div className="flex gap-1 bg-muted/50 rounded-md p-1">
+            <div className="flex gap-1 bg-muted/50 rounded-md p-1" role="group" aria-label="View mode">
               <button
                 onClick={() => setViewMode("list")}
                 className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                title="List view">
-                
+                aria-label="List view"
+                aria-pressed={viewMode === "list"}>
                 <List className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-2 rounded transition-colors ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
-                title="Grid view">
-                
+                aria-label="Grid view"
+                aria-pressed={viewMode === "grid"}>
                 <Grid3x3 className="w-4 h-4" />
               </button>
             </div>
@@ -417,18 +513,54 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           </div>
 
           <div className="space-y-2 pt-2 border-t border-border/50">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-tour="setfront-journal">
               <Checkbox
                 id="journal-switch"
                 checked={journalSwitch}
                 onCheckedChange={setJournalSwitch}
                 disabled={isUnsure} />
-              
               <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
                 <BookOpen className="w-3.5 h-3.5" />
                 Journal this {terms.switch}?
               </label>
             </div>
+
+            <div className="flex items-center gap-2" data-tour="setfront-triggered">
+              <Checkbox
+                id="triggered-switch"
+                checked={triggeredSwitch}
+                onCheckedChange={setTriggeredSwitch}
+                disabled={isUnsure} />
+              <label htmlFor="triggered-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+                <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                Triggered {terms.switch}?
+              </label>
+            </div>
+
+            {triggeredSwitch && !isUnsure && (
+              <div className="rounded-xl bg-orange-500/5 border border-orange-400/20 px-3 py-2 space-y-2">
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                  {allTriggerCategories.map(cat => (
+                    <button key={cat.id} type="button"
+                      onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
+                      title={cat.hint}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
+                        triggerCategory === cat.id
+                          ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+                          : "text-muted-foreground border-border/60 hover:bg-muted/50"
+                      }`}>
+                      {cat.emoji} {cat.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  value={triggerLabel}
+                  onChange={e => setTriggerLabel(e.target.value)}
+                  placeholder="Describe what triggered the switch..."
+                  className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
+                />
+              </div>
+            )}
 
             <div className="flex gap-2">
               <Button
@@ -466,7 +598,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
         open={showJournalModal}
         onClose={() => {setShowJournalModal(false);onClose();}}
         sessionId={newSessionId}
-        authorAlterId={primaryId} />
+        authorAlterId={primaryId}
+        defaultTrigger={triggerDefaultText} />
 
       }
     </>);

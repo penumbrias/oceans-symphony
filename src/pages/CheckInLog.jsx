@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format, parseISO, startOfDay } from "date-fns";
-import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import DiaryAnalyticsSummary from "@/components/diary/DiaryAnalyticsSummary";
+import { getCategoryMeta } from "@/lib/locationCategories";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -52,18 +53,14 @@ function DiaryDataSection({ diaryCard }) {
   const bm = diaryCard.body_mind || {};
   const med = diaryCard.medication_safety || {};
   const notes = diaryCard.notes || {};
-  const cl = diaryCard.checklist || {};
-  const symptoms = cl.symptoms || {};
-  const habits = cl.habits || {};
 
   const hasUrges = Object.values(urges).some(v => v !== undefined && v !== null);
   const hasBodyMind = Object.values(bm).some(v => v !== undefined && v !== null);
   const hasSkills = diaryCard.skills_practiced !== undefined && diaryCard.skills_practiced !== null;
   const hasMed = Object.values(med).some(v => v !== undefined && v !== null);
   const hasNotes = !!(notes.what || notes.judgments || notes.optional);
-  const hasSymptoms = Object.keys(symptoms).length > 0 || Object.keys(habits).length > 0;
 
-  if (!hasUrges && !hasBodyMind && !hasSkills && !hasMed && !hasNotes && !hasSymptoms) return null;
+  if (!hasUrges && !hasBodyMind && !hasSkills && !hasMed && !hasNotes) return null;
 
   return (
     <div className="space-y-2 mt-2">
@@ -116,24 +113,6 @@ function DiaryDataSection({ diaryCard }) {
         </div>
       )}
 
-      {hasSymptoms && (
-        <div className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">
-          <p className="text-xs font-medium text-muted-foreground">🩺 Symptoms & Habits</p>
-          <div className="flex flex-wrap gap-1">
-            {Object.entries(symptoms).map(([key, val]) => (
-              <span key={key} className="px-2 py-0.5 rounded-full text-xs bg-destructive/10 text-destructive border border-destructive/20">
-                {key.replace(/_/g, " ")}{val !== true && val !== undefined ? ` · ${val}` : ""}
-              </span>
-            ))}
-            {Object.entries(habits).map(([key, val]) => (
-              <span key={key} className="px-2 py-0.5 rounded-full text-xs bg-green-500/10 text-green-600 border border-green-500/20">
-                {key.replace(/_/g, " ")}{val !== true && val !== undefined ? ` · ${val}` : ""}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {hasNotes && (
         <div className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">
           <p className="text-xs font-medium text-muted-foreground">📝 Notes</p>
@@ -146,18 +125,27 @@ function DiaryDataSection({ diaryCard }) {
   );
 }
 
-function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, diaryCard, highlighted, onDelete }) {
+function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete }) {
   const ts = parseISO(checkIn.timestamp);
   const timeStr = format(ts, "h:mm a");
   const emotions = checkIn.emotions || [];
   const note = checkIn.note;
   const fronters = (checkIn.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
 
+  const ciTime = ts.getTime();
+  const TWO_MIN = 2 * 60 * 1000;
+
+  // Only show symptoms that were part of this specific check-in (linked by check_in_id)
   const mySymptomCheckIns = symptomCheckIns.filter(sc => sc.check_in_id === checkIn.id);
+
   const myActivities = activities.filter(act => {
-    const actTime = new Date(act.timestamp).getTime();
-    const ciTime = ts.getTime();
-    return Math.abs(actTime - ciTime) < 2 * 60 * 1000;
+    try { return Math.abs(new Date(act.timestamp).getTime() - ciTime) < TWO_MIN; }
+    catch { return false; }
+  });
+
+  const myLocations = locations.filter(loc => {
+    try { return Math.abs(new Date(loc.timestamp).getTime() - ciTime) < TWO_MIN; }
+    catch { return false; }
   });
 
   const ref = useRef(null);
@@ -206,9 +194,10 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         <div className="flex flex-wrap gap-1">
           {mySymptomCheckIns.map((sc, i) => {
             const symptom = symptomsById[sc.symptom_id];
+            const color = symptom?.color || "#8b5cf6";
             return (
               <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
-                style={{ backgroundColor: `${symptom?.color || "#8b5cf6"}15`, borderColor: `${symptom?.color || "#8b5cf6"}40`, color: symptom?.color || "#8b5cf6" }}>
+                style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
                 {symptom?.label || "Symptom"}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
               </span>
             );
@@ -226,6 +215,20 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         </div>
       )}
 
+      {myLocations.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {myLocations.map((loc, i) => {
+            const meta = getCategoryMeta(loc.category);
+            return (
+              <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
+                <MapPin className="w-3 h-3 flex-shrink-0" />
+                {loc.name || meta?.label || "Location"}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       {note && (
         <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{note}</p>
       )}
@@ -239,7 +242,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
   );
 }
 
-function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities }) {
+function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations }) {
   const allEmotions = useMemo(() => {
     const tally = {};
     checkIns.forEach(ci => (ci.emotions || []).forEach(em => { tally[em] = (tally[em] || 0) + 1; }));
@@ -252,23 +255,24 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   );
   const fronters = allFronterIds.map(id => altersById[id]).filter(Boolean);
 
+  // De-duplicate symptoms by symptom_id, keeping highest severity
   const allSymptoms = useMemo(() => {
     const seen = {};
     symptomCheckIns.forEach(sc => {
-      if (!seen[sc.symptom_id] || (sc.severity > seen[sc.symptom_id].severity)) {
-        seen[sc.symptom_id] = sc;
-      }
+      const prev = seen[sc.symptom_id];
+      if (!prev || (sc.severity ?? -1) > (prev.severity ?? -1)) seen[sc.symptom_id] = sc;
     });
     return Object.values(seen);
   }, [symptomCheckIns]);
 
   const allActivities = [...new Set(activities.map(a => a.activity_name))];
 
-  const isEmpty = allEmotions.length === 0 && fronters.length === 0 && allSymptoms.length === 0 && allActivities.length === 0;
+  const isEmpty = allEmotions.length === 0 && fronters.length === 0 && allSymptoms.length === 0
+    && allActivities.length === 0 && locations.length === 0;
   if (isEmpty) return null;
 
   return (
-    <div className="px-4 py-3 bg-muted/20 border-t border-border/30 space-y-2">
+    <div className="px-4 py-3 bg-muted/20 border-t border-border/30 space-y-2.5">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
         Day Total · {checkIns.length} check-in{checkIns.length !== 1 ? "s" : ""}
       </p>
@@ -299,10 +303,11 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
         <div className="flex flex-wrap gap-1">
           {allSymptoms.map((sc, i) => {
             const symptom = symptomsById[sc.symptom_id];
+            const color = symptom?.color || "#8b5cf6";
             return (
               <span key={i} className="text-xs px-1.5 py-0.5 rounded-full border"
-                style={{ backgroundColor: `${symptom?.color || "#8b5cf6"}15`, borderColor: `${symptom?.color || "#8b5cf6"}40`, color: symptom?.color || "#8b5cf6" }}>
-                {symptom?.label || "?"}
+                style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
+                {symptom?.label || "?"}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
               </span>
             );
           })}
@@ -318,11 +323,82 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
           ))}
         </div>
       )}
+
+      {locations.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {locations.map((loc, i) => {
+            const meta = getCategoryMeta(loc.category);
+            return (
+              <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
+                <MapPin className="w-3 h-3 flex-shrink-0" />
+                {loc.name || meta?.label || "Location"}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
     </div>
   );
 }
 
-function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, diaryCardsByDate, highlightId, defaultExpanded, onDelete }) {
+function StandaloneEntry({ timestamp, children }) {
+  const timeStr = format(new Date(timestamp), "h:mm a");
+  return (
+    <div className="px-4 py-2.5 hover:bg-muted/10">
+      <div className="flex items-center gap-2 mb-1.5 text-xs text-muted-foreground">
+        <Clock className="w-3 h-3 flex-shrink-0" />
+        <span>{timeStr}</span>
+      </div>
+      <div className="flex flex-wrap gap-1">{children}</div>
+    </div>
+  );
+}
+
+function SymptomUpdateEntry({ sc, symptomsById }) {
+  const symptom = symptomsById[sc.symptom_id];
+  const color = symptom?.color || "#8b5cf6";
+  return (
+    <StandaloneEntry timestamp={sc.timestamp}>
+      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
+        style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
+        {symptom?.label || "Symptom"}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
+      </span>
+    </StandaloneEntry>
+  );
+}
+
+function ActivityEntry({ act }) {
+  return (
+    <StandaloneEntry timestamp={act.timestamp}>
+      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+        ⚡ {act.activity_name}{act.duration_minutes ? ` · ${act.duration_minutes}m` : ""}
+      </span>
+    </StandaloneEntry>
+  );
+}
+
+function LocationEntry({ loc }) {
+  const meta = getCategoryMeta(loc.category);
+  return (
+    <StandaloneEntry timestamp={loc.timestamp}>
+      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
+        <MapPin className="w-3 h-3 flex-shrink-0" />
+        {loc.name || meta?.label || "Location"}
+      </span>
+    </StandaloneEntry>
+  );
+}
+
+function StatusNoteEntry({ sn }) {
+  return (
+    <StandaloneEntry timestamp={sn.timestamp}>
+      <span className="text-sm text-foreground/80 italic">💬 {sn.note}</span>
+    </StandaloneEntry>
+  );
+}
+
+function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, diaryCardsByDate, highlightId, defaultExpanded, onDelete }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const dateObj = parseISO(date + "T12:00:00");
 
@@ -334,16 +410,46 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
 
   const allEmotions = [...new Set(checkIns.flatMap(ci => ci.emotions || []))];
 
-  const checkInIds = new Set(checkIns.map(ci => ci.id));
-  const daySymptomCheckIns = allSymptomCheckIns.filter(sc => checkInIds.has(sc.check_in_id));
-
-  const dayActivities = allActivities.filter(act => {
-    try {
-      return format(new Date(act.timestamp), "yyyy-MM-dd") === date;
-    } catch { return false; }
+  // Use date-based filtering so quick-action symptoms (no check_in_id) are included
+  const daySymptomCheckIns = allSymptomCheckIns.filter(sc => {
+    try { return format(new Date(sc.timestamp), "yyyy-MM-dd") === date; }
+    catch { return false; }
   });
 
+  // Standalone symptom updates (no check_in_id = logged outside a formal check-in)
+  const standaloneSymptomCheckIns = daySymptomCheckIns.filter(sc => !sc.check_in_id);
+
+  const dayActivities = allActivities.filter(act => {
+    try { return format(new Date(act.timestamp), "yyyy-MM-dd") === date; }
+    catch { return false; }
+  });
+
+  const dayLocations = (allLocations || []).filter(loc => {
+    try { return format(new Date(loc.timestamp), "yyyy-MM-dd") === date; }
+    catch { return false; }
+  });
+
+  const dayStatusNotes = (allStatusNotes || []).filter(sn => {
+    try { return format(new Date(sn.timestamp), "yyyy-MM-dd") === date; }
+    catch { return false; }
+  });
+
+  // Activities/locations within ±2min of a check-in are shown inside that CheckInCard.
+  // Anything outside that window appears as its own standalone entry.
+  const checkInTimes = checkIns.map(ci => new Date(ci.timestamp).getTime());
+  const TWO_MIN = 2 * 60 * 1000;
+  const nearCheckIn = (ts) => checkInTimes.length > 0 && checkInTimes.some(t => Math.abs(ts - t) < TWO_MIN);
+  const standaloneActivities = dayActivities.filter(act => !nearCheckIn(new Date(act.timestamp).getTime()));
+  const standaloneLocations = dayLocations.filter(loc => !nearCheckIn(new Date(loc.timestamp).getTime()));
+
   const dayDiaryCards = diaryCardsByDate[date] || [];
+
+  const summaryParts = [];
+  if (allEmotions.length > 0) summaryParts.push(allEmotions.slice(0, 3).join(", ") + (allEmotions.length > 3 ? ` +${allEmotions.length - 3}` : ""));
+  if (daySymptomCheckIns.length > 0) summaryParts.push(`${daySymptomCheckIns.length} symptom${daySymptomCheckIns.length !== 1 ? "s" : ""}`);
+  if (dayActivities.length > 0) summaryParts.push(`${dayActivities.length} activit${dayActivities.length !== 1 ? "ies" : "y"}`);
+  if (dayLocations.length > 0) summaryParts.push(`${dayLocations.length} location${dayLocations.length !== 1 ? "s" : ""}`);
+  if (dayDiaryCards.length > 0) summaryParts.push("diary logged");
 
   return (
     <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
@@ -356,19 +462,11 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
             <Heart className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0">
               <p className="font-semibold text-sm">{format(dateObj, "EEEE, MMMM d, yyyy")}</p>
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
-                {allEmotions.length > 0 && (
-                  <p className="text-xs text-muted-foreground truncate">
-                    {allEmotions.slice(0, 4).join(", ")}{allEmotions.length > 4 ? ` +${allEmotions.length - 4}` : ""}
-                  </p>
-                )}
-                {daySymptomCheckIns.length > 0 && (
-                  <p className="text-xs text-muted-foreground">· {daySymptomCheckIns.length} symptom{daySymptomCheckIns.length !== 1 ? "s" : ""}</p>
-                )}
-                {dayDiaryCards.length > 0 && (
-                  <p className="text-xs text-muted-foreground">· diary logged</p>
-                )}
-              </div>
+              {summaryParts.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {summaryParts.join(" · ")}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -380,7 +478,26 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
 
       {expanded && (
         <div className="border-t border-border/30 divide-y divide-border/20">
-          {checkIns.map((ci) => {
+          {[
+            ...checkIns.map(ci => ({ kind: "checkin", data: ci, ts: new Date(ci.timestamp).getTime() })),
+            ...standaloneSymptomCheckIns.map(sc => ({ kind: "symptom", data: sc, ts: new Date(sc.timestamp).getTime() })),
+            ...standaloneActivities.map(act => ({ kind: "activity", data: act, ts: new Date(act.timestamp).getTime() })),
+            ...standaloneLocations.map(loc => ({ kind: "location", data: loc, ts: new Date(loc.timestamp).getTime() })),
+            ...dayStatusNotes.map(sn => ({ kind: "status", data: sn, ts: new Date(sn.timestamp).getTime() })),
+          ].sort((a, b) => a.ts - b.ts).map((entry, i) => {
+            if (entry.kind === "symptom") {
+              return <SymptomUpdateEntry key={`sym-${entry.data.id || i}`} sc={entry.data} symptomsById={symptomsById} />;
+            }
+            if (entry.kind === "activity") {
+              return <ActivityEntry key={`act-${entry.data.id || i}`} act={entry.data} />;
+            }
+            if (entry.kind === "location") {
+              return <LocationEntry key={`loc-${entry.data.id || i}`} loc={entry.data} />;
+            }
+            if (entry.kind === "status") {
+              return <StatusNoteEntry key={`sn-${entry.data.id || i}`} sn={entry.data} />;
+            }
+            const ci = entry.data;
             const matchedDiaryCard = dayDiaryCards.find(dc => {
               try {
                 return Math.abs(new Date(dc.created_date).getTime() - new Date(ci.timestamp).getTime()) < 5 * 60 * 1000;
@@ -394,6 +511,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
                 symptomsById={symptomsById}
                 symptomCheckIns={allSymptomCheckIns}
                 activities={dayActivities}
+                locations={dayLocations}
                 diaryCard={matchedDiaryCard || null}
                 highlighted={ci.id === highlightId}
                 onDelete={onDelete}
@@ -406,6 +524,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
             symptomCheckIns={daySymptomCheckIns}
             symptomsById={symptomsById}
             activities={dayActivities}
+            locations={dayLocations}
           />
         </div>
       )}
@@ -418,6 +537,7 @@ export default function CheckInLog() {
   const [searchParams] = useSearchParams();
   const [view, setView] = useState("list");
   const highlightId = searchParams.get("id");
+  const dateParam = searchParams.get("date");
 
   const { data: checkIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
@@ -449,35 +569,61 @@ export default function CheckInLog() {
     queryFn: () => base44.entities.DiaryCard.list("-created_date", 500),
   });
 
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => localEntities.Location.list(),
+  });
+
+  const { data: statusNotes = [] } = useQuery({
+    queryKey: ["statusNotes"],
+    queryFn: () => localEntities.StatusNote.list(),
+  });
+
   const altersById = useMemo(() => Object.fromEntries(alters.map(a => [a.id, a])), [alters]);
   const symptomsById = useMemo(() => Object.fromEntries(symptoms.map(s => [s.id, s])), [symptoms]);
 
   const diaryCardsByDate = useMemo(() => {
     const grouped = {};
     diaryCards.forEach(dc => {
-      if (!grouped[dc.date]) grouped[dc.date] = [];
-      grouped[dc.date].push(dc);
+      const d = dc.date || (dc.created_date ? format(new Date(dc.created_date), "yyyy-MM-dd") : null);
+      if (!d) return;
+      if (!grouped[d]) grouped[d] = [];
+      grouped[d].push(dc);
     });
     return grouped;
   }, [diaryCards]);
 
   const byDate = useMemo(() => {
-    const grouped = {};
+    const checkInsByDate = {};
     checkIns.forEach(ci => {
-      const dateKey = format(startOfDay(parseISO(ci.timestamp)), "yyyy-MM-dd");
-      if (!grouped[dateKey]) grouped[dateKey] = [];
-      grouped[dateKey].push(ci);
+      const d = format(startOfDay(parseISO(ci.timestamp)), "yyyy-MM-dd");
+      if (!checkInsByDate[d]) checkInsByDate[d] = [];
+      checkInsByDate[d].push(ci);
     });
-    Object.values(grouped).forEach(arr => arr.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
-    return Object.entries(grouped).sort(([a], [b]) => b.localeCompare(a));
-  }, [checkIns]);
+
+    // Collect dates from all standalone data so days with no formal check-in still appear
+    const allDates = new Set(Object.keys(checkInsByDate));
+    const addDate = (ts) => { try { allDates.add(format(new Date(ts), "yyyy-MM-dd")); } catch {} };
+    symptomCheckIns.filter(sc => !sc.check_in_id).forEach(sc => addDate(sc.timestamp));
+    activities.forEach(act => addDate(act.timestamp));
+    locations.forEach(loc => addDate(loc.timestamp));
+    statusNotes.forEach(sn => addDate(sn.timestamp));
+
+    const result = [...allDates].map(date => {
+      const cis = checkInsByDate[date] || [];
+      cis.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      return [date, cis];
+    });
+    return result.sort(([a], [b]) => b.localeCompare(a));
+  }, [checkIns, symptomCheckIns, activities, locations, statusNotes]);
 
   const highlightDate = useMemo(() => {
+    if (dateParam) return dateParam;
     if (!highlightId) return null;
     const ci = checkIns.find(c => c.id === highlightId);
     if (!ci) return null;
     return format(startOfDay(parseISO(ci.timestamp)), "yyyy-MM-dd");
-  }, [highlightId, checkIns]);
+  }, [highlightId, dateParam, checkIns]);
 
   const handleDelete = async (checkInId) => {
     if (!confirm("Delete this check-in?")) return;
@@ -517,11 +663,11 @@ export default function CheckInLog() {
         )}
       </div>
 
-      {checkIns.length === 0 ? (
+      {byDate.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center px-4">
           <div className="text-4xl mb-3">💭</div>
-          <p className="text-sm font-medium text-foreground mb-1">No check-ins yet</p>
-          <p className="text-xs text-muted-foreground">Use Quick Check-In to log your emotions and notes.</p>
+          <p className="text-sm font-medium text-foreground mb-1">Nothing logged yet</p>
+          <p className="text-xs text-muted-foreground">Use Quick Check-In to log emotions, symptoms, activities, and more.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -534,9 +680,11 @@ export default function CheckInLog() {
               symptomsById={symptomsById}
               allSymptomCheckIns={symptomCheckIns}
               allActivities={activities}
+              allLocations={locations}
+              allStatusNotes={statusNotes}
               diaryCardsByDate={diaryCardsByDate}
               highlightId={highlightId}
-              defaultExpanded={date === highlightDate || (!highlightId && date === byDate[0]?.[0])}
+              defaultExpanded={date === highlightDate || (!highlightId && !dateParam && date === byDate[0]?.[0])}
               onDelete={handleDelete}
             />
           ))}

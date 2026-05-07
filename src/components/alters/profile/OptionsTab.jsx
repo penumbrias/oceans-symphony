@@ -61,7 +61,7 @@ export default function OptionsTab({ alter }) {
         </p>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 transition-colors">
+            <button data-tour="alter-profile-delete" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 transition-colors">
               <Trash2 className="w-4 h-4" />
               <span className="text-sm font-medium">Delete member</span>
             </button>

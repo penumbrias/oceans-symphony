@@ -67,8 +67,6 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
   };
 
   const handleAction = async (instance, action) => {
-    const reminder = reminderMap[instance.reminder_id];
-    if (!reminder) return;
     const type = action.action_type;
 
     if (type === "open_set_front") {
@@ -96,7 +94,9 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
     } else if (type === "open_todo") {
       navigate("/todo");
     } else if (type === "open_route") {
-      navigate(action.payload?.path || "/");
+      const path = action.payload?.path;
+      if (path && path !== "/") navigate(path);
+      else return; // no valid path — skip navigation and don't mark as acted
     } else if (type === "log_symptom") {
       setPendingActInstance(instance);
       setCheckInOpen(true);

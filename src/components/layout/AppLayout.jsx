@@ -1,44 +1,24 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Settings, ChevronLeft, Wifi } from "lucide-react";
+import Base44MigrationBanner from "@/components/shared/MigrationBanner";
+import { Settings, ChevronLeft, Wifi, Menu } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
-import MigrationBanner from "@/components/fronting/MigrationBanner";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
+import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import ReminderToast from "@/components/reminders/ReminderToast";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
 import FeatureTour from "@/components/onboarding/FeatureTour";
+import { useTheme } from "@/lib/ThemeContext";
+import { setAccessibilityFontFamily, setAccessibilityFontSize } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
 
-function OfflineReadyBadge() {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const check = () => setReady(!!navigator.serviceWorker?.controller);
-    check();
-    navigator.serviceWorker?.addEventListener('controllerchange', check);
-    return () => navigator.serviceWorker?.removeEventListener('controllerchange', check);
-  }, []);
-  return (
-    <span
-      title={ready ? "Offline Ready — works without internet" : "Registering offline support…"}
-      className={cn(
-        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-colors select-none",
-        ready
-          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-          : "bg-muted text-muted-foreground"
-      )}
-    >
-      <span className={cn("w-1.5 h-1.5 rounded-full", ready ? "bg-emerald-500" : "bg-muted-foreground/50")} />
-      {ready ? "Offline Ready" : "…"}
-    </span>
-  );
-}
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
 
@@ -52,6 +32,7 @@ export default function AppLayout() {
   const terms = useTerms();
   const [historyDepth, setHistoryDepth] = useState(0);
   const [showFeatureTour, setShowFeatureTour] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   useRemindersScheduler();
 
 const { data: systemSettings = [] } = useQuery({
@@ -80,21 +61,27 @@ const navConfig = useMemo(() => {
   return systemSettings?.[0]?.navigation_config || DEFAULT_CONFIG;
 }, [systemSettings]);
 
+const termMap = useMemo(() => ({
+  alters:           terms.Alters,
+  checkin:          `${terms.System} Meeting`,
+  "system-map":     `${terms.System} Map`,
+  "system-history": `${terms.System} History`,
+}), [terms]);
+
 const navItems = useMemo(() => {
   return (navConfig.topBar || [])
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
     .filter(Boolean)
-    .map(page => ({
-      ...page,
-      label: page.id === "alters" ? (terms.Alters || page.label) : page.label,
-    }));
-}, [navConfig.topBar, terms]);
+    .map(page => ({ ...page, label: termMap[page.id] || page.label }));
+}, [navConfig.topBar, termMap]);
+
 
 const bottomNavItems = useMemo(() => {
   return (navConfig.bottomBar || [])
     .map(pageId => ALL_PAGES.find(p => p.id === pageId))
-    .filter(Boolean);
-}, [navConfig.bottomBar]);
+    .filter(Boolean)
+    .map(page => ({ ...page, label: termMap[page.id] || page.label }));
+}, [navConfig.bottomBar, termMap]);
 
 const { data: pendingReminders = [] } = usePendingReminderInstances();
 const pendingCount = pendingReminders.filter(i => i.status === "fired").length;
@@ -105,6 +92,29 @@ const frontingAlterIds = activeSession
     ? sessions.filter(s => s.is_active && s.alter_id).map(s => s.alter_id)
     : [activeSession.primary_alter_id, ...(activeSession.co_fronter_ids || [])].filter(Boolean)
   : [];
+
+// Fronter-linked theme: when primary fronter changes, apply their linked preset
+const { alterThemeLinks, setSelectedTheme, setThemeMode, clearCustomColors, allPresets, userCustomPresets } = useTheme();
+
+// Resolve the true primary fronter by is_primary flag (not list order)
+const primaryFronter = activeSession?.alter_id
+  ? (sessions.find(s => s.is_active && s.alter_id && s.is_primary)?.alter_id ?? frontingAlterIds[0] ?? null)
+  : (activeSession?.primary_alter_id ?? null);
+const lastAppliedFronterRef = useRef(null);
+useEffect(() => {
+  if (primaryFronter === lastAppliedFronterRef.current) return;
+  lastAppliedFronterRef.current = primaryFronter;
+  if (!primaryFronter) return;
+  const linkedPreset = alterThemeLinks[primaryFronter];
+  if (!linkedPreset) return;
+  const preset = allPresets[linkedPreset] || userCustomPresets[linkedPreset];
+  if (!preset) return;
+  clearCustomColors();
+  setSelectedTheme(linkedPreset);
+  if (preset.font) setAccessibilityFontFamily(preset.font);
+  if (preset.themeMode) setThemeMode(preset.themeMode);
+  if (preset.fontSize) setAccessibilityFontSize(preset.fontSize);
+}, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {
   if (mentionLog.navigate_path?.includes("?id=")) {
@@ -140,7 +150,6 @@ const handleNotifClick = (mentionLog) => {
               <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
             </div>
             <span className="font-display text-lg font-semibold tracking-tight text-foreground">Symphony</span>
-            <OfflineReadyBadge />
           </Link>
 
           <nav className="flex items-center gap-1" aria-label="Main navigation">
@@ -199,18 +208,19 @@ const handleNotifClick = (mentionLog) => {
           onClick={() => navigate(-1)}
           aria-label="Go back"
           className="flex items-center gap-1 text-primary min-w-[44px] min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50">
-          
             <ChevronLeft className="w-5 h-5" />
             <span className="text-sm font-medium">Back</span>
           </button> :
 
-        <Link to="/" className="flex items-center gap-2 select-none min-h-[44px] px-2" aria-label="Symphony home">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open navigation menu"
+          className="flex items-center gap-2 select-none min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50 text-left">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
             </div>
             <span className="font-display text-base font-semibold text-foreground">Oceans Symphony</span>
-            <OfflineReadyBadge />
-          </Link>
+          </button>
         }
 
         {/* Right: bell + settings icons */}
@@ -243,18 +253,20 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Page content ── */}
       <main
-        className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8 pb-20 sm:pb-8">
-        
+        className="app-content-main flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-0 sm:py-8 sm:pb-8">
+        <div className="pt-3 sm:pt-0 pb-2 sm:pb-4">
+          <Base44MigrationBanner />
+        </div>
         <Outlet context={{ setShowFeatureTour }} />
       </main>
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-50 h-14 bg-background/95 backdrop-blur-xl border-t border-border/50"
-        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
+        style={{ height: "var(--bottom-nav-height, 56px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         aria-label="Tab bar navigation">
-        
-        <div className="flex items-center justify-around h-14">
+
+        <div className="flex items-center justify-around" style={{ height: "var(--bottom-nav-height, 56px)" }}>
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.path === "/" ?
@@ -274,7 +286,7 @@ const handleNotifClick = (mentionLog) => {
                 )}>
 
                 <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
-                <span className="text-[11px] font-medium">{item.label}</span>
+                <span className="text-[11px] font-medium text-center leading-tight">{item.label}</span>
               </Link>);
 
             })}
@@ -297,7 +309,7 @@ const handleNotifClick = (mentionLog) => {
         </div>
       )}
 
-      <MigrationBanner />
+      <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <FloatingGroundingButton />
       <ReminderToast />
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}

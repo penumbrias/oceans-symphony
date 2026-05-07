@@ -17,7 +17,7 @@ export const PRESET_HIGHLIGHTS = [
   "#ffe066a0","#c0392b60","#27ae6060","#c39bd360",
 ];
 
-const FONTS = [
+export const FONTS = [
   { label: "Default", value: "inherit" },
   // Sans-serif
   { label: "Inter", value: "Inter, sans-serif" },

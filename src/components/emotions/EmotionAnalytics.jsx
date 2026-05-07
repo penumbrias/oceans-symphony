@@ -2,8 +2,27 @@ import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart } from "recharts";
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart } from "recharts";
 import { Heart } from "lucide-react";
+
+const EMOTION_COLORS = {
+  angry: "#ef4444",
+  anxious: "#f97316",
+  calm: "#eab308",
+  confused: "#22c55e",
+  happy: "#10b981",
+  hopeful: "#3b82f6",
+  loved: "#ec4899",
+  numb: "#cbd5e1",
+  overwhelmed: "#d97706",
+  sad: "#6366f1",
+  stressed: "#fbbf24",
+  tired: "#94a3b8",
+};
+const FALLBACK_PALETTE = ["#8b5cf6","#06b6d4","#f43f5e","#84cc16","#f59e0b","#10b981","#3b82f6","#ec4899","#14b8a6","#a78bfa"];
+function emotionColor(name, index) {
+  return EMOTION_COLORS[name?.toLowerCase()] || FALLBACK_PALETTE[index % FALLBACK_PALETTE.length];
+}
 
 export default function EmotionAnalytics({ from, to }) {
   const { data: checkIns = [] } = useQuery({
@@ -137,7 +156,11 @@ export default function EmotionAnalytics({ from, to }) {
                 <XAxis dataKey="emotion" stroke="var(--muted-foreground)" />
                 <YAxis stroke="var(--muted-foreground)" />
                 <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }} />
-                <Bar dataKey="count" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                  {emotionCounts.map((entry, i) => (
+                    <Cell key={entry.emotion} fill={emotionColor(entry.emotion, i)} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

@@ -60,7 +60,7 @@ const features = [
     description: "Log sleep data",
   },
   {
-    name: "System Check-In",
+    name: "System Meeting",
     path: "/system-checkin",
     icon: Heart,
     color: "bg-red-500/10 text-red-600 dark:text-red-400",

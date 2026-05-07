@@ -8,6 +8,12 @@
 @import '@fontsource/playfair-display/500.css';
 @import '@fontsource/playfair-display/600.css';
 @import '@fontsource/playfair-display/700.css';
+@import '@fontsource/atkinson-hyperlegible/400.css';
+@import '@fontsource/atkinson-hyperlegible/700.css';
+@import '@fontsource/nunito/400.css';
+@import '@fontsource/nunito/500.css';
+@import '@fontsource/nunito/600.css';
+@import '@fontsource/nunito/700.css';
 
 @tailwind base;
 @tailwind components;
@@ -25,6 +31,7 @@
 
     --color-bg: #F0F9FF;
     --color-surface: #E0F2FE;
+    --color-surface-rgb: 224, 242, 254;
     --color-primary: #3B82F6;
     --color-secondary: #DBEAFE;
     --color-accent: #38BDF8;
@@ -33,12 +40,13 @@
     --color-text-secondary: #64748B;
 
     --radius: 0.75rem;
-    --bottom-nav-height: 64px;
+    --bottom-nav-height: 56px;
   }
 
   .dark {
     --color-bg: #0A0E17;
     --color-surface: #101820;
+    --color-surface-rgb: 16, 24, 32;
     --color-primary: #3B82F6;
     --color-secondary: #1E3A5F;
     --color-accent: #38BDF8;
@@ -77,6 +85,55 @@ body {
   }
 }
 
+/* Mobile main-content bottom padding tracks the nav bar height */
+@media (max-width: 639px) {
+  .app-content-main {
+    padding-bottom: calc(var(--bottom-nav-height, 56px) + 16px) !important;
+  }
+}
+
+/* Prevent text from overflowing button/card boundaries at any font scale */
+button, [role="button"] {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ── Accessibility ── */
+html.a11y-text-xs3 { font-size: 50%; }
+html.a11y-text-xs2 { font-size: 62.5%; }
+html.a11y-text-xs  { font-size: 75%; }
+html.a11y-text-sm  { font-size: 87.5%; }
+html.a11y-text-lg  { font-size: 112.5%; }
+html.a11y-text-xl  { font-size: 125%; }
+html.a11y-text-xl2 { font-size: 137.5%; }
+html.a11y-text-xl3 { font-size: 150%; }
+
+html.a11y-touch-comfortable button,
+html.a11y-touch-comfortable [role="button"],
+html.a11y-touch-comfortable a[class] {
+  min-height: 44px;
+}
+html.a11y-touch-large button,
+html.a11y-touch-large [role="button"],
+html.a11y-touch-large a[class] {
+  min-height: 52px;
+}
+
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+html.a11y-high-contrast {
+  filter: contrast(1.15) saturate(1.1);
+}
+
+/* ── End Accessibility ── */
+
 @keyframes suggestionFadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -92,3 +149,22 @@ body {
   animation: mentionGlow 1s ease-in-out 5;
   border-color: var(--color-primary);
 }
+
+/* WYSIWYG editor placeholder */
+.wysiwyg-content:empty::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+  font-style: italic;
+  pointer-events: none;
+}
+.wysiwyg-content blockquote {
+  border-left: 3px solid hsl(var(--primary));
+  margin: 4px 0;
+  padding: 4px 12px;
+  color: hsl(var(--muted-foreground));
+}
+.wysiwyg-content h2 { font-size: 1.25rem; font-weight: 700; margin: 8px 0 4px; }
+.wysiwyg-content h3 { font-size: 1.05rem; font-weight: 600; margin: 6px 0 3px; }
+.wysiwyg-content ul, .wysiwyg-content ol { padding-left: 1.5em; margin: 4px 0; }
+.wysiwyg-content li { margin: 2px 0; }

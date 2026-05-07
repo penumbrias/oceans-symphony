@@ -2,8 +2,34 @@
 // All logic is pure: takes raw entity arrays, returns structured data for the PDF generator.
 
 import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
+import {
+  computeSymptomBaseline,
+  computePreSwitchSignature,
+  computeEarlyWarningStatus,
+  generateWeeklyNarrative,
+} from "./analyticsEngine";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+
+function stripHtml(html) {
+  if (!html) return "";
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 export function inRange(dateStr, from, to) {
   if (!dateStr) return false;
@@ -167,9 +193,13 @@ export function buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters,
 
 // ── SECTION: SYMPTOMS ─────────────────────────────────────────────────────────
 
-export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckIns, symptomSessions, thresholds, mode }) {
-  const checkIns = symptomCheckIns.filter(c => inRange(c.timestamp, dateFrom, dateTo));
-  const sessions = symptomSessions.filter(s => inRange(s.start_time, dateFrom, dateTo));
+export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckIns, symptomSessions, thresholds, mode, excludedSymptomIds = new Set() }) {
+  const checkIns = symptomCheckIns
+    .filter(c => inRange(c.timestamp, dateFrom, dateTo))
+    .filter(c => !excludedSymptomIds.has(c.symptom_id));
+  const sessions = symptomSessions
+    .filter(s => inRange(s.start_time, dateFrom, dateTo))
+    .filter(s => !excludedSymptomIds.has(s.symptom_id));
 
   const symptomMap = Object.fromEntries(symptoms.map(s => [s.id, s]));
 
@@ -248,8 +278,10 @@ export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckI
 
 // ── SECTION: ACTIVITIES ────────────────────────────────────────────────────────
 
-export function buildActivitiesSection({ dateFrom, dateTo, activities }) {
-  const acts = activities.filter(a => inRange(a.timestamp || a.start_time || a.created_date, dateFrom, dateTo));
+export function buildActivitiesSection({ dateFrom, dateTo, activities, excludedActivityNames = new Set() }) {
+  const acts = activities
+    .filter(a => inRange(a.timestamp || a.start_time || a.created_date, dateFrom, dateTo))
+    .filter(a => !excludedActivityNames.has(a.activity_name || a.name || "Activity"));
 
   const freq = {};
   acts.forEach(a => {
@@ -275,15 +307,16 @@ export function buildJournalsSection({ dateFrom, dateTo, journalEntries, journal
 
   return entries.map(j => {
     const base = { date: fmtDate(j.created_date), title: j.title || "Untitled" };
-    if (journalDetail === "full") return { ...base, content: j.content || "" };
-    if (journalDetail === "excerpts") return { ...base, excerpt: (j.content || "").slice(0, 400) };
+    const clean = stripHtml(j.content || "");
+    if (journalDetail === "full") return { ...base, content: clean };
+    if (journalDetail === "excerpts") return { ...base, excerpt: clean.slice(0, 400) };
     return base; // summaries only
   });
 }
 
 // ── SECTION: DIARY CARDS ──────────────────────────────────────────────────────
 
-export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includeAlterInfo, thresholds, mode }) {
+export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includeAlterInfo, thresholds, diaryDetail = "noteworthy" }) {
   const cards = diaryCards
     .filter(d => inRange(d.date, dateFrom, dateTo))
     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -297,7 +330,7 @@ export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includ
     );
   };
 
-  const toInclude = mode === "smart" ? cards.filter(isNoteworthy) : cards;
+  const toInclude = diaryDetail === "all" ? cards : cards.filter(isNoteworthy);
 
   return toInclude.map(card => {
     const fronters = (card.fronting_alter_ids || [])
@@ -321,85 +354,86 @@ export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includ
 }
 
 // ── SECTION: CUSTOM STATUS NOTES ─────────────────────────────────────────────
+// Custom statuses are standalone timestamped records (localEntities.StatusNote),
+// completely independent of sessions and alters — like Facebook statuses.
+// Each Save on the dashboard creates a NEW record; old ones are never modified.
 
-export function buildStatusNotesSection({ dateFrom, dateTo, emotionCheckIns }) {
-  const notes = emotionCheckIns
-    .filter(c => {
-      if (!c.note || !c.note.trim()) return false;
-      return inRange(c.timestamp || c.created_date, dateFrom, dateTo);
-    })
-    .sort((a, b) => new Date(a.timestamp || a.created_date) - new Date(b.timestamp || b.created_date));
-
-  return notes.flatMap(c => {
-    let entries = [];
-    try {
-      const parsed = JSON.parse(c.note);
-      entries = Array.isArray(parsed)
-        ? parsed.map(n => ({ text: n.text || "", timestamp: n.timestamp || c.timestamp || c.created_date }))
-        : [{ text: c.note, timestamp: c.timestamp || c.created_date }];
-    } catch {
-      entries = [{ text: c.note, timestamp: c.timestamp || c.created_date }];
-    }
-    return entries
-      .filter(n => n.text.trim())
-      .map(n => ({
-        date: fmtDateTime(n.timestamp),
-        note: n.text.trim(),
-        emotions: (c.emotions || []).join(", ") || null,
-      }));
-  });
+export function buildStatusNotesSection({ dateFrom, dateTo, statusNotes = [] }) {
+  return statusNotes
+    .filter(n => n.note?.trim() && inRange(n.timestamp, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    .map(n => ({
+      date: fmtDateTime(n.timestamp),
+      note: n.note.trim(),
+    }));
 }
 
 // ── SECTION: PATTERNS SUMMARY ─────────────────────────────────────────────────
 
-export function buildPatternsSummary({ systemName, dateFrom, dateTo, overview, frontingData, emotionData, symptomsData, diaryData }) {
+export function buildPatternsSummary({
+  systemName, dateFrom, dateTo, overview, frontingData, emotionData, symptomsData, diaryData,
+  sessions = [], alters = [], symptomCheckIns = [], symptoms = [], emotionCheckIns = [],
+}) {
   const name = systemName || "The system";
   const dayCount = Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000) + 1;
   const topEmotions = (emotionData?.topEmotions || []).slice(0, 3).map(e => e.emotion);
   const topSymptoms = (symptomsData?.summaryTable || []).slice(0, 3).map(s => s.label);
   const crisisCount = (emotionData?.noteworthy || []).length;
 
-  let text = `During this ${dayCount}-day period (${fmtDate(dateFrom)} to ${fmtDate(dateTo)}), ${name} recorded ${overview.frontingCount} fronting session${overview.frontingCount !== 1 ? "s" : ""}.`;
+  // Always build the stats summary paragraph
+  let statsParagraph = `During this ${dayCount}-day period (${fmtDate(dateFrom)} to ${fmtDate(dateTo)}), ${name} recorded ${overview.frontingCount} fronting session${overview.frontingCount !== 1 ? "s" : ""}.`;
+  if (topEmotions.length > 0) statsParagraph += ` The most frequently logged emotions were ${topEmotions.join(", ")}.`;
+  if (topSymptoms.length > 0) statsParagraph += ` The most tracked symptoms or habits were ${topSymptoms.join(", ")}.`;
+  if (overview.checkInCount > 0) statsParagraph += ` There were ${overview.checkInCount} emotion check-in${overview.checkInCount !== 1 ? "s" : ""} recorded.`;
+  if (crisisCount > 0) statsParagraph += ` ${crisisCount} check-in${crisisCount !== 1 ? "s" : ""} included crisis-level distress.`;
+  if (overview.journalCount > 0) statsParagraph += ` ${overview.journalCount} journal entr${overview.journalCount !== 1 ? "ies were" : "y was"} written.`;
+  if (frontingData?.noteworthy?.length > 0) statsParagraph += ` ${frontingData.noteworthy.length} notable fronting event${frontingData.noteworthy.length !== 1 ? "s were" : " was"} flagged.`;
 
-  if (topEmotions.length > 0) {
-    text += ` The most frequently logged emotions were ${topEmotions.join(", ")}.`;
-  }
-  if (topSymptoms.length > 0) {
-    text += ` The most tracked symptoms or habits were ${topSymptoms.join(", ")}.`;
-  }
-  if (overview.checkInCount > 0) {
-    text += ` There were ${overview.checkInCount} emotion check-in${overview.checkInCount !== 1 ? "s" : ""} recorded.`;
-  }
-  if (crisisCount > 0) {
-    text += ` ${crisisCount} check-in${crisisCount !== 1 ? "s" : ""} included crisis-level distress.`;
-  }
-  if (overview.journalCount > 0) {
-    text += ` ${overview.journalCount} journal entr${overview.journalCount !== 1 ? "ies were" : "y was"} written.`;
-  }
-  if (frontingData?.noteworthy?.length > 0) {
-    text += ` ${frontingData.noteworthy.length} notable fronting event${frontingData.noteworthy.length !== 1 ? "s were" : " was"} flagged.`;
-  }
+  // Try to generate richer narrative paragraphs from the analytics engine
+  try {
+    const fromMs = new Date(dateFrom).setHours(0, 0, 0, 0);
+    const toMs = new Date(dateTo).setHours(23, 59, 59, 999);
+    const altersById = {};
+    alters.forEach(a => { altersById[a.id] = a; });
 
-  return text;
+    const baseline = computeSymptomBaseline(symptomCheckIns, symptoms);
+    const narrativeParagraphs = generateWeeklyNarrative({
+      sessions, altersById, symptomCheckIns, symptoms, baseline, emotionCheckIns, fromMs, toMs,
+    });
+
+    const preSwitchSignature = computePreSwitchSignature(sessions, symptomCheckIns, baseline);
+    const earlyWarning = computeEarlyWarningStatus(symptomCheckIns, preSwitchSignature);
+
+    const paragraphs = narrativeParagraphs.length > 0
+      ? [statsParagraph, ...narrativeParagraphs]
+      : [statsParagraph];
+
+    return {
+      paragraphs,
+      earlyWarning: (earlyWarning.status === "warning" || earlyWarning.status === "elevated") ? earlyWarning : null,
+    };
+  } catch {
+    return { paragraphs: [statsParagraph], earlyWarning: null };
+  }
 }
 
 // ── SECTION: ALTER APPENDIX ───────────────────────────────────────────────────
 
-export function buildAlterAppendix({ alters, alterIdsInReport }) {
+export function buildAlterAppendix({ alters, alterIdsInReport, alterDetail = "full", excludedAlterIds = new Set() }) {
   const ids = new Set(alterIdsInReport);
   return alters
-    .filter(a => ids.has(a.id) && !a.is_archived)
+    .filter(a => ids.has(a.id) && !a.is_archived && !excludedAlterIds.has(a.id))
     .map(a => ({
       name: a.name,
       pronouns: a.pronouns || null,
       role: a.role || null,
-      bio: a.description ? a.description.slice(0, 200) : null,
+      bio: alterDetail === "full" ? (stripHtml(a.description || "") || null) : null,
     }));
 }
 
 // ── SECTION: BULLETINS ────────────────────────────────────────────────────────
 
-export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, includeAlterInfo }) {
+export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, includeAlterInfo, bulletinDetail = "content" }) {
   const items = bulletins
     .filter(b => inRange(b.created_date, dateFrom, dateTo))
     .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
@@ -407,10 +441,97 @@ export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, inc
   return items.map(b => ({
     date: fmtDateTime(b.created_date),
     title: b.title || "Bulletin",
-    content: b.content ? b.content.slice(0, 500) : "",
+    content: bulletinDetail === "content" ? stripHtml(b.content || "").slice(0, 500) : "",
     author: includeAlterInfo ? (alterName(b.author_alter_id, alters, true) || null) : null,
     isPinned: !!b.is_pinned,
   }));
+}
+
+// ── SECTION: LOCATIONS ────────────────────────────────────────────────────────
+
+export function buildLocationsSection({ dateFrom, dateTo, locations = [] }) {
+  const items = locations
+    .filter(l => inRange(l.timestamp, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  return items.map(l => ({
+    date: fmtDateTime(l.timestamp),
+    name: l.name || "Unnamed location",
+    category: l.category || null,
+    source: l.source || "manual",
+    notes: l.notes || null,
+    lat: l.latitude || null,
+    lng: l.longitude || null,
+  }));
+}
+
+// ── SECTION: SLEEP LOG ────────────────────────────────────────────────────────
+
+export function buildSleepSection({ dateFrom, dateTo, sleepLogs = [] }) {
+  const logs = sleepLogs
+    .filter(s => inRange(s.date || s.created_date, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.date || a.created_date) - new Date(b.date || b.created_date));
+
+  if (logs.length === 0) return { logs: [], stats: null };
+
+  const withDuration = logs.map(s => {
+    let durationHours = null;
+    if (s.bedtime && s.wake_time) {
+      const diff = new Date(s.wake_time) - new Date(s.bedtime);
+      if (diff > 0) durationHours = diff / 3600000;
+    }
+    const durStr = durationHours != null
+      ? `${Math.floor(durationHours)}h ${Math.round((durationHours % 1) * 60)}m`
+      : null;
+    return {
+      date: fmtDate(s.date || s.created_date),
+      bedtime: s.bedtime ? format(new Date(s.bedtime), "h:mm a") : null,
+      wakeTime: s.wake_time ? format(new Date(s.wake_time), "h:mm a") : null,
+      duration: durStr,
+      quality: s.quality != null ? s.quality : null,
+      isInterrupted: !!s.is_interrupted,
+      hadNightmare: !!s.had_nightmare,
+      notes: s.notes || null,
+    };
+  });
+
+  const qualityLogs = logs.filter(s => s.quality != null);
+  const avgQuality = qualityLogs.length > 0
+    ? (qualityLogs.reduce((sum, s) => sum + s.quality, 0) / qualityLogs.length).toFixed(1)
+    : null;
+
+  return {
+    logs: withDuration,
+    stats: {
+      totalNights: logs.length,
+      avgQuality,
+      nightmareNights: logs.filter(s => s.had_nightmare).length,
+      interruptedNights: logs.filter(s => s.is_interrupted).length,
+    },
+  };
+}
+
+// ── SECTION: SKILLS & EXERCISES ───────────────────────────────────────────────
+
+export function buildSupportJournalsSection({ dateFrom, dateTo, supportEntries = [], supportDetail = "titles" }) {
+  const items = supportEntries
+    .filter(e => inRange(e.created_date, dateFrom, dateTo))
+    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+
+  return items.map(e => {
+    const base = {
+      date: fmtDate(e.created_date),
+      title: e.exercise_title || e.exercise_id || "Exercise",
+    };
+    if (supportDetail === "responses" && e.responses && typeof e.responses === "object") {
+      const responseLines = Object.entries(e.responses)
+        .filter(([, v]) => v != null && String(v).trim())
+        .slice(0, 10)
+        .map(([k, v]) => `${k.replace(/_/g, " ")}: ${String(v).trim()}`);
+      return { ...base, responses: responseLines };
+    }
+    return { ...base, responses: [] };
+  });
 }
 
 // ── SECTION: SYSTEM CHECK-INS ─────────────────────────────────────────────────
@@ -425,10 +546,10 @@ export function buildSystemCheckInsSection({ dateFrom, dateTo, systemCheckIns, a
     const summaryParts = Object.entries(responses)
       .filter(([, v]) => v != null && v !== "")
       .slice(0, 5)
-      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`);
+      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${stripHtml(String(v))}`);
     return {
       date: fmtDateTime(c.created_date),
-      title: c.title || "System Check-In",
+      title: c.title || "System Meeting",
       summary: summaryParts.join(" · ") || null,
       overallRating: c.overall_rating ?? c.rating ?? null,
     };

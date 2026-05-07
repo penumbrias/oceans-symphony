@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
-import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw } from "lucide-react";
+import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
+import WysiwygEditor from "@/components/shared/WysiwygEditor";
 
 
 let _id = 0;
@@ -150,7 +151,7 @@ const MAX_HISTORY = 50;
 export default function BioEditor({ value, onChange }) {
   const originalValue = useRef(value || "");
   const hasBlocks = value?.includes('data-blocks=');
-  const [editorMode, setEditorMode] = useState(hasBlocks ? "simple" : "plain");
+  const [editorMode, setEditorMode] = useState(hasBlocks ? "simple" : "plain"); // "plain" = wysiwyg, "raw" = html textarea
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
   const [currentHTML, setCurrentHTML] = useState(value || "");
@@ -252,9 +253,15 @@ export default function BioEditor({ value, onChange }) {
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
           <LayoutGrid className="w-3 h-3" /> Blocks
         </button>
+        <button type="button" onClick={() => setEditorMode("raw")}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Code className="w-3 h-3" /> Raw
+        </button>
       </div>
 
       {editorMode === "plain" ? (
+        <WysiwygEditor value={currentHTML} onChange={handleChange} placeholder="Write a bio..." />
+      ) : editorMode === "raw" ? (
         <div className="rounded-xl border border-input bg-background">
           <textarea ref={taRef} value={currentHTML} onChange={e => handleChange(e.target.value)}
             placeholder="Write a bio..."

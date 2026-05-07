@@ -79,11 +79,6 @@ export default function DailyTasks() {
     queryFn: () => base44.entities.JournalEntry.list("-created_date", 50),
     staleTime: 0,
   });
-  const { data: diaryCards = [] } = useQuery({
-    queryKey: ["diaryCardsToday", TODAY],
-    queryFn: () => base44.entities.DiaryCard.filter({ date: TODAY }),
-    staleTime: 0,
-  });
   const { data: systemCheckIns = [] } = useQuery({
     queryKey: ["systemCheckInsToday", TODAY],
     queryFn: () => base44.entities.SystemCheckIn.filter({ date: TODAY }),
@@ -100,10 +95,10 @@ export default function DailyTasks() {
   const autoTriggers = useMemo(
     () => buildAutoCompletedTriggers({
       hasJournal: hasJournalToday,
-      hasDiaryCard: diaryCards.length > 0,
+      hasDiaryCard: false,
       hasPartsCheckIn: systemCheckIns.length > 0,
     }),
-    [hasJournalToday, diaryCards.length, systemCheckIns.length]
+    [hasJournalToday, systemCheckIns.length]
   );
 
   // Current period key per frequency
@@ -115,6 +110,12 @@ export default function DailyTasks() {
       .filter(t => t.is_active && (t.frequency || "daily") === activeFreq)
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
     [templates, activeFreq]
+  );
+
+  // IDs of AUTO tasks that are currently triggered today (must come after activeTasks)
+  const autoCompletedIds = useMemo(
+    () => activeTasks.filter(t => t.mode === "AUTO" && autoTriggers.has(t.auto_trigger)).map(t => t.id),
+    [activeTasks, autoTriggers]
   );
 
   // Find progress record for current period
@@ -214,12 +215,15 @@ export default function DailyTasks() {
       return done ? sum + (t.points || 0) : sum;
     }, 0);
 
+    // Merge manual + auto IDs so the review grid can see both
+    const allCompleted = [...new Set([...newCompleted, ...autoCompletedIds])];
+
     // Optimistic update
     const optimistic = {
       date: TODAY,
       period_key: currentPeriodKey,
       frequency: activeFreq,
-      completed_task_ids: [...newCompleted],
+      completed_task_ids: allCompleted,
       xp_earned: newXP,
     };
     queryClient.setQueryData(["dailyProgress"], (old) => {
@@ -237,7 +241,7 @@ export default function DailyTasks() {
 
     if (currentRecord) {
       await base44.entities.DailyProgress.update(currentRecord.id, {
-        completed_task_ids: [...newCompleted],
+        completed_task_ids: allCompleted,
         xp_earned: newXP,
       });
     } else {
@@ -245,35 +249,38 @@ export default function DailyTasks() {
         date: TODAY,
         period_key: currentPeriodKey,
         frequency: activeFreq,
-        completed_task_ids: [...newCompleted],
+        completed_task_ids: allCompleted,
         xp_earned: newXP,
       });
     }
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
 
-  // Persist auto XP for daily tasks
+  // Persist auto XP + auto task IDs for daily tasks so the review grid shows them
   useEffect(() => {
     if (progressLoading || templatesLoading || activeFreq !== "daily") return;
-    const dailyAutoXP = activeTasks.reduce((sum, t) => {
-      const done = isTaskCompleted(t, manualCompletedIds, autoTriggers);
-      return done ? sum + (t.points || 0) : sum;
-    }, 0);
-    if (!currentRecord && dailyAutoXP > 0) {
+    const allIds = [...new Set([...manualCompletedIds, ...autoCompletedIds])];
+    if (!currentRecord && todayXP > 0) {
       base44.entities.DailyProgress.create({
         date: TODAY,
         period_key: currentPeriodKey,
         frequency: "daily",
-        completed_task_ids: [],
-        xp_earned: dailyAutoXP,
-      }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
-    } else if (currentRecord && dailyAutoXP !== (currentRecord.xp_earned || 0) && manualCompletedIds.size === 0) {
-      base44.entities.DailyProgress.update(currentRecord.id, {
-        completed_task_ids: [...manualCompletedIds],
+        completed_task_ids: allIds,
         xp_earned: todayXP,
       }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
+    } else if (currentRecord) {
+      // Backfill any auto IDs missing from the stored record
+      const stored = new Set(currentRecord.completed_task_ids || []);
+      const missingAuto = autoCompletedIds.some(id => !stored.has(id));
+      if (missingAuto) {
+        const merged = [...new Set([...stored, ...autoCompletedIds])];
+        base44.entities.DailyProgress.update(currentRecord.id, {
+          completed_task_ids: merged,
+          xp_earned: todayXP,
+        }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
+      }
     }
-  }, [progressLoading, templatesLoading, todayXP, currentRecord, activeFreq]);
+  }, [progressLoading, templatesLoading, currentRecord?.id, activeFreq, autoTriggers]);
 
   const freqCounts = useMemo(() => {
     const counts = {};
@@ -284,7 +291,7 @@ export default function DailyTasks() {
   }, [templates]);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-2xl mx-auto">
+    <motion.div data-tour="tasks-daily" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -301,7 +308,7 @@ export default function DailyTasks() {
             <CalendarDays className="w-3.5 h-3.5" />
             Review
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowManager(!showManager)} className="gap-1.5">
+          <Button data-tour="tasks-edit-btn" variant="outline" size="sm" onClick={() => setShowManager(!showManager)} className="gap-1.5">
             <Settings className="w-3.5 h-3.5" />
             {showManager ? "Close" : "Edit"}
           </Button>
@@ -325,16 +332,18 @@ export default function DailyTasks() {
       </AnimatePresence>
 
       {/* Level bar (always daily XP) */}
-      <LevelBar
-        totalXP={totalXP}
-        todayXP={activeFreq === "daily" ? todayXP : undefined}
-        todayPossibleXP={activeFreq === "daily" ? possibleXP : undefined}
-        streak={streak}
-        bestStreak={bestStreak}
-      />
+      <div data-tour="tasks-level-bar">
+        <LevelBar
+          totalXP={totalXP}
+          todayXP={activeFreq === "daily" ? todayXP : undefined}
+          todayPossibleXP={activeFreq === "daily" ? possibleXP : undefined}
+          streak={streak}
+          bestStreak={bestStreak}
+        />
+      </div>
 
       {/* Frequency tabs */}
-      <div className="flex gap-1 bg-muted/40 rounded-xl p-1">
+      <div data-tour="tasks-freq-tabs" className="flex gap-1 bg-muted/40 rounded-xl p-1">
         {FREQUENCIES.map(f => (
           <button
             key={f}

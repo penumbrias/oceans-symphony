@@ -55,8 +55,8 @@ export async function getFronters(token, systemId) {
 
 export async function getFrontHistory(token, systemId, startTime, endTime) {
   try {
-    const start = startTime || (Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const end = endTime || Date.now();
+    const start = startTime ?? 0;
+    const end = endTime ?? Date.now();
     const data = await spFetch(`/frontHistory/${systemId}?startTime=${start}&endTime=${end}`, token);
     return Array.isArray(data) ? data : (data.data ?? []);
   } catch {
@@ -82,13 +82,39 @@ export async function getCustomFields(token, systemId) {
   }
 }
 
+export async function getPolls(token, systemId) {
+  try {
+    const data = await spFetch(`/polls/${systemId}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
+export async function getMemberNotes(token, systemId, memberId) {
+  try {
+    const data = await spFetch(`/notes/${systemId}/${memberId}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
+export async function getCustomFronts(token, systemId) {
+  try {
+    const data = await spFetch(`/customFronts/${systemId}`, token);
+    return Array.isArray(data) ? data : (data.data ?? []);
+  } catch {
+    return [];
+  }
+}
+
 function normalizeColor(raw) {
   if (!raw) return "";
   const s = raw.toString().trim();
   return s.startsWith("#") ? s : `#${s}`;
 }
 
-// Maps SP valueType strings to our field_type enum
 const SP_TYPE_MAP = {
   text: "text",
   string: "text",
@@ -103,9 +129,6 @@ export function spFieldType(spType) {
 }
 
 function remapCustomFields(spInfo, fieldIdMap) {
-  // spInfo: { [spFieldId]: value }
-  // fieldIdMap: { [spFieldId]: localFieldId }
-  // returns: { [localFieldId]: value }
   if (!spInfo || typeof spInfo !== "object") return {};
   const result = {};
   for (const [spFieldId, value] of Object.entries(spInfo)) {
@@ -151,6 +174,21 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}) {
   };
 }
 
+export function mapCustomFrontToAlter(customFront) {
+  const spId = customFront.id || customFront._id || "";
+  const c = customFront.content || customFront;
+  return {
+    sp_id: spId,
+    name: c.name || "Unknown",
+    description: c.desc || c.description || "",
+    color: normalizeColor(c.color),
+    avatar_url: c.avatarUrl || c.avatar_url || "",
+    tags: [],
+    groups: [],
+    is_archived: !!c.archived,
+  };
+}
+
 export function mapGroupToLocalGroup(group) {
   const spId = group.id || group._id || "";
   const c = group.content || group;
@@ -166,5 +204,99 @@ export function mapGroupToLocalGroup(group) {
     tags: Array.isArray(c.tags) ? c.tags : [],
     is_hidden: !!c.private,
     parent: "",
+  };
+}
+
+// Maps one SP front history entry to a single FrontingSession object (or null).
+// Each SP entry represents ONE member/customFront fronting.
+// When custom fronts have been imported as alters (sp_id = custom front ID), their
+// history entries resolve via the same alterIdBySpId lookup.
+export function mapFrontHistoryEntry(entry, alterIdBySpId) {
+  const spFrontId = entry.id || entry._id || "";
+  const c = entry.content || entry;
+
+  const spMemberId = c.member || "";
+  if (!spMemberId) return null;
+
+  const localAlterId = alterIdBySpId[spMemberId];
+  if (!localAlterId) return null;
+
+  const startTime = c.startTime ? new Date(c.startTime).toISOString() : null;
+  if (!startTime) return null;
+
+  const endTime = (c.endTime && c.endTime > 0) ? new Date(c.endTime).toISOString() : null;
+
+  return {
+    alter_id: localAlterId,
+    is_primary: true, // SP has no primary concept; treat all imported sessions as primary
+    start_time: startTime,
+    end_time: endTime,
+    is_active: !!c.live,
+    note: c.customStatus || "",
+    sp_front_id: spFrontId,
+  };
+}
+
+// Maps one SP poll to a local Poll object.
+// SP has two poll types:
+//   custom: false — normal (yes/no + optional abstain/veto), votes: [{id, comment, vote}]
+//   custom: true  — custom options [{name, color}], votes: [{id, comment, vote}] where vote=option name
+export function mapSPPoll(spPoll, alterIdBySpId) {
+  const spId = spPoll.id || spPoll._id || "";
+  const c = spPoll.content || spPoll;
+
+  const question = c.name || c.question || c.title || "Untitled Poll";
+  const isCustomPoll = !!c.custom;
+  const votesArray = Array.isArray(c.votes) ? c.votes : [];
+
+  let options = [];
+  const localVotes = {};
+
+  if (isCustomPoll) {
+    // Options are [{name, color}]; vote value is the option name
+    options = Array.isArray(c.options) ? c.options.map((o) => o.name || o.label || "").filter(Boolean) : [];
+    options.forEach((_, idx) => { localVotes[String(idx)] = []; });
+    for (const v of votesArray) {
+      const localId = alterIdBySpId[v.id];
+      const optionIdx = options.indexOf(v.vote);
+      if (localId && optionIdx >= 0) localVotes[String(optionIdx)].push(localId);
+    }
+  } else {
+    // Normal poll: binary yes/no with optional abstain/veto
+    options = ["Yes", "No"];
+    if (c.allowAbstain) options.push("Abstain");
+    if (c.allowVeto) options.push("Veto");
+    options.forEach((_, idx) => { localVotes[String(idx)] = []; });
+
+    const voteMap = { yes: 0, no: 1, abstain: 2, veto: c.allowAbstain ? 3 : 2 };
+    for (const v of votesArray) {
+      const localId = alterIdBySpId[v.id];
+      const idx = voteMap[(v.vote || "").toLowerCase()];
+      if (localId && idx !== undefined && localVotes[String(idx)]) {
+        localVotes[String(idx)].push(localId);
+      }
+    }
+  }
+
+  return {
+    sp_id: spId,
+    question,
+    options,
+    votes: localVotes,
+    is_closed: !!(c.endTime && c.endTime < Date.now()),
+  };
+}
+
+// Maps one SP member note to a local AlterNote object.
+export function mapSPMemberNote(spNote, localAlterId) {
+  const spId = spNote.id || spNote._id || "";
+  const c = spNote.content || spNote;
+  const title = c.title || "";
+  const body = c.note || c.text || c.body || ""; // SP field is "note"
+  const content = title ? `**${title}**\n\n${body}`.trim() : body.trim();
+  return {
+    sp_id: spId,
+    alter_id: localAlterId,
+    content,
   };
 }

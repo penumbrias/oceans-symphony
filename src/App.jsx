@@ -33,7 +33,14 @@ import TherapyReport from '@/pages/TherapyReport';
 import Reminders from '@/pages/Reminders';
 import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
-import { isEncryptionEnabled } from '@/lib/storageMode';
+import SystemHistory from '@/pages/SystemHistory';
+import LocationHistory from '@/pages/LocationHistory';
+import { isEncryptionEnabled, isFirstRun } from '@/lib/storageMode';
+import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
+import { initAccessibility } from '@/lib/useAccessibility';
+
+// Apply saved accessibility settings before first render
+initAccessibility();
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal, migrateLocalImageUrlScheme } from '@/lib/localDb';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
@@ -81,6 +88,8 @@ const AuthenticatedApp = () => {
         <Route path="/reminders" element={<Reminders />} />
         <Route path="/polls" element={<Polls />} />
         <Route path="/checkin-log" element={<CheckInLog />} />
+        <Route path="/system-history" element={<SystemHistory />} />
+        <Route path="/location-history" element={<LocationHistory />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
@@ -89,8 +98,9 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // 'loading' while IndexedDB initializes, 'unlock' if encryption is set, null when ready
+  // 'firstrun' → storage/encryption setup, 'unlock' → password prompt, 'loading' → init DB, null → ready
   const [setupState, setSetupState] = useState(() => {
+    if (isFirstRun()) return 'firstrun';
     if (isEncryptionEnabled() && !isDbInitialized()) return 'unlock';
     return 'loading';
   });
@@ -116,6 +126,14 @@ function App() {
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
       </div>
+    );
+  }
+
+  if (setupState === 'firstrun') {
+    return (
+      <ThemeProvider>
+        <StorageModeSetup mode="setup" onComplete={() => setSetupState(null)} />
+      </ThemeProvider>
     );
   }
 

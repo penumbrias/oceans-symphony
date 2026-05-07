@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -892,6 +892,11 @@ export default function TopicView({ topic, moduleId, onBack, onTryTechnique }) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+  const notesRef = useRef(notes);
+  const myProgressRef = useRef(null);
+  const autoSaveTimerRef = useRef(null);
+  notesRef.current = notes;
 
   const { data: progressRecords = [] } = useQuery({
     queryKey: ["learningProgress"],
@@ -899,10 +904,37 @@ export default function TopicView({ topic, moduleId, onBack, onTryTechnique }) {
   });
 
   const myProgress = progressRecords.find(p => p.topic_id === topic.id);
+  myProgressRef.current = myProgress;
+
+  const autoSaveNotes = useCallback(async () => {
+    const currentNotes = notesRef.current;
+    const currentProgress = myProgressRef.current;
+    if (!currentNotes.trim()) return;
+    setSavingNotes(true);
+    try {
+      if (currentProgress) {
+        await base44.entities.LearningProgress.update(currentProgress.id, { notes: currentNotes });
+      } else {
+        await base44.entities.LearningProgress.create({
+          module_id: moduleId,
+          topic_id: topic.id,
+          completed: false,
+          notes: currentNotes,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["learningProgress"] });
+      setNotesSaved(true);
+    } catch (e) {
+      console.warn("Auto-save notes failed", e);
+    }
+    setSavingNotes(false);
+  }, [moduleId, topic.id]);
 
   useEffect(() => {
     if (myProgress?.notes) setNotes(myProgress.notes);
   }, [myProgress?.id]);
+
+  useEffect(() => () => clearTimeout(autoSaveTimerRef.current), []);
 
   const handleToggleComplete = async () => {
     const now = new Date().toISOString();
@@ -922,20 +954,9 @@ export default function TopicView({ topic, moduleId, onBack, onTryTechnique }) {
     queryClient.invalidateQueries({ queryKey: ["learningProgress"] });
   };
 
-  const handleSaveNotes = async () => {
-    setSavingNotes(true);
-    if (myProgress) {
-      await base44.entities.LearningProgress.update(myProgress.id, { notes });
-    } else {
-      await base44.entities.LearningProgress.create({
-        module_id: moduleId,
-        topic_id: topic.id,
-        completed: false,
-        notes,
-      });
-    }
-    queryClient.invalidateQueries({ queryKey: ["learningProgress"] });
-    setSavingNotes(false);
+  const handleSaveNotes = () => {
+    clearTimeout(autoSaveTimerRef.current);
+    autoSaveNotes();
   };
 
   return (
@@ -1014,7 +1035,12 @@ export default function TopicView({ topic, moduleId, onBack, onTryTechnique }) {
         <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">My notes on this topic</label>
         <textarea
           value={notes}
-          onChange={e => setNotes(e.target.value)}
+          onChange={e => {
+            setNotes(e.target.value);
+            setNotesSaved(false);
+            clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = setTimeout(autoSaveNotes, 1500);
+          }}
           placeholder="What I learned, what I want to remember, anything I want to come back to..."
           rows={3}
           className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none"
@@ -1022,7 +1048,7 @@ export default function TopicView({ topic, moduleId, onBack, onTryTechnique }) {
         <div className="flex justify-between items-center">
           <p className="text-xs text-muted-foreground">Only visible to you</p>
           <Button size="sm" variant="outline" onClick={handleSaveNotes} disabled={savingNotes}>
-            {savingNotes ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save notes"}
+            {savingNotes ? <Loader2 className="w-3 h-3 animate-spin" /> : notesSaved ? "Saved ✓" : "Save notes"}
           </Button>
         </div>
       </div>

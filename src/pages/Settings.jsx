@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
+import CustomTriggerTypesManager from "@/components/settings/CustomTriggerTypesManager";
 import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
@@ -18,24 +19,31 @@ import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
-import { Palette, Save, Loader2, ChevronDown, Zap, Check } from "lucide-react";
+import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
+import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
+import { Palette, Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
+import MigrationBanner from "@/components/shared/MigrationBanner";
+import RecentUpdates from "@/components/settings/RecentUpdates";
 
 const SECTIONS = [
   { id: "system", label: "System", icon: "⚙️" },
   { id: "appearance", label: "Appearance", icon: "🎨" },
+  { id: "accessibility", label: "Accessibility", icon: "♿" },
   { id: "alters", label: "Alters & Fields", icon: "👥" },
   { id: "checkin", label: "Check-In & Tracking", icon: "⚡" },
+  { id: "analytics", label: "Analytics", icon: "📊" },
   { id: "reminders", label: "Reminders", icon: "🔔" },
   { id: "data", label: "Data & Privacy", icon: "💾" },
-  { id: "account", label: "Account", icon: "🔑" },
+  { id: "updates", label: "Recent Updates", icon: "📋" },
 ];
 
 function Section({ id, icon, label, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div id={id} className="border border-border/50 rounded-xl overflow-hidden">
+    <div id={id} data-tour={`settings-${id}`} className="border border-border/50 rounded-xl overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -58,6 +66,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const terms = useTerms();
+  const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
@@ -124,8 +133,11 @@ export default function Settings() {
         </p></p>
       </div>
 
+      {/* Migration banner */}
+      <div className="mb-4"><MigrationBanner /></div>
+
       {/* Quick Nav */}
-      <div className="flex flex-wrap gap-2 mb-6 p-3 bg-muted/20 border border-border/40 rounded-xl">
+      <div data-tour="settings-quick-nav" className="flex flex-wrap gap-2 mb-6 p-3 bg-muted/20 border border-border/40 rounded-xl">
         {SECTIONS.map(s => (
           <button key={s.id} onClick={() => scrollTo(s.id)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-border/40 hover:bg-muted/50 hover:border-primary/40 transition-colors text-xs font-medium">
@@ -134,7 +146,7 @@ export default function Settings() {
         ))}
       </div>
 
-      <div className="space-y-3 max-w-2xl">
+      <div data-tour="settings-content" className="space-y-3 max-w-2xl">
 
         {/* ── SYSTEM ── */}
         <Section id="system" icon="⚙️" label="System" defaultOpen={true}>
@@ -162,6 +174,11 @@ export default function Settings() {
         <Section id="appearance" icon="🎨" label="Appearance">
           <AdvancedAppearance />
           <NavigationSettings settings={settings} />
+        </Section>
+
+        {/* ── ACCESSIBILITY ── */}
+        <Section id="accessibility" icon="♿" label="Accessibility">
+          <AccessibilitySettings />
         </Section>
 
         {/* ── ALTERS & FIELDS ── */}
@@ -192,6 +209,55 @@ export default function Settings() {
           <div className="border-t border-border/30 pt-4">
             <CustomEmotionsManager />
           </div>
+          <div className="border-t border-border/30 pt-4">
+            <CustomTriggerTypesManager />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <QuickActionsConfig />
+          </div>
+        </Section>
+
+        {/* ── ANALYTICS ── */}
+        <Section id="analytics" icon="📊" label="Analytics">
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold mb-1">Grouping mode</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                For large systems, analytics can aggregate data by group instead of by individual member.
+                Groups are managed from the {terms.System} Members page.
+              </p>
+              <div className="flex gap-2">
+                {[
+                  { id: "individual", label: "By member", desc: "Show each member separately" },
+                  { id: "group", label: "By group", desc: "Aggregate members into their groups" },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setAnalyticsGrouping(opt.id)}
+                    className={`flex-1 rounded-xl border p-3 text-left transition-all ${
+                      analyticsGrouping === opt.id
+                        ? "border-primary/60 bg-primary/10"
+                        : "border-border/50 bg-card hover:bg-muted/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <BarChart2 className={`w-3.5 h-3.5 ${analyticsGrouping === opt.id ? "text-primary" : "text-muted-foreground"}`} />
+                      <p className={`text-xs font-semibold ${analyticsGrouping === opt.id ? "text-primary" : "text-foreground"}`}>
+                        {opt.label}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-snug">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+              {analyticsGrouping === "group" && (
+                <p className="text-xs text-muted-foreground mt-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
+                  Group mode is active. The Patterns & Insights section will show data aggregated by group.
+                  Alters without a group appear under "Ungrouped."
+                </p>
+              )}
+            </div>
+          </div>
         </Section>
 
         {/* ── REMINDERS ── */}
@@ -205,15 +271,19 @@ export default function Settings() {
           <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-3 text-sm text-muted-foreground">
             <p className="font-semibold text-foreground">🔐 Privacy & Data Notice</p>
             <div className="space-y-1">
-              <p className="font-medium text-foreground">🔒 Local Mode</p>
+              <p className="font-medium text-foreground">🔒 Local Storage</p>
               <p>All data is stored on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
             </div>
             <div className="space-y-1">
               <p className="font-medium text-foreground">💾 Backups</p>
               <p>Use Backup & Export below to save your data as a JSON file. Keep backups safe — local data is tied to this device.</p>
             </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">🤖 Transparency</p>
+              <p>Oceans Symphony is <strong>vibe-coded</strong> — built with AI assistance. It is a work in progress, shared in good faith. We do our best but cannot guarantee it is bug-free.</p>
+            </div>
             <p className="text-amber-600 dark:text-amber-400 font-medium">
-              🌊 Oceans Symphony is free and shared in good faith by a DID system. Contact: pesturedrawing@gmail.com. {" "}
+              🌊 Free and open source, shared by a DID system to fill a void in the community. Contact: pesturedrawing@gmail.com.{" "}
               <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
                 className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
             </p>
@@ -232,6 +302,10 @@ export default function Settings() {
           </div>
         </Section>
 
+        {/* ── RECENT UPDATES ── */}
+        <Section id="updates" icon="📋" label="Recent Updates" defaultOpen={false}>
+          <RecentUpdates />
+        </Section>
 
       </div>
     </motion.div>

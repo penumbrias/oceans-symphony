@@ -3,10 +3,11 @@ import { base44 } from "@/api/base44Client";
 import { parseDate } from "@/lib/dateUtils";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
-import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap } from "lucide-react";
+import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "react-router-dom";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
+import { localEntities } from "@/api/base44Client";
 
 const CHUNK_DAYS = 14; // how many days to load per chunk
 
@@ -18,9 +19,13 @@ export default function Timeline() {
   const [showCheckIns, setShowCheckIns] = useState(true);
   const [showEmotions, setShowEmotions] = useState(true);
   const [showSymptoms, setShowSymptoms] = useState(true);
+  const [showLocations, setShowLocations] = useState(true);
   const [jumpDate, setJumpDate] = useState(() => searchParams.get("date") || "");
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const isAtToday = isToday(anchorDate);
   const sentinelRef = useRef(null);
   const containerRef = useRef(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["frontHistory"],
@@ -82,6 +87,16 @@ export default function Timeline() {
     queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 2000),
   });
 
+  const { data: locationRecords = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => localEntities.Location.list(),
+  });
+
+  const { data: statusNotes = [] } = useQuery({
+    queryKey: ["statusNotes"],
+    queryFn: () => localEntities.StatusNote.list(),
+  });
+
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],
     queryFn: () => base44.entities.Symptom.list(),
@@ -134,16 +149,38 @@ export default function Timeline() {
     return () => observer.disconnect();
   }, []);
 
-  const handleJumpToDate = () => {
-    if (!jumpDate) return;
-    const target = document.getElementById(`day-${jumpDate}`);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+  // Show scroll-to-top button after scrolling down
+  useEffect(() => {
+    const el = document.querySelector(".overflow-y-auto");
+    if (!el) return;
+    const onScroll = () => setShowScrollTop(el.scrollTop > 400);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const handleScrollTop = () => {
+    const el = document.querySelector(".overflow-y-auto");
+    if (el) el.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Build array of days from today back daysBack days
-  const days = Array.from({ length: daysBack }, (_, i) => subDays(new Date(), i));
+  const handleJumpToDate = () => {
+    if (!jumpDate) return;
+    const target = new Date(jumpDate + "T00:00:00");
+    if (isNaN(target.getTime())) return;
+    setAnchorDate(target);
+    setDaysBack(CHUNK_DAYS);
+    const el = document.querySelector(".overflow-y-auto");
+    if (el) el.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleBackToToday = () => {
+    setAnchorDate(new Date());
+    setDaysBack(CHUNK_DAYS);
+    const el = document.querySelector(".overflow-y-auto");
+    if (el) el.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const days = Array.from({ length: daysBack }, (_, i) => subDays(anchorDate, i));
 
   const toggleStyles = (active) =>
     `px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
@@ -156,7 +193,7 @@ export default function Timeline() {
     <div data-tour="timeline-container" className="space-y-4 max-w-3xl mx-auto" ref={containerRef}>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-3xl font-bold">Timeline</h1>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div data-tour="timeline-jump" className="flex items-center gap-2 flex-wrap">
           <input
             type="date"
             value={jumpDate}
@@ -169,8 +206,18 @@ export default function Timeline() {
         </div>
       </div>
 
+      {/* Back to today banner */}
+      {!isAtToday && (
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+          <span className="text-primary font-medium">Viewing {format(anchorDate, "MMM d, yyyy")}</span>
+          <button onClick={handleBackToToday} className="text-xs text-primary font-semibold hover:underline">
+            Back to today →
+          </button>
+        </div>
+      )}
+
       {/* Toggles */}
-      <div className="flex gap-2 flex-wrap">
+      <div data-tour="timeline-filters" className="flex gap-2 flex-wrap">
         <button className={toggleStyles(showActivities)} onClick={() => setShowActivities(!showActivities)} title="Activities">
           <Activity className="w-3.5 h-3.5" />
         </button>
@@ -185,6 +232,9 @@ export default function Timeline() {
         </button>
         <button className={toggleStyles(showSymptoms)} onClick={() => setShowSymptoms(!showSymptoms)} title="Symptoms">
           <Zap className="w-3.5 h-3.5" />
+        </button>
+        <button className={toggleStyles(showLocations)} onClick={() => setShowLocations(!showLocations)} title="Locations">
+          <MapPin className="w-3.5 h-3.5" />
         </button>
       </div>
 
@@ -250,7 +300,19 @@ export default function Timeline() {
             return t >= dayStart && t <= dayEnd;
           });
 
-          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0;
+          const dayLocations = showLocations
+            ? locationRecords.filter(loc => {
+                const t = parseDate(loc.timestamp);
+                return t >= dayStart && t <= dayEnd;
+              })
+            : [];
+
+          const dayStatusNotes = statusNotes.filter(n => {
+            const t = parseDate(n.timestamp);
+            return t >= dayStart && t <= dayEnd;
+          });
+
+          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0 || dayLocations.length > 0 || dayStatusNotes.length > 0;
 
           return (
             <div key={dateStr} id={`day-${dateStr}`}>
@@ -274,6 +336,9 @@ export default function Timeline() {
                 symptomCheckIns={daySymptomCheckIns}
                 symptoms={symptoms}
                 categories={categories}
+                locations={dayLocations}
+                showLocations={showLocations}
+                statusNotes={dayStatusNotes}
                 dailyProgress={dailyProgress.find((p) => p.date === format(day, "yyyy-MM-dd"))}
               />
             </div>
@@ -285,6 +350,17 @@ export default function Timeline() {
       <div ref={sentinelRef} className="h-12 flex items-center justify-center">
         <p className="text-xs text-muted-foreground animate-pulse">Loading more...</p>
       </div>
+
+      {/* Jump to top */}
+      {showScrollTop && (
+        <button
+          onClick={handleScrollTop}
+          className="fixed bottom-20 right-4 z-50 w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all"
+          title="Back to top"
+        >
+          <ArrowUp className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }

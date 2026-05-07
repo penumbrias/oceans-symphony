@@ -1,12 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
+import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
+import { findNearbyLocationName } from "@/lib/locationUtils";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User } from "lucide-react";
+import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -15,6 +17,17 @@ import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet } from "@/lib/emotionDistress";
+import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+
+const TRIGGER_CATEGORIES = [
+  { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
+  { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
+  { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
+  { id: "trauma_reminder", label: "Trauma reminder",emoji: "⚡", hint: "anniversary, place, memory" },
+  { id: "physical",        label: "Physical",       emoji: "🫀", hint: "pain, fatigue, illness" },
+  { id: "internal",        label: "Internal",       emoji: "🧠", hint: "intrusive thought, body memory" },
+  { id: "unknown",         label: "Unknown",        emoji: "❓" },
+];
 
 const PILLS = [
 { id: "feeling", label: "Feeling", icon: Smile },
@@ -22,7 +35,8 @@ const PILLS = [
 { id: "activity", label: "Activity", icon: Zap },
 { id: "symptoms", label: "Symptoms / Habits", icon: Activity },
 { id: "diary", label: "Diary", icon: BookOpen },
-{ id: "note", label: "Note", icon: FileText }];
+{ id: "note", label: "Note", icon: FileText },
+{ id: "location", label: "Location", icon: MapPin }];
 
 
 export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null, retroTimestamp = null }) {
@@ -40,15 +54,31 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   // Activity
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [activityDuration, setActivityDuration] = useState("");
+  const [activityNote, setActivityNote] = useState("");
   const [newActivityName, setNewActivityName] = useState("");
   const [showNewActivity, setShowNewActivity] = useState(false);
   // Diary
   const [diaryData, setDiaryData] = useState({});
   // Note
   const [note, setNote] = useState("");
+  // Switch journaling + trigger
+  const [journalSwitch, setJournalSwitch] = useState(false);
+  const [isTriggeredSwitch, setIsTriggeredSwitch] = useState(false);
+  const [triggerCategory, setTriggerCategory] = useState("");
+  const [triggerLabel, setTriggerLabel] = useState("");
+  const [showJournalModal, setShowJournalModal] = useState(false);
+  const [newSessionId, setNewSessionId] = useState(null);
+  const [showSupportPrompt, setShowSupportPrompt] = useState(false);
+  const initialFrontRef = useRef({ primaryId: "", coFronterIds: [] });
   // Saving
   const [saving, setSaving] = useState(false);
   const [showGroundingPrompt, setShowGroundingPrompt] = useState(false);
+  // Location
+  const [locationName, setLocationName] = useState("");
+  const [locationCategory, setLocationCategory] = useState("");
+  const [locationLat, setLocationLat] = useState(null);
+  const [locationLng, setLocationLng] = useState(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
 
   // datetime-local input value — defaults to retroTimestamp or now
   const toDatetimeLocal = (iso) => {
@@ -78,6 +108,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     queryFn: () => base44.entities.ActivityCategory.list()
   });
 
+  const { data: pastLocations = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => localEntities.Location.list(),
+  });
+
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
 
 
@@ -104,15 +139,22 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         if (newModel.length > 0) {
           const primarySess = newModel.find(s => s.is_primary);
           const coSessions = newModel.filter(s => !s.is_primary);
-          setPrimaryId(primarySess?.alter_id || "");
-          setCoFronterIds(coSessions.map(s => s.alter_id));
+          const pid = primarySess?.alter_id || "";
+          const co = coSessions.map(s => s.alter_id);
+          setPrimaryId(pid);
+          setCoFronterIds(co);
+          initialFrontRef.current = { primaryId: pid, coFronterIds: co };
         } else if (active.length > 0) {
           const s = active[0];
-          setPrimaryId(s.primary_alter_id || "");
-          setCoFronterIds(s.co_fronter_ids || []);
+          const pid = s.primary_alter_id || "";
+          const co = s.co_fronter_ids || [];
+          setPrimaryId(pid);
+          setCoFronterIds(co);
+          initialFrontRef.current = { primaryId: pid, coFronterIds: co };
         } else if (currentFronterIds.length > 0) {
           setPrimaryId(currentFronterIds[0] || "");
           setCoFronterIds(currentFronterIds.slice(1));
+          initialFrontRef.current = { primaryId: currentFronterIds[0] || "", coFronterIds: currentFronterIds.slice(1) };
         }
       }).catch(() => {
         if (currentFronterIds.length > 0) {
@@ -133,12 +175,47 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setAlterSearch("");
     setSelectedActivityCategories([]);
     setActivityDuration("");
+    setActivityNote("");
     setNewActivityName("");
     setShowNewActivity(false);
     setDiaryData({});
     setNote("");
     setHadFrontingOpen(false);
+    setJournalSwitch(false);
+    setIsTriggeredSwitch(false);
+    setTriggerCategory("");
+    setTriggerLabel("");
+    setShowJournalModal(false);
+    setNewSessionId(null);
+    setShowSupportPrompt(false);
+    initialFrontRef.current = { primaryId: "", coFronterIds: [] };
     symptomGetterRef.current = null;
+    setLocationName("");
+    setLocationCategory("");
+    setLocationLat(null);
+    setLocationLng(null);
+    setGpsLoading(false);
+  };
+
+  const handleGPS = () => {
+    if (!navigator.geolocation) { toast.error("GPS not available on this device"); return; }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLocationLat(lat);
+        setLocationLng(lng);
+        setGpsLoading(false);
+        if (!locationName.trim()) {
+          const nearby = findNearbyLocationName(lat, lng, pastLocations);
+          if (nearby) setLocationName(nearby);
+        }
+        toast.success("Location captured");
+      },
+      (err) => { toast.error("Could not get location: " + err.message); setGpsLoading(false); },
+      { timeout: 10000, maximumAge: 60000 }
+    );
   };
 
   // Derived: all selected alter IDs
@@ -150,6 +227,22 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
   // Derive flat array for legacy uses (activity logging, etc.)
   const selectedAlters = useMemo(() => [...selectedAlterIds], [selectedAlterIds]);
+
+  const frontingActuallyChanged = useMemo(() => {
+    if (!hadFrontingOpen) return false;
+    const init = initialFrontRef.current;
+    const initSet = new Set([init.primaryId, ...init.coFronterIds].filter(Boolean));
+    const currSet = new Set([primaryId, ...coFronterIds].filter(Boolean));
+    if (initSet.size !== currSet.size) return true;
+    for (const id of currSet) if (!initSet.has(id)) return true;
+    if (primaryId !== init.primaryId) return true;
+    return false;
+  }, [primaryId, coFronterIds, hadFrontingOpen]);
+
+  const triggerString = useMemo(() => {
+    const cat = TRIGGER_CATEGORIES.find(c => c.id === triggerCategory);
+    return [cat?.label, triggerLabel].filter(Boolean).join(": ");
+  }, [triggerCategory, triggerLabel]);
 
   const toggleAlter = (id) => {
     if (primaryId === id) {
@@ -204,7 +297,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         activity_category_ids: [catId],
         duration_minutes: activityDuration ? parseInt(activityDuration) : null,
         fronting_alter_ids: selectedAlters,
-        emotions: selectedEmotions
+        emotions: selectedEmotions,
+        notes: activityNote.trim() || null,
       });
     }
   };
@@ -254,18 +348,25 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         }
 
         // Create sessions for new alters or those whose primary status changed
+        let firstNewSessionId = null;
         for (const id of allSelectedIds) {
           const existing = newModelSessions.find(s => s.alter_id === id);
           const statusUnchanged = existing && existing.is_primary === desiredMap[id];
           if (!statusUnchanged) {
-            await base44.entities.FrontingSession.create({
+            const triggerExtras = isTriggeredSwitch && triggerCategory
+              ? { is_triggered_switch: true, trigger_category: triggerCategory, trigger_label: triggerLabel }
+              : {};
+            const newSession = await base44.entities.FrontingSession.create({
               alter_id: id,
               is_primary: desiredMap[id],
               start_time: now,
               is_active: true,
+              ...triggerExtras,
             });
+            if (!firstNewSessionId) firstNewSessionId = newSession?.id || null;
           }
         }
+        setNewSessionId(firstNewSessionId);
 
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
@@ -334,9 +435,25 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
       queryClient.invalidateQueries({ queryKey: ["activities"] });
 
-      // Check for high-distress emotions
+      // Location
+      if (openSections.has("location") && (locationName.trim() || locationCategory)) {
+        await localEntities.Location.create({
+          timestamp: now,
+          name: locationName.trim() || getCategoryMeta(locationCategory).label,
+          category: locationCategory || "other",
+          latitude: locationLat ?? null,
+          longitude: locationLng ?? null,
+          source: locationLat != null ? "gps" : "manual",
+        });
+        queryClient.invalidateQueries({ queryKey: ["locations"] });
+      }
+
       const hasDistress = selectedEmotions.some(e => isDistressingEmotion(e));
-      if (hasDistress) {
+      if (journalSwitch && frontingActuallyChanged) {
+        // Journal modal opens; support prompt shows after it closes
+        setShowJournalModal(true);
+        if (hasDistress || isTriggeredSwitch) setShowSupportPrompt(true);
+      } else if (isTriggeredSwitch || hasDistress) {
         setShowGroundingPrompt(true);
       } else {
         onClose();
@@ -349,49 +466,81 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   };
 
   if (showGroundingPrompt) {
+    const isTriggered = isTriggeredSwitch;
     return (
-      <Dialog open={isOpen} onOpenChange={() => {setShowGroundingPrompt(false);onClose();}}>
+      <Dialog open={isOpen} onOpenChange={() => { setShowGroundingPrompt(false); onClose(); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Check-in saved 🤍</DialogTitle>
-            <DialogDescription>Would you like to try a grounding exercise?</DialogDescription>
+            <DialogDescription>
+              {isTriggered
+                ? "You've noted a triggered switch. Would you like some support?"
+                : "Would you like to try a grounding exercise?"}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 pt-2">
-            <p className="text-sm text-muted-foreground">It looks like you might be having a hard time. A grounding technique might help.</p>
+            <p className="text-sm text-muted-foreground">
+              {isTriggered
+                ? "It can help to use a grounding technique after a triggered switch."
+                : "It looks like you might be having a hard time. A grounding technique might help."}
+            </p>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => {setShowGroundingPrompt(false);onClose();}} className="flex-1">
+              <Button variant="outline" onClick={() => { setShowGroundingPrompt(false); onClose(); }} className="flex-1">
                 No thanks
               </Button>
-              <Button onClick={() => {setShowGroundingPrompt(false);onClose();window.location.href = "/grounding";}} className="flex-1">
-                Yes, let's try
+              <Button onClick={() => { setShowGroundingPrompt(false); onClose(); window.location.href = "/grounding"; }} className="flex-1">
+                Yes, open grounding
               </Button>
             </div>
           </div>
         </DialogContent>
-      </Dialog>);
-
+      </Dialog>
+    );
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Heart className="w-5 h-5 text-destructive" />
-            Quick Check-In
-          </DialogTitle>
-          <DialogDescription className="flex items-center gap-2 pt-1">
-            <input
-              type="datetime-local"
-              value={entryTime}
-              onChange={e => setEntryTime(e.target.value)}
-              className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
-            />
-          </DialogDescription>
-        </DialogHeader>
+    <>
+    {showJournalModal && (
+      <SwitchJournalModal
+        open={showJournalModal}
+        onClose={() => {
+          setShowJournalModal(false);
+          if (showSupportPrompt) {
+            setShowSupportPrompt(false);
+            setShowGroundingPrompt(true);
+          } else {
+            onClose();
+          }
+        }}
+        sessionId={newSessionId}
+        authorAlterId={primaryId}
+        defaultTrigger={triggerString}
+      />
+    )}
+    <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
 
-        <div className="space-y-3">
-          {/* Pill toggles — scrollable row on mobile */}
+        {/* Fixed header */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Heart className="w-5 h-5 text-destructive" />
+              Quick Check-In
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-2 pt-1">
+              <input
+                type="datetime-local"
+                value={entryTime}
+                onChange={e => setEntryTime(e.target.value)}
+                className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
+              />
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-3">
+          {/* Pill toggles */}
           <div className="flex flex-wrap gap-1.5 pb-1">
             {PILLS.map((pill) => {
               const PillIcon = pill.icon;
@@ -405,7 +554,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                   <PillIcon className="w-3 h-3" />
                   {pill.label}
                 </button>);
-
             })}
           </div>
 
@@ -418,7 +566,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
               customEmotions={customEmotions}
               onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })} />
-            
             </div>
           }
 
@@ -426,8 +573,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {openSections.has("fronting") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Who's {terms.fronting}?</p>
-
-              {/* Selected chips */}
               {selectedAlterIds.size > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {[...selectedAlterIds].map(id => {
@@ -438,8 +583,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                         className="px-2.5 py-1 text-xs font-medium rounded-full flex items-center gap-1 border"
                         style={{ backgroundColor: a.color ? `${a.color}20` : undefined, borderColor: a.color || undefined }}>
                         {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-                        <button onClick={() => setAsPrimary(id)} className="hover:underline" title="Set as primary">{a.name}</button>
-                        <button onClick={() => toggleAlter(id)} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
+                        <button onClick={() => setAsPrimary(id)} className="hover:underline" aria-label={id === primaryId ? `${a.name} is primary — click to demote` : `Set ${a.name} as primary`}>{a.name}</button>
+                        <button onClick={() => toggleAlter(id)} aria-label={`Remove ${a.name}`} className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
                           <X className="w-3 h-3" />
                         </button>
                       </span>
@@ -447,13 +592,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                   })}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Tap name to make primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary</p>
-
-              {/* Search */}
+              <p className="text-xs text-muted-foreground">Tap to toggle · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary · hold to set primary</p>
               <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
                 onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
-
-              {/* Alter list */}
               <div className="max-h-40 overflow-y-auto space-y-1">
                 {activeAlters
                   .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
@@ -461,7 +602,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                     const isSelected = selectedAlterIds.has(a.id);
                     const isPrimary = primaryId === a.id;
                     return (
-                      <div key={a.id} onClick={() => toggleAlter(a.id)}
+                      <div key={a.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${isSelected ? "Deselect" : "Select"} ${a.name}`}
+                        aria-pressed={isSelected}
+                        onClick={() => toggleAlter(a.id)}
+                        onKeyDown={e => e.key === "Enter" || e.key === " " ? toggleAlter(a.id) : undefined}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all ${
                           isSelected ? "border-primary/60 bg-primary/5" : "border-border/50 bg-card hover:bg-muted/30"
                         }`}>
@@ -476,7 +623,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                           {a.pronouns && <p className="text-xs text-muted-foreground truncate">{a.pronouns}</p>}
                         </div>
                         <button onClick={e => { e.stopPropagation(); if (isSelected) setAsPrimary(a.id); }}
-                            title={isPrimary ? "Primary fronter (tap to unset)" : isSelected ? "Set as primary" : "Select first"}
+                            aria-label={isPrimary ? `${a.name} is primary — click to demote` : isSelected ? `Set ${a.name} as primary` : `Select ${a.name} first`}
+                            disabled={!isSelected}
                             className={`p-1 rounded-md transition-colors flex-shrink-0 ${
                               isPrimary ? "text-amber-500" : isSelected ? "text-muted-foreground hover:text-amber-400" : "text-muted-foreground/30"
                             }`}>
@@ -486,6 +634,38 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                     );
                   })}
               </div>
+              {frontingActuallyChanged && (
+                <div className="border-t border-border/40 pt-2 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={journalSwitch} onChange={e => setJournalSwitch(e.target.checked)} className="w-3.5 h-3.5 accent-primary" />
+                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Journal this {terms.switch}?</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={isTriggeredSwitch} onChange={e => setIsTriggeredSwitch(e.target.checked)} className="w-3.5 h-3.5 accent-orange-500" />
+                    <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                    <span className="text-sm text-muted-foreground">This was a triggered {terms.switch}</span>
+                  </label>
+                  {isTriggeredSwitch && (
+                    <div className="border border-orange-400/30 rounded-lg p-2.5 bg-orange-50/30 dark:bg-orange-900/10 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">What triggered it?</p>
+                      <div className="flex flex-wrap gap-1">
+                        {TRIGGER_CATEGORIES.map(cat => (
+                          <button key={cat.id} type="button" onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)} title={cat.hint}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
+                              triggerCategory === cat.id
+                                ? "bg-orange-100 text-orange-800 border-orange-400 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+                                : "text-muted-foreground border-border hover:bg-muted/50"
+                            }`}>
+                            {cat.emoji} {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                      <Input value={triggerLabel} onChange={e => setTriggerLabel(e.target.value)} placeholder="Optional: describe the trigger..." className="h-7 text-xs" />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           }
 
@@ -495,6 +675,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               <ActivityPillSelector selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
             duration={activityDuration} onDurationChange={setActivityDuration} />
+              <Textarea
+                placeholder="Add a note about this activity... (optional)"
+                value={activityNote}
+                onChange={e => setActivityNote(e.target.value)}
+                className="text-sm min-h-[60px] resize-none"
+                aria-label="Activity note"
+              />
               {showNewActivity ?
             <div className="space-y-2">
                   <Input placeholder="Activity name..." value={newActivityName}
@@ -504,7 +691,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                     <Button size="sm" onClick={handleCreateNewActivity} disabled={!newActivityName.trim()} className="flex-1">Add</Button>
                   </div>
                 </div> :
-
             <button onClick={() => setShowNewActivity(true)}
             className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:border-primary hover:text-foreground transition-colors flex items-center justify-center gap-1">
                   <Plus className="w-4 h-4" /> Create new activity
@@ -524,10 +710,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {openSections.has("diary") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Daily Log</p>
-              <DiarySection
-              data={diaryData}
-              onChange={(groupKey, value) => setDiaryData((prev) => ({ ...prev, [groupKey]: value }))} />
-            
+              <DiarySection data={diaryData} onChange={(groupKey, value) => setDiaryData((prev) => ({ ...prev, [groupKey]: value }))} />
             </div>
           }
 
@@ -545,7 +728,67 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             </div>
           }
 
-          <div className="flex gap-2 pt-1">
+          {/* Location */}
+          {openSections.has("location") && (
+            <div className="border border-border/50 rounded-xl p-3 space-y-3">
+              <p className="text-sm font-medium">Where are you?</p>
+              <div className="flex flex-wrap gap-1.5">
+                {LOCATION_CATEGORIES.map(cat => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setLocationCategory(cat.id === locationCategory ? "" : cat.id)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all"
+                    style={
+                      locationCategory === cat.id
+                        ? { backgroundColor: cat.color, borderColor: cat.color, color: "#fff" }
+                        : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }
+                    }
+                  >
+                    <span>{cat.emoji}</span>
+                    <span>{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={locationName}
+                  onChange={e => setLocationName(e.target.value)}
+                  placeholder={locationCategory ? getCategoryMeta(locationCategory).label : "Place name (optional)..."}
+                  className="flex-1 h-8 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleGPS}
+                  disabled={gpsLoading}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-colors disabled:opacity-50 flex-shrink-0 ${
+                    locationLat != null
+                      ? "border-green-500/60 bg-green-500/10 text-green-600 dark:text-green-400"
+                      : "border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                  }`}
+                >
+                  {gpsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+                  {locationLat != null ? "✓" : "GPS"}
+                </button>
+              </div>
+              {locationLat != null && locationLng != null && (
+                <a
+                  href={`https://www.google.com/maps?q=${locationLat},${locationLng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  📍 {locationLat.toFixed(4)}, {locationLng.toFixed(4)} — Open in Maps ↗
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Fixed footer */}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
+          <div className="flex gap-2">
             <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
             <Button onClick={handleSubmit} disabled={saving} className="flex-1">
               {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
@@ -554,6 +797,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           </div>
         </div>
       </DialogContent>
-    </Dialog>);
-
+    </Dialog>
+    </>
+  );
 }

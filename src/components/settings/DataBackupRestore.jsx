@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
-import { getFullDbDump, loadDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
 import pako from "pako";
 
@@ -29,13 +29,14 @@ const ENTITY_NAMES = [
   "Symptom", "SymptomSession", "SymptomCheckIn", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
   "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
   "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
-  "AlterRelationship", "InnerWorldLocation", "GroundingTechnique", "GroundingPreference",
+  "AlterRelationship", "RelationshipType", "InnerWorldLocation", "GroundingTechnique", "GroundingPreference",
   "SupportJournalEntry", "LearningProgress", "ReportTemplate", "ReportExport",
-  "DiaryTemplate", "Reminder", "ReminderInstance", "Poll",
+  "DiaryTemplate", "Reminder", "ReminderInstance", "Poll", "TriggerType",
+  "StatusNote", "Location", "SystemChangeEvent",
 ];
 
 const EXPORT_CATEGORIES = [
-  { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "InnerWorldLocation"], desc: "Bios, avatars, custom fields, relationships, inner world" },
+  { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner world" },
   { id: "fronting",      label: "Fronting History",         entities: ["FrontingSession"],                                                  desc: "Switch history" },
   { id: "journals",      label: "Journals",                 entities: ["JournalEntry", "SupportJournalEntry"],                              desc: "Journal entries" },
   { id: "checkins",      label: "Check-ins & Emotions",     entities: ["EmotionCheckIn", "SystemCheckIn"],                                  desc: "Emotion & system check-ins" },
@@ -49,8 +50,11 @@ const EXPORT_CATEGORIES = [
   { id: "reminders",     label: "Reminders",                entities: ["Reminder", "ReminderInstance"],                                     desc: "Reminders and scheduled instances" },
   { id: "reports",       label: "Therapy Reports",          entities: ["ReportTemplate", "ReportExport"],                                   desc: "Report templates and exports" },
   { id: "learning",      label: "Learning Progress",        entities: ["LearningProgress"],                                                 desc: "Learning module progress" },
-  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory"],              desc: "App settings, custom emotions" },
+  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType"], desc: "App settings, custom emotions, trigger types" },
   { id: "notes",         label: "Notes & Messages",         entities: ["AlterNote", "AlterMessage", "MentionLog"],                          desc: "Notes, DMs, mentions" },
+  { id: "statuses",     label: "Custom Statuses",           entities: ["StatusNote"],                                                          desc: "Timeline status notes" },
+  { id: "locations",    label: "Location History",          entities: ["Location"],                                                            desc: "Location log entries" },
+  { id: "lineage",      label: "System Change Events",      entities: ["SystemChangeEvent"],                                                   desc: "Fusion, split, dormancy events" },
   { id: "images",        label: "Local Images",             entities: [],                                                                    desc: "Uploaded images (local mode only)", isImages: true },
 ];
 
@@ -375,8 +379,13 @@ const handleExportFull = async () => {
         console.warn("Failed to restore local images:", e);
       }
     }
-    await loadDbDump(parsed.data);
-    showStatus("success", "Data restored! The app will reload.");
+    if (importMode === "replace") {
+      await loadDbDump(parsed.data);
+      showStatus("success", "Data replaced! The app will reload.");
+    } else {
+      await mergeDbDump(parsed.data);
+      showStatus("success", "New records added (existing data preserved)! The app will reload.");
+    }
     setTimeout(() => window.location.reload(), 1200);
   };
 

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save, Plus, Pencil, Eye, CheckCircle2, Users, MessageSquare } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import CheckInStep1 from "@/components/system-checkin/CheckInStep1";
@@ -19,7 +18,6 @@ import { saveMentions } from "@/lib/mentionUtils";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 
 export default function SystemCheckInPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const terms = useTerms();
@@ -84,8 +82,6 @@ export default function SystemCheckInPage() {
     }
 
     const dataToSave = { ...formData };
-    const shouldCreateDiary = formData.create_diary_card;
-    delete dataToSave.create_diary_card;
 
     const allStepContent = [
       formData.step3_greet?.notes,
@@ -168,8 +164,22 @@ export default function SystemCheckInPage() {
   }
 }
 
-    if (shouldCreateDiary) {
-      setTimeout(() => { navigate("/diary?create=true"); }, 500);
+
+    // Sync feelings to EmotionCheckIn so they appear in analytics
+    const feelings = formData.step2_notice?.feelings;
+    if (feelings?.trim()) {
+      const emotionLabels = feelings.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+      if (emotionLabels.length > 0) {
+        try {
+          await base44.entities.EmotionCheckIn.create({
+            timestamp: new Date().toISOString(),
+            emotions: emotionLabels,
+            fronting_alter_ids: [],
+            note: `From system check-in`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+        } catch {}
+      }
     }
   };
 
@@ -218,7 +228,7 @@ export default function SystemCheckInPage() {
             </Button>
           </div>
           <div className="mb-6">
-            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Check-In</h1>
+            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meeting</h1>
             <p className="text-muted-foreground text-sm mt-1">
 {(() => {
   const [y, m, d] = currentCheckIn.date.split("-").map(Number);
@@ -319,16 +329,16 @@ export default function SystemCheckInPage() {
         </div>
       )}
       {view === "list" ? (
-        <div>
+        <div data-tour="meetings-list">
           <div className="mb-8">
-            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Check-Ins</h1>
+            <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meetings</h1>
             <p className="text-muted-foreground text-sm mt-1">
               A 5-minute guided ritual to connect with your {terms.system}
             </p>
           </div>
-          <Button onClick={handleNewCheckIn} className="gap-2 mb-6">
+          <Button data-tour="meetings-new" onClick={handleNewCheckIn} className="gap-2 mb-6">
             <Plus className="w-4 h-4" />
-            New Check-In
+            New Meeting
           </Button>
           {checkIns.length === 0 ? (
             <Card className="bg-muted/30">
@@ -379,7 +389,7 @@ const formatted = date.toLocaleDateString("en-US", {
 
           <div className="mb-8">
             <h1 className="font-display text-3xl font-semibold text-foreground">
-              {currentCheckIn ? "Edit Check-In" : `New ${terms.System} Check-In`}
+              {currentCheckIn ? "Edit Meeting" : `New ${terms.System} Meeting`}
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
               Take 5 minutes to connect with your {terms.system}
@@ -409,27 +419,6 @@ const formatted = date.toLocaleDateString("en-US", {
 <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
 <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
 
-            {/* Next Steps */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Next Step</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="diary-card"
-                    checked={formData.create_diary_card || false}
-                    onChange={(e) => setFormData({ ...formData, create_diary_card: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <label htmlFor="diary-card" className="cursor-pointer text-sm">
-                    Complete a daily diary card next
-                  </label>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Save Button */}
             <Button
               onClick={handleSave}
@@ -437,7 +426,7 @@ const formatted = date.toLocaleDateString("en-US", {
               disabled={createMutation.isPending || updateMutation.isPending}
             >
               <Save className="w-4 h-4" />
-              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save Check-In"}
+              {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save Meeting"}
             </Button>
           </div>
         </div>

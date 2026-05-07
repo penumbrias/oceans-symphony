@@ -21,7 +21,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
 
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
-    description: "", color: "", avatar_url: "",
+    description: "", color: "", avatar_url: "", origin_year: "",
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -35,7 +35,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
         name: alter.name || "", alias: alter.alias || "",
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
-        avatar_url: alter.avatar_url || "",
+        avatar_url: alter.avatar_url || "", origin_year: alter.origin_year ? String(alter.origin_year) : "",
       });
     } else {
       setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "" });
@@ -115,12 +115,13 @@ const handleAvatarUpload = async (e) => {
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
     setSaving(true);
+    const formData = { ...form, origin_year: form.origin_year ? parseInt(form.origin_year, 10) : null };
     try {
       if (isNew) {
-        await base44.entities.Alter.create({ ...form, is_archived: false });
+        await base44.entities.Alter.create({ ...formData, is_archived: false });
         toast.success(`✅ ${t.Alter} created!`);
       } else {
-        await base44.entities.Alter.update(alter.id, form);
+        await base44.entities.Alter.update(alter.id, formData);
         toast.success("✅ Saved!");
       }
       queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -169,12 +170,17 @@ const handleAvatarUpload = async (e) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isNew ? `Add New ${t.Alter}` : `Edit ${alter?.name || t.Alter}`}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
 
-        <div className="space-y-4 pt-2">
+        {/* Fixed header */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
+          <DialogHeader>
+            <DialogTitle>{isNew ? `Add New ${t.Alter}` : `Edit ${alter?.name || t.Alter}`}</DialogTitle>
+          </DialogHeader>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-4">
           {form.color && (
             <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />
           )}
@@ -201,6 +207,18 @@ const handleAvatarUpload = async (e) => {
           </div>
 
           <div className="space-y-2">
+            <Label>Origin Year</Label>
+            <Input
+              type="number"
+              min={1900}
+              max={new Date().getFullYear()}
+              value={form.origin_year}
+              onChange={(e) => set("origin_year", e.target.value)}
+              placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label>Color</Label>
             <ColorPicker value={form.color || "#8b5cf6"} onChange={(v) => set("color", v)} />
           </div>
@@ -209,7 +227,7 @@ const handleAvatarUpload = async (e) => {
             <Label>Avatar</Label>
             <div className="flex gap-2">
               <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
+              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} aria-label={uploadingAvatar ? "Uploading avatar…" : "Upload avatar image"}>
                 {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               </Button>
               <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
@@ -258,27 +276,28 @@ const handleAvatarUpload = async (e) => {
               )}
             </div>
           )}
+        </div>
 
-          <div className="flex flex-col gap-2 pt-2">
-            <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              {isNew ? `Create ${t.Alter}` : "Save Changes"}
-            </Button>
-            {!isNew && (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
-                  {alter?.is_archived
-                    ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
-                    : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
-                </Button>
-                <Button variant="outline" onClick={handleDelete} disabled={deleting}
-                  className="flex-1 text-destructive hover:bg-destructive/10 border-destructive/40 hover:border-destructive/60">
-                  {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                  Delete
-                </Button>
-              </div>
-            )}
-          </div>
+        {/* Fixed footer */}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50 flex flex-col gap-2">
+          <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            {isNew ? `Create ${t.Alter}` : "Save Changes"}
+          </Button>
+          {!isNew && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
+                {alter?.is_archived
+                  ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</>
+                  : <><Archive className="w-4 h-4 mr-2" /> Archive</>}
+              </Button>
+              <Button variant="outline" onClick={handleDelete} disabled={deleting}
+                className="flex-1 text-destructive hover:bg-destructive/10 border-destructive/40 hover:border-destructive/60">
+                {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                Delete
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
 
