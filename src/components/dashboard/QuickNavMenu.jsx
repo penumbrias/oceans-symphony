@@ -92,7 +92,12 @@ export default function QuickNavMenu() {
   const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System]);
 
   const configuredGridItems = useMemo(() => {
-    return navConfig.dashboardGrid
+    // Merge any new default pages that aren't in the saved config yet
+    const mergedGrid = [
+      ...navConfig.dashboardGrid,
+      ...DEFAULT_CONFIG.dashboardGrid.filter(id => !navConfig.dashboardGrid.includes(id)),
+    ];
+    return mergedGrid
       .map(id => GRID_ITEMS.find(item => item.id === id))
       .filter(Boolean);
   }, [GRID_ITEMS, navConfig.dashboardGrid]);

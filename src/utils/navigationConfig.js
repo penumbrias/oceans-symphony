@@ -31,6 +31,7 @@ export const DEFAULT_CONFIG = {
   dashboardGrid: [
     "reminders",
     "alters",
+    "friends",
     "checkin",
     "activities",
     "analytics",
