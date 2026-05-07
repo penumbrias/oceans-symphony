@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "Check-In Log day total now aggregates all of the day's data — status notes, diary card values (joy, skills, urges, meds), and all standalone entries. The entry count in the total header reflects every tracked item for the day, not just formal check-ins.",
+        text: "Check-In Log day total now aggregates all of the day's data — status notes, diary card values (joy, emotional misery, physical misery, skills, urges, meds), and all standalone entries. Wellness scores are averaged across multiple diary cards; urge values show the peak. The entry count in the total header reflects every tracked item for the day, not just formal check-ins.",
       },
       {
         type: "fix",

@@ -270,20 +270,36 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   // Aggregate diary data across all diary cards for the day
   const diaryAggregate = useMemo(() => {
     if (!diaryCards.length) return null;
-    let maxJoy = null, maxSkills = null, maxSuicidal = null, maxSelfHarm = null;
+    const joyVals = [], skillsVals = [], suicidalVals = [], selfHarmVals = [];
+    const emotionalMiseryVals = [], physicalMiseryVals = [];
     let rxTaken = false, selfHarmOccurred = false;
     diaryCards.forEach(dc => {
       const bm = dc.body_mind || {};
       const urges = dc.urges || {};
       const med = dc.medication_safety || {};
-      if (bm.joy != null && (maxJoy === null || bm.joy > maxJoy)) maxJoy = bm.joy;
-      if (dc.skills_practiced != null && (maxSkills === null || dc.skills_practiced > maxSkills)) maxSkills = dc.skills_practiced;
-      if (urges.suicidal != null && (maxSuicidal === null || urges.suicidal > maxSuicidal)) maxSuicidal = urges.suicidal;
-      if (urges.self_harm != null && (maxSelfHarm === null || urges.self_harm > maxSelfHarm)) maxSelfHarm = urges.self_harm;
+      if (bm.joy != null) joyVals.push(bm.joy);
+      if (bm.emotional_misery != null) emotionalMiseryVals.push(bm.emotional_misery);
+      if (bm.physical_misery != null) physicalMiseryVals.push(bm.physical_misery);
+      if (dc.skills_practiced != null) skillsVals.push(dc.skills_practiced);
+      // Urges: use max — safety-relevant, want to surface worst value across the day
+      if (urges.suicidal != null) suicidalVals.push(urges.suicidal);
+      if (urges.self_harm != null) selfHarmVals.push(urges.self_harm);
       if (med.rx_meds_taken) rxTaken = true;
       if (med.self_harm_occurred) selfHarmOccurred = true;
     });
-    return { maxJoy, maxSkills, maxSuicidal, maxSelfHarm, rxTaken, selfHarmOccurred };
+    const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : null;
+    const max = (arr) => arr.length ? Math.max(...arr) : null;
+    return {
+      avgJoy: avg(joyVals),
+      avgSkills: avg(skillsVals),
+      avgEmotionalMisery: avg(emotionalMiseryVals),
+      avgPhysicalMisery: avg(physicalMiseryVals),
+      maxSuicidal: max(suicidalVals),
+      maxSelfHarm: max(selfHarmVals),
+      count: diaryCards.length,
+      rxTaken,
+      selfHarmOccurred,
+    };
   }, [diaryCards]);
 
   const isEmpty = allEmotions.length === 0 && fronters.length === 0 && allSymptoms.length === 0
@@ -362,24 +378,34 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
 
       {diaryAggregate && (
         <div className="flex flex-wrap gap-1">
-          {diaryAggregate.maxJoy != null && (
+          {diaryAggregate.avgJoy != null && (
             <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-600 border border-green-500/20">
-              😊 Joy {diaryAggregate.maxJoy}/5
+              😊 Joy {diaryAggregate.avgJoy}/5{diaryAggregate.count > 1 ? " avg" : ""}
             </span>
           )}
-          {diaryAggregate.maxSkills != null && (
+          {diaryAggregate.avgEmotionalMisery != null && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
+              😔 Emotional misery {diaryAggregate.avgEmotionalMisery}/5{diaryAggregate.count > 1 ? " avg" : ""}
+            </span>
+          )}
+          {diaryAggregate.avgPhysicalMisery != null && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-600 border border-orange-500/20">
+              🩻 Physical misery {diaryAggregate.avgPhysicalMisery}/5{diaryAggregate.count > 1 ? " avg" : ""}
+            </span>
+          )}
+          {diaryAggregate.avgSkills != null && (
             <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
-              🛠️ Skills {diaryAggregate.maxSkills}/7
+              🛠️ Skills {diaryAggregate.avgSkills}/7{diaryAggregate.count > 1 ? " avg" : ""}
             </span>
           )}
           {diaryAggregate.maxSuicidal != null && diaryAggregate.maxSuicidal > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-600 border border-red-500/20">
-              ⚠️ Suicidal urges {diaryAggregate.maxSuicidal}/5
+              ⚠️ Suicidal urges {diaryAggregate.maxSuicidal}/5{diaryAggregate.count > 1 ? " peak" : ""}
             </span>
           )}
           {diaryAggregate.maxSelfHarm != null && diaryAggregate.maxSelfHarm > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-600 border border-orange-500/20">
-              ⚠️ Self-harm urges {diaryAggregate.maxSelfHarm}/5
+              ⚠️ Self-harm urges {diaryAggregate.maxSelfHarm}/5{diaryAggregate.count > 1 ? " peak" : ""}
             </span>
           )}
           {diaryAggregate.rxTaken && (
