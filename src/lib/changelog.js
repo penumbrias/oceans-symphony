@@ -13,6 +13,23 @@
 
 export const CHANGELOG = [
   {
+    date: "May 8, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Backup size warning no longer references 'Migrate All Images' (that feature no longer exists). Message now points to the Recompress Images button instead.",
+      },
+      {
+        type: "improve",
+        text: "Daily task review grid now shows the day of week (Mon, Tue, etc.) above each date column so you can see exactly which day a task was completed.",
+      },
+      {
+        type: "improve",
+        text: "Reminder inbox cards now show a default action button based on reminder category — Check In reminders show a 'Check In' button, Grounding reminders show 'Open Grounding' — even if no inline actions were explicitly configured.",
+      },
+    ],
+  },
+  {
     date: "May 7, 2026",
     changes: [
       {

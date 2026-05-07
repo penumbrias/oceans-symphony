@@ -62,7 +62,14 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
                     key === currentKey ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  <span className="block text-[10px]">{formatPeriodKeyShort(frequency, key)}</span>
+                  {frequency === "daily" ? (
+                    <>
+                      <span className="block text-[10px] font-semibold">{getDayOfWeek(key)}</span>
+                      <span className="block text-[10px] opacity-70">{formatPeriodKeyShort(frequency, key)}</span>
+                    </>
+                  ) : (
+                    <span className="block text-[10px]">{formatPeriodKeyShort(frequency, key)}</span>
+                  )}
                 </th>
               ))}
             </tr>
@@ -146,6 +153,11 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
       </div>
     </div>
   );
+}
+
+function getDayOfWeek(dateKey) {
+  const d = new Date(dateKey + "T00:00:00");
+  return d.toLocaleDateString(undefined, { weekday: "short" });
 }
 
 function formatPeriodKeyShort(frequency, key) {

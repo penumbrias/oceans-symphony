@@ -238,7 +238,7 @@ export default function DataBackupRestore() {
     // Size warning — check before compression
     const rawSize = JSON.stringify(exportData).length;
     if (rawSize > 500 * 1024) {
-      setSizeWarning(`Your backup is large (${(rawSize / 1024).toFixed(0)}KB). Run "Migrate All Images" first to reduce size.`);
+      setSizeWarning(`Your backup is large (${(rawSize / 1024).toFixed(0)}KB). Try recompressing images above to reduce size.`);
     } else {
       setSizeWarning(null);
     }
