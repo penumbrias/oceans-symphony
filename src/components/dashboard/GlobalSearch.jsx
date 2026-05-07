@@ -217,6 +217,7 @@ export default function GlobalSearch() {
           type: "alter", id: a.id, title: a.name,
           subtitle: dateMatch ? `📅 ${formatDateLabel(a.created_date)}` : (a.role || a.pronouns),
           color: a.color, path: `/alter/${a.id}`, dateMatch,
+          isArchived: !!a.is_archived,
         });
       }
     });
@@ -482,8 +483,9 @@ export default function GlobalSearch() {
                   <button key={result.id} onClick={() => handleResultClick(result.path)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left">
                     {result.type === "alter" ? (
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
-                        style={{ backgroundColor: result.color || "#8b5cf6" }}>
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-xs ${result.isArchived ? "opacity-40 grayscale" : "text-white"}`}
+                        style={{ backgroundColor: result.isArchived ? "#6b7280" : (result.color || "#8b5cf6") }}>
                         {result.title?.charAt(0)?.toUpperCase()}
                       </div>
                     ) : (
@@ -492,7 +494,16 @@ export default function GlobalSearch() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{result.title}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className={`text-sm font-medium truncate ${result.isArchived ? "text-muted-foreground" : "text-foreground"}`}>
+                          {result.title}
+                        </p>
+                        {result.isArchived && (
+                          <span className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/50">
+                            archived
+                          </span>
+                        )}
+                      </div>
                       {result.subtitle && (
                         <p className="text-xs text-muted-foreground truncate">
                           {highlightMatch(result.subtitle, query)}
