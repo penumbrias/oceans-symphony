@@ -73,7 +73,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "🧭",
       title: "Quick Nav Menu",
-      body: `Below the status input is the Quick Nav Menu — shortcuts to every section of the app. Toggle between grid and list view using the icon in its header. In Settings → Appearance → Navigation you can choose which pages appear here and in what order.`,
+      body: `Below the status input is the Quick Nav Menu — shortcuts to every section of the app. The icon in the header cycles through list view and 2–5 column grid layouts on each tap. In Settings → Appearance → Navigation you can choose which pages appear here and in what order.`,
       route: "/", target: "quick-nav",
       look: `the highlighted Quick Nav grid or list — scroll down to see it`, action: null,
     },

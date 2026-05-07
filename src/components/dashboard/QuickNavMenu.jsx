@@ -72,10 +72,25 @@ function buildGridItems(altersLabel, systemLabel) {
   ];
 }
 
+const NAV_DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
+
 export default function QuickNavMenu() {
   const terms = useTerms();
-  const [isGridLayout, setIsGridLayout] = useState(() => localStorage.getItem("nav_grid_layout") === "true");
-  const gridCols = parseInt(localStorage.getItem("nav_grid_cols") || "3", 10);
+  const [navDisplayMode, setNavDisplayMode] = useState(() => {
+    const saved = localStorage.getItem("nav_display_mode");
+    if (saved) return saved;
+    // backward compat with old keys
+    if (localStorage.getItem("nav_grid_layout") === "true") {
+      return localStorage.getItem("nav_grid_cols") || "3";
+    }
+    return "list";
+  });
+
+  const cycleNavDisplay = () => {
+    const next = NAV_DISPLAY_CYCLE[(NAV_DISPLAY_CYCLE.indexOf(navDisplayMode) + 1) % NAV_DISPLAY_CYCLE.length];
+    setNavDisplayMode(next);
+    localStorage.setItem("nav_display_mode", next);
+  };
   const { data: pendingInstances = [] } = usePendingReminderInstances();
   const pendingCount = pendingInstances.filter(i => i.status === "fired").length;
   
@@ -113,19 +128,19 @@ export default function QuickNavMenu() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => {
-            const newState = !isGridLayout;
-            setIsGridLayout(newState);
-            localStorage.setItem("nav_grid_layout", newState ? "true" : "false");
-          }}
-          title={isGridLayout ? "Switch to list view" : "Switch to grid view"}>
-          {isGridLayout ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+          onClick={cycleNavDisplay}
+          title={navDisplayMode === "list" ? "Switch to grid view" : `${navDisplayMode}-col grid — tap to ${navDisplayMode === "5" ? "switch to list" : "add column"}`}
+          className="flex-shrink-0">
+          {navDisplayMode === "list"
+            ? <LayoutGrid className="h-4 w-4" />
+            : <span className="text-xs font-bold leading-none">{navDisplayMode}</span>
+          }
         </Button>
       </div>
 
       {/* Grid Layout */}
-      {isGridLayout &&
-      <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
+      {navDisplayMode !== "list" &&
+      <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${navDisplayMode}, minmax(0, 1fr))` }}>
               {configuredGridItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -150,7 +165,7 @@ export default function QuickNavMenu() {
       }
 
       {/* List Layout — always shows all pages */}
-      {!isGridLayout &&
+      {navDisplayMode === "list" &&
       <div className="space-y-6">
           {Object.entries(NAV_GROUPS).map(([groupName, items]) =>
         <div key={groupName}>

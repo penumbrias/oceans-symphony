@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Quick Nav grid toggle on the home screen now cycles through list and 2–5 column grid layouts on each tap, matching the alter directory toggle.",
+      },
+      {
+        type: "improve",
+        text: "Daily task review: tapping a completed task now shows the time it was logged (e.g. \"Completed at 2:35 PM\") instead of the date, which was redundant since the date is already on the column header.",
+      },
+      {
         type: "fix",
         text: "Friends: \"Notify on change\" push notifications now work correctly. Fixed a bug where the notification preference wasn't visible to the friend's account when they updated their front. Also re-syncs your push subscription to the server automatically when you open the Friends page.",
       },

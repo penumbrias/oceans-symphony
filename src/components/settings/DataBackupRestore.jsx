@@ -24,6 +24,7 @@ const LS_SETTINGS_KEYS = [
   "alter_display_mode",
   "nav_grid_layout",
   "nav_grid_cols",
+  "nav_display_mode",
 ];
 
 function exportLocalSettings() {
