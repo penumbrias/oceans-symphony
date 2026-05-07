@@ -144,7 +144,7 @@ export default function AdvancedAppearance() {
   const {
     themeMode, setThemeMode, cycleThemeMode,
     selectedTheme, setSelectedTheme,
-    customColors, updateCustomColors, clearCustomColors,
+    customColors, updateCustomColors, updateCustomColorsFull, clearCustomColors,
     presets, allPresets,
     userCustomPresets, saveCustomPreset, deleteUserPreset,
     alterThemeLinks, linkAlterTheme, unlinkAlterTheme,
@@ -228,7 +228,7 @@ export default function AdvancedAppearance() {
       const mode = isDark ? 'dark' : 'light';
       const updated = { ...pendingColors, [mode]: { ...pendingColors[mode], [editingColor]: hex } };
       setPendingColors(updated);
-      updateCustomColors(updated.light);
+      updateCustomColorsFull(updated.light, updated.dark);
     }
   };
 
@@ -237,7 +237,7 @@ export default function AdvancedAppearance() {
     const mode = isDark ? 'dark' : 'light';
     const updated = { ...pendingColors, [mode]: { ...pendingColors[mode], [editingColor]: hexInput } };
     setPendingColors(updated);
-    updateCustomColors(updated.light);
+    updateCustomColorsFull(updated.light, updated.dark);
     setEditingColor(null);
   };
 

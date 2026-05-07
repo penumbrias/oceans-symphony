@@ -391,6 +391,11 @@ export function ThemeProvider({ children }) {
     setSelectedTheme('custom');
   };
 
+  const updateCustomColorsFull = (newLight, newDark) => {
+    setCustomColors({ light: newLight, dark: newDark });
+    setSelectedTheme('custom');
+  };
+
   const clearCustomColors = () => {
     setCustomColors(null);
   };
@@ -438,6 +443,7 @@ export function ThemeProvider({ children }) {
       selectedTheme,
       customColors,
       updateCustomColors,
+      updateCustomColorsFull,
       clearCustomColors,
       cycleThemeMode,
       presets: THEME_PRESETS,

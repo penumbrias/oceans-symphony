@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 7, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Custom color editor — editing colors while in dark mode now correctly updates the dark palette instead of being silently overwritten by the auto-generated dark theme.",
+      },
+      {
         type: "feature",
         text: "Appearance overhaul — font family moved into Appearance settings with a searchable dropdown of 27+ fonts across 7 categories. Save named theme presets that capture your colors, font, text size, and light/dark mode. Link a preset to any alter so their theme auto-applies the moment they become primary fronter.",
       },
