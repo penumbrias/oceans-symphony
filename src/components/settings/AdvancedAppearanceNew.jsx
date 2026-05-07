@@ -177,9 +177,17 @@ export default function AdvancedAppearance() {
   const isDark = themeMode === 'dark' ||
     (themeMode === 'system' && document.documentElement.classList.contains('dark'));
 
+  const readCssColors = () => {
+    const style = getComputedStyle(document.documentElement);
+    return Object.fromEntries(
+      Object.keys(COLOR_LABELS).map(k => [k, style.getPropertyValue(`--color-${k}`).trim() || '#888888'])
+    );
+  };
+
   const getCurrentColors = () => {
-    const src = customColors || allPresets[selectedTheme];
-    return src ? (isDark ? src.dark : src.light) : {};
+    const src = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
+    if (src) return isDark ? src.dark : src.light;
+    return readCssColors();
   };
 
   const currentColors = pendingColors
@@ -215,8 +223,15 @@ export default function AdvancedAppearance() {
   const handleStartEdit = (key) => {
     if (!pendingColors) {
       setOriginalTheme(selectedTheme);
-      const light = { ...(customColors?.light || allPresets[selectedTheme]?.light || {}) };
-      const dark  = { ...(customColors?.dark  || allPresets[selectedTheme]?.dark  || {}) };
+      const presetColors = allPresets[selectedTheme] || userCustomPresets[selectedTheme];
+      const light = { ...(customColors?.light || presetColors?.light || {}) };
+      const dark  = { ...(customColors?.dark  || presetColors?.dark  || {}) };
+      // Seed any missing keys from the currently applied CSS variables
+      const cssColors = readCssColors();
+      Object.keys(COLOR_LABELS).forEach(k => {
+        if (!light[k]) light[k] = isDark ? '#888888' : cssColors[k];
+        if (!dark[k])  dark[k]  = isDark ? cssColors[k] : '#888888';
+      });
       setPendingColors({ light, dark });
     }
     setEditingColor(key);

@@ -41,6 +41,10 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
+        text: "Custom color editor — swatches now seed from the app's currently displayed colors instead of showing gray when no custom colors have been saved. Opening the editor always reflects your active theme.",
+      },
+      {
+        type: "fix",
         text: "Custom color editor — editing colors while in dark mode now correctly updates the dark palette instead of being silently overwritten by the auto-generated dark theme.",
       },
       {
