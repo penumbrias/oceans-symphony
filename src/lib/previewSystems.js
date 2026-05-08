@@ -173,6 +173,32 @@ function buildHearth() {
     is_anonymized: false,
   });
 
+  // Per-alter theme presets — Sage and Pip each have their own theme +
+  // (optionally) terms that take over when they become the primary fronter.
+  // Marin is host / default and uses the system-level look.
+  const themePresets = {
+    "Sage's Hearth": {
+      light: { bg: "#F0FDF4", surface: "#DCFCE7", primary: "#15803D", secondary: "#BBF7D0", accent: "#4ADE80", muted: "#A7F3D0", "text-primary": "#052E16", "text-secondary": "#166534" },
+      dark:  { bg: "#062E18", surface: "#0F3D24", primary: "#4ADE80", secondary: "#14532D", accent: "#86EFAC", muted: "#1E5734", "text-primary": "#DCFCE7", "text-secondary": "#A7F3D0" },
+      font: "'Atkinson Hyperlegible', sans-serif",
+      themeMode: null,
+      fontSize: "default",
+      terms: { system: "system", alter: "alter", switch: "shift", front: "hold" },
+    },
+    "Pip's Sunshine": {
+      light: { bg: "#FEFCE8", surface: "#FEF9C3", primary: "#F59E0B", secondary: "#FDE68A", accent: "#FBBF24", muted: "#FEF3C7", "text-primary": "#78350F", "text-secondary": "#92400E" },
+      dark:  { bg: "#1C1207", surface: "#2A1B0E", primary: "#FBBF24", secondary: "#3B2607", accent: "#FCD34D", muted: "#5A3F1C", "text-primary": "#FEF9C3", "text-secondary": "#FDE68A" },
+      font: "'Nunito', sans-serif",
+      themeMode: "light",
+      fontSize: "lg",
+      terms: { system: "family", alter: "friend", switch: "switch", front: "play" },
+    },
+  };
+  const alterThemeLinks = {
+    [alters.sage.id]: "Sage's Hearth",
+    [alters.pip.id]:  "Pip's Sunshine",
+  };
+
   return {
     SystemSettings:    toMap([settings]),
     Alter:             toMap(Object.values(alters)),
@@ -188,6 +214,8 @@ function buildHearth() {
     SymptomSession:    toMap(symptomSessions),
     Location:          toMap(locations),
     Task:              toMap(tasks),
+    $themePresets:     themePresets,
+    $alterThemeLinks:  alterThemeLinks,
   };
 }
 
@@ -357,6 +385,42 @@ function buildTapestry() {
     is_anonymized: false,
   });
 
+  // Per-alter theme presets. Iris (the primary fronter on entry) brings
+  // the berry palette + Playfair; if the user swipes the primary to Atlas,
+  // the system-level charcoal theme returns. Vex, Halo each have their
+  // own look-and-feel.
+  const themePresets = {
+    "Iris Berry": {
+      light: { bg: "#FDF2F8", surface: "#FBCFE8", primary: "#DB2777", secondary: "#FBCFE8", accent: "#EC4899", muted: "#FCE7F3", "text-primary": "#500724", "text-secondary": "#831843" },
+      dark:  { bg: "#1F0B2E", surface: "#2D1645", primary: "#EC4899", secondary: "#6B1B47", accent: "#F472B6", muted: "#5A3668", "text-primary": "#FBCFE8", "text-secondary": "#F0ABFC" },
+      font: "'Playfair Display', serif",
+      themeMode: null,
+      fontSize: "default",
+      terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+    },
+    "Vex's Edge": {
+      light: { bg: "#FAFAFA", surface: "#F3F3F3", primary: "#27272A", secondary: "#E5E5E5", accent: "#3F3F46", muted: "#D4D4D8", "text-primary": "#0A0A0A", "text-secondary": "#3F3F46" },
+      dark:  { bg: "#0A0A0A", surface: "#171717", primary: "#A1A1AA", secondary: "#262626", accent: "#D4D4D8", muted: "#404040", "text-primary": "#FAFAFA", "text-secondary": "#A1A1AA" },
+      font: "'Atkinson Hyperlegible', sans-serif",
+      themeMode: "dark",
+      fontSize: "default",
+      terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+    },
+    "Halo's Glow": {
+      light: { bg: "#FFF7ED", surface: "#FFEDD5", primary: "#C2410C", secondary: "#FED7AA", accent: "#F97316", muted: "#FFEDD5", "text-primary": "#431407", "text-secondary": "#7C2D12" },
+      dark:  { bg: "#1F0B05", surface: "#2A1208", primary: "#FB923C", secondary: "#3B1A0A", accent: "#FDBA74", muted: "#5A2E15", "text-primary": "#FFEDD5", "text-secondary": "#FED7AA" },
+      font: "'Playfair Display', serif",
+      themeMode: null,
+      fontSize: "default",
+      terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+    },
+  };
+  const alterThemeLinks = {
+    [alters.iris.id]:  "Iris Berry",
+    [alters.vex.id]:   "Vex's Edge",
+    [alters.halo.id]:  "Halo's Glow",
+  };
+
   return {
     SystemSettings:    toMap([settings]),
     Alter:             toMap(Object.values(alters)),
@@ -370,6 +434,8 @@ function buildTapestry() {
     SystemChangeEvent: toMap(systemEvents),
     Symptom:           toMap(symptoms),
     SymptomSession:    toMap(symptomSessions),
+    $themePresets:     themePresets,
+    $alterThemeLinks:  alterThemeLinks,
   };
 }
 
@@ -477,6 +543,33 @@ function buildCompass() {
     is_anonymized: false,
   });
 
+  // Per-part theme presets. Self uses the system-level forest look.
+  // Critic and Drifter each take over the visuals AND the terminology
+  // when they (rarely) take the lead — their language differs from the
+  // Self's compassionate framing.
+  const themePresets = {
+    "The Critic": {
+      light: { bg: "#FAFAFA", surface: "#F3F3F3", primary: "#1F2937", secondary: "#E5E7EB", accent: "#374151", muted: "#D1D5DB", "text-primary": "#0F172A", "text-secondary": "#374151" },
+      dark:  { bg: "#0A0A0A", surface: "#171717", primary: "#A1A1AA", secondary: "#262626", accent: "#D4D4D8", muted: "#404040", "text-primary": "#F4F4F5", "text-secondary": "#A1A1AA" },
+      font: "'Atkinson Hyperlegible', sans-serif",
+      themeMode: null,
+      fontSize: "default",
+      terms: { system: "committee", alter: "voice", switch: "shift", front: "judge" },
+    },
+    "The Drifter": {
+      light: { bg: "#F5F5F4", surface: "#E7E5E4", primary: "#78716C", secondary: "#D6D3D1", accent: "#A8A29E", muted: "#D6D3D1", "text-primary": "#292524", "text-secondary": "#57534E" },
+      dark:  { bg: "#1C1917", surface: "#292524", primary: "#A8A29E", secondary: "#44403C", accent: "#D6D3D1", muted: "#57534E", "text-primary": "#F5F5F4", "text-secondary": "#D6D3D1" },
+      font: "'Nunito', sans-serif",
+      themeMode: null,
+      fontSize: "default",
+      terms: { system: "inner family", alter: "distractor", switch: "shift", front: "drift" },
+    },
+  };
+  const alterThemeLinks = {
+    [parts.critic.id]:  "The Critic",
+    [parts.drifter.id]: "The Drifter",
+  };
+
   return {
     SystemSettings:    toMap([settings]),
     Alter:             toMap(Object.values(parts)),
@@ -487,6 +580,8 @@ function buildCompass() {
     SystemCheckIn:     toMap(checkIns),
     StatusNote:        toMap(statusNotes),
     AlterRelationship: toMap(relationships),
+    $themePresets:     themePresets,
+    $alterThemeLinks:  alterThemeLinks,
   };
 }
 
@@ -497,7 +592,7 @@ export const PREVIEW_SYSTEMS = [
   {
     key: "hearth",
     name: "The Hearth",
-    blurb: "A small DID system with five alters — host, protector, caretaker, little, and an introject. Default DID terminology.",
+    blurb: "A small DID system with five alters — host, protector, caretaker, little, and an introject. Sage and Pip carry their own theme + terminology that take over when they're the primary fronter; swipe left on either to see the look-and-feel switch.",
     termsLabel: "system / alter / fronting / switching",
     theme: "warm",
     font:  "'Playfair Display', serif",
@@ -507,9 +602,9 @@ export const PREVIEW_SYSTEMS = [
   {
     key: "tapestry",
     name: "The Tapestry",
-    blurb: "A large polyfragmented DID system: 24 alters across hosts, protectors, caretakers, littles, teens, introjects, gatekeeper, persecutors, fragments, and dormants — with splits, fusions, and frequent switching.",
+    blurb: "A large polyfragmented DID system: 24 alters across hosts, protectors, caretakers, littles, teens, introjects, gatekeeper, persecutors, fragments, and dormants — with splits, fusions, and frequent switching. Iris (currently primary), Vex, and Halo each have their own theme presets, so the app's whole look-and-feel changes with the primary fronter.",
     termsLabel: "system / alter / fronting / switching",
-    theme: "berry",
+    theme: "charcoal",
     font:  "'Nunito', sans-serif",
     themeMode: null,
     build: buildTapestry,
@@ -517,7 +612,7 @@ export const PREVIEW_SYSTEMS = [
   {
     key: "compass",
     name: "Inner Compass",
-    blurb: "A singlet using Internal Family Systems (IFS) — one Self surrounded by parts (Managers, Firefighters, Exiles). Heavy on journaling and parts-work check-ins.",
+    blurb: "A singlet using Internal Family Systems (IFS) — one Self surrounded by parts (Managers, Firefighters, Exiles). Self leads most of the time in the calm forest theme; swipe primary to The Critic or The Drifter to see how a part's preset can swap both the visuals AND the language the app uses.",
     termsLabel: "inner family / part / leading / shift",
     theme: "forest",
     font:  "'Atkinson Hyperlegible', sans-serif",

@@ -340,15 +340,20 @@ export function ThemeProvider({ children }) {
     const handler = (e) => setIsDarkOS(e.matches);
     darkMq.addEventListener('change', handler);
 
-    // Allow external code (e.g. Preview Mode) to update theme/font/mode by
-    // writing to localStorage and dispatching this event. We re-read all the
-    // theme keys so the running app reflects the change immediately.
+    // Allow external code (e.g. Preview Mode) to update theme/font/mode/
+    // user-presets/alter-links by writing to localStorage and dispatching
+    // this event. We re-read all of the theme keys so the running app
+    // reflects the change immediately.
     const reload = () => {
       setThemeMode(localStorage.getItem('symphony_themeMode') || 'system');
       setSelectedTheme(localStorage.getItem('symphony_selectedTheme') || 'cool');
       const cc = localStorage.getItem('symphony_customColors');
       setCustomColors(cc ? JSON.parse(cc) : null);
       setSelectedFont(localStorage.getItem('symphony_selectedFont') || 'inter');
+      const presetsRaw = localStorage.getItem('symphony_userCustomPresets');
+      setUserCustomPresets(presetsRaw ? JSON.parse(presetsRaw) : {});
+      const linksRaw = localStorage.getItem('symphony_alterThemeLinks');
+      setAlterThemeLinks(linksRaw ? JSON.parse(linksRaw) : {});
     };
     window.addEventListener('symphony-theme-storage-change', reload);
 
