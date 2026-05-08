@@ -28,6 +28,7 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   const snapshots = session?.severity_snapshots || [];
   const lpRef = useRef(null);
   const touchFiredRef = useRef(false);
+  const pressStart = useRef({ x: 0, y: 0, moved: false });
 
   const startStr = session?.start_time ? format(new Date(session.start_time), "h:mmaaa") : null;
   const endStr = session?.end_time ? format(new Date(session.end_time), "h:mmaaa") : null;
@@ -35,8 +36,23 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   const startPress = (e) => {
     e.stopPropagation();
     touchFiredRef.current = false;
+    if (e.touches && e.touches.length > 1) return;
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    pressStart.current = { x: clientX, y: clientY, moved: false };
     lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.(clientY); }, 500);
+  };
+  const movePress = (e) => {
+    if (!lpRef.current) return;
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    const dx = clientX - pressStart.current.x;
+    const dy = clientY - pressStart.current.y;
+    if (dx * dx + dy * dy > 100) {
+      pressStart.current.moved = true;
+      clearTimeout(lpRef.current);
+      lpRef.current = null;
+    }
   };
   const cancelPress = (e) => {
     e?.stopPropagation();
@@ -44,6 +60,7 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   };
   const handleTouchEnd = (e) => {
     cancelPress(e);
+    if (pressStart.current.moved) return;
     touchFiredRef.current = true;
     onTap?.();
   };
@@ -53,8 +70,11 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
       className="absolute flex flex-col items-center cursor-pointer"
       style={{ top: topPx, left: 0, right: 0, userSelect: "none", minWidth: 44 }}
       onTouchStart={startPress}
+      onTouchMove={movePress}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={cancelPress}
       onMouseDown={startPress}
+      onMouseMove={movePress}
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}

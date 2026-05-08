@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Pinch-to-zoom on the timeline: pinch with two fingers anywhere in a day's timeline to expand or compress the row height. Replaces the Zoom button + slider, which has been removed.",
+      },
+      {
+        type: "fix",
+        text: "Long-press popups on the timeline (the retroactive entry picker and the session-split menu) no longer fire when you're scrolling. They now cancel as soon as your finger moves more than a few pixels, so they only appear on a real press-and-hold in one spot.",
+      },
+      {
+        type: "improve",
         text: "New gesture controls in the alters grid view: tap an avatar to open their profile, swipe right to add or remove them from front, and swipe left to promote or demote primary fronter (only when they're already fronting). The grid-view toggle and anonymize-mode toggle have moved out of the top toolbar and into the right side of the Alters section header — closer to where you'd actually use them.",
       },
       {
