@@ -384,18 +384,74 @@ ACTIVE SINCE :: 1997
     rec({ timestamp: isoOffset(13, 10),  activity_name: "Long walk",        duration_minutes: 80,  color: "#10b981" }),
   ];
 
+  // Journals — each example is also a tour of a journal feature.
   const journals = [
-    rec({ created_date: isoOffset(0, 22), title: "Mapping the system",        content: "We made a list today — twenty-four of us, give or take. Atlas is exhausted but proud. Felt good to see everyone written down somewhere; like the inner rooms have hallways now.", tags: ["system map"], alter_id: alters.atlas.id }),
-    rec({ created_date: isoOffset(1, 20), title: "Iris on a Tuesday",          content: "I made the appointment, paid the bill, called the plumber. Atlas slept. This is what I'm here for, and I don't mind it.", tags: ["co-host"], alter_id: alters.iris.id }),
-    rec({ created_date: isoOffset(2, 21), title: "Halo's afternoon",           content: "Halo came up around lunch. The kitchen smelled like cinnamon. Poppy drew a picture for her — a sun with a face. We taped it to the fridge.", tags: ["good day","introject"], alter_id: alters.halo.id }),
-    rec({ created_date: isoOffset(3, 22), title: "Sparrow's report",           content: "I'm in charge today. I made everyone do laundry. The litttles helped fold towels. I am eleven and I get things done.", tags: ["middle"], alter_id: alters.sparrow.id }),
-    rec({ created_date: isoOffset(4, 20), title: "Shade was here",             content: "Brief surface, then gone again. Took notes. Gate kept things contained. Body is tired but not unsafe.", tags: ["trauma","gatekeeper"], alter_id: alters.gate.id }),
-    rec({ created_date: isoOffset(5, 22), title: "Poppy's day",                content: "i drew bunnies. milo wanted to draw too. tadpole hummed. it was a good day. love mom (sage). luv u poppy", tags: ["littles"], alter_id: alters.poppy.id }),
-    rec({ created_date: isoOffset(6, 22), title: "Rook's playlist",            content: "Rook made a 90-minute playlist for the back hallway. Vex approves. Iris is mildly horrified. Atlas asked for the title and Rook just said \"loud\". Fair.", tags: ["teens"], alter_id: alters.rook.id }),
-    rec({ created_date: isoOffset(7, 21), title: "After therapy",              content: "Heavy session. Talked about Shade and what they hold. Came home and Fern made soup without being asked. The body needed it.", tags: ["therapy"], alter_id: alters.iris.id }),
-    rec({ created_date: isoOffset(9, 21), title: "Working with Kestrel",       content: "She agreed to a check-in twice a week instead of fronting unannounced. Progress. Thorne asked to be included next time, which is — also progress.", tags: ["persecutor","working"], alter_id: alters.kestrel.id }),
-    rec({ created_date: isoOffset(10, 23), title: "Vex, briefly",              content: "do not read this. fine, ok. it was a fine day. mitski. i am going to bed.", tags: ["teens"], alter_id: alters.vex.id }),
-    rec({ created_date: isoOffset(12, 22), title: "Lumen still resting",       content: "Two and a half years dormant now. We trust she'll come back if she wants to. Mira's name came up at dinner. We didn't push. The fusion is still settling.", tags: ["dormant","fusion"], alter_id: alters.atlas.id }),
+    rec({
+      created_date: isoOffset(0, 22),
+      title: "How journal entries work",
+      content: "<p><b>Journal entries</b> are long-form, dated, and optionally attached to one {alter} via the alter_id field. Use them for end-of-day reflection, therapy homework, or any prose you want kept.</p><p>This entry has tags <code>tutorial</code> + <code>journals</code> — tags filter the Journals page. The body supports HTML (bold, italic, lists, links).</p>",
+      tags: ["tutorial","journals"], alter_id: alters.noor.id,
+    }),
+    rec({
+      created_date: isoOffset(1, 20),
+      title: "Tagged + alter-attached example",
+      content: "Attached to Iris (alter_id) and tagged with <code>co-host</code>. Filtering by tag pulls just these. Filtering by alter on the alter's profile shows just their journal entries.",
+      tags: ["co-host","example"], alter_id: alters.iris.id,
+    }),
+    rec({
+      created_date: isoOffset(2, 21),
+      title: "Plain-text minimum example",
+      content: "A journal entry can be as short as one sentence — no title required, no tags required, no alter required.",
+      tags: [],
+    }),
+    rec({
+      created_date: isoOffset(3, 22),
+      title: "Rich HTML example",
+      content: "<h3>Section heading</h3><p>The journal editor supports the full bio-editor toolbar (bold, italic, lists, blockquotes, code, links, colour, gradient text, glass / dark / radial boxes).</p><blockquote style='border-left:3px solid #a78bfa;padding-left:.75em;color:#94a3b8;'>Quoted reflection from earlier in the week.</blockquote><p>Mix and match HTML to the depth you want.</p>",
+      tags: ["tutorial","editor"], alter_id: alters.atlas.id,
+    }),
+    rec({
+      created_date: isoOffset(4, 20),
+      title: "Therapy-tagged",
+      content: "Use a consistent tag like <code>therapy</code> across sessions; the Therapy Report can pull entries by tag for inclusion in a clinical summary.",
+      tags: ["therapy"], alter_id: alters.iris.id,
+    }),
+    rec({
+      created_date: isoOffset(5, 22),
+      title: "From a little (kid-style example)",
+      content: "you can write in any voice. caps, no punctuation, emojis 🐰🌈. nothing makes the entry \"valid\" or not. just write.",
+      tags: ["littles"], alter_id: alters.poppy.id,
+    }),
+    rec({
+      created_date: isoOffset(6, 22),
+      title: "Multi-alter mention example",
+      content: "Journals attach to ONE primary alter via alter_id, but you can mention others in the body — type @ then a name. Mentions show up in the mentioned alter's notification log.",
+      tags: ["mentions"], alter_id: alters.rook.id,
+    }),
+    rec({
+      created_date: isoOffset(7, 21),
+      title: "Long reflection example",
+      content: "Use the journal for processing — the Quick Check-In is for short-term mood / energy / symptoms, the journal is for longer thought. The Support Journal (separate) is for IFS-style parts work.",
+      tags: ["therapy","reflection"], alter_id: alters.iris.id,
+    }),
+    rec({
+      created_date: isoOffset(9, 21),
+      title: "Working-with-a-part example",
+      content: "Some systems use the journal to record dialogues with a specific {alter}. Tag with the {alter}'s name and attach via alter_id so future filters surface it easily.",
+      tags: ["dialogue","persecutor"], alter_id: alters.kestrel.id,
+    }),
+    rec({
+      created_date: isoOffset(10, 23),
+      title: "Private one-line example",
+      content: "do not read this. fine, ok. it was a fine day. mitski. i am going to bed.",
+      tags: ["private"], alter_id: alters.vex.id,
+    }),
+    rec({
+      created_date: isoOffset(12, 22),
+      title: "Linked-to-event example",
+      content: "Journals can document System Change Events — fusions, splits, dormancies. Tag with <code>lineage</code> + <code>fusion</code> / <code>split</code> / <code>dormancy</code> for cross-reference with the Lineage tab.",
+      tags: ["lineage","dormant","fusion"], alter_id: alters.atlas.id,
+    }),
   ];
 
   const checkIns = [
@@ -519,77 +575,91 @@ ACTIVE SINCE :: 1997
   ];
 
   // === Bulletins (system message board) ==============================
+  // Each example below is also a working demo of one bulletin feature, so
+  // the board is its own self-explaining tour.
   const bulletins = [
+    rec({
+      author_alter_id: alters.noor.id,
+      author_alter_ids: [alters.noor.id],
+      content: "📌 <b>Bulletin Board — quick guide.</b> The board is a system-wide feed. Anyone can post. You can @mention an {alter} and they'll see a notification. Pinning (the pin icon) keeps a post at the top. Reactions are emoji-only and tap-the-count shows who reacted. Comments are threaded under each post. Polls can be attached at compose time.",
+      mentioned_alter_ids: [],
+      is_pinned: true,
+      reactions: { "📌": [alters.iris.id, alters.atlas.id, alters.fern.id, alters.noor.id] },
+      created_date: isoOffset(0, 19),
+    }),
     rec({
       author_alter_id: alters.iris.id,
       author_alter_ids: [alters.iris.id],
-      content: "Therapy moved to Wednesdays at 4pm starting next week. Calendar updated.",
+      content: "<b>Mention example.</b> Type @ then an {alter} name to mention them — like @Atlas. The mentioned {alter} appears in their personal mention log and gets a notification.",
       mentioned_alter_ids: [alters.atlas.id],
-      is_pinned: true,
-      reactions: { "👍": [alters.atlas.id, alters.fern.id, alters.noor.id] },
-      created_date: isoOffset(0, 19),
+      is_pinned: false,
+      reactions: { "👍": [alters.atlas.id] },
+      created_date: isoOffset(1, 10),
     }),
     rec({
       author_alter_id: alters.linnet.id,
       author_alter_ids: [alters.linnet.id],
-      content: "littles — bedtime is 9pm tonight. milo, that means you. 🦖",
-      mentioned_alter_ids: [alters.milo.id, alters.poppy.id, alters.tadpole.id],
+      content: "<b>Reactions example.</b> Tap the smiley to react. Multiple {alters} can react with the same emoji. Tap the count to see who reacted.",
+      mentioned_alter_ids: [],
       is_pinned: false,
-      reactions: { "💛": [alters.poppy.id], "😴": [alters.tadpole.id] },
-      created_date: isoOffset(1, 20, 30),
+      reactions: { "💛": [alters.poppy.id, alters.tadpole.id, alters.milo.id], "🙏": [alters.atlas.id], "✅": [alters.iris.id] },
+      created_date: isoOffset(2, 20, 30),
     }),
     rec({
       author_alter_id: alters.atlas.id,
       author_alter_ids: [alters.atlas.id],
-      content: "Heads up everyone — the Bulletin Board is the system-wide feed. Anyone can post; you can @mention specific alters and they'll see a notification. Pinning a post (the pin icon) keeps it at the top until unpinned. Reactions are emoji-only and show who reacted.",
-      mentioned_alter_ids: [],
-      is_pinned: true,
-      reactions: { "📌": [alters.iris.id, alters.noor.id, alters.fern.id] },
-      created_date: isoOffset(7, 10),
-    }),
-    rec({
-      author_alter_id: alters.rook.id,
-      author_alter_ids: [alters.rook.id],
-      content: "playlist for the back hallway: track 1 deftones — change. track 2 mitski — washing machine heart. track 3 american football — never meant. <i>do not skip</i>",
-      mentioned_alter_ids: [alters.vex.id],
-      is_pinned: false,
-      reactions: { "🎶": [alters.vex.id], "🛹": [alters.vex.id] },
-      created_date: isoOffset(2, 22),
-    }),
-    rec({
-      author_alter_id: alters.noor.id,
-      author_alter_ids: [alters.noor.id],
-      content: "Reminder for Atlas — therapy homework is in the journal under the \"therapy\" tag. Take your time.",
-      mentioned_alter_ids: [alters.atlas.id],
-      is_pinned: false,
-      reactions: { "🙏": [alters.atlas.id] },
-      created_date: isoOffset(3, 15),
-    }),
-    rec({
-      author_alter_id: alters.poppy.id,
-      author_alter_ids: [alters.poppy.id],
-      content: "i drew a bunny!! 🐰🌈",
+      content: "<b>Co-author example.</b> A post can be authored by more than one {alter} when you tap the avatar list at compose time. Iris and I co-wrote this one.",
       mentioned_alter_ids: [],
       is_pinned: false,
-      reactions: { "🥰": [alters.linnet.id, alters.iris.id, alters.sparrow.id], "🐰": [alters.tadpole.id] },
-      created_date: isoOffset(5, 14),
+      reactions: { "👥": [alters.noor.id] },
+      author_alter_ids_extra_note: "co-author",
+      created_date: isoOffset(3, 12),
+    }),
+    rec({
+      author_alter_id: alters.iris.id,
+      author_alter_ids: [alters.atlas.id, alters.iris.id],
+      content: "<b>Long-form bulletin.</b> Bulletins support basic HTML — bold, italic, lists, links, line breaks. Use them for system announcements, decisions, agreements you want everyone to see. Compare with Journal entries (long-form, alter-attached) and Status Notes (short, system-wide, immutable timeline log).",
+      mentioned_alter_ids: [],
+      is_pinned: false,
+      reactions: { "📝": [alters.noor.id] },
+      created_date: isoOffset(4, 14),
     }),
     rec({
       author_alter_id: alters.gate.id,
       author_alter_ids: [alters.gate.id],
-      content: "Front rotation note: Atlas needs sleep tonight. Iris on tomorrow morning. Shade is contained.",
-      mentioned_alter_ids: [alters.atlas.id, alters.iris.id, alters.shade.id],
+      content: "<b>Comments example.</b> Each bulletin has a thread. Tap the speech-bubble to comment. Comments don't accept polls or co-authors — keep it conversational.",
+      mentioned_alter_ids: [],
       is_pinned: false,
       reactions: {},
-      created_date: isoOffset(4, 22, 30),
+      created_date: isoOffset(5, 16),
+    }),
+    rec({
+      author_alter_id: alters.poppy.id,
+      author_alter_ids: [alters.poppy.id],
+      content: "<b>Casual example.</b> bulletins don't have to be Important.™ this is just me saying i drew a bunny 🐰🌈",
+      mentioned_alter_ids: [],
+      is_pinned: false,
+      reactions: { "🥰": [alters.linnet.id, alters.iris.id, alters.sparrow.id], "🐰": [alters.tadpole.id] },
+      created_date: isoOffset(6, 14),
+    }),
+    rec({
+      author_alter_id: alters.atlas.id,
+      author_alter_ids: [alters.atlas.id],
+      content: "<b>Pinned vs. recent.</b> Pinned posts (like the guide at the top) appear above unpinned, regardless of date. Tap the pin again to unpin.",
+      mentioned_alter_ids: [],
+      is_pinned: false,
+      reactions: { "📍": [alters.iris.id] },
+      created_date: isoOffset(8, 10),
     }),
   ];
 
   const bulletinComments = [
-    rec({ bulletin_id: bulletins[0].id, author_alter_id: alters.atlas.id, content: "Got it. Will move the Wednesday standup.", created_date: isoOffset(0, 19, 15) }),
-    rec({ bulletin_id: bulletins[2].id, author_alter_id: alters.iris.id, content: "Good explainer. The reaction list also lets you see who reacted by tapping the count.", created_date: isoOffset(7, 11) }),
-    rec({ bulletin_id: bulletins[3].id, author_alter_id: alters.vex.id, content: "approved.", created_date: isoOffset(2, 22, 30) }),
-    rec({ bulletin_id: bulletins[5].id, author_alter_id: alters.linnet.id, content: "It's beautiful, Poppy. Going on the fridge.", created_date: isoOffset(5, 14, 20) }),
+    rec({ bulletin_id: bulletins[0].id, author_alter_id: alters.iris.id,  content: "Tip: comments support the same basic markdown the post does.", created_date: isoOffset(0, 19, 30) }),
+    rec({ bulletin_id: bulletins[0].id, author_alter_id: alters.atlas.id, content: "Tip 2: tapping a reaction count shows the reactor list.", created_date: isoOffset(0, 20) }),
+    rec({ bulletin_id: bulletins[1].id, author_alter_id: alters.atlas.id, content: "Got the mention — appeared at the top of my Notifications inbox.", created_date: isoOffset(1, 10, 15) }),
+    rec({ bulletin_id: bulletins[5].id, author_alter_id: alters.iris.id,  content: "Threads can be long — they collapse after a few replies and tap-to-expand.", created_date: isoOffset(5, 16, 20) }),
+    rec({ bulletin_id: bulletins[5].id, author_alter_id: alters.noor.id,  content: "And you can @mention inside a comment too.", created_date: isoOffset(5, 16, 30) }),
+    rec({ bulletin_id: bulletins[6].id, author_alter_id: alters.linnet.id, content: "It's beautiful, Poppy. Going on the fridge.", created_date: isoOffset(6, 14, 20) }),
   ];
 
   // === Polls (system decisions) ======================================
@@ -640,14 +710,71 @@ ACTIVE SINCE :: 1997
   ];
 
   // === Sleep entries =================================================
+  // Sleep entries — variety designed to demonstrate every Sleep field:
+  //   quality (1–10), is_interrupted + interruption_count + interruption_times,
+  //   dreamed, had_nightmare, free-form notes. The notes also double as
+  //   short captions explaining what each entry is showing.
   const sleepEntries = [
-    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(0, 23, 15), wake_time: isoOffset(-1, 7, 30), quality: 6, notes: "Halo settled the evening. Slept solid.", is_interrupted: false, dreamed: false, had_nightmare: false }),
-    rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(1, 22, 45), wake_time: isoOffset(0, 6, 50),   quality: 5, notes: "Up once at 3am.", is_interrupted: true, interruption_count: 1, dreamed: true, had_nightmare: false }),
-    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(2, 23, 50), wake_time: isoOffset(1, 7, 0),    quality: 4, notes: "Long day. Hard to fall asleep.", is_interrupted: true, interruption_count: 2, dreamed: false, had_nightmare: false }),
-    rec({ date: new Date(Date.now() - 3 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(3, 22, 10), wake_time: isoOffset(2, 8, 5),    quality: 8, notes: "Best sleep in a week.", is_interrupted: false, dreamed: true, had_nightmare: false }),
-    rec({ date: new Date(Date.now() - 4 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(4, 0, 30),  wake_time: isoOffset(3, 7, 20),   quality: 3, notes: "Nightmare around 4am. Shade adjacent.", is_interrupted: true, interruption_count: 3, dreamed: true, had_nightmare: true }),
-    rec({ date: new Date(Date.now() - 5 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(5, 23, 0),  wake_time: isoOffset(4, 7, 0),    quality: 7, is_interrupted: false, dreamed: false, had_nightmare: false }),
-    rec({ date: new Date(Date.now() - 7 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(7, 22, 30), wake_time: isoOffset(6, 6, 30),   quality: 6, is_interrupted: true, interruption_count: 1, dreamed: false, had_nightmare: false }),
+    rec({
+      date: new Date(Date.now() - 0 * DAY).toISOString().slice(0, 10),
+      bedtime: isoOffset(0, 23, 15), wake_time: isoOffset(-1, 7, 30),
+      quality: 8,
+      notes: "Example: a clean night — quality high, uninterrupted, no dreams logged. The Sleep Tracker shows this on the timeline as a single bar from bedtime to wake.",
+      is_interrupted: false, dreamed: false, had_nightmare: false,
+    }),
+    rec({
+      date: new Date(Date.now() - 1 * DAY).toISOString().slice(0, 10),
+      bedtime: isoOffset(1, 22, 45), wake_time: isoOffset(0, 6, 50),
+      quality: 6,
+      notes: "Example: one mid-night wake — interruption_count: 1, interruption_times records when. Useful for spotting patterns over time.",
+      is_interrupted: true, interruption_count: 1, interruption_times: [isoOffset(1, 3, 5)],
+      dreamed: true, had_nightmare: false,
+    }),
+    rec({
+      date: new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10),
+      bedtime: isoOffset(2, 23, 50), wake_time: isoOffset(1, 7, 0),
+      quality: 4,
+      notes: "Example: rough night — multiple wakes, no specific timestamps recorded (the field is optional).",
+      is_interrupted: true, interruption_count: 2,
+      dreamed: false, had_nightmare: false,
+    }),
+    rec({
+      date: new Date(Date.now() - 3 * DAY).toISOString().slice(0, 10),
+      bedtime: isoOffset(3, 22, 10), wake_time: isoOffset(2, 8, 5),
+      quality: 9,
+      notes: "Example: highest-quality night this week. Try the Sleep analytics page to see weekly averages and quality distributions.",
+      is_interrupted: false, dreamed: true, had_nightmare: false,
+    }),
+    rec({
+      date: new Date(Date.now() - 4 * DAY).toISOString().slice(0, 10),
+      bedtime: isoOffset(4, 0, 30),  wake_time: isoOffset(3, 7, 20),
+      quality: 3,
+      notes: "Example: nightmare flagged. had_nightmare: true. The analytics view counts these separately and the timeline marks the night with a 🌙 badge.",
+      is_interrupted: true, interruption_count: 3, interruption_times: [isoOffset(4, 1, 30), isoOffset(4, 3, 45), isoOffset(4, 5, 15)],
+      dreamed: true, had_nightmare: true,
+    }),
+    rec({
+      date: new Date(Date.now() - 5 * DAY).toISOString().slice(0, 10),
+      bedtime: isoOffset(5, 23, 0),  wake_time: isoOffset(4, 7, 0),
+      quality: 7,
+      notes: "Example: minimal entry — only the required fields. Notes / dreamed / nightmare can all stay blank.",
+      is_interrupted: false, dreamed: false, had_nightmare: false,
+    }),
+    rec({
+      date: new Date(Date.now() - 6 * DAY).toISOString().slice(0, 10),
+      bedtime: isoOffset(6, 21, 30), wake_time: isoOffset(5, 5, 0),
+      quality: 5,
+      notes: "Example: short night — under 8 hours. Combined with low quality this typically explains a low-energy check-in the next morning.",
+      is_interrupted: false, dreamed: false, had_nightmare: false,
+    }),
+    rec({
+      date: new Date(Date.now() - 7 * DAY).toISOString().slice(0, 10),
+      bedtime: isoOffset(7, 22, 30), wake_time: isoOffset(6, 6, 30),
+      quality: 6,
+      notes: "Example: a typical night — 8 hours, one wake, no nightmare, no notes about who fronted at bedtime. Most entries look like this.",
+      is_interrupted: true, interruption_count: 1,
+      dreamed: false, had_nightmare: false,
+    }),
   ];
 
   // === Reminders =====================================================
@@ -702,13 +829,66 @@ ACTIVE SINCE :: 1997
   ];
 
   // === Inner world locations =========================================
+  // Each location is a node on the Inner World Map (Settings → System Map →
+  // Inner World tab). Drag to reposition; tap to assign occupant alters;
+  // colour is shown as the node ring. Descriptions are free-form text the
+  // user can use however they want — these examples double as hints about
+  // how the feature can be used.
   const innerWorldLocations = [
-    rec({ name: "The Inner Room",       description: "Open meeting space. Round table, soft chairs, a tall window. System meetings happen here.", color: "#a78bfa", x: 200, y: 150, occupant_alter_ids: [alters.atlas.id, alters.iris.id, alters.noor.id, alters.gate.id] }),
-    rec({ name: "The Garden",           description: "Outside the inner room. Mint, lavender, cherry tomatoes. Fern's territory.", color: "#65a30d", x: 80,  y: 80,  occupant_alter_ids: [alters.fern.id, alters.linnet.id] }),
-    rec({ name: "The Library",          description: "Where Noor reads, Atlas works, and Echo hides. Tall stacks, lamps, no clocks.", color: "#0ea5e9", x: 320, y: 90,  occupant_alter_ids: [alters.noor.id, alters.atlas.id] }),
-    rec({ name: "The Playroom",         description: "Bright rugs, blocks, dinosaurs, art supplies. Linnet is usually here.", color: "#f59e0b", x: 100, y: 240, occupant_alter_ids: [alters.poppy.id, alters.milo.id, alters.tadpole.id, alters.linnet.id] }),
-    rec({ name: "The Hallway",          description: "Long, dim, painted concrete. The teens hang out here. Sound carries.", color: "#a855f7", x: 350, y: 220, occupant_alter_ids: [alters.vex.id, alters.rook.id] }),
-    rec({ name: "The Vault",            description: "Where Shade lives. Behind a heavy door. Gate decides who passes.", color: "#1e293b", x: 200, y: 290, occupant_alter_ids: [alters.shade.id, alters.gate.id] }),
+    rec({
+      name: "The Inner Room",
+      description: "Use case: a central meeting space. List the {alters} who attend system meetings as occupants — handy for choosing who to summon when scheduling a System Meeting.",
+      color: "#a78bfa", x: 200, y: 150,
+      occupant_alter_ids: [alters.atlas.id, alters.iris.id, alters.noor.id, alters.gate.id],
+    }),
+    rec({
+      name: "The Garden",
+      description: "Use case: a calm outdoor area. Use it for {alters} associated with grounding and the body. Pair with a Grounding Technique that suggests this space.",
+      color: "#65a30d", x: 80, y: 80,
+      occupant_alter_ids: [alters.fern.id, alters.linnet.id],
+    }),
+    rec({
+      name: "The Library",
+      description: "Use case: somewhere {alters} who like quiet, study, or solo work tend to be. Mentor-style introjects often map here.",
+      color: "#0ea5e9", x: 320, y: 90,
+      occupant_alter_ids: [alters.noor.id, alters.atlas.id],
+    }),
+    rec({
+      name: "The Playroom",
+      description: "Use case: a space for the littles. Caretaker {alters} can be added as occupants too so the map shows who's looking after whom.",
+      color: "#f59e0b", x: 100, y: 240,
+      occupant_alter_ids: [alters.poppy.id, alters.milo.id, alters.tadpole.id, alters.linnet.id],
+    }),
+    rec({
+      name: "The Hallway",
+      description: "Use case: a transitional area. Useful for teens, fragments, or any {alter} who's \"between rooms\" — between full development and dormancy, between roles, etc.",
+      color: "#a855f7", x: 350, y: 220,
+      occupant_alter_ids: [alters.vex.id, alters.rook.id],
+    }),
+    rec({
+      name: "The Vault",
+      description: "Use case: a contained / protected area for trauma-holders. A gatekeeper {alter} listed alongside makes it visible who manages access.",
+      color: "#1e293b", x: 200, y: 290,
+      occupant_alter_ids: [alters.shade.id, alters.gate.id],
+    }),
+    rec({
+      name: "The Workshop",
+      description: "Use case: where creative {alters} make things. List multiple — the map renders each occupant's avatar inside the node.",
+      color: "#f43f5e", x: 60, y: 170,
+      occupant_alter_ids: [alters.poppy.id, alters.rook.id],
+    }),
+    rec({
+      name: "The Lookout",
+      description: "Use case: a high-visibility spot for protector {alters}. Great visual indicator when paired with the Protectors group.",
+      color: "#dc2626", x: 380, y: 60,
+      occupant_alter_ids: [alters.jasper.id, alters.wren.id],
+    }),
+    rec({
+      name: "Empty Field (no occupants)",
+      description: "Use case: a location can exist without occupants — useful as a marker for places that aren't currently in use. Add and remove occupants any time.",
+      color: "#64748b", x: 280, y: 280,
+      occupant_alter_ids: [],
+    }),
   ];
 
   // === Alter messages (system board to a specific alter) =============
@@ -864,8 +1044,8 @@ ACTIVE SINCE :: 1997
 export const PREVIEW_SYSTEMS = [
   {
     key: "tapestry",
-    name: "The Tapestry",
-    blurb: "A large polyfragmented DID system: 24 alters across hosts, protectors, caretakers, littles, teens, introjects, gatekeeper, persecutors, fragments, and dormants — with splits, fusions, and frequent switching. Iris (currently primary), Vex, and Halo each have their own theme presets, so the app's whole look-and-feel changes with the primary fronter. Profiles range from plain prose to fully-styled cards (Atlas's constellation, Iris's newspaper, Halo's tarot, Poppy's sticker page, Gate's monospace card) so you can see what the bio editor's HTML mode and per-alter background colours can do.",
+    name: "The Tour",
+    blurb: "A populated example dataset that demonstrates every feature of the app — every entity table is filled with worked examples ranging from minimal usage to fullest extent. Bulletins explain the bulletin board, journals explain the journal editor, sleep entries explain each Sleep field, inner-world locations explain the map, and selected alter profiles include rich HTML bios that double as in-app feature documentation. Three alters carry per-alter theme presets (Iris's berry + Playfair, Vex's stark dark, Halo's warm rose-gold) so swiping primary swaps the app's whole look. Real data is hidden but never touched while Preview Mode is on.",
     termsLabel: "system / alter / fronting / switching",
     theme: "charcoal",
     font:  "'Nunito', sans-serif",
