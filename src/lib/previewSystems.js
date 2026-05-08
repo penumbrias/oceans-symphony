@@ -42,6 +42,14 @@ function toMap(records) {
   return out;
 }
 
+// Wrap rich HTML so the bio renderer treats it as a single text block.
+// htmlToBlocks splits on `\n<div>` / `\n<hr>`, so we strip whitespace between
+// tags before wrapping. Anything inside renders via dangerouslySetInnerHTML —
+// `<style>` blocks, inline SVG, CSS animations, and gradients all work.
+function richBio(html) {
+  return `<div class="bio-text">${html.replace(/>\s*\n\s*</g, "><").trim()}</div>`;
+}
+
 function pushSession(arr, alterId, daysAgo, startHour, durationHours, isPrimary = true) {
   const start = new Date(Date.now() - daysAgo * DAY);
   start.setHours(startHour, 0, 0, 0);
@@ -67,16 +75,18 @@ function buildHearth() {
     // — Moderate: warm tinted background, HTML bio with structure.
     sage:   rec({
       name: "Sage", pronouns: "she/her", color: "#15803d", role: "Caretaker", origin_year: 2012, tags: ["caretaker"],
-      description: `<p style="font-style:italic;color:#15803d;margin-bottom:.75em">soft-spoken · steady · warm</p>
+      description: richBio(`
+<p style="font-style:italic;color:#15803d;margin-bottom:.75em">soft-spoken · steady · warm</p>
 <p>The one who reminds the body to eat, drink, and sleep. Loves tea, old kitchens, and the early hours when the house is quiet.</p>
 <h4 style="margin:1em 0 .25em;color:#15803d">Looks after</h4>
-<ul><li>the body</li><li>Pip, mostly</li><li>Marin when she's burnt out</li></ul>`,
+<ul><li>the body</li><li>Pip, mostly</li><li>Marin when she's burnt out</li></ul>`),
       custom_fields: { _bg_color: "#15803d", _bg_opacity: 0.08, _section_bg_opacity: 0.04 },
     }),
     // — Complex: bright background, custom header text colour, kid-coded HTML.
     pip:    rec({
       name: "Pip", pronouns: "he/him", color: "#f59e0b", role: "Little", origin_year: 2003, age_apparent: 7, tags: ["little"],
-      description: `<p style="font-size:1.15em;font-weight:600;color:#b45309">🦖 HI IM PIP 🦖</p>
+      description: richBio(`
+<p style="font-size:1.15em;font-weight:600;color:#b45309">🦖 HI IM PIP 🦖</p>
 <p>i am <b>7</b>. i love</p>
 <ul style="list-style:none;padding-left:.5em;line-height:1.7">
   <li>🦕 dinosaurs (esp triceratops)</li>
@@ -85,14 +95,15 @@ function buildHearth() {
   <li>📚 books with pictures</li>
 </ul>
 <p>scared of: <em style="color:#b45309">loud noises, the vacuum, dr appointments</em></p>
-<p style="margin-top:1em;font-size:.9em;color:#92400e">Sage looks after me. she always knows where the snacks are.</p>`,
+<p style="margin-top:1em;font-size:.9em;color:#92400e">Sage looks after me. she always knows where the snacks are.</p>`),
       custom_fields: { _bg_color: "#FEF3C7", _bg_opacity: 0.5, _header_text_color: "#b45309", _section_bg_opacity: 0.15 },
     }),
     // — Moderate / atmospheric: dark muted background, poetic short bio.
     echo:   rec({
       name: "Echo", pronouns: "she/her", color: "#b45309", role: "Introject", origin_year: 2015, tags: ["introject"],
-      description: `<p style="font-family:'Playfair Display',serif;font-style:italic;font-size:1.05em;line-height:1.7;color:#92400e">She came in during a hard time, and never quite left.</p>
-<p style="margin-top:1em">Quieter now than she used to be, but still a steady presence in the back. Echo and Marin understand each other without words.</p>`,
+      description: richBio(`
+<p style="font-family:'Playfair Display',serif;font-style:italic;font-size:1.05em;line-height:1.7;color:#92400e">She came in during a hard time, and never quite left.</p>
+<p style="margin-top:1em">Quieter now than she used to be, but still a steady presence in the back. Echo and Marin understand each other without words.</p>`),
       custom_fields: { _bg_color: "#1f1611", _bg_opacity: 0.18, _page_text_color: "#FEF3C7" },
     }),
   };
@@ -282,44 +293,72 @@ function buildTapestry() {
     // — Complex profiles: rich HTML descriptions and per-alter chrome.
     {
       k: "iris", n: "Iris", p: "she/her", c: "#ec4899", r: "Co-host", y: 2010, t: ["host","ANP"],
-      html: `<blockquote style="border-left:3px solid #ec4899;padding:0 0 0 14px;margin:0 0 1em;font-family:'Playfair Display',serif;font-style:italic;font-size:1.1em;color:#831843;line-height:1.5">"I am not Atlas, but I can hold the day when she can't."</blockquote>
-<p>Iris stepped forward when Atlas burned out — three autumns ago, after a long hospital stay. Warm, social, organised. The one who answers the phone and remembers everyone's birthdays.</p>
-<table style="margin-top:1em;font-size:.9em;color:#831843;border-spacing:8px 4px"><tbody>
-  <tr><td><b>Origin</b></td><td>2010, post-burnout</td></tr>
-  <tr><td><b>Fronts</b></td><td>most weekdays</td></tr>
-  <tr><td><b>Loves</b></td><td>stationery, long letters, soft cardigans</td></tr>
-</tbody></table>`,
-      cf: { _bg_color: "#FBCFE8", _bg_opacity: 0.35, _header_text_color: "#831843", _section_bg_opacity: 0.05 },
+      // Newspaper-column profile: clip-path "torn paper" edge, Georgia, journalist-style.
+      html: richBio(`
+<div style="background:#f4edd4;padding:18px;font-family:Georgia,serif;clip-path:polygon(0 1%,2% 0,5% 1%,100% 0,100% 99%,98% 100%,95% 99%,0 100%);color:#222;">
+  <div style="font-size:.62em;text-transform:uppercase;letter-spacing:.22em;color:#666;border-bottom:2px solid #333;padding-bottom:4px;margin-bottom:10px;">Profile · No. 037 · Co-host</div>
+  <div style="font-family:'Playfair Display',serif;font-size:1.6em;font-weight:600;letter-spacing:.02em;margin-bottom:2px;">Iris, holding the line</div>
+  <div style="font-size:.75em;color:#7a6a4f;margin-bottom:10px;font-style:italic;">she/her · joined the rotation autumn, 2010</div>
+  <div style="font-size:.85em;line-height:1.85;column-count:1;">
+    She stepped forward the year Atlas burned out — quietly, the way snow arrives. <b>"I am not Atlas,"</b> Iris is fond of saying, <b>"but I can hold the day when she can't."</b> Warm, social, organised. The one who answers the phone, remembers the birthdays, keeps the fridge note legible.
+  </div>
+  <div style="display:flex;gap:14px;margin-top:14px;font-size:.78em;border-top:1px solid #c8b988;padding-top:10px;">
+    <div><b>Fronts</b><br><span style="color:#5a4a30;">most weekdays</span></div>
+    <div><b>Loves</b><br><span style="color:#5a4a30;">letters, soft cardigans</span></div>
+    <div><b>Origin</b><br><span style="color:#5a4a30;">post-burnout</span></div>
+  </div>
+</div>`),
+      cf: { _bg_color: "#FBCFE8", _bg_opacity: 0.35, _header_text_color: "#831843" },
     },
     {
       k: "halo", n: "Halo", p: "she/her", c: "#fde68a", r: "Introject", y: 2016, t: ["introject"],
-      html: `<p style="font-family:'Playfair Display',serif;font-style:italic;font-size:1.1em;line-height:1.7;color:#7c2d12;margin-bottom:1em">She arrived in the cold months, bringing warmth from a story we needed to hear.</p>
-<p>Halo is a comfort introject. She knows when the kitchen needs cinnamon. She does not stay long, but the days she fronts feel like a held breath, finally let go.</p>
-<p style="margin-top:1.25em;font-size:.85em;color:#9a3412;text-align:center;letter-spacing:.1em">— ✦ —</p>`,
-      cf: { _bg_color: "#FFEDD5", _bg_opacity: 0.45, _header_text_color: "#7c2d12", _page_text_color: "#431407" },
+      // Tarot-card profile: purple gradient, glow animation, Cinzel-style title,
+      // upright/reversed interpretation panels.
+      html: richBio(`
+<style>@keyframes halo-mystical{0%,100%{box-shadow:0 0 20px rgba(247,144,68,.3)}50%{box-shadow:0 0 38px rgba(247,144,68,.55),0 0 80px rgba(247,144,68,.18)}}</style>
+<div style="background:linear-gradient(180deg,#1a0f06,#3b1d08,#1a0f06);border:2px solid #f59e0b;border-radius:8px;padding:0;position:relative;overflow:hidden;animation:halo-mystical 4.5s ease-in-out infinite;max-width:300px;margin:0 auto;">
+  <div style="background:linear-gradient(135deg,#f59e0b22,transparent);padding:14px;border-bottom:1px solid #f59e0b44;text-align:center;">
+    <div style="color:#f59e0b;font-size:.6em;letter-spacing:.4em;">✦ THE ✦</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.7em;font-weight:700;color:#fde68a;letter-spacing:.12em;">COMFORT</div>
+    <div style="color:#f59e0b;font-size:.6em;letter-spacing:.4em;">✦ HALO ✦</div>
+  </div>
+  <div style="padding:18px;text-align:center;">
+    <div style="font-size:3.4em;margin:6px 0;line-height:1;">🌙</div>
+    <div style="color:#fcd34d;font-size:.72em;font-style:italic;margin-bottom:14px;">she/her · introject · arrived in winter</div>
+    <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:6px;padding:12px;color:#fde68a;font-size:.78em;line-height:1.85;font-style:italic;text-align:left;margin-bottom:8px;"><b style="font-style:normal;letter-spacing:.1em;font-size:.85em;">UPRIGHT.</b> Warmth from a story we needed to hear. The kitchen smells like cinnamon. The held breath, finally let out.</div>
+    <div style="background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.12);border-radius:6px;padding:12px;color:#a78554;font-size:.78em;line-height:1.85;font-style:italic;text-align:left;"><b style="font-style:normal;letter-spacing:.1em;font-size:.85em;">REVERSED.</b> Comfort that softens too much, too fast. The body falls asleep before it has been heard.</div>
+  </div>
+  <div style="background:linear-gradient(135deg,transparent,#f59e0b22);padding:10px;border-top:1px solid #f59e0b44;text-align:center;">
+    <div style="color:#f59e0b66;font-size:.6em;letter-spacing:.4em;">✦ ✦ ✦ ✦ ✦</div>
+  </div>
+</div>`),
+      cf: { _bg_color: "#1f0f05", _bg_opacity: 0.65, _page_text_color: "#fed7aa" },
     },
     {
       k: "vex", n: "Vex", p: "they/them", c: "#a855f7", r: "Teen", y: 2008, ageA: 15, t: ["teen"],
-      html: `<p style="font-family:'Atkinson Hyperlegible',sans-serif;letter-spacing:.12em;text-transform:uppercase;font-size:.78em;color:#a1a1aa;margin-bottom:.75em">do not patronise.</p>
+      html: richBio(`
+<p style="font-family:'Atkinson Hyperlegible',sans-serif;letter-spacing:.12em;text-transform:uppercase;font-size:.78em;color:#a1a1aa;margin-bottom:.75em">do not patronise.</p>
 <p>fifteen. sarcastic. soft underneath, but i won't show that to you.</p>
 <hr style="border:none;border-top:1px solid #3f3f46;margin:1.25em 0">
-<p style="font-size:.85em;color:#71717a;line-height:1.6">primary fronts: <b style="color:#a1a1aa">weeknights</b><br>listens to: <b style="color:#a1a1aa">deftones, midwest emo, mitski</b><br>do not call me cute.</p>`,
+<p style="font-size:.85em;color:#71717a;line-height:1.6">primary fronts: <b style="color:#a1a1aa">weeknights</b><br>listens to: <b style="color:#a1a1aa">deftones, midwest emo, mitski</b><br>do not call me cute.</p>`),
       cf: { _bg_color: "#0a0a0a", _bg_opacity: 0.55, _page_text_color: "#e4e4e7", _header_text_color: "#a1a1aa" },
     },
     {
       k: "rook", n: "Rook", p: "he/they", c: "#3b82f6", r: "Teen", y: 2009, ageA: 17, t: ["teen"],
-      html: `<p style="font-size:1.05em;color:#1e40af;margin-bottom:.5em"><b>rook · 17 · skater</b></p>
+      html: richBio(`
+<p style="font-size:1.05em;color:#1e40af;margin-bottom:.5em"><b>rook · 17 · skater</b></p>
 <p>i draw, i skate, i play bass.</p>
 <ul style="font-size:.9em;line-height:1.7;color:#1d4ed8">
 <li>🎸 bass since i was 13</li>
 <li>🛹 mostly mini-ramp</li>
 <li>📓 sketchbook always on me</li>
-</ul>`,
+</ul>`),
       cf: { _bg_color: "#1e3a8a", _bg_opacity: 0.18, _page_text_color: "#bfdbfe" },
     },
     {
       k: "poppy", n: "Poppy", p: "she/her", c: "#f43f5e", r: "Little", y: 2002, ageA: 8, t: ["little"],
-      html: `<p style="font-size:1.2em;font-weight:700;color:#be123c">⭐️🌈 POPPY 🌈⭐️</p>
+      html: richBio(`
+<p style="font-size:1.2em;font-weight:700;color:#be123c">⭐️🌈 POPPY 🌈⭐️</p>
 <p>im 8!! i am a <b style="color:#e11d48">REALLY GOOD</b> drawer 🎨</p>
 <ul style="list-style:none;padding-left:0;line-height:1.8">
 <li>🐰 bunnies</li>
@@ -327,23 +366,25 @@ function buildTapestry() {
 <li>🦄 unicorns</li>
 <li>📺 cartoons (especially bluey)</li>
 </ul>
-<p>my BEST friend in the system is sparrow. she is older.</p>`,
+<p>my BEST friend in the system is sparrow. she is older.</p>`),
       cf: { _bg_color: "#FECDD3", _bg_opacity: 0.55, _header_text_color: "#be123c", _section_bg_opacity: 0.2 },
     },
     {
       k: "shade", n: "Shade", p: "they/them", c: "#6b7280", r: "Trauma holder", y: 1998, t: ["trauma","ENP"],
-      html: `<p style="font-family:'Atkinson Hyperlegible',sans-serif;font-size:.95em;line-height:1.7;color:#9ca3af;text-align:center;letter-spacing:.04em">we hold what couldn't be held.<br>we are not unwell. we are necessary.</p>`,
+      html: richBio(`
+<p style="font-family:'Atkinson Hyperlegible',sans-serif;font-size:.95em;line-height:1.7;color:#9ca3af;text-align:center;letter-spacing:.04em">we hold what couldn't be held.<br>we are not unwell. we are necessary.</p>`),
       cf: { _bg_color: "#0f172a", _bg_opacity: 0.6, _page_text_color: "#cbd5e1", _header_text_color: "#94a3b8", _section_bg_opacity: 0.1 },
     },
     {
       k: "gate", n: "Gate", p: "they/them", c: "#1e40af", r: "Gatekeeper", y: 1997, t: ["gatekeeper"],
-      html: `<p style="font-family:monospace;font-size:.85em;color:#3730a3;line-height:1.7">
+      html: richBio(`
+<p style="font-family:monospace;font-size:.85em;color:#3730a3;line-height:1.7">
 ROLE :: gatekeeper<br>
 SCOPE :: front rotation, internal access<br>
 EXTERNAL :: declined<br>
 ACTIVE SINCE :: 1997
 </p>
-<p style="margin-top:1em">No outside engagement. Internal only.</p>`,
+<p style="margin-top:1em">No outside engagement. Internal only.</p>`),
       cf: { _bg_color: "#1e1b4b", _bg_opacity: 0.18, _header_text_color: "#a5b4fc" },
     },
   ];
@@ -545,34 +586,83 @@ ACTIVE SINCE :: 1997
 // the user can journal, check in with, and track their parts work.
 function buildCompass() {
   const parts = {
-    // — Minimal: Self is the calm centre, no profile chrome.
-    self:    rec({ name: "Self", pronouns: "I", color: "#16a34a", role: "Self", description: "The grounded, curious, compassionate centre. Not a part — the seat from which the parts are met.", tags: ["self"] }),
+    // — Complex: constellation card. Self at the centre, parts as orbiting
+    //   stars connected by lines; pulse animation defined inline.
+    self: rec({
+      name: "Self", pronouns: "I", color: "#16a34a", role: "Self", tags: ["self"],
+      description: richBio(`
+<style>@keyframes self-pulse-star{0%,100%{opacity:.35}50%{opacity:1}}</style>
+<div style="background:#03050f;border-radius:20px;padding:24px;position:relative;overflow:hidden;">
+  <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;" viewBox="0 0 400 300" preserveAspectRatio="none">
+    <line x1="200" y1="150" x2="80"  y2="60"  stroke="rgba(167,139,250,.18)" stroke-width="1"/>
+    <line x1="200" y1="150" x2="320" y2="80"  stroke="rgba(167,139,250,.18)" stroke-width="1"/>
+    <line x1="200" y1="150" x2="350" y2="200" stroke="rgba(167,139,250,.18)" stroke-width="1"/>
+    <line x1="200" y1="150" x2="100" y2="240" stroke="rgba(167,139,250,.18)" stroke-width="1"/>
+    <line x1="200" y1="150" x2="60"  y2="170" stroke="rgba(167,139,250,.18)" stroke-width="1"/>
+    <circle cx="200" cy="150" r="6" fill="#86efac" style="animation:self-pulse-star 4s ease-in-out infinite"/>
+    <circle cx="80"  cy="60"  r="3" fill="#a78bfa" opacity=".85"/>
+    <circle cx="320" cy="80"  r="3" fill="#60a5fa" opacity=".75"/>
+    <circle cx="350" cy="200" r="3" fill="#f0abfc" opacity=".75"/>
+    <circle cx="100" cy="240" r="3" fill="#fbbf24" opacity=".70"/>
+    <circle cx="60"  cy="170" r="3" fill="#a78bfa" opacity=".70"/>
+    <circle cx="280" cy="40"  r="2" fill="#fff"    opacity=".4"/>
+    <circle cx="40"  cy="100" r="2" fill="#fff"    opacity=".4"/>
+    <circle cx="370" cy="140" r="2" fill="#fff"    opacity=".5"/>
+  </svg>
+  <div style="position:relative;z-index:1;">
+    <div style="color:#a78bfa;font-size:.65em;letter-spacing:.4em;text-transform:uppercase;margin-bottom:18px;">✦ Constellation: Self</div>
+    <div style="font-family:'Atkinson Hyperlegible',sans-serif;font-size:1.6em;font-weight:300;color:#e2e8f0;letter-spacing:.1em;margin-bottom:4px;">SELF</div>
+    <div style="color:#64748b;font-size:.8em;margin-bottom:18px;">I · the centre</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div style="text-align:center;">
+        <div style="color:#86efac;font-size:1.4em;">✦</div>
+        <div style="color:#64748b;font-size:.65em;margin-top:4px;letter-spacing:.1em;">QUALITY</div>
+        <div style="color:#e2e8f0;font-size:.78em;">curious</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="color:#a78bfa;font-size:1.4em;">✦</div>
+        <div style="color:#64748b;font-size:.65em;margin-top:4px;letter-spacing:.1em;">QUALITY</div>
+        <div style="color:#e2e8f0;font-size:.78em;">compassionate</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="color:#f0abfc;font-size:1.4em;">✦</div>
+        <div style="color:#64748b;font-size:.65em;margin-top:4px;letter-spacing:.1em;">QUALITY</div>
+        <div style="color:#e2e8f0;font-size:.78em;">calm</div>
+      </div>
+    </div>
+    <div style="background:rgba(167,139,250,.05);border:1px solid rgba(167,139,250,.18);border-radius:12px;padding:14px;color:#94a3b8;font-size:.85em;line-height:1.85;">Not a part — the seat from which the parts are met. When Self leads, the others can show themselves without taking over.</div>
+  </div>
+</div>`),
+    }),
     // — Moderate: a structured "operating manual" for The Planner.
     planner: rec({
       name: "The Planner", pronouns: "she", color: "#0d9488", role: "Manager", tags: ["manager"],
-      description: `<p style="font-style:italic;color:#0d9488;margin-bottom:1em">If we just plan well enough, nothing has to hurt.</p>
+      description: richBio(`
+<p style="font-style:italic;color:#0d9488;margin-bottom:1em">If we just plan well enough, nothing has to hurt.</p>
 <h4 style="margin:.5em 0 .25em;color:#0f766e">Job</h4>
 <p>Lists, schedules, contingencies. Anticipate everything.</p>
 <h4 style="margin:1em 0 .25em;color:#0f766e">Afraid of</h4>
 <ul><li>last-minute changes</li><li>uncertainty</li><li>"falling and no one catching me"</li></ul>
 <h4 style="margin:1em 0 .25em;color:#0f766e">Helpful when</h4>
-<p>The Self thanks her without asking her to leave.</p>`,
+<p>The Self thanks her without asking her to leave.</p>`),
       custom_fields: { _bg_color: "#0d9488", _bg_opacity: 0.06, _section_bg_opacity: 0.04 },
     }),
     // — Complex: stark, harsh-coded styling for The Critic.
     critic:  rec({
       name: "The Critic", pronouns: "he", color: "#65a30d", role: "Manager", tags: ["manager"],
-      description: `<p style="font-family:'Atkinson Hyperlegible',sans-serif;text-transform:uppercase;letter-spacing:.18em;font-size:.78em;color:#e7e5e4;margin-bottom:1em">— assessment in progress —</p>
+      description: richBio(`
+<p style="font-family:'Atkinson Hyperlegible',sans-serif;text-transform:uppercase;letter-spacing:.18em;font-size:.78em;color:#e7e5e4;margin-bottom:1em">— assessment in progress —</p>
 <p style="font-size:1.02em;line-height:1.6">Sharp inner voice. <b>Means well.</b> Wants me to be good enough that I don't get hurt.</p>
 <hr style="border:none;border-top:1px solid #44403c;margin:1.25em 0">
-<p style="font-size:.85em;color:#a8a29e;line-height:1.7">In Self-led moments he can be thanked without being argued with.<br>The work is to hear his fear, not his content.</p>`,
+<p style="font-size:.85em;color:#a8a29e;line-height:1.7">In Self-led moments he can be thanked without being argued with.<br>The work is to hear his fear, not his content.</p>`),
       custom_fields: { _bg_color: "#0a0a0a", _bg_opacity: 0.55, _page_text_color: "#f4f4f5", _header_text_color: "#a1a1aa", _section_bg_opacity: 0.2 },
     }),
     // — Moderate: muted, faded text for The Drifter.
     drifter: rec({
       name: "The Drifter", pronouns: "they", color: "#84cc16", role: "Firefighter", tags: ["firefighter"],
-      description: `<p style="color:#a8a29e;line-height:1.7;font-style:italic">scrolling. snacks. late nights. one more episode. one more.</p>
-<p style="margin-top:1em;color:#78716c">Steps in when the pain gets loud. The Drifter is not the problem — the pain is. The Drifter is buying time until the Self can come close to the Small One.</p>`,
+      description: richBio(`
+<p style="color:#a8a29e;line-height:1.7;font-style:italic">scrolling. snacks. late nights. one more episode. one more.</p>
+<p style="margin-top:1em;color:#78716c">Steps in when the pain gets loud. The Drifter is not the problem — the pain is. The Drifter is buying time until the Self can come close to the Small One.</p>`),
       custom_fields: { _bg_color: "#78716c", _bg_opacity: 0.18, _page_text_color: "#e7e5e4" },
     }),
     // — Minimal but tender: very short bio for Small One.
