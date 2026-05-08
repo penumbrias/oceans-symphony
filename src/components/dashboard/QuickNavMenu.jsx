@@ -112,7 +112,7 @@ function SortableTile({ item, editMode, onRemove, pendingCount }) {
   );
 
   return (
-    <div ref={setNodeRef} style={style} className="relative touch-none select-none">
+    <div ref={setNodeRef} style={style} className={`relative select-none ${editMode ? "touch-none" : ""}`}>
       {editMode ? tileInner : <Link to={item.path}>{tileInner}</Link>}
       {editMode && (
         <button

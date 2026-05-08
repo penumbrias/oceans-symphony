@@ -44,8 +44,8 @@ export const CHANGELOG = [
         text: "Record System Event modal now uses your configured alter term in event type descriptions (e.g. \"Two or more [alters] merge...\") and the dialog title uses your system term.",
       },
       {
-        type: "improve",
-        text: "Dashboard grid now supports drag-and-drop rearranging. Tap the pencil icon to enter edit mode, drag tiles to reorder, tap × to remove a tile, then tap Done to save. The layout and remove buttons are preserved across sessions.",
+        type: "fix",
+        text: "Hotfix: dashboard grid tiles no longer block page scrolling when not in edit mode.",
       },
       {
         type: "improve",
