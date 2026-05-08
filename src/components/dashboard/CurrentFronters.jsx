@@ -47,7 +47,7 @@ function sessionNoteText(session) {
   } catch { return session.note; }
 }
 
-function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel, onSwipeRight, onSwipeLeft }) {
+function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel, onSwipeRight, onSwipeLeft, isExpanded, onToggleExpand }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
@@ -55,13 +55,12 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   const hasNote = !!sessionNoteText(session);
   const isTriggered = !!session?.is_triggered_switch;
 
-  // Tap on a currently-fronting alter opens the hold/quick-action menu
-  // (set primary, remove from front, log emotion / symptom, open profile)
-  // — the profile link still lives inside that menu. This matches user
-  // intent: when a chip is on the front bar, the relevant action is
-  // managing the front, not navigating away.
+  // Tap on a currently-fronting chip toggles the per-alter panel (emotions,
+  // symptoms, notes, trigger category). Long-press opens the hold menu
+  // (set primary, remove from front, open profile). Swipes do front /
+  // primary actions just like the alters page.
   const { bind, dragX, swipeHint } = useSwipeActions({
-    onTap: () => onHold(alter),
+    onTap: () => onToggleExpand?.(alter.id),
     onSwipeRight: () => onSwipeRight?.(alter),
     onSwipeLeft: () => onSwipeLeft?.(alter),
     onLongPress: () => onHold(alter),
@@ -71,11 +70,12 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap or long-press for the front-management menu. Swipe right to remove from front, swipe left to toggle primary.`}
+      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap to ${isExpanded ? "collapse" : "expand"} the per-alter panel. Long-press for the front-management menu. Swipe right to remove from front, swipe left to toggle primary.`}
+      aria-expanded={!!isExpanded}
       aria-expanded={false}
       {...bind}
       onMouseDown={(e) => { /* desktop: long-press via mouse not wired; rely on click */ }}
-      onKeyDown={e => e.key === "Enter" || e.key === " " ? onHold(alter) : undefined}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onToggleExpand?.(alter.id) : undefined}
       style={{
         transform: `translateX(${dragX}px)`,
         transition: dragX === 0 ? "transform 150ms ease-out" : "none",
@@ -375,6 +375,7 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 export default function CurrentFronters({ alters }) {
   const [showModal, setShowModal] = useState(false);
   const [holdMenuAlter, setHoldMenuAlter] = useState(null);
+  const [expandedAlterId, setExpandedAlterId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -425,6 +426,10 @@ export default function CurrentFronters({ alters }) {
   const active = primarySession || activeSessions[0] || null;
 
   const primaryAlterId = primarySession?.alter_id || active?.primary_alter_id || null;
+
+  // If the active session changes (switch, fronter added/removed), close
+  // any open per-alter panel since the session it referenced may be gone.
+  useEffect(() => { setExpandedAlterId(null); }, [active?.id]);
 
   const handleSetPrimaryFromHold = async (alter) => {
     try {
@@ -536,11 +541,31 @@ export default function CurrentFronters({ alters }) {
                 coFronterLabel={`Co-${terms.fronting}`}
                 onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast)}
                 onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast)}
+                isExpanded={expandedAlterId === alter.id}
+                onToggleExpand={(id) => setExpandedAlterId(prev => prev === id ? null : id)}
               />
             );
           })}
 
         </div>
+
+        {/* Per-alter panel — opens under the chip grid when a fronting chip is tapped */}
+        {(() => {
+          if (!expandedAlterId) return null;
+          const expandedAlter = altersById[expandedAlterId];
+          const expandedSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === expandedAlterId);
+          if (!expandedAlter || !expandedSession) return null;
+          return (
+            <div className="mb-2">
+              <AlterPanel
+                alter={expandedAlter}
+                session={expandedSession}
+                onClose={() => setExpandedAlterId(null)}
+                onSaved={() => setExpandedAlterId(null)}
+              />
+            </div>
+          );
+        })()}
 
         <PrivateMessagesIndicator activeFronters={all} />
 
