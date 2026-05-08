@@ -339,8 +339,24 @@ export function ThemeProvider({ children }) {
     setIsDarkOS(darkMq.matches);
     const handler = (e) => setIsDarkOS(e.matches);
     darkMq.addEventListener('change', handler);
+
+    // Allow external code (e.g. Preview Mode) to update theme/font/mode by
+    // writing to localStorage and dispatching this event. We re-read all the
+    // theme keys so the running app reflects the change immediately.
+    const reload = () => {
+      setThemeMode(localStorage.getItem('symphony_themeMode') || 'system');
+      setSelectedTheme(localStorage.getItem('symphony_selectedTheme') || 'cool');
+      const cc = localStorage.getItem('symphony_customColors');
+      setCustomColors(cc ? JSON.parse(cc) : null);
+      setSelectedFont(localStorage.getItem('symphony_selectedFont') || 'inter');
+    };
+    window.addEventListener('symphony-theme-storage-change', reload);
+
     setMounted(true);
-    return () => darkMq.removeEventListener('change', handler);
+    return () => {
+      darkMq.removeEventListener('change', handler);
+      window.removeEventListener('symphony-theme-storage-change', reload);
+    };
   }, []);
 
   useEffect(() => {

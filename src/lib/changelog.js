@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Preview Mode now ships three new example systems: The Hearth (a small DID system with five alters), The Tapestry (a large polyfragmented DID system with 24 alters across hosts, protectors, caretakers, littles, teens, introjects, gatekeeper, persecutors, fragments, and dormants), and Inner Compass (a singlet using IFS — one Self surrounded by Manager, Firefighter, and Exile parts). Each preview also brings its own theme, font, and terminology so you can feel the app in three very different shapes.",
+      },
+      {
+        type: "improve",
         text: "Pinch-to-zoom on the timeline: pinch with two fingers anywhere in a day's timeline to expand or compress the row height. Replaces the Zoom button + slider, which has been removed.",
       },
       {
