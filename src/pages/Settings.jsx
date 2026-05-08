@@ -134,6 +134,33 @@ export default function Settings() {
         </p></p>
       </div>
 
+      {/* Privacy & Data Notice — collapsible, top of page */}
+      <details className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden group" data-tour="settings-privacy-notice">
+        <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3 text-sm select-none">
+          <span className="font-semibold text-foreground flex items-center gap-1.5">🔐 Privacy & Data Notice</span>
+          <span className="text-xs text-muted-foreground group-open:rotate-180 transition-transform">▾</span>
+        </summary>
+        <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground">
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">🔒 Local Storage</p>
+            <p>By default, your data is stored on this device <strong>unencrypted</strong> in IndexedDB. Anyone with access to this device — or to a device backup — could read it. Enabling password encryption under <em>Storage Mode</em> below adds <strong>on-device encryption at rest</strong> (AES-256-GCM): the data is encrypted with a key derived from your password and decrypted in memory while the app is open. <strong>It is not end-to-end encrypted</strong> — the protection is between this device's storage and the running app, nothing more. <strong>If you lose your encryption password, the data cannot be recovered.</strong></p>
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">💾 Backups</p>
+            <p>Use Backup & Export under Data & Privacy to save your data as a JSON file. Backups are <strong>not encrypted</strong> regardless of your storage mode — store them somewhere safe.</p>
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">🤖 Transparency</p>
+            <p>Oceans Symphony is <strong>vibe-coded</strong> — built with AI assistance — and is in <strong>active development</strong>. It is a work in progress shared in good faith; bugs are likely. We do our best but cannot guarantee it is bug-free.</p>
+          </div>
+          <p className="text-amber-600 dark:text-amber-400 font-medium">
+            🌊 Free and open source, shared by a DID system to fill a void in the community. Contact: pesturedrawing@gmail.com.{" "}
+            <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+              className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
+          </p>
+        </div>
+      </details>
+
       {/* Migration banner */}
       <div className="mb-4"><MigrationBanner /></div>
 
@@ -266,27 +293,9 @@ export default function Settings() {
 
         {/* ── DATA & PRIVACY ── */}
         <Section id="data" icon="💾" label="Data & Privacy">
-          {/* Privacy notice */}
-          <div className="bg-amber-500/5 border border-amber-500/30 rounded-xl p-4 space-y-3 text-sm text-muted-foreground">
-            <p className="font-semibold text-foreground">🔐 Privacy & Data Notice</p>
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">🔒 Local Storage</p>
-              <p>All data is stored on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
-            </div>
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">💾 Backups</p>
-              <p>Use Backup & Export below to save your data as a JSON file. Keep backups safe — local data is tied to this device.</p>
-            </div>
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">🤖 Transparency</p>
-              <p>Oceans Symphony is <strong>vibe-coded</strong> — built with AI assistance. It is a work in progress, shared in good faith. We do our best but cannot guarantee it is bug-free.</p>
-            </div>
-            <p className="text-amber-600 dark:text-amber-400 font-medium">
-              🌊 Free and open source, shared by a DID system to fill a void in the community. Contact: pesturedrawing@gmail.com.{" "}
-              <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
-                className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Privacy & Data Notice has moved to the top of this page — tap the banner above to expand it.
+          </p>
           <div className="border-t border-border/30 pt-4">
             <StorageModeSettings />
           </div>

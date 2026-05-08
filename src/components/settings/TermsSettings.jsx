@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Languages, Save } from "lucide-react";
+import { pluralize, gerund, agent } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -96,9 +97,20 @@ export default function TermsSettings() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Preview: <span className="text-foreground font-medium">{vals.system}</span> · <span className="text-foreground font-medium">{vals.alter}</span> · <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{vals.front}ing</span>
-        </p>
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <p>
+            <span className="font-medium">Singular:</span>{" "}
+            <span className="text-foreground font-medium">{vals.system}</span> · <span className="text-foreground font-medium">{vals.alter}</span> · <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{vals.front}</span>
+          </p>
+          <p>
+            <span className="font-medium">Plural:</span>{" "}
+            <span className="text-foreground font-medium">{pluralize(vals.system)}</span> · <span className="text-foreground font-medium">{pluralize(vals.alter)}</span> · <span className="text-foreground font-medium">{pluralize(vals.switch)}</span> · <span className="text-foreground font-medium">{pluralize(vals.front)}</span>
+          </p>
+          <p>
+            <span className="font-medium">Other:</span>{" "}
+            <span className="text-foreground font-medium">{gerund(vals.front)}</span> (gerund) · <span className="text-foreground font-medium">{gerund(vals.switch)}</span> · <span className="text-foreground font-medium">{agent(vals.front)}</span> (agent)
+          </p>
+        </div>
         <Button onClick={handleSave} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
           {saving ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Terms</>}
         </Button>
