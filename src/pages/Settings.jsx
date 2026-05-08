@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
 import MigrationBanner from "@/components/shared/MigrationBanner";
 import RecentUpdates from "@/components/settings/RecentUpdates";
+import PreviewModeSection from "@/components/settings/PreviewModeSection";
 
 
 function Section({ id, icon, label, defaultOpen = false, children }) {
@@ -259,6 +260,10 @@ export default function Settings() {
         {/* ── REMINDERS ── */}
         <Section id="reminders" icon="🔔" label="Reminders">
           <RemindersSettings />
+        </Section>
+
+        <Section id="preview" icon="👁️" label="Preview Mode">
+          <PreviewModeSection />
         </Section>
 
         {/* ── DATA & PRIVACY ── */}

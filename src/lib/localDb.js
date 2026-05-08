@@ -13,6 +13,7 @@ const STORAGE_KEY = 'symphony_local_data';
 const FAKE_USER_EMAIL = 'local@symphony.app';
 
 let _db = null;       // in-memory: { EntityName: { id: record } }
+let _previewDb = null; // in-memory only: when set, all reads/writes use this and skip persistence
 let _encKey = null;   // CryptoKey when encryption is active
 let _idbPromise = null;
 
@@ -62,6 +63,7 @@ function generateId() {
 }
 
 function getDb() {
+  if (_previewDb !== null) return _previewDb;
   if (_db !== null) return _db;
   // Synchronous fallback (only safe after initLocalDb has run)
   _db = {};
@@ -69,10 +71,27 @@ function getDb() {
 }
 
 async function saveDb() {
+  // Preview-mode writes stay purely in memory and never reach IndexedDB.
+  if (_previewDb !== null) return;
   const json = _encKey
     ? JSON.stringify({ __encrypted: await encryptData(_db, _encKey) })
     : JSON.stringify(_db);
   await saveToStorage(json);
+}
+
+// Preview mode: replace the in-memory DB with curated example data.
+// Real user data on disk is never touched. Calling clearPreviewDb()
+// returns to the real DB exactly as it was.
+export function setPreviewDb(data) {
+  _previewDb = data || {};
+}
+
+export function clearPreviewDb() {
+  _previewDb = null;
+}
+
+export function isPreviewDbActive() {
+  return _previewDb !== null;
 }
 
 // Called on app start. Password required only when encryption is enabled.

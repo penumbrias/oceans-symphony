@@ -713,6 +713,15 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     // ─── DONE ───────────────────────────────────────────────────────────────
     {
       section: "done", sectionLabel: "Done!",
+      emoji: "👁️",
+      title: "Feeling lost? Try Preview Mode",
+      body: `If you'd like to see how the app feels with everything filled in, head to Settings → Preview Mode. It temporarily replaces what you see with a curated example ${t.system} — your real data stays exactly where it is. Use whatever features you find useful, and leave the rest.`,
+      route: "/settings", target: "settings-preview",
+      look: `the Preview Mode section — tap its header to expand it and pick an example`,
+      action: null,
+    },
+    {
+      section: "done", sectionLabel: "Done!",
       emoji: "💜",
       title: "Tour Complete 🎉",
       body: `You've explored every page and feature of Oceans Symphony. The app is designed for dissociative ${t.system}s — log at your own pace, and nothing forgotten in the moment is lost forever. The Tour button on the dashboard is always there if you want to revisit. Take good care. 💜`,

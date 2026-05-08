@@ -170,7 +170,6 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}) {
     groups: memberGroups,
     is_archived: !!c.archived,
     birthday: c.birthday || c.birthdate || "",
-    pk_id: c.pkId || "",
   };
 }
 
