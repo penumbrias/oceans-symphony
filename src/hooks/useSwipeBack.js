@@ -65,6 +65,14 @@ export default function useSwipeBack() {
       setIndicatorVisible(true);
     };
 
+    const dismissIndicator = () => {
+      setIndicatorProgress(0);
+      clearTimeout(fadeTimer.current);
+      fadeTimer.current = setTimeout(() => {
+        setIndicatorVisible(false);
+      }, INDICATOR_FADE_MS);
+    };
+
     const onTouchEnd = (e) => {
       if (!touchStart.current) return;
       const touch = e.changedTouches[0];
@@ -72,12 +80,7 @@ export default function useSwipeBack() {
       const dy = Math.abs(touch.clientY - touchStart.current.y);
       touchStart.current = null;
 
-      // Fade out indicator
-      clearTimeout(fadeTimer.current);
-      fadeTimer.current = setTimeout(() => {
-        setIndicatorVisible(false);
-        setIndicatorProgress(0);
-      }, INDICATOR_FADE_MS);
+      dismissIndicator();
 
       // Check all gesture conditions
       if (dx < MIN_SWIPE_X) return;
@@ -86,14 +89,21 @@ export default function useSwipeBack() {
       navigate(-1);
     };
 
+    const onTouchCancel = () => {
+      touchStart.current = null;
+      dismissIndicator();
+    };
+
     document.addEventListener("touchstart", onTouchStart, { passive: true });
     document.addEventListener("touchmove", onTouchMove, { passive: true });
     document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchCancel, { passive: true });
 
     return () => {
       document.removeEventListener("touchstart", onTouchStart);
       document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchCancel);
       clearTimeout(fadeTimer.current);
     };
   }, [navigate]);

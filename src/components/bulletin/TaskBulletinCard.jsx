@@ -104,7 +104,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
             className="text-muted-foreground hover:text-foreground p-1 transition-opacity"
             title={bulletin.is_pinned ? "Unpin" : "Pin"}
           >
-            <Pin className={`w-3.5 h-3.5 ${bulletin.is_pinned ? "text-primary" : ""}`} />
+            <Pin className={`w-3.5 h-3.5 ${bulletin.is_pinned ? "text-primary fill-current" : ""}`} />
           </button>
           <button
             onClick={handleDelete}
