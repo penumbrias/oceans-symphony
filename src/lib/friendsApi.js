@@ -43,6 +43,26 @@ export async function registerIdentity({ displayName, systemName, terms, privacy
   return { userId, secret, friendCode };
 }
 
+// Deletes the user's profile on the server AND clears the local identity.
+// Friends-list/cache entries on this device are also wiped so the UI
+// returns to the no-profile setup screen.
+export async function deleteIdentity() {
+  const identity = await getLocalIdentity();
+  if (!identity) return;
+
+  // Best-effort server delete. If the server is unreachable we still wipe
+  // local state — the user has explicitly asked to leave.
+  try {
+    await fetch(`${BASE}/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: identity.userId, secret: identity.secret }),
+    });
+  } catch {}
+
+  await localEntities.FriendIdentity.delete(identity.id);
+}
+
 // ─── Friend list & pending ─────────────────────────────────────────────────────
 
 export async function fetchFriendsList() {

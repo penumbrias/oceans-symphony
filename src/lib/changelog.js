@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 8, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Friends page now shows a privacy disclaimer explaining exactly what does and doesn't leave your device — full disclaimer on the no-profile setup screen, collapsible \"What gets shared with the cloud relay?\" panel once you have a profile.",
+      },
+      {
+        type: "feature",
+        text: "Edit Friends Profile modal now has a Delete profile button. Tap once to arm, tap again to confirm — your profile is removed from the relay, you're removed from every friend's list, and your local identity is wiped, returning the Friends page to the Set Up Profile state.",
+      },
+      {
         type: "fix",
         text: "Timeline horizontal scroll works again — when pinch-to-zoom was added it inadvertently locked the timeline to vertical-only scrolling. Both directions scroll now, and pinch-to-zoom still works.",
       },

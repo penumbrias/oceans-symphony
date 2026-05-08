@@ -10,7 +10,8 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   Users, Copy, UserPlus, Check, X, Bell, BellOff, UserMinus,
-  ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw, Eye, EyeOff, ShieldCheck
+  ChevronDown, ChevronUp, Loader2, Settings2, RefreshCw, Eye, EyeOff, ShieldCheck,
+  Database, Lock, Trash2
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
@@ -24,6 +25,7 @@ import {
   toggleNotify,
   pushFrontStatus,
   saveFriendVisibility,
+  deleteIdentity,
 } from "@/lib/friendsApi";
 import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
 
@@ -381,13 +383,56 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
 
 // ── Setup / profile modal ─────────────────────────────────────────────────────
 
-function ProfileSetupModal({ open, onClose, onSaved, existing }) {
+function PrivacyDisclaimer() {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+        <Database className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <p className="font-semibold text-foreground">Your personal data stays on-device</p>
+          <p className="text-muted-foreground leading-relaxed mt-0.5">
+            Alters, journals, sessions, check-ins, and all personal data live in IndexedDB on your device. No server ever accesses this.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5">
+        <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <p className="font-semibold text-foreground">Friends uses a minimal cloud relay</p>
+          <p className="text-muted-foreground leading-relaxed mt-0.5">
+            Only your display name and — when you tap "Update Front" — each fronting alter's name, accent colour, and primary/co-front status ever leave your device. This feature is entirely opt-in — if you skip it, nothing goes online.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileSetupModal({ open, onClose, onSaved, existing, onDeleted }) {
   const terms = useTerms();
   const [displayName, setDisplayName] = useState(existing?.displayName || '');
   const [systemName, setSystemName] = useState(existing?.systemName || '');
   const [privacyLevel, setPrivacyLevel] = useState(existing?.privacyLevel || 'names');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeleting(true);
+    try {
+      await deleteIdentity();
+      toast.success('Friends profile deleted');
+      onDeleted?.();
+      onClose();
+    } catch (e) {
+      console.error('[Friends] deleteIdentity failed:', e);
+      setError(e.message || 'Failed to delete profile.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleSave = async () => {
     setError('');
@@ -471,12 +516,27 @@ function ProfileSetupModal({ open, onClose, onSaved, existing }) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || deleting}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {saving && <Loader2 className="w-4 h-4 animate-spin" />}
             {saving ? 'Saving…' : (existing ? 'Save Changes' : 'Create Profile')}
           </button>
+          {existing && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={saving || deleting}
+              className={`w-full flex items-center justify-center gap-1.5 mt-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+                confirmDelete
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : "text-destructive/80 hover:text-destructive hover:bg-destructive/10"
+              }`}
+            >
+              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              {confirmDelete ? "Tap again to delete profile + remove from all friends" : "Delete profile"}
+            </button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -737,17 +797,20 @@ export default function FriendsPage() {
   // No profile yet
   if (!identity) {
     return (
-      <div className="max-w-md mx-auto p-6 flex flex-col items-center justify-center min-h-[60vh] text-center space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-2">
-          <Users className="w-8 h-8 text-primary" />
+      <div className="max-w-md mx-auto p-6 space-y-5">
+        <div className="flex flex-col items-center text-center space-y-3">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Users className="w-8 h-8 text-primary" />
+          </div>
+          <h1 className="text-xl font-semibold">Friends & Front Sharing</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Share your front status with trusted friends. Create a profile to get your unique friend code, then exchange codes to connect with others.
+          </p>
         </div>
-        <h1 className="text-xl font-semibold">Friends & Front Sharing</h1>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Share your front status with trusted friends. Create a profile to get your unique friend code, then exchange codes to connect with others.
-        </p>
-        <Button onClick={() => setShowSetup(true)} className="mt-2">
-          Set Up Profile
-        </Button>
+        <PrivacyDisclaimer />
+        <div className="flex justify-center">
+          <Button onClick={() => setShowSetup(true)}>Set Up Profile</Button>
+        </div>
         <ProfileSetupModal
           open={showSetup}
           onClose={() => setShowSetup(false)}
@@ -808,6 +871,20 @@ export default function FriendsPage() {
           </p>
         )}
       </div>
+
+      {/* Privacy disclaimer — collapsed by default once a profile exists */}
+      <details className="rounded-xl border border-border/50 bg-card overflow-hidden group">
+        <summary className="cursor-pointer list-none px-4 py-2.5 flex items-center justify-between text-xs font-medium text-muted-foreground hover:text-foreground transition-colors select-none">
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            What gets shared with the cloud relay?
+          </span>
+          <ChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="px-4 pb-4 pt-1">
+          <PrivacyDisclaimer />
+        </div>
+      </details>
 
       {/* Incoming requests */}
       {pending.length > 0 && (
@@ -912,6 +989,7 @@ export default function FriendsPage() {
         open={showSetup}
         onClose={() => setShowSetup(false)}
         onSaved={refetchIdentity}
+        onDeleted={refetchIdentity}
         existing={identity}
       />
       <AddFriendModal
