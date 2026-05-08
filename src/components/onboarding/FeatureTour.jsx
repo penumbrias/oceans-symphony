@@ -486,10 +486,10 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "analytics", sectionLabel: "Analytics",
       emoji: "👥",
-      title: `${t.System} Members`,
-      body: `${t.System} Members ranks ${t.alters} by ${t.fronting} time. Stat modes: Total time, Primary-only, Co-${t.front}-only, Average session length, Max, Min, and Count. The "Time of Day" tab shows a heatmap of when each ${t.alter} tends to front by hour — useful for spotting patterns.`,
+      title: `${t.Alters}`,
+      body: `${t.Alters} ranks ${t.alters} by ${t.fronting} time. Stat modes: Total time, Primary-only, Co-${t.front}-only, Average session length, Max, Min, and Count. The "Time of Day" tab shows a heatmap of when each ${t.alter} tends to front by hour — useful for spotting patterns.`,
       route: "/analytics", target: "analytics-charts",
-      look: `tap "${t.System} Members" on the analytics grid to open this section`, action: null,
+      look: `tap "${t.Alters}" on the analytics grid to open this section`, action: null,
     },
     {
       section: "analytics", sectionLabel: "Analytics",

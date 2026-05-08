@@ -93,7 +93,7 @@ function computeStats(sessions, alters, from, to) {
 // Landing page section cards
 function SectionGrid({ terms, onSelect }) {
   const sections = [
-    { id: "alters", emoji: "🧑‍🤝‍🧑", label: `${terms.System} Members`, desc: `${terms.Fronting} time and patterns` },
+    { id: "alters", emoji: "🧑‍🤝‍🧑", label: `${terms.Alters}`, desc: `${terms.Fronting} time and patterns` },
     { id: "activities", emoji: "⚡", label: "Activities", desc: "What you've been doing" },
     { id: "emotions", emoji: "💜", label: "Emotions", desc: "Mood and check-in trends" },
     { id: "symptoms", emoji: "💊", label: "Symptoms", desc: "Symptom and habit tracking" },
@@ -291,7 +291,7 @@ export default function Analytics() {
   }
 
   const SECTION_LABELS = {
-    alters: `${terms.System} Members`,
+    alters: `${terms.Alters}`,
     activities: "Activities",
     emotions: "Emotions",
     symptoms: "Symptoms",

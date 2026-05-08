@@ -29,6 +29,13 @@ export default function StorageModeSettings() {
     if (deleteInput.trim().toLowerCase() !== "delete my data") return;
     setDeleting(true);
     try {
+      // Best-effort: tear down the Friends profile on the cloud relay first so
+      // the user is unsynced from every friend before local data goes away.
+      // (deleteIdentity itself already swallows network failures.)
+      try {
+        const { deleteIdentity } = await import("@/lib/friendsApi");
+        await deleteIdentity();
+      } catch {}
       await loadDbDump({});
       // Clear all Symphony localStorage keys so the app re-runs first-time onboarding
       Object.keys(localStorage).forEach(key => {

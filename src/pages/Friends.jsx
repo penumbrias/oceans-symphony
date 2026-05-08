@@ -384,6 +384,7 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
 // ── Setup / profile modal ─────────────────────────────────────────────────────
 
 function PrivacyDisclaimer() {
+  const t = useTerms();
   return (
     <div className="space-y-3">
       <div className="flex items-start gap-3 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
@@ -391,16 +392,36 @@ function PrivacyDisclaimer() {
         <div className="text-sm">
           <p className="font-semibold text-foreground">Your personal data stays on-device</p>
           <p className="text-muted-foreground leading-relaxed mt-0.5">
-            Alters, journals, sessions, check-ins, and all personal data live in IndexedDB on your device. No server ever accesses this.
+            All your personal data — {t.alters}, journals, check-ins, symptoms, {t.fronting} sessions, etc. — lives in IndexedDB on your device. This is the "local-only" mode. Nothing from your personal {t.system} data ever leaves your device — no server sees it, no sync happens. The optional AES-256 encryption setting protects it at rest on the device itself.
           </p>
         </div>
       </div>
-      <div className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5">
-        <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-        <div className="text-sm">
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+        <div className="flex items-start gap-3 mb-2">
+          <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <p className="font-semibold text-foreground">Friends uses a minimal cloud relay</p>
-          <p className="text-muted-foreground leading-relaxed mt-0.5">
-            Only your display name and — when you tap "Update Front" — each fronting alter's name, accent colour, and primary/co-front status ever leave your device. This feature is entirely opt-in — if you skip it, nothing goes online.
+        </div>
+        <div className="text-muted-foreground leading-relaxed space-y-2 pl-8">
+          <p>
+            The Friends feature uses a separate, minimal cloud relay (Vercel KV — basically a Redis store). It only holds:
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Your chosen display name and friend code</strong> — public-ish info you explicitly choose to share.</li>
+            <li><strong>A snapshot of who is currently {t.fronting}</strong>, filtered by your privacy setting:
+              <ul className="list-[circle] pl-5 mt-0.5">
+                <li><em>Names &amp; colours</em> — each {t.fronting} {t.alter}'s name, accent colour, and primary/co-{t.front} status.</li>
+                <li><em>Count only</em> — just how many {t.alters} are out (e.g. "2 {t.fronters}").</li>
+                <li><em>Hidden</em> — nothing about who's {t.fronting} at all.</li>
+              </ul>
+            </li>
+            <li><strong>Friend relationships</strong> — who approved who.</li>
+            <li><strong>Push subscription tokens</strong>, only if you opt in to friend-front notifications.</li>
+          </ul>
+          <p>
+            Your {t.alter} profiles, journal text, check-in data, symptoms, timeline history — <strong>none of that touches the friends server</strong>. The friends server only ever knows what you explicitly push via "Update Front", filtered by the privacy setting above.
+          </p>
+          <p>
+            Friends is <strong>opt-in from the start</strong>: you have to create a Friends profile to use it. If you never do, zero data leaves the device. The core app works entirely locally; Friends is a separately-consented, explicitly-minimal cloud feature for sharing the specific thing you choose to share.
           </p>
         </div>
       </div>
@@ -637,7 +658,9 @@ export default function FriendsPage() {
     queryKey: ['friendsList'],
     queryFn: fetchFriendsList,
     enabled: !!identity,
-    refetchInterval: 30_000,
+    // Poll more aggressively so incoming/responded requests appear quickly
+    // for both sides without needing a manual refresh.
+    refetchInterval: 10_000,
     refetchIntervalInBackground: true,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
@@ -727,12 +750,20 @@ export default function FriendsPage() {
   }, [identity]);
 
   const handleRespond = async (fromUserId, action) => {
+    // Optimistically remove the request from `pending` so the UI updates
+    // before the network round-trip finishes. Refetch reconciles state.
+    queryClient.setQueryData(['friendsList'], (prev) => {
+      if (!prev) return prev;
+      const pending = (prev.pending || []).filter(p => p.fromUserId !== fromUserId);
+      return { ...prev, pending };
+    });
     try {
       await respondToRequest(fromUserId, action);
       toast.success(action === 'approve' ? 'Friend request accepted!' : 'Request declined.');
       refetchFriends();
     } catch (e) {
       toast.error(e.message || 'Failed.');
+      refetchFriends(); // restore truth on failure
     }
   };
 
