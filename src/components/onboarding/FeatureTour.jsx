@@ -479,7 +479,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "analytics", sectionLabel: "Analytics",
       emoji: "📊",
       title: "Analytics Landing",
-      body: `Analytics has 12 specialized sections accessible from this grid: ${t.System} Members, Activities, Emotions, Symptoms, Daily Log, Sleep, Journals, Co-${t.Fronting}, ${t.Switch} Logs, ${t.System} Meetings, Patterns & Insights, and Locations. Each section has its own charts and date range controls.`,
+      body: `Analytics has 12 specialized sections accessible from this grid: ${t.Alters}, Activities, Emotions, Symptoms, Check-In Log, Sleep, Journals, Co-${t.Fronting}, ${t.Switch} Logs, ${t.System} Meetings, Patterns & Insights, and Locations. Each section has its own charts and date range controls.`,
       route: "/analytics", target: "analytics-charts",
       look: `the highlighted section grid — each card is a different analysis area`, action: null,
     },

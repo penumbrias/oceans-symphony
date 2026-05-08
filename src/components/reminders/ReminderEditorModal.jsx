@@ -40,7 +40,7 @@ const getActionTypeOptions = (terms) => [
   { value: "open_grounding",       label: "Grounding exercise" },
   { value: "open_set_front",       label: `Set who's ${terms.fronting}` },
   { value: "open_journal",         label: "Open journal" },
-  { value: "open_diary",           label: "Open diary" },
+  { value: "open_diary",           label: "Open Check-In Log" },
   { value: "open_symptom_check_in",label: "Log a symptom" },
   { value: "open_system_map",      label: `View ${terms.system} map` },
   { value: "open_timeline",        label: "View timeline" },

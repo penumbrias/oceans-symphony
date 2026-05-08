@@ -129,9 +129,9 @@ export default function ReminderToast() {
     } else if (type === "open_journal") {
       navigate("/journals");
     } else if (type === "open_diary") {
-      navigate("/diary");
+      navigate("/checkin-log");
     } else if (type === "open_symptom_check_in") {
-      navigate("/diary?openSymptoms=1");
+      navigate("/checkin-log?openSymptoms=1");
     } else if (type === "open_system_map") {
       navigate("/system-map");
     } else if (type === "open_timeline") {

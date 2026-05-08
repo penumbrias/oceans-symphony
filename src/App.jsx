@@ -76,7 +76,8 @@ const AuthenticatedApp = () => {
 
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/journals" element={<Journals />} />
-        <Route path="/diary" element={<DiaryCards />} />
+        {/* /diary (Daily Log) is deprecated — redirect to the Check-In Log */}
+        <Route path="/diary" element={<Navigate to="/checkin-log" replace />} />
         <Route path="/tasks" element={<DailyTasks />} />
         <Route path="/todo" element={<ToDoList />} />
         <Route path="/groups" element={<GroupsManager />} />

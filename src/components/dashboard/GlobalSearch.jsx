@@ -334,7 +334,7 @@ export default function GlobalSearch() {
     // Symptoms
     symptoms.forEach((s) => {
       if ([s.label, s.description].filter(Boolean).some((f) => f.toLowerCase().includes(q))) {
-        results.push({ type: "symptom", id: s.id, title: s.label, subtitle: s.description?.slice(0, 80) || "Symptom", path: `/diary` });
+        results.push({ type: "symptom", id: s.id, title: s.label, subtitle: s.description?.slice(0, 80) || "Symptom", path: `/checkin-log` });
       }
     });
 
@@ -354,7 +354,7 @@ export default function GlobalSearch() {
         results.push({
           type: "diarycard", id: d.id, title: d.name || `Diary Card — ${d.date}`,
           subtitle: dateMatch ? `📅 ${formatDateLabel(d.date || d.created_date)}` : d.notes?.what?.slice(0, 80),
-          path: `/diary?id=${d.id}`, dateMatch,
+          path: `/checkin-log?id=${d.id}`, dateMatch,
         });
       }
     });

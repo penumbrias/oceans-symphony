@@ -709,7 +709,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {/* Diary */}
           {openSections.has("diary") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
-              <p className="text-sm font-medium">Daily Log</p>
+              <p className="text-sm font-medium">Check-In Log</p>
               <DiarySection data={diaryData} onChange={(groupKey, value) => setDiaryData((prev) => ({ ...prev, [groupKey]: value }))} />
             </div>
           }

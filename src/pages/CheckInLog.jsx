@@ -64,7 +64,7 @@ function DiaryDataSection({ diaryCard }) {
 
   return (
     <div className="space-y-2 mt-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Daily Log Data</p>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Check-In Log Data</p>
 
       {hasUrges && (
         <div className="space-y-1.5 p-2.5 rounded-lg bg-muted/30 border border-border/30">

@@ -45,7 +45,7 @@ const STEPS = (t) => [
     features: ['Inner world canvas', 'Relationship lines with directions', 'Location nodes', 'Analytics map', 'Clickable relationship details'],
   },
   {
-    title: 'Check-In & Daily Log',
+    title: 'Check-In Log',
     subtitle: `Track how the ${t.system} is doing day to day`,
     body: `Quick check-ins let any part log emotions, symptoms, activities, diary entries, and notes in one place. Everything is timestamped and tied to who was ${t.fronting}.`,
     icon: <Sparkles className='w-8 h-8' />,

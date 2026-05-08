@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal";
+import { useTerms } from "@/lib/useTerms";
 
 const TYPE_META = {
   fusion:   { label: "Fusion",    icon: GitMerge, color: "text-violet-500", bg: "bg-violet-500/10 border-violet-500/20" },
@@ -91,6 +92,7 @@ function EventCard({ event, altersById, onDelete }) {
 }
 
 function ConnectionsMap({ alterId, events, altersById }) {
+  const t = useTerms();
   // Predecessors: alters in source_alter_ids where this alter is in result_alter_ids
   const predecessorIds = useMemo(() => {
     const ids = new Set();
@@ -137,7 +139,7 @@ function ConnectionsMap({ alterId, events, altersById }) {
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">This alter</span>
+          <span className="text-xs text-muted-foreground">This {t.alter}</span>
           <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border text-foreground"
             style={{ borderColor: color, backgroundColor: `${color}33`, outline: `2px solid ${color}55`, outlineOffset: "1px" }}>
             <div className="w-3 h-3 rounded-full flex-shrink-0 ring-1 ring-background" style={{ backgroundColor: color }} />
@@ -165,6 +167,7 @@ function ConnectionsMap({ alterId, events, altersById }) {
 export default function LineageTab({ alterId }) {
   const queryClient = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
+  const t = useTerms();
 
   const { data: allEvents = [] } = useQuery({
     queryKey: ["systemChangeEvents"],
@@ -198,7 +201,7 @@ export default function LineageTab({ alterId }) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Lineage</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">System change events involving this alter</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t.System} change events involving this {t.alter}</p>
         </div>
         <Button size="sm" variant="outline" onClick={() => setModalOpen(true)}>
           <Plus className="w-3.5 h-3.5 mr-1" /> Record Event
@@ -215,7 +218,7 @@ export default function LineageTab({ alterId }) {
         <div className="text-center py-10">
           <GitMerge className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No lineage events recorded yet.</p>
-          <p className="text-xs text-muted-foreground mt-1">Record a fusion, split, dormancy, or return event to build this alter's history.</p>
+          <p className="text-xs text-muted-foreground mt-1">Record a fusion, split, dormancy, or return event to build this {t.alter}'s history.</p>
         </div>
       ) : (
         <div className="space-y-2">
