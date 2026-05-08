@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Loader2, AlertTriangle, ExternalLink, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 function parseJsonSafe(str, fallback) {
   try { return JSON.parse(str) || fallback; } catch { return fallback; }
@@ -176,9 +177,44 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [endVal, setEndVal] = useState(toLocalDatetimeValue(session?.end_time));
   const [note, setNote] = useState(session?.note || "");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [asPrimary, setAsPrimary] = useState(
     session?.alter_id ? (session?.is_primary ?? false) : session?.primary_alter_id === alter?.id
   );
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeleting(true);
+    try {
+      if (session.alter_id) {
+        // New individual model — just delete the record.
+        await base44.entities.FrontingSession.delete(session.id);
+      } else {
+        // Legacy model — if this alter is the only fronter on the record,
+        // delete it; otherwise remove this alter from the co-fronter list.
+        const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
+        const otherIds = allIds.filter(id => id !== alter.id);
+        if (otherIds.length === 0) {
+          await base44.entities.FrontingSession.delete(session.id);
+        } else {
+          const otherPrimary = session.primary_alter_id === alter.id ? otherIds[0] : session.primary_alter_id;
+          await base44.entities.FrontingSession.update(session.id, {
+            primary_alter_id: otherPrimary,
+            co_fronter_ids: otherIds.filter(id => id !== otherPrimary),
+          });
+        }
+      }
+      toast.success("Session deleted");
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      onClose();
+    } catch (e) {
+      toast.error(e.message || "Failed to delete session");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
 const handleSave = async () => {
   setSaving(true);
@@ -277,10 +313,23 @@ const handleSave = async () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button size="sm" className="flex-1" onClick={handleSave} disabled={saving}>
+            <Button size="sm" className="flex-1" onClick={handleSave} disabled={saving || deleting}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
             </Button>
           </div>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving || deleting}
+            className={`w-full flex items-center justify-center gap-1.5 mt-1 py-2 rounded-lg text-xs font-medium transition-colors ${
+              confirmDelete
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : "text-destructive/80 hover:text-destructive hover:bg-destructive/10"
+            }`}
+          >
+            {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            {confirmDelete ? "Tap again to confirm" : "Delete session"}
+          </button>
         </div>
       </DialogContent>
     </Dialog>

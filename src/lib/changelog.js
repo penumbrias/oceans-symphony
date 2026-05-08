@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 8, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Edit Session modal now has a Delete session button at the bottom (tap once to arm, tap again to confirm). Removes the session entirely instead of leaving it on the timeline.",
+      },
+      {
+        type: "improve",
+        text: "Timeline default zoom is less zoomed-in — most of a day now fits on a single phone screen without scrolling. Pinch-to-zoom still works, and your saved zoom level is preserved if you've already set one.",
+      },
+      {
         type: "fix",
         text: "Timeline: alter and symptom bars no longer extend the entire day when a session was marked closed but had a missing end time. The renderer now treats those records as zero-length, and a one-shot startup repair backfills the missing end time on existing data so the timeline reads correctly going forward.",
       },

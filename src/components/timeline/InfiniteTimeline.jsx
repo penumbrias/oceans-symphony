@@ -669,7 +669,7 @@ export default function InfiniteTimeline({
   const [symptomDetailModal, setSymptomDetailModal] = useState(null); // { session, symptom }
   const longPressTargetRef = useRef(null);
 
-  const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
+  const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 30));
   useEffect(() => { lsSet(LS_TIMELINE_ROW_H, rowH); }, [rowH]);
 
   const [nowMins, setNowMins] = useState(() => {
