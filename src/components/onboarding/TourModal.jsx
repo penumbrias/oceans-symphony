@@ -15,7 +15,7 @@ const STEPS = (t) => [
     body: `Symphony is built intentionally for DID, OSDD, and other dissociative systems, and is free for anyone to use for any purpose. It is designed specifically to help track and manage dissociative and PTSD symptoms, help your system stay connected, track experiences, and bridge the gaps that amnesia creates.`,
     icon: '🌊',
     color: 'from-violet-500/20 to-purple-500/20',
-    tip: null,
+    tip: `⚠️ Oceans Symphony is in active development and vibe-coded with AI assistance. You may encounter bugs or rough edges. Back up your data regularly and report issues at pesturedrawing@gmail.com or on GitHub.`,
   },
   {
     title: `Your ${t.Alters}`,
@@ -137,11 +137,11 @@ const STEPS = (t) => [
   {
     title: 'Privacy & Data',
     subtitle: 'Your data, your control',
-    body: `Oceans Symphony supports local-only mode with AES-256 encryption — your data never leaves your device. Regular backups are recommended. The app is free and open source, built by a dissociative ${t.system}.`,
+    body: `All data is stored locally on your device — nothing is sent to a server. By default it is unencrypted. You can enable optional password encryption (AES-256-GCM) in Settings → Data & Privacy, which protects your data at rest on this device. This is not end-to-end encryption. Regular backups are strongly recommended.`,
     icon: '🔒',
     color: 'from-slate-500/20 to-gray-500/20',
-    tip: 'Find local mode and backup options in Settings → Data Management',
-    features: ['Local mode with encryption', 'JSON backup and restore', 'No ads, no tracking', 'Open source on GitHub', 'Free forever'],
+    tip: 'If you enable encryption and lose your password, your data cannot be recovered. There is no reset.',
+    features: ['Local-only storage — no server sync', 'Optional AES-256-GCM password encryption', 'Encryption at rest, not end-to-end', 'JSON backup and restore', 'No ads, no tracking', 'Open source on GitHub', 'Free forever'],
   },
   {
     title: "You're all set 🎉",

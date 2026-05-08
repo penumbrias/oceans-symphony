@@ -24,6 +24,10 @@ export const CHANGELOG = [
         text: "Privacy & Data Notice now clearly explains that data is stored unencrypted by default, and that enabling password encryption provides on-device encryption at rest (not end-to-end).",
       },
       {
+        type: "improve",
+        text: "Onboarding tour now mentions that the app is in active development and bugs may be encountered, and the Privacy & Data slide reflects the updated encryption explanation.",
+      },
+      {
         type: "fix",
         text: "Theme no longer resets to an alter's linked preset on every app open. The linked preset now only applies when the primary fronter actually changes mid-session, not when returning to the app with the same fronter already active.",
       },
