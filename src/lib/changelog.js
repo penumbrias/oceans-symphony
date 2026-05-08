@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 8, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Theme no longer resets to an alter's linked preset on every app open. The linked preset now only applies when the primary fronter actually changes mid-session, not when returning to the app with the same fronter already active.",
+      },
+      {
         type: "improve",
         text: "The Privacy & Data Notice in Settings is now its own collapsible section at the top of the page, making it easy to find and dismiss.",
       },

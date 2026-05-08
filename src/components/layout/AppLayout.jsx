@@ -154,10 +154,11 @@ const { alterThemeLinks, setSelectedTheme, setThemeMode, clearCustomColors, allP
 const primaryFronter = activeSession?.alter_id
   ? (sessions.find(s => s.is_active && s.alter_id && s.is_primary)?.alter_id ?? frontingAlterIds[0] ?? null)
   : (activeSession?.primary_alter_id ?? null);
-const lastAppliedFronterRef = useRef(null);
+const lastAppliedFronterRef = useRef(localStorage.getItem('symphony_lastThemeFronter') || null);
 useEffect(() => {
   if (primaryFronter === lastAppliedFronterRef.current) return;
   lastAppliedFronterRef.current = primaryFronter;
+  localStorage.setItem('symphony_lastThemeFronter', primaryFronter || '');
   if (!primaryFronter) return;
   const linkedPreset = alterThemeLinks[primaryFronter];
   if (!linkedPreset) return;
