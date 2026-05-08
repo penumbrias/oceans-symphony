@@ -2,7 +2,7 @@
 // Cache-First for static assets; Stale-While-Revalidate for navigation
 // IndexedDB pass-through for /local-image/ avatar requests
 
-const CACHE_NAME = 'oceans-symphony-v3';
+const CACHE_NAME = 'oceans-symphony-v4';
 
 // ── Default avatar returned when an image ID isn't found in IDB ──
 const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">

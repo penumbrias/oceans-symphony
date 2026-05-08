@@ -60,6 +60,14 @@ export const CHANGELOG = [
         text: "Theme linked to a fronter's preset no longer resets on every app open — it now only applies when the fronter actually changes during an active session.",
       },
       {
+        type: "fix",
+        text: "Custom colour swatches in Appearance now correctly show the current dark/light mode colours instead of always showing light-mode values.",
+      },
+      {
+        type: "fix",
+        text: "Switching from a custom colour scheme to a built-in preset now properly clears the saved custom colours so they don't reappear on next launch.",
+      },
+      {
         type: "improve",
         text: "Backup export now lets you choose between plain JSON (.json) and compressed (.txt) format.",
       },

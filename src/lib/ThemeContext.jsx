@@ -348,7 +348,11 @@ export function ThemeProvider({ children }) {
     
     localStorage.setItem('symphony_themeMode', themeMode);
     localStorage.setItem('symphony_selectedTheme', selectedTheme);
-    if (customColors) localStorage.setItem('symphony_customColors', JSON.stringify(customColors));
+    if (customColors) {
+      localStorage.setItem('symphony_customColors', JSON.stringify(customColors));
+    } else {
+      localStorage.removeItem('symphony_customColors');
+    }
     localStorage.setItem('symphony_selectedFont', selectedFont);
     localStorage.setItem('symphony_userCustomPresets', JSON.stringify(userCustomPresets));
     localStorage.setItem('symphony_alterThemeLinks', JSON.stringify(alterThemeLinks));
