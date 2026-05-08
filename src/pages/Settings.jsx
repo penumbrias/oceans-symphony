@@ -195,7 +195,8 @@ export default function Settings() {
 
         {/* ── TRACKING & ANALYTICS ── */}
         <Section id="checkin" icon="⚡" label="Tracking & Analytics">
-          <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
+          <QuickActionsConfig />
+          <div className="border-t border-border/30 pt-4 flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Zap className="w-4 h-4 text-primary" />
@@ -212,9 +213,6 @@ export default function Settings() {
           </div>
           <div className="border-t border-border/30 pt-4">
             <CustomTriggerTypesManager />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <QuickActionsConfig />
           </div>
           <div className="border-t border-border/30 pt-4">
             <div>

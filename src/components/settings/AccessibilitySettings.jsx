@@ -8,6 +8,8 @@ import {
   setAccessibilityLargeTouch,
   setAccessibilityNavHeight,
   setAccessibilityFontFamily,
+  setAccessibilityHeadingFont,
+  HEADING_FONT_OPTIONS,
 } from "@/lib/useAccessibility";
 
 const FONT_FAMILY_OPTIONS = [
@@ -70,6 +72,32 @@ export default function AccessibilitySettings() {
                 {opt.label}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Heading font */}
+      <div>
+        <p className="text-sm font-semibold mb-1">Heading font</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Font used for page titles and the app name. Body text uses the Font family above.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {HEADING_FONT_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => update("headingFont", opt.value, setAccessibilityHeadingFont)}
+              className={`rounded-xl border p-3 text-left transition-all overflow-hidden ${
+                settings.headingFont === opt.value
+                  ? "border-primary/60 bg-primary/10"
+                  : "border-border/50 bg-card hover:bg-muted/30"
+              }`}
+            >
+              <p className={`text-sm font-semibold break-words ${settings.headingFont === opt.value ? "text-primary" : ""}`}
+                style={{ fontFamily: opt.value === "default" ? "'Playfair Display', serif" : opt.value }}>
+                {opt.label}
+              </p>
             </button>
           ))}
         </div>

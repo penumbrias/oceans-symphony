@@ -1,9 +1,10 @@
-const LS_FONT_SIZE    = "symphony_a11y_fontSize";
-const LS_REDUCE_MOTION= "symphony_a11y_reduceMotion";
-const LS_HIGH_CONTRAST= "symphony_a11y_highContrast";
-const LS_LARGE_TOUCH  = "symphony_a11y_largeTouch";
-const LS_NAV_HEIGHT   = "symphony_a11y_navHeight";
-const LS_FONT_FAMILY  = "symphony_a11y_fontFamily";
+const LS_FONT_SIZE     = "symphony_a11y_fontSize";
+const LS_REDUCE_MOTION = "symphony_a11y_reduceMotion";
+const LS_HIGH_CONTRAST = "symphony_a11y_highContrast";
+const LS_LARGE_TOUCH   = "symphony_a11y_largeTouch";
+const LS_NAV_HEIGHT    = "symphony_a11y_navHeight";
+const LS_FONT_FAMILY   = "symphony_a11y_fontFamily";
+const LS_HEADING_FONT  = "symphony_a11y_headingFont";
 
 const FONT_CLASSES  = ["a11y-text-xs3", "a11y-text-xs2", "a11y-text-xs", "a11y-text-sm", "a11y-text-lg", "a11y-text-xl", "a11y-text-xl2", "a11y-text-xl3"];
 const TOUCH_CLASSES = ["a11y-touch-comfortable", "a11y-touch-large"];
@@ -113,6 +114,32 @@ function applyFontFamily(value) {
   document.documentElement.style.setProperty("--font-sans", css);
 }
 
+// 10 heading-font choices spanning sans / serif / handwriting / display.
+// `value` is "default" (use --font-display from CSS) or a CSS font-family
+// string; saving anything else falls back to default.
+export const HEADING_FONT_OPTIONS = [
+  { label: "Default (Playfair Display)", value: "default" },
+  { label: "Inter",                value: "'Inter', sans-serif" },
+  { label: "Atkinson Hyperlegible", value: "'Atkinson Hyperlegible', sans-serif" },
+  { label: "Nunito",               value: "'Nunito', sans-serif" },
+  { label: "Playfair Display",     value: "'Playfair Display', serif" },
+  { label: "Lora",                 value: "Lora, serif" },
+  { label: "Merriweather",         value: "Merriweather, serif" },
+  { label: "Caveat",               value: "Caveat, cursive" },
+  { label: "Pacifico",             value: "Pacifico, cursive" },
+  { label: "Lobster",              value: "Lobster, cursive" },
+];
+
+function applyHeadingFont(value) {
+  const el = document.documentElement;
+  if (!value || value === "default") {
+    el.style.removeProperty("--font-display-override");
+    el.style.removeProperty("--font-display");
+    return;
+  }
+  el.style.setProperty("--font-display", value);
+}
+
 export function initAccessibility() {
   applyFontSize(localStorage.getItem(LS_FONT_SIZE) || "default");
   applyReduceMotion(localStorage.getItem(LS_REDUCE_MOTION) === "true");
@@ -120,6 +147,7 @@ export function initAccessibility() {
   applyLargeTouch(localStorage.getItem(LS_LARGE_TOUCH) || "default");
   applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
   applyFontFamily(localStorage.getItem(LS_FONT_FAMILY) || "inter");
+  applyHeadingFont(localStorage.getItem(LS_HEADING_FONT) || "default");
 }
 
 export function getAccessibilitySettings() {
@@ -130,7 +158,17 @@ export function getAccessibilitySettings() {
     largeTouch:  localStorage.getItem(LS_LARGE_TOUCH)  || "default",
     navHeight:   localStorage.getItem(LS_NAV_HEIGHT)   || "default",
     fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || "inter",
+    headingFont: localStorage.getItem(LS_HEADING_FONT) || "default",
   };
+}
+
+export function setAccessibilityHeadingFont(value) {
+  if (!value || value === "default") {
+    localStorage.removeItem(LS_HEADING_FONT);
+  } else {
+    localStorage.setItem(LS_HEADING_FONT, value);
+  }
+  applyHeadingFont(value);
 }
 
 export function setAccessibilityFontSize(value) {

@@ -197,9 +197,16 @@ export default function AdvancedAppearance() {
   };
 
   const getCurrentColors = () => {
+    // Always read what's actually rendering on screen first — cached preset
+    // data can be stale (e.g. after a fronter-theme swap, or when
+    // customColors and the active preset disagree). Fall back to the source
+    // dictionary for any keys the live CSS doesn't have.
+    const live = readCssColors();
     const src = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
-    if (src) return isDark ? src.dark : src.light;
-    return readCssColors();
+    const fallback = src ? (isDark ? src.dark : src.light) : {};
+    return Object.fromEntries(
+      Object.keys(COLOR_LABELS).map(k => [k, live[k] || fallback[k] || '#888888'])
+    );
   };
 
   const currentColors = pendingColors
