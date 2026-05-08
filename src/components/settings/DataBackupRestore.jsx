@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
 import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
+import { getLocalIdentity, deleteProfile } from "@/lib/friendsApi";
 import pako from "pako";
 
 const LS_SETTINGS_KEYS = [
@@ -421,6 +422,12 @@ const handleExportFull = async () => {
       importLocalSettings(parsed.__local_settings);
     }
     if (importMode === "replace") {
+      // Delete the Friends profile from the server before wiping local data,
+      // so the user isn't orphaned on the relay with no way to clean up.
+      try {
+        const identity = await getLocalIdentity();
+        if (identity) await deleteProfile();
+      } catch (_) {} // best-effort — don't block the import if this fails
       await loadDbDump(parsed.data);
       showStatus("success", "Data replaced! The app will reload.");
     } else {

@@ -716,7 +716,7 @@ export default function FriendsPage() {
     queryKey: ['friendsList'],
     queryFn: fetchFriendsList,
     enabled: !!identity,
-    refetchInterval: 30_000,
+    refetchInterval: 15_000,
     refetchIntervalInBackground: true,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
@@ -809,7 +809,14 @@ export default function FriendsPage() {
     try {
       await respondToRequest(fromUserId, action);
       toast.success(action === 'approve' ? 'Friend request accepted!' : 'Request declined.');
-      refetchFriends();
+      // Immediately remove the request from the pending list so the UI
+      // reflects the action without waiting for the next poll.
+      queryClient.setQueryData(['friendsList'], (old) => {
+        if (!old) return old;
+        return { ...old, pending: (old.pending || []).filter(r => r.fromUserId !== fromUserId) };
+      });
+      // Then fetch fresh data from the server (picks up the new friend entry).
+      queryClient.invalidateQueries({ queryKey: ['friendsList'] });
     } catch (e) {
       toast.error(e.message || 'Failed.');
     }

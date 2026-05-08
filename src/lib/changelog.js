@@ -49,6 +49,14 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "Accepting or declining a friend request now instantly removes it from the pending list without waiting for the next poll. The Friends list also refreshes every 15 seconds instead of 30.",
+      },
+      {
+        type: "fix",
+        text: "Replacing all local data via the backup importer now automatically deletes your Friends profile from the relay server first, so you're never left as a ghost entry your friends can't remove.",
+      },
+      {
+        type: "improve",
         text: "Friends page now clearly explains where your data lives: personal data (alters, journals, sessions, check-ins) stays in IndexedDB on your device; the Friends feature uses a separate minimal cloud relay that only ever holds your display name and the front snapshot you explicitly choose to share. A collapsible \"Data & Privacy\" section is always visible on the Friends page, and the same info appears on the opt-in screen before you create a profile.",
       },
       {
