@@ -55,8 +55,13 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   const hasNote = !!sessionNoteText(session);
   const isTriggered = !!session?.is_triggered_switch;
 
+  // Tap on a currently-fronting alter opens the hold/quick-action menu
+  // (set primary, remove from front, log emotion / symptom, open profile)
+  // — the profile link still lives inside that menu. This matches user
+  // intent: when a chip is on the front bar, the relevant action is
+  // managing the front, not navigating away.
   const { bind, dragX, swipeHint } = useSwipeActions({
-    onTap: () => navigate(`/alter/${alter.id}`),
+    onTap: () => onHold(alter),
     onSwipeRight: () => onSwipeRight?.(alter),
     onSwipeLeft: () => onSwipeLeft?.(alter),
     onLongPress: () => onHold(alter),
@@ -66,11 +71,11 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Long press for options. Swipe right to remove from front, swipe left to toggle primary.`}
+      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap or long-press for the front-management menu. Swipe right to remove from front, swipe left to toggle primary.`}
       aria-expanded={false}
       {...bind}
       onMouseDown={(e) => { /* desktop: long-press via mouse not wired; rely on click */ }}
-      onKeyDown={e => e.key === "Enter" || e.key === " " ? navigate(`/alter/${alter.id}`) : undefined}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onHold(alter) : undefined}
       style={{
         transform: `translateX(${dragX}px)`,
         transition: dragX === 0 ? "transform 150ms ease-out" : "none",
