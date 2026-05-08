@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The Privacy & Data Notice in Settings is now its own collapsible section at the top of the page, making it easy to find and dismiss.",
+      },
+      {
+        type: "improve",
         text: "Alters page: the currently fronting display now uses the same chip-grid style as the dashboard (with session notes, emotion/symptom panel, and hold-menu). Alters grid: swipe right to toggle front, swipe left to toggle primary, tap to open profile.",
       },
       {
