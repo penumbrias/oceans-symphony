@@ -197,9 +197,13 @@ export default function AdvancedAppearance() {
   };
 
   const getCurrentColors = () => {
+    // CSS variables are the ground truth — always reflect what's actually on screen
+    const cssColors = readCssColors();
+    if (Object.values(cssColors).some(v => v !== '#888888')) return cssColors;
+    // Fallback: CSS vars not applied yet (initial load before ThemeContext effect fires)
     const src = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
     if (src) return isDark ? src.dark : src.light;
-    return readCssColors();
+    return cssColors;
   };
 
   const currentColors = pendingColors
