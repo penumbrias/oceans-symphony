@@ -708,9 +708,19 @@ export default function InfiniteTimeline({
       }
       ids.forEach((alterId) => {
         const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+        // end_time fallback hierarchy:
+        //  - explicit end_time wins
+        //  - inactive session with no end_time → broken record (treat as
+        //    zero-length so it doesn't draw a full-day bar)
+        //  - active session on today → "now"
+        //  - active session on a past day → end of that day
         const endTime = session.end_time
           ? parseDate(session.end_time)
-          : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+          : !session.is_active
+            ? parseDate(session.start_time)
+            : isToday
+              ? new Date()
+              : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
         const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
         if (!byAlter[alterId]) byAlter[alterId] = [];
         const isPrimary = session.alter_id
@@ -1013,7 +1023,13 @@ export default function InfiniteTimeline({
         .filter(s => s.symptom_id === symptomId)
         .map(s => {
           const startMins = Math.max(0, minutesInDay(parseDate(s.start_time), dayStart));
-          const endTime = s.end_time ? parseDate(s.end_time) : s.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+          const endTime = s.end_time
+            ? parseDate(s.end_time)
+            : !s.is_active
+              ? parseDate(s.start_time)
+              : isToday
+                ? new Date()
+                : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
           const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
           return { symptomId, startMins, endMins: Math.max(endMins, startMins + 8), sessionId: s.id };
         });

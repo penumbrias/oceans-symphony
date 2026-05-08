@@ -101,3 +101,41 @@ export async function endActiveSessions(db, now) {
     await db.FrontingSession.update(s.id, { is_active: false, end_time: now });
   }
 }
+
+/**
+ * One-shot repair for FrontingSession (and SymptomSession) records that are
+ * marked is_active: false but have no end_time. Such records render as
+ * full-day bars on the timeline (because the renderer falls back to "end of
+ * day" when end_time is missing). We backfill end_time = start_time so
+ * they're treated as zero-length and don't draw past their avatar.
+ *
+ * Tracked via localStorage so it only runs once per install. Callers should
+ * not await — let it run in the background after data is loaded.
+ */
+const CLEANUP_KEY = "symphony_session_cleanup_v1";
+
+export async function cleanupBrokenSessionsOnce(db) {
+  try {
+    if (typeof localStorage !== "undefined" && localStorage.getItem(CLEANUP_KEY)) return;
+    let fixed = 0;
+    const fronting = (await db.FrontingSession.list?.()) || [];
+    for (const s of fronting) {
+      if (s.is_active === false && !s.end_time && s.start_time) {
+        await db.FrontingSession.update(s.id, { end_time: s.start_time });
+        fixed++;
+      }
+    }
+    if (db.SymptomSession?.list) {
+      const symptomSessions = await db.SymptomSession.list();
+      for (const s of symptomSessions) {
+        if (s.is_active === false && !s.end_time && s.start_time) {
+          await db.SymptomSession.update(s.id, { end_time: s.start_time });
+          fixed++;
+        }
+      }
+    }
+    if (typeof localStorage !== "undefined") localStorage.setItem(CLEANUP_KEY, String(fixed));
+  } catch {
+    // best-effort; don't block startup if cleanup fails
+  }
+}

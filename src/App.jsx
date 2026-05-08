@@ -44,7 +44,9 @@ import { initAccessibility } from '@/lib/useAccessibility';
 // Apply saved accessibility settings before first render
 initAccessibility();
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal, migrateLocalImageUrlScheme } from '@/lib/localDb';
-import { restorePreviewIfActive } from '@/lib/previewMode';
+import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
+import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
+import { base44 } from '@/api/base44Client';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
 
@@ -127,6 +129,11 @@ function App() {
       initLocalDb(null)
         .then(() => restorePreviewIfActive())
         .then(() => setSetupState(null))
+        .then(() => {
+          // Only repair real data — skip when preview is active so we don't
+          // burn the one-shot flag against preview's in-memory snapshot.
+          if (!isPreviewActive()) cleanupBrokenSessionsOnce(base44.entities);
+        })
         .catch(() => setSetupState(null));
     }
   }, [setupState]);
