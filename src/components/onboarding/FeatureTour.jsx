@@ -141,9 +141,9 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "🔲",
       title: "List & Grid View",
-      body: `The view toggle cycles through list and 2–5 column grid modes on each tap. List view shows name, pronouns, and role; grid view is avatar-focused and compact. The camera icon next to it cycles through anonymize modes — blur names only, or blur both names and avatars — useful for screenshots without revealing identities.`,
+      body: `The view toggle cycles through list and 2–5 column grid modes on each tap. List view shows name, pronouns, and role; grid view is avatar-focused and compact. The camera icon next to it cycles through anonymize modes — blur names only, or blur both names and avatars — useful for screenshots without revealing identities. In grid view, tap an avatar to open their profile, swipe right to add or remove them from ${t.front}, and swipe left to promote or demote primary ${t.fronter}.`,
       route: "/Home", target: "alter-view-toggle",
-      look: `the highlighted list/grid toggle icon to the right of the sort button`, action: null,
+      look: `the highlighted list/grid toggle icon at the top right of the ${t.Alters} section`, action: null,
     },
     {
       section: "alters", sectionLabel: t.Alters,
