@@ -36,6 +36,10 @@ export const CHANGELOG = [
         text: "Heading font is now customisable in Accessibility settings. Choose from 10 options — serif, sans-serif, handwriting, and display styles — to change the font used for page titles and the app name.",
       },
       {
+        type: "improve",
+        text: "Timeline readability improvements: stronger hourly grid lines, half-hour dashed tick marks, more visible time labels, and larger entry text (10px instead of 9px) for emotions, symptoms, locations, and activities.",
+      },
+      {
         type: "fix",
         text: "Theme no longer resets to an alter's linked preset on every app open. The linked preset now only applies when the primary fronter actually changes mid-session, not when returning to the app with the same fronter already active.",
       },

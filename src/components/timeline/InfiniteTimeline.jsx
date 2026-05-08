@@ -461,7 +461,7 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
         </span>
       </div>
       <div className="text-center leading-tight mt-0.5 px-0.5"
-        style={{ fontSize: 8, color, maxWidth: 54, wordBreak: "break-word" }}>
+        style={{ fontSize: 9, color, maxWidth: 62, wordBreak: "break-word" }}>
         {activityName}
         {mergedCount > 1 && <span className="opacity-60"> ×{mergedCount}</span>}
       </div>
@@ -499,19 +499,19 @@ function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth }) {
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
       <div className="relative">
         {emotions.length > 0 ? (
-          <div className="flex flex-col gap-px">
-            {note && <span style={{ fontSize: 8 }} className="text-muted-foreground leading-none">💭</span>}
+          <div className="flex flex-col gap-0.5">
+            {note && <span style={{ fontSize: 9 }} className="text-muted-foreground leading-none">💭</span>}
             {emotions.slice(0, 3).map((em) => (
-              <div key={em} className="flex items-center gap-0.5 overflow-hidden" title={em}>
+              <div key={em} className="flex items-center gap-1 overflow-hidden" title={em}>
                 <div className="rounded-full flex-shrink-0 border border-background"
-                  style={{ width: 7, height: 7, backgroundColor: emotionColor(em) }} />
-                <span className="font-medium truncate" style={{ fontSize: 9, color: emotionColor(em), maxWidth: "100%", lineHeight: "1.1" }}>
+                  style={{ width: 8, height: 8, backgroundColor: emotionColor(em) }} />
+                <span className="font-medium truncate" style={{ fontSize: 10, color: emotionColor(em), maxWidth: "100%", lineHeight: "1.2" }}>
                   {em}
                 </span>
               </div>
             ))}
             {emotions.length > 3 && (
-              <span className="text-muted-foreground" style={{ fontSize: 8 }}>+{emotions.length - 3}</span>
+              <span className="text-muted-foreground" style={{ fontSize: 9 }}>+{emotions.length - 3}</span>
             )}
           </div>
         ) : note ? (
@@ -537,10 +537,10 @@ function LocationBubble({ entry, topPx, colWidth, onTap }) {
       onClick={onTap}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
     >
-      <div className="flex items-center gap-0.5 overflow-hidden" title={entry.data.name || cat.label}>
+      <div className="flex items-center gap-1 overflow-hidden" title={entry.data.name || cat.label}>
         <div className="rounded-full flex-shrink-0 border border-background"
-          style={{ width: 7, height: 7, backgroundColor: cat.color }} />
-        <span className="font-medium truncate" style={{ fontSize: 9, color: cat.color, maxWidth: "100%", lineHeight: "1.1" }}>
+          style={{ width: 8, height: 8, backgroundColor: cat.color }} />
+        <span className="font-medium truncate" style={{ fontSize: 10, color: cat.color, maxWidth: "100%", lineHeight: "1.2" }}>
           {entry.data.name || cat.label}
         </span>
       </div>
@@ -568,14 +568,14 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
         style={{ top: topPx, userSelect: "none" }}
         onClick={tap}
         onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
-        <div className="flex flex-col gap-px" style={{ maxWidth: colWidth - 8 }}>
+        <div className="flex flex-col gap-0.5" style={{ maxWidth: colWidth - 8 }}>
           {items.map(({ symptom, checkIn }, i) => {
             const color = symptom?.color || "#8b5cf6";
             return (
-              <div key={i} className="flex items-center gap-0.5 overflow-hidden" title={symptom?.label}>
+              <div key={i} className="flex items-center gap-1 overflow-hidden" title={symptom?.label}>
                 <div className="rounded-full flex-shrink-0 border border-background"
-                  style={{ width: 7, height: 7, backgroundColor: color }} />
-                <span className="font-medium truncate" style={{ fontSize: 9, color, lineHeight: "1.1", maxWidth: "100%" }}>
+                  style={{ width: 8, height: 8, backgroundColor: color }} />
+                <span className="font-medium truncate" style={{ fontSize: 10, color, lineHeight: "1.2", maxWidth: "100%" }}>
                   {symptom?.label || "?"}
                   {checkIn.severity != null ? <span style={{ opacity: 0.7 }}> {checkIn.severity}</span> : null}
                 </span>
@@ -583,7 +583,7 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
             );
           })}
           {(entry.data.items || []).length > 3 && (
-            <span className="text-muted-foreground" style={{ fontSize: 8 }}>+{entry.data.items.length - 3}</span>
+            <span className="text-muted-foreground" style={{ fontSize: 9 }}>+{entry.data.items.length - 3}</span>
           )}
         </div>
       </div>
@@ -1265,14 +1265,28 @@ export default function InfiniteTimeline({
                   return (
                     <div key={h} className="absolute flex items-start"
                       style={{ top, height: rowH, left: 0, right: 0 }}>
-                      {/* Current-hour highlight */}
                       {isCurrentHour && (
                         <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
                       )}
-                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
+                      <div className="flex-shrink-0 text-xs text-foreground/50 pt-1 pl-1 text-left font-medium" style={{ width: LABEL_WIDTH }}>
                         {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
                       </div>
-                      <div className="flex-1 border-t border-border/30 mt-2" />
+                      <div className="flex-1 border-t border-border/50 mt-2" />
+                    </div>
+                  );
+                })}
+
+                {/* Half-hour tick marks */}
+                {HOURS.map((h) => {
+                  const top = getTopPx(h * 60 + 30);
+                  if (top <= 0 || top >= totalHeight) return null;
+                  return (
+                    <div key={`half-${h}`} className="absolute flex items-start pointer-events-none"
+                      style={{ top, left: 0, right: 0 }}>
+                      <div className="flex-shrink-0" style={{ width: LABEL_WIDTH }}>
+                        <span className="pl-2 text-[9px] text-foreground/25 leading-none">:30</span>
+                      </div>
+                      <div className="flex-1 border-t border-border/20 border-dashed" />
                     </div>
                   );
                 })}
