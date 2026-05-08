@@ -642,7 +642,6 @@ export default function InfiniteTimeline({
   const [detailPopup, setDetailPopup] = useState(null); // { type, entry }
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
   const [showTally, setShowTally] = useState(false);
-  const [showRowSlider, setShowRowSlider] = useState(false);
   const [sessionPopover, setSessionPopover] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
   const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
@@ -655,6 +654,40 @@ export default function InfiniteTimeline({
 
   const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
   useEffect(() => { lsSet(LS_TIMELINE_ROW_H, rowH); }, [rowH]);
+  const rowHRef = useRef(rowH);
+  useEffect(() => { rowHRef.current = rowH; }, [rowH]);
+  const scrollRef = useRef(null);
+  const pinchRef = useRef(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 2) return;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchRef.current = { dist: Math.hypot(dx, dy), rowH: rowHRef.current };
+    };
+    const onTouchMove = (e) => {
+      if (e.touches.length !== 2 || !pinchRef.current) return;
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const scale = dist / pinchRef.current.dist;
+      const raw = pinchRef.current.rowH * scale;
+      const snapped = Math.round(raw / 4) * 4;
+      setRowH(Math.max(20, Math.min(120, snapped)));
+    };
+    const onTouchEnd = () => { pinchRef.current = null; };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, []);
 
   const [nowMins, setNowMins] = useState(() => {
     const n = new Date();
@@ -1188,10 +1221,6 @@ export default function InfiniteTimeline({
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {!collapsed && (
             <>
-              <button onClick={() => setShowRowSlider(v => !v)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showRowSlider ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
-                ↕ Zoom
-              </button>
               <button onClick={() => setShowTally(v => !v)}
                 className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
                 <BarChart3 className="w-3 h-3" />
@@ -1205,16 +1234,6 @@ export default function InfiniteTimeline({
 
       {!collapsed && (
         <div className="overflow-x-auto border-t border-border">
-          {showRowSlider && (
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 bg-muted/10 text-xs">
-              <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
-              <input type="range" min={20} max={120} step={4} value={rowH}
-                onChange={e => setRowH(Number(e.target.value))}
-                className="w-28 accent-primary" />
-              <span className="text-muted-foreground w-8">{rowH}px</span>
-            </div>
-          )}
-
           <div style={{ minWidth: totalWidth }}>
             <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
               {/* Time label spacer */}
@@ -1254,7 +1273,7 @@ export default function InfiniteTimeline({
               )}
             </div>
 
-            <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+            <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
               <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}
                 onMouseDown={startAreaLongPress} onMouseUp={cancelAreaLongPress} onMouseLeave={cancelAreaLongPress}
                 onTouchStart={startAreaLongPress} onTouchEnd={cancelAreaLongPress}>

@@ -53,6 +53,18 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "Backup downloads are now plain .json files instead of compressed binary — easier to inspect, store, and share.",
+      },
+      {
+        type: "improve",
+        text: "Timeline zoom is now controlled by a two-finger pinch gesture instead of a slider button — pinch in or out on the timeline to adjust row height.",
+      },
+      {
+        type: "improve",
+        text: "Alters list/grid view toggle and column count selector are now separate controls positioned just above the alters list, making them easier to find and use.",
+      },
+      {
+        type: "improve",
         text: "Alters page: the currently fronting display now uses the same chip-grid style as the dashboard (with session notes, emotion/symptom panel, and hold-menu). Alters grid: swipe right to toggle front, swipe left to toggle primary, tap to open profile.",
       },
       {

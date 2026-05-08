@@ -98,12 +98,12 @@ const EXPORT_CATEGORIES = [
 
 // Outside component — no state needed here
 async function downloadJson(data, filename) {
-  const compressed = compressBackup(data);
-  const blob = new Blob([compressed], { type: "application/octet-stream" });
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
 
   // Try Web Share API (works on Android APK)
   if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: "application/octet-stream" });
+    const file = new File([blob], filename, { type: "application/json" });
     if (navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
@@ -113,7 +113,7 @@ async function downloadJson(data, filename) {
         if (e.name === "AbortError") {
           // User cancelled — try clipboard instead
           try {
-            await navigator.clipboard.writeText(data);
+            await navigator.clipboard.writeText(json);
             throw new Error("__clipboard_success__");
           } catch (clipErr) {
             if (clipErr.message === "__clipboard_success__") throw clipErr;
@@ -620,7 +620,7 @@ const handleExportFull = async () => {
             {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Download Backup</p>
-              <p className="text-xs text-muted-foreground font-normal">{selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length ? `${selectedCats.size} categories selected` : "All data, compressed"}</p>
+              <p className="text-xs text-muted-foreground font-normal">{selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length ? `${selectedCats.size} categories selected` : "All data, .json file"}</p>
             </div>
           </Button>
           <div className="flex gap-2">
@@ -724,7 +724,7 @@ const handleExportFull = async () => {
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal">Symphony backup .json or .txt file</p>
+              <p className="text-xs text-muted-foreground font-normal">Symphony backup .json file (or legacy .txt)</p>
             </div>
           </Button>
           {!showPasteInput && !showMultiPartImport ? (
