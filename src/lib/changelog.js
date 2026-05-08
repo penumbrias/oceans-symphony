@@ -33,35 +33,35 @@ export const CHANGELOG = [
       },
       {
         type: "feature",
-        text: "Heading font is now customisable in Accessibility settings. Choose from 10 options — serif, sans-serif, handwriting, and display styles — to change the font used for page titles and the app name.",
+        text: "Heading font is now customisable in Appearance settings (alongside the body font picker). Choose from a full searchable list — serif, sans-serif, handwriting, display — to change the font used for page titles and the app name.",
       },
       {
         type: "improve",
-        text: "Timeline readability improvements: stronger hourly grid lines, half-hour dashed tick marks, more visible time labels, and larger entry text (10px instead of 9px) for emotions, symptoms, locations, and activities.",
-      },
-      {
-        type: "fix",
-        text: "Theme no longer resets to an alter's linked preset on every app open. The linked preset now only applies when the primary fronter actually changes mid-session, not when returning to the app with the same fronter already active.",
-      },
-      {
-        type: "fix",
-        text: "Custom color swatches in Appearance now always reflect the colours actually rendered on screen (read from live CSS variables) instead of potentially stale preset data.",
+        text: "Timeline readability improvements: stronger hourly grid lines, half-hour dashed tick marks (hidden at compact row sizes), more visible time labels, and larger entry text for emotions, symptoms, locations, and activities.",
       },
       {
         type: "improve",
-        text: "The Privacy & Data Notice in Settings is now its own collapsible section at the top of the page, making it easy to find and dismiss.",
+        text: "Timeline zoom is now a two-finger pinch gesture — pinch in or out on the timeline grid to adjust row height. The Zoom button and slider have been removed.",
       },
       {
         type: "improve",
-        text: "Heading font picker is now in the Appearance settings page alongside the body font picker, so both fonts are in one place.",
+        text: "Timeline: symptoms column is narrower by default. Long-press to add a retroactive entry now requires 700ms of holding still and cancels on any scroll, pinch, or second-finger touch.",
+      },
+      {
+        type: "improve",
+        text: "Alters list/grid: the view toggle and column count selector are now separate controls positioned just above the alters list, replacing the confusing single cycle button.",
       },
       {
         type: "fix",
-        text: "Theme linked to a fronter's preset no longer resets on every app open — it now only applies when the fronter actually changes during an active session.",
+        text: "Alters grid: swipe gestures (swipe right to toggle front, swipe left to toggle primary, tap to open profile) now work reliably on iOS and Android — rewritten using native touch events.",
       },
       {
         type: "fix",
-        text: "Custom colour swatches in Appearance now correctly show the current dark/light mode colours instead of always showing light-mode values.",
+        text: "Theme linked to a fronter's preset no longer resets on every app open — it now only applies when the fronter actually changes during the current session.",
+      },
+      {
+        type: "fix",
+        text: "Custom colour swatches in Appearance now correctly reflect the current dark/light mode colours.",
       },
       {
         type: "fix",
@@ -69,15 +69,11 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Backup export now lets you choose between plain JSON (.json) and compressed (.txt) format.",
+        text: "Backup export now offers a choice between plain JSON (.json, readable) and compressed (.txt, smaller). Both formats are accepted on import.",
       },
       {
         type: "improve",
-        text: "Timeline: symptoms column is now narrower by default. Half-hour tick marks are hidden at small row heights to reduce clutter. Long-press to add a retroactive entry now requires holding still for 700ms and cancels immediately if you scroll, pinch, or use two fingers.",
-      },
-      {
-        type: "fix",
-        text: "Alters grid: swipe gestures (swipe right to toggle front, swipe left to toggle primary, tap to open profile) now work reliably on iOS and Android — rewritten using native touch events instead of Pointer Events.",
+        text: "The Privacy & Data Notice in Settings is now its own collapsible section at the top of the page.",
       },
       {
         type: "improve",
@@ -89,7 +85,7 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
-        text: "The swipe-back arrow indicator no longer gets stuck on screen after a cancelled touch gesture (e.g. when iOS interrupts a swipe). Pinned bulletins now show a single solid pin icon instead of two pins.",
+        text: "The swipe-back arrow indicator no longer gets stuck on screen after a cancelled touch gesture. Pinned bulletins now show a single solid pin icon instead of two pins.",
       },
     ],
   },
