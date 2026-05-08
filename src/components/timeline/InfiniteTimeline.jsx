@@ -1384,7 +1384,7 @@ export default function InfiniteTimeline({
                           else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
                           else if (entry.type === "bulletin") navigate(`/`);
                           else if (entry.type === "task") navigate(`/todo`);
-                          else if (entry.type === "symptom_checkin") navigate(`/diary`);
+                          else if (entry.type === "symptom_checkin") navigate(`/checkin-log`);
                         }}
                       />
                     ))}

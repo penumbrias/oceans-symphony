@@ -33,7 +33,7 @@ export const DEFAULT_TASK_TEMPLATES = [
     is_active: true,
     sort_order: 2,
     auto_trigger: "card_entry",
-    nav_path: "/diary",
+    nav_path: "/checkin-log",
   },
 {
   title: "{{system}} meeting",

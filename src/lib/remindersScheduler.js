@@ -521,6 +521,7 @@ const PATH_TO_ACTION = {
   "/journals": "open_journal",
   "/grounding": "open_grounding",
   "/diary": "open_diary",
+  "/checkin-log": "open_diary",
   "/timeline": "open_timeline",
   "/todo": "open_todo",
 };

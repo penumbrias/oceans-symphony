@@ -73,7 +73,7 @@ const AuthenticatedApp = () => {
 
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/journals" element={<Journals />} />
-        <Route path="/diary" element={<DiaryCards />} />
+        <Route path="/diary" element={<Navigate to="/checkin-log" replace />} />
         <Route path="/tasks" element={<DailyTasks />} />
         <Route path="/todo" element={<ToDoList />} />
         <Route path="/groups" element={<GroupsManager />} />
