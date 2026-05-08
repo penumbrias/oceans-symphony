@@ -17,6 +17,7 @@ import SetFrontModal from "@/components/fronting/SetFrontModal";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
+import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 
 const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
@@ -46,52 +47,42 @@ function sessionNoteText(session) {
   } catch { return session.note; }
 }
 
-function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel }) {
+function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel, onSwipeRight, onSwipeLeft }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
-  const [longPressTimeoutId, setLongPressTimeoutId] = useState(null);
-  const longPressFiredRef = useRef(false);
 
   const hasNote = !!sessionNoteText(session);
   const isTriggered = !!session?.is_triggered_switch;
 
-  const handleMouseDown = () => {
-    longPressFiredRef.current = false;
-    const timeoutId = setTimeout(() => {
-      longPressFiredRef.current = true;
-      onHold(alter);
-    }, 500);
-    setLongPressTimeoutId(timeoutId);
-  };
-
-  const handleMouseUp = () => {
-    if (longPressTimeoutId) {
-      clearTimeout(longPressTimeoutId);
-      setLongPressTimeoutId(null);
-    }
-  };
-
-  const handleClick = () => {
-    if (!longPressFiredRef.current) navigate(`/alter/${alter.id}`);
-  };
+  const { bind, dragX, swipeHint } = useSwipeActions({
+    onTap: () => navigate(`/alter/${alter.id}`),
+    onSwipeRight: () => onSwipeRight?.(alter),
+    onSwipeLeft: () => onSwipeLeft?.(alter),
+    onLongPress: () => onHold(alter),
+  });
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Long press for options.`}
+      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Long press for options. Swipe right to remove from front, swipe left to toggle primary.`}
       aria-expanded={false}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchStart={handleMouseDown}
-      onTouchEnd={handleMouseUp}
-      onTouchMove={handleMouseUp}
-      onClick={handleClick}
-      onKeyDown={e => e.key === "Enter" || e.key === " " ? handleClick() : undefined}
-      className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none hover:border-border hover:bg-muted/20"
+      {...bind}
+      onMouseDown={(e) => { /* desktop: long-press via mouse not wired; rely on click */ }}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? navigate(`/alter/${alter.id}`) : undefined}
+      style={{
+        transform: `translateX(${dragX}px)`,
+        transition: dragX === 0 ? "transform 150ms ease-out" : "none",
+        touchAction: "pan-y",
+      }}
+      className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none hover:border-border hover:bg-muted/20 relative"
     >
+      {swipeHint && (
+        <span className={`absolute top-1 right-2 text-[9px] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+          {swipeHint === "front" ? "Remove" : isPrimary ? "Demote" : "Promote"}
+        </span>
+      )}
       {/* Avatar with badges */}
       <div className="relative flex-shrink-0">
         <div
@@ -538,6 +529,8 @@ export default function CurrentFronters({ alters }) {
                 session={alterSession}
                 onHold={setHoldMenuAlter}
                 coFronterLabel={`Co-${terms.fronting}`}
+                onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast)}
+                onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast)}
               />
             );
           })}

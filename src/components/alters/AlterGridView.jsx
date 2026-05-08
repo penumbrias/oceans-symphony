@@ -1,21 +1,16 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-
-const SWIPE_THRESHOLD = 40;
-const TAP_THRESHOLD = 10;
+import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 
 function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, anonymize = "off" }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const recentTouch = useRef(false);
-  const [dragX, setDragX] = useState(0);
+  const { bind, dragX, swipeHint } = useSwipeActions({ onTap, onSwipeRight, onSwipeLeft });
 
   const boxShadow = fronting
     ? isPrimary
@@ -26,55 +21,11 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
     ? (fronting ? "w-16 h-16" : "w-14 h-14")
     : (fronting ? "w-20 h-20" : "w-16 h-16");
 
-  const handleTouchStart = (e) => {
-    const t = e.touches[0];
-    startX.current = t.clientX;
-    startY.current = t.clientY;
-    setDragX(0);
-  };
-
-  const handleTouchMove = (e) => {
-    const t = e.touches[0];
-    const dx = t.clientX - startX.current;
-    const dy = t.clientY - startY.current;
-    if (Math.abs(dx) > Math.abs(dy)) {
-      setDragX(Math.max(-60, Math.min(60, dx)));
-    }
-  };
-
-  const handleTouchEnd = (e) => {
-    const t = e.changedTouches[0];
-    const dx = t.clientX - startX.current;
-    const dy = t.clientY - startY.current;
-    const adx = Math.abs(dx);
-    const ady = Math.abs(dy);
-    setDragX(0);
-    recentTouch.current = true;
-    setTimeout(() => { recentTouch.current = false; }, 500);
-
-    if (adx > SWIPE_THRESHOLD && adx > ady) {
-      if (dx > 0) onSwipeRight();
-      else onSwipeLeft();
-    } else if (adx < TAP_THRESHOLD && ady < TAP_THRESHOLD) {
-      onTap();
-    }
-  };
-
-  const handleClick = () => {
-    if (recentTouch.current) return;
-    onTap();
-  };
-
-  const swipeHint = dragX > 12 ? "front" : dragX < -12 ? "primary" : null;
-
   return (
     <div className="flex flex-col items-center gap-2 select-none">
       <div
         className="relative"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={handleClick}
+        {...bind}
         style={{
           transform: `translateX(${dragX}px)`,
           transition: dragX === 0 ? "transform 150ms ease-out" : "none",
@@ -123,65 +74,8 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   const queryClient = useQueryClient();
   const compact = cols >= 4;
 
-  const toggleFront = async (alter) => {
-    try {
-      const mySession = activeSessions.find(s => s.alter_id === alter.id);
-      if (mySession) {
-        await base44.entities.FrontingSession.update(mySession.id, {
-          is_active: false,
-          end_time: new Date().toISOString(),
-        });
-        toast.success(`${alter.name} removed from front`);
-      } else {
-        const hasPrimary = activeSessions.some(s => s.is_primary);
-        await base44.entities.FrontingSession.create({
-          alter_id: alter.id,
-          is_primary: !hasPrimary,
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
-        toast.success(`${alter.name} added to front`);
-      }
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch (err) {
-      toast.error(err.message || "Failed to update front");
-    }
-  };
-
-  const togglePrimary = async (alter) => {
-    const mySession = activeSessions.find(s => s.alter_id === alter.id);
-    try {
-      if (mySession?.is_primary) {
-        await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
-        toast.success(`${alter.name} demoted to co-fronter`);
-      } else {
-        // Demote whoever is currently primary so there's only ever one.
-        const currentPrimary = activeSessions.find(s => s.is_primary);
-        if (currentPrimary) {
-          await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
-        }
-        if (mySession) {
-          // Already fronting — just promote them.
-          await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
-          toast.success(`${alter.name} promoted to primary`);
-        } else {
-          // Not fronting yet — start a fronting session as primary.
-          await base44.entities.FrontingSession.create({
-            alter_id: alter.id,
-            is_primary: true,
-            start_time: new Date().toISOString(),
-            is_active: true,
-          });
-          toast.success(`${alter.name} is now primary fronter`);
-        }
-      }
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch (err) {
-      toast.error(err.message || "Failed to update primary");
-    }
-  };
+  const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
+  const togglePrimary = (alter) => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast);
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
 
