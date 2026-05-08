@@ -1330,7 +1330,7 @@ export default function InfiniteTimeline({
             </div>
 
             <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-              <div ref={timelineAreaRef} className="relative" style={{ height: totalHeight, minWidth: totalWidth, touchAction: "pan-y" }}
+              <div ref={timelineAreaRef} className="relative" style={{ height: totalHeight, minWidth: totalWidth, touchAction: "pan-x pan-y" }}
                 onMouseDown={startAreaLongPress} onMouseMove={moveAreaLongPress} onMouseUp={cancelAreaLongPress} onMouseLeave={cancelAreaLongPress}
                 onTouchStart={startAreaLongPress} onTouchMove={moveAreaLongPress} onTouchEnd={cancelAreaLongPress} onTouchCancel={cancelAreaLongPress}>
 
