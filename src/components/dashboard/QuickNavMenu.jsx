@@ -112,7 +112,7 @@ function SortableTile({ item, editMode, onRemove, pendingCount }) {
   );
 
   return (
-    <div ref={setNodeRef} style={style} className="relative touch-none select-none">
+    <div ref={setNodeRef} style={style} className={`relative select-none ${editMode ? "touch-none" : ""}`}>
       {editMode ? tileInner : <Link to={item.path}>{tileInner}</Link>}
       {editMode && (
         <button
@@ -250,11 +250,11 @@ export default function QuickNavMenu() {
           ) : (
             <button
               onClick={handleEnterEdit}
-              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+              className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
               title="Rearrange tiles"
+              aria-label="Edit grid"
             >
-              <Pencil className="w-3 h-3" />
-              Edit
+              <Pencil className="w-4 h-4" />
             </button>
           )
         )}

@@ -11,6 +11,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
+import useSwipeActions from "@/hooks/useSwipeActions";
 import { formatInTimeZone } from "date-fns-tz";
 
 const TRIGGER_CATEGORIES = [
@@ -39,45 +40,110 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
+// Grid-view card for the modal. Same gesture model as the alters page grid
+// (AlterGridView): tap = toggle selection, swipe right = toggle selection,
+// swipe left = toggle primary. The visual is also avatar-centric so the
+// modal's grid feels identical to the rest of the app.
+function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
+  const alterColor = alter.color || "#9333ea";
+  const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
+  const [imgError, setImgError] = useState(false);
+  const { bind, dragX, swipeHint } = useSwipeActions({
+    onTap: () => onToggle(),
+    onSwipeRight: () => onToggle(),
+    onSwipeLeft: () => onSetPrimary(),
+    onLongPress: () => onSetPrimary(),
+  });
+
+  const boxShadow = selected
+    ? isPrimary
+      ? `inset 0 0 0 3px #fbbf24, inset 0 0 0 5px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 24px ${alterColor}ff`
+      : `inset 0 0 0 3px ${alterColor}, 0 0 0 1px ${alterColor}, 0 0 20px ${alterColor}ff`
+    : `inset 0 0 0 2px ${alterColor}80`;
+
+  return (
+    <div className="flex flex-col items-center gap-2 select-none">
+      <div
+        className="relative"
+        {...bind}
+        style={{
+          transform: `translateX(${dragX}px)`,
+          transition: dragX === 0 ? "transform 150ms ease-out" : "none",
+          touchAction: "pan-y",
+        }}
+      >
+        {resolvedUrl && !imgError ? (
+          <img
+            src={resolvedUrl}
+            alt={alter.name}
+            style={{ boxShadow }}
+            className={`rounded-full object-cover transition-all cursor-pointer ${selected ? "w-20 h-20" : "w-16 h-16"}`}
+            draggable={false}
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div
+            style={{ backgroundColor: selected ? `${alterColor}30` : "hsl(var(--muted))", boxShadow }}
+            className={`rounded-full flex items-center justify-center transition-all cursor-pointer ${selected ? "w-20 h-20" : "w-16 h-16"}`}
+          >
+            <span className="text-xs font-semibold text-muted-foreground">{alter.name.slice(0, 2)}</span>
+          </div>
+        )}
+      </div>
+      {swipeHint ? (
+        <span className={`text-[10px] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+          {swipeHint === "front" ? (selected ? "Deselect" : "Select") : (isPrimary ? "Demote" : "Primary")}
+        </span>
+      ) : (
+        <span className="text-xs text-center font-medium truncate w-full px-1">
+          {alter.alias?.slice(0, 7) || alter.name.slice(0, 7)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
   const bg = alter.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
-  const timerRef = useRef(null);
-  const longFiredRef = useRef(false);
 
-  const startPress = () => {
-    longFiredRef.current = false;
-    timerRef.current = setTimeout(() => {
-      longFiredRef.current = true;
-      onSetPrimary();
-    }, 500);
-  };
-  const cancelPress = () => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-  };
-  const handleClick = () => { if (!longFiredRef.current) onToggle(); };
+  // Same gesture model as the alters page list / grid:
+  //   tap          → toggle selection (the modal's primary action)
+  //   swipe right  → toggle selection (mirror, for muscle memory)
+  //   swipe left   → toggle primary (only meaningful while selected)
+  //   long-press   → toggle primary (kept for accessibility / mouse parity)
+  const { bind, dragX, swipeHint } = useSwipeActions({
+    onTap: () => onToggle(),
+    onSwipeRight: () => onToggle(),
+    onSwipeLeft: () => onSetPrimary(),
+    onLongPress: () => onSetPrimary(),
+  });
 
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${selected ? "Deselect" : "Select"} ${alter.name}${selected ? ". Long-press to toggle primary" : ""}`}
+      aria-label={`${selected ? "Deselect" : "Select"} ${alter.name}. Swipe left or long-press to toggle primary.`}
       aria-pressed={selected}
-      onMouseDown={startPress}
-      onMouseUp={cancelPress}
-      onMouseLeave={cancelPress}
-      onTouchStart={startPress}
-      onTouchEnd={cancelPress}
-      onTouchMove={cancelPress}
-      onClick={handleClick}
-      onKeyDown={e => e.key === "Enter" || e.key === " " ? handleClick() : undefined}
-      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all select-none ${
+      {...bind}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onToggle() : undefined}
+      style={{
+        transform: `translateX(${dragX}px)`,
+        transition: dragX === 0 ? "transform 150ms ease-out" : "none",
+        touchAction: "pan-y",
+      }}
+      className={`relative flex items-center gap-2 px-3 py-2.5 rounded-xl border cursor-pointer transition-all select-none ${
       selected ?
       "border-primary/60 bg-primary/5" :
       "border-border/50 bg-card hover:bg-muted/30"}`
       }>
+      {swipeHint && (
+        <span className={`absolute top-1 right-2 text-[9px] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+          {swipeHint === "front" ? (selected ? "Deselect" : "Select") : (isPrimary ? "Demote" : "Primary")}
+        </span>
+      )}
 
       <div
         className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
@@ -501,40 +567,17 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               )}
               </div> :
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {filtered.map((a) => {
-                const isFronting = selectedIds.has(a.id);
-                const isPrimary = primaryId === a.id;
-                return (
-                  <button
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {filtered.map((a) => (
+                  <SetFrontGridCard
                     key={a.id}
-                    onClick={() => toggleAlter(a.id)}
-                    className="flex flex-col items-center gap-2 p-2 rounded-lg border transition-all hover:bg-muted/50"
-                    style={{
-                      borderColor: isFronting ? a.color || "hsl(var(--primary))" : "hsl(var(--border))",
-                      backgroundColor: isFronting ? `${a.color || "hsl(var(--primary))"}15` : "transparent"
-                    }}>
-                    
-                      <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden border-2 flex-shrink-0"
-                      style={{
-                        backgroundColor: a.color || "hsl(var(--muted))",
-                        borderColor: isPrimary ? "hsl(var(--accent))" : isFronting ? a.color || "hsl(var(--primary))" : "hsl(var(--border))"
-                      }}>
-                      
-                        {a.avatar_url ?
-                      <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} /> :
-
-                      <User className="w-6 h-6 text-white/70" />
-                      }
-                      </div>
-                      <div className="text-center min-w-0">
-                        <p className="text-xs font-medium truncate">{a.name}</p>
-                        {isPrimary && <p className="text-xs text-primary leading-none">Primary</p>}
-                      </div>
-                    </button>);
-
-              })}
+                    alter={a}
+                    selected={selectedIds.has(a.id)}
+                    isPrimary={primaryId === a.id}
+                    onToggle={() => toggleAlter(a.id)}
+                    onSetPrimary={() => setPrimary(a.id)}
+                  />
+                ))}
               </div>
             }
           </div>

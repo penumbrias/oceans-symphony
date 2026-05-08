@@ -6,7 +6,7 @@ import { Users, Sparkles, Plus } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
-import FrontingBar from "@/components/fronting/FrontingBar";
+import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
@@ -95,7 +95,7 @@ export default function Home() {
         
         <div>
           <h1 className="font-display text-3xl font-semibold text-foreground">
-            {systemSettings?.system_name || "Your System"}
+            {systemSettings?.system_name || `Your ${terms.System}`}
           </h1>
           <p className="text-muted-foreground mt-1 flex items-center gap-2">
             <Users className="w-4 h-4" />
@@ -116,7 +116,9 @@ export default function Home() {
         </Button>
       </motion.div>
 
-      <FrontingBar alters={activeAlters} />
+      <div className="mb-4">
+        <CurrentFronters alters={activeAlters} />
+      </div>
       <div data-tour="alters-grid">
         <AlterGrid alters={activeAlters} currentSession={activeSession} />
       </div>

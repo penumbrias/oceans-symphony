@@ -93,11 +93,11 @@ function computeStats(sessions, alters, from, to) {
 // Landing page section cards
 function SectionGrid({ terms, onSelect }) {
   const sections = [
-    { id: "alters", emoji: "🧑‍🤝‍🧑", label: `${terms.System} Members`, desc: `${terms.Fronting} time and patterns` },
+    { id: "alters", emoji: "🧑‍🤝‍🧑", label: `${terms.Alters}`, desc: `${terms.Fronting} time and patterns` },
     { id: "activities", emoji: "⚡", label: "Activities", desc: "What you've been doing" },
     { id: "emotions", emoji: "💜", label: "Emotions", desc: "Mood and check-in trends" },
     { id: "symptoms", emoji: "💊", label: "Symptoms", desc: "Symptom and habit tracking" },
-    { id: "diary", emoji: "📔", label: "Daily Log", desc: "Diary card summaries" },
+    { id: "diary", emoji: "📔", label: "Check-In Log", desc: "Check-in summaries" },
     { id: "sleep", emoji: "😴", label: "Sleep", desc: "Sleep patterns" },
     { id: "journals", emoji: "📖", label: "Journals", desc: "Writing activity" },
     { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: `Who ${terms.fronts} together` },
@@ -291,11 +291,11 @@ export default function Analytics() {
   }
 
   const SECTION_LABELS = {
-    alters: `${terms.System} Members`,
+    alters: `${terms.Alters}`,
     activities: "Activities",
     emotions: "Emotions",
     symptoms: "Symptoms",
-    diary: "Daily Log",
+    diary: "Check-In Log",
     sleep: "Sleep",
     journals: "Journals",
     cofronting: terms.Cofronting,

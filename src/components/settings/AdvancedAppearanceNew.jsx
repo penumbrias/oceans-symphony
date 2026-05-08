@@ -4,6 +4,7 @@ import { HexColorPicker } from 'react-colorful';
 import {
   APP_FONT_OPTIONS, FONT_CATEGORY_LABELS,
   getAccessibilitySettings, setAccessibilityFontFamily, setAccessibilityFontSize, findFontOption,
+  setAccessibilityHeadingFont, HEADING_FONT_OPTIONS,
 } from '@/lib/useAccessibility';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -126,6 +127,56 @@ function FontPicker({ currentFont, onSelect }) {
   );
 }
 
+// ── Heading font picker — same expanded-dropdown style as FontPicker ──────────
+function HeadingFontPicker({ currentFont, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const panelRef = useRef(null);
+  const current = HEADING_FONT_OPTIONS.find(f => f.value === currentFont) || HEADING_FONT_OPTIONS[0];
+  const previewFont = current.value === "default" ? "'Playfair Display', serif" : current.value;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (!panelRef.current?.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={panelRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
+      >
+        <span className="text-sm font-medium" style={{ fontFamily: previewFont }}>{current.label}</span>
+        <ChevronDown className={`w-4 h-4 ml-auto text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-2 w-full max-h-72 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg p-1 space-y-0.5">
+          {HEADING_FONT_OPTIONS.map(f => {
+            const isSelected = f.value === currentFont;
+            const fontPreview = f.value === "default" ? "'Playfair Display', serif" : f.value;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => { onSelect(f.value); setOpen(false); }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-muted/60 transition-colors flex items-center gap-2 ${isSelected ? "bg-primary/10 text-primary font-medium" : ""}`}
+                style={{ fontFamily: fontPreview }}
+              >
+                <span className="flex-1 truncate">{f.label}</span>
+                {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Color swatch button ───────────────────────────────────────────────────────
 function ColorSwatch({ label, color, onClick }) {
   return (
@@ -160,6 +211,12 @@ export default function AdvancedAppearance() {
   const a11y = getAccessibilitySettings();
   const [currentFont, setCurrentFont] = useState(a11y.fontFamily);
   const [currentSize, setCurrentSize] = useState(a11y.fontSize);
+  const [currentHeadingFont, setCurrentHeadingFont] = useState(a11y.headingFont);
+
+  const handleHeadingFontSelect = (value) => {
+    setCurrentHeadingFont(value);
+    setAccessibilityHeadingFont(value);
+  };
 
   // Color editor state
   const [editingColor, setEditingColor] = useState(null);
@@ -197,9 +254,16 @@ export default function AdvancedAppearance() {
   };
 
   const getCurrentColors = () => {
+    // Always read what's actually rendering on screen first — cached preset
+    // data can be stale (e.g. after a fronter-theme swap, or when
+    // customColors and the active preset disagree). Fall back to the source
+    // dictionary for any keys the live CSS doesn't have.
+    const live = readCssColors();
     const src = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
-    if (src) return isDark ? src.dark : src.light;
-    return readCssColors();
+    const fallback = src ? (isDark ? src.dark : src.light) : {};
+    return Object.fromEntries(
+      Object.keys(COLOR_LABELS).map(k => [k, live[k] || fallback[k] || '#888888'])
+    );
   };
 
   const currentColors = pendingColors
@@ -330,6 +394,18 @@ export default function AdvancedAppearance() {
         <p className="text-xs text-muted-foreground">
           Preview: <span style={{ fontFamily: findFontOption(currentFont).value }}>
             The quick brown fox jumps over the lazy dog
+          </span>
+        </p>
+      </div>
+
+      {/* ── Heading Font ────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading Font</p>
+        <p className="text-xs text-muted-foreground -mt-1">Used for page titles and the app name. Body text uses the Font Family above.</p>
+        <HeadingFontPicker currentFont={currentHeadingFont} onSelect={handleHeadingFontSelect} />
+        <p className="text-xs text-muted-foreground">
+          Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'Playfair Display', serif" : currentHeadingFont }}>
+            Your System
           </span>
         </p>
       </div>

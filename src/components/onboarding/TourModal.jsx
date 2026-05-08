@@ -45,7 +45,7 @@ const STEPS = (t) => [
     features: ['Inner world canvas', 'Relationship lines with directions', 'Location nodes', 'Analytics map', 'Clickable relationship details'],
   },
   {
-    title: 'Check-In & Daily Log',
+    title: 'Check-In Log',
     subtitle: `Track how the ${t.system} is doing day to day`,
     body: `Quick check-ins let any part log emotions, symptoms, activities, diary entries, and notes in one place. Everything is timestamped and tied to who was ${t.fronting}.`,
     icon: <Sparkles className='w-8 h-8' />,
@@ -137,11 +137,11 @@ const STEPS = (t) => [
   {
     title: 'Privacy & Data',
     subtitle: 'Your data, your control',
-    body: `Oceans Symphony supports local-only mode with AES-256 encryption — your data never leaves your device. Regular backups are recommended. The app is free and open source, built by a dissociative ${t.system}.`,
+    body: `Your data lives on this device. By default it's stored unencrypted in IndexedDB; turning on password encryption under Settings → Data & Privacy adds AES-256-GCM encryption at rest (on-device only — not end-to-end). The app is free and open source, built by a dissociative ${t.system}, and is in active development — bugs may be encountered. Regular backups are recommended.`,
     icon: '🔒',
     color: 'from-slate-500/20 to-gray-500/20',
-    tip: 'Find local mode and backup options in Settings → Data Management',
-    features: ['Local mode with encryption', 'JSON backup and restore', 'No ads, no tracking', 'Open source on GitHub', 'Free forever'],
+    tip: 'Privacy & Data Notice lives at the top of Settings — tap to expand for details.',
+    features: ['Unencrypted by default', 'Optional on-device encryption at rest', 'Plain JSON backups', 'No ads, no tracking', 'Active development — bugs may be encountered'],
   },
   {
     title: "You're all set 🎉",

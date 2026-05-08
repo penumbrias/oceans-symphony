@@ -144,13 +144,29 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
   const [imgError, setImgError] = useState(false);
   const lpRef = useRef(null);
   const touchFiredRef = useRef(false);
+  const pressStart = useRef({ x: 0, y: 0, moved: false });
 
   const startPress = (e) => {
     e.stopPropagation();
     touchFiredRef.current = false;
+    if (e.touches && e.touches.length > 1) return;
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    pressStart.current = { x: clientX, y: clientY, moved: false };
     const barTop = e.currentTarget.getBoundingClientRect().top;
     lpRef.current = setTimeout(() => { lpRef.current = null; onLongPress?.({ clientY, barTop }); }, 500);
+  };
+  const movePress = (e) => {
+    if (!lpRef.current) return;
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    const dx = clientX - pressStart.current.x;
+    const dy = clientY - pressStart.current.y;
+    if (dx * dx + dy * dy > 100) {
+      pressStart.current.moved = true;
+      clearTimeout(lpRef.current);
+      lpRef.current = null;
+    }
   };
   const cancelPress = (e) => {
     e?.stopPropagation();
@@ -158,6 +174,7 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
   };
   const handleTouchEnd = (e) => {
     cancelPress(e);
+    if (pressStart.current.moved) return; // user was scrolling, not tapping
     if (lpRef.current === null && !touchFiredRef.current) return; // long press fired, skip
     touchFiredRef.current = true;
     onTap?.();
@@ -171,8 +188,8 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
-      onMouseDown={startPress} onMouseUp={cancelPress} onMouseLeave={cancelPress}
-      onTouchStart={startPress} onTouchEnd={handleTouchEnd}>
+      onMouseDown={startPress} onMouseMove={movePress} onMouseUp={cancelPress} onMouseLeave={cancelPress}
+      onTouchStart={startPress} onTouchMove={movePress} onTouchEnd={handleTouchEnd} onTouchCancel={cancelPress}>
       <div className="relative flex-shrink-0">
         <div
           className="rounded-full overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
@@ -642,7 +659,6 @@ export default function InfiniteTimeline({
   const [detailPopup, setDetailPopup] = useState(null); // { type, entry }
   const [colWidths, setColWidths] = useState({ ...DEFAULT_COL_WIDTHS });
   const [showTally, setShowTally] = useState(false);
-  const [showRowSlider, setShowRowSlider] = useState(false);
   const [sessionPopover, setSessionPopover] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
   const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
@@ -653,7 +669,7 @@ export default function InfiniteTimeline({
   const [symptomDetailModal, setSymptomDetailModal] = useState(null); // { session, symptom }
   const longPressTargetRef = useRef(null);
 
-  const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
+  const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 30));
   useEffect(() => { lsSet(LS_TIMELINE_ROW_H, rowH); }, [rowH]);
 
   const [nowMins, setNowMins] = useState(() => {
@@ -692,9 +708,19 @@ export default function InfiniteTimeline({
       }
       ids.forEach((alterId) => {
         const startMins = Math.max(0, minutesInDay(parseDate(session.start_time), dayStart));
+        // end_time fallback hierarchy:
+        //  - explicit end_time wins
+        //  - inactive session with no end_time → broken record (treat as
+        //    zero-length so it doesn't draw a full-day bar)
+        //  - active session on today → "now"
+        //  - active session on a past day → end of that day
         const endTime = session.end_time
           ? parseDate(session.end_time)
-          : session.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+          : !session.is_active
+            ? parseDate(session.start_time)
+            : isToday
+              ? new Date()
+              : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
         const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
         if (!byAlter[alterId]) byAlter[alterId] = [];
         const isPrimary = session.alter_id
@@ -997,7 +1023,13 @@ export default function InfiniteTimeline({
         .filter(s => s.symptom_id === symptomId)
         .map(s => {
           const startMins = Math.max(0, minutesInDay(parseDate(s.start_time), dayStart));
-          const endTime = s.end_time ? parseDate(s.end_time) : s.is_active && isToday ? new Date() : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
+          const endTime = s.end_time
+            ? parseDate(s.end_time)
+            : !s.is_active
+              ? parseDate(s.start_time)
+              : isToday
+                ? new Date()
+                : new Date(dayStart.getTime() + 24 * 60 * 60000 - 1);
           const endMins = Math.min(24 * 60, minutesInDay(endTime, dayStart));
           return { symptomId, startMins, endMins: Math.max(endMins, startMins + 8), sessionId: s.id };
         });
@@ -1151,9 +1183,14 @@ export default function InfiniteTimeline({
     setNewSessionPopover(null);
   };
 
+  const longPressStartPos = useRef({ x: 0, y: 0 });
   const startAreaLongPress = (e) => {
+    // Don't arm long-press for multi-touch (pinch gestures, etc.)
+    if (e.touches && e.touches.length > 1) return;
     const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    longPressStartPos.current = { x: clientX, y: clientY };
     const y = clientY - rect.top;
     const scrollTop = e.currentTarget.closest(".overflow-y-auto")?.scrollTop || 0;
     const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
@@ -1162,9 +1199,63 @@ export default function InfiniteTimeline({
       setRetroPickerState({ startMins: Math.min(Math.max(0, mins), 1439) });
     }, 500);
   };
+  const moveAreaLongPress = (e) => {
+    if (!longPressTargetRef.current) return;
+    const clientX = e.touches?.[0]?.clientX ?? e.clientX;
+    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
+    const dx = clientX - longPressStartPos.current.x;
+    const dy = clientY - longPressStartPos.current.y;
+    if (dx * dx + dy * dy > 100) {
+      clearTimeout(longPressTargetRef.current);
+      longPressTargetRef.current = null;
+    }
+  };
   const cancelAreaLongPress = () => {
     if (longPressTargetRef.current) { clearTimeout(longPressTargetRef.current); longPressTargetRef.current = null; }
   };
+
+  // Pinch-to-zoom: two-finger pinch on the timeline scrolling area changes rowH.
+  // Native listener with { passive: false } so we can preventDefault to stop the
+  // browser from page-zooming or scrolling during the gesture.
+  const timelineAreaRef = useRef(null);
+  const rowHRef = useRef(rowH);
+  useEffect(() => { rowHRef.current = rowH; }, [rowH]);
+  useEffect(() => {
+    const el = timelineAreaRef.current;
+    if (!el) return;
+    let pinch = null;
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        const [a, b] = e.touches;
+        pinch = {
+          startDist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+          startRowH: rowHRef.current,
+        };
+        cancelAreaLongPress();
+      }
+    };
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && pinch) {
+        const [a, b] = e.touches;
+        const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        const ratio = dist / pinch.startDist;
+        const next = Math.round(Math.max(20, Math.min(200, pinch.startRowH * ratio)));
+        if (next !== rowHRef.current) setRowH(next);
+        e.preventDefault();
+      }
+    };
+    const onTouchEnd = (e) => { if (e.touches.length < 2) pinch = null; };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, []);
 
   return (
     <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -1187,17 +1278,11 @@ export default function InfiniteTimeline({
         </div>
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {!collapsed && (
-            <>
-              <button onClick={() => setShowRowSlider(v => !v)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showRowSlider ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
-                ↕ Zoom
-              </button>
-              <button onClick={() => setShowTally(v => !v)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
-                <BarChart3 className="w-3 h-3" />
-                Tally
-              </button>
-            </>
+            <button onClick={() => setShowTally(v => !v)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${showTally ? "bg-primary/20 text-primary border-primary/40" : "bg-muted/50 text-muted-foreground border-border/50 hover:border-primary/30"}`}>
+              <BarChart3 className="w-3 h-3" />
+              Tally
+            </button>
           )}
           {collapsed ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
         </div>
@@ -1205,16 +1290,6 @@ export default function InfiniteTimeline({
 
       {!collapsed && (
         <div className="overflow-x-auto border-t border-border">
-          {showRowSlider && (
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 bg-muted/10 text-xs">
-              <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
-              <input type="range" min={20} max={120} step={4} value={rowH}
-                onChange={e => setRowH(Number(e.target.value))}
-                className="w-28 accent-primary" />
-              <span className="text-muted-foreground w-8">{rowH}px</span>
-            </div>
-          )}
-
           <div style={{ minWidth: totalWidth }}>
             <div className="flex border-b border-border/40 bg-muted/20 relative" style={{ minWidth: totalWidth }}>
               {/* Time label spacer */}
@@ -1255,47 +1330,25 @@ export default function InfiniteTimeline({
             </div>
 
             <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
-              <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}
-                onMouseDown={startAreaLongPress} onMouseUp={cancelAreaLongPress} onMouseLeave={cancelAreaLongPress}
-                onTouchStart={startAreaLongPress} onTouchEnd={cancelAreaLongPress}>
+              <div ref={timelineAreaRef} className="relative" style={{ height: totalHeight, minWidth: totalWidth, touchAction: "pan-x pan-y" }}
+                onMouseDown={startAreaLongPress} onMouseMove={moveAreaLongPress} onMouseUp={cancelAreaLongPress} onMouseLeave={cancelAreaLongPress}
+                onTouchStart={startAreaLongPress} onTouchMove={moveAreaLongPress} onTouchEnd={cancelAreaLongPress} onTouchCancel={cancelAreaLongPress}>
 
                 {HOURS.map((h) => {
                   const top = getTopPx(h * 60);
-                  const halfTop = top + rowH / 2;
                   const isCurrentHour = isToday && Math.floor(nowMins / 60) === h;
-                  // Only render the :30 dashed sub-tick once each hour row is tall
-                  // enough that it's visually useful (≈50 px = roughly one minute
-                  // of vertical real estate per pixel).
-                  const showHalfHour = rowH >= 50;
                   return (
-                    <React.Fragment key={h}>
-                      {/* Hour gridline — sits exactly at the row top so the
-                         hour label below it lines up cleanly. */}
-                      <div className="absolute pointer-events-none"
-                        style={{ top, left: LABEL_WIDTH, right: 0, height: 0, borderTop: "1px solid hsl(var(--border) / 0.45)" }} />
-                      {/* Hour row container (label + current-hour highlight). */}
-                      <div className="absolute flex items-start"
-                        style={{ top, height: rowH, left: 0, right: 0 }}>
-                        {isCurrentHour && (
-                          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
-                        )}
-                        <div className="flex-shrink-0 text-xs text-muted-foreground pt-0.5 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
-                          {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
-                        </div>
-                      </div>
-                      {/* Half-hour dashed tick — exactly centered between hour
-                         lines (rowH/2 below this row's hour line). */}
-                      {showHalfHour && (
-                        <>
-                          <div className="absolute pointer-events-none"
-                            style={{ top: halfTop, left: LABEL_WIDTH, right: 0, height: 0, borderTop: "1px dashed hsl(var(--border) / 0.3)" }} />
-                          <div className="absolute text-[10px] text-muted-foreground/50 pl-1 text-left pointer-events-none"
-                            style={{ top: halfTop - 7, left: 0, width: LABEL_WIDTH }}>
-                            :30
-                          </div>
-                        </>
+                    <div key={h} className="absolute flex items-start"
+                      style={{ top, height: rowH, left: 0, right: 0 }}>
+                      {/* Current-hour highlight */}
+                      {isCurrentHour && (
+                        <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
                       )}
-                    </React.Fragment>
+                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
+                        {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
+                      </div>
+                      <div className="flex-1 border-t border-border/30 mt-2" />
+                    </div>
                   );
                 })}
 
@@ -1406,7 +1459,7 @@ export default function InfiniteTimeline({
                           else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
                           else if (entry.type === "bulletin") navigate(`/`);
                           else if (entry.type === "task") navigate(`/todo`);
-                          else if (entry.type === "symptom_checkin") navigate(`/diary`);
+                          else if (entry.type === "symptom_checkin") navigate(`/checkin-log`);
                         }}
                       />
                     ))}

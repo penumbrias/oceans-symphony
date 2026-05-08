@@ -1,10 +1,11 @@
 import React, { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { User, ChevronRight, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -144,6 +145,18 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const hasColor = alter.color && alter.color.length > 3;
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { bind, dragX, swipeHint } = useSwipeActions({
+    onTap: () => navigate(`/alter/${alter.id}`),
+    onSwipeRight: () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
+    onSwipeLeft: () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
+  });
+
+  const mySession = activeSessions.find(s => s.alter_id === alter.id);
+  const fronting = !!mySession;
+  const isPrimary = mySession?.is_primary ?? false;
 
   return (
     <motion.div
@@ -151,7 +164,17 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, delay: index * 0.03 }}
       className="flex items-center gap-2">
-      <Link to={`/alter/${alter.id}`} className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 relative" {...bind}
+        style={{
+          transform: `translateX(${dragX}px)`,
+          transition: dragX === 0 ? "transform 150ms ease-out" : "none",
+          touchAction: "pan-y",
+        }}>
+        {swipeHint && (
+          <span className={`absolute top-1 right-2 text-[9px] font-semibold uppercase tracking-wide pointer-events-none z-10 ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+            {swipeHint === "front" ? (fronting ? "Remove" : "Add") : (isPrimary ? "Demote" : "Promote")}
+          </span>
+        )}
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
           style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
           <div
@@ -177,7 +200,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             </span>
           )}
         </div>
-      </Link>
+      </div>
       <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
     </motion.div>
   );

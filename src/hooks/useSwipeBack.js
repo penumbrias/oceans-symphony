@@ -86,14 +86,27 @@ export default function useSwipeBack() {
       navigate(-1);
     };
 
+    // Cancellation path: if iOS interrupts the gesture (incoming call,
+    // system swipe, app switcher, etc.) touchend never fires. Without this,
+    // the indicator stays painted on screen until the next touchstart.
+    const onTouchCancel = () => {
+      if (!touchStart.current) return;
+      touchStart.current = null;
+      clearTimeout(fadeTimer.current);
+      setIndicatorVisible(false);
+      setIndicatorProgress(0);
+    };
+
     document.addEventListener("touchstart", onTouchStart, { passive: true });
     document.addEventListener("touchmove", onTouchMove, { passive: true });
     document.addEventListener("touchend", onTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", onTouchCancel, { passive: true });
 
     return () => {
       document.removeEventListener("touchstart", onTouchStart);
       document.removeEventListener("touchmove", onTouchMove);
       document.removeEventListener("touchend", onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchCancel);
       clearTimeout(fadeTimer.current);
     };
   }, [navigate]);

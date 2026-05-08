@@ -202,28 +202,6 @@ export default function AlterGrid({ alters, currentSession = null }) {
           <FolderMinus className="w-4 h-4" />
         </button>
 
-        {/* View / column cycle */}
-        <button
-          data-tour="alter-view-toggle"
-          onClick={cycleDisplayMode}
-          title={displayMode === "list" ? "Switch to 2-column grid" : `${displayMode}-col grid — tap to ${displayMode === "5" ? "switch to list" : "add a column"}`}
-          className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-xs font-bold">
-          {displayMode === "list" ? <Grid3X3 className="w-4 h-4" /> : displayMode}
-        </button>
-
-        {/* Anonymize toggle */}
-        <button
-          onClick={cycleAnonymize}
-          title={{ "off": "Screenshot mode: tap to blur names", "names": "Blurring names — tap to also blur avatars", "all": "Blurring names & avatars — tap to disable" }[anonymize]}
-          className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border transition-colors ${
-            anonymize === "off"
-              ? "border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent"
-              : anonymize === "names"
-              ? "border-amber-500/60 bg-amber-500/10 text-amber-500"
-              : "border-primary/60 bg-primary/10 text-primary"
-          }`}>
-          {anonymize === "off" ? <Camera className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-        </button>
       </div>
 
       {/* Content */}
@@ -252,6 +230,29 @@ export default function AlterGrid({ alters, currentSession = null }) {
           <div className="flex items-center gap-2 mb-3 px-1">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
             <div className="flex-1 h-px bg-border/50" />
+            <div className="flex items-center gap-1">
+              {/* View / column cycle */}
+              <button
+                data-tour="alter-view-toggle"
+                onClick={cycleDisplayMode}
+                title={displayMode === "list" ? "Switch to 2-column grid" : `${displayMode}-col grid — tap to ${displayMode === "5" ? "switch to list" : "add a column"}`}
+                className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold">
+                {displayMode === "list" ? <Grid3X3 className="w-4 h-4" /> : displayMode}
+              </button>
+              {/* Anonymize toggle */}
+              <button
+                onClick={cycleAnonymize}
+                title={{ "off": "Screenshot mode: tap to blur names", "names": "Blurring names — tap to also blur avatars", "all": "Blurring names & avatars — tap to disable" }[anonymize]}
+                className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${
+                  anonymize === "off"
+                    ? "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    : anonymize === "names"
+                    ? "text-amber-500 bg-amber-500/10"
+                    : "text-primary bg-primary/10"
+                }`}>
+                {anonymize === "off" ? <Camera className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           {filtered.length > 0 ?
           displayMode === "list" ?

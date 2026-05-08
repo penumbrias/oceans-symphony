@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart } from "recharts";
 import { Heart } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 const EMOTION_COLORS = {
   angry: "#ef4444",
@@ -25,6 +26,7 @@ function emotionColor(name, index) {
 }
 
 export default function EmotionAnalytics({ from, to }) {
+  const t = useTerms();
   const { data: checkIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
     queryFn: () => base44.entities.EmotionCheckIn.list(),
@@ -216,7 +218,7 @@ export default function EmotionAnalytics({ from, to }) {
       {altersByEmotion.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Members Most Experiencing Each Emotion</CardTitle>
+            <CardTitle className="text-lg">{t.Alters} Most Experiencing Each Emotion</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

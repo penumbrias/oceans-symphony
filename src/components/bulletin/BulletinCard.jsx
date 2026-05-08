@@ -123,9 +123,8 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
       <div className="flex items-start justify-between gap-2 mb-2">
         <AuthorsRow authorIds={authorIds} fallbackIds={frontingAlterIds} alters={alters} timestamp={timeAgo} />
         <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          {bulletin.is_pinned && <Pin className="w-3.5 h-3.5 text-primary" />}
           <button onClick={handlePin} aria-label={bulletin.is_pinned ? "Unpin bulletin" : "Pin bulletin"} className="text-muted-foreground hover:text-foreground p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg">
-            <Pin className={`w-3.5 h-3.5 ${bulletin.is_pinned ? "text-primary" : ""}`} />
+            <Pin className={`w-3.5 h-3.5 ${bulletin.is_pinned ? "text-primary fill-primary" : ""}`} />
           </button>
           {canDelete &&
           <button onClick={handleDelete} aria-label="Delete bulletin" className="text-muted-foreground hover:text-destructive p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg">

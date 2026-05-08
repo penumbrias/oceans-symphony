@@ -96,13 +96,18 @@ const EXPORT_CATEGORIES = [
 ];
 
 // Outside component — no state needed here
-async function downloadJson(data, filename) {
-  const compressed = compressBackup(data);
-  const blob = new Blob([compressed], { type: "application/octet-stream" });
+async function downloadJson(data, filename, format = "json") {
+  // format:
+  //   "json"    — plain JSON.stringify (easier to inspect/share)
+  //   "compact" — gzip + base64 envelope ("SYMPHONYZ:") for smaller files
+  const isCompact = format === "compact";
+  const text = isCompact ? compressBackup(data) : JSON.stringify(data, null, 2);
+  const mime = isCompact ? "application/octet-stream" : "application/json";
+  const blob = new Blob([text], { type: mime });
 
   // Try Web Share API (works on Android APK)
   if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: "application/octet-stream" });
+    const file = new File([blob], filename, { type: mime });
     if (navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
@@ -112,7 +117,7 @@ async function downloadJson(data, filename) {
         if (e.name === "AbortError") {
           // User cancelled — try clipboard instead
           try {
-            await navigator.clipboard.writeText(data);
+            await navigator.clipboard.writeText(text);
             throw new Error("__clipboard_success__");
           } catch (clipErr) {
             if (clipErr.message === "__clipboard_success__") throw clipErr;
@@ -138,6 +143,7 @@ async function downloadJson(data, filename) {
 export default function DataBackupRestore() {
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
+  const [exportFormat, setExportFormat] = useState("json"); // "json" | "compact"
   const [copyLoading, setCopyLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
@@ -258,7 +264,8 @@ const handleExportFull = async () => {
   try {
     const exportData = await buildExportData();
     const date = new Date().toISOString().slice(0, 10);
-    await downloadJson(exportData, `symphony-backup-${date}.json`);
+    const ext = exportFormat === "compact" ? "txt" : "json";
+    await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat);
     showStatus("success", "Backup exported!");
   } catch (e) {
     if (e.message === "__clipboard_fallback__") {
@@ -609,11 +616,35 @@ const handleExportFull = async () => {
             )}
           </div>
 
+          {/* Export format toggle */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Format:</span>
+            <button
+              type="button"
+              onClick={() => setExportFormat("json")}
+              className={`px-3 py-1 rounded-lg border transition-colors ${exportFormat === "json" ? "bg-primary/10 border-primary/40 text-primary" : "border-border/50 text-muted-foreground hover:border-primary/30"}`}
+            >
+              Plain .json
+            </button>
+            <button
+              type="button"
+              onClick={() => setExportFormat("compact")}
+              className={`px-3 py-1 rounded-lg border transition-colors ${exportFormat === "compact" ? "bg-primary/10 border-primary/40 text-primary" : "border-border/50 text-muted-foreground hover:border-primary/30"}`}
+            >
+              Compact (.txt)
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-1">
+            {exportFormat === "json"
+              ? "Human-readable JSON. Larger file, easy to inspect."
+              : "Gzip + base64 envelope. Smaller file, opaque to the eye."}
+          </p>
+
           <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start">
             {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Download Backup</p>
-              <p className="text-xs text-muted-foreground font-normal">{selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length ? `${selectedCats.size} categories selected` : "All data, compressed"}</p>
+              <p className="text-xs text-muted-foreground font-normal">{selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length ? `${selectedCats.size} categories selected` : exportFormat === "compact" ? "All data, compressed (.txt)" : "All data, plain JSON"}</p>
             </div>
           </Button>
           <div className="flex gap-2">
