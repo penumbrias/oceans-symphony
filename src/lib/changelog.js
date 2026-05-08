@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 8, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Removed the unused PluralKit sync integration. PluralKit's API security model isn't a great fit for sensitive alter data, and the feature wasn't reachable from the app anyway. Simply Plural import (read-only) remains available.",
+      },
+    ],
+  },
+  {
     date: "May 7, 2026",
     changes: [
       {
