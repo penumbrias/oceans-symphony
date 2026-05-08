@@ -12,7 +12,7 @@ export const DEFAULT_TERMS = {
 };
 
 // Pluralize helper with basic English rules
-function pluralize(word) {
+export function pluralize(word) {
   if (!word) return word;
   if (word.endsWith('s')) return word; // already plural — don't double-pluralize
   if (word.endsWith('y')) return word.slice(0, -1) + 'ies';

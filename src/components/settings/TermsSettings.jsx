@@ -1,4 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Languages, Save } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTerms, pluralize, gerund, agent } from "@/lib/useTerms";
 
 const PRESETS = [
   { label: "DID / OSDD (default)", system: "system", alter: "alter", switch: "switch", front: "front" },
@@ -6,13 +13,6 @@ const PRESETS = [
   { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "influenc" },
   { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
 ];
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Languages, Save } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
-import { useTerms } from "@/lib/useTerms";
 
 export default function TermsSettings() {
   const qc = useQueryClient();
@@ -79,7 +79,7 @@ export default function TermsSettings() {
               className="rounded-xl border border-border/50 p-2.5 text-left text-xs hover:border-primary/50 hover:bg-primary/5 transition-all"
             >
               <p className="font-medium text-foreground">{p.label}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{p.alter} · {p.front}ing</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{p.alter} / {pluralize(p.alter)} · {gerund(p.front)}</p>
             </button>
           ))}
         </div>
@@ -96,9 +96,27 @@ export default function TermsSettings() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Preview: <span className="text-foreground font-medium">{vals.system}</span> · <span className="text-foreground font-medium">{vals.alter}</span> · <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{vals.front}ing</span>
-        </p>
+        {/* Live preview using the same derivation rules as the rest of the app */}
+        {(() => {
+          const v = vals;
+          const rows = [
+            { label: "System", forms: [v.system, pluralize(v.system)] },
+            { label: "Alter",  forms: [v.alter,  pluralize(v.alter)] },
+            { label: "Switch", forms: [v.switch, pluralize(v.switch), gerund(v.switch)] },
+            { label: "Front",  forms: [v.front,  gerund(v.front), agent(v.front), pluralize(agent(v.front))] },
+          ];
+          return (
+            <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2.5 space-y-1.5">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Preview</p>
+              {rows.map(({ label, forms }) => (
+                <div key={label} className="flex items-baseline gap-2 text-xs">
+                  <span className="text-muted-foreground w-12 flex-shrink-0">{label}</span>
+                  <span className="text-foreground">{forms.join(" · ")}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         <Button onClick={handleSave} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
           {saving ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Terms</>}
         </Button>

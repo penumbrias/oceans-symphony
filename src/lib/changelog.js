@@ -29,6 +29,10 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
+        text: "Terminology settings previews now use the same pluralization, gerund, and agent-noun rules as the rest of the app — e.g. headmates, influencing, fronters — instead of naive string concatenation.",
+      },
+      {
+        type: "fix",
         text: "Theme no longer resets to an alter's linked preset on every app open. The linked preset now only applies when the primary fronter actually changes mid-session, not when returning to the app with the same fronter already active.",
       },
       {
