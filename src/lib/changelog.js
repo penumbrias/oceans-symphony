@@ -83,6 +83,54 @@ export const CHANGELOG = [
         type: "improve",
         text: "Removed the unused PluralKit sync integration. PluralKit's API security model isn't a great fit for sensitive alter data, and the feature wasn't reachable from the app anyway. Simply Plural import (read-only) remains available.",
       },
+      {
+        type: "improve",
+        text: "Privacy & Data Notice now clearly explains that data is stored unencrypted by default, and that enabling password encryption provides on-device encryption at rest (not end-to-end).",
+      },
+      {
+        type: "improve",
+        text: "Onboarding tour now mentions that the app is in active development and bugs may be encountered, and the Privacy & Data slide reflects the updated encryption explanation.",
+      },
+      {
+        type: "fix",
+        text: "Terminology settings previews now use the same pluralization, gerund, and agent-noun rules as the rest of the app — e.g. headmates, influencing, fronters — instead of naive string concatenation.",
+      },
+      {
+        type: "feature",
+        text: "Heading font is now customisable in Accessibility settings. Choose from 10 options — serif, sans-serif, handwriting, and display styles — to change the font used for page titles and the app name.",
+      },
+      {
+        type: "fix",
+        text: "Custom color swatches in Appearance now always reflect the colours actually rendered on screen (read from live CSS variables) instead of potentially stale preset data.",
+      },
+      {
+        type: "improve",
+        text: "The Privacy & Data Notice in Settings is now its own collapsible section at the top of the page, making it easy to find and dismiss.",
+      },
+      {
+        type: "improve",
+        text: "Backup downloads are now plain .json files instead of compressed binary — easier to inspect, store, and share.",
+      },
+      {
+        type: "improve",
+        text: "Timeline zoom is now controlled by a two-finger pinch gesture instead of a slider button — pinch in or out on the timeline to adjust row height.",
+      },
+      {
+        type: "improve",
+        text: "Alters list/grid view toggle and column count selector are now separate controls positioned just above the alters list, making them easier to find and use.",
+      },
+      {
+        type: "improve",
+        text: "Alters page: the currently fronting display now uses the same chip-grid style as the dashboard (with session notes, emotion/symptom panel, and hold-menu). Alters grid: swipe right to toggle front, swipe left to toggle primary, tap to open profile.",
+      },
+      {
+        type: "improve",
+        text: "The dashboard edit button is now a minimal icon with no border. Quick Actions settings moved to the top of the Tracking & Analytics section.",
+      },
+      {
+        type: "fix",
+        text: "The swipe-back arrow indicator no longer gets stuck on screen after a cancelled touch gesture (e.g. when iOS interrupts a swipe). Pinned bulletins now show a single solid pin icon instead of two pins.",
+      },
     ],
   },
   {
