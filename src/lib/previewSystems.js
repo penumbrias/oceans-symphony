@@ -82,7 +82,6 @@ function buildTapestry() {
     { k: "milo",    n: "Milo",    p: "he/him",     c: "#f59e0b", r: "Little",       d: "Five. Loves dinosaurs and stickers.", y: 2001, ageA: 5, t: ["little"] },
     { k: "tadpole", n: "Tadpole", p: "any",        c: "#14b8a6", r: "Little",       d: "Tiny. Mostly hums. Has a stuffed frog.", y: 2003, ageA: 3, t: ["little","fragment"] },
     { k: "sparrow", n: "Sparrow", p: "she/they",   c: "#fbbf24", r: "Middle",       d: "Eleven. Practical and a little bossy.", y: 2005, ageA: 11, t: ["middle"] },
-    { k: "noor",    n: "Noor",    p: "she/her",    c: "#0ea5e9", r: "Introject",    d: "Based on a real-life mentor. Calm advice on tap.", y: 2013, t: ["introject"] },
     { k: "blaze",   n: "Blaze",   p: "he/him",     c: "#f97316", r: "Introject",    d: "Action-hero introject. Useful in emergencies.", y: 2014, t: ["introject"] },
     { k: "zee",     n: "Zee",     p: "ze/zir",     c: "#22d3ee", r: "Sexual",       d: "Holds intimacy and bodily autonomy.", y: 2011, t: ["sexual"] },
     { k: "tiny",    n: "tiny",    p: "any",        c: "#94a3b8", r: "Fragment",     d: "Single-purpose: types fast. Comes up only when the keyboard is needed.", y: 2012, t: ["fragment"] },
@@ -235,6 +234,64 @@ ACTIVE SINCE :: 1997
 </p>
 <p style="margin-top:1em">No outside engagement. Internal only.</p>`),
       cf: { _bg_color: "#1e1b4b", _bg_opacity: 0.18, _header_text_color: "#a5b4fc" },
+    },
+    {
+      k: "noor", n: "Noor", p: "she/her", c: "#0ea5e9", r: "Introject", y: 2013, t: ["introject","mentor"],
+      // Noor's profile is intentionally written as a feature tour — the
+      // bio editor handles arbitrary HTML, so you can use an alter card
+      // as in-app documentation if you want.
+      html: richBio(`
+<style>@keyframes noor-glow{0%,100%{box-shadow:0 0 18px rgba(14,165,233,.18)}50%{box-shadow:0 0 32px rgba(14,165,233,.32)}}</style>
+<div style="background:linear-gradient(180deg,#0c1e2e,#0a2538,#0c1e2e);border:1px solid #0ea5e9;border-radius:16px;padding:0;animation:noor-glow 5s ease-in-out infinite;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#0ea5e922,transparent);padding:14px 16px;border-bottom:1px solid #0ea5e944;">
+    <div style="color:#7dd3fc;font-size:.62em;letter-spacing:.3em;text-transform:uppercase;">A guide to the app</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.55em;font-weight:600;color:#e0f2fe;letter-spacing:.04em;margin-top:2px;">Noor — the Docent</div>
+    <div style="color:#7dd3fc;font-size:.78em;font-style:italic;margin-top:2px;">she/her · introject · here to show you around</div>
+  </div>
+  <div style="padding:16px;color:#cbd5e1;font-size:.86em;line-height:1.75;">
+    <p style="margin-bottom:1em;">I'm a mentor introject. In Preview Mode my profile doubles as a guided tour. Tap any of the cards below to know what each piece of the app is for.</p>
+    <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:.75em;">
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">Dashboard</div>
+        <div style="color:#e0f2fe;font-size:.92em;">Currently fronting chips, status note, quick check-in, search, nav grid, bulletin preview. Long-press a chip for the hold menu; swipe right to remove from front, swipe left to toggle primary.</div>
+      </div>
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">Alters</div>
+        <div style="color:#e0f2fe;font-size:.92em;">List + grid views with toggle on the right. Tap a face to open this profile; swipe right to add/remove from front; swipe left to set primary. Search, sort by name or {fronting} time, hide grouped, anonymize.</div>
+      </div>
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">Timeline</div>
+        <div style="color:#e0f2fe;font-size:.92em;">Vertical day-grid showing alter sessions, symptoms, journals, emotions, locations, activities. Pinch to zoom row height; long-press an empty area for a retroactive entry; tap a session bar to edit or delete it.</div>
+      </div>
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">Bulletin Board</div>
+        <div style="color:#e0f2fe;font-size:.92em;">A system-wide feed. Anyone can post. @mention an alter and they get a mention notification. Pin posts, react with emoji, attach polls, comment in threads.</div>
+      </div>
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">Journal &amp; Check-In</div>
+        <div style="color:#e0f2fe;font-size:.92em;">Long-form journal entries (this bio is one of them, technically). Quick Check-Ins are short — mood, energy, emotions, optional symptoms, optional diary card.</div>
+      </div>
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">System Map · Lineage · Inner World</div>
+        <div style="color:#e0f2fe;font-size:.92em;">Map shows alter relationships as a graph. Lineage records emergences, splits, fusions, dormancy. Inner World lets you place alters in named locations on a 2D canvas.</div>
+      </div>
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">Therapy Report</div>
+        <div style="color:#e0f2fe;font-size:.92em;">Compose a printable summary of your data over a date range — mood charts, switch counts, journal excerpts. Export to PDF or JSON, share by file.</div>
+      </div>
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">Friends</div>
+        <div style="color:#e0f2fe;font-size:.92em;">Optional. Share your front status with trusted people via a 4-letter code. Privacy is per-friend (names + colours / count only / hidden) and per-alter (hide specific alters from a specific friend).</div>
+      </div>
+      <div style="background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:10px;padding:10px 12px;">
+        <div style="color:#7dd3fc;font-size:.7em;letter-spacing:.18em;text-transform:uppercase;margin-bottom:2px;">Settings</div>
+        <div style="color:#e0f2fe;font-size:.92em;">Custom terms (system / alter / front / switch and their inflections), themes (per-alter presets that auto-apply when they front), accessibility (font, heading font, text size, touch targets), backup &amp; restore.</div>
+      </div>
+    </div>
+    <p style="font-size:.82em;color:#7dd3fc;font-style:italic;margin-top:1em;">— calm advice on tap, since 2013.</p>
+  </div>
+</div>`),
+      cf: { _bg_color: "#0c1e2e", _bg_opacity: 0.18, _header_text_color: "#7dd3fc" },
     },
   ];
 
@@ -443,6 +500,316 @@ ACTIVE SINCE :: 1997
     [alters.halo.id]:  "Halo's Glow",
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // The rest of this function fills out every other entity type the app
+  // supports, so a user entering Preview Mode can see what each feature
+  // looks like populated. Most records are realistic enough; a handful are
+  // intentionally written as in-app documentation so the preview also acts
+  // as a feature tour.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // === Groups (subsystems) ===========================================
+  const groups = [
+    rec({ name: "The Adults", color: "#7c3aed", description: "Hosts, co-host, and the alters who handle daily logistics.", member_alter_ids: [alters.atlas.id, alters.iris.id, alters.fern.id, alters.linnet.id, alters.noor.id], parent: "root", order: 0 }),
+    rec({ name: "The Protectors", color: "#dc2626", description: "Watchers, gatekeepers, and the alters who step in when things feel unsafe.", member_alter_ids: [alters.jasper.id, alters.wren.id, alters.gate.id, alters.kestrel.id, alters.thorne.id, alters.shade.id], parent: "root", order: 1 }),
+    rec({ name: "The Littles & Middles", color: "#f59e0b", description: "Younger alters. Cared for by Linnet and Sage-style caretakers.", member_alter_ids: [alters.milo.id, alters.poppy.id, alters.tadpole.id, alters.sparrow.id], parent: "root", order: 2 }),
+    rec({ name: "The Teens", color: "#a855f7", description: "Adolescent alters. Loud, sharp, mostly fronting on weekends.", member_alter_ids: [alters.vex.id, alters.rook.id], parent: "root", order: 3 }),
+    rec({ name: "Introjects", color: "#0ea5e9", description: "Alters modelled on outside figures or fictional characters.", member_alter_ids: [alters.noor.id, alters.halo.id, alters.blaze.id], parent: "root", order: 4 }),
+    rec({ name: "Fragments & Dormants", color: "#94a3b8", description: "Alters with limited functions, plus those resting from active fronting.", member_alter_ids: [alters.tiny.id, alters.scout.id, alters.lumen.id, alters.mira.id], parent: "root", order: 5 }),
+  ];
+
+  // === Bulletins (system message board) ==============================
+  const bulletins = [
+    rec({
+      author_alter_id: alters.iris.id,
+      author_alter_ids: [alters.iris.id],
+      content: "Therapy moved to Wednesdays at 4pm starting next week. Calendar updated.",
+      mentioned_alter_ids: [alters.atlas.id],
+      is_pinned: true,
+      reactions: { "👍": [alters.atlas.id, alters.fern.id, alters.noor.id] },
+      created_date: isoOffset(0, 19),
+    }),
+    rec({
+      author_alter_id: alters.linnet.id,
+      author_alter_ids: [alters.linnet.id],
+      content: "littles — bedtime is 9pm tonight. milo, that means you. 🦖",
+      mentioned_alter_ids: [alters.milo.id, alters.poppy.id, alters.tadpole.id],
+      is_pinned: false,
+      reactions: { "💛": [alters.poppy.id], "😴": [alters.tadpole.id] },
+      created_date: isoOffset(1, 20, 30),
+    }),
+    rec({
+      author_alter_id: alters.atlas.id,
+      author_alter_ids: [alters.atlas.id],
+      content: "Heads up everyone — the Bulletin Board is the system-wide feed. Anyone can post; you can @mention specific alters and they'll see a notification. Pinning a post (the pin icon) keeps it at the top until unpinned. Reactions are emoji-only and show who reacted.",
+      mentioned_alter_ids: [],
+      is_pinned: true,
+      reactions: { "📌": [alters.iris.id, alters.noor.id, alters.fern.id] },
+      created_date: isoOffset(7, 10),
+    }),
+    rec({
+      author_alter_id: alters.rook.id,
+      author_alter_ids: [alters.rook.id],
+      content: "playlist for the back hallway: track 1 deftones — change. track 2 mitski — washing machine heart. track 3 american football — never meant. <i>do not skip</i>",
+      mentioned_alter_ids: [alters.vex.id],
+      is_pinned: false,
+      reactions: { "🎶": [alters.vex.id], "🛹": [alters.vex.id] },
+      created_date: isoOffset(2, 22),
+    }),
+    rec({
+      author_alter_id: alters.noor.id,
+      author_alter_ids: [alters.noor.id],
+      content: "Reminder for Atlas — therapy homework is in the journal under the \"therapy\" tag. Take your time.",
+      mentioned_alter_ids: [alters.atlas.id],
+      is_pinned: false,
+      reactions: { "🙏": [alters.atlas.id] },
+      created_date: isoOffset(3, 15),
+    }),
+    rec({
+      author_alter_id: alters.poppy.id,
+      author_alter_ids: [alters.poppy.id],
+      content: "i drew a bunny!! 🐰🌈",
+      mentioned_alter_ids: [],
+      is_pinned: false,
+      reactions: { "🥰": [alters.linnet.id, alters.iris.id, alters.sparrow.id], "🐰": [alters.tadpole.id] },
+      created_date: isoOffset(5, 14),
+    }),
+    rec({
+      author_alter_id: alters.gate.id,
+      author_alter_ids: [alters.gate.id],
+      content: "Front rotation note: Atlas needs sleep tonight. Iris on tomorrow morning. Shade is contained.",
+      mentioned_alter_ids: [alters.atlas.id, alters.iris.id, alters.shade.id],
+      is_pinned: false,
+      reactions: {},
+      created_date: isoOffset(4, 22, 30),
+    }),
+  ];
+
+  const bulletinComments = [
+    rec({ bulletin_id: bulletins[0].id, author_alter_id: alters.atlas.id, content: "Got it. Will move the Wednesday standup.", created_date: isoOffset(0, 19, 15) }),
+    rec({ bulletin_id: bulletins[2].id, author_alter_id: alters.iris.id, content: "Good explainer. The reaction list also lets you see who reacted by tapping the count.", created_date: isoOffset(7, 11) }),
+    rec({ bulletin_id: bulletins[3].id, author_alter_id: alters.vex.id, content: "approved.", created_date: isoOffset(2, 22, 30) }),
+    rec({ bulletin_id: bulletins[5].id, author_alter_id: alters.linnet.id, content: "It's beautiful, Poppy. Going on the fridge.", created_date: isoOffset(5, 14, 20) }),
+  ];
+
+  // === Polls (system decisions) ======================================
+  const polls = [
+    rec({
+      question: "What should we focus on this week in therapy?",
+      options: [
+        { label: "Working with Kestrel", votes: [alters.atlas.id, alters.iris.id, alters.noor.id] },
+        { label: "Halo's emergence",    votes: [alters.fern.id] },
+        { label: "Lumen check-in",      votes: [alters.gate.id] },
+      ],
+      multi_choice: false,
+      author_alter_id: alters.atlas.id,
+      created_date: isoOffset(2, 21),
+    }),
+    rec({
+      question: "Friday night plan?",
+      options: [
+        { label: "Game night",  votes: [alters.rook.id, alters.vex.id, alters.poppy.id, alters.sparrow.id, alters.iris.id] },
+        { label: "Movie night", votes: [alters.fern.id, alters.linnet.id] },
+        { label: "Early bed",   votes: [alters.atlas.id, alters.gate.id] },
+      ],
+      multi_choice: false,
+      author_alter_id: alters.iris.id,
+      created_date: isoOffset(1, 18),
+    }),
+  ];
+
+  // === Tasks (To-Do List) ============================================
+  const tasks = [
+    rec({ title: "Refill prescriptions",       completed: false, priority: "high",   due_date: isoOffset(-2, 17), assigned_alter_ids: [alters.iris.id] }),
+    rec({ title: "Email therapist",            completed: true,  priority: "medium", completed_date: isoOffset(1, 11), assigned_alter_ids: [alters.atlas.id] }),
+    rec({ title: "Plan weekend hike",          completed: false, priority: "low",    due_date: isoOffset(-4, 9), assigned_alter_ids: [alters.fern.id] }),
+    rec({ title: "Call Mum",                   completed: false, priority: "medium" }),
+    rec({ title: "Buy groceries (Wed list)",   completed: true,  priority: "medium", completed_date: isoOffset(2, 18) }),
+    rec({ title: "Sketch from prompt #14",     completed: false, priority: "low",    assigned_alter_ids: [alters.poppy.id, alters.rook.id] }),
+    rec({ title: "Replace bedroom lightbulb",  completed: true,  priority: "low",    completed_date: isoOffset(3, 19) }),
+    rec({ title: "System meeting prep notes",  completed: false, priority: "medium", due_date: isoOffset(-1, 19), assigned_alter_ids: [alters.atlas.id, alters.noor.id] }),
+    rec({ title: "Restock Halo's tea cabinet", completed: false, priority: "low",    assigned_alter_ids: [alters.halo.id, alters.fern.id] }),
+  ];
+
+  // === Daily Task Templates (recurring) ==============================
+  const dailyTaskTemplates = [
+    rec({ title: "Morning meds",      time_of_day: "08:00", days_of_week: [0,1,2,3,4,5,6], priority: "high",   description: "Take morning meds." }),
+    rec({ title: "Hydration check",   time_of_day: "12:00", days_of_week: [0,1,2,3,4,5,6], priority: "medium", description: "Big glass of water." }),
+    rec({ title: "Evening journal",   time_of_day: "21:30", days_of_week: [0,1,2,3,4,5,6], priority: "low",    description: "5-minute end-of-day reflection." }),
+    rec({ title: "Therapy homework",  time_of_day: "19:00", days_of_week: [1,3],            priority: "medium", description: "Tuesday + Thursday IFS practice." }),
+  ];
+
+  // === Sleep entries =================================================
+  const sleepEntries = [
+    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(0, 23, 15), wake_time: isoOffset(-1, 7, 30), quality: 6, notes: "Halo settled the evening. Slept solid.", is_interrupted: false, dreamed: false, had_nightmare: false }),
+    rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(1, 22, 45), wake_time: isoOffset(0, 6, 50),   quality: 5, notes: "Up once at 3am.", is_interrupted: true, interruption_count: 1, dreamed: true, had_nightmare: false }),
+    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(2, 23, 50), wake_time: isoOffset(1, 7, 0),    quality: 4, notes: "Long day. Hard to fall asleep.", is_interrupted: true, interruption_count: 2, dreamed: false, had_nightmare: false }),
+    rec({ date: new Date(Date.now() - 3 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(3, 22, 10), wake_time: isoOffset(2, 8, 5),    quality: 8, notes: "Best sleep in a week.", is_interrupted: false, dreamed: true, had_nightmare: false }),
+    rec({ date: new Date(Date.now() - 4 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(4, 0, 30),  wake_time: isoOffset(3, 7, 20),   quality: 3, notes: "Nightmare around 4am. Shade adjacent.", is_interrupted: true, interruption_count: 3, dreamed: true, had_nightmare: true }),
+    rec({ date: new Date(Date.now() - 5 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(5, 23, 0),  wake_time: isoOffset(4, 7, 0),    quality: 7, is_interrupted: false, dreamed: false, had_nightmare: false }),
+    rec({ date: new Date(Date.now() - 7 * DAY).toISOString().slice(0, 10), bedtime: isoOffset(7, 22, 30), wake_time: isoOffset(6, 6, 30),   quality: 6, is_interrupted: true, interruption_count: 1, dreamed: false, had_nightmare: false }),
+  ];
+
+  // === Reminders =====================================================
+  const reminders = [
+    rec({ title: "Take morning meds",   action_type: "open_diary",          frequency: "daily",  time: "08:00", delivery_channels: ["in_app", "push"], is_active: true,  description: "Daily reminder to take meds and log the check-in." }),
+    rec({ title: "Hydration check",     action_type: "open_quick_check_in", frequency: "daily",  time: "12:00", delivery_channels: ["in_app"],         is_active: true }),
+    rec({ title: "Therapy at 4pm",      action_type: "none",                frequency: "weekly", time: "15:30", days_of_week: [3], delivery_channels: ["in_app","push"], is_active: true,  description: "30-min heads-up before therapy." }),
+    rec({ title: "Evening journal",     action_type: "open_journal",        frequency: "daily",  time: "21:30", delivery_channels: ["in_app"],         is_active: true }),
+    rec({ title: "Weekly system meeting", action_type: "open_system_check_in", frequency: "weekly", time: "20:00", days_of_week: [0], delivery_channels: ["in_app","push"], is_active: true, description: "Sunday-night sit-down." }),
+  ];
+
+  // === Custom emotions / triggers / activity categories ==============
+  const customEmotions = [
+    rec({ label: "co-conscious",   category: "neutral",  color: "#a78bfa" }),
+    rec({ label: "blurry",         category: "negative", color: "#94a3b8" }),
+    rec({ label: "found",          category: "positive", color: "#10b981" }),
+    rec({ label: "switching-soon", category: "neutral",  color: "#f59e0b" }),
+    rec({ label: "rooted",         category: "positive", color: "#65a30d" }),
+    rec({ label: "rushed",         category: "negative", color: "#dc2626" }),
+  ];
+  const triggerTypes = [
+    rec({ label: "Phone call",     emoji: "📞", hint: "unexpected calls, voicemails" }),
+    rec({ label: "Family contact", emoji: "👪", hint: "family of origin contact" }),
+    rec({ label: "Big crowd",      emoji: "🏟️", hint: "loud, packed spaces" }),
+    rec({ label: "Old song",       emoji: "🎵", hint: "music with strong memory associations" }),
+  ];
+  const activityCategories = [
+    rec({ name: "Self-care",      color: "#10b981" }),
+    rec({ name: "Therapy & work", color: "#7c3aed" }),
+    rec({ name: "Creative",       color: "#f43f5e" }),
+    rec({ name: "Movement",       color: "#0ea5e9" }),
+    rec({ name: "Connection",     color: "#fbbf24" }),
+    rec({ name: "Rest",           color: "#94a3b8" }),
+  ];
+  const activityGoals = [
+    rec({ category: "Movement",   target_minutes_per_week: 90,  description: "Walks, yoga, skating." }),
+    rec({ category: "Creative",   target_minutes_per_week: 180, description: "Drawing, music, writing — anyone." }),
+    rec({ category: "Connection", target_minutes_per_week: 60,  description: "Therapy, friends, system meetings." }),
+  ];
+
+  // === Grounding techniques ==========================================
+  const groundingTechniques = [
+    rec({ name: "5-4-3-2-1 senses",  category: "sensory",   description: "Name 5 things you see, 4 you can touch, 3 you hear, 2 you smell, 1 you taste.", steps: ["5 things you see","4 things you can touch","3 things you hear","2 things you smell","1 thing you taste"], duration_seconds: 180, is_default: true,  is_archived: false, order: 0 }),
+    rec({ name: "Cold-water reset",  category: "sensory",   description: "Splash cold water on the face or hold an ice cube to interrupt a freeze.", steps: ["Cup cold water in hands","Hold to face for 15s","Take three slow breaths","Pat dry"], duration_seconds: 60, is_default: false, is_archived: false, order: 1 }),
+    rec({ name: "Inner room walk",   category: "imaginal",  description: "For internal anchoring — walk through the system's inner room and greet whoever's there.", steps: ["Close your eyes","Picture the inner room","Notice who's in it","Say hi without trying to fix anything"], duration_seconds: 240, is_default: false, is_archived: false, order: 2, suggested_for: [alters.shade.id, alters.atlas.id] }),
+    rec({ name: "Box breathing 4×4", category: "breath",    description: "4-second inhale, 4 hold, 4 exhale, 4 hold — repeat.", steps: ["Inhale 4s","Hold 4s","Exhale 4s","Hold 4s","Repeat for 2 minutes"], duration_seconds: 120, is_default: true, is_archived: false, order: 3 }),
+    rec({ name: "Halo's tea ritual", category: "comfort",   description: "Halo's recipe — boil water, choose a tea, breathe in the steam for one full minute before sipping.", steps: ["Boil water","Choose tea","Pour and breathe in steam for 1 minute","Sip slowly"], duration_seconds: 360, is_default: false, is_archived: false, order: 4, suggested_for: [alters.halo.id, alters.fern.id] }),
+  ];
+  const groundingPreferences = [
+    rec({ alter_id: alters.atlas.id, technique_ids: [groundingTechniques[0].id, groundingTechniques[3].id], notes: "Atlas's go-to combo." }),
+    rec({ alter_id: alters.shade.id, technique_ids: [groundingTechniques[2].id, groundingTechniques[1].id], notes: "Inner-room walk first; cold water if surfacing." }),
+  ];
+
+  // === Inner world locations =========================================
+  const innerWorldLocations = [
+    rec({ name: "The Inner Room",       description: "Open meeting space. Round table, soft chairs, a tall window. System meetings happen here.", color: "#a78bfa", x: 200, y: 150, occupant_alter_ids: [alters.atlas.id, alters.iris.id, alters.noor.id, alters.gate.id] }),
+    rec({ name: "The Garden",           description: "Outside the inner room. Mint, lavender, cherry tomatoes. Fern's territory.", color: "#65a30d", x: 80,  y: 80,  occupant_alter_ids: [alters.fern.id, alters.linnet.id] }),
+    rec({ name: "The Library",          description: "Where Noor reads, Atlas works, and Echo hides. Tall stacks, lamps, no clocks.", color: "#0ea5e9", x: 320, y: 90,  occupant_alter_ids: [alters.noor.id, alters.atlas.id] }),
+    rec({ name: "The Playroom",         description: "Bright rugs, blocks, dinosaurs, art supplies. Linnet is usually here.", color: "#f59e0b", x: 100, y: 240, occupant_alter_ids: [alters.poppy.id, alters.milo.id, alters.tadpole.id, alters.linnet.id] }),
+    rec({ name: "The Hallway",          description: "Long, dim, painted concrete. The teens hang out here. Sound carries.", color: "#a855f7", x: 350, y: 220, occupant_alter_ids: [alters.vex.id, alters.rook.id] }),
+    rec({ name: "The Vault",            description: "Where Shade lives. Behind a heavy door. Gate decides who passes.", color: "#1e293b", x: 200, y: 290, occupant_alter_ids: [alters.shade.id, alters.gate.id] }),
+  ];
+
+  // === Alter messages (system board to a specific alter) =============
+  const alterMessages = [
+    rec({ alter_id: alters.kestrel.id, author_alter_id: alters.atlas.id, content: "Hey. Therapist asked us to write you a thank-you for keeping us safe when no one else could. So — thank you. We'd like to know what you need now.", created_date: isoOffset(8, 21) }),
+    rec({ alter_id: alters.kestrel.id, author_alter_id: alters.iris.id,  content: "Seconded.", created_date: isoOffset(8, 21, 5) }),
+    rec({ alter_id: alters.halo.id,    author_alter_id: alters.poppy.id, content: "i made you a card!! its on the fridge", created_date: isoOffset(5, 15) }),
+    rec({ alter_id: alters.lumen.id,   author_alter_id: alters.noor.id,  content: "We're not waiting for you. Rest as long as you need.", created_date: isoOffset(30, 12) }),
+  ];
+
+  // === Alter notes (per-alter notes) =================================
+  const alterNotes = [
+    rec({ alter_id: alters.atlas.id,  content: "Sleep is non-negotiable. If I'm under 6 hours two nights in a row, hand off to Iris.", created_date: isoOffset(20, 22) }),
+    rec({ alter_id: alters.iris.id,   content: "Do NOT reply to family-of-origin emails the same day. 24-hour rule.", created_date: isoOffset(15, 19) }),
+    rec({ alter_id: alters.shade.id,  content: "Surface protocol: notify Gate, log session, no driving for 4 hours after.", created_date: isoOffset(60, 14) }),
+    rec({ alter_id: alters.poppy.id,  content: "favorite snacks: strawberries, cheese crackers, juice boxes (apple)", created_date: isoOffset(40, 10) }),
+  ];
+
+  // === Diary cards + daily progress =================================
+  const diaryTemplates = [
+    rec({ name: "Standard daily",  is_default: true,  fields: [
+      { id: "mood",          label: "Mood",          type: "rating", scale: 10 },
+      { id: "anxiety",       label: "Anxiety",       type: "rating", scale: 10 },
+      { id: "dissociation",  label: "Dissociation",  type: "rating", scale: 10 },
+      { id: "switches",      label: "Switches",      type: "number" },
+      { id: "skills_used",   label: "Skills used",   type: "checkbox-list", options: ["grounding","breathwork","journaling","reaching out","movement"] },
+      { id: "what",          label: "What happened", type: "longtext" },
+    ]}),
+  ];
+  const diaryCards = [
+    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 6, anxiety: 4, dissociation: 3, switches: 5, skills_used: ["grounding","journaling"] }, notes: { what: "Co-fronting with Iris and Fern. Therapy moved to Wednesdays." } }),
+    rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 5, anxiety: 6, dissociation: 5, switches: 8, skills_used: ["breathwork"] },                notes: { what: "Lots of switching. Tiring but not unsafe." } }),
+    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 7, anxiety: 3, dissociation: 2, switches: 4, skills_used: ["grounding","movement","reaching out"] }, notes: { what: "Good day. Halo and Atlas co-fronted in the kitchen." } }),
+    rec({ date: new Date(Date.now() - 4 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 3, anxiety: 8, dissociation: 7, switches: 3, skills_used: ["grounding"] },                          notes: { what: "Shade surfaced briefly. Heavy day." } }),
+    rec({ date: new Date(Date.now() - 6 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 6, anxiety: 4, dissociation: 3, switches: 6, skills_used: ["journaling","movement"] },              notes: { what: "Therapy. Talked about Kestrel." } }),
+  ];
+  const dailyProgress = [
+    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), tasks_completed: 2, tasks_total: 5 }),
+    rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0,10), tasks_completed: 4, tasks_total: 4 }),
+    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0,10), tasks_completed: 1, tasks_total: 3 }),
+    rec({ date: new Date(Date.now() - 3 * DAY).toISOString().slice(0,10), tasks_completed: 3, tasks_total: 4 }),
+  ];
+
+  // === Symptom check-ins (intensity-only spot checks) =================
+  const symptomCheckIns = [
+    rec({ symptom_id: symptoms[0].id, timestamp: isoOffset(2, 14), severity: 6, notes: "After the trigger." }),
+    rec({ symptom_id: symptoms[0].id, timestamp: isoOffset(2, 17), severity: 4 }),
+    rec({ symptom_id: symptoms[1].id, timestamp: isoOffset(5, 11), severity: 5 }),
+    rec({ symptom_id: symptoms[3].id, timestamp: isoOffset(4, 18), severity: 7, notes: "Three hours unaccounted for." }),
+  ];
+
+  // === Support / IFS-style journal entries ===========================
+  const supportJournals = [
+    rec({ title: "Welcoming the Critic",   topic: "managers",     content: "Tried to thank the Critic instead of arguing back. Didn't go great. Will try again.", created_date: isoOffset(2, 22), tags: ["managers","ifs"] }),
+    rec({ title: "After the firefighter",  topic: "firefighters", content: "Snacks, scrolling, three hours gone. Not as a failure — as information.", created_date: isoOffset(3, 23), tags: ["firefighters"] }),
+    rec({ title: "Welcoming Small One",    topic: "exiles",       content: "She came forward in session. Just sadness, no story attached. Sat together.", created_date: isoOffset(7, 22), tags: ["exiles","unburdening"] }),
+  ];
+  const learningProgress = [
+    rec({ topic: "managers",     progress: 0.6, last_visited: isoOffset(2, 22) }),
+    rec({ topic: "firefighters", progress: 0.3, last_visited: isoOffset(3, 23) }),
+    rec({ topic: "exiles",       progress: 0.2, last_visited: isoOffset(7, 22) }),
+    rec({ topic: "self-energy",  progress: 0.5, last_visited: isoOffset(11, 21) }),
+  ];
+
+  // === Therapy report templates / exports ============================
+  const reportTemplates = [
+    rec({ name: "Weekly clinical summary", description: "For the Wednesday session — last 7 days of mood, dissociation, switches, key journal excerpts.", date_range_days: 7,  sections: ["mood_chart","dissociation_chart","switch_count","journal_excerpts","status_notes"], default: true }),
+    rec({ name: "Monthly overview",        description: "Bigger picture for the monthly check-in — fronting time per alter, symptom patterns.", date_range_days: 30, sections: ["fronting_summary","symptom_chart","activities_summary","relationships"], default: false }),
+  ];
+  const reportExports = [
+    rec({ template_id: reportTemplates[0].id, exported_at: isoOffset(7, 16), format: "pdf",  filename: "symphony-weekly-2026-04-30.pdf" }),
+    rec({ template_id: reportTemplates[0].id, exported_at: isoOffset(0, 17), format: "json", filename: "symphony-weekly-2026-05-08.json" }),
+  ];
+
+  // === Mention log ===================================================
+  const mentionLogs = [
+    rec({ mentioned_alter_id: alters.atlas.id,   source_type: "bulletin", source_id: bulletins[0].id, source_label: "Bulletin Board", navigate_path: `/bulletin/${bulletins[0].id}`, read: false, created_date: isoOffset(0, 19) }),
+    rec({ mentioned_alter_id: alters.milo.id,    source_type: "bulletin", source_id: bulletins[1].id, source_label: "Bulletin Board", navigate_path: `/bulletin/${bulletins[1].id}`, read: true,  created_date: isoOffset(1, 20, 30) }),
+    rec({ mentioned_alter_id: alters.shade.id,   source_type: "bulletin", source_id: bulletins[6].id, source_label: "Front rotation", navigate_path: `/bulletin/${bulletins[6].id}`, read: false, created_date: isoOffset(4, 22, 30) }),
+  ];
+
+  // === Custom fields (system-wide) + alter-specific custom fields ====
+  const customFields = [
+    rec({ name: "Likes",     order: 0, type: "tags",    placeholder: "Tag list" }),
+    rec({ name: "Dislikes",  order: 1, type: "tags",    placeholder: "Tag list" }),
+    rec({ name: "Triggers",  order: 2, type: "tags",    placeholder: "Sensory / situational triggers" }),
+    rec({ name: "Comfort",   order: 3, type: "longtext",placeholder: "What helps when this alter is overwhelmed" }),
+  ];
+
+  // === Relationship types (custom labels for the system map) =========
+  const relationshipTypes = [
+    rec({ label: "Co-host",        is_default: true,  color: "#7c3aed" }),
+    rec({ label: "Protects",       is_default: true,  color: "#dc2626" }),
+    rec({ label: "Caretaker of",   is_default: true,  color: "#06b6d4" }),
+    rec({ label: "Looks after",    is_default: false, color: "#65a30d" }),
+    rec({ label: "Trusts deeply",  is_default: false, color: "#fbbf24" }),
+    rec({ label: "Working it out", is_default: false, color: "#a855f7" }),
+    rec({ label: "Mentor to",      is_default: false, color: "#0ea5e9" }),
+    rec({ label: "Sibling-like",   is_default: false, color: "#f59e0b" }),
+  ];
+
   return {
     SystemSettings:    toMap([settings]),
     Alter:             toMap(Object.values(alters)),
@@ -456,6 +823,34 @@ ACTIVE SINCE :: 1997
     SystemChangeEvent: toMap(systemEvents),
     Symptom:           toMap(symptoms),
     SymptomSession:    toMap(symptomSessions),
+    SymptomCheckIn:    toMap(symptomCheckIns),
+    Group:             toMap(groups),
+    Bulletin:          toMap(bulletins),
+    BulletinComment:   toMap(bulletinComments),
+    Poll:              toMap(polls),
+    Task:              toMap(tasks),
+    DailyTaskTemplate: toMap(dailyTaskTemplates),
+    Sleep:             toMap(sleepEntries),
+    Reminder:          toMap(reminders),
+    CustomEmotion:     toMap(customEmotions),
+    TriggerType:       toMap(triggerTypes),
+    ActivityCategory:  toMap(activityCategories),
+    ActivityGoal:      toMap(activityGoals),
+    GroundingTechnique:toMap(groundingTechniques),
+    GroundingPreference: toMap(groundingPreferences),
+    InnerWorldLocation:toMap(innerWorldLocations),
+    AlterMessage:      toMap(alterMessages),
+    AlterNote:         toMap(alterNotes),
+    DiaryTemplate:     toMap(diaryTemplates),
+    DiaryCard:         toMap(diaryCards),
+    DailyProgress:     toMap(dailyProgress),
+    SupportJournalEntry: toMap(supportJournals),
+    LearningProgress:  toMap(learningProgress),
+    ReportTemplate:    toMap(reportTemplates),
+    ReportExport:      toMap(reportExports),
+    MentionLog:        toMap(mentionLogs),
+    CustomField:       toMap(customFields),
+    RelationshipType:  toMap(relationshipTypes),
     $themePresets:     themePresets,
     $alterThemeLinks:  alterThemeLinks,
   };
