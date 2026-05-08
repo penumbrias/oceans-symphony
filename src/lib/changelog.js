@@ -56,6 +56,10 @@ export const CHANGELOG = [
         text: "Alters grid: swipe gestures (swipe right to toggle front, swipe left to toggle primary, tap to open profile) now work reliably on iOS and Android — rewritten using native touch events.",
       },
       {
+        type: "improve",
+        text: "Alters list view now supports the same swipe gestures as the grid: swipe right to toggle front, swipe left to toggle primary. Tap still opens the profile. The fronting toggle button continues to work independently.",
+      },
+      {
         type: "fix",
         text: "Theme linked to a fronter's preset no longer resets on every app open — it now only applies when the fronter actually changes during the current session.",
       },
