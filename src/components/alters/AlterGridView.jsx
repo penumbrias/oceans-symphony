@@ -151,21 +151,30 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
   const togglePrimary = async (alter) => {
     const mySession = activeSessions.find(s => s.alter_id === alter.id);
-    if (!mySession) {
-      toast(`${alter.name} isn't fronting — swipe right to add to front first`);
-      return;
-    }
     try {
-      if (mySession.is_primary) {
+      if (mySession?.is_primary) {
         await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
         toast.success(`${alter.name} demoted to co-fronter`);
       } else {
+        // Demote whoever is currently primary so there's only ever one.
         const currentPrimary = activeSessions.find(s => s.is_primary);
         if (currentPrimary) {
           await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
         }
-        await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
-        toast.success(`${alter.name} promoted to primary`);
+        if (mySession) {
+          // Already fronting — just promote them.
+          await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
+          toast.success(`${alter.name} promoted to primary`);
+        } else {
+          // Not fronting yet — start a fronting session as primary.
+          await base44.entities.FrontingSession.create({
+            alter_id: alter.id,
+            is_primary: true,
+            start_time: new Date().toISOString(),
+            is_active: true,
+          });
+          toast.success(`${alter.name} is now primary fronter`);
+        }
       }
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });

@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 8, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Dashboard nav grid no longer blocks page scrolling when you swipe over the tiles outside of edit mode. The Edit button next to the search bar is also a clean pencil icon now — no border, no label.",
+      },
+      {
+        type: "improve",
+        text: "In the alters grid view, swiping left on an alter who isn't fronting now starts a fronting session and sets them as primary in one go. Previously, swipe-left only worked if they were already fronting.",
+      },
+      {
         type: "improve",
         text: "Preview Mode now ships three new example systems: The Hearth (a small DID system with five alters), The Tapestry (a large polyfragmented DID system with 24 alters across hosts, protectors, caretakers, littles, teens, introjects, gatekeeper, persecutors, fragments, and dormants), and Inner Compass (a singlet using IFS — one Self surrounded by Manager, Firefighter, and Exile parts). Each preview also brings its own theme, font, and terminology so you can feel the app in three very different shapes. Several alters in each preview carry their own theme preset that takes over the entire app — colors, font, AND vocabulary — when they're the primary fronter. Swipe an alter's avatar to set them primary and watch the look-and-feel switch. Selected preview alters also have hand-styled profile pages — kid-coded with stickers, stark and edgy, ornate with quotes, monospace and clinical — to show what the profile editor's HTML bio + per-alter background colours can do.",
       },
