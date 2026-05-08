@@ -17,7 +17,11 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "Alters grid: single tap now toggles an alter in/out of front, double-tap opens their profile, and long-press on a fronting alter switches primary status. The dashboard edit button is now a minimal icon with no border.",
+        text: "Alters page: the currently fronting display now uses the same chip-grid style as the dashboard (with session notes, emotion/symptom panel, and hold-menu). Alters grid: swipe right to toggle front, swipe left to toggle primary, tap to open profile.",
+      },
+      {
+        type: "improve",
+        text: "The dashboard edit button is now a minimal icon with no border. Quick Actions settings moved to the top of the Tracking & Analytics section.",
       },
       {
         type: "fix",

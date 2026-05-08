@@ -207,13 +207,13 @@ export default function Settings() {
             <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
           </div>
           <div className="border-t border-border/30 pt-4">
+            <QuickActionsConfig />
+          </div>
+          <div className="border-t border-border/30 pt-4">
             <CustomEmotionsManager />
           </div>
           <div className="border-t border-border/30 pt-4">
             <CustomTriggerTypesManager />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <QuickActionsConfig />
           </div>
           <div className="border-t border-border/30 pt-4">
             <div>

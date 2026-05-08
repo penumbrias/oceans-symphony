@@ -6,7 +6,7 @@ import { Users, Sparkles, Plus } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
-import FrontingBar from "@/components/fronting/FrontingBar";
+import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
@@ -116,7 +116,7 @@ export default function Home() {
         </Button>
       </motion.div>
 
-      <FrontingBar alters={activeAlters} />
+      <CurrentFronters alters={activeAlters} />
       <div data-tour="alters-grid">
         <AlterGrid alters={activeAlters} currentSession={activeSession} />
       </div>
