@@ -20,6 +20,10 @@ export const CHANGELOG = [
         text: "Hotfix: /diary route now redirects to the Check-In Log — the separate Daily Log page was causing confusion.",
       },
       {
+        type: "improve",
+        text: "Privacy & Data Notice now clearly explains that data is stored unencrypted by default, and that enabling password encryption provides on-device encryption at rest (not end-to-end).",
+      },
+      {
         type: "fix",
         text: "Theme no longer resets to an alter's linked preset on every app open. The linked preset now only applies when the primary fronter actually changes mid-session, not when returning to the app with the same fronter already active.",
       },

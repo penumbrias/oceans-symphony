@@ -154,7 +154,9 @@ export default function Settings() {
           <div className="space-y-3 text-sm text-muted-foreground">
             <div className="space-y-1">
               <p className="font-medium text-foreground">🔒 Local Storage</p>
-              <p>All data is stored on your device with <strong>AES-256-GCM encryption</strong>. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
+              <p>All data is stored <strong>locally on your device</strong> — nothing is sent to a server. By default, data is stored unencrypted in your browser's local storage.</p>
+              <p className="mt-1">If you enable <strong>password encryption</strong> (in Data &amp; Privacy → Storage Mode), your data is encrypted with <strong>AES-256-GCM</strong> before being written to disk. This is <em>encryption at rest</em> — it protects your data if someone accesses your device directly. It is <strong>not</strong> end-to-end encryption; no data is transmitted in either case.</p>
+              <p className="mt-1 text-amber-600 dark:text-amber-400"><strong>If you enable encryption and lose your password, your data cannot be recovered.</strong> There is no reset.</p>
             </div>
             <div className="space-y-1">
               <p className="font-medium text-foreground">💾 Backups</p>
