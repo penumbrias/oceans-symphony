@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp, FolderMinus, Camera } from "lucide-react";
+import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp, FolderMinus, Camera } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +20,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [showFolders, setShowFolders] = useState(true);
-  // displayMode cycles: "list" | "2" | "3" | "4" | "5"
+  // displayMode: "list" | "2" | "3" | "4" | "5"
   const [displayMode, setDisplayMode] = useState(() => {
     const saved = localStorage.getItem("alter_display_mode");
     if (saved) return saved;
@@ -28,17 +28,29 @@ export default function AlterGrid({ alters, currentSession = null }) {
     if (oldCols) return oldCols;
     return "list";
   });
+  const isGrid = displayMode !== "list";
+
+  const setViewList = () => {
+    if (isGrid) localStorage.setItem("alter_last_grid_cols", displayMode);
+    setDisplayMode("list");
+    localStorage.setItem("alter_display_mode", "list");
+  };
+  const setViewGrid = () => {
+    const last = localStorage.getItem("alter_last_grid_cols") || "3";
+    setDisplayMode(last);
+    localStorage.setItem("alter_display_mode", last);
+  };
+  const setGridCols = (n) => {
+    const s = String(n);
+    setDisplayMode(s);
+    localStorage.setItem("alter_display_mode", s);
+    localStorage.setItem("alter_last_grid_cols", s);
+  };
+
   // anonymize cycles: "off" | "names" | "all"
   const [anonymize, setAnonymize] = useState("off");
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [hideGrouped, setHideGrouped] = useState(() => localStorage.getItem("alter_hide_grouped") === "true");
-
-  const DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
-  const cycleDisplayMode = () => {
-    const next = DISPLAY_CYCLE[(DISPLAY_CYCLE.indexOf(displayMode) + 1) % DISPLAY_CYCLE.length];
-    setDisplayMode(next);
-    localStorage.setItem("alter_display_mode", next);
-  };
 
   const cycleAnonymize = () => {
     setAnonymize(a => ({ "off": "names", "names": "all", "all": "off" }[a]));
@@ -202,15 +214,6 @@ export default function AlterGrid({ alters, currentSession = null }) {
           <FolderMinus className="w-4 h-4" />
         </button>
 
-        {/* View / column cycle */}
-        <button
-          data-tour="alter-view-toggle"
-          onClick={cycleDisplayMode}
-          title={displayMode === "list" ? "Switch to 2-column grid" : `${displayMode}-col grid — tap to ${displayMode === "5" ? "switch to list" : "add a column"}`}
-          className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors text-xs font-bold">
-          {displayMode === "list" ? <Grid3X3 className="w-4 h-4" /> : displayMode}
-        </button>
-
         {/* Anonymize toggle */}
         <button
           onClick={cycleAnonymize}
@@ -249,9 +252,37 @@ export default function AlterGrid({ alters, currentSession = null }) {
 
         {/* Alters list/grid */}
         <div>
-          <div className="flex items-center gap-2 mb-3 px-1">
+          <div className="flex items-center gap-2 mb-3 px-1" data-tour="alter-view-toggle">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
             <div className="flex-1 h-px bg-border/50" />
+            {/* List / Grid toggle */}
+            <div className="flex items-center gap-0.5 bg-muted/30 rounded-lg p-0.5">
+              <button
+                onClick={setViewList}
+                title="List view"
+                className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors ${!isGrid ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={setViewGrid}
+                title="Grid view"
+                className={`flex items-center justify-center w-6 h-6 rounded-md transition-colors ${isGrid ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                <Grid3X3 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {/* Column count — grid mode only */}
+            {isGrid && (
+              <div className="flex items-center gap-0.5 bg-muted/30 rounded-lg p-0.5">
+                {[2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setGridCols(n)}
+                    className={`flex items-center justify-center w-6 h-6 rounded-md text-[11px] font-bold transition-colors ${displayMode === String(n) ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           {filtered.length > 0 ?
           displayMode === "list" ?
