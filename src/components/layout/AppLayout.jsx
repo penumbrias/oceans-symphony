@@ -156,10 +156,12 @@ const primaryFronter = activeSession?.alter_id
   : (activeSession?.primary_alter_id ?? null);
 const lastAppliedFronterRef = useRef(localStorage.getItem('symphony_lastThemeFronter') || null);
 useEffect(() => {
-  if (primaryFronter === lastAppliedFronterRef.current) return;
+  if (!primaryFronter) return; // Sessions still loading — don't touch anything
+  if (primaryFronter === lastAppliedFronterRef.current) return; // Same fronter, no change
+  const prev = lastAppliedFronterRef.current;
   lastAppliedFronterRef.current = primaryFronter;
-  localStorage.setItem('symphony_lastThemeFronter', primaryFronter || '');
-  if (!primaryFronter) return;
+  localStorage.setItem('symphony_lastThemeFronter', primaryFronter);
+  if (!prev) return; // null→real-id during initial data load, not a real in-session switch
   const linkedPreset = alterThemeLinks[primaryFronter];
   if (!linkedPreset) return;
   const preset = allPresets[linkedPreset] || userCustomPresets[linkedPreset];

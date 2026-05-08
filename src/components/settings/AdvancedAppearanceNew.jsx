@@ -3,7 +3,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import { HexColorPicker } from 'react-colorful';
 import {
   APP_FONT_OPTIONS, FONT_CATEGORY_LABELS,
-  getAccessibilitySettings, setAccessibilityFontFamily, setAccessibilityFontSize, findFontOption,
+  getAccessibilitySettings, setAccessibilityFontFamily, setAccessibilityFontSize, setAccessibilityDisplayFont, findFontOption,
 } from '@/lib/useAccessibility';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
@@ -157,6 +157,7 @@ export default function AdvancedAppearance() {
 
   const a11y = getAccessibilitySettings();
   const [currentFont, setCurrentFont] = useState(a11y.fontFamily);
+  const [currentDisplayFont, setCurrentDisplayFont] = useState(a11y.displayFont || "'Playfair Display', serif");
   const [currentSize, setCurrentSize] = useState(a11y.fontSize);
 
   // Color editor state
@@ -214,6 +215,11 @@ export default function AdvancedAppearance() {
   const handleFontSelect = (value) => {
     setCurrentFont(value);
     setAccessibilityFontFamily(value);
+  };
+
+  const handleDisplayFontSelect = (value) => {
+    setCurrentDisplayFont(value);
+    setAccessibilityDisplayFont(value);
   };
 
   const handleSizeSelect = (value) => {
@@ -332,6 +338,17 @@ export default function AdvancedAppearance() {
         <p className="text-xs text-muted-foreground">
           Preview: <span style={{ fontFamily: findFontOption(currentFont).value }}>
             The quick brown fox jumps over the lazy dog
+          </span>
+        </p>
+      </div>
+
+      {/* ── Heading Font ───────────────────────────────────────── */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading Font</p>
+        <FontPicker currentFont={currentDisplayFont} onSelect={handleDisplayFontSelect} />
+        <p className="text-xs text-muted-foreground">
+          Preview: <span className="font-semibold" style={{ fontFamily: findFontOption(currentDisplayFont).value }}>
+            Oceans Symphony
           </span>
         </p>
       </div>

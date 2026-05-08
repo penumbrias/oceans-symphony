@@ -53,7 +53,15 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Backup downloads are now plain .json files instead of compressed binary — easier to inspect, store, and share.",
+        text: "Heading font picker is now in the Appearance settings page alongside the body font picker, so both fonts are in one place.",
+      },
+      {
+        type: "fix",
+        text: "Theme linked to a fronter's preset no longer resets on every app open — it now only applies when the fronter actually changes during an active session.",
+      },
+      {
+        type: "improve",
+        text: "Backup export now lets you choose between plain JSON (.json) and compressed (.txt) format.",
       },
       {
         type: "improve",
