@@ -1261,41 +1261,19 @@ export default function InfiniteTimeline({
 
                 {HOURS.map((h) => {
                   const top = getTopPx(h * 60);
-                  const halfTop = top + rowH / 2;
                   const isCurrentHour = isToday && Math.floor(nowMins / 60) === h;
-                  // Only render the :30 dashed sub-tick once each hour row is tall
-                  // enough that it's visually useful (≈50 px = roughly one minute
-                  // of vertical real estate per pixel).
-                  const showHalfHour = rowH >= 50;
                   return (
-                    <React.Fragment key={h}>
-                      {/* Hour gridline — sits exactly at the row top so the
-                         hour label below it lines up cleanly. */}
-                      <div className="absolute pointer-events-none"
-                        style={{ top, left: LABEL_WIDTH, right: 0, height: 0, borderTop: "1px solid hsl(var(--border) / 0.45)" }} />
-                      {/* Hour row container (label + current-hour highlight). */}
-                      <div className="absolute flex items-start"
-                        style={{ top, height: rowH, left: 0, right: 0 }}>
-                        {isCurrentHour && (
-                          <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
-                        )}
-                        <div className="flex-shrink-0 text-xs text-muted-foreground pt-0.5 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
-                          {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
-                        </div>
-                      </div>
-                      {/* Half-hour dashed tick — exactly centered between hour
-                         lines (rowH/2 below this row's hour line). */}
-                      {showHalfHour && (
-                        <>
-                          <div className="absolute pointer-events-none"
-                            style={{ top: halfTop, left: LABEL_WIDTH, right: 0, height: 0, borderTop: "1px dashed hsl(var(--border) / 0.3)" }} />
-                          <div className="absolute text-[10px] text-muted-foreground/50 pl-1 text-left pointer-events-none"
-                            style={{ top: halfTop - 7, left: 0, width: LABEL_WIDTH }}>
-                            :30
-                          </div>
-                        </>
+                    <div key={h} className="absolute flex items-start"
+                      style={{ top, height: rowH, left: 0, right: 0 }}>
+                      {/* Current-hour highlight */}
+                      {isCurrentHour && (
+                        <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
                       )}
-                    </React.Fragment>
+                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
+                        {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
+                      </div>
+                      <div className="flex-1 border-t border-border/30 mt-2" />
+                    </div>
                   );
                 })}
 

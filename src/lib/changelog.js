@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Timeline hour gridlines now sit cleanly aligned with their hour labels instead of drifting a few pixels below them. When zoomed in enough to make them useful, evenly-spaced :30 dashed half-hour ticks now appear between each pair of hour lines, exactly centered.",
+        text: "Reverted a recent timeline change that broke vertical scrolling, drag-to-resize row height, and the horizontal hour gridlines. The timeline is back to its previous, working layout.",
       },
       {
         type: "feature",
