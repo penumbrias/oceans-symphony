@@ -8,6 +8,7 @@ import {
   setAccessibilityLargeTouch,
   setAccessibilityNavHeight,
   setAccessibilityFontFamily,
+  setAccessibilityDisplayFont,
 } from "@/lib/useAccessibility";
 
 const FONT_FAMILY_OPTIONS = [
@@ -15,6 +16,19 @@ const FONT_FAMILY_OPTIONS = [
   { value: "system",   label: "System font",           desc: "Uses your device's built-in font",     fontFamily: "system-ui, sans-serif" },
   { value: "atkinson", label: "Atkinson Hyperlegible", desc: "Designed for low vision & dyslexia",   fontFamily: "'Atkinson Hyperlegible', sans-serif" },
   { value: "nunito",   label: "Nunito",                desc: "Rounded, friendly — easier to read",   fontFamily: "'Nunito', sans-serif" },
+];
+
+const DISPLAY_FONT_OPTIONS = [
+  { value: "'Playfair Display', serif", label: "Playfair Display", desc: "Default — elegant serif" },
+  { value: "Lora, serif",               label: "Lora",             desc: "Warm literary serif" },
+  { value: "Merriweather, serif",       label: "Merriweather",     desc: "Sturdy readable serif" },
+  { value: "Raleway, sans-serif",       label: "Raleway",          desc: "Sleek geometric sans" },
+  { value: "Poppins, sans-serif",       label: "Poppins",          desc: "Rounded modern sans" },
+  { value: "'Nunito', sans-serif",      label: "Nunito",           desc: "Friendly rounded sans" },
+  { value: "'Dancing Script', cursive", label: "Dancing Script",   desc: "Flowing handwriting" },
+  { value: "Caveat, cursive",           label: "Caveat",           desc: "Casual handwriting" },
+  { value: "Pacifico, cursive",         label: "Pacifico",         desc: "Retro brush script" },
+  { value: "Righteous, cursive",        label: "Righteous",        desc: "Bold retro display" },
 ];
 
 const NAV_HEIGHT_OPTIONS = [
@@ -72,6 +86,35 @@ export default function AccessibilitySettings() {
               <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Heading font */}
+      <div>
+        <p className="text-sm font-semibold mb-1">Heading font</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Changes the font used for page titles, section headers, and the app name.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {DISPLAY_FONT_OPTIONS.map(opt => {
+            const active = settings.displayFont === opt.value ||
+              (!settings.displayFont && opt.value === "'Playfair Display', serif");
+            return (
+              <button
+                key={opt.value}
+                onClick={() => update("displayFont", opt.value, setAccessibilityDisplayFont)}
+                className={`rounded-xl border p-3 text-left transition-all overflow-hidden ${
+                  active ? "border-primary/60 bg-primary/10" : "border-border/50 bg-card hover:bg-muted/30"
+                }`}
+              >
+                <p className={`text-base font-semibold break-words leading-tight ${active ? "text-primary" : ""}`}
+                  style={{ fontFamily: opt.value }}>
+                  {opt.label}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -195,7 +238,8 @@ export default function AccessibilitySettings() {
       <div className="rounded-xl border border-border/50 bg-card px-4 py-3">
         <p className="text-xs text-muted-foreground mb-2 font-medium">Preview</p>
         <div className="space-y-2">
-          <p className="text-sm font-semibold">This is how text looks at your current size</p>
+          <p className="font-display text-xl font-semibold leading-tight">Oceans Symphony</p>
+          <p className="text-sm font-semibold">This is how body text looks at your current size</p>
           <p className="text-xs text-muted-foreground">Supporting text at the muted style — used for descriptions and hints.</p>
           <button className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
             Sample button

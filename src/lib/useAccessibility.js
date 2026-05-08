@@ -1,9 +1,10 @@
-const LS_FONT_SIZE    = "symphony_a11y_fontSize";
-const LS_REDUCE_MOTION= "symphony_a11y_reduceMotion";
-const LS_HIGH_CONTRAST= "symphony_a11y_highContrast";
-const LS_LARGE_TOUCH  = "symphony_a11y_largeTouch";
-const LS_NAV_HEIGHT   = "symphony_a11y_navHeight";
-const LS_FONT_FAMILY  = "symphony_a11y_fontFamily";
+const LS_FONT_SIZE      = "symphony_a11y_fontSize";
+const LS_REDUCE_MOTION  = "symphony_a11y_reduceMotion";
+const LS_HIGH_CONTRAST  = "symphony_a11y_highContrast";
+const LS_LARGE_TOUCH    = "symphony_a11y_largeTouch";
+const LS_NAV_HEIGHT     = "symphony_a11y_navHeight";
+const LS_FONT_FAMILY    = "symphony_a11y_fontFamily";
+const LS_DISPLAY_FONT   = "symphony_a11y_displayFont";
 
 const FONT_CLASSES  = ["a11y-text-xs3", "a11y-text-xs2", "a11y-text-xs", "a11y-text-sm", "a11y-text-lg", "a11y-text-xl", "a11y-text-xl2", "a11y-text-xl3"];
 const TOUCH_CLASSES = ["a11y-touch-comfortable", "a11y-touch-large"];
@@ -108,9 +109,13 @@ function applyNavHeight(value) {
 }
 
 function applyFontFamily(value) {
-  // Accepts either a legacy short key ("inter") or a CSS font-family string
   const css = LEGACY_FONT_MAP[value] || value || "'Inter', sans-serif";
   document.documentElement.style.setProperty("--font-sans", css);
+}
+
+function applyDisplayFont(value) {
+  const css = value || "'Playfair Display', serif";
+  document.documentElement.style.setProperty("--font-display", css);
 }
 
 export function initAccessibility() {
@@ -120,16 +125,18 @@ export function initAccessibility() {
   applyLargeTouch(localStorage.getItem(LS_LARGE_TOUCH) || "default");
   applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
   applyFontFamily(localStorage.getItem(LS_FONT_FAMILY) || "inter");
+  applyDisplayFont(localStorage.getItem(LS_DISPLAY_FONT) || "");
 }
 
 export function getAccessibilitySettings() {
   return {
-    fontSize:    localStorage.getItem(LS_FONT_SIZE)    || "default",
-    reduceMotion:localStorage.getItem(LS_REDUCE_MOTION) === "true",
-    highContrast:localStorage.getItem(LS_HIGH_CONTRAST) === "true",
-    largeTouch:  localStorage.getItem(LS_LARGE_TOUCH)  || "default",
-    navHeight:   localStorage.getItem(LS_NAV_HEIGHT)   || "default",
-    fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || "inter",
+    fontSize:     localStorage.getItem(LS_FONT_SIZE)    || "default",
+    reduceMotion: localStorage.getItem(LS_REDUCE_MOTION) === "true",
+    highContrast: localStorage.getItem(LS_HIGH_CONTRAST) === "true",
+    largeTouch:   localStorage.getItem(LS_LARGE_TOUCH)  || "default",
+    navHeight:    localStorage.getItem(LS_NAV_HEIGHT)   || "default",
+    fontFamily:   localStorage.getItem(LS_FONT_FAMILY)  || "inter",
+    displayFont:  localStorage.getItem(LS_DISPLAY_FONT) || "",
   };
 }
 
@@ -161,4 +168,9 @@ export function setAccessibilityNavHeight(value) {
 export function setAccessibilityFontFamily(value) {
   localStorage.setItem(LS_FONT_FAMILY, value);
   applyFontFamily(value);
+}
+
+export function setAccessibilityDisplayFont(value) {
+  localStorage.setItem(LS_DISPLAY_FONT, value);
+  applyDisplayFont(value);
 }

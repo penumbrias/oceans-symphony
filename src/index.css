@@ -14,6 +14,22 @@
 @import '@fontsource/nunito/500.css';
 @import '@fontsource/nunito/600.css';
 @import '@fontsource/nunito/700.css';
+/* Additional heading fonts */
+@import '@fontsource/lora/400.css';
+@import '@fontsource/lora/600.css';
+@import '@fontsource/lora/700.css';
+@import '@fontsource/raleway/400.css';
+@import '@fontsource/raleway/600.css';
+@import '@fontsource/raleway/700.css';
+@import '@fontsource/dancing-script/400.css';
+@import '@fontsource/dancing-script/700.css';
+@import '@fontsource/caveat/400.css';
+@import '@fontsource/caveat/700.css';
+@import '@fontsource/pacifico/400.css';
+@import '@fontsource/righteous/400.css';
+@import '@fontsource/poppins/400.css';
+@import '@fontsource/poppins/600.css';
+@import '@fontsource/poppins/700.css';
 
 @tailwind base;
 @tailwind components;
