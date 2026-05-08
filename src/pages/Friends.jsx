@@ -450,20 +450,20 @@ function ProfileSetupModal({ open, onClose, onSaved, onDeleted, existing }) {
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
-              Front Visibility
+              {terms.Front} Visibility
             </label>
             <Select value={privacyLevel} onValueChange={setPrivacyLevel}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="names">Show names & colours</SelectItem>
-                <SelectItem value="count_only">Count only (e.g. "2 fronters")</SelectItem>
-                <SelectItem value="hidden">Hidden (friends see no front info)</SelectItem>
+                <SelectItem value="names">Show names &amp; colours</SelectItem>
+                <SelectItem value="count_only">Count only (e.g. "2 {terms.fronters}")</SelectItem>
+                <SelectItem value="hidden">Hidden (friends see no {terms.front} info)</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1.5">
-              Controls what friends can see when you update your front.
+              Controls what friends can see when you update your {terms.front}.
             </p>
           </div>
           {error && (
@@ -540,6 +540,7 @@ function ProfileSetupModal({ open, onClose, onSaved, onDeleted, existing }) {
 // ── Add friend modal ──────────────────────────────────────────────────────────
 
 function AddFriendModal({ open, onClose, onAdded }) {
+  const terms = useTerms();
   const [code, setCode] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -571,7 +572,7 @@ function AddFriendModal({ open, onClose, onAdded }) {
         </DialogHeader>
         <div className="space-y-4 py-2">
           <p className="text-sm text-muted-foreground">
-            Enter your friend's code to send them a friend request. They'll need to approve it before you can see each other's front status.
+            Enter your friend's code to send them a friend request. They'll need to approve it before you can see each other's {terms.front} status.
           </p>
           <Input
             value={code}
@@ -602,6 +603,7 @@ function AddFriendModal({ open, onClose, onAdded }) {
 // ── Privacy disclosure ────────────────────────────────────────────────────────
 
 function PrivacyDisclosure() {
+  const t = useTerms();
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl border border-border/40 bg-muted/5 overflow-hidden">
@@ -629,7 +631,7 @@ function PrivacyDisclosure() {
                   <span className="text-xs font-semibold text-foreground">Your personal data — stays on your device</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed pl-5">
-                  Alters, journals, fronting sessions, symptoms, check-ins, and all other personal data live in IndexedDB on your device only. No server ever sees this. The optional AES-256 encryption protects it at rest.
+                  {t.Alters}, journals, {t.fronting} sessions, symptoms, check-ins, and all other personal data live in IndexedDB on your device only. No server ever sees this. The optional AES-256 encryption protects it at rest.
                 </p>
               </div>
 
@@ -652,13 +654,13 @@ function PrivacyDisclosure() {
                   <li className="text-xs text-muted-foreground flex gap-2">
                     <span className="text-muted-foreground/40 flex-shrink-0 mt-px">·</span>
                     <span>
-                      A front snapshot — sent only when you tap "Update Front", containing exactly:
+                      A {t.front} snapshot — sent only when you tap "Update {t.Front}", containing exactly:
                       <ul className="mt-1 space-y-0.5 pl-3">
-                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Names mode:</span> each fronting alter's display name, accent colour, and whether they are primary or co-fronting. No other alter data (no pronouns, roles, descriptions, journal entries, etc.).</span></li>
-                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Count-only mode:</span> just a number (e.g. "2 fronting") — no names or colours.</span></li>
-                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Hidden mode:</span> nothing — friends see only that front status is private.</span></li>
+                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Names mode:</span> each {t.fronting} {t.alter}'s display name, accent colour, and whether they are primary or co-{t.fronting}. No other {t.alter} data (no pronouns, roles, descriptions, journal entries, etc.).</span></li>
+                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Count-only mode:</span> just a number (e.g. "2 {t.fronting}") — no names or colours.</span></li>
+                        <li className="flex gap-1.5"><span className="text-muted-foreground/40">–</span><span><span className="text-foreground/80">Hidden mode:</span> nothing — friends see only that {t.front} status is private.</span></li>
                       </ul>
-                      Per-friend visibility lets you override this per person or hide specific alters entirely.
+                      Per-friend visibility lets you override this per person or hide specific {t.alters} entirely.
                     </span>
                   </li>
                 </ul>
@@ -667,7 +669,7 @@ function PrivacyDisclosure() {
               <div className="rounded-lg bg-muted/20 px-3 py-2.5">
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   <span className="text-foreground font-medium">Never shared: </span>
-                  alter profiles, journal text, check-in data, symptom logs, and timeline history never touch the Friends server. The server only ever knows exactly what you explicitly push via Update Front.
+                  {t.alter} profiles, journal text, check-in data, symptom logs, and timeline history never touch the Friends server. The server only ever knows exactly what you explicitly push via Update {t.Front}.
                 </p>
               </div>
 
@@ -878,9 +880,9 @@ export default function FriendsPage() {
         <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-2">
           <Users className="w-8 h-8 text-primary" />
         </div>
-        <h1 className="text-xl font-semibold">Friends &amp; Front Sharing</h1>
+        <h1 className="text-xl font-semibold">Friends &amp; {terms.Front} Sharing</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Share your front status with trusted friends. Create a profile to get your unique friend code, then exchange codes to connect with others.
+          Share your {terms.front} status with trusted friends. Create a profile to get your unique friend code, then exchange codes to connect with others.
         </p>
 
         {/* Data transparency — before opt-in */}
@@ -891,7 +893,7 @@ export default function FriendsPage() {
               <div>
                 <p className="text-xs font-semibold text-foreground mb-0.5">Your personal data stays on-device</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Alters, journals, sessions, check-ins, and all personal data live in IndexedDB on your device. No server ever accesses this.
+                  {terms.Alters}, journals, sessions, check-ins, and all personal data live in IndexedDB on your device. No server ever accesses this.
                 </p>
               </div>
             </div>
@@ -902,7 +904,7 @@ export default function FriendsPage() {
               <div>
                 <p className="text-xs font-semibold text-foreground mb-0.5">Friends uses a minimal cloud relay</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Only your display name and — when you tap "Update Front" — each fronting alter's name, accent colour, and primary/co-front status ever leave your device. This feature is entirely opt-in — if you skip it, nothing goes online.
+                  Only your display name and — when you tap "Update {terms.Front}" — each {terms.fronting} {terms.alter}'s name, accent colour, and primary/co-{terms.front} status ever leave your device. This feature is entirely opt-in — if you skip it, nothing goes online.
                 </p>
               </div>
             </div>
