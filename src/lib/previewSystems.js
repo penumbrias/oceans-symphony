@@ -58,12 +58,43 @@ function pushSession(arr, alterId, daysAgo, startHour, durationHours, isPrimary 
 // SYSTEM 1: The Hearth — small DID system
 // ---------------------------------------------------------------------------
 function buildHearth() {
+  // Mix of profile complexity, from plain text bios to rich HTML
+  // descriptions with inline styles and per-alter background colours.
   const alters = {
+    // — Minimal: plain text bio, no profile chrome.
     marin:  rec({ name: "Marin",  pronouns: "she/they",  color: "#d97706", role: "Host",      description: "The everyday face of the system. Steady, organised, the one who shows up to work and remembers the dentist appointment.", origin_year: 1996, tags: ["host", "everyday"] }),
     river:  rec({ name: "River",  pronouns: "they/them", color: "#0891b2", role: "Protector", description: "Calm, watchful, takes over when things feel unsafe. Likes long walks and quiet music.", origin_year: 2008, tags: ["protector"] }),
-    sage:   rec({ name: "Sage",   pronouns: "she/her",   color: "#15803d", role: "Caretaker", description: "Soft-spoken and warm. Reminds the body to eat, drink, and sleep. Loves tea and old kitchens.", origin_year: 2012, tags: ["caretaker"] }),
-    pip:    rec({ name: "Pip",    pronouns: "he/him",    color: "#f59e0b", role: "Little",    description: "Seven years old, bright, curious, and a little anxious about loud noises. Loves dinosaurs.", origin_year: 2003, age_apparent: 7, tags: ["little"] }),
-    echo:   rec({ name: "Echo",   pronouns: "she/her",   color: "#b45309", role: "Introject", description: "Came in during a hard time. Quieter now than she used to be, but still a steady presence in the back.", origin_year: 2015, tags: ["introject"] }),
+    // — Moderate: warm tinted background, HTML bio with structure.
+    sage:   rec({
+      name: "Sage", pronouns: "she/her", color: "#15803d", role: "Caretaker", origin_year: 2012, tags: ["caretaker"],
+      description: `<p style="font-style:italic;color:#15803d;margin-bottom:.75em">soft-spoken · steady · warm</p>
+<p>The one who reminds the body to eat, drink, and sleep. Loves tea, old kitchens, and the early hours when the house is quiet.</p>
+<h4 style="margin:1em 0 .25em;color:#15803d">Looks after</h4>
+<ul><li>the body</li><li>Pip, mostly</li><li>Marin when she's burnt out</li></ul>`,
+      custom_fields: { _bg_color: "#15803d", _bg_opacity: 0.08, _section_bg_opacity: 0.04 },
+    }),
+    // — Complex: bright background, custom header text colour, kid-coded HTML.
+    pip:    rec({
+      name: "Pip", pronouns: "he/him", color: "#f59e0b", role: "Little", origin_year: 2003, age_apparent: 7, tags: ["little"],
+      description: `<p style="font-size:1.15em;font-weight:600;color:#b45309">🦖 HI IM PIP 🦖</p>
+<p>i am <b>7</b>. i love</p>
+<ul style="list-style:none;padding-left:.5em;line-height:1.7">
+  <li>🦕 dinosaurs (esp triceratops)</li>
+  <li>🌈 rainbows</li>
+  <li>🧃 juice boxes</li>
+  <li>📚 books with pictures</li>
+</ul>
+<p>scared of: <em style="color:#b45309">loud noises, the vacuum, dr appointments</em></p>
+<p style="margin-top:1em;font-size:.9em;color:#92400e">Sage looks after me. she always knows where the snacks are.</p>`,
+      custom_fields: { _bg_color: "#FEF3C7", _bg_opacity: 0.5, _header_text_color: "#b45309", _section_bg_opacity: 0.15 },
+    }),
+    // — Moderate / atmospheric: dark muted background, poetic short bio.
+    echo:   rec({
+      name: "Echo", pronouns: "she/her", color: "#b45309", role: "Introject", origin_year: 2015, tags: ["introject"],
+      description: `<p style="font-family:'Playfair Display',serif;font-style:italic;font-size:1.05em;line-height:1.7;color:#92400e">She came in during a hard time, and never quite left.</p>
+<p style="margin-top:1em">Quieter now than she used to be, but still a steady presence in the back. Echo and Marin understand each other without words.</p>`,
+      custom_fields: { _bg_color: "#1f1611", _bg_opacity: 0.18, _page_text_color: "#FEF3C7" },
+    }),
   };
 
   const fronting = [];
@@ -226,9 +257,11 @@ function buildTapestry() {
   // 24 alters across hosts, protectors, caretakers, littles, teens,
   // introjects, fragments, and dormant alters. Polyfragmented systems often
   // include many limited-function "fragments" alongside fully-formed alters.
+  // A def's `d` is plain prose; if `html` is set it's used instead and may
+  // contain inline CSS. `cf` adds custom_fields for profile chrome.
   const defs = [
+    // — Minimal profiles: plain prose, no chrome.
     { k: "atlas",   n: "Atlas",   p: "they/them",  c: "#7c3aed", r: "Host",         d: "Carries the calendar and the day-to-day. Tired but reliable.", y: 1995, t: ["host"] },
-    { k: "iris",    n: "Iris",    p: "she/her",    c: "#ec4899", r: "Co-host",      d: "Steps in when Atlas burns out. Warm, social, organised.", y: 2010, t: ["host","ANP"] },
     { k: "jasper",  n: "Jasper",  p: "he/him",     c: "#dc2626", r: "Protector",    d: "Vigilant. Surfaces when threats appear. Doesn't say much.", y: 2002, t: ["protector"] },
     { k: "wren",    n: "Wren",    p: "they/them",  c: "#10b981", r: "Protector",    d: "Quiet protection — watches more than acts. Knows when to leave a room.", y: 2007, t: ["protector"] },
     { k: "kestrel", n: "Kestrel", p: "she/they",   c: "#b91c1c", r: "Persecutor",   d: "Used to keep us small. Working on softening — slowly.", y: 1999, t: ["persecutor","working"] },
@@ -236,30 +269,94 @@ function buildTapestry() {
     { k: "linnet",  n: "Linnet",  p: "she/her",    c: "#06b6d4", r: "Caretaker",    d: "Looks after the littles. Always knows where the cocoa is.", y: 2008, t: ["caretaker"] },
     { k: "fern",    n: "Fern",    p: "she/her",    c: "#65a30d", r: "Caretaker",    d: "The body's caretaker — eating, sleeping, hydration.", y: 2014, t: ["caretaker"] },
     { k: "milo",    n: "Milo",    p: "he/him",     c: "#f59e0b", r: "Little",       d: "Five. Loves dinosaurs and stickers.", y: 2001, ageA: 5, t: ["little"] },
-    { k: "poppy",   n: "Poppy",   p: "she/her",    c: "#f43f5e", r: "Little",       d: "Eight. Talks fast, draws constantly.", y: 2002, ageA: 8, t: ["little"] },
     { k: "tadpole", n: "Tadpole", p: "any",        c: "#14b8a6", r: "Little",       d: "Tiny. Mostly hums. Has a stuffed frog.", y: 2003, ageA: 3, t: ["little","fragment"] },
     { k: "sparrow", n: "Sparrow", p: "she/they",   c: "#fbbf24", r: "Middle",       d: "Eleven. Practical and a little bossy.", y: 2005, ageA: 11, t: ["middle"] },
-    { k: "vex",     n: "Vex",     p: "they/them",  c: "#a855f7", r: "Teen",         d: "Fifteen, sarcastic, secretly soft.", y: 2008, ageA: 15, t: ["teen"] },
-    { k: "rook",    n: "Rook",    p: "he/they",    c: "#3b82f6", r: "Teen",         d: "Seventeen. Skates, draws, listens to loud music.", y: 2009, ageA: 17, t: ["teen"] },
     { k: "noor",    n: "Noor",    p: "she/her",    c: "#0ea5e9", r: "Introject",    d: "Based on a real-life mentor. Calm advice on tap.", y: 2013, t: ["introject"] },
-    { k: "halo",    n: "Halo",    p: "she/her",    c: "#fde68a", r: "Introject",    d: "Comfort character. Came in during a hard winter.", y: 2016, t: ["introject"] },
     { k: "blaze",   n: "Blaze",   p: "he/him",     c: "#f97316", r: "Introject",    d: "Action-hero introject. Useful in emergencies.", y: 2014, t: ["introject"] },
     { k: "zee",     n: "Zee",     p: "ze/zir",     c: "#22d3ee", r: "Sexual",       d: "Holds intimacy and bodily autonomy.", y: 2011, t: ["sexual"] },
-    { k: "shade",   n: "Shade",   p: "they/them",  c: "#6b7280", r: "Trauma holder", d: "Holds the heaviest memories. Rarely fronts; stable in the back.", y: 1998, t: ["trauma","ENP"] },
-    { k: "gate",    n: "Gate",    p: "they/them",  c: "#1e40af", r: "Gatekeeper",   d: "Manages who fronts and when. Does not engage with the outside world.", y: 1997, t: ["gatekeeper"] },
     { k: "tiny",    n: "tiny",    p: "any",        c: "#94a3b8", r: "Fragment",     d: "Single-purpose: types fast. Comes up only when the keyboard is needed.", y: 2012, t: ["fragment"] },
     { k: "scout",   n: "Scout",   p: "they/them",  c: "#84cc16", r: "Fragment",     d: "Scans crowded rooms. Limited beyond that.", y: 2010, t: ["fragment"] },
     { k: "lumen",   n: "Lumen",   p: "she/her",    c: "#fbbf24", r: "Dormant",      d: "Fully formed but hasn't fronted in over two years. Resting.", y: 2006, t: ["dormant"], dormant: true },
     { k: "mira",    n: "Mira",    p: "she/her",    c: "#e11d48", r: "Dormant",      d: "Fused mostly into Iris. Still an echo in the background.", y: 2003, t: ["dormant"], dormant: true },
+
+    // — Complex profiles: rich HTML descriptions and per-alter chrome.
+    {
+      k: "iris", n: "Iris", p: "she/her", c: "#ec4899", r: "Co-host", y: 2010, t: ["host","ANP"],
+      html: `<blockquote style="border-left:3px solid #ec4899;padding:0 0 0 14px;margin:0 0 1em;font-family:'Playfair Display',serif;font-style:italic;font-size:1.1em;color:#831843;line-height:1.5">"I am not Atlas, but I can hold the day when she can't."</blockquote>
+<p>Iris stepped forward when Atlas burned out — three autumns ago, after a long hospital stay. Warm, social, organised. The one who answers the phone and remembers everyone's birthdays.</p>
+<table style="margin-top:1em;font-size:.9em;color:#831843;border-spacing:8px 4px"><tbody>
+  <tr><td><b>Origin</b></td><td>2010, post-burnout</td></tr>
+  <tr><td><b>Fronts</b></td><td>most weekdays</td></tr>
+  <tr><td><b>Loves</b></td><td>stationery, long letters, soft cardigans</td></tr>
+</tbody></table>`,
+      cf: { _bg_color: "#FBCFE8", _bg_opacity: 0.35, _header_text_color: "#831843", _section_bg_opacity: 0.05 },
+    },
+    {
+      k: "halo", n: "Halo", p: "she/her", c: "#fde68a", r: "Introject", y: 2016, t: ["introject"],
+      html: `<p style="font-family:'Playfair Display',serif;font-style:italic;font-size:1.1em;line-height:1.7;color:#7c2d12;margin-bottom:1em">She arrived in the cold months, bringing warmth from a story we needed to hear.</p>
+<p>Halo is a comfort introject. She knows when the kitchen needs cinnamon. She does not stay long, but the days she fronts feel like a held breath, finally let go.</p>
+<p style="margin-top:1.25em;font-size:.85em;color:#9a3412;text-align:center;letter-spacing:.1em">— ✦ —</p>`,
+      cf: { _bg_color: "#FFEDD5", _bg_opacity: 0.45, _header_text_color: "#7c2d12", _page_text_color: "#431407" },
+    },
+    {
+      k: "vex", n: "Vex", p: "they/them", c: "#a855f7", r: "Teen", y: 2008, ageA: 15, t: ["teen"],
+      html: `<p style="font-family:'Atkinson Hyperlegible',sans-serif;letter-spacing:.12em;text-transform:uppercase;font-size:.78em;color:#a1a1aa;margin-bottom:.75em">do not patronise.</p>
+<p>fifteen. sarcastic. soft underneath, but i won't show that to you.</p>
+<hr style="border:none;border-top:1px solid #3f3f46;margin:1.25em 0">
+<p style="font-size:.85em;color:#71717a;line-height:1.6">primary fronts: <b style="color:#a1a1aa">weeknights</b><br>listens to: <b style="color:#a1a1aa">deftones, midwest emo, mitski</b><br>do not call me cute.</p>`,
+      cf: { _bg_color: "#0a0a0a", _bg_opacity: 0.55, _page_text_color: "#e4e4e7", _header_text_color: "#a1a1aa" },
+    },
+    {
+      k: "rook", n: "Rook", p: "he/they", c: "#3b82f6", r: "Teen", y: 2009, ageA: 17, t: ["teen"],
+      html: `<p style="font-size:1.05em;color:#1e40af;margin-bottom:.5em"><b>rook · 17 · skater</b></p>
+<p>i draw, i skate, i play bass.</p>
+<ul style="font-size:.9em;line-height:1.7;color:#1d4ed8">
+<li>🎸 bass since i was 13</li>
+<li>🛹 mostly mini-ramp</li>
+<li>📓 sketchbook always on me</li>
+</ul>`,
+      cf: { _bg_color: "#1e3a8a", _bg_opacity: 0.18, _page_text_color: "#bfdbfe" },
+    },
+    {
+      k: "poppy", n: "Poppy", p: "she/her", c: "#f43f5e", r: "Little", y: 2002, ageA: 8, t: ["little"],
+      html: `<p style="font-size:1.2em;font-weight:700;color:#be123c">⭐️🌈 POPPY 🌈⭐️</p>
+<p>im 8!! i am a <b style="color:#e11d48">REALLY GOOD</b> drawer 🎨</p>
+<ul style="list-style:none;padding-left:0;line-height:1.8">
+<li>🐰 bunnies</li>
+<li>🍓 strawberries</li>
+<li>🦄 unicorns</li>
+<li>📺 cartoons (especially bluey)</li>
+</ul>
+<p>my BEST friend in the system is sparrow. she is older.</p>`,
+      cf: { _bg_color: "#FECDD3", _bg_opacity: 0.55, _header_text_color: "#be123c", _section_bg_opacity: 0.2 },
+    },
+    {
+      k: "shade", n: "Shade", p: "they/them", c: "#6b7280", r: "Trauma holder", y: 1998, t: ["trauma","ENP"],
+      html: `<p style="font-family:'Atkinson Hyperlegible',sans-serif;font-size:.95em;line-height:1.7;color:#9ca3af;text-align:center;letter-spacing:.04em">we hold what couldn't be held.<br>we are not unwell. we are necessary.</p>`,
+      cf: { _bg_color: "#0f172a", _bg_opacity: 0.6, _page_text_color: "#cbd5e1", _header_text_color: "#94a3b8", _section_bg_opacity: 0.1 },
+    },
+    {
+      k: "gate", n: "Gate", p: "they/them", c: "#1e40af", r: "Gatekeeper", y: 1997, t: ["gatekeeper"],
+      html: `<p style="font-family:monospace;font-size:.85em;color:#3730a3;line-height:1.7">
+ROLE :: gatekeeper<br>
+SCOPE :: front rotation, internal access<br>
+EXTERNAL :: declined<br>
+ACTIVE SINCE :: 1997
+</p>
+<p style="margin-top:1em">No outside engagement. Internal only.</p>`,
+      cf: { _bg_color: "#1e1b4b", _bg_opacity: 0.18, _header_text_color: "#a5b4fc" },
+    },
   ];
 
   const alters = {};
   for (const def of defs) {
     alters[def.k] = rec({
       name: def.n, pronouns: def.p, color: def.c, role: def.r,
-      description: def.d, origin_year: def.y, tags: def.t,
+      description: def.html || def.d,
+      origin_year: def.y, tags: def.t,
       ...(def.ageA ? { age_apparent: def.ageA } : {}),
       ...(def.dormant ? { is_dormant: true } : {}),
+      ...(def.cf ? { custom_fields: def.cf } : {}),
     });
   }
 
@@ -448,11 +545,38 @@ function buildTapestry() {
 // the user can journal, check in with, and track their parts work.
 function buildCompass() {
   const parts = {
-    self:    rec({ name: "Self",          pronouns: "I",        color: "#16a34a", role: "Self",        description: "The grounded, curious, compassionate centre. Not a part — the seat from which the parts are met.", tags: ["self"] }),
-    planner: rec({ name: "The Planner",   pronouns: "she",      color: "#0d9488", role: "Manager",     description: "Lists, schedules, contingencies. Tries to keep me safe by anticipating everything.", tags: ["manager"] }),
-    critic:  rec({ name: "The Critic",    pronouns: "he",       color: "#65a30d", role: "Manager",     description: "Sharp inner voice. Means well; wants me to be good enough that I don't get hurt.", tags: ["manager"] }),
-    drifter: rec({ name: "The Drifter",   pronouns: "they",     color: "#84cc16", role: "Firefighter", description: "Steps in when the pain gets loud — scrolling, snacks, late nights, anything to soften the edge.", tags: ["firefighter"] }),
-    little:  rec({ name: "Small One",     pronouns: "she",      color: "#22c55e", role: "Exile",       description: "Carries the early loneliness. Mostly hidden by the managers; gentler when the Self is leading.", tags: ["exile"] }),
+    // — Minimal: Self is the calm centre, no profile chrome.
+    self:    rec({ name: "Self", pronouns: "I", color: "#16a34a", role: "Self", description: "The grounded, curious, compassionate centre. Not a part — the seat from which the parts are met.", tags: ["self"] }),
+    // — Moderate: a structured "operating manual" for The Planner.
+    planner: rec({
+      name: "The Planner", pronouns: "she", color: "#0d9488", role: "Manager", tags: ["manager"],
+      description: `<p style="font-style:italic;color:#0d9488;margin-bottom:1em">If we just plan well enough, nothing has to hurt.</p>
+<h4 style="margin:.5em 0 .25em;color:#0f766e">Job</h4>
+<p>Lists, schedules, contingencies. Anticipate everything.</p>
+<h4 style="margin:1em 0 .25em;color:#0f766e">Afraid of</h4>
+<ul><li>last-minute changes</li><li>uncertainty</li><li>"falling and no one catching me"</li></ul>
+<h4 style="margin:1em 0 .25em;color:#0f766e">Helpful when</h4>
+<p>The Self thanks her without asking her to leave.</p>`,
+      custom_fields: { _bg_color: "#0d9488", _bg_opacity: 0.06, _section_bg_opacity: 0.04 },
+    }),
+    // — Complex: stark, harsh-coded styling for The Critic.
+    critic:  rec({
+      name: "The Critic", pronouns: "he", color: "#65a30d", role: "Manager", tags: ["manager"],
+      description: `<p style="font-family:'Atkinson Hyperlegible',sans-serif;text-transform:uppercase;letter-spacing:.18em;font-size:.78em;color:#e7e5e4;margin-bottom:1em">— assessment in progress —</p>
+<p style="font-size:1.02em;line-height:1.6">Sharp inner voice. <b>Means well.</b> Wants me to be good enough that I don't get hurt.</p>
+<hr style="border:none;border-top:1px solid #44403c;margin:1.25em 0">
+<p style="font-size:.85em;color:#a8a29e;line-height:1.7">In Self-led moments he can be thanked without being argued with.<br>The work is to hear his fear, not his content.</p>`,
+      custom_fields: { _bg_color: "#0a0a0a", _bg_opacity: 0.55, _page_text_color: "#f4f4f5", _header_text_color: "#a1a1aa", _section_bg_opacity: 0.2 },
+    }),
+    // — Moderate: muted, faded text for The Drifter.
+    drifter: rec({
+      name: "The Drifter", pronouns: "they", color: "#84cc16", role: "Firefighter", tags: ["firefighter"],
+      description: `<p style="color:#a8a29e;line-height:1.7;font-style:italic">scrolling. snacks. late nights. one more episode. one more.</p>
+<p style="margin-top:1em;color:#78716c">Steps in when the pain gets loud. The Drifter is not the problem — the pain is. The Drifter is buying time until the Self can come close to the Small One.</p>`,
+      custom_fields: { _bg_color: "#78716c", _bg_opacity: 0.18, _page_text_color: "#e7e5e4" },
+    }),
+    // — Minimal but tender: very short bio for Small One.
+    little:  rec({ name: "Small One", pronouns: "she", color: "#22c55e", role: "Exile", description: "Carries the early loneliness. Mostly hidden by the managers; gentler when the Self is leading.", tags: ["exile"] }),
   };
 
   // Self is "leading" most of the time — IFS goal is Self-led living.
