@@ -5,7 +5,10 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-function AlterCard({ alter, fronting, isPrimary, compact, onClick, onPointerDown, onPointerUp, onPointerCancel, anonymize = "off" }) {
+const LONG_PRESS_MS = 500;
+const DOUBLE_TAP_MS = 300;
+
+function AlterCard({ alter, fronting, isPrimary, compact, onPointerDown, onPointerUp, onPointerLeave, onPointerCancel, anonymize = "off" }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -21,10 +24,9 @@ function AlterCard({ alter, fronting, isPrimary, compact, onClick, onPointerDown
   return (
     <div
       className="flex flex-col items-center gap-2"
-      onClick={onClick}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      onPointerLeave={onPointerCancel}
+      onPointerLeave={onPointerLeave}
       onPointerCancel={onPointerCancel}
     >
       {resolvedUrl && !imgError ? (
@@ -61,14 +63,42 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   const queryClient = useQueryClient();
   const longPressTimerRef = useRef(null);
   const longPressFiredRef = useRef(false);
+  const lastTapRef = useRef({ alterId: null, time: 0 });
+  const singleTapTimerRef = useRef(null);
   const compact = cols >= 4;
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
+
+  const toggleFronting = async (alter) => {
+    const session = activeSessions.find(s => s.alter_id === alter.id);
+    try {
+      if (session) {
+        await base44.entities.FrontingSession.update(session.id, { end_time: new Date().toISOString() });
+        toast(`${alter.name} left front`);
+      } else {
+        const isFirst = activeSessions.length === 0;
+        await base44.entities.FrontingSession.create({
+          alter_id: alter.id,
+          start_time: new Date().toISOString(),
+          is_primary: isFirst,
+        });
+        toast(`${alter.name} joined front`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    } catch {
+      toast.error("Failed to update front");
+    }
+  };
 
   const startLongPress = (alter) => {
     longPressFiredRef.current = false;
     longPressTimerRef.current = setTimeout(async () => {
       longPressFiredRef.current = true;
+      // Cancel any pending single-tap
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = null;
+
       const mySession = activeSessions.find(s => s.alter_id === alter.id);
       if (!mySession) return;
       if (navigator.vibrate) navigator.vibrate(50);
@@ -89,7 +119,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
       } catch {
         toast.error("Failed to update primary status");
       }
-    }, 500);
+    }, LONG_PRESS_MS);
   };
 
   const cancelLongPress = () => {
@@ -97,9 +127,28 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     longPressTimerRef.current = null;
   };
 
-  const handleClick = (alter) => {
+  const handlePointerUp = (alter) => {
+    cancelLongPress();
     if (longPressFiredRef.current) return;
-    navigate(`/alter/${alter.id}`);
+
+    const now = Date.now();
+    const last = lastTapRef.current;
+
+    if (last.alterId === alter.id && now - last.time < DOUBLE_TAP_MS) {
+      // Double tap → navigate to alter page
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = null;
+      lastTapRef.current = { alterId: null, time: 0 };
+      navigate(`/alter/${alter.id}`);
+    } else {
+      // First tap → wait for possible double tap, then toggle fronting
+      lastTapRef.current = { alterId: alter.id, time: now };
+      clearTimeout(singleTapTimerRef.current);
+      singleTapTimerRef.current = setTimeout(() => {
+        lastTapRef.current = { alterId: null, time: 0 };
+        toggleFronting(alter);
+      }, DOUBLE_TAP_MS);
+    }
   };
 
   const colsClass = {
@@ -118,9 +167,9 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           fronting={isFronting(alter.id)}
           isPrimary={activeSessions.find(s => s.alter_id === alter.id)?.is_primary ?? false}
           compact={compact}
-          onClick={() => handleClick(alter)}
           onPointerDown={() => startLongPress(alter)}
-          onPointerUp={cancelLongPress}
+          onPointerUp={() => handlePointerUp(alter)}
+          onPointerLeave={cancelLongPress}
           onPointerCancel={cancelLongPress}
           anonymize={anonymize}
         />

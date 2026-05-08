@@ -248,14 +248,15 @@ export default function QuickNavMenu() {
               Done
             </button>
           ) : (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleEnterEdit}
-              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
               title="Rearrange tiles"
+              className="flex-shrink-0"
             >
-              <Pencil className="w-3 h-3" />
-              Edit
-            </button>
+              <Pencil className="w-4 h-4" />
+            </Button>
           )
         )}
         <Button

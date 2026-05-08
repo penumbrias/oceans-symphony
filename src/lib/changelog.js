@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 8, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Alters grid: single tap now toggles an alter in/out of front, double-tap opens their profile, and long-press on a fronting alter switches primary status. The dashboard edit button is now a minimal icon with no border.",
+      },
+    ],
+  },
+  {
     date: "May 7, 2026",
     changes: [
       {
