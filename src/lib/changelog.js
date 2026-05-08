@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 8, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Timeline hour gridlines now sit cleanly aligned with their hour labels instead of drifting a few pixels below them. When zoomed in enough to make them useful, evenly-spaced :30 dashed half-hour ticks now appear between each pair of hour lines, exactly centered.",
+      },
+      {
         type: "feature",
         text: "Added Preview Mode under Settings → Preview Mode. Pick one of three example systems (with their own terminology) and the entire app temporarily fills with curated demo data so you can explore how features feel when populated. Your real data is hidden but never touched — anything you change while previewing disappears the moment you exit. A persistent banner at the top of the screen makes it impossible to confuse demo and real data, and the tour now ends with a pointer to it for anyone feeling lost.",
       },
