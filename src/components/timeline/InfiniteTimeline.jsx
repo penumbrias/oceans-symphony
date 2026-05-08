@@ -16,7 +16,7 @@ import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { getCategoryMeta } from "@/lib/locationCategories";
 
 const LABEL_WIDTH = 44;
-const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32, locationCol: 44 };
+const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 28, alter: 32, locationCol: 44 };
 const EVENT_DETAIL_MIN_WIDTH = 72;
 const LS_TIMELINE_ROW_H = "symphony_timeline_row_h";
 
@@ -651,6 +651,7 @@ export default function InfiniteTimeline({
   const [symptomSessionPopover, setSymptomSessionPopover] = useState(null); // { session, symptom, splitMins }
   const [symptomDetailModal, setSymptomDetailModal] = useState(null); // { session, symptom }
   const longPressTargetRef = useRef(null);
+  const longPressStartPos = useRef(null);
 
   const [rowH, setRowH] = useState(() => lsGet(LS_TIMELINE_ROW_H, 56));
   useEffect(() => { lsSet(LS_TIMELINE_ROW_H, rowH); }, [rowH]);
@@ -1185,18 +1186,31 @@ export default function InfiniteTimeline({
   };
 
   const startAreaLongPress = (e) => {
+    if (e.touches && e.touches.length > 1) return; // multi-touch (pinch) — ignore
+    if (pinchRef.current) return; // pinch already active
+    const touch = e.touches?.[0] ?? e;
+    longPressStartPos.current = { x: touch.clientX, y: touch.clientY };
     const rect = e.currentTarget.getBoundingClientRect();
-    const clientY = e.touches?.[0]?.clientY ?? e.clientY;
-    const y = clientY - rect.top;
+    const y = touch.clientY - rect.top;
     const scrollTop = e.currentTarget.closest(".overflow-y-auto")?.scrollTop || 0;
     const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
     longPressTargetRef.current = setTimeout(() => {
       longPressTargetRef.current = null;
+      longPressStartPos.current = null;
       setRetroPickerState({ startMins: Math.min(Math.max(0, mins), 1439) });
-    }, 500);
+    }, 700);
   };
   const cancelAreaLongPress = () => {
     if (longPressTargetRef.current) { clearTimeout(longPressTargetRef.current); longPressTargetRef.current = null; }
+    longPressStartPos.current = null;
+  };
+  const onAreaTouchMove = (e) => {
+    if (!longPressTargetRef.current) return;
+    if (e.touches.length > 1) { cancelAreaLongPress(); return; }
+    if (!longPressStartPos.current) { cancelAreaLongPress(); return; }
+    const dx = e.touches[0].clientX - longPressStartPos.current.x;
+    const dy = e.touches[0].clientY - longPressStartPos.current.y;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) cancelAreaLongPress();
   };
 
   return (
@@ -1276,7 +1290,7 @@ export default function InfiniteTimeline({
             <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
               <div className="relative" style={{ height: totalHeight, minWidth: totalWidth }}
                 onMouseDown={startAreaLongPress} onMouseUp={cancelAreaLongPress} onMouseLeave={cancelAreaLongPress}
-                onTouchStart={startAreaLongPress} onTouchEnd={cancelAreaLongPress}>
+                onTouchStart={startAreaLongPress} onTouchEnd={cancelAreaLongPress} onTouchMove={onAreaTouchMove}>
 
                 {HOURS.map((h) => {
                   const top = getTopPx(h * 60);
@@ -1295,8 +1309,8 @@ export default function InfiniteTimeline({
                   );
                 })}
 
-                {/* Half-hour tick marks */}
-                {HOURS.map((h) => {
+                {/* Half-hour tick marks — only when rows are tall enough */}
+                {rowH >= 40 && HOURS.map((h) => {
                   const top = getTopPx(h * 60 + 30);
                   if (top <= 0 || top >= totalHeight) return null;
                   return (

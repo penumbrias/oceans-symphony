@@ -65,7 +65,7 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Timeline zoom is now controlled by a two-finger pinch gesture instead of a slider button — pinch in or out on the timeline to adjust row height.",
+        text: "Timeline: symptoms column is now narrower by default. Half-hour tick marks are hidden at small row heights to reduce clutter. Long-press to add a retroactive entry now requires holding still for 700ms and cancels immediately if you scroll, pinch, or use two fingers.",
       },
       {
         type: "improve",
