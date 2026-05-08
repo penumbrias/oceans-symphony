@@ -97,12 +97,14 @@ const EXPORT_CATEGORIES = [
 
 // Outside component — no state needed here
 async function downloadJson(data, filename) {
-  const compressed = compressBackup(data);
-  const blob = new Blob([compressed], { type: "application/octet-stream" });
+  // Plain JSON: easier to inspect, store, and share than the previous
+  // gzip+base64 SYMPHONYZ: blob. Restore still accepts the old format.
+  const text = JSON.stringify(data, null, 2);
+  const blob = new Blob([text], { type: "application/json" });
 
   // Try Web Share API (works on Android APK)
   if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: "application/octet-stream" });
+    const file = new File([blob], filename, { type: "application/json" });
     if (navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
@@ -112,7 +114,7 @@ async function downloadJson(data, filename) {
         if (e.name === "AbortError") {
           // User cancelled — try clipboard instead
           try {
-            await navigator.clipboard.writeText(data);
+            await navigator.clipboard.writeText(text);
             throw new Error("__clipboard_success__");
           } catch (clipErr) {
             if (clipErr.message === "__clipboard_success__") throw clipErr;
