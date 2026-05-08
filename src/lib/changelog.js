@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 8, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Added Preview Mode under Settings → Preview Mode. Pick one of three example systems (with their own terminology) and the entire app temporarily fills with curated demo data so you can explore how features feel when populated. Your real data is hidden but never touched — anything you change while previewing disappears the moment you exit. A persistent banner at the top of the screen makes it impossible to confuse demo and real data, and the tour now ends with a pointer to it for anyone feeling lost.",
+      },
+      {
         type: "improve",
         text: "Removed the unused PluralKit sync integration. PluralKit's API security model isn't a great fit for sensitive alter data, and the feature wasn't reachable from the app anyway. Simply Plural import (read-only) remains available.",
       },

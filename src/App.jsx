@@ -44,6 +44,7 @@ import { initAccessibility } from '@/lib/useAccessibility';
 // Apply saved accessibility settings before first render
 initAccessibility();
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal, migrateLocalImageUrlScheme } from '@/lib/localDb';
+import { restorePreviewIfActive } from '@/lib/previewMode';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
 
@@ -124,6 +125,7 @@ function App() {
   useEffect(() => {
     if (setupState === 'loading') {
       initLocalDb(null)
+        .then(() => restorePreviewIfActive())
         .then(() => setSetupState(null))
         .catch(() => setSetupState(null));
     }

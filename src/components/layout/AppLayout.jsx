@@ -18,6 +18,7 @@ import FeatureTour from "@/components/onboarding/FeatureTour";
 import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
+import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 
@@ -206,6 +207,9 @@ const handleNotifClick = (mentionLog) => {
     <div className="flex flex-col min-h-screen bg-background">
       {/* ── Safe area top spacer (mobile only) ── */}
       <div style={{ height: 'env(safe-area-inset-top, 0px)', background: 'var(--background)' }} className="sm:hidden" />
+
+      {/* ── Preview Mode Banner ── */}
+      <PreviewModeBanner />
 
       {/* ── Announcement Banner ── */}
       <AnnouncementBanner />
