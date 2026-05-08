@@ -1,14 +1,14 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-const SWIPE_THRESHOLD = 50; // px of horizontal movement to trigger action
-const TAP_SLOP = 10;        // px max movement still counted as a tap
+const SWIPE_THRESHOLD = 40; // px horizontal to trigger action
+const TAP_SLOP = 8;         // px max movement to count as tap
 
-function AlterCard({ alter, fronting, isPrimary, compact, onPointerDown, onPointerMove, onPointerUp, onPointerLeave, onPointerCancel, anonymize = "off" }) {
+function AlterCard({ alter, fronting, isPrimary, compact, anonymize = "off" }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -24,12 +24,8 @@ function AlterCard({ alter, fronting, isPrimary, compact, onPointerDown, onPoint
   return (
     <div
       className="flex flex-col items-center gap-2"
-      style={{ touchAction: "pan-y" }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerLeave}
-      onPointerCancel={onPointerCancel}
+      data-alter-id={alter.id}
+      style={{ userSelect: "none" }}
     >
       {resolvedUrl && !imgError ? (
         <img
@@ -63,91 +59,141 @@ function AlterCard({ alter, fronting, isPrimary, compact, onPointerDown, onPoint
 export default function AlterGridView({ alters, activeSessions = [], allAlters = [], cols = 3, anonymize = "off" }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // Single ref tracks pointer state across all cards; only one pointer active at a time
+  const gridRef = useRef(null);
   const gestureRef = useRef(null); // { alterId, startX, startY, triggered }
   const compact = cols >= 4;
 
+  // Always-current refs so touch handlers don't go stale
+  const altersRef = useRef(alters);
+  const activeSessionsRef = useRef(activeSessions);
+  altersRef.current = alters;
+  activeSessionsRef.current = activeSessions;
+
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
 
-  const toggleFronting = async (alter) => {
-    const session = activeSessions.find(s => s.alter_id === alter.id);
-    try {
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+
+    const findAlterId = (target) => {
+      let node = target;
+      while (node && node !== el) {
+        if (node.dataset?.alterId) return node.dataset.alterId;
+        node = node.parentElement;
+      }
+      return null;
+    };
+
+    const doToggleFront = (alter) => {
+      const sessions = activeSessionsRef.current;
+      const session = sessions.find(s => s.alter_id === alter.id);
       if (session) {
-        await base44.entities.FrontingSession.update(session.id, { end_time: new Date().toISOString() });
-        toast(`${alter.name} left front`);
+        base44.entities.FrontingSession.update(session.id, { end_time: new Date().toISOString() })
+          .then(() => {
+            toast(`${alter.name} left front`);
+            queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+            queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+          })
+          .catch(() => toast.error("Failed to update front"));
       } else {
-        await base44.entities.FrontingSession.create({
+        base44.entities.FrontingSession.create({
           alter_id: alter.id,
           start_time: new Date().toISOString(),
-          is_primary: activeSessions.length === 0,
-        });
-        toast(`${alter.name} joined front`);
+          is_primary: sessions.length === 0,
+        })
+          .then(() => {
+            toast(`${alter.name} joined front`);
+            queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+            queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+          })
+          .catch(() => toast.error("Failed to update front"));
       }
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    } catch {
-      toast.error("Failed to update front");
-    }
-  };
+    };
 
-  const togglePrimary = async (alter) => {
-    const mySession = activeSessions.find(s => s.alter_id === alter.id);
-    if (!mySession) return;
-    try {
+    const doTogglePrimary = (alter) => {
+      const sessions = activeSessionsRef.current;
+      const mySession = sessions.find(s => s.alter_id === alter.id);
+      if (!mySession) return;
       if (mySession.is_primary) {
-        await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
-        toast(`${alter.name} is now co-fronting`);
+        base44.entities.FrontingSession.update(mySession.id, { is_primary: false })
+          .then(() => {
+            toast(`${alter.name} is now co-fronting`);
+            queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+            queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+          })
+          .catch(() => toast.error("Failed to update primary status"));
       } else {
-        const prevPrimary = activeSessions.find(s => s.is_primary && s.id !== mySession.id);
-        if (prevPrimary) await base44.entities.FrontingSession.update(prevPrimary.id, { is_primary: false });
-        await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
-        toast.success(`${alter.name} is now primary!`);
+        const prevPrimary = sessions.find(s => s.is_primary && s.id !== mySession.id);
+        Promise.all([
+          prevPrimary ? base44.entities.FrontingSession.update(prevPrimary.id, { is_primary: false }) : Promise.resolve(),
+          base44.entities.FrontingSession.update(mySession.id, { is_primary: true }),
+        ])
+          .then(() => {
+            toast.success(`${alter.name} is now primary!`);
+            queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+            queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+          })
+          .catch(() => toast.error("Failed to update primary status"));
       }
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-    } catch {
-      toast.error("Failed to update primary status");
-    }
-  };
+    };
 
-  const handlePointerDown = (alter, e) => {
-    gestureRef.current = { alterId: alter.id, startX: e.clientX, startY: e.clientY, triggered: false };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 1) { gestureRef.current = null; return; }
+      const touch = e.touches[0];
+      const alterId = findAlterId(e.target);
+      if (!alterId) return;
+      gestureRef.current = { alterId, startX: touch.clientX, startY: touch.clientY, triggered: false };
+    };
 
-  const handlePointerMove = (alter, e) => {
-    const g = gestureRef.current;
-    if (!g || g.alterId !== alter.id || g.triggered) return;
-    const dx = e.clientX - g.startX;
-    const dy = Math.abs(e.clientY - g.startY);
-    if (dy > Math.abs(dx)) return; // vertical scroll — let browser handle
-    if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+    const onTouchMove = (e) => {
+      const g = gestureRef.current;
+      if (!g) return;
+      if (e.touches.length !== 1) { gestureRef.current = null; return; }
+      const touch = e.touches[0];
+      const dx = touch.clientX - g.startX;
+      const dy = touch.clientY - g.startY;
 
-    g.triggered = true;
-    if (navigator.vibrate) navigator.vibrate(40);
+      // Clear the gesture if vertical movement takes over
+      if (!g.triggered && Math.abs(dy) > Math.abs(dx) + 5) {
+        gestureRef.current = null;
+        return;
+      }
 
-    if (dx > 0) {
-      toggleFronting(alter);
-    } else {
-      togglePrimary(alter);
-    }
-  };
+      // If horizontal intent, block scroll
+      if (Math.abs(dx) > 6) e.preventDefault();
 
-  const handlePointerUp = (alter, e) => {
-    const g = gestureRef.current;
-    if (!g || g.alterId !== alter.id) return;
-    const dx = Math.abs(e.clientX - g.startX);
-    const triggered = g.triggered;
-    gestureRef.current = null;
+      if (g.triggered || Math.abs(dx) < SWIPE_THRESHOLD) return;
 
-    if (triggered) return;
-    if (dx > TAP_SLOP) return; // moved too much to be a tap
-    navigate(`/alter/${alter.id}`);
-  };
+      g.triggered = true;
+      if (navigator.vibrate) navigator.vibrate(40);
+      const alter = altersRef.current.find(a => a.id === g.alterId);
+      if (!alter) return;
+      if (dx > 0) doToggleFront(alter);
+      else doTogglePrimary(alter);
+    };
 
-  const handlePointerCancel = () => {
-    gestureRef.current = null;
-  };
+    const onTouchEnd = (e) => {
+      const g = gestureRef.current;
+      gestureRef.current = null;
+      if (!g || g.triggered) return;
+      const touch = e.changedTouches[0];
+      const dx = Math.abs(touch.clientX - g.startX);
+      const dy = Math.abs(touch.clientY - g.startY);
+      if (dx <= TAP_SLOP && dy <= TAP_SLOP) {
+        const alter = altersRef.current.find(a => a.id === g.alterId);
+        if (alter) navigate(`/alter/${alter.id}`);
+      }
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [navigate, queryClient]); // stable refs — alters/sessions accessed via altersRef/activeSessionsRef
 
   const colsClass = {
     2: "grid-cols-2 sm:grid-cols-3 md:grid-cols-4",
@@ -157,7 +203,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   }[cols] || "grid-cols-3 sm:grid-cols-4 md:grid-cols-5";
 
   return (
-    <div className={`grid ${colsClass} gap-3`}>
+    <div ref={gridRef} className={`grid ${colsClass} gap-3`} style={{ touchAction: "pan-y" }}>
       {alters.map((alter) => (
         <AlterCard
           key={alter.id}
@@ -165,11 +211,6 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           fronting={isFronting(alter.id)}
           isPrimary={activeSessions.find(s => s.alter_id === alter.id)?.is_primary ?? false}
           compact={compact}
-          onPointerDown={(e) => handlePointerDown(alter, e)}
-          onPointerMove={(e) => handlePointerMove(alter, e)}
-          onPointerUp={(e) => handlePointerUp(alter, e)}
-          onPointerLeave={handlePointerCancel}
-          onPointerCancel={handlePointerCancel}
           anonymize={anonymize}
         />
       ))}

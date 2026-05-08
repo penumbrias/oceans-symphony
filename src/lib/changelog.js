@@ -68,8 +68,8 @@ export const CHANGELOG = [
         text: "Timeline: symptoms column is now narrower by default. Half-hour tick marks are hidden at small row heights to reduce clutter. Long-press to add a retroactive entry now requires holding still for 700ms and cancels immediately if you scroll, pinch, or use two fingers.",
       },
       {
-        type: "improve",
-        text: "Alters list/grid view toggle and column count selector are now separate controls positioned just above the alters list, making them easier to find and use.",
+        type: "fix",
+        text: "Alters grid: swipe gestures (swipe right to toggle front, swipe left to toggle primary, tap to open profile) now work reliably on iOS and Android — rewritten using native touch events instead of Pointer Events.",
       },
       {
         type: "improve",
