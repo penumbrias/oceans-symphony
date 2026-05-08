@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 8, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Preview Mode is now a single, more fleshed-out example: The Tapestry. The two earlier examples (The Hearth, Inner Compass) have been retired. Atlas (the host) gets the constellation profile that was previously Self's, and the example now ships with more journals, activities, status notes, and check-ins — across more voices in the system.",
+      },
+      {
         type: "fix",
         text: "The Home page heading was hardcoded to \"Your System\" — it now respects your custom term, so it reads \"Your inner family\", \"Your collective\", \"Your committee\", etc. when you've customised it.",
       },

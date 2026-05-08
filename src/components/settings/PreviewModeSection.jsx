@@ -47,8 +47,9 @@ export default function PreviewModeSection() {
           disappears the moment you exit.
         </p>
         <p className="text-muted-foreground">
-          Each example uses its own terminology, so you can also see how the app feels with
-          different vocabularies.
+          The example brings its own theme, font, and terminology, and a handful of alters
+          carry their own theme presets that take over when they're the primary fronter — so
+          you can also see how the app feels with different vocabularies and visual identities.
         </p>
       </div>
 
