@@ -52,9 +52,7 @@ function FontPicker({ currentFont, onSelect }) {
     return result;
   }, [search]);
 
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 50);
-  }, [open]);
+  // No auto-focus on open — would trigger mobile keyboard and block scrolling
 
   // Close on outside click
   useEffect(() => {
