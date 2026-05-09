@@ -552,6 +552,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
           <div className="text-xs text-muted-foreground space-y-1">
             <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
+            <p>💡 On mobile: swipe right to toggle, swipe left to set primary</p>
             {selectedIds.size > 0 && <p className="text-primary">Tap primary name to make them co-{terms.front} only</p>}
           </div>
 
