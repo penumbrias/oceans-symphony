@@ -449,7 +449,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 {visibleFilled.map((field, i) => (
                   <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
-                    <span className="text-xs text-foreground flex-1 leading-relaxed">
+                    <span className="text-xs text-foreground flex-1 leading-relaxed whitespace-pre-wrap break-words">
                       {field.field_type === "boolean" ? (customFieldValues[field.id] === "true" ? "Yes" : "No") : customFieldValues[field.id]}
                     </span>
                   </div>
@@ -457,7 +457,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 {alterSpecific.map((field, idx) => (
                   <div key={idx} className={`flex gap-3 px-3 py-2.5 ${idx < alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
-                    <span className="text-xs text-foreground flex-1 leading-relaxed">{field.value}</span>
+                    <span className="text-xs text-foreground flex-1 leading-relaxed whitespace-pre-wrap break-words">{field.value}</span>
                   </div>
                 ))}
               </div>

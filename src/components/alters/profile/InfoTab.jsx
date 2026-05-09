@@ -199,7 +199,7 @@ export default function InfoTab({ alter, systemFields }) {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-foreground min-h-[1.25rem]">
+                  <p className="text-sm text-foreground min-h-[1.25rem] whitespace-pre-wrap break-words">
                     {field.field_type === "boolean" && customFieldValues[field.id]
                       ? (customFieldValues[field.id] === "true" || customFieldValues[field.id] === true ? "Yes" : "No")
                       : (customFieldValues[field.id] || <span className="text-muted-foreground/50 italic">Not filled</span>)}
@@ -260,7 +260,7 @@ export default function InfoTab({ alter, systemFields }) {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-foreground min-h-[1.25rem]">
+              <p className="text-sm text-foreground min-h-[1.25rem] whitespace-pre-wrap break-words">
                 {field.value || <span className="text-muted-foreground/50 italic">Not filled</span>}
               </p>
             )}

@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 9, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Custom fields on alter pages now preserve line breaks when displayed. Multi-line entries like bulleted lists no longer collapse into a single paragraph after saving.",
+      },
+    ],
+  },
+  {
     date: "May 8, 2026",
     changes: [
       {
