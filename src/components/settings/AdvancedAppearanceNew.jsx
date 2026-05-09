@@ -34,24 +34,27 @@ const FONT_SIZE_OPTIONS = [
 ];
 
 // ── Font Picker ──────────────────────────────────────────────────────────────
-function FontPicker({ currentFont, onSelect }) {
+function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolveCurrent }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const inputRef = useRef(null);
   const panelRef = useRef(null);
 
-  const currentOption = findFontOption(currentFont);
+  const currentOption = resolveCurrent
+    ? resolveCurrent(currentFont)
+    : findFontOption(currentFont);
 
   const grouped = useMemo(() => {
     const q = search.toLowerCase();
     const result = {};
-    for (const f of APP_FONT_OPTIONS) {
+    for (const f of options) {
       if (q && !f.label.toLowerCase().includes(q)) continue;
-      if (!result[f.category]) result[f.category] = [];
-      result[f.category].push(f);
+      const cat = f.category || 'ui';
+      if (!result[cat]) result[cat] = [];
+      result[cat].push(f);
     }
     return result;
-  }, [search]);
+  }, [search, options]);
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 50);
@@ -70,13 +73,16 @@ function FontPicker({ currentFont, onSelect }) {
   const isSelected = (f) =>
     f.value === currentFont || (f.legacy && f.legacy === currentFont);
 
+  const previewFontFor = (f) => f.value === 'default' ? "'Playfair Display', serif" : f.value;
+  const triggerFont = previewFontFor(currentOption);
+
   return (
     <div className="relative" ref={panelRef}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-input bg-background hover:bg-muted/30 transition-colors text-sm"
-        style={{ fontFamily: currentOption.value }}
+        style={{ fontFamily: triggerFont }}
       >
         <span className="font-medium">{currentOption.label}</span>
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -109,7 +115,7 @@ function FontPicker({ currentFont, onSelect }) {
                     className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       isSelected(f) ? 'bg-primary/10 text-primary' : 'hover:bg-muted/40 text-foreground'
                     }`}
-                    style={{ fontFamily: f.value }}
+                    style={{ fontFamily: previewFontFor(f) }}
                   >
                     <span>{f.label}</span>
                     {isSelected(f) && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
@@ -121,56 +127,6 @@ function FontPicker({ currentFont, onSelect }) {
               <p className="text-center text-muted-foreground text-sm py-4">No fonts match</p>
             )}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Heading font picker — same expanded-dropdown style as FontPicker ──────────
-function HeadingFontPicker({ currentFont, onSelect }) {
-  const [open, setOpen] = useState(false);
-  const panelRef = useRef(null);
-  const current = HEADING_FONT_OPTIONS.find(f => f.value === currentFont) || HEADING_FONT_OPTIONS[0];
-  const previewFont = current.value === "default" ? "'Playfair Display', serif" : current.value;
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (!panelRef.current?.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  return (
-    <div className="relative" ref={panelRef}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
-      >
-        <span className="text-sm font-medium" style={{ fontFamily: previewFont }}>{current.label}</span>
-        <ChevronDown className={`w-4 h-4 ml-auto text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute z-20 mt-2 w-full max-h-72 overflow-y-auto rounded-xl border border-border bg-popover shadow-lg p-1 space-y-0.5">
-          {HEADING_FONT_OPTIONS.map(f => {
-            const isSelected = f.value === currentFont;
-            const fontPreview = f.value === "default" ? "'Playfair Display', serif" : f.value;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => { onSelect(f.value); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-muted/60 transition-colors flex items-center gap-2 ${isSelected ? "bg-primary/10 text-primary font-medium" : ""}`}
-                style={{ fontFamily: fontPreview }}
-              >
-                <span className="flex-1 truncate">{f.label}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-              </button>
-            );
-          })}
         </div>
       )}
     </div>
@@ -253,22 +209,35 @@ export default function AdvancedAppearance() {
     );
   };
 
-  const getCurrentColors = () => {
-    // Always read what's actually rendering on screen first — cached preset
-    // data can be stale (e.g. after a fronter-theme swap, or when
-    // customColors and the active preset disagree). Fall back to the source
-    // dictionary for any keys the live CSS doesn't have.
-    const live = readCssColors();
+  // Source of truth for the user's saved theme colors. Updated whenever the
+  // selected preset, customColors, or theme mode changes.
+  const sourceColors = useMemo(() => {
     const src = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
-    const fallback = src ? (isDark ? src.dark : src.light) : {};
+    if (!src) return {};
+    return isDark ? (src.dark || {}) : (src.light || {});
+  }, [customColors, selectedTheme, isDark, allPresets, userCustomPresets]);
+
+  // Live CSS as a fallback for any colors the source dictionary is missing.
+  // We re-read after each theme change so a fronter-theme override or external
+  // CSS update is still reflected.
+  const [liveColors, setLiveColors] = useState(() => {
+    if (typeof document === 'undefined') return {};
     return Object.fromEntries(
-      Object.keys(COLOR_LABELS).map(k => [k, live[k] || fallback[k] || '#888888'])
+      Object.keys(COLOR_LABELS).map(k => [k, getComputedStyle(document.documentElement).getPropertyValue(`--color-${k}`).trim() || ''])
     );
-  };
+  });
+  useEffect(() => {
+    // Defer to the next frame so ThemeContext's effect (which sets the CSS
+    // variables) has run before we read.
+    const id = requestAnimationFrame(() => setLiveColors(readCssColors()));
+    return () => cancelAnimationFrame(id);
+  }, [selectedTheme, customColors, themeMode, isDark]);
 
   const currentColors = pendingColors
     ? (isDark ? pendingColors.dark : pendingColors.light)
-    : getCurrentColors();
+    : Object.fromEntries(
+        Object.keys(COLOR_LABELS).map(k => [k, sourceColors[k] || liveColors[k] || '#888888'])
+      );
 
   const modeIcon = { light: '☀️', dark: '🌙', system: '💻' }[themeMode] || '💻';
 
@@ -373,7 +342,35 @@ export default function AdvancedAppearance() {
 
   return (
     <>
-      {/* ── Theme Mode ─────────────────────────────────────────── */}
+      {/* ── Font Family + Heading Font (side by side) ──────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-2 min-w-0">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Font Family</p>
+          <FontPicker currentFont={currentFont} onSelect={handleFontSelect} />
+          <p className="text-xs text-muted-foreground">
+            Preview: <span style={{ fontFamily: findFontOption(currentFont).value }}>
+              The quick brown fox jumps over the lazy dog
+            </span>
+          </p>
+        </div>
+        <div className="space-y-2 min-w-0">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading Font</p>
+          <FontPicker
+            currentFont={currentHeadingFont}
+            onSelect={handleHeadingFontSelect}
+            options={HEADING_FONT_OPTIONS}
+            resolveCurrent={(v) => HEADING_FONT_OPTIONS.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
+          />
+          <p className="text-xs text-muted-foreground">
+            Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'Playfair Display', serif" : currentHeadingFont }}>
+              Your System
+            </span>
+          </p>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground -mt-1">Heading font is used for page titles and the app name. Body text uses the Font Family.</p>
+
+      {/* ── Theme Mode (light / dark / system) ─────────────────── */}
       <div className="space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Theme Mode</p>
         <button
@@ -385,29 +382,6 @@ export default function AdvancedAppearance() {
           <span className="text-sm font-medium capitalize">{themeMode === 'system' ? 'System (follow OS)' : themeMode}</span>
           <span className="ml-auto text-xs text-muted-foreground">tap to cycle</span>
         </button>
-      </div>
-
-      {/* ── Font Family ────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Font Family</p>
-        <FontPicker currentFont={currentFont} onSelect={handleFontSelect} />
-        <p className="text-xs text-muted-foreground">
-          Preview: <span style={{ fontFamily: findFontOption(currentFont).value }}>
-            The quick brown fox jumps over the lazy dog
-          </span>
-        </p>
-      </div>
-
-      {/* ── Heading Font ────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading Font</p>
-        <p className="text-xs text-muted-foreground -mt-1">Used for page titles and the app name. Body text uses the Font Family above.</p>
-        <HeadingFontPicker currentFont={currentHeadingFont} onSelect={handleHeadingFontSelect} />
-        <p className="text-xs text-muted-foreground">
-          Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'Playfair Display', serif" : currentHeadingFont }}>
-            Your System
-          </span>
-        </p>
       </div>
 
       {/* ── Text & UI Size ─────────────────────────────────────── */}

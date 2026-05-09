@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 9, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Custom Colors swatches in Appearance settings now update immediately when you switch built-in presets — they were previously stuck showing the colors of the previously selected preset.",
+      },
+      {
+        type: "improve",
+        text: "Appearance settings layout: Font Family and Heading Font are now side-by-side, the Theme Mode (light/dark/system) toggle moved below them, the Heading Font dropdown matches the Font Family one (searchable, categorised), and the heading-font list now includes every font available for the body text.",
+      },
+      {
         type: "improve",
         text: "Backup & Export simplified — Copy to Clipboard, View as Text, and paste-based imports are gone now that file download/import works reliably. The \"backup is large\" warning banner has also been removed; the Recompress Images button is still available if you want to shrink backup size.",
       },
