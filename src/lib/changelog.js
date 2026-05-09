@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 9, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Activity Tracker has a new + Plan Activity button beside the Logged/Planned tabs. It opens a planning modal with date/time pickers so you can schedule any future activity without scrolling to its slot.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker Display sliders (Row height, Col width) now move in 1px increments instead of 5px steps and have − / + nudge buttons on either side for precise tuning.",
+      },
+      {
+        type: "improve",
+        text: "Set Weekly Goal modal now uses the same nested category pills as the quick check-in's activity selector instead of a plain dropdown.",
+      },
+      {
         type: "improve",
         text: "Activity Tracker now defaults its column width to fit all 7 days within the screen, so you don't have to scroll horizontally on first open. You can still drag the Col width slider in Display settings to make columns wider.",
       },

@@ -28,25 +28,34 @@ function parseTimeToDate(baseDate, timeStr) {
 export default function ActivityTimeRangeModal({
   isOpen,
   onClose,
-  startDate,
+  startDate: startDateProp,
   endDate: endDateProp,
   startHour,
-  endHour, startMinute = 0,  
+  endHour, startMinute = 0,
   endMinute = 0,
   alters,
   frontingHistory,
   onSave,
+  // When true, show date inputs and default to a near-future timestamp so the
+  // user can plan an activity for any day rather than only tapping a slot.
+  planMode = false,
 }) {
-  // endDate defaults to startDate for same-day activities
-  const endDate = endDateProp || startDate;
+  // For plan mode without an explicit start date, default to tomorrow noon so
+  // the modal starts from a sensible plannable point.
+  const defaultedStart = startDateProp || (planMode ? (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(12, 0, 0, 0); return d; })() : null);
+  // Local state for the chosen date (yyyy-mm-dd) so plan mode can edit it.
+  const [datePicked, setDatePicked] = useState(() => defaultedStart ? format(defaultedStart, "yyyy-MM-dd") : "");
+  const [endDatePicked, setEndDatePicked] = useState(() => (endDateProp || defaultedStart) ? format(endDateProp || defaultedStart, "yyyy-MM-dd") : "");
+  const startDate = datePicked ? new Date(`${datePicked}T00:00:00`) : defaultedStart;
+  const endDate = endDatePicked ? new Date(`${endDatePicked}T00:00:00`) : startDate;
   const isCrossDay = startDate && endDate && format(startDate, "yyyy-MM-dd") !== format(endDate, "yyyy-MM-dd");
 
   const defaultStart = startDate && startHour !== undefined
     ? toTimeString(startDate, Math.min(startHour, isCrossDay ? startHour : (endHour ?? startHour)))
-    : "";
+    : (planMode && startDate ? toTimeString(startDate, 12, 0) : "");
   const defaultEnd = endDate && endHour != null
     ? toTimeString(endDate, endHour, endMinute)
-    : "";
+    : (planMode && endDate ? toTimeString(endDate, 13, 0) : "");
 
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [startTime, setStartTime] = useState(defaultStart);
@@ -64,19 +73,34 @@ const [showNewActivity, setShowNewActivity] = useState(false);
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
-  // Reset times when modal opens with new props
+  // Reset times/date when modal opens with new props
 useMemo(() => {
-  if (startDate && startHour !== undefined) {
-    setStartTime(toTimeString(startDate, startHour, startMinute));
+  if (!isOpen) return;
+  // Reset the picked date back to whatever the parent passed in (or to the
+  // plan-mode default tomorrow). Without this the date picker would persist
+  // across opens, which is confusing.
+  if (startDateProp) {
+    setDatePicked(format(startDateProp, "yyyy-MM-dd"));
+    setEndDatePicked(format(endDateProp || startDateProp, "yyyy-MM-dd"));
+  } else if (planMode) {
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(12, 0, 0, 0);
+    setDatePicked(format(d, "yyyy-MM-dd"));
+    setEndDatePicked(format(d, "yyyy-MM-dd"));
+  }
+  if (startDateProp && startHour !== undefined) {
+    setStartTime(toTimeString(startDateProp, startHour, startMinute));
     if (endHour != null) {
-      setEndTime(toTimeString(endDate || startDate, endHour, endMinute));
+      setEndTime(toTimeString(endDateProp || startDateProp, endHour, endMinute));
     } else {
       setEndTime("");
     }
-    setSelectedActivityCategories([]);
-    setNotes("");
+  } else if (planMode) {
+    setStartTime("12:00");
+    setEndTime("13:00");
   }
-}, [startDate, endDate, startHour, endHour, startMinute, endMinute]);
+  setSelectedActivityCategories([]);
+  setNotes("");
+}, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute, planMode]);
 
   // Auto-populate alters from fronting history
   useMemo(() => {
@@ -206,8 +230,8 @@ const handleCreateNewActivity = async () => {
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Log Activity
-            {startDate && (
+            {planMode ? "Plan Activity" : "Log Activity"}
+            {startDate && !planMode && (
               <div className="text-sm font-normal text-muted-foreground mt-1">
                 {format(startDate, "MMM d, yyyy")}
                 {isCrossDay && endDate && (
@@ -219,6 +243,20 @@ const handleCreateNewActivity = async () => {
         </DialogHeader>
 
         <div className="space-y-4">
+          {planMode && (
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-sm font-medium block mb-1">Date</label>
+                <input type="date" value={datePicked} onChange={e => { setDatePicked(e.target.value); if (!endDatePicked || endDatePicked < e.target.value) setEndDatePicked(e.target.value); }}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-medium block mb-1">End date <span className="text-xs text-muted-foreground">(optional)</span></label>
+                <input type="date" value={endDatePicked} min={datePicked} onChange={e => setEndDatePicked(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
+              </div>
+            </div>
+          )}
           {/* Start / End time */}
             <div className="flex gap-3 items-end">
               <div className="flex-1">
@@ -226,7 +264,7 @@ const handleCreateNewActivity = async () => {
                 <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                   className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
               </div>
-              {endHour != null && (
+              {(endHour != null || planMode) && (
                 <div className="flex-1">
                   <label className="text-sm font-medium block mb-1">
                     End time
@@ -313,7 +351,7 @@ const handleCreateNewActivity = async () => {
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Activity"}
+              {isLoading ? "Saving..." : (planMode ? "Save Plan" : "Save Activity")}
             </Button>
           </div>
         </div>

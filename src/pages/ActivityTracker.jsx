@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
 import { format, startOfWeek, addDays } from "date-fns";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
@@ -37,6 +37,7 @@ export default function ActivityTracker() {
   const [selectedEndMinute, setSelectedEndMinute] = useState(0);
   const [selectedEndDate, setSelectedEndDate] = useState(null);
   const [tab, setTab] = useState("logged"); // "logged" | "planned"
+  const [planModalOpen, setPlanModalOpen] = useState(false);
 
   // Handle deep link highlight
   useDeepLinkHighlight("highlight", "activity-");
@@ -121,20 +122,25 @@ export default function ActivityTracker() {
           )}
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex gap-1 p-1 mb-4 bg-muted/30 rounded-xl w-fit">
-          {[{ id: "logged", label: "Logged" }, { id: "planned", label: "Planned" }].map(t => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                tab === t.id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >{t.label}</button>
-          ))}
+        {/* Tab switcher + Plan Activity button */}
+        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+          <div className="flex gap-1 p-1 bg-muted/30 rounded-xl w-fit">
+            {[{ id: "logged", label: "Logged" }, { id: "planned", label: "Planned" }].map(t => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  tab === t.id
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >{t.label}</button>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setPlanModalOpen(true)} className="gap-1.5 h-8">
+            <CalendarPlus className="w-3.5 h-3.5" /> Plan Activity
+          </Button>
         </div>
 
         {tab === "logged" ? (
@@ -182,6 +188,14 @@ export default function ActivityTracker() {
         alters={alters}
         frontingHistory={frontingHistory}
         onSave={() => { handleCloseModal(); handleActivitySave(); }}
+      />
+      <ActivityTimeRangeModal
+        isOpen={planModalOpen}
+        onClose={() => setPlanModalOpen(false)}
+        planMode
+        alters={alters}
+        frontingHistory={frontingHistory}
+        onSave={() => { setPlanModalOpen(false); handleActivitySave(); setTab("planned"); }}
       />
       {zoomedDate && (
         <ActivityDayView

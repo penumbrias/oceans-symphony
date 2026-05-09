@@ -286,18 +286,26 @@ if (isSameCell) {
 
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
-              <input type="range" min={6} max={80} step={2} value={rowH}
+              <button type="button" onClick={() => setRowH(v => Math.max(6, v - 1))}
+                className="w-6 h-6 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none">−</button>
+              <input type="range" min={6} max={80} step={1} value={rowH}
                 onChange={e => setRowH(Number(e.target.value))}
-                className="w-20 accent-primary" />
-              <span className="text-muted-foreground w-7">{rowH}px</span>
+                className="w-28 accent-primary touch-pan-y" />
+              <button type="button" onClick={() => setRowH(v => Math.min(80, v + 1))}
+                className="w-6 h-6 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none">+</button>
+              <span className="text-muted-foreground w-7 tabular-nums">{rowH}px</span>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Col width</span>
-              <input type="range" min={15} max={200} step={5} value={colW}
+              <button type="button" onClick={() => setColW(v => Math.max(15, v - 1))}
+                className="w-6 h-6 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none">−</button>
+              <input type="range" min={15} max={200} step={1} value={colW}
                 onChange={e => setColW(Number(e.target.value))}
-                className="w-20 accent-primary" />
-              <span className="text-muted-foreground w-8">{colW}px</span>
+                className="w-28 accent-primary touch-pan-y" />
+              <button type="button" onClick={() => setColW(v => Math.min(200, v + 1))}
+                className="w-6 h-6 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none">+</button>
+              <span className="text-muted-foreground w-8 tabular-nums">{colW}px</span>
             </div>
 
             <div className="flex items-center gap-2">
