@@ -129,16 +129,23 @@ export async function toggleFrontFor(alter, activeSessions, base44, queryClient,
   }
 }
 
-export async function togglePrimaryFor(alter, activeSessions, base44, queryClient, toast) {
-  const mySession = activeSessions.find(s => s.alter_id === alter.id);
+export async function togglePrimaryFor(alter, _staleSessions, base44, queryClient, toast) {
   try {
+    // Always refetch — never trust the closure-captured snapshot. A long-press
+    // can fire 500–600ms after the gesture started, by which time the cached
+    // sessions may be stale.
+    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+    const mySession = fresh.find(s => s.alter_id === alter.id);
+
     if (mySession?.is_primary) {
       await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
       toast.success(`${alter.name} demoted to co-fronter`);
     } else {
-      const currentPrimary = activeSessions.find(s => s.is_primary);
-      if (currentPrimary) {
-        await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
+      // Demote every existing primary (not just the first one) so we never
+      // leave two primaries in the DB after a partial failure or after stale
+      // duplicates have leaked in.
+      for (const s of fresh.filter(s => s.is_primary && s.alter_id !== alter.id)) {
+        try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
       }
       if (mySession) {
         await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
