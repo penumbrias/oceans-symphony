@@ -168,3 +168,13 @@ html.a11y-high-contrast {
 .wysiwyg-content h3 { font-size: 1.05rem; font-weight: 600; margin: 6px 0 3px; }
 .wysiwyg-content ul, .wysiwyg-content ol { padding-left: 1.5em; margin: 4px 0; }
 .wysiwyg-content li { margin: 2px 0; }
+/* Bulletin / comment body — minimal HTML formatting (b, i, u, s, p, ul, ol,
+ * li, br, a). Kept to a single short ruleset so bulletins read naturally
+ * without inheriting heavyweight prose styles.
+ */
+.bulletin-prose p { margin: 0 0 .5em; }
+.bulletin-prose p:last-child { margin-bottom: 0; }
+.bulletin-prose ul,
+.bulletin-prose ol { padding-left: 1.4em; margin: .25em 0; }
+.bulletin-prose li { margin: .15em 0; }
+.bulletin-prose a { color: hsl(var(--primary)); text-decoration: underline; }

@@ -245,44 +245,45 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
         />
       </div>
 
-      {/* Action row */}
+      {/* Action row — icons only so labels never wrap on narrow screens. */}
       <div className="px-3 pb-3 flex items-center gap-1.5">
         <button
           onClick={() => { setShowEmotions(v => !v); setShowSymptoms(false); setShowTrigger(false); }}
           aria-label="Add emotions"
           aria-expanded={showEmotions}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
+          title="Emotions"
+          className={`flex items-center justify-center gap-1 min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${
             showEmotions ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground border-border hover:bg-muted/50"
           }`}
         >
-          <Smile className="w-3 h-3" />
-          {localEmotions.length > 0 ? <span>{localEmotions.length}</span> : <span>Emotions</span>}
+          <Smile className="w-3.5 h-3.5" />
+          {localEmotions.length > 0 && <span>{localEmotions.length}</span>}
         </button>
 
         <button
           onClick={() => { setShowSymptoms(v => !v); setShowEmotions(false); setShowTrigger(false); }}
           aria-label="Add symptoms"
           aria-expanded={showSymptoms}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
+          title="Symptoms"
+          className={`flex items-center justify-center min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${
             showSymptoms ? "bg-primary text-primary-foreground border-primary" : "text-muted-foreground border-border hover:bg-muted/50"
           }`}
         >
-          <Activity className="w-3 h-3" />
-          <span>Symptoms</span>
+          <Activity className="w-3.5 h-3.5" />
         </button>
 
         <button
           onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
           aria-label="Mark triggered switch"
           aria-expanded={showTrigger}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-all ${
+          title="Triggered switch"
+          className={`flex items-center justify-center min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${
             showTrigger
               ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
               : "text-muted-foreground border-border hover:bg-muted/50"
           }`}
         >
-          <AlertTriangle className="w-3 h-3" />
-          <span>Triggered</span>
+          <AlertTriangle className="w-3.5 h-3.5" />
         </button>
 
         <div className="ml-auto flex items-center gap-1.5">

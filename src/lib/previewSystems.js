@@ -72,12 +72,9 @@ function buildTapestry() {
   // A def's `d` is plain prose; if `html` is set it's used instead and may
   // contain inline CSS. `cf` adds custom_fields for profile chrome.
   const defs = [
-    // — Minimal profiles: plain prose, no chrome.
+    // — Minimal profiles: plain prose, no chrome. One per role so the demo
+    // showcases variety without repeating the same one-liner template.
     { k: "jasper",  n: "Jasper",  p: "he/him",     c: "#dc2626", r: "Protector",    d: "Vigilant. Surfaces when threats appear. Doesn't say much.", y: 2002, t: ["protector"] },
-    { k: "wren",    n: "Wren",    p: "they/them",  c: "#10b981", r: "Protector",    d: "Quiet protection — watches more than acts. Knows when to leave a room.", y: 2007, t: ["protector"] },
-    { k: "kestrel", n: "Kestrel", p: "she/they",   c: "#b91c1c", r: "Persecutor",   d: "Used to keep us small. Working on softening — slowly.", y: 1999, t: ["persecutor","working"] },
-    { k: "thorne",  n: "Thorne",  p: "he/him",     c: "#9333ea", r: "Persecutor",   d: "Sharp tongue, harsh judgements. In dialogue with the rest of us.", y: 2004, t: ["persecutor"] },
-    { k: "linnet",  n: "Linnet",  p: "she/her",    c: "#06b6d4", r: "Caretaker",    d: "Looks after the littles. Always knows where the cocoa is.", y: 2008, t: ["caretaker"] },
     { k: "fern",    n: "Fern",    p: "she/her",    c: "#65a30d", r: "Caretaker",    d: "The body's caretaker — eating, sleeping, hydration.", y: 2014, t: ["caretaker"] },
     { k: "milo",    n: "Milo",    p: "he/him",     c: "#f59e0b", r: "Little",       d: "Five. Loves dinosaurs and stickers.", y: 2001, ageA: 5, t: ["little"] },
     { k: "tadpole", n: "Tadpole", p: "any",        c: "#14b8a6", r: "Little",       d: "Tiny. Mostly hums. Has a stuffed frog.", y: 2003, ageA: 3, t: ["little","fragment"] },
@@ -85,9 +82,7 @@ function buildTapestry() {
     { k: "blaze",   n: "Blaze",   p: "he/him",     c: "#f97316", r: "Introject",    d: "Action-hero introject. Useful in emergencies.", y: 2014, t: ["introject"] },
     { k: "zee",     n: "Zee",     p: "ze/zir",     c: "#22d3ee", r: "Sexual",       d: "Holds intimacy and bodily autonomy.", y: 2011, t: ["sexual"] },
     { k: "tiny",    n: "tiny",    p: "any",        c: "#94a3b8", r: "Fragment",     d: "Single-purpose: types fast. Comes up only when the keyboard is needed.", y: 2012, t: ["fragment"] },
-    { k: "scout",   n: "Scout",   p: "they/them",  c: "#84cc16", r: "Fragment",     d: "Scans crowded rooms. Limited beyond that.", y: 2010, t: ["fragment"] },
     { k: "lumen",   n: "Lumen",   p: "she/her",    c: "#fbbf24", r: "Dormant",      d: "Fully formed but hasn't fronted in over two years. Resting.", y: 2006, t: ["dormant"], dormant: true },
-    { k: "mira",    n: "Mira",    p: "she/her",    c: "#e11d48", r: "Dormant",      d: "Fused mostly into Iris. Still an echo in the background.", y: 2003, t: ["dormant"], dormant: true },
 
     // — Complex profiles: rich HTML descriptions and per-alter chrome.
     {
@@ -293,6 +288,95 @@ ACTIVE SINCE :: 1997
 </div>`),
       cf: { _bg_color: "#0c1e2e", _bg_opacity: 0.18, _header_text_color: "#7dd3fc" },
     },
+    {
+      k: "linnet", n: "Linnet", p: "she/her", c: "#06b6d4", r: "Caretaker", y: 2008, t: ["caretaker"],
+      // Recipe-card profile — warm cream paper, dashed border, "from the kitchen of"
+      // header. Shows a caretaker as a domestic, ingredient-list portrait.
+      html: richBio(`
+<div style="background:#fdf6e3;padding:18px;border-radius:8px;border:1px solid #d4b896;font-family:Georgia,serif;color:#2c1810;box-shadow:inset 0 0 0 4px #fdf6e3,inset 0 0 0 5px #d4b896;">
+  <div style="text-align:center;border-bottom:2px dashed #b8956a;padding-bottom:10px;margin-bottom:14px;">
+    <div style="font-size:.65em;letter-spacing:.3em;color:#8b6f47;text-transform:uppercase;margin-bottom:4px;">— from the kitchen of —</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.6em;font-weight:600;letter-spacing:.04em;color:#7c4a16;">Linnet</div>
+    <div style="font-size:.78em;color:#8b6f47;font-style:italic;margin-top:2px;">caretaker · she/her · est. 2008</div>
+  </div>
+  <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:.88em;line-height:1.7;">
+    <div style="font-weight:700;color:#7c4a16;">Tends to:</div><div>the littles, mostly. Milo, Poppy, Tadpole, Sparrow.</div>
+    <div style="font-weight:700;color:#7c4a16;">Reliable for:</div><div>cocoa, plasters, finding lost socks, knowing where the cocoa is.</div>
+    <div style="font-weight:700;color:#7c4a16;">Fronts:</div><div>school mornings &amp; sick days.</div>
+    <div style="font-weight:700;color:#7c4a16;">Pairs with:</div><div>Fern (body care) and Sparrow (older-sibling energy).</div>
+  </div>
+  <div style="margin-top:14px;padding-top:10px;border-top:1px dashed #b8956a;font-size:.82em;font-style:italic;color:#5a3a1a;">"a cup of warm something fixes more than people give it credit for."</div>
+</div>`),
+      cf: { _bg_color: "#fdf6e3", _bg_opacity: 0.45, _header_text_color: "#7c4a16" },
+    },
+    {
+      k: "kestrel", n: "Kestrel", p: "she/they", c: "#b91c1c", r: "Persecutor", y: 1999, t: ["persecutor","working"],
+      // Typewritten letter — manila paper, Courier, scratched-out edits. A
+      // softening persecutor putting down draft fourteen of an apology.
+      html: richBio(`
+<div style="background:#f4ecd8;padding:22px 20px;border-radius:2px;font-family:'Courier New',Courier,monospace;color:#2a2018;position:relative;box-shadow:0 2px 4px rgba(0,0,0,.15);">
+  <div style="position:absolute;top:8px;right:12px;font-size:.7em;color:#6b5a3e;border:1px solid #6b5a3e;padding:1px 6px;border-radius:1px;text-transform:uppercase;letter-spacing:.15em;">draft 14</div>
+  <div style="font-size:.7em;letter-spacing:.18em;color:#6b5a3e;text-transform:uppercase;margin-bottom:14px;">a letter, slowly being written</div>
+  <p style="font-size:.95em;line-height:1.85;margin:0 0 .9em;">i used to keep us small.</p>
+  <p style="font-size:.95em;line-height:1.85;margin:0 0 .9em;">i thought that was care. i thought making us feel <s style="color:#a37553;">worthless</s> <span style="color:#5a3018;font-weight:700;">small</span> was the same as making us safe.</p>
+  <p style="font-size:.95em;line-height:1.85;margin:0 0 .9em;">it wasn't. i'm sorry.</p>
+  <p style="font-size:.95em;line-height:1.85;margin:0 0 .9em;">i'm slow at this. softness is a foreign language to me. but the rest of the system is teaching me, patiently, and i am learning.</p>
+  <div style="border-top:1px dashed #8a7050;padding-top:10px;margin-top:16px;font-size:.75em;color:#6b5a3e;letter-spacing:.05em;">
+    KESTREL · she/they · persecutor → working<br>
+    arrived 1999 · in dialogue, on most days
+  </div>
+</div>`),
+      cf: { _bg_color: "#f4ecd8", _bg_opacity: 0.4, _page_text_color: "#2a2018", _header_text_color: "#6b5a3e" },
+    },
+    {
+      k: "brae", n: "Brae", p: "she/her", c: "#f4a548", r: "Steward", y: 2017, t: ["adult","steward"],
+      // Daily-planner page — ruled notebook lines, checkboxes, a marigold
+      // sticky-note. The practical adult who keeps the calendar tidy.
+      html: richBio(`
+<div style="background:#f9f5e7;background-image:linear-gradient(transparent 28px,#a4b8d0 28px,#a4b8d0 29px,transparent 29px);background-size:100% 29px;background-position:0 12px;padding:18px;border-radius:6px;border:1px solid #d4cfb8;font-family:'Atkinson Hyperlegible',sans-serif;color:#1f2937;">
+  <div style="border-left:3px solid #f4a548;padding-left:12px;margin-bottom:14px;">
+    <div style="font-size:1.4em;font-weight:700;color:#9a4f0c;letter-spacing:.02em;line-height:1;">Brae's day</div>
+    <div style="font-size:.8em;color:#7a6a4f;margin-top:2px;">she/her · steward · est. 2017</div>
+  </div>
+  <div style="font-size:.78em;color:#7a6a4f;text-transform:uppercase;letter-spacing:.18em;margin-bottom:6px;">to-do (ongoing)</div>
+  <ul style="list-style:none;padding:0;margin:0 0 14px 0;font-size:.92em;line-height:1.95;">
+    <li><span style="display:inline-block;width:14px;height:14px;border:1.5px solid #4a5563;border-radius:2px;background:#dcfce7;margin-right:8px;vertical-align:middle;text-align:center;font-size:.85em;color:#15803d;line-height:14px;">✓</span><span style="text-decoration:line-through;color:#7a8694;">refill weekly pill organiser</span></li>
+    <li><span style="display:inline-block;width:14px;height:14px;border:1.5px solid #4a5563;border-radius:2px;background:#dcfce7;margin-right:8px;vertical-align:middle;text-align:center;font-size:.85em;color:#15803d;line-height:14px;">✓</span><span style="text-decoration:line-through;color:#7a8694;">water plants (basil ok, fern droopy)</span></li>
+    <li><span style="display:inline-block;width:14px;height:14px;border:1.5px solid #4a5563;border-radius:2px;margin-right:8px;vertical-align:middle;"></span>finalise grocery list with Fern</li>
+    <li><span style="display:inline-block;width:14px;height:14px;border:1.5px solid #4a5563;border-radius:2px;margin-right:8px;vertical-align:middle;"></span>book dentist (overdue 4 mo.)</li>
+    <li><span style="display:inline-block;width:14px;height:14px;border:1.5px solid #4a5563;border-radius:2px;margin-right:8px;vertical-align:middle;"></span>kindly remind Atlas about laundry</li>
+  </ul>
+  <div style="background:#fefce8;border:1px solid #facc15;padding:8px 10px;font-size:.82em;color:#713f12;border-radius:2px;transform:rotate(-1deg);box-shadow:1px 1px 2px rgba(0,0,0,.08);">
+    <b>note to self:</b> "completing the task is care. it doesn't have to feel like care for it to count."
+  </div>
+</div>`),
+      cf: { _bg_color: "#f9f5e7", _bg_opacity: 0.4, _header_text_color: "#9a4f0c" },
+    },
+    {
+      k: "pell", n: "Pell", p: "they/them", c: "#b48b4a", r: "Memory keeper", y: 2006, t: ["memory","archive"],
+      // Museum exhibit label — dark navy header strip, brass accent rule, an
+      // archival catalogue card laying out era / medium / condition / curator.
+      html: richBio(`
+<div style="background:#fafaf8;border:1px solid #c8c2b6;border-radius:2px;padding:0;font-family:Georgia,serif;color:#1a1a1a;overflow:hidden;">
+  <div style="background:#1f2533;color:#f5f5f0;padding:14px 16px;border-bottom:3px solid #b48b4a;">
+    <div style="font-size:.6em;letter-spacing:.32em;color:#b48b4a;text-transform:uppercase;margin-bottom:4px;">specimen no. 0291</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.55em;font-weight:600;letter-spacing:.06em;">Pell</div>
+    <div style="font-size:.74em;color:#c2b89e;font-style:italic;margin-top:3px;">they/them · memory keeper · accessioned 2006</div>
+  </div>
+  <div style="padding:14px 16px;font-size:.86em;line-height:1.8;">
+    <div style="font-size:.68em;letter-spacing:.2em;color:#5a4a30;text-transform:uppercase;margin-bottom:4px;">description</div>
+    <p style="margin:0 0 12px;">Pell holds the things the rest of the system would prefer not to carry: birthdays, anniversaries, the names of people who hurt us, the names of people who didn't. They surface when the calendar surfaces them. They keep good records.</p>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.78em;color:#3a3328;border-top:1px solid #d4c8a8;padding-top:10px;">
+      <div style="font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5a4a30;">era:</div><div>2006 — present</div>
+      <div style="font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5a4a30;">medium:</div><div>memory, mostly verbatim</div>
+      <div style="font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5a4a30;">condition:</div><div>fair · accurate · slightly heavy</div>
+      <div style="font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5a4a30;">curator:</div><div>collaborates with Atlas, Iris, Shade</div>
+    </div>
+  </div>
+  <div style="padding:8px 16px;background:#f0ebde;border-top:1px solid #c8c2b6;font-size:.7em;color:#5a4a30;font-style:italic;">filed under: <b>kept things</b></div>
+</div>`),
+      cf: { _bg_color: "#fafaf8", _bg_opacity: 0.35, _header_text_color: "#b48b4a" },
+    },
   ];
 
   const alters = {};
@@ -494,22 +578,51 @@ ACTIVE SINCE :: 1997
   const systemEvents = [
     rec({ type: "split",    date: new Date(2003, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.atlas.id], result_alter_ids: [alters.poppy.id, alters.milo.id], cause: "Childhood",   notes: "Two littles split off in the same year." }),
     rec({ type: "split",    date: new Date(2008, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.atlas.id], result_alter_ids: [alters.vex.id, alters.sparrow.id, alters.rook.id], cause: "Adolescence", notes: "Teen layer formed." }),
-    rec({ type: "split",    date: new Date(2010, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.atlas.id], result_alter_ids: [alters.iris.id, alters.scout.id, alters.tiny.id], cause: "Burnout",     notes: "Co-host emerged plus two fragments." }),
-    rec({ type: "fusion",   date: new Date(2018, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.iris.id, alters.mira.id], result_alter_ids: [alters.iris.id], fusion_type: "absorption", notes: "Iris is the alter that persists." }),
+    rec({ type: "split",    date: new Date(2010, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.atlas.id], result_alter_ids: [alters.iris.id, alters.tiny.id], cause: "Burnout",     notes: "Co-host emerged plus a typist fragment." }),
+    rec({ type: "split",    date: new Date(2017, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.iris.id], result_alter_ids: [alters.brae.id], cause: "Logistics overload", notes: "Brae split off from Iris to take on day-to-day stewardship." }),
     rec({ type: "dormancy", date: new Date(2022, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.lumen.id], notes: "Lumen has been dormant since." }),
   ];
 
+  // Mirror the real preset symptom catalogue (utils/symptomDefaults.js) plus
+  // the four DID-specific items the tapestry wants to log against, so the
+  // Quick Check-In sheet in Preview Mode looks the way it does for a real
+  // user with defaults seeded.
   const symptoms = [
-    rec({ name: "Dissociation", color: "#a78bfa", icon: "🌫️" }),
-    rec({ name: "Headache",     color: "#ef4444", icon: "🤕" }),
-    rec({ name: "Fatigue",      color: "#64748b", icon: "😴" }),
-    rec({ name: "Time loss",    color: "#0ea5e9", icon: "⏳" }),
+    // Rating
+    rec({ label: "Overall mood",       category: "symptom", type: "rating", is_positive: true,  color: "#8B5CF6", order: 0,  is_default: true }),
+    rec({ label: "Energy level",       category: "symptom", type: "rating", is_positive: true,  color: "#F59E0B", order: 1,  is_default: true }),
+    rec({ label: "Self esteem",        category: "symptom", type: "rating", is_positive: true,  color: "#A78BFA", order: 2,  is_default: true }),
+    rec({ label: "Anxiety",            category: "symptom", type: "rating", is_positive: false, color: "#EF4444", order: 3,  is_default: true }),
+    rec({ label: "Depression",         category: "symptom", type: "rating", is_positive: false, color: "#6366F1", order: 4,  is_default: true }),
+    rec({ label: "Feeling irritable",  category: "symptom", type: "rating", is_positive: false, color: "#F97316", order: 5,  is_default: true }),
+    rec({ label: "Feeling overwhelmed",category: "symptom", type: "rating", is_positive: false, color: "#DC2626", order: 6,  is_default: true }),
+    rec({ label: "Emotional numbness", category: "symptom", type: "rating", is_positive: false, color: "#64748B", order: 7,  is_default: true }),
+    rec({ label: "Trouble sleeping",   category: "symptom", type: "rating", is_positive: false, color: "#1D4ED8", order: 8,  is_default: true }),
+    // Boolean symptoms
+    rec({ label: "Amnesia / memory problems", category: "symptom", type: "boolean", is_positive: false, color: "#3B82F6", order: 9,  is_default: true }),
+    rec({ label: "Triggered switch",          category: "symptom", type: "boolean", is_positive: false, color: "#B45309", order: 10, is_default: true }),
+    rec({ label: "Random switch",             category: "symptom", type: "boolean", is_positive: false, color: "#92400E", order: 11, is_default: true }),
+    rec({ label: "Rapid switching",           category: "symptom", type: "boolean", is_positive: false, color: "#C2410C", order: 12, is_default: true }),
+    rec({ label: "General stress",            category: "symptom", type: "boolean", is_positive: false, color: "#2563EB", order: 13, is_default: true }),
+    rec({ label: "Relationship stress",       category: "symptom", type: "boolean", is_positive: false, color: "#7C3AED", order: 14, is_default: true }),
+    // Habits
+    rec({ label: "Feeling calm",       category: "habit", type: "boolean", is_positive: true, color: "#10B981", order: 0, is_default: true }),
+    rec({ label: "Used coping skills", category: "habit", type: "boolean", is_positive: true, color: "#06B6D4", order: 1, is_default: true }),
+    rec({ label: "Attended therapy",   category: "habit", type: "boolean", is_positive: true, color: "#0891B2", order: 2, is_default: true }),
+    rec({ label: "Exercise / movement",category: "habit", type: "boolean", is_positive: true, color: "#16A34A", order: 3, is_default: true }),
+    rec({ label: "Self-care",          category: "habit", type: "boolean", is_positive: true, color: "#4ADE80", order: 4, is_default: true }),
+    // DID-specific entries the tapestry timeline references by name.
+    rec({ name: "Dissociation", label: "Dissociation", category: "symptom", type: "rating", is_positive: false, color: "#a78bfa", icon: "🌫️", order: 15, is_default: false }),
+    rec({ name: "Headache",     label: "Headache",     category: "symptom", type: "rating", is_positive: false, color: "#ef4444", icon: "🤕", order: 16, is_default: false }),
+    rec({ name: "Fatigue",      label: "Fatigue",      category: "symptom", type: "rating", is_positive: false, color: "#64748b", icon: "😴", order: 17, is_default: false }),
+    rec({ name: "Time loss",    label: "Time loss",    category: "symptom", type: "rating", is_positive: false, color: "#0ea5e9", icon: "⏳", order: 18, is_default: false }),
   ];
+  // Indexes 20..23 are Dissociation, Headache, Fatigue, Time loss respectively.
   const symptomSessions = [
-    rec({ symptom_id: symptoms[0].id, start_time: isoOffset(1, 11), end_time: isoOffset(1, 13), severity: 6 }),
-    rec({ symptom_id: symptoms[3].id, start_time: isoOffset(4, 15), end_time: isoOffset(4, 18), severity: 7, notes: "Lost three hours after Shade surfaced." }),
-    rec({ symptom_id: symptoms[1].id, start_time: isoOffset(7, 17), end_time: isoOffset(7, 20), severity: 5 }),
-    rec({ symptom_id: symptoms[2].id, start_time: isoOffset(10, 19), end_time: isoOffset(10, 23), severity: 6 }),
+    rec({ symptom_id: symptoms[20].id, start_time: isoOffset(1, 11), end_time: isoOffset(1, 13), severity: 6 }),
+    rec({ symptom_id: symptoms[23].id, start_time: isoOffset(4, 15), end_time: isoOffset(4, 18), severity: 7, notes: "Lost three hours after Shade surfaced." }),
+    rec({ symptom_id: symptoms[21].id, start_time: isoOffset(7, 17), end_time: isoOffset(7, 20), severity: 5 }),
+    rec({ symptom_id: symptoms[22].id, start_time: isoOffset(10, 19), end_time: isoOffset(10, 23), severity: 6 }),
   ];
 
   const settings = rec({
@@ -566,12 +679,12 @@ ACTIVE SINCE :: 1997
 
   // === Groups (subsystems) ===========================================
   const groups = [
-    rec({ name: "The Adults", color: "#7c3aed", description: "Hosts, co-host, and the alters who handle daily logistics.", member_alter_ids: [alters.atlas.id, alters.iris.id, alters.fern.id, alters.linnet.id, alters.noor.id], parent: "root", order: 0 }),
-    rec({ name: "The Protectors", color: "#dc2626", description: "Watchers, gatekeepers, and the alters who step in when things feel unsafe.", member_alter_ids: [alters.jasper.id, alters.wren.id, alters.gate.id, alters.kestrel.id, alters.thorne.id, alters.shade.id], parent: "root", order: 1 }),
+    rec({ name: "The Adults", color: "#7c3aed", description: "Hosts, co-host, and the alters who handle daily logistics.", member_alter_ids: [alters.atlas.id, alters.iris.id, alters.fern.id, alters.linnet.id, alters.noor.id, alters.brae.id, alters.pell.id], parent: "root", order: 0 }),
+    rec({ name: "The Protectors", color: "#dc2626", description: "Watchers, gatekeepers, and the alters who step in when things feel unsafe.", member_alter_ids: [alters.jasper.id, alters.gate.id, alters.kestrel.id, alters.shade.id], parent: "root", order: 1 }),
     rec({ name: "The Littles & Middles", color: "#f59e0b", description: "Younger alters. Cared for by Linnet and Sage-style caretakers.", member_alter_ids: [alters.milo.id, alters.poppy.id, alters.tadpole.id, alters.sparrow.id], parent: "root", order: 2 }),
     rec({ name: "The Teens", color: "#a855f7", description: "Adolescent alters. Loud, sharp, mostly fronting on weekends.", member_alter_ids: [alters.vex.id, alters.rook.id], parent: "root", order: 3 }),
     rec({ name: "Introjects", color: "#0ea5e9", description: "Alters modelled on outside figures or fictional characters.", member_alter_ids: [alters.noor.id, alters.halo.id, alters.blaze.id], parent: "root", order: 4 }),
-    rec({ name: "Fragments & Dormants", color: "#94a3b8", description: "Alters with limited functions, plus those resting from active fronting.", member_alter_ids: [alters.tiny.id, alters.scout.id, alters.lumen.id, alters.mira.id], parent: "root", order: 5 }),
+    rec({ name: "Fragments & Dormants", color: "#94a3b8", description: "Alters with limited functions, plus those resting from active fronting.", member_alter_ids: [alters.tiny.id, alters.lumen.id], parent: "root", order: 5 }),
   ];
 
   // === Bulletins (system message board) ==============================
@@ -881,7 +994,7 @@ ACTIVE SINCE :: 1997
       name: "The Lookout",
       description: "Use case: a high-visibility spot for protector {alters}. Great visual indicator when paired with the Protectors group.",
       color: "#dc2626", x: 380, y: 60,
-      occupant_alter_ids: [alters.jasper.id, alters.wren.id],
+      occupant_alter_ids: [alters.jasper.id],
     }),
     rec({
       name: "Empty Field (no occupants)",
