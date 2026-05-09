@@ -3,9 +3,11 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
-import { format, startOfWeek, addDays } from "date-fns";
+import { format, startOfWeek, addDays, addMonths, addYears, startOfMonth, startOfYear } from "date-fns";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
+import ActivityMonthView from "@/components/activities/ActivityMonthView";
+import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityTimeRangeModal from "@/components/activities/ActivityTimeRangeModal";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
@@ -37,7 +39,12 @@ export default function ActivityTracker() {
   const [selectedEndMinute, setSelectedEndMinute] = useState(0);
   const [selectedEndDate, setSelectedEndDate] = useState(null);
   const [tab, setTab] = useState("logged"); // "logged" | "planned"
+  const [viewMode, setViewMode] = useState(() => lsGet("symphony_act_view_mode", "week")); // "week" | "month" | "year"
   const [planModalOpen, setPlanModalOpen] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem("symphony_act_view_mode", JSON.stringify(viewMode)); } catch {}
+  }, [viewMode]);
 
   // Handle deep link highlight
   useDeepLinkHighlight("highlight", "activity-");
@@ -105,22 +112,48 @@ export default function ActivityTracker() {
   return (
     <div className="min-h-screen bg-background p-4">
       <div data-tour="activities-log" className="max-w-full mx-auto">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h1 className="text-2xl font-bold text-foreground">Activity Tracker</h1>
           {tab === "logged" && (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
+              <Button variant="outline" size="icon" onClick={() => {
+                if (viewMode === "year") setCurrentDate(addYears(currentDate, -1));
+                else if (viewMode === "month") setCurrentDate(addMonths(currentDate, -1));
+                else setCurrentDate(addDays(currentDate, -7));
+              }}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               <span className="text-sm font-medium min-w-fit">
-                {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
+                {viewMode === "year" && format(currentDate, "yyyy")}
+                {viewMode === "month" && format(currentDate, "MMMM yyyy")}
+                {viewMode === "week" && `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d, yyyy")}`}
               </span>
-              <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
+              <Button variant="outline" size="icon" onClick={() => {
+                if (viewMode === "year") setCurrentDate(addYears(currentDate, 1));
+                else if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
+                else setCurrentDate(addDays(currentDate, 7));
+              }}>
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           )}
         </div>
+
+        {/* View mode toggle */}
+        {tab === "logged" && (
+          <div className="flex gap-1 p-1 mb-3 bg-muted/30 rounded-xl w-fit">
+            {[{ id: "week", label: "Week" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }].map(v => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setViewMode(v.id)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  viewMode === v.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >{v.label}</button>
+            ))}
+          </div>
+        )}
 
         {/* Tab switcher + Plan Activity button */}
         <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
@@ -145,19 +178,40 @@ export default function ActivityTracker() {
 
         {tab === "logged" ? (
           <>
-            <ActivityWeeklyGrid
-              weekDays={weekDays}
-              activities={activities}
-              alters={alters}
-              frontingHistory={frontingHistory}
-              onTimeRangeSelect={handleTimeRangeSelect}
-              onActivityClick={handleActivityClick}
-              addMode={addMode}
-              onToggleAddMode={() => setAddMode(v => !v)}
-              highlightActivityId={highlightId}
-              onWeekStartChange={setWeekStartsOn}
-              onDayClick={setZoomedDate}
-            />
+            {viewMode === "week" && (
+              <ActivityWeeklyGrid
+                weekDays={weekDays}
+                activities={activities}
+                alters={alters}
+                frontingHistory={frontingHistory}
+                onTimeRangeSelect={handleTimeRangeSelect}
+                onActivityClick={handleActivityClick}
+                addMode={addMode}
+                onToggleAddMode={() => setAddMode(v => !v)}
+                highlightActivityId={highlightId}
+                onWeekStartChange={setWeekStartsOn}
+                onDayClick={setZoomedDate}
+              />
+            )}
+            {viewMode === "month" && (
+              <ActivityMonthView
+                monthDate={currentDate}
+                activities={activities}
+                alters={alters}
+                weekStartsOn={weekStartsOn}
+                onDayClick={setZoomedDate}
+                onActivityClick={handleActivityClick}
+              />
+            )}
+            {viewMode === "year" && (
+              <ActivityYearView
+                yearDate={currentDate}
+                activities={activities}
+                weekStartsOn={weekStartsOn}
+                onMonthClick={(d) => { setCurrentDate(d); setViewMode("month"); }}
+                onDayClick={setZoomedDate}
+              />
+            )}
 
             <div className="mt-6">
               <ActivityGoalsPanel weekStart={weekStart} />
