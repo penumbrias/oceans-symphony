@@ -14,6 +14,16 @@ const LS_WEEK_START = "symphony_act_week_start";
 const LS_TIME_FMT   = "symphony_act_time_fmt";
 const LS_TICK_MODE  = "symphony_act_tick_mode";
 
+// Default column width that fits all 7 days within the current viewport
+// (minus the fixed time-label column and a little chrome). Falls back to a
+// reasonable middle value when window is unavailable.
+function defaultColWidth() {
+  if (typeof window === 'undefined') return 60;
+  const TIME_COL_ESTIMATE = 56;
+  const CHROME_ESTIMATE = 16;
+  return Math.max(40, Math.min(110, Math.floor((window.innerWidth - TIME_COL_ESTIMATE - CHROME_ESTIMATE) / 7)));
+}
+
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
   catch { return fallback; }
@@ -63,7 +73,7 @@ export default function ActivityWeeklyGrid({
   onDayClick,
 }) {
   const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
-  const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      110));
+  const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      defaultColWidth()));
   const [gridInterval, setGridInterval] = useState(() => lsGet(LS_INTERVAL,   60));
   const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet(LS_WEEK_START, 0));
   const [timeFmt,      setTimeFmt]      = useState(() => lsGet(LS_TIME_FMT,   "24"));
