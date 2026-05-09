@@ -11,6 +11,7 @@ import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 import ActivityDayView from "@/components/activities/ActivityDayView";
+import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
 
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -35,6 +36,7 @@ export default function ActivityTracker() {
   const [selectedStartMinute, setSelectedStartMinute] = useState(0);
   const [selectedEndMinute, setSelectedEndMinute] = useState(0);
   const [selectedEndDate, setSelectedEndDate] = useState(null);
+  const [tab, setTab] = useState("logged"); // "logged" | "planned"
 
   // Handle deep link highlight
   useDeepLinkHighlight("highlight", "activity-");
@@ -104,39 +106,67 @@ export default function ActivityTracker() {
       <div data-tour="activities-log" className="max-w-full mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-foreground">Activity Tracker</h1>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium min-w-fit">
-              {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
-            </span>
-            <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+          {tab === "logged" && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm font-medium min-w-fit">
+                {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
+              </span>
+              <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
-        <ActivityWeeklyGrid
-          weekDays={weekDays}
-          activities={activities}
-          alters={alters}
-          frontingHistory={frontingHistory}
-          onTimeRangeSelect={handleTimeRangeSelect}
-          onActivityClick={handleActivityClick}
-          addMode={addMode}
-          onToggleAddMode={() => setAddMode(v => !v)}
-          highlightActivityId={highlightId}
-          onWeekStartChange={setWeekStartsOn}
-          onDayClick={setZoomedDate}
-        />
+        {/* Tab switcher */}
+        <div className="flex gap-1 p-1 mb-4 bg-muted/30 rounded-xl w-fit">
+          {[{ id: "logged", label: "Logged" }, { id: "planned", label: "Planned" }].map(t => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                tab === t.id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >{t.label}</button>
+          ))}
+        </div>
 
-        <div className="mt-6">
-          <ActivityGoalsPanel weekStart={weekStart} />
-        </div>
-        <div className="mt-6">
-          <ActivityTallyTracker activities={activities} />
-        </div>
+        {tab === "logged" ? (
+          <>
+            <ActivityWeeklyGrid
+              weekDays={weekDays}
+              activities={activities}
+              alters={alters}
+              frontingHistory={frontingHistory}
+              onTimeRangeSelect={handleTimeRangeSelect}
+              onActivityClick={handleActivityClick}
+              addMode={addMode}
+              onToggleAddMode={() => setAddMode(v => !v)}
+              highlightActivityId={highlightId}
+              onWeekStartChange={setWeekStartsOn}
+              onDayClick={setZoomedDate}
+            />
+
+            <div className="mt-6">
+              <ActivityGoalsPanel weekStart={weekStart} />
+            </div>
+            <div className="mt-6">
+              <ActivityTallyTracker activities={activities} />
+            </div>
+          </>
+        ) : (
+          <PlannedActivitiesList
+            activities={activities}
+            alters={alters}
+            onClick={handleActivityClick}
+          />
+        )}
       </div>
 
       <ActivityTimeRangeModal

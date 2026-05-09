@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
 import BulletinComposer from "./BulletinComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
+import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { toast } from "sonner";
 
 function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
@@ -159,6 +160,8 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
       {currentAlterId &&
         <MentionAlertBanner bulletins={bulletins} currentAlterId={currentAlterId} alters={alters} />
       }
+
+      <UpcomingPlans placement="bulletin_top" />
 
       {/* Pinned — always on top, never reordered */}
       {pinned.length > 0 &&

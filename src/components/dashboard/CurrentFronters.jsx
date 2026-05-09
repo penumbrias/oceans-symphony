@@ -18,6 +18,7 @@ import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
+import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 
 const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
@@ -222,8 +223,19 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
   return (
     <div className="col-span-2 rounded-xl bg-card border border-border/50 overflow-hidden">
 
+      {/* Plans for this alter — surfaced inline (always on; surface gate
+          ignored for the contextual per-alter case). */}
+      <div className="px-3 pt-3">
+        <UpcomingPlans
+          placement="alter_panel"
+          filterByAlterId={alter.id}
+          title={`📅 Plans for ${alter.name}`}
+          limit={3}
+        />
+      </div>
+
       {/* Note — bare textarea, no chrome */}
-      <div className="px-3 pt-3 pb-2">
+      <div className="px-3 pt-1 pb-2">
         <Textarea
           value={note}
           onChange={e => setNote(e.target.value)}
