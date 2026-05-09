@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 9, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Modals (like Set Fronters) now stay centered above the on-screen keyboard. Previously the keyboard would cover the search field and results — now the dialog automatically lifts above it.",
+      },
+      {
         type: "improve",
         text: "Terminology preview (in Settings and onboarding) now shows one line per term with all of its forms together (e.g. \"front · fronts · fronting · fronter\") instead of splitting into separate Singular/Plural/Other rows.",
       },
