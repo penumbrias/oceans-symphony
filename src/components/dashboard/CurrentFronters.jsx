@@ -445,17 +445,31 @@ export default function CurrentFronters({ alters }) {
 
   const handleSetPrimaryFromHold = async (alter) => {
     try {
-      const targetSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
-      const currentPrimarySession = activeSessions.find(s => s.alter_id ? s.is_primary : s.primary_alter_id === alter.id);
-      if (targetSession?.alter_id) {
-        if (currentPrimarySession && currentPrimarySession.id !== targetSession.id) {
-          await base44.entities.FrontingSession.update(currentPrimarySession.id, { is_primary: false });
+      // Refetch so the handler doesn't act on a stale `activeSessions`
+      // closure and so we can find every existing primary, not just the first.
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const newModel = fresh.filter(s => s.alter_id);
+      if (newModel.length > 0) {
+        const targetSession = newModel.find(s => s.alter_id === alter.id);
+        // Demote every existing primary so we never leave duplicates.
+        for (const s of newModel.filter(s => s.is_primary && s.alter_id !== alter.id)) {
+          try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
         }
-        await base44.entities.FrontingSession.update(targetSession.id, { is_primary: true });
+        if (targetSession) {
+          await base44.entities.FrontingSession.update(targetSession.id, { is_primary: true });
+        } else {
+          await base44.entities.FrontingSession.create({
+            alter_id: alter.id,
+            is_primary: true,
+            start_time: new Date().toISOString(),
+            is_active: true,
+          });
+        }
       } else if (active) {
         const newCoFronters = [active.primary_alter_id, ...(active.co_fronter_ids || [])].filter(id => id !== alter.id);
         await base44.entities.FrontingSession.update(active.id, { primary_alter_id: alter.id, co_fronter_ids: newCoFronters });
       }
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       toast.success(`${alter.name} is now primary!`);
     } catch { toast.error("Failed to update primary fronter"); }
@@ -542,11 +556,15 @@ export default function CurrentFronters({ alters }) {
         <div className="mb-2 grid grid-cols-2 gap-2">
           {all.map((alter, i) => {
             const alterSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
+            // Use the actual is_primary flag from the session (or the legacy
+            // primary_alter_id match) — never `i === 0`. The array-position
+            // shortcut lies whenever the DB has zero or multiple primaries.
+            const isPrimaryAlter = !!alterSession?.is_primary || alter.id === primary?.id;
             return (
               <FronterChip
                 key={alter.id}
                 alter={alter}
-                isPrimary={i === 0}
+                isPrimary={isPrimaryAlter}
                 startTime={alterSession?.start_time}
                 session={alterSession}
                 onHold={setHoldMenuAlter}

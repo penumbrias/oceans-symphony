@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import CircularProgressBar from "@/components/activities/CircularProgressBar";
+import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { format, startOfWeek } from "date-fns";
 
 export default function ActivityGoalsPanel({ weekStart }) {
@@ -139,23 +140,23 @@ export default function ActivityGoalsPanel({ weekStart }) {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Activity</label>
-              <select
-                value={selectedCategory?.id || ""}
-                onChange={(e) => {
-                  const cat = availableCategories.find((c) => c.id === e.target.value);
+            <div className="max-h-[40vh] overflow-y-auto -mx-2 px-2">
+              <ActivityPillSelector
+                selectedActivities={selectedCategory ? [selectedCategory.id] : []}
+                onActivityChange={(ids) => {
+                  // Single-select: take the most recently added id, or clear
+                  const next = ids[ids.length - 1];
+                  if (!next) { setSelectedCategory(null); return; }
+                  const cat = categories.find((c) => c.id === next);
+                  if (!cat) return;
+                  // Don't allow picking a category that already has a goal this week
+                  if (!availableCategories.some((c) => c.id === cat.id)) return;
                   setSelectedCategory(cat);
                 }}
-                className="w-full px-3 py-2 border border-input rounded-md bg-transparent text-sm"
-              >
-                <option value="">Select an activity...</option>
-                {availableCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              />
+              {availableCategories.length === 0 && (
+                <p className="text-xs text-muted-foreground italic mt-2">All categories already have a goal this week.</p>
+              )}
             </div>
 
             <div>

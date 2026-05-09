@@ -118,16 +118,41 @@ function applyFontFamily(value) {
 // `value` is "default" (use --font-display from CSS) or a CSS font-family
 // string; saving anything else falls back to default.
 export const HEADING_FONT_OPTIONS = [
-  { label: "Default (Playfair Display)", value: "default" },
-  { label: "Inter",                value: "'Inter', sans-serif" },
-  { label: "Atkinson Hyperlegible", value: "'Atkinson Hyperlegible', sans-serif" },
-  { label: "Nunito",               value: "'Nunito', sans-serif" },
-  { label: "Playfair Display",     value: "'Playfair Display', serif" },
-  { label: "Lora",                 value: "Lora, serif" },
-  { label: "Merriweather",         value: "Merriweather, serif" },
-  { label: "Caveat",               value: "Caveat, cursive" },
-  { label: "Pacifico",             value: "Pacifico, cursive" },
-  { label: "Lobster",              value: "Lobster, cursive" },
+  { label: "Default (Playfair Display)", value: "default",                               category: "ui" },
+  // UI / Accessible
+  { label: "Inter",                 value: "'Inter', sans-serif",                        category: "ui" },
+  { label: "System font",           value: "system-ui, -apple-system, sans-serif",       category: "ui" },
+  { label: "Atkinson Hyperlegible", value: "'Atkinson Hyperlegible', sans-serif",        category: "ui" },
+  { label: "Nunito",                value: "'Nunito', sans-serif",                       category: "ui" },
+  { label: "Poppins",               value: "Poppins, sans-serif",                        category: "ui" },
+  { label: "Raleway",               value: "Raleway, sans-serif",                        category: "ui" },
+  { label: "Noto Sans",             value: "'Noto Sans', sans-serif",                    category: "ui" },
+  // Serif
+  { label: "Playfair Display",      value: "'Playfair Display', serif",                  category: "serif" },
+  { label: "Lora",                  value: "Lora, serif",                                category: "serif" },
+  { label: "Merriweather",          value: "Merriweather, serif",                        category: "serif" },
+  { label: "Noto Serif",            value: "'Noto Serif', serif",                        category: "serif" },
+  { label: "Amiri",                 value: "Amiri, serif",                               category: "serif" },
+  // Handwriting
+  { label: "Caveat",                value: "Caveat, cursive",                            category: "handwriting" },
+  { label: "Dancing Script",        value: "'Dancing Script', cursive",                  category: "handwriting" },
+  { label: "Pacifico",              value: "Pacifico, cursive",                          category: "handwriting" },
+  { label: "Satisfy",               value: "Satisfy, cursive",                           category: "handwriting" },
+  // Monospace
+  { label: "Fira Code",             value: "'Fira Code', monospace",                     category: "mono" },
+  { label: "Space Mono",            value: "'Space Mono', monospace",                    category: "mono" },
+  // Display / decorative
+  { label: "Righteous",             value: "Righteous, cursive",                         category: "display" },
+  { label: "Lobster",               value: "Lobster, cursive",                           category: "display" },
+  { label: "Bungee",                value: "Bungee, display",                            category: "display" },
+  { label: "Orbitron",              value: "Orbitron, sans-serif",                       category: "display" },
+  // Cultural / multilingual
+  { label: "Nanum Gothic",          value: "'Nanum Gothic', sans-serif",                 category: "other" },
+  { label: "Sawarabi Mincho",       value: "'Sawarabi Mincho', serif",                   category: "other" },
+  { label: "Tajawal",               value: "Tajawal, sans-serif",                        category: "other" },
+  // Fun
+  { label: "VT323",                 value: "VT323, monospace",                           category: "fun" },
+  { label: "Press Start 2P",        value: "'Press Start 2P', cursive",                  category: "fun" },
 ];
 
 function applyHeadingFont(value) {

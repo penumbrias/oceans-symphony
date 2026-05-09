@@ -257,20 +257,57 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     return totals;
   }, [allSessions, sortBy]);
 
-  // Sync state when modal opens — load actual active sessions to populate current front
+  // Sync state when modal opens — load actual active sessions to populate
+  // current front. Also dedupe stale data: collapse duplicate active sessions
+  // for the same alter and demote any extra is_primary rows so the modal
+  // never shows ghost selections that the user didn't tap.
   useEffect(() => {
-    if (open) {
-      setIsUnsure(false);
-      setJournalSwitch(false);
-      setTriggeredSwitch(false);
-      setTriggerCategory("");
-      setTriggerLabel("");
-      // Re-initialize from live active sessions (new model)
-      base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
+    if (!open) return;
+    setIsUnsure(false);
+    setJournalSwitch(false);
+    setTriggeredSwitch(false);
+    setTriggerCategory("");
+    setTriggerLabel("");
+
+    (async () => {
+      try {
+        const active = await base44.entities.FrontingSession.filter({ is_active: true });
         const newModelSessions = active.filter(s => s.alter_id);
-        if (newModelSessions.length > 0) {
-          const primarySess = newModelSessions.find(s => s.is_primary);
-          const coSessions = newModelSessions.filter(s => !s.is_primary);
+        const now = nowLocalIso();
+        let cleanupHappened = false;
+
+        // 1. Group by alter_id; for any alter with >1 active session, keep
+        // the newest and end the rest. Mirrors the dedupe that already runs
+        // inside handleSave so the in-modal state matches what would be
+        // saved.
+        const sessionsByAlter = {};
+        for (const s of newModelSessions) {
+          (sessionsByAlter[s.alter_id] ||= []).push(s);
+        }
+        const survivors = [];
+        for (const sessions of Object.values(sessionsByAlter)) {
+          sessions.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+          survivors.push(sessions[0]);
+          for (const stale of sessions.slice(1)) {
+            try { await base44.entities.FrontingSession.update(stale.id, { is_active: false, end_time: now }); cleanupHappened = true; } catch {}
+          }
+        }
+
+        // 2. If multiple survivors are still marked is_primary, demote all
+        // but the newest. Prevents the "phantom primary" where a leftover
+        // is_primary row keeps showing as primary even after a fresh
+        // promotion happened.
+        const stillPrimary = survivors.filter(s => s.is_primary);
+        if (stillPrimary.length > 1) {
+          stillPrimary.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+          for (const s of stillPrimary.slice(1)) {
+            try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); s.is_primary = false; cleanupHappened = true; } catch {}
+          }
+        }
+
+        if (survivors.length > 0) {
+          const primarySess = survivors.find(s => s.is_primary);
+          const coSessions = survivors.filter(s => !s.is_primary);
           setPrimaryId(primarySess?.alter_id || "");
           setCoFronterIds(coSessions.map(s => s.alter_id));
         } else if (active.length > 0) {
@@ -279,8 +316,13 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           setPrimaryId(s.primary_alter_id || "");
           setCoFronterIds(s.co_fronter_ids || []);
         }
-      }).catch(() => {});
-    }
+
+        if (cleanupHappened) {
+          queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+          queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+        }
+      } catch {}
+    })();
   }, [open]);
 
   const activeAlters = useMemo(() => (alters || []).filter((a) => !a.is_archived), [alters]);
@@ -510,6 +552,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
           <div className="text-xs text-muted-foreground space-y-1">
             <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
+            <p>💡 On mobile: swipe right to toggle, swipe left to set primary</p>
             {selectedIds.size > 0 && <p className="text-primary">Tap primary name to make them co-{terms.front} only</p>}
           </div>
 

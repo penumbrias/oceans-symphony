@@ -14,6 +14,16 @@ const LS_WEEK_START = "symphony_act_week_start";
 const LS_TIME_FMT   = "symphony_act_time_fmt";
 const LS_TICK_MODE  = "symphony_act_tick_mode";
 
+// Default column width that fits all 7 days within the current viewport
+// (minus the fixed time-label column and a little chrome). Falls back to a
+// reasonable middle value when window is unavailable.
+function defaultColWidth() {
+  if (typeof window === 'undefined') return 60;
+  const TIME_COL_ESTIMATE = 56;
+  const CHROME_ESTIMATE = 16;
+  return Math.max(40, Math.min(110, Math.floor((window.innerWidth - TIME_COL_ESTIMATE - CHROME_ESTIMATE) / 7)));
+}
+
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
   catch { return fallback; }
@@ -63,7 +73,7 @@ export default function ActivityWeeklyGrid({
   onDayClick,
 }) {
   const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
-  const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      110));
+  const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      defaultColWidth()));
   const [gridInterval, setGridInterval] = useState(() => lsGet(LS_INTERVAL,   60));
   const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet(LS_WEEK_START, 0));
   const [timeFmt,      setTimeFmt]      = useState(() => lsGet(LS_TIME_FMT,   "24"));
@@ -276,18 +286,26 @@ if (isSameCell) {
 
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Row height</span>
-              <input type="range" min={6} max={80} step={2} value={rowH}
+              <button type="button" onClick={() => setRowH(v => Math.max(6, v - 1))}
+                className="w-6 h-6 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none">−</button>
+              <input type="range" min={6} max={80} step={1} value={rowH}
                 onChange={e => setRowH(Number(e.target.value))}
-                className="w-20 accent-primary" />
-              <span className="text-muted-foreground w-7">{rowH}px</span>
+                className="w-28 accent-primary touch-pan-y" />
+              <button type="button" onClick={() => setRowH(v => Math.min(80, v + 1))}
+                className="w-6 h-6 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none">+</button>
+              <span className="text-muted-foreground w-7 tabular-nums">{rowH}px</span>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Col width</span>
-              <input type="range" min={15} max={200} step={5} value={colW}
+              <button type="button" onClick={() => setColW(v => Math.max(15, v - 1))}
+                className="w-6 h-6 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none">−</button>
+              <input type="range" min={15} max={200} step={1} value={colW}
                 onChange={e => setColW(Number(e.target.value))}
-                className="w-20 accent-primary" />
-              <span className="text-muted-foreground w-8">{colW}px</span>
+                className="w-28 accent-primary touch-pan-y" />
+              <button type="button" onClick={() => setColW(v => Math.min(200, v + 1))}
+                className="w-6 h-6 rounded-md bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-base leading-none">+</button>
+              <span className="text-muted-foreground w-8 tabular-nums">{colW}px</span>
             </div>
 
             <div className="flex items-center gap-2">

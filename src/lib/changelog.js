@@ -17,6 +17,42 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Set Fronters modal now shows a hint about swipe gestures (swipe right to toggle, swipe left to set primary) so the gesture controls are discoverable.",
+      },
+      {
+        type: "fix",
+        text: "Setting an alter as primary fronter (long-press on the Alters page, dashboard hold-menu, or the Set Fronters modal) now reliably promotes the right alter. Previously, stale duplicate active sessions or a mid-flight cache could result in the wrong alter showing as primary, or a 'ghost' alter appearing in the front. Every primary-toggle path now refetches fresh sessions, demotes every existing primary (not just the first), and the dashboard chip uses the actual is_primary flag instead of array position.",
+      },
+      {
+        type: "feature",
+        text: "Activity Tracker now has Month and Year views in addition to the existing Week view. Month view is a calendar grid (one cell per day) with a heatmap tint and dots for each activity; Year view is a 3x4 grid of mini-month calendars. Tap a day to drill into the day view, or a month header in Year view to jump into Month view.",
+      },
+      {
+        type: "feature",
+        text: "Activity Tracker has a new + Plan Activity button beside the Logged/Planned tabs. It opens a planning modal with date/time pickers so you can schedule any future activity without scrolling to its slot.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker Display sliders (Row height, Col width) now move in 1px increments instead of 5px steps and have − / + nudge buttons on either side for precise tuning.",
+      },
+      {
+        type: "improve",
+        text: "Set Weekly Goal modal now uses the same nested category pills as the quick check-in's activity selector instead of a plain dropdown.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker now defaults its column width to fit all 7 days within the screen, so you don't have to scroll horizontally on first open. You can still drag the Col width slider in Display settings to make columns wider.",
+      },
+      {
+        type: "fix",
+        text: "Custom Colors swatches in Appearance settings now update immediately when you switch built-in presets — they were previously stuck showing the colors of the previously selected preset.",
+      },
+      {
+        type: "improve",
+        text: "Appearance settings layout: Font Family and Heading Font are now side-by-side, the Theme Mode (light/dark/system) toggle moved below them, the Heading Font dropdown matches the Font Family one (searchable, categorised), and the heading-font list now includes every font available for the body text.",
+      },
+      {
+        type: "improve",
         text: "Backup & Export simplified — Copy to Clipboard, View as Text, and paste-based imports are gone now that file download/import works reliably. The \"backup is large\" warning banner has also been removed; the Recompress Images button is still available if you want to shrink backup size.",
       },
       {

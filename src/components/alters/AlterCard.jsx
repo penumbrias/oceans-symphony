@@ -59,30 +59,35 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
     e.preventDefault();
     e.stopPropagation();
     try {
-      if (!isFronting) {
-        // Add as primary, demote current primary
-        const currentPrimary = activeSessions.find(s => s.is_primary);
-        if (currentPrimary) {
-          await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
+      // Always refetch — the long-press timer runs 600ms after touchstart and
+      // the closure-captured `activeSessions` may be stale by the time the
+      // handler fires (parent re-renders frequently from query invalidations).
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const freshMySession = fresh.find(s => s.alter_id === alter.id);
+      const freshIsPrimary = !!freshMySession?.is_primary;
+
+      if (freshIsPrimary) {
+        // Already primary → demote
+        await base44.entities.FrontingSession.update(freshMySession.id, { is_primary: false });
+        toast.success(`${alter.name} demoted to co-fronter`);
+      } else {
+        // Demote EVERY existing primary, not just the first match — handles
+        // any case where stale duplicate primaries leaked into the DB.
+        for (const s of fresh.filter(s => s.is_primary && s.alter_id !== alter.id)) {
+          try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
         }
-        await base44.entities.FrontingSession.create({
-          alter_id: alter.id,
-          is_primary: true,
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
-      } else if (!isPrimary) {
-        // Promote to primary, demote current primary
-        const currentPrimary = activeSessions.find(s => s.is_primary);
-        if (currentPrimary) {
-          await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
+        if (freshMySession) {
+          await base44.entities.FrontingSession.update(freshMySession.id, { is_primary: true });
+        } else {
+          await base44.entities.FrontingSession.create({
+            alter_id: alter.id,
+            is_primary: true,
+            start_time: new Date().toISOString(),
+            is_active: true,
+          });
         }
-        await base44.entities.FrontingSession.update(mySession.id, { is_primary: true });
-      } else if (isPrimary) {
-  await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
-  toast.success(`${alter.name} demoted to co-fronter`);
-}
-      toast.success(`${alter.name} is now primary!`);
+        toast.success(`${alter.name} is now primary!`);
+      }
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     } catch (err) {
