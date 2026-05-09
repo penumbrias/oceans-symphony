@@ -46,6 +46,7 @@ initAccessibility();
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal, migrateLocalImageUrlScheme } from '@/lib/localDb';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
+import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
 import { base44 } from '@/api/base44Client';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
@@ -133,7 +134,10 @@ function App() {
         .then(() => {
           // Only repair real data — skip when preview is active so we don't
           // burn the one-shot flag against preview's in-memory snapshot.
-          if (!isPreviewActive()) cleanupBrokenSessionsOnce(base44.entities);
+          if (!isPreviewActive()) {
+            cleanupBrokenSessionsOnce(base44.entities);
+            cleanupLegacyCardEntryOnce(base44.entities);
+          }
         })
         .catch(() => setSetupState(null));
     }
