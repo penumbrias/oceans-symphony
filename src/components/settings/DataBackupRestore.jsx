@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
+import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
 import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
 import pako from "pako";
@@ -95,7 +95,6 @@ const EXPORT_CATEGORIES = [
   { id: "images",        label: "Local Images",             entities: [],                                                                    desc: "Uploaded images (local mode only)", isImages: true },
 ];
 
-// Outside component — no state needed here
 async function downloadJson(data, filename, format = "json") {
   // format:
   //   "json"    — plain JSON.stringify (easier to inspect/share)
@@ -111,20 +110,10 @@ async function downloadJson(data, filename, format = "json") {
     if (navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
-        return; // Share succeeded
+        return;
       } catch (e) {
-        // Share was cancelled or failed — fall through to clipboard
-        if (e.name === "AbortError") {
-          // User cancelled — try clipboard instead
-          try {
-            await navigator.clipboard.writeText(text);
-            throw new Error("__clipboard_success__");
-          } catch (clipErr) {
-            if (clipErr.message === "__clipboard_success__") throw clipErr;
-            throw new Error("__clipboard_fallback__");
-          }
-        }
-        // Other share errors — fall through to desktop fallback
+        if (e.name === "AbortError") return; // user cancelled
+        // other share errors fall through to anchor download
       }
     }
   }
@@ -144,16 +133,9 @@ export default function DataBackupRestore() {
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportFormat, setExportFormat] = useState("json"); // "json" | "compact"
-  const [copyLoading, setCopyLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [importMode, setImportMode] = useState("add");
-  const [showPasteInput, setShowPasteInput] = useState(false);
-  const [pasteText, setPasteText] = useState("");
-  const [showManualCopy, setShowManualCopy] = useState(null); // holds single string or parts array
-  const [copiedChunks, setCopiedChunks] = useState(new Set()); // tracks which parts have been copied
-  const [multiPartChunks, setMultiPartChunks] = useState([]); // for multi-part import
-  const [showMultiPartImport, setShowMultiPartImport] = useState(false);
   const [cachingUrls, setCachingUrls] = useState(false);
   const [cacheUrlResult, setCacheUrlResult] = useState(null);
   const [cacheUrlProgress, setCacheUrlProgress] = useState(null);
@@ -170,7 +152,6 @@ export default function DataBackupRestore() {
     setTimeout(() => setStatus(null), 5000);
   };
 
-  const [sizeWarning, setSizeWarning] = useState(null);
   const [selectiveOpen, setSelectiveOpen] = useState(false);
   const [selectedCats, setSelectedCats] = useState(() => new Set(EXPORT_CATEGORIES.map(c => c.id)));
   const [catSizes, setCatSizes] = useState(null); // { catId: sizeKB } — lazy loaded
@@ -209,7 +190,7 @@ export default function DataBackupRestore() {
 
   const handleToggleSelectiveOpen = () => {
     setSelectiveOpen(v => {
-      if (!v) computeCatSizes(); // lazy compute on first open
+      if (!v) computeCatSizes();
       return !v;
     });
   };
@@ -226,7 +207,6 @@ export default function DataBackupRestore() {
     const activeCats = overrideSelectedCats ?? selectedCats;
     const { dump, images } = await fetchFullDump();
 
-    // Build filtered dump
     const filteredDump = {};
     for (const cat of EXPORT_CATEGORIES) {
       if (!cat.isImages && activeCats.has(cat.id)) {
@@ -238,7 +218,7 @@ export default function DataBackupRestore() {
 
     const imagesExport = activeCats.has("images") ? images : {};
 
-    const exportData = {
+    return {
       __format: "symphony_backup",
       __version: 1,
       __exported_at: new Date().toISOString(),
@@ -246,172 +226,20 @@ export default function DataBackupRestore() {
       __local_images: imagesExport,
       __local_settings: exportLocalSettings(),
     };
-
-    // Size warning — check before compression
-    const rawSize = JSON.stringify(exportData).length;
-    if (rawSize > 500 * 1024) {
-      setSizeWarning(`Your backup is large (${(rawSize / 1024).toFixed(0)}KB). Try recompressing images above to reduce size.`);
-    } else {
-      setSizeWarning(null);
-    }
-
-    return exportData;
   };
 
-  // Inside component — needs setExportLoading, buildExportData, showStatus
-const handleExportFull = async () => {
-  setExportLoading(true);
-  try {
-    const exportData = await buildExportData();
-    const date = new Date().toISOString().slice(0, 10);
-    const ext = exportFormat === "compact" ? "txt" : "json";
-    await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat);
-    showStatus("success", "Backup exported!");
-  } catch (e) {
-    if (e.message === "__clipboard_fallback__") {
-      showStatus("success", "Share dialog unavailable — backup copied to clipboard. Paste it into Google Drive or a notes app, then share/export as .txt to reimport.");
-    } else if (e.message === "__clipboard_success__") {
-      showStatus("success", "Backup copied to clipboard (share was cancelled). Paste it into Google Drive or a notes app, then share/export as .txt to reimport.");
-    } else {
-      showStatus("error", `Export failed: ${e.message}`);
-    }
-  } finally {
-    setExportLoading(false);
-  }
-};
-
-  const splitBackupIntoParts = (backup, chunkSize = 50000) => {
-    if (backup.length <= chunkSize) {
-      return { isSinglePart: true, parts: [backup] };
-    }
-    const parts = [];
-    for (let i = 0; i < backup.length; i += chunkSize) {
-      parts.push(backup.slice(i, i + chunkSize));
-    }
-    const prefixedParts = parts.map((part, idx) => `PART:${idx + 1}:${parts.length}:${part}`);
-    return { isSinglePart: false, parts: prefixedParts };
-  };
-
-  const handleCopyToClipboard = async () => {
-    setCopyLoading(true);
+  const handleExportFull = async () => {
+    setExportLoading(true);
     try {
       const exportData = await buildExportData();
-      const compressed = compressBackup(exportData);
-
-      let copied = false;
-
-      // Try modern clipboard API
-      try {
-        await navigator.clipboard.writeText(compressed);
-        copied = true;
-      } catch {}
-
-      // Try execCommand fallback
-      if (!copied) {
-        try {
-          const textarea = document.createElement("textarea");
-          textarea.value = compressed;
-          textarea.style.position = "fixed";
-          textarea.style.top = "0";
-          textarea.style.left = "0";
-          textarea.style.opacity = "0.01";
-          document.body.appendChild(textarea);
-          textarea.focus();
-          textarea.select();
-          const ok = document.execCommand("copy");
-          document.body.removeChild(textarea);
-          if (ok) copied = true;
-        } catch {}
-      }
-
-      if (copied) {
-        showStatus("success", "Backup copied to clipboard! Paste it somewhere safe — notes app, email, etc.");
-      } else {
-        // Both methods failed — split into parts if needed
-        const { isSinglePart, parts } = splitBackupIntoParts(compressed);
-        setShowManualCopy(parts);
-        setCopiedChunks(new Set());
-      }
+      const date = new Date().toISOString().slice(0, 10);
+      const ext = exportFormat === "compact" ? "txt" : "json";
+      await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat);
+      showStatus("success", "Backup exported!");
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
     } finally {
-      setCopyLoading(false);
-    }
-  };
-
-  const handleCopyPartToClipboard = async (part, idx) => {
-    try {
-      await navigator.clipboard.writeText(part);
-      setCopiedChunks(prev => new Set([...prev, idx]));
-      showStatus("success", `Part ${idx + 1} copied ✅`);
-    } catch {
-      showStatus("error", "Failed to copy part — use manual select & copy");
-    }
-  };
-
-  const handleImportFromText = async () => {
-    if (!pasteText.trim()) return;
-    setImportLoading(true);
-    try {
-      const trimmed = pasteText.trim();
-      // Check if multi-part
-      if (trimmed.startsWith("PART:")) {
-        showStatus("error", "This is a multi-part backup. Use Multi-part paste mode instead.");
-        setImportLoading(false);
-        return;
-      }
-      const parsed = decompressBackup(trimmed);
-      await processImport(parsed);
-      setShowPasteInput(false);
-      setPasteText("");
-    } catch (e) {
-      showStatus("error", `Import failed: ${e.message}`);
-    } finally {
-      setImportLoading(false);
-    }
-  };
-
-  const handleMultiPartPasteAdd = async () => {
-    if (!pasteText.trim()) return;
-    try {
-      const trimmed = pasteText.trim();
-      if (!trimmed.startsWith("PART:")) {
-        showStatus("error", "This doesn't look like a multi-part backup (missing PART: prefix)");
-        return;
-      }
-      // Parse PART:X:Y:data
-      const match = trimmed.match(/^PART:(\d+):(\d+):/);
-      if (!match) {
-        showStatus("error", "Invalid part format");
-        return;
-      }
-      const [, partNum, totalParts] = match;
-      const data = trimmed.slice(match[0].length);
-      setMultiPartChunks(prev => {
-        const updated = [...prev];
-        updated[parseInt(partNum) - 1] = data;
-        return updated;
-      });
-      showStatus("success", `Part ${partNum}/${totalParts} added`);
-      setPasteText("");
-    } catch (e) {
-      showStatus("error", `Failed to add part: ${e.message}`);
-    }
-  };
-
-  const handleMultiPartImport = async () => {
-    if (!multiPartChunks.length || multiPartChunks.some(c => !c)) return;
-    setImportLoading(true);
-    try {
-      const reassembled = multiPartChunks.join("");
-      const parsed = decompressBackup(reassembled);
-      await processImport(parsed);
-      setShowMultiPartImport(false);
-      setMultiPartChunks([]);
-    } catch (e) {
-      showStatus("error", `Import failed: ${e.message}`);
-    } finally {
-      setImportLoading(false);
+      setExportLoading(false);
     }
   };
 
@@ -502,7 +330,7 @@ const handleExportFull = async () => {
           </div>
           <div>
             <CardTitle className="text-lg">Backup & Export</CardTitle>
-            <CardDescription>Export your data or import from a backup. Copy/paste exists as an alternative if download fails. Copied data must not be reformatted or changed <strong>in any way</strong> in order to paste. <p>I suggest pasting copied backup data into google Drive or similar, then share/export as a .txt to reimport the backup data</p></CardDescription>
+            <CardDescription>Export your data to a file, or import from a previous backup.</CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -517,13 +345,6 @@ const handleExportFull = async () => {
               ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
             {status.message}
-          </div>
-        )}
-
-        {sizeWarning && (
-          <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-300/50">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {sizeWarning}
           </div>
         )}
 
@@ -647,88 +468,6 @@ const handleExportFull = async () => {
               <p className="text-xs text-muted-foreground font-normal">{selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length ? `${selectedCats.size} categories selected` : exportFormat === "compact" ? "All data, compressed (.txt)" : "All data, plain JSON"}</p>
             </div>
           </Button>
-          <div className="flex gap-2">
-           <Button variant="outline" onClick={handleCopyToClipboard} disabled={copyLoading} className="flex-1 gap-2 justify-start">
-             {copyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
-             <div className="text-left">
-               <p className="font-medium">Copy to Clipboard</p>
-               <p className="text-xs text-muted-foreground font-normal">Copy backup</p>
-             </div>
-           </Button>
-           <Button 
-             variant="outline" 
-             onClick={async () => {
-  try {
-    const exportData = await buildExportData();
-    const compressed = compressBackup(exportData);
-    const { parts } = splitBackupIntoParts(compressed);
-    setShowManualCopy(parts);
-    setCopiedChunks(new Set());
-  } catch (e) {
-    showStatus("error", `Export failed: ${e.message}`);
-  }
-}}
-             className="flex-1 gap-2 justify-start"
-           >
-             <FileJson className="w-4 h-4" />
-             <div className="text-left">
-               <p className="font-medium">View as Text</p>
-               <p className="text-xs text-muted-foreground font-normal">Manual copy</p>
-             </div>
-           </Button>
-          </div>
-          {Array.isArray(showManualCopy) && showManualCopy.length > 1 ? (
-            <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-3">
-              <div>
-                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1">⚠️ Backup is large — split into {showManualCopy.length} parts</p>
-                <p className="text-xs text-amber-700 dark:text-amber-300">Copy each part in order, paste into a notes app before moving to the next part</p>
-              </div>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {showManualCopy.map((part, idx) => {
-                  const isCopied = copiedChunks.has(idx);
-                  return (
-                    <div key={idx} className="rounded-lg border border-border/50 bg-card p-2.5 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold">Part {idx + 1} of {showManualCopy.length}</p>
-                        {isCopied && <span className="text-xs font-semibold text-green-600 dark:text-green-400">✅ Copied</span>}
-                      </div>
-                      <textarea
-                        readOnly
-                        value={part}
-                        className="w-full h-20 px-2 py-1.5 rounded border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                        onFocus={e => e.target.select()}
-                      />
-                      <Button size="sm" onClick={() => handleCopyPartToClipboard(part, idx)} className="w-full text-xs">
-                        {isCopied ? "✅ Copied" : `Copy Part ${idx + 1}`}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-              {copiedChunks.size === showManualCopy.length && (
-                <div className="flex items-center gap-2 rounded-lg bg-green-100/50 dark:bg-green-900/30 px-3 py-2">
-                  <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                  <p className="text-xs font-semibold text-green-700 dark:text-green-400">All parts copied ✅</p>
-                </div>
-              )}
-              <Button size="sm" variant="outline" className="w-full" onClick={() => { setShowManualCopy(null); setCopiedChunks(new Set()); }}>
-                Done
-              </Button>
-            </div>
-          ) : showManualCopy && typeof showManualCopy === "string" ? (
-            <div className="rounded-xl border border-amber-400/50 bg-amber-50/10 p-3 space-y-2">
-              <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">⚠️ Clipboard unavailable — select all text below and copy manually (long-press → Select All → Copy)</p>
-              <textarea
-                readOnly
-                value={showManualCopy}
-                className="w-full h-32 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                onFocus={e => e.target.select()}
-              />
-              <Button size="sm" variant="outline" className="w-full" onClick={() => setShowManualCopy(null)}>
-                Done
-              </Button>
-            </div>
-          ) : null}
         </div>
 
         <div className="space-y-2 pt-1">
@@ -751,79 +490,6 @@ const handleExportFull = async () => {
               <p className="text-xs text-muted-foreground font-normal">Symphony backup .json or .txt file</p>
             </div>
           </Button>
-          {!showPasteInput && !showMultiPartImport ? (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowPasteInput(true)} className="flex-1 gap-2 justify-start">
-                <ClipboardPaste className="w-4 h-4" />
-                <div className="text-left">
-                  <p className="font-medium text-xs">Single-part</p>
-                  <p className="text-xs text-muted-foreground font-normal">Paste backup</p>
-                </div>
-              </Button>
-              <Button variant="outline" onClick={() => setShowMultiPartImport(true)} className="flex-1 gap-2 justify-start">
-                <ClipboardPaste className="w-4 h-4" />
-                <div className="text-left">
-                  <p className="font-medium text-xs">Multi-part</p>
-                  <p className="text-xs text-muted-foreground font-normal">Paste chunks</p>
-                </div>
-              </Button>
-            </div>
-          ) : showPasteInput ? (
-            <div className="space-y-2 rounded-xl border border-border/50 p-3">
-               <p className="text-sm font-medium">Paste your backup here</p>
-               <textarea
-                className="w-full h-32 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                placeholder="Paste your copied backup here..."
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-              />
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setShowPasteInput(false); setPasteText(""); }} className="flex-1">Cancel</Button>
-                <Button size="sm" onClick={handleImportFromText} disabled={importLoading || !pasteText.trim()} className="flex-1">
-                  {importLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                  {importLoading ? "Importing..." : "Import"}
-                </Button>
-              </div>
-            </div>
-          ) : showMultiPartImport ? (
-            <div className="space-y-2 rounded-xl border border-border/50 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium">Multi-part Import</p>
-                <p className="text-xs text-muted-foreground">{multiPartChunks.filter(Boolean).length} part(s) added</p>
-              </div>
-              <p className="text-xs text-muted-foreground">Paste each part in order. Import starts when all parts are present.</p>
-              <textarea
-                className="w-full h-24 px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-                placeholder="Paste part here (PART:X:Y:...)..."
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-              />
-              <Button size="sm" onClick={handleMultiPartPasteAdd} disabled={!pasteText.trim()} className="w-full">
-                Add Part
-              </Button>
-              {multiPartChunks.some(Boolean) && (
-                <div className="space-y-1.5 rounded-lg bg-muted/30 p-2">
-                  <p className="text-xs font-semibold text-muted-foreground">Parts collected:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {multiPartChunks.map((chunk, idx) => (
-                      <span key={idx} className={`px-2 py-1 rounded text-xs font-medium ${chunk ? "bg-green-100/50 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-muted text-muted-foreground"}`}>
-                        Part {idx + 1}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setShowMultiPartImport(false); setMultiPartChunks([]); setPasteText(""); }} className="flex-1">
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={handleMultiPartImport} disabled={!multiPartChunks.every(Boolean) || importLoading} className="flex-1">
-                  {importLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                  {importLoading ? "Importing..." : "Import All"}
-                </Button>
-              </div>
-            </div>
-          ) : null}
           <p className="text-xs text-muted-foreground">
             {importMode === "replace"
               ? "⚠️ Replace All will delete existing data and import from backup."
