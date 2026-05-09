@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Pin, Trash2, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useNavigate, Link } from "react-router-dom";
 import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
+import BulletinActionMenu from "./BulletinActionMenu";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -100,11 +101,44 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
   };
 
   const handleClick = () => {
+    if (longPressFired.current) { longPressFired.current = false; return; }
     const now = Date.now();
     if (now - lastTap < 350) {
       navigate(`/bulletin/${bulletin.id}`);
     }
     setLastTap(now);
+  };
+
+  // Long-press anywhere on the card body opens the shared action menu.
+  const longPressTimer = useRef(null);
+  const longPressFired = useRef(false);
+  const pressStart = useRef({ x: 0, y: 0 });
+  const [showActions, setShowActions] = useState(false);
+
+  const onPressStart = (e) => {
+    longPressFired.current = false;
+    const t = e.touches?.[0] || e;
+    pressStart.current = { x: t.clientX, y: t.clientY };
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true;
+      longPressTimer.current = null;
+      setShowActions(true);
+    }, 500);
+  };
+  const onPressMove = (e) => {
+    if (!longPressTimer.current) return;
+    const t = e.touches?.[0] || e;
+    const dx = t.clientX - pressStart.current.x;
+    const dy = t.clientY - pressStart.current.y;
+    if (dx * dx + dy * dy > 100) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+  const onPressEnd = () => {
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
   };
 
   const totalVotes = bulletin.poll ?
@@ -113,11 +147,10 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
 
   return (
     <div className="bg-card px-4 py-2 rounded-2xl border transition-all duration-700 cursor-pointer border-border/50"
-
-
-
-
-    onClick={handleClick}>
+    onClick={handleClick}
+    onMouseDown={onPressStart} onMouseMove={onPressMove} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
+    onTouchStart={onPressStart} onTouchMove={onPressMove} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
+    style={{ touchAction: "pan-y" }}>
       
       {/* Header: Authors */}
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -214,6 +247,12 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
         
         </div>
       }
+      <BulletinActionMenu
+        bulletin={bulletin}
+        open={showActions}
+        onClose={() => setShowActions(false)}
+        onOpen={() => navigate(`/bulletin/${bulletin.id}`)}
+      />
     </div>);
 
 }

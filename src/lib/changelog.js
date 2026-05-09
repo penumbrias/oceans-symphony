@@ -13,6 +13,27 @@
 
 export const CHANGELOG = [
   {
+    date: "May 9, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Backup & Export simplified — Copy to Clipboard, View as Text, and paste-based imports are gone now that file download/import works reliably. The \"backup is large\" warning banner has also been removed; the Recompress Images button is still available if you want to shrink backup size.",
+      },
+      {
+        type: "fix",
+        text: "Modals (like Set Fronters) now stay centered above the on-screen keyboard. Previously the keyboard would cover the search field and results — now the dialog automatically lifts above it.",
+      },
+      {
+        type: "improve",
+        text: "Terminology preview (in Settings and onboarding) now shows one line per term with all of its forms together (e.g. \"front · fronts · fronting · fronter\") instead of splitting into separate Singular/Plural/Other rows.",
+      },
+      {
+        type: "fix",
+        text: "Custom fields on alter pages now preserve line breaks when displayed. Multi-line entries like bulleted lists no longer collapse into a single paragraph after saving.",
+      },
+    ],
+  },
+  {
     date: "May 8, 2026",
     changes: [
       {
@@ -42,6 +63,26 @@ export const CHANGELOG = [
       {
         type: "improve",
         text: "Preview Mode is now a single, more fleshed-out example: The Tapestry. The two earlier examples (The Hearth, Inner Compass) have been retired. Atlas (the host) gets the constellation profile that was previously Self's, and the example now ships with more journals, activities, status notes, and check-ins — across more voices in the system.",
+      },
+      {
+        type: "feature",
+        text: "Activity Tracker now has a Planned tab. Schedule activities for the future (today / this week / this month / this year / all upcoming) — pick a future date in the compose modal and the activity is filed under Planned. Filter chips switch between horizons; an empty state appears when nothing's planned for the selected window.",
+      },
+      {
+        type: "feature",
+        text: "Upcoming plans can surface in lots of places — and you choose which. Settings → Appearance → Upcoming plans visibility is a multi-toggle: top of Home, bottom of Home, Currently-fronting alter panel (the inline panel that opens when you tap a fronting chip — defaults to ON, low-clutter and contextual), top of Bulletin Board, soft in-app banner near reminder window. The Activity Tracker's Planned tab is always on. Designed to help with dissociative amnesia: redundant surfaces so an alter with no recall still finds the plan when they touch a familiar part of the app.",
+      },
+      {
+        type: "feature",
+        text: "Long-press any bulletin or task on the Bulletin Board to open an action menu — Pin to top of dashboard (surfaces it on the Home page above the alters grid), Pin on board (the original board-pin), and Delete. The dashboard pin is independent of the board pin, so the same item can sit at the top of both surfaces.",
+      },
+      {
+        type: "feature",
+        text: "System History events can now be hidden — useful when an import (e.g. Simply Plural with merges) creates a flood of fusion / split events that clutter the timeline. Tap the eye-off icon on any event to hide it; a \"Show N hidden\" chip appears at the right of the filter row to bring them back. Hidden events also drop out of the Lineage tab on alter profiles.",
+      },
+      {
+        type: "fix",
+        text: "Pinned bulletin tasks now show a filled pin icon, matching pinned bulletin posts.",
       },
       {
         type: "fix",

@@ -99,16 +99,20 @@ export default function TermsSettings() {
         </div>
         <div className="text-xs text-muted-foreground space-y-0.5">
           <p>
-            <span className="font-medium">Singular:</span>{" "}
-            <span className="text-foreground font-medium">{vals.system}</span> · <span className="text-foreground font-medium">{vals.alter}</span> · <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{vals.front}</span>
+            <span className="font-medium">System:</span>{" "}
+            <span className="text-foreground font-medium">{vals.system}</span> · <span className="text-foreground font-medium">{pluralize(vals.system)}</span>
           </p>
           <p>
-            <span className="font-medium">Plural:</span>{" "}
-            <span className="text-foreground font-medium">{pluralize(vals.system)}</span> · <span className="text-foreground font-medium">{pluralize(vals.alter)}</span> · <span className="text-foreground font-medium">{pluralize(vals.switch)}</span> · <span className="text-foreground font-medium">{pluralize(vals.front)}</span>
+            <span className="font-medium">Alter:</span>{" "}
+            <span className="text-foreground font-medium">{vals.alter}</span> · <span className="text-foreground font-medium">{pluralize(vals.alter)}</span>
           </p>
           <p>
-            <span className="font-medium">Other:</span>{" "}
-            <span className="text-foreground font-medium">{gerund(vals.front)}</span> (gerund) · <span className="text-foreground font-medium">{gerund(vals.switch)}</span> · <span className="text-foreground font-medium">{agent(vals.front)}</span> (agent)
+            <span className="font-medium">Switch:</span>{" "}
+            <span className="text-foreground font-medium">{vals.switch}</span> · <span className="text-foreground font-medium">{pluralize(vals.switch)}</span> · <span className="text-foreground font-medium">{gerund(vals.switch)}</span>
+          </p>
+          <p>
+            <span className="font-medium">Front:</span>{" "}
+            <span className="text-foreground font-medium">{vals.front}</span> · <span className="text-foreground font-medium">{pluralize(vals.front)}</span> · <span className="text-foreground font-medium">{gerund(vals.front)}</span> · <span className="text-foreground font-medium">{agent(vals.front)}</span>
           </p>
         </div>
         <Button onClick={handleSave} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">

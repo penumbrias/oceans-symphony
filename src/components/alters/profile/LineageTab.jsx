@@ -184,8 +184,10 @@ export default function LineageTab({ alterId }) {
   const relatedEvents = useMemo(() =>
     allEvents
       .filter(e =>
-        (e.source_alter_ids || []).includes(alterId) ||
-        (e.result_alter_ids || []).includes(alterId)
+        !e.hidden && (
+          (e.source_alter_ids || []).includes(alterId) ||
+          (e.result_alter_ids || []).includes(alterId)
+        )
       )
       .sort((a, b) => new Date(b.date) - new Date(a.date)),
     [allEvents, alterId]

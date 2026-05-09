@@ -25,23 +25,13 @@ export const DEFAULT_TASK_TEMPLATES = [
     auto_trigger: "journal_entry",
     nav_path: "/journals",
   },
-  {
-    title: "Card entry",
-    description: "Save a daily or weekly card entry.",
-    points: 5,
-    mode: "AUTO",
-    is_active: true,
-    sort_order: 2,
-    auto_trigger: "card_entry",
-    nav_path: "/diary",
-  },
 {
   title: "{{system}} meeting",
   description: "Gently notice any parts that want attention and what your body is feeling. No fixing, just noticing.",
   points: 4,
   mode: "AUTO",
   is_active: true,
-  sort_order: 3,
+  sort_order: 2,
   auto_trigger: "parts_checkin",
   nav_path: "/system-checkin",
 },
@@ -51,7 +41,7 @@ export const DEFAULT_TASK_TEMPLATES = [
     points: 3,
     mode: "MANUAL",
     is_active: true,
-    sort_order: 4,
+    sort_order: 3,
     auto_trigger: null,
     nav_path: null,
   },
@@ -61,7 +51,7 @@ export const DEFAULT_TASK_TEMPLATES = [
     points: 3,
     mode: "MANUAL",
     is_active: true,
-    sort_order: 5,
+    sort_order: 4,
     auto_trigger: null,
     nav_path: null,
   },
@@ -71,7 +61,7 @@ export const DEFAULT_TASK_TEMPLATES = [
     points: 2,
     mode: "MANUAL",
     is_active: true,
-    sort_order: 6,
+    sort_order: 5,
     auto_trigger: null,
     nav_path: null,
   },
@@ -81,7 +71,7 @@ export const DEFAULT_TASK_TEMPLATES = [
     points: 4,
     mode: "MANUAL",
     is_active: true,
-    sort_order: 7,
+    sort_order: 6,
     auto_trigger: null,
     nav_path: null,
   },
@@ -91,7 +81,7 @@ export const DEFAULT_TASK_TEMPLATES = [
     points: 3,
     mode: "MANUAL",
     is_active: true,
-    sort_order: 8,
+    sort_order: 7,
     auto_trigger: null,
     nav_path: null,
   },
@@ -104,7 +94,6 @@ export const DEFAULT_TASK_TEMPLATES = [
 export const AUTO_TRIGGER_LABELS = {
   check_in: "App opened (daily check-in)",
   journal_entry: "Journal entry created",
-  card_entry: "Diary card created",
   parts_checkin: "{{System}} meeting completed",
 };
 
@@ -116,13 +105,33 @@ export const AUTO_TRIGGER_OPTIONS = Object.entries(AUTO_TRIGGER_LABELS).map(([va
 /**
  * Build a set of completed AUTO trigger keys from today's app data.
  */
-export function buildAutoCompletedTriggers({ hasJournal, hasDiaryCard, hasPartsCheckIn }) {
+export function buildAutoCompletedTriggers({ hasJournal, hasPartsCheckIn }) {
   const s = new Set();
   s.add("check_in"); // always true when viewing the app
   if (hasJournal) s.add("journal_entry");
-  if (hasDiaryCard) s.add("card_entry");
   if (hasPartsCheckIn) s.add("parts_checkin");
   return s;
+}
+
+// One-shot removal of the legacy "Card entry" daily-task template that was
+// seeded by older installs. The diary-card feature it referenced no longer
+// exists; the template is no longer in DEFAULT_TASK_TEMPLATES, but already-
+// seeded users would otherwise keep seeing it.
+const CARD_ENTRY_CLEANUP_KEY = "symphony_dailytask_cardentry_cleanup_v1";
+
+export async function cleanupLegacyCardEntryOnce(db) {
+  try {
+    if (typeof localStorage !== "undefined" && localStorage.getItem(CARD_ENTRY_CLEANUP_KEY)) return;
+    const templates = (await db.DailyTaskTemplate.list?.()) || [];
+    for (const t of templates) {
+      if (t.title === "Card entry" || t.auto_trigger === "card_entry") {
+        await db.DailyTaskTemplate.delete(t.id);
+      }
+    }
+    if (typeof localStorage !== "undefined") localStorage.setItem(CARD_ENTRY_CLEANUP_KEY, "1");
+  } catch {
+    // best-effort
+  }
 }
 
 /**

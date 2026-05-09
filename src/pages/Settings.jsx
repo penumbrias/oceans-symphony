@@ -17,6 +17,7 @@ import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
+import UpcomingPlansSurfacesSection from "@/components/settings/UpcomingPlansSurfacesSection";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
@@ -201,6 +202,9 @@ export default function Settings() {
         {/* ── APPEARANCE ── */}
         <Section id="appearance" icon="🎨" label="Appearance">
           <AdvancedAppearance />
+          <div className="border-t border-border/30 pt-4">
+            <UpcomingPlansSurfacesSection />
+          </div>
           <NavigationSettings settings={settings} />
         </Section>
 

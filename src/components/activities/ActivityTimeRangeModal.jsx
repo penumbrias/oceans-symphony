@@ -128,6 +128,10 @@ const handleSave = async () => {
     const catById = Object.fromEntries(activityCategories.map(c => [c.id, c]));
     for (const catId of selectedActivityCategories) {
       const cat = catById[catId];
+      // is_planned is derived from timestamp: anything in the future is a
+      // plan, anything past is a logged record. This avoids needing a UI
+      // toggle — picking a future date is the toggle.
+      const isPlanned = timestamp.getTime() > Date.now();
       await base44.entities.Activity.create({
         timestamp: timestamp.toISOString(),
         activity_name: cat?.name || catId,
@@ -135,12 +139,18 @@ const handleSave = async () => {
         duration_minutes: durationMinutes > 0 ? durationMinutes : null, // null = logged pill
         fronting_alter_ids: selectedAlters,
         notes: notes || null,
+        is_planned: isPlanned,
+        // For planned activities, treat selectedAlters as the assignees too
+        // so the per-alter "Plans for me" surface picks them up.
+        assigned_alter_ids: isPlanned ? selectedAlters : [],
       });
     }
     // ... rest of fronting session logic unchanged
 
-      // Handle fronting session update if alters selected
-      if (selectedAlters.length > 0) {
+      // Handle fronting session update if alters selected — but skip
+      // entirely for planned (future) activities, since the alter isn't
+      // actually fronting yet.
+      if (selectedAlters.length > 0 && timestamp.getTime() <= Date.now()) {
         const now = new Date();
         const diffMins = (now - timestamp) / 60000;
         const isCurrentTime = diffMins < 10;

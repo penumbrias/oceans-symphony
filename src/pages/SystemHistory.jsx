@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { format, differenceInYears, differenceInMonths, differenceInDays } from "date-fns";
-import { GitMerge, Split, MoonStar, Sunrise, Sparkles, Plus, ArrowRight, Trash2, CalendarDays, Pencil, Check, X } from "lucide-react";
+import { GitMerge, Split, MoonStar, Sunrise, Sparkles, Plus, ArrowRight, Trash2, CalendarDays, Pencil, Check, X, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ function AlterPill({ alter }) {
   );
 }
 
-function TimelineEvent({ event, altersById, onDelete, isLast }) {
+function TimelineEvent({ event, altersById, onDelete, onToggleHidden, isLast }) {
   const meta = TYPE_META[event.type] || TYPE_META.fusion;
   const Icon = meta.icon;
 
@@ -66,7 +66,16 @@ function TimelineEvent({ event, altersById, onDelete, isLast }) {
             </span>
             <button
               type="button"
+              onClick={() => onToggleHidden?.(event)}
+              title={event.hidden ? "Unhide event" : "Hide from history"}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {event.hidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+            </button>
+            <button
+              type="button"
               onClick={() => onDelete(event.id)}
+              title="Delete event"
               className="text-muted-foreground hover:text-destructive transition-colors"
             >
               <Trash2 className="w-3 h-3" />
@@ -205,6 +214,7 @@ export default function SystemHistory() {
   const [modalOpen, setModalOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
   const [editingBirth, setEditingBirth] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
 
   const { data: events = [] } = useQuery({
     queryKey: ["systemChangeEvents"],
@@ -232,13 +242,22 @@ export default function SystemHistory() {
     return oldest?.created_date ? new Date(oldest.created_date) : null;
   }, [settingsArr, alters]);
 
+  const hiddenCount = useMemo(() => events.filter(e => e.hidden).length, [events]);
+
   const filteredEvents = useMemo(() => {
-    const base = typeFilter === "all" ? events : events.filter(e => e.type === typeFilter);
+    let base = events;
+    if (!showHidden) base = base.filter(e => !e.hidden);
+    if (typeFilter !== "all") base = base.filter(e => e.type === typeFilter);
     return [...base].sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [events, typeFilter]);
+  }, [events, typeFilter, showHidden]);
 
   async function handleDelete(eventId) {
     await localEntities.SystemChangeEvent.delete(eventId);
+    queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
+  }
+
+  async function handleToggleHidden(event) {
+    await localEntities.SystemChangeEvent.update(event.id, { hidden: !event.hidden });
     queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
   }
 
@@ -272,6 +291,22 @@ export default function SystemHistory() {
             {f.label}
           </button>
         ))}
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowHidden(s => !s)}
+            className={cn(
+              "ml-auto inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-all",
+              showHidden
+                ? "bg-muted text-foreground border-border"
+                : "bg-card text-muted-foreground border-border hover:border-primary/40"
+            )}
+            title={showHidden ? "Hide hidden events again" : "Show events you've hidden"}
+          >
+            {showHidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+            {showHidden ? `Hide ${hiddenCount} hidden` : `Show ${hiddenCount} hidden`}
+          </button>
+        )}
       </div>
 
       {/* Timeline */}
@@ -289,13 +324,15 @@ export default function SystemHistory() {
       {filteredEvents.length > 0 && (
         <div>
           {filteredEvents.map((event, i) => (
-            <TimelineEvent
-              key={event.id}
-              event={event}
-              altersById={altersById}
-              onDelete={handleDelete}
-              isLast={i === filteredEvents.length - 1 && !systemBirthDate && !editingBirth}
-            />
+            <div key={event.id} className={event.hidden ? "opacity-50" : ""}>
+              <TimelineEvent
+                event={event}
+                altersById={altersById}
+                onDelete={handleDelete}
+                onToggleHidden={handleToggleHidden}
+                isLast={i === filteredEvents.length - 1 && !systemBirthDate && !editingBirth}
+              />
+            </div>
           ))}
 
           {/* System birth at the bottom */}

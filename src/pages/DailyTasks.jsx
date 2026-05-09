@@ -95,7 +95,6 @@ export default function DailyTasks() {
   const autoTriggers = useMemo(
     () => buildAutoCompletedTriggers({
       hasJournal: hasJournalToday,
-      hasDiaryCard: false,
       hasPartsCheckIn: systemCheckIns.length > 0,
     }),
     [hasJournalToday, systemCheckIns.length]

@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import useKeyboardInset from "@/hooks/useKeyboardInset"
 
 // When the tour is active, disable modal mode so Radix doesn't apply
 // aria-hidden/inert to the tour card (which lives outside the dialog).
@@ -32,7 +33,9 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, onInteractOutside, ...props }, ref) => (
+const DialogContent = React.forwardRef(({ className, children, onInteractOutside, style, ...props }, ref) => {
+  const keyboardInset = useKeyboardInset();
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -44,9 +47,11 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
         onInteractOutside?.(e);
       }}
       style={{
-        // Center the dialog in the space above the tour card when active.
-        top: "calc((100dvh - var(--tour-card-height, 0px)) / 2)",
-        maxHeight: "calc(100dvh - var(--tour-card-height, 0px) - 2rem)",
+        // Center the dialog in the space above the tour card when active,
+        // and above the on-screen keyboard when one is open.
+        top: `calc((100dvh - ${keyboardInset}px - var(--tour-card-height, 0px)) / 2)`,
+        maxHeight: `calc(100dvh - ${keyboardInset}px - var(--tour-card-height, 0px) - 2rem)`,
+        ...style,
       }}
       className={cn(
         "fixed left-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
@@ -61,7 +66,8 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+  );
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({
