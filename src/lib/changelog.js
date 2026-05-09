@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 9, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Retroactive Quick Check-In: the activity is now stamped at the back-dated time you set, instead of being filed at the current wall-clock time. Emotions, symptoms, and the journal note already used the back-dated time correctly.",
+      },
+      {
         type: "improve",
         text: "Bulletin posts now render basic HTML formatting (bold, italic, underline, lists, links, line breaks) and resolve term placeholders like {alter} / {alters}. Previously the raw tags showed up as text in the post body.",
       },
