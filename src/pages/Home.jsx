@@ -7,6 +7,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import DashboardPins from "@/components/dashboard/DashboardPins";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
@@ -119,6 +120,7 @@ export default function Home() {
       <div className="mb-4">
         <CurrentFronters alters={activeAlters} />
       </div>
+      <DashboardPins />
       <div data-tour="alters-grid">
         <AlterGrid alters={activeAlters} currentSession={activeSession} />
       </div>

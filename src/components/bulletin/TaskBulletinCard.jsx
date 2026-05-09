@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { CheckSquare, Square, Loader2, Trash2, Pin, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
+import BulletinActionMenu from "./BulletinActionMenu";
 
 function parseTaskBulletin(content) {
   const match = content.match(/^\[task:([^:\]]+)(:done)?\]\s*(.*)/s);
@@ -68,11 +69,44 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
+  // Long-press anywhere on the card body opens the shared action menu
+  // (board pin / dashboard pin / delete).
+  const longPressTimer = useRef(null);
+  const pressStart = useRef({ x: 0, y: 0 });
+  const [showActions, setShowActions] = useState(false);
+  const onPressStart = (e) => {
+    const t = e.touches?.[0] || e;
+    pressStart.current = { x: t.clientX, y: t.clientY };
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null;
+      setShowActions(true);
+    }, 500);
+  };
+  const onPressMove = (e) => {
+    if (!longPressTimer.current) return;
+    const t = e.touches?.[0] || e;
+    const dx = t.clientX - pressStart.current.x;
+    const dy = t.clientY - pressStart.current.y;
+    if (dx * dx + dy * dy > 100) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+  const onPressEnd = () => {
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  };
+
   return (
     <div className={`border-2 border-dashed rounded-2xl p-3.5 transition-all ${
       highlight ? "border-primary/60 bg-primary/5" :
       isCompleted ? "border-green-500/40 bg-green-500/5" : "border-border/60 bg-muted/15"
-    }`}>
+    }`}
+      onMouseDown={onPressStart} onMouseMove={onPressMove} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
+      onTouchStart={onPressStart} onTouchMove={onPressMove} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
+      style={{ touchAction: "pan-y" }}
+    >
       <div className="flex items-start gap-3">
         <button
           onClick={handleToggle}
@@ -142,6 +176,11 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
           />
         </div>
       )}
+      <BulletinActionMenu
+        bulletin={bulletin}
+        open={showActions}
+        onClose={() => setShowActions(false)}
+      />
     </div>
   );
 }
