@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
+import { pluralize, gerund, agent } from "@/lib/useTerms";
 
 const PRESETS = [
   { label: "DID / OSDD (default)", system: "system", alter: "alter", switch: "switch", front: "front" },
@@ -97,7 +98,22 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
 
           {/* Preview */}
           <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs text-muted-foreground space-y-0.5">
-            <p>Preview: <span className="text-foreground font-medium capitalize">{terms.system}</span> · <span className="text-foreground font-medium capitalize">{terms.alter}</span> · <span className="text-foreground font-medium capitalize">{terms.switch}</span> · <span className="text-foreground font-medium capitalize">{terms.front}ing</span></p>
+            <p>
+              <span className="font-medium">System:</span>{" "}
+              <span className="text-foreground font-medium">{terms.system}</span> · <span className="text-foreground font-medium">{pluralize(terms.system)}</span>
+            </p>
+            <p>
+              <span className="font-medium">Alter:</span>{" "}
+              <span className="text-foreground font-medium">{terms.alter}</span> · <span className="text-foreground font-medium">{pluralize(terms.alter)}</span>
+            </p>
+            <p>
+              <span className="font-medium">Switch:</span>{" "}
+              <span className="text-foreground font-medium">{terms.switch}</span> · <span className="text-foreground font-medium">{pluralize(terms.switch)}</span> · <span className="text-foreground font-medium">{gerund(terms.switch)}</span>
+            </p>
+            <p>
+              <span className="font-medium">Front:</span>{" "}
+              <span className="text-foreground font-medium">{terms.front}</span> · <span className="text-foreground font-medium">{pluralize(terms.front)}</span> · <span className="text-foreground font-medium">{gerund(terms.front)}</span> · <span className="text-foreground font-medium">{agent(terms.front)}</span>
+            </p>
           </div>
 
           <Button onClick={handleSave} disabled={saving} className="w-full">
