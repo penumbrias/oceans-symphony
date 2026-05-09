@@ -54,5 +54,35 @@
     }
   ],
   "categories": ["health", "lifestyle", "utilities"],
-  "lang": "en"
+  "lang": "en",
+  "shortcuts": [
+    {
+      "name": "Quick Check-In",
+      "short_name": "Check-In",
+      "description": "Log emotions, symptoms, and a status note",
+      "url": "/?action=quick-checkin",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Set Fronters",
+      "short_name": "Fronters",
+      "description": "Update who's currently fronting",
+      "url": "/?action=set-front",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Journals",
+      "short_name": "Journals",
+      "description": "Open the journals page",
+      "url": "/journals",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Tasks",
+      "short_name": "Tasks",
+      "description": "Open today's tasks",
+      "url": "/tasks",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
 }

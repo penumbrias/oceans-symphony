@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 9, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Long-pressing the Oceans Symphony icon on your home screen now shows quick-action shortcuts: Quick Check-In, Set Fronters, Journals, and Tasks. Tapping a shortcut launches straight into that flow. (Android home-screen icon menu — works on installed PWAs.)",
+      },
+      {
         type: "improve",
         text: "Set Fronters modal now shows a hint about swipe gestures (swipe right to toggle, swipe left to set primary) so the gesture controls are discoverable.",
       },
