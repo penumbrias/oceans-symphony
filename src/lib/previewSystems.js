@@ -330,26 +330,48 @@ function buildTapestry() {
   const emotions = [
     rec({ timestamp: isoOffset(0, 9),  mood: 7, energy: 6, emotions: ["welcoming","curious"] }),
     rec({ timestamp: isoOffset(0, 14), mood: 6, energy: 5, emotions: ["focused"] }),
-    rec({ timestamp: isoOffset(1, 10), mood: 7, energy: 6, emotions: ["bright"] }),
-    rec({ timestamp: isoOffset(2, 13), mood: 5, energy: 5, emotions: ["thoughtful"] }),
-    rec({ timestamp: isoOffset(3, 11), mood: 8, energy: 7, emotions: ["creative"], note: "Mira spent the morning composing." }),
+    rec({ timestamp: isoOffset(0, 21), mood: 7, energy: 4, emotions: ["soft","grateful"], note: "Halo settled the evening." }),
+    rec({ timestamp: isoOffset(1, 8),  mood: 6, energy: 5, emotions: ["determined"] }),
+    rec({ timestamp: isoOffset(1, 13), mood: 7, energy: 6, emotions: ["bright"] }),
+    rec({ timestamp: isoOffset(1, 20), mood: 5, energy: 4, emotions: ["thoughtful"], note: "Iris is in editing mode." }),
+    rec({ timestamp: isoOffset(2, 10), mood: 5, energy: 5, emotions: ["wary"], note: "Body felt off — Echo took notes." }),
+    rec({ timestamp: isoOffset(2, 16), mood: 7, energy: 6, emotions: ["connected"], note: "Halo and Atlas co-fronted, surprisingly steady." }),
+    rec({ timestamp: isoOffset(3, 11), mood: 8, energy: 7, emotions: ["creative"], note: "Mira at the piano." }),
+    rec({ timestamp: isoOffset(3, 18), mood: 6, energy: 6, emotions: ["productive"] }),
+    rec({ timestamp: isoOffset(4, 12), mood: 4, energy: 3, emotions: ["dissociative"], note: "Switching every 90 min — tiring." }),
     rec({ timestamp: isoOffset(4, 18), mood: 6, energy: 4, emotions: ["soft","grateful"] }),
+    rec({ timestamp: isoOffset(5, 11), mood: 8, energy: 7, emotions: ["bright","silly"], note: "Welcome and Halo had the morning." }),
+    rec({ timestamp: isoOffset(5, 18), mood: 6, energy: 5, emotions: ["settled"] }),
     rec({ timestamp: isoOffset(6, 10), mood: 7, energy: 6, emotions: ["organised"], note: "Iris filed the week's notes." }),
-    rec({ timestamp: isoOffset(8, 13), mood: 6, energy: 5, emotions: ["steady"] }),
-    rec({ timestamp: isoOffset(10, 9), mood: 7, energy: 7, emotions: ["happy"] }),
+    rec({ timestamp: isoOffset(7, 14), mood: 5, energy: 4, emotions: ["irritated"] }),
+    rec({ timestamp: isoOffset(7, 20), mood: 4, energy: 3, emotions: ["heavy"], note: "Therapy was hard today." }),
+    rec({ timestamp: isoOffset(8, 12), mood: 6, energy: 5, emotions: ["steady"] }),
+    rec({ timestamp: isoOffset(9, 11), mood: 7, energy: 7, emotions: ["happy"] }),
+    rec({ timestamp: isoOffset(10, 17),mood: 5, energy: 4, emotions: ["restless"] }),
+    rec({ timestamp: isoOffset(11, 19),mood: 4, energy: 3, emotions: ["lonely"] }),
     rec({ timestamp: isoOffset(12, 14),mood: 6, energy: 5, emotions: ["content"] }),
+    rec({ timestamp: isoOffset(13, 9), mood: 6, energy: 6, emotions: ["calm","hopeful"] }),
   ];
 
   const activities = [
-    rec({ timestamp: isoOffset(0, 8),  activity_name: "Morning tea",   duration_minutes: 20, color: "#fde68a", notes: "Halo's hour." }),
-    rec({ timestamp: isoOffset(0, 13), activity_name: "Reading",       duration_minutes: 45, color: "#0ea5e9" }),
-    rec({ timestamp: isoOffset(1, 14), activity_name: "Composing",    duration_minutes: 90, color: "#ec4899", notes: "Mira at the piano." }),
-    rec({ timestamp: isoOffset(2, 10), activity_name: "Walk",          duration_minutes: 30, color: "#10b981" }),
-    rec({ timestamp: isoOffset(3, 11), activity_name: "Drawing",      duration_minutes: 60, color: "#f43f5e" }),
+    rec({ timestamp: isoOffset(0, 8),  activity_name: "Morning tea",     duration_minutes: 20, color: "#fde68a", notes: "Halo's hour." }),
+    rec({ timestamp: isoOffset(0, 13), activity_name: "Reading",         duration_minutes: 45, color: "#0ea5e9" }),
+    rec({ timestamp: isoOffset(0, 17), activity_name: "Tea + journaling",duration_minutes: 35, color: "#fde68a" }),
+    rec({ timestamp: isoOffset(1, 10), activity_name: "Walk",            duration_minutes: 30, color: "#10b981" }),
+    rec({ timestamp: isoOffset(1, 14), activity_name: "Composing",       duration_minutes: 90, color: "#ec4899", notes: "Mira at the piano." }),
+    rec({ timestamp: isoOffset(2,  9), activity_name: "Yoga",            duration_minutes: 40, color: "#65a30d" }),
+    rec({ timestamp: isoOffset(2, 19), activity_name: "Drawing",         duration_minutes: 75, color: "#f43f5e", notes: "Mira and Iris, side by side." }),
+    rec({ timestamp: isoOffset(3, 11), activity_name: "Errands",         duration_minutes: 60, color: "#fbbf24" }),
+    rec({ timestamp: isoOffset(3, 18), activity_name: "Movie night",     duration_minutes: 130, color: "#a855f7" }),
     rec({ timestamp: isoOffset(4, 16), activity_name: "Therapy session", duration_minutes: 50, color: "#7c3aed" }),
-    rec({ timestamp: isoOffset(6, 13), activity_name: "Code editor",  duration_minutes: 80, color: "#06b6d4", notes: "Echo redesigned the inner-world page." }),
-    rec({ timestamp: isoOffset(8, 19), activity_name: "Cooking",      duration_minutes: 50, color: "#65a30d" }),
-    rec({ timestamp: isoOffset(11, 16),activity_name: "Game night",   duration_minutes: 120, color: "#a855f7" }),
+    rec({ timestamp: isoOffset(5, 10), activity_name: "Park visit",      duration_minutes: 90, color: "#10b981" }),
+    rec({ timestamp: isoOffset(6, 13), activity_name: "Code editor",     duration_minutes: 80, color: "#06b6d4", notes: "Echo redesigned the inner-world page." }),
+    rec({ timestamp: isoOffset(7, 18), activity_name: "Therapy session", duration_minutes: 50, color: "#7c3aed" }),
+    rec({ timestamp: isoOffset(8, 19), activity_name: "Cooking",         duration_minutes: 50, color: "#65a30d" }),
+    rec({ timestamp: isoOffset(9, 13), activity_name: "Cooking",         duration_minutes: 70, color: "#65a30d", notes: "Halo on dumplings." }),
+    rec({ timestamp: isoOffset(10, 19),activity_name: "Reading",         duration_minutes: 50, color: "#0ea5e9" }),
+    rec({ timestamp: isoOffset(11, 16),activity_name: "Game night",      duration_minutes: 120, color: "#a855f7" }),
+    rec({ timestamp: isoOffset(13, 10),activity_name: "Long walk",       duration_minutes: 80, color: "#10b981" }),
   ];
 
   const journals = [
@@ -360,48 +382,94 @@ function buildTapestry() {
       tags: ["tutorial", "journals"], alter_id: alters.welcome.id,
     }),
     rec({
+      created_date: isoOffset(1, 22),
+      title: "Editor modes — picking one",
+      content: "<p>If you've never written HTML, stay in <b>Plain</b>. The mini toolbar covers 90% of what you'll want — bold, italic, headings, lists, links, images, blockquotes.</p><p>If your bio has a couple of images you want positioned with text, jump to <b>Simple</b>. It's WYSIWYG over the same block model, so what you see while editing is what saves.</p><p><b>Blocks</b> is for layouts where the order matters — drag a gallery between two paragraphs, etc. <b>Raw</b> is for when you know exactly what HTML you want.</p>",
+      tags: ["tutorial", "alters"], alter_id: alters.welcome.id,
+    }),
+    rec({
       created_date: isoOffset(2, 22),
       title: "Designing my profile",
-      content: "<p>Spent an hour today rebuilding the profile in Raw mode. The animation on the cyan dot is just a tiny CSS keyframe — surprisingly satisfying once you remember that bios are basically tiny webpages.</p>",
+      content: "<p>Spent an hour today rebuilding the profile in Raw mode. The animation on the cyan dot is just a tiny CSS keyframe — surprisingly satisfying once you remember that bios are basically tiny webpages.</p><p>Notes for future me: keep the styles inside <code>&lt;style&gt;</code> blocks scoped to a wrapper class, otherwise other alters' bios pick them up.</p>",
       tags: ["alters", "design"], alter_id: alters.echo.id,
+    }),
+    rec({
+      created_date: isoOffset(3, 23),
+      title: "Composing in the morning",
+      content: "<p>Mornings are when I'm sharpest. The piano sits in the front room and the rest of the system mostly leaves me to it until 11ish. Today I finished the bridge for the song that's been stuck for two weeks.</p>",
+      tags: ["mira", "music"], alter_id: alters.mira.id,
     }),
     rec({
       created_date: isoOffset(5, 22),
       title: "Custom fields cleanup",
-      content: "<p>Pruned the system-wide fields down to three (favourite song, comfort food, when this alter first appeared) and moved the trivia I had on Atlas's profile into per-alter fields instead. Cleaner.</p>",
+      content: "<p>Pruned the system-wide fields down to three (favourite song, comfort food, when this alter first appeared) and moved the trivia I had on Atlas's profile into per-alter fields instead. Cleaner — system fields are the things every alter should answer; per-alter fields are everything else.</p>",
       tags: ["alters", "housekeeping"], alter_id: alters.iris.id,
+    }),
+    rec({
+      created_date: isoOffset(7, 21),
+      title: "Therapy notes — boundaries with primary fronters",
+      content: "<p>Brought up that I've been holding the front more than feels good. We landed on a rule: if I'm primary for more than 4 hours and Halo or Iris are co-fronting, the body should hand off rather than push through.</p><p>Atlas — would you log this in our system agreements?</p>",
+      tags: ["therapy"], alter_id: alters.atlas.id,
+    }),
+    rec({
+      created_date: isoOffset(10, 22),
+      title: "What the theme presets are doing for us",
+      content: "<p>The colour swap when primary changes is small, but the cumulative effect — knowing at a glance who's holding the body without having to read the chip — has been bigger than I expected. Halo's amber, Iris's berry, Echo's cyan: the room shifts and we adjust.</p>",
+      tags: ["design", "themes"], alter_id: alters.halo.id,
     }),
   ];
 
   const checkIns = [
     rec({ created_date: isoOffset(0, 8),  mood: 7, communication_quality: 8, system_harmony: 8, note: "Welcome on the dashboard, Halo in the kitchen, Iris on the calendar. Easy morning." }),
     rec({ created_date: isoOffset(2, 21), mood: 6, communication_quality: 7, system_harmony: 7, note: "System meeting touched on the new theme presets. Echo wants to redo the Inner Room." }),
+    rec({ created_date: isoOffset(3, 21), mood: 6, communication_quality: 7, system_harmony: 7, note: "Six of us at the meeting. Mira read the bridge of her new song." }),
     rec({ created_date: isoOffset(5, 21), mood: 7, communication_quality: 8, system_harmony: 8, note: "Steady week. Mira's been composing every morning." }),
+    rec({ created_date: isoOffset(7, 20), mood: 5, communication_quality: 5, system_harmony: 5, note: "Tense — Atlas and Halo disagreeing about the front-rotation rules." }),
+    rec({ created_date: isoOffset(10, 21),mood: 6, communication_quality: 7, system_harmony: 7, note: "Resolved the rotation thing. Halo is the lead on evenings; Atlas covers mornings." }),
+    rec({ created_date: isoOffset(11, 9), mood: 7, communication_quality: 8, system_harmony: 8, note: "Felt like a big team this morning." }),
   ];
 
   const statusNotes = [
     rec({ timestamp: isoOffset(0, 9),  note: "Welcome at the front. Halo behind, lighting candles." }),
     rec({ timestamp: isoOffset(0, 16), note: "Iris took over for the afternoon to file the week's letters." }),
+    rec({ timestamp: isoOffset(0, 21), note: "Halo made tea. The kitchen feels like a kitchen again." }),
+    rec({ timestamp: isoOffset(1, 15), note: "Iris on phones today." }),
     rec({ timestamp: isoOffset(2, 10), note: "Mira composing." }),
+    rec({ timestamp: isoOffset(2, 14), note: "Switching every 90 minutes or so. Tiring but not unsafe." }),
+    rec({ timestamp: isoOffset(3,  9), note: "Welcome out and warm. New month vibes." }),
     rec({ timestamp: isoOffset(4, 13), note: "Echo refactored the dashboard cards." }),
+    rec({ timestamp: isoOffset(5, 17), note: "Halo came up out of nowhere — kitchen got cinnamon vibes for an hour." }),
     rec({ timestamp: isoOffset(6, 19), note: "Halo and Atlas co-front for the evening tea ritual." }),
+    rec({ timestamp: isoOffset(7, 21), note: "Therapy day. Heavy but contained." }),
+    rec({ timestamp: isoOffset(8,  9), note: "Atlas needs sleep. Iris is covering today." }),
     rec({ timestamp: isoOffset(9, 11), note: "All six of us at one of those rare full-system check-ins." }),
+    rec({ timestamp: isoOffset(11, 20),note: "Game night was loud — Echo, Mira, Halo all at once." }),
+    rec({ timestamp: isoOffset(13,  9),note: "Body feels rested. Atlas back at the front." }),
   ];
 
   // ── Relationships ──────────────────────────────────────────────────────
-  // A handful so the System Map page looks alive.
+  // Used by the System Map page. Each entry is one labelled link between
+  // two {alters}; relationship types are configured separately so users
+  // can add their own labels.
   const relationships = [
-    rec({ alter_id_a: alters.atlas.id,  alter_id_b: alters.iris.id,    relationship_type: "Co-host" }),
-    rec({ alter_id_a: alters.welcome.id,alter_id_b: alters.atlas.id,   relationship_type: "Hands off to" }),
-    rec({ alter_id_a: alters.iris.id,   alter_id_b: alters.mira.id,    relationship_type: "Edits drafts for" }),
-    rec({ alter_id_a: alters.halo.id,   alter_id_b: alters.atlas.id,   relationship_type: "Soothes" }),
-    rec({ alter_id_a: alters.echo.id,   alter_id_b: alters.iris.id,    relationship_type: "Trusts deeply" }),
+    rec({ alter_id_a: alters.atlas.id,   alter_id_b: alters.iris.id,    relationship_type: "Co-host" }),
+    rec({ alter_id_a: alters.welcome.id, alter_id_b: alters.atlas.id,   relationship_type: "Hands off to" }),
+    rec({ alter_id_a: alters.welcome.id, alter_id_b: alters.iris.id,    relationship_type: "Hands off to" }),
+    rec({ alter_id_a: alters.iris.id,    alter_id_b: alters.mira.id,    relationship_type: "Edits drafts for" }),
+    rec({ alter_id_a: alters.halo.id,    alter_id_b: alters.atlas.id,   relationship_type: "Soothes" }),
+    rec({ alter_id_a: alters.halo.id,    alter_id_b: alters.iris.id,    relationship_type: "Soothes" }),
+    rec({ alter_id_a: alters.echo.id,    alter_id_b: alters.iris.id,    relationship_type: "Trusts deeply" }),
+    rec({ alter_id_a: alters.echo.id,    alter_id_b: alters.mira.id,    relationship_type: "Collaborates with" }),
+    rec({ alter_id_a: alters.mira.id,    alter_id_b: alters.halo.id,    relationship_type: "Sibling-like" }),
+    rec({ alter_id_a: alters.atlas.id,   alter_id_b: alters.echo.id,    relationship_type: "Mentor to" }),
   ];
 
   const systemEvents = [
-    rec({ type: "split", date: new Date(2018, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.welcome.id], result_alter_ids: [alters.atlas.id, alters.echo.id], cause: "Capacity",  notes: "Atlas and Echo emerged the same year — wayfinding and architecting." }),
-    rec({ type: "split", date: new Date(2019, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.welcome.id], result_alter_ids: [alters.halo.id],                cause: "Comfort",   notes: "Halo arrived to hold the warmth." }),
-    rec({ type: "split", date: new Date(2020, 0, 1).toISOString(), year_only: true, source_alter_ids: [alters.iris.id],     result_alter_ids: [alters.mira.id],                cause: "Creativity",notes: "Mira split off from Iris's voice into a creative one." }),
+    rec({ type: "emergence", date: new Date(2015, 8, 1).toISOString(),  year_only: true, source_alter_ids: [],                       result_alter_ids: [alters.iris.id],                       cause: "Burnout",     notes: "Iris stepped forward when Welcome needed a co-host." }),
+    rec({ type: "split",     date: new Date(2018, 0, 1).toISOString(),  year_only: true, source_alter_ids: [alters.welcome.id],      result_alter_ids: [alters.atlas.id, alters.echo.id],      cause: "Capacity",    notes: "Atlas and Echo emerged the same year — wayfinding and architecting." }),
+    rec({ type: "split",     date: new Date(2019, 0, 1).toISOString(),  year_only: true, source_alter_ids: [alters.welcome.id],      result_alter_ids: [alters.halo.id],                       cause: "Comfort",     notes: "Halo arrived to hold the warmth." }),
+    rec({ type: "split",     date: new Date(2020, 0, 1).toISOString(),  year_only: true, source_alter_ids: [alters.iris.id],         result_alter_ids: [alters.mira.id],                       cause: "Creativity",  notes: "Mira split off from Iris's voice into a creative one." }),
+    rec({ type: "return",    date: new Date(2024, 5, 1).toISOString(),  year_only: true, source_alter_ids: [],                       result_alter_ids: [alters.welcome.id],                    cause: "Re-grounding",notes: "Welcome stepped back into a tour-guide / grounding role after a long quiet period." }),
   ];
 
   // ── Symptoms (real preset catalogue, mirrors utils/symptomDefaults.js) ─
@@ -497,10 +565,101 @@ function buildTapestry() {
   };
 
   // ── Groups ─────────────────────────────────────────────────────────────
-  // Intentionally empty — this preview focuses on individual alter profiles
-  // rather than subsystem grouping. The Groups page in real use is for
-  // splitting larger systems into subsystems.
-  const groups = [];
+  // Hierarchical example: an "Index" container with three top-level
+  // facets — By Role, By Gender, By Age — each with leaf subgroups that
+  // hold actual alters. Groups can nest arbitrarily; pass `parent: <id>`
+  // to put one inside another.
+  const gIndex = rec({
+    name: "Index",
+    color: "#7c3aed",
+    description: "Top-level container that holds the three sorting facets below. A real system might use Index for an at-a-glance roster, then dive into a facet for finer-grained organisation.",
+    member_alter_ids: [],
+    parent: "root", order: 0,
+  });
+  const gByRole = rec({
+    name: "By Role",
+    color: "#0ea5e9",
+    description: "Sort {alters} by what they do — host, co-host, builder, etc. Each child group lists its members.",
+    member_alter_ids: [],
+    parent: gIndex.id, order: 0,
+  });
+  const gByGender = rec({
+    name: "By Gender",
+    color: "#ec4899",
+    description: "Sort {alters} by gender presentation. Many systems use this view for at-a-glance pronoun reference.",
+    member_alter_ids: [],
+    parent: gIndex.id, order: 1,
+  });
+  const gByAge = rec({
+    name: "By Age",
+    color: "#f59e0b",
+    description: "Sort {alters} by perceived age. Useful when you have littles, teens, and adults sharing the body.",
+    member_alter_ids: [],
+    parent: gIndex.id, order: 2,
+  });
+
+  // Leaves under By Role
+  const gHosts = rec({
+    name: "Hosts",
+    color: "#0284c7",
+    description: "The {alters} who tend to lead day-to-day fronting and decision-making.",
+    member_alter_ids: [alters.welcome.id, alters.atlas.id],
+    parent: gByRole.id, order: 0,
+  });
+  const gCoHosts = rec({
+    name: "Co-hosts",
+    color: "#db2777",
+    description: "Secondary leaders — often filling in when the primary host needs rest, or taking specialised slices of the day.",
+    member_alter_ids: [alters.iris.id, alters.mira.id],
+    parent: gByRole.id, order: 1,
+  });
+  const gBuilders = rec({
+    name: "Builders & Stylists",
+    color: "#06b6d4",
+    description: "Designers, architects, and the {alters} who shape the system's internal world or external presentation.",
+    member_alter_ids: [alters.echo.id, alters.halo.id],
+    parent: gByRole.id, order: 2,
+  });
+
+  // Leaves under By Gender
+  const gFeminine = rec({
+    name: "Feminine",
+    color: "#f472b6",
+    description: "{Alters} who use feminine pronouns or feel feminine in presentation.",
+    member_alter_ids: [alters.iris.id, alters.mira.id],
+    parent: gByGender.id, order: 0,
+  });
+  const gNonbinary = rec({
+    name: "Non-binary / fluid",
+    color: "#a78bfa",
+    description: "{Alters} who use neutral pronouns, all pronouns, or move between presentations.",
+    member_alter_ids: [alters.welcome.id, alters.atlas.id, alters.echo.id, alters.halo.id],
+    parent: gByGender.id, order: 1,
+  });
+
+  // Leaves under By Age
+  const gAgeless = rec({
+    name: "Ageless",
+    color: "#94a3b8",
+    description: "{Alters} without a clear apparent age — concepts, voices, or fluid-aged presences.",
+    member_alter_ids: [alters.welcome.id],
+    parent: gByAge.id, order: 0,
+  });
+  const gAdult = rec({
+    name: "Adult",
+    color: "#84cc16",
+    description: "{Alters} who present as adults.",
+    member_alter_ids: [alters.atlas.id, alters.iris.id, alters.mira.id, alters.echo.id, alters.halo.id],
+    parent: gByAge.id, order: 1,
+  });
+
+  const groups = [
+    gIndex,
+    gByRole, gByGender, gByAge,
+    gHosts, gCoHosts, gBuilders,
+    gFeminine, gNonbinary,
+    gAgeless, gAdult,
+  ];
 
   // ── Bulletin board ─────────────────────────────────────────────────────
   // Worked examples of every bulletin feature: pin, mention, reactions
@@ -573,15 +732,48 @@ function buildTapestry() {
       reactions: {},
       created_date: isoOffset(6, 16),
     }),
+    rec({
+      author_alter_id: alters.atlas.id,
+      author_alter_ids: [alters.atlas.id],
+      content: "<b>Pinned vs. recent.</b> Pinned posts (like the guide at the top) stay above unpinned posts regardless of date. Tap the pin icon on a post to toggle.",
+      mentioned_alter_ids: [],
+      is_pinned: false,
+      reactions: { "📍": [alters.iris.id, alters.welcome.id] },
+      created_date: isoOffset(8, 10),
+    }),
+    rec({
+      author_alter_id: alters.echo.id,
+      author_alter_ids: [alters.echo.id],
+      content: "<b>Polls example.</b> Bulletins can carry a poll — see the next post. Members vote by tapping; everyone can see who voted for what once they cast their own vote.",
+      mentioned_alter_ids: [],
+      is_pinned: false,
+      reactions: {},
+      created_date: isoOffset(2, 20),
+    }),
+    rec({
+      author_alter_id: alters.welcome.id,
+      author_alter_ids: [alters.welcome.id],
+      content: "<b>Lists, links &amp; line breaks.</b><br>You can write:<ul><li>bulleted lists</li><li>numbered lists</li><li><b>bold</b> and <i>italic</i></li></ul>And links to docs (the manifest's quick-action shortcuts work on installed PWAs — long-press the home-screen icon to try them).",
+      mentioned_alter_ids: [],
+      is_pinned: false,
+      reactions: { "📚": [alters.iris.id], "✨": [alters.halo.id] },
+      created_date: isoOffset(9, 13),
+    }),
   ];
 
   const bulletinComments = [
     rec({ bulletin_id: bulletins[0].id, author_alter_id: alters.iris.id,    content: "Tip: comments support the same basic HTML formatting as posts.", created_date: isoOffset(0, 19, 30) }),
     rec({ bulletin_id: bulletins[0].id, author_alter_id: alters.atlas.id,   content: "Tip 2: tap an emoji count and you see the reactor list for that emoji.", created_date: isoOffset(0, 20) }),
+    rec({ bulletin_id: bulletins[0].id, author_alter_id: alters.halo.id,    content: "Tip 3: long-press a bulletin to open the action menu (pin, delete, share, copy link).", created_date: isoOffset(0, 20, 30) }),
     rec({ bulletin_id: bulletins[1].id, author_alter_id: alters.atlas.id,   content: "Got the mention — added myself to the Inner Room. Thank you!", created_date: isoOffset(1, 11, 20) }),
+    rec({ bulletin_id: bulletins[2].id, author_alter_id: alters.iris.id,    content: "Threads can run long — they collapse after the first few replies and expand on tap.", created_date: isoOffset(2, 15) }),
+    rec({ bulletin_id: bulletins[2].id, author_alter_id: alters.echo.id,    content: "And nested replies indent. Try replying to this comment.", created_date: isoOffset(2, 15, 30) }),
+    rec({ bulletin_id: bulletins[3].id, author_alter_id: alters.welcome.id, content: "Co-authored posts show every author's avatar in the row.", created_date: isoOffset(3, 13) }),
+    rec({ bulletin_id: bulletins[5].id, author_alter_id: alters.iris.id,    content: "Joining you for the cinnamon. Bringing a book.", created_date: isoOffset(5, 19, 20) }),
     rec({ bulletin_id: bulletins[6].id, author_alter_id: alters.echo.id,    content: "Confirmed — landed in the morning push. Should be live for everyone now.", created_date: isoOffset(6, 17) }),
     rec({ bulletin_id: bulletins[6].id, author_alter_id: alters.iris.id,    content: "Beautiful. @Welcome — would you mind testing it on your end?", created_date: isoOffset(6, 17, 15) }),
     rec({ bulletin_id: bulletins[6].id, author_alter_id: alters.welcome.id, content: "Tested. Looks great.", created_date: isoOffset(6, 17, 30) }),
+    rec({ bulletin_id: bulletins[8].id, author_alter_id: alters.welcome.id, content: "Lists also support nesting — try indenting a list item with the toolbar arrows.", created_date: isoOffset(9, 14) }),
   ];
 
   // ── Polls ──────────────────────────────────────────────────────────────
@@ -598,14 +790,45 @@ function buildTapestry() {
       author_alter_id: alters.iris.id,
       created_date: isoOffset(2, 21),
     }),
+    rec({
+      question: "Friday night plan?",
+      options: [
+        { label: "Game night",   votes: [alters.echo.id, alters.mira.id, alters.halo.id] },
+        { label: "Movie night",  votes: [alters.iris.id, alters.welcome.id] },
+        { label: "Early bed",    votes: [alters.atlas.id] },
+      ],
+      multi_choice: false,
+      author_alter_id: alters.welcome.id,
+      created_date: isoOffset(1, 18),
+    }),
+    rec({
+      question: "Skills to focus on this week",
+      options: [
+        { label: "Grounding",    votes: [alters.atlas.id, alters.halo.id, alters.welcome.id] },
+        { label: "Journaling",   votes: [alters.iris.id, alters.mira.id] },
+        { label: "Reaching out", votes: [alters.echo.id] },
+        { label: "Movement",     votes: [alters.halo.id, alters.atlas.id] },
+      ],
+      multi_choice: true,
+      author_alter_id: alters.atlas.id,
+      created_date: isoOffset(6, 9),
+    }),
   ];
 
   // ── Tasks ──────────────────────────────────────────────────────────────
   const tasks = [
-    rec({ title: "Pick a theme preset for the new front rotation", completed: false, priority: "low",    assigned_alter_ids: [alters.halo.id] }),
-    rec({ title: "Write a bulletin announcing this week's system meeting", completed: true, priority: "medium", completed_date: isoOffset(2, 11), assigned_alter_ids: [alters.iris.id] }),
-    rec({ title: "Refactor the inner-world layout in Raw mode", completed: false, priority: "low", assigned_alter_ids: [alters.echo.id] }),
-    rec({ title: "Schedule next therapy appointment",              completed: false, priority: "high",   assigned_alter_ids: [alters.atlas.id] }),
+    rec({ title: "Refill prescriptions",       completed: false, priority: "high",   due_date: isoOffset(-2, 17), assigned_alter_ids: [alters.atlas.id] }),
+    rec({ title: "Email therapist",            completed: true,  priority: "medium", completed_date: isoOffset(1, 11), assigned_alter_ids: [alters.atlas.id] }),
+    rec({ title: "Plan weekend hike",          completed: false, priority: "low",    due_date: isoOffset(-4, 9),  assigned_alter_ids: [alters.halo.id] }),
+    rec({ title: "Call Mum",                   completed: false, priority: "medium" }),
+    rec({ title: "Buy groceries",              completed: true,  priority: "medium", completed_date: isoOffset(2, 18), assigned_alter_ids: [alters.iris.id] }),
+    rec({ title: "Sketch next album cover",    completed: false, priority: "low",    assigned_alter_ids: [alters.mira.id] }),
+    rec({ title: "Pick a theme preset for the new front rotation", completed: false, priority: "low", assigned_alter_ids: [alters.halo.id] }),
+    rec({ title: "Write a bulletin announcing the system meeting",  completed: true,  priority: "medium", completed_date: isoOffset(2, 11), assigned_alter_ids: [alters.iris.id] }),
+    rec({ title: "Refactor the inner-world layout in Raw mode",     completed: false, priority: "low", assigned_alter_ids: [alters.echo.id] }),
+    rec({ title: "Schedule next therapy appointment",               completed: false, priority: "high", due_date: isoOffset(-3, 16), assigned_alter_ids: [alters.atlas.id] }),
+    rec({ title: "Restock Halo's tea cabinet",                       completed: false, priority: "low", assigned_alter_ids: [alters.halo.id] }),
+    rec({ title: "Replace bedroom lightbulb",                        completed: true,  priority: "low", completed_date: isoOffset(3, 19) }),
   ];
 
   const dailyTaskTemplates = [
@@ -617,56 +840,85 @@ function buildTapestry() {
   const sleepEntries = [
     rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), bedtime: "23:00", wake_time: "07:30", quality: 4, notes: "Steady night." }),
     rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0,10), bedtime: "23:30", wake_time: "07:00", quality: 3 }),
+    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0,10), bedtime: "22:45", wake_time: "06:50", quality: 5, notes: "Fell asleep before Halo's tea even cooled." }),
     rec({ date: new Date(Date.now() - 3 * DAY).toISOString().slice(0,10), bedtime: "00:15", wake_time: "07:45", quality: 3, notes: "Stayed up writing the bulletins." }),
+    rec({ date: new Date(Date.now() - 5 * DAY).toISOString().slice(0,10), bedtime: "23:15", wake_time: "07:15", quality: 4 }),
+    rec({ date: new Date(Date.now() - 7 * DAY).toISOString().slice(0,10), bedtime: "01:00", wake_time: "08:30", quality: 2, notes: "Therapy night — slept badly." }),
+    rec({ date: new Date(Date.now() - 9 * DAY).toISOString().slice(0,10), bedtime: "22:30", wake_time: "07:00", quality: 5 }),
+    rec({ date: new Date(Date.now() - 11 * DAY).toISOString().slice(0,10),bedtime: "23:30", wake_time: "07:30", quality: 4 }),
   ];
 
   const reminders = [
-    rec({ label: "Morning meds",   schedule_time: "08:00", schedule_days: [0,1,2,3,4,5,6], is_active: true }),
-    rec({ label: "Therapy weekly", schedule_time: "16:00", schedule_days: [3],            is_active: true }),
+    rec({ label: "Morning meds",      schedule_time: "08:00", schedule_days: [0,1,2,3,4,5,6], is_active: true }),
+    rec({ label: "Evening journal",   schedule_time: "21:00", schedule_days: [0,1,2,3,4,5,6], is_active: true }),
+    rec({ label: "Therapy weekly",    schedule_time: "16:00", schedule_days: [3],             is_active: true }),
+    rec({ label: "Drink water",       schedule_time: "11:00", schedule_days: [1,2,3,4,5],     is_active: true }),
+    rec({ label: "Weekly system meeting", schedule_time: "19:00", schedule_days: [0],         is_active: true }),
   ];
 
   const customEmotions = [
-    rec({ label: "welcoming", color: "#38BDF8" }),
-    rec({ label: "creative",  color: "#EC4899" }),
-    rec({ label: "organised", color: "#DB2777" }),
-    rec({ label: "soft",      color: "#F59E0B" }),
+    rec({ label: "welcoming",     color: "#38BDF8" }),
+    rec({ label: "curious",       color: "#0EA5E9" }),
+    rec({ label: "creative",      color: "#EC4899" }),
+    rec({ label: "organised",     color: "#DB2777" }),
+    rec({ label: "soft",          color: "#F59E0B" }),
+    rec({ label: "scattered",     color: "#94A3B8" }),
+    rec({ label: "dissociative",  color: "#A78BFA" }),
+    rec({ label: "settled",       color: "#10B981" }),
+    rec({ label: "thoughtful",    color: "#6366F1" }),
+    rec({ label: "bright",        color: "#FACC15" }),
+    rec({ label: "heavy",         color: "#475569" }),
   ];
 
   const triggerTypes = [
-    rec({ label: "Time pressure",      color: "#EF4444" }),
-    rec({ label: "Loud rooms",         color: "#F97316" }),
-    rec({ label: "Late-night editing", color: "#06B6D4" }),
+    rec({ label: "Time pressure",        color: "#EF4444" }),
+    rec({ label: "Loud rooms",           color: "#F97316" }),
+    rec({ label: "Late-night editing",   color: "#06B6D4" }),
+    rec({ label: "Family-of-origin",     color: "#7C3AED" }),
+    rec({ label: "Unexpected change",    color: "#EAB308" }),
   ];
 
   const activityCategories = [
-    rec({ name: "Creative",   color: "#EC4899", parent_category_id: null }),
-    rec({ name: "Movement",   color: "#10B981", parent_category_id: null }),
-    rec({ name: "Reading",    color: "#0EA5E9", parent_category_id: null }),
-    rec({ name: "Cooking",    color: "#F59E0B", parent_category_id: null }),
-    rec({ name: "Therapy",    color: "#7C3AED", parent_category_id: null }),
+    rec({ name: "Creative",       color: "#EC4899", parent_category_id: null }),
+    rec({ name: "Movement",       color: "#10B981", parent_category_id: null }),
+    rec({ name: "Reading",        color: "#0EA5E9", parent_category_id: null }),
+    rec({ name: "Cooking",        color: "#F59E0B", parent_category_id: null }),
+    rec({ name: "Therapy",        color: "#7C3AED", parent_category_id: null }),
+    rec({ name: "Social",         color: "#A855F7", parent_category_id: null }),
+    rec({ name: "Self-care",      color: "#22C55E", parent_category_id: null }),
+    rec({ name: "Computer time",  color: "#06B6D4", parent_category_id: null }),
   ];
 
   const activityGoals = [
-    rec({ activity_name: "Walk",       target_minutes_per_week: 90 }),
-    rec({ activity_name: "Composing",  target_minutes_per_week: 240 }),
+    rec({ activity_name: "Walk",         target_minutes_per_week: 90 }),
+    rec({ activity_name: "Composing",    target_minutes_per_week: 240 }),
+    rec({ activity_name: "Reading",      target_minutes_per_week: 180 }),
+    rec({ activity_name: "Self-care",    target_minutes_per_week: 120 }),
   ];
 
   const groundingTechniques = [
-    rec({ name: "5-4-3-2-1",          category: "sensory",   description: "Name 5 things you can see, 4 you can hear, 3 you can touch, 2 you can smell, 1 you can taste.",         steps: ["5 see","4 hear","3 touch","2 smell","1 taste"], duration_seconds: 180, is_default: true,  is_archived: false, order: 0 }),
-    rec({ name: "Box breathing",      category: "breath",    description: "Breathe in 4, hold 4, out 4, hold 4. Loop until calm.",                                                steps: ["In 4","Hold 4","Out 4","Hold 4"],                duration_seconds: 240, is_default: true,  is_archived: false, order: 1 }),
-    rec({ name: "Halo's tea ritual",  category: "comfort",   description: "Boil water, choose a tea, breathe in the steam for one full minute before sipping.",                  steps: ["Boil water","Choose tea","Pour and breathe in steam","Sip slowly"], duration_seconds: 360, is_default: false, is_archived: false, order: 2, suggested_for: [alters.halo.id] }),
+    rec({ name: "5-4-3-2-1",            category: "sensory", description: "Name 5 things you can see, 4 you can hear, 3 you can touch, 2 you can smell, 1 you can taste.",  steps: ["5 see","4 hear","3 touch","2 smell","1 taste"], duration_seconds: 180, is_default: true,  is_archived: false, order: 0 }),
+    rec({ name: "Box breathing",        category: "breath",  description: "Breathe in 4, hold 4, out 4, hold 4. Loop until calm.",                                          steps: ["In 4","Hold 4","Out 4","Hold 4"],                duration_seconds: 240, is_default: true,  is_archived: false, order: 1 }),
+    rec({ name: "Cold water on hands",  category: "sensory", description: "Run cold water over your wrists or splash on your face. Activates the dive reflex.",             steps: ["Cold water","Hands or face","30 seconds"],      duration_seconds: 90,  is_default: true,  is_archived: false, order: 2 }),
+    rec({ name: "Halo's tea ritual",    category: "comfort", description: "Boil water, choose a tea, breathe in the steam for one full minute before sipping.",            steps: ["Boil water","Choose tea","Pour and breathe in steam","Sip slowly"], duration_seconds: 360, is_default: false, is_archived: false, order: 3, suggested_for: [alters.halo.id] }),
+    rec({ name: "Mira's chord",         category: "comfort", description: "Sit at the piano (or hum) and hold a single C major chord for thirty seconds. Feel the body react.", steps: ["Find C","Hold","Listen","Release"], duration_seconds: 60, is_default: false, is_archived: false, order: 4, suggested_for: [alters.mira.id] }),
+    rec({ name: "Echo's reset",         category: "movement",description: "Close all open tabs, stand up, walk to a different room. Start fresh when you sit back down.",  steps: ["Close tabs","Stand","Different room","Return"], duration_seconds: 120, is_default: false, is_archived: false, order: 5, suggested_for: [alters.echo.id] }),
   ];
   const groundingPreferences = [
     rec({ alter_id: alters.welcome.id, preferred_technique_ids: [groundingTechniques[0].id, groundingTechniques[1].id] }),
-    rec({ alter_id: alters.halo.id,    preferred_technique_ids: [groundingTechniques[2].id] }),
+    rec({ alter_id: alters.halo.id,    preferred_technique_ids: [groundingTechniques[3].id] }),
+    rec({ alter_id: alters.mira.id,    preferred_technique_ids: [groundingTechniques[4].id, groundingTechniques[1].id] }),
+    rec({ alter_id: alters.echo.id,    preferred_technique_ids: [groundingTechniques[5].id, groundingTechniques[2].id] }),
+    rec({ alter_id: alters.atlas.id,   preferred_technique_ids: [groundingTechniques[0].id] }),
+    rec({ alter_id: alters.iris.id,    preferred_technique_ids: [groundingTechniques[1].id] }),
   ];
 
   const innerWorldLocations = [
     rec({
       name: "The Inner Room",
       description: "The central meeting space — where the system gathers for system-meetings. List the {alters} who attend as occupants so picking a meeting is one tap.",
-      color: "#a78bfa", x: 200, y: 150,
-      occupant_alter_ids: [alters.welcome.id, alters.atlas.id, alters.iris.id, alters.halo.id],
+      color: "#a78bfa", x: 200, y: 160,
+      occupant_alter_ids: [alters.welcome.id, alters.atlas.id, alters.iris.id, alters.halo.id, alters.mira.id, alters.echo.id],
     }),
     rec({
       name: "The Drawing Room",
@@ -677,13 +929,13 @@ function buildTapestry() {
     rec({
       name: "The Workshop",
       description: "Echo's domain. A board of post-its for whatever's currently being prototyped.",
-      color: "#06b6d4", x: 320, y: 80,
+      color: "#06b6d4", x: 330, y: 80,
       occupant_alter_ids: [alters.echo.id],
     }),
     rec({
       name: "The Hearth",
       description: "Halo lives here. Candles, tea, the warmest corner of the system.",
-      color: "#f59e0b", x: 320, y: 240,
+      color: "#f59e0b", x: 340, y: 240,
       occupant_alter_ids: [alters.halo.id],
     }),
     rec({
@@ -692,18 +944,45 @@ function buildTapestry() {
       color: "#db2777", x: 80, y: 260,
       occupant_alter_ids: [alters.iris.id],
     }),
+    rec({
+      name: "The Library",
+      description: "Use case: somewhere {alters} who like quiet, study, or solo work tend to be. Atlas spends most mornings here when not fronting.",
+      color: "#0ea5e9", x: 220, y: 50,
+      occupant_alter_ids: [alters.atlas.id, alters.iris.id],
+    }),
+    rec({
+      name: "The Threshold",
+      description: "A liminal space at the edge of the inner world — where Welcome greets new arrivals and helps them find their footing.",
+      color: "#38bdf8", x: 200, y: 290,
+      occupant_alter_ids: [alters.welcome.id],
+    }),
+    rec({
+      name: "Empty Field (no occupants)",
+      description: "Use case: a location can exist without occupants — useful as a marker for places that aren't currently in use. Add and remove occupants any time.",
+      color: "#64748b", x: 380, y: 160,
+      occupant_alter_ids: [],
+    }),
   ];
 
   const alterMessages = [
-    rec({ alter_id: alters.welcome.id, author_alter_id: alters.iris.id,  content: "If you're new to the app, start by tapping into each of our profiles. Each one explains a different bio mode.", created_date: isoOffset(1, 10) }),
-    rec({ alter_id: alters.echo.id,    author_alter_id: alters.iris.id,  content: "The Raw HTML on your card is gorgeous. Could you write a journal entry walking me through the gradient?", created_date: isoOffset(3, 14) }),
+    rec({ alter_id: alters.welcome.id, author_alter_id: alters.iris.id,    content: "If you're new to the app, start by tapping into each of our profiles. Each one explains a different bio mode.", created_date: isoOffset(1, 10) }),
+    rec({ alter_id: alters.welcome.id, author_alter_id: alters.atlas.id,   content: "Seconded. Mine's the Simple-mode walkthrough.", created_date: isoOffset(1, 10, 5) }),
+    rec({ alter_id: alters.echo.id,    author_alter_id: alters.iris.id,    content: "The Raw HTML on your card is gorgeous. Could you write a journal entry walking me through the gradient?", created_date: isoOffset(3, 14) }),
+    rec({ alter_id: alters.echo.id,    author_alter_id: alters.echo.id,    content: "Done — see the journal entry filed under tags 'alters', 'design'.", created_date: isoOffset(3, 23) }),
     rec({ alter_id: alters.halo.id,    author_alter_id: alters.welcome.id, content: "I love watching the whole app turn warm when you take primary. Theme presets are the best feature.", created_date: isoOffset(5, 19) }),
+    rec({ alter_id: alters.mira.id,    author_alter_id: alters.atlas.id,   content: "If you ever want a co-front for an evening of writing, I'm in. Quietly.", created_date: isoOffset(7, 22) }),
+    rec({ alter_id: alters.iris.id,    author_alter_id: alters.halo.id,    content: "Thank you for the new system fields list. Cleaner than what we had.", created_date: isoOffset(8, 11) }),
+    rec({ alter_id: alters.atlas.id,   author_alter_id: alters.welcome.id, content: "Reminder — therapist asked us to do a body scan together once a week. Sundays?", created_date: isoOffset(11, 16) }),
   ];
 
   const alterNotes = [
     rec({ alter_id: alters.welcome.id, content: "Demo profile — feel free to overwrite when this is no longer needed.", created_date: isoOffset(20, 12) }),
+    rec({ alter_id: alters.atlas.id,   content: "Sleep is non-negotiable. If primary for >4 hours and Iris/Halo are around, hand off rather than push.", created_date: isoOffset(7, 22) }),
     rec({ alter_id: alters.iris.id,    content: "All system fields filled in. Per-alter fields demonstrate things only Iris cares about.", created_date: isoOffset(15, 18) }),
+    rec({ alter_id: alters.iris.id,    content: "Do NOT reply to family-of-origin emails the same day. 24-hour rule.", created_date: isoOffset(20, 19) }),
     rec({ alter_id: alters.echo.id,    content: "If you fork the Raw HTML, the @keyframes block needs to live inside the bio — global stylesheets won't apply.", created_date: isoOffset(8, 22) }),
+    rec({ alter_id: alters.mira.id,    content: "Mornings are sacred. The piano is in the front room; I don't take other appointments before 11.", created_date: isoOffset(10, 9) }),
+    rec({ alter_id: alters.halo.id,    content: "Tea cabinet inventory: black, green, mint, chamomile, oolong. Restock when any drops below half a tin.", created_date: isoOffset(4, 14) }),
   ];
 
   // ── Diary cards / progress / support journals ──────────────────────────
@@ -716,37 +995,73 @@ function buildTapestry() {
     ]}),
   ];
   const diaryCards = [
-    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 7, anxiety: 3, skills_used: ["grounding","journaling"] }, notes: { what: "Welcome on the dashboard. Good day." } }),
-    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 6, anxiety: 4, skills_used: ["movement"] },                notes: { what: "Mira composing in the morning, Iris filing in the afternoon." } }),
+    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 7, anxiety: 3, skills_used: ["grounding","journaling"] },                  notes: { what: "Welcome on the dashboard. Good day." } }),
+    rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 5, anxiety: 6, skills_used: ["breathwork"] },                              notes: { what: "Lots of switching. Tiring but not unsafe." } }),
+    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 6, anxiety: 4, skills_used: ["movement"] },                                notes: { what: "Mira composing in the morning, Iris filing in the afternoon." } }),
+    rec({ date: new Date(Date.now() - 4 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 3, anxiety: 8, skills_used: ["grounding","reaching out"] },                notes: { what: "Hard day. Asked Halo to take over for the evening." } }),
+    rec({ date: new Date(Date.now() - 6 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 6, anxiety: 4, skills_used: ["journaling","movement"] },                  notes: { what: "Therapy. Talked about the front-rotation rules." } }),
+    rec({ date: new Date(Date.now() - 8 * DAY).toISOString().slice(0,10), template_id: diaryTemplates[0].id, fields: { mood: 7, anxiety: 3, skills_used: ["grounding","journaling","movement"] },      notes: { what: "Steady. Good handoffs all day." } }),
+    rec({ date: new Date(Date.now() - 10 * DAY).toISOString().slice(0,10),template_id: diaryTemplates[0].id, fields: { mood: 5, anxiety: 5, skills_used: ["breathwork"] },                              notes: { what: "Ordinary day. Body felt heavy." } }),
   ];
   const dailyProgress = [
-    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), tasks_completed: 2, tasks_total: 4 }),
+    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), tasks_completed: 2, tasks_total: 5 }),
+    rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0,10), tasks_completed: 4, tasks_total: 4 }),
     rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0,10), tasks_completed: 3, tasks_total: 3 }),
+    rec({ date: new Date(Date.now() - 3 * DAY).toISOString().slice(0,10), tasks_completed: 2, tasks_total: 4 }),
+    rec({ date: new Date(Date.now() - 4 * DAY).toISOString().slice(0,10), tasks_completed: 1, tasks_total: 3 }),
+    rec({ date: new Date(Date.now() - 5 * DAY).toISOString().slice(0,10), tasks_completed: 4, tasks_total: 5 }),
   ];
 
   const symptomCheckIns = [
-    rec({ symptom_id: symptoms[0].id, timestamp: isoOffset(2, 14), severity: 7 }),
+    rec({ symptom_id: symptoms[0].id, timestamp: isoOffset(2, 14), severity: 7, notes: "Mood lifted after Halo's tea ritual." }),
+    rec({ symptom_id: symptoms[3].id, timestamp: isoOffset(2, 17), severity: 5 }),
+    rec({ symptom_id: symptoms[5].id, timestamp: isoOffset(4, 11), severity: 6 }),
     rec({ symptom_id: symptoms[3].id, timestamp: isoOffset(7, 10), severity: 5 }),
+    rec({ symptom_id: symptoms[6].id, timestamp: isoOffset(8, 22), severity: 4, notes: "Couldn't fall asleep — Echo coding too late." }),
+    rec({ symptom_id: symptoms[0].id, timestamp: isoOffset(11, 14),severity: 8 }),
   ];
 
   const supportJournals = [
-    rec({ title: "Welcoming the new feature",  topic: "managers", content: "Echo wanted to know if the rest of us would mind if they redid the inner-world layout. We didn't. Felt good to be asked.", created_date: isoOffset(4, 22), tags: ["managers","ifs"] }),
+    rec({ title: "Welcoming the new feature",   topic: "managers",     content: "Echo wanted to know if the rest of us would mind if they redid the inner-world layout. We didn't. Felt good to be asked.", created_date: isoOffset(4, 22), tags: ["managers","ifs"] }),
+    rec({ title: "After the firefighter",       topic: "firefighters", content: "Snacks, scrolling, three hours gone. Not as a failure — as information.",                                                  created_date: isoOffset(6, 23), tags: ["firefighters"] }),
+    rec({ title: "Welcoming Small One",         topic: "exiles",       content: "She came forward in session. Just sadness, no story attached. Sat together.",                                              created_date: isoOffset(9, 22), tags: ["exiles","unburdening"] }),
+    rec({ title: "Noticing self-energy",        topic: "self-energy",  content: "There were a few minutes during the system meeting where nobody was forward and yet I — we? — felt warm and unhurried.",   created_date: isoOffset(11, 21), tags: ["self-energy"] }),
   ];
   const learningProgress = [
-    rec({ topic: "managers",     progress: 0.4, last_visited: isoOffset(4, 22) }),
+    rec({ topic: "managers",     progress: 0.6, last_visited: isoOffset(4, 22) }),
+    rec({ topic: "firefighters", progress: 0.3, last_visited: isoOffset(6, 23) }),
+    rec({ topic: "exiles",       progress: 0.2, last_visited: isoOffset(9, 22) }),
     rec({ topic: "self-energy",  progress: 0.5, last_visited: isoOffset(11, 21) }),
   ];
 
   const reportTemplates = [
-    rec({ name: "Weekly clinical summary", description: "Last 7 days of mood, switches, journal excerpts.", date_range_days: 7,  sections: ["mood_chart","switch_count","journal_excerpts","status_notes"], default: true }),
+    rec({ name: "Weekly clinical summary", description: "For the Wednesday session — last 7 days of mood, dissociation, switches, key journal excerpts.", date_range_days: 7,  sections: ["mood_chart","dissociation_chart","switch_count","journal_excerpts","status_notes"], default: true }),
+    rec({ name: "Monthly overview",        description: "Bigger picture for the monthly check-in — fronting time per alter, symptom patterns.",          date_range_days: 30, sections: ["fronting_summary","symptom_chart","activities_summary","relationships"], default: false }),
   ];
   const reportExports = [
-    rec({ template_id: reportTemplates[0].id, exported_at: isoOffset(0, 17), format: "pdf",  filename: "symphony-weekly.pdf" }),
+    rec({ template_id: reportTemplates[0].id, exported_at: isoOffset(7, 16), format: "pdf",  filename: "symphony-weekly-2026-04-30.pdf" }),
+    rec({ template_id: reportTemplates[0].id, exported_at: isoOffset(0, 17), format: "json", filename: "symphony-weekly-2026-05-08.json" }),
   ];
 
   const mentionLogs = [
-    rec({ mentioned_alter_id: alters.atlas.id, source_type: "bulletin", source_id: bulletins[1].id, source_label: "Bulletin Board", navigate_path: `/bulletin/${bulletins[1].id}`, read: false, created_date: isoOffset(1, 11) }),
-    rec({ mentioned_alter_id: alters.echo.id,  source_type: "bulletin", source_id: bulletins[6].id, source_label: "Bulletin Board", navigate_path: `/bulletin/${bulletins[6].id}`, read: false, created_date: isoOffset(6, 16) }),
+    rec({ mentioned_alter_id: alters.atlas.id,   source_type: "bulletin", source_id: bulletins[1].id, source_label: "Bulletin Board", navigate_path: `/bulletin/${bulletins[1].id}`, read: false, created_date: isoOffset(1, 11) }),
+    rec({ mentioned_alter_id: alters.echo.id,    source_type: "bulletin", source_id: bulletins[6].id, source_label: "Bulletin Board", navigate_path: `/bulletin/${bulletins[6].id}`, read: false, created_date: isoOffset(6, 16) }),
+    rec({ mentioned_alter_id: alters.welcome.id, source_type: "bulletin", source_id: bulletins[6].id, source_label: "Bulletin Board", navigate_path: `/bulletin/${bulletins[6].id}`, read: true,  created_date: isoOffset(6, 17, 15) }),
+    rec({ mentioned_alter_id: alters.atlas.id,   source_type: "journal",  source_id: journals[5].id,  source_label: "Journal entry",  navigate_path: `/journal/${journals[5].id}`,  read: true,  created_date: isoOffset(7, 21) }),
+  ];
+
+  // ── Locations (Location entity — local IndexedDB) ─────────────────────
+  // Demo of every location category, mix of GPS-captured and manual entries.
+  const locations = [
+    rec({ timestamp: isoOffset(0, 8),   name: "Home",                 category: "home",    latitude: 40.7128,  longitude: -74.0060, source: "gps",    notes: "Morning coffee." }),
+    rec({ timestamp: isoOffset(0, 14),  name: "Co-working space",     category: "work",    latitude: 40.7150,  longitude: -74.0035, source: "gps" }),
+    rec({ timestamp: isoOffset(1, 10),  name: "Riverside Park",       category: "outdoor", latitude: 40.8000,  longitude: -73.9728, source: "gps",    notes: "Walk with Halo (well, mentally)." }),
+    rec({ timestamp: isoOffset(2, 16),  name: "Therapist",            category: "medical", source: "manual",   notes: "Wednesday session." }),
+    rec({ timestamp: isoOffset(3, 19),  name: "Friend's apartment",   category: "social",  source: "manual",   notes: "Movie night." }),
+    rec({ timestamp: isoOffset(5, 11),  name: "Farmers market",       category: "outdoor", source: "manual" }),
+    rec({ timestamp: isoOffset(7, 16),  name: "Therapist",            category: "medical", source: "manual" }),
+    rec({ timestamp: isoOffset(9, 13),  name: "Library",              category: "outdoor", source: "manual",   notes: "Iris in archive mode." }),
+    rec({ timestamp: isoOffset(11, 17), name: "Game café",            category: "social",  source: "manual",   notes: "Game night." }),
   ];
 
   // System-wide custom field DEFINITIONS (what fields exist for everyone).
@@ -793,6 +1108,7 @@ function buildTapestry() {
     GroundingTechnique:toMap(groundingTechniques),
     GroundingPreference: toMap(groundingPreferences),
     InnerWorldLocation:toMap(innerWorldLocations),
+    Location:          toMap(locations),
     AlterMessage:      toMap(alterMessages),
     AlterNote:         toMap(alterNotes),
     DiaryTemplate:     toMap(diaryTemplates),
