@@ -414,10 +414,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
       // DiaryCard (only if diary-specific fields have data)
       if (hasDiaryData(diaryData)) {
+        const cardDate = new Date(now);
         await base44.entities.DiaryCard.create({
           card_type: "daily",
-          date: format(new Date(), "yyyy-MM-dd"),
-          name: `Daily — ${format(new Date(), "MMM d, yyyy")}`,
+          date: format(cardDate, "yyyy-MM-dd"),
+          name: `Daily — ${format(cardDate, "MMM d, yyyy")}`,
           fronting_alter_ids: selectedAlters,
           emotions: selectedEmotions,
           urges: diaryData.urges || null,

@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Retroactive Quick Check-In: the activity is now stamped at the back-dated time you set, instead of being filed at the current wall-clock time. Emotions, symptoms, and the journal note already used the back-dated time correctly.",
+        text: "Retroactive Quick Check-In: the activity AND the diary card are now stamped at the back-dated time you set, instead of being filed under today. Emotions, symptoms, and the journal note already used the back-dated time correctly; this catches the last two records that were leaking the wall clock.",
       },
       {
         type: "improve",
