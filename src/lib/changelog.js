@@ -16,6 +16,26 @@ export const CHANGELOG = [
     date: "May 9, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Retroactive Quick Check-In: the activity AND the diary card are now stamped at the back-dated time you set, instead of being filed under today. Emotions, symptoms, and the journal note already used the back-dated time correctly; this catches the last two records that were leaking the wall clock.",
+      },
+      {
+        type: "improve",
+        text: "Bulletin posts now render basic HTML formatting (bold, italic, underline, lists, links, line breaks) and resolve term placeholders like {alter} / {alters}. Previously the raw tags showed up as text in the post body.",
+      },
+      {
+        type: "fix",
+        text: "Dashboard status-note buttons (Emotions / Symptoms / Triggered) are now icon-only with tooltips, so they no longer wrap labels mid-word on narrow screens.",
+      },
+      {
+        type: "improve",
+        text: "Preview Mode (Sample Tapestry) now ships with the full preset symptom catalogue — mood, energy, anxiety, depression, switches, habits — so the Quick Check-In sheet looks the way it does for a real user with defaults seeded. Also refreshed the alter line-up: trimmed redundant one-liner profiles and added four new richly-styled templates (recipe card, typewritten letter, daily planner, museum exhibit label).",
+      },
+      {
+        type: "feature",
+        text: "Long-pressing the Oceans Symphony icon on your home screen now shows quick-action shortcuts: Quick Check-In, Set Fronters, Journals, and Tasks. Tapping a shortcut launches straight into that flow. (Android home-screen icon menu — works on installed PWAs.)",
+      },
+      {
         type: "improve",
         text: "Set Fronters modal now shows a hint about swipe gestures (swipe right to toggle, swipe left to set primary) so the gesture controls are discoverable.",
       },

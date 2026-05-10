@@ -286,13 +286,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setNewActivityName("");setShowNewActivity(false);
   };
 
-  const handleSaveActivities = async () => {
+  const handleSaveActivities = async (timestamp) => {
     if (selectedActivityCategories.length === 0) return;
     const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
     for (const catId of selectedActivityCategories) {
       const cat = catById[catId];
       await base44.entities.Activity.create({
-        timestamp: new Date().toISOString(),
+        timestamp,
         activity_name: cat?.name || catId,
         activity_category_ids: [catId],
         duration_minutes: activityDuration ? parseInt(activityDuration) : null,
@@ -321,7 +321,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setSaving(true);
     try {
       const now = entryTime ? new Date(entryTime).toISOString() : new Date().toISOString();
-      await handleSaveActivities();
+      // Pass `now` so retroactive check-ins stamp the activity at the
+      // back-dated time, not the current wall clock.
+      await handleSaveActivities(now);
 
       // Fronting sync — if fronting section was opened at any point (even if later collapsed)
       if (hadFrontingOpen || openSections.has("fronting")) {
@@ -412,10 +414,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
       // DiaryCard (only if diary-specific fields have data)
       if (hasDiaryData(diaryData)) {
+        const cardDate = new Date(now);
         await base44.entities.DiaryCard.create({
           card_type: "daily",
-          date: format(new Date(), "yyyy-MM-dd"),
-          name: `Daily — ${format(new Date(), "MMM d, yyyy")}`,
+          date: format(cardDate, "yyyy-MM-dd"),
+          name: `Daily — ${format(cardDate, "MMM d, yyyy")}`,
           fronting_alter_ids: selectedAlters,
           emotions: selectedEmotions,
           urges: diaryData.urges || null,

@@ -7,30 +7,13 @@ import { formatDistanceToNow } from "date-fns";
 import AuthorsRow from "@/components/bulletin/AuthorsRow";
 import BulletinCommentThread from "@/components/bulletin/BulletinCommentThread";
 import { Link } from "react-router-dom";
+import { useTerms } from "@/lib/useTerms";
+import { renderBulletinContent } from "@/lib/renderBulletinContent";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
-function renderContent(content, alters) {
-  const altersByName = Object.fromEntries(alters.map(a => [a.name, a]));
-  const altersByAlias = Object.fromEntries(alters.filter(a => a.alias).map(a => [a.alias, a]));
-  const parts = content.split(/(@\w+)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("@")) {
-      const mention = part.slice(1).trim();
-      const alter = altersByName[mention] || altersByAlias[mention];
-      if (alter) {
-        return (
-          <Link key={i} to={`/alter/${alter.id}`}>
-            <span className="font-semibold rounded px-0.5" style={{ color: alter.color || "hsl(var(--primary))" }}>{part}</span>
-          </Link>
-        );
-      }
-    }
-    return <span key={i}>{part}</span>;
-  });
-}
-
 export default function BulletinPage() {
+  const terms = useTerms();
   const { id } = useParams();
   const navigate = useNavigate();
   const [highlightedCommentId, setHighlightedCommentId] = useState(null);
@@ -110,9 +93,9 @@ export default function BulletinPage() {
         </div>
 
         {/* Content */}
-        <p className="text-sm text-foreground leading-relaxed mb-4">
-          {renderContent(bulletin.content, alters)}
-        </p>
+        <div className="text-sm text-foreground leading-relaxed mb-4 bulletin-prose">
+          {renderBulletinContent(bulletin.content, alters, terms)}
+        </div>
 
         {/* Poll */}
         {bulletin.poll && (() => {

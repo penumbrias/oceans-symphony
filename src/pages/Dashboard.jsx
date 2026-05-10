@@ -70,6 +70,23 @@ export default function Dashboard() {
     }
   }, [location.state]);
 
+  // PWA home-screen shortcuts launch the dashboard with ?action=… so the
+  // user lands directly in the relevant modal. Strip the param after firing
+  // so a refresh doesn't keep re-opening the modal.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const action = params.get("action");
+    if (!action) return;
+    if (action === "quick-checkin") {
+      setShowEmotionModal(true);
+    } else if (action === "set-front") {
+      window.dispatchEvent(new CustomEvent("open-set-front"));
+    }
+    params.delete("action");
+    const newSearch = params.toString();
+    navigate({ pathname: location.pathname, search: newSearch ? `?${newSearch}` : "" }, { replace: true });
+  }, [location.search]);
+
   const handleNotifClick = (mentionLog) => {
     setShowNotifHistory(false);
     const path = mentionLog.navigate_path || "/";

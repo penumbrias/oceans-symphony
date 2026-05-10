@@ -7,32 +7,13 @@ import { useNavigate, Link } from "react-router-dom";
 import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
 import BulletinActionMenu from "./BulletinActionMenu";
+import { useTerms } from "@/lib/useTerms";
+import { renderBulletinContent } from "@/lib/renderBulletinContent";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
-function renderContent(content, alters) {
-  const altersByName = Object.fromEntries(alters.map((a) => [a.name, a]));
-  const altersByAlias = Object.fromEntries(alters.filter((a) => a.alias).map((a) => [a.alias, a]));
-  const parts = content.split(/(@\w+)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("@")) {
-      const mention = part.slice(1).trim();
-      const alter = altersByName[mention] || altersByAlias[mention];
-      if (alter) {
-        return (
-          <Link key={i} to={`/alter/${alter.id}`}>
-            <span className="font-semibold rounded px-0.5" style={{ color: alter.color || "hsl(var(--primary))" }}>
-              {part}
-            </span>
-          </Link>);
-
-      }
-    }
-    return <span key={i}>{part}</span>;
-  });
-}
-
 export default function BulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = [], canDelete, highlight }) {
+  const terms = useTerms();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [showReactPicker, setShowReactPicker] = useState(false);
@@ -168,9 +149,9 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
       </div>
 
       {/* Content */}
-      <p className="text-sm text-foreground leading-relaxed mb-3" onClick={(e) => e.stopPropagation()}>
-        {renderContent(bulletin.content, alters)}
-      </p>
+      <div className="text-sm text-foreground leading-relaxed mb-3 bulletin-prose" onClick={(e) => e.stopPropagation()}>
+        {renderBulletinContent(bulletin.content, alters, terms)}
+      </div>
 
       {/* Poll */}
       {bulletin.poll &&
