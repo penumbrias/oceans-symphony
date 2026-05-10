@@ -13,8 +13,24 @@
 
 export const CHANGELOG = [
   {
-    date: "May 9, 2026",
+    date: "May 10, 2026",
     changes: [
+      {
+        type: "feature",
+        text: "Plan Activity now has a free-text Title field and a Location field, so one-off plans like \"Doctor's appointment at Westside Clinic\" no longer need a permanent activity category. Picking a category is still allowed for tagging — set both to colour-tag a custom title.",
+      },
+      {
+        type: "feature",
+        text: "Plans can now be marked Critical. A critical plan pins to the top of the Dashboard within whichever lead-time windows you pick (Always, 1 day before, 4 hours, 1 hour, 30 min, 15 min, 5 min — pick more than one to step up as the plan gets closer). Dismissing the pin hides it until the next narrower window opens.",
+      },
+      {
+        type: "fix",
+        text: "Sleep records and the auto-created \"Sleep\" activity now stay in sync. Editing a Sleep entry's bedtime, wake time, or notes — or deleting it — updates the matching activity on the tracker, and the same applies in reverse if you edit or delete the activity. Legacy records pre-dating this linkage are matched and linked automatically the first time you edit either side.",
+      },
+      {
+        type: "improve",
+        text: "Bulletin composer: the Pin / Poll / Mention buttons are now in a labelled \"Add to post\" row, and a one-time tip points them out so the Poll feature isn't hidden.",
+      },
       {
         type: "fix",
         text: "Retroactive Quick Check-In: the activity AND the diary card are now stamped at the back-dated time you set, instead of being filed under today. Emotions, symptoms, and the journal note already used the back-dated time correctly; this catches the last two records that were leaking the wall clock.",

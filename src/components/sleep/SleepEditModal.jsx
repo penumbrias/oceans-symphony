@@ -133,6 +133,8 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
       const bedtimeISO = new Date(bedtime).toISOString();
       const wakeTimeISO = new Date(wakeTime).toISOString();
 
+      const durationMinutes = Math.round((new Date(wakeTimeISO) - new Date(bedtimeISO)) / 60000);
+
       await base44.entities.Sleep.update(sleep.id, {
         date: sleepDate,
         bedtime: bedtimeISO,
@@ -145,6 +147,31 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         dreamed,
         had_nightmare: hadNightmare,
       });
+
+      // Mirror edits to the linked "Sleep" Activity so the activity tracker
+      // doesn't drift. Backfill the FK lazily for legacy records that
+      // pre-date the linkage.
+      let activityId = sleep.linked_activity_id;
+      if (!activityId) {
+        try {
+          const candidates = await base44.entities.Activity.filter({ activity_name: "Sleep" });
+          const match = (candidates || []).find(a => a.timestamp === sleep.bedtime);
+          if (match) {
+            activityId = match.id;
+            await base44.entities.Sleep.update(sleep.id, { linked_activity_id: activityId });
+            await base44.entities.Activity.update(activityId, { source_sleep_id: sleep.id });
+          }
+        } catch {}
+      }
+      if (activityId) {
+        try {
+          await base44.entities.Activity.update(activityId, {
+            timestamp: bedtimeISO,
+            duration_minutes: durationMinutes,
+            notes: notes || null,
+          });
+        } catch {}
+      }
 
       if (saveAsDream && notes.trim()) {
         const DREAM_FOLDER = "Dreams";
