@@ -42,7 +42,14 @@ export default function SleepTracker() {
 
   const handleDelete = async (sleepId) => {
     try {
+      // Cascade-delete the linked "Sleep" Activity so the tracker's week
+      // grid doesn't keep an orphaned bar after the underlying record is gone.
+      const sleep = sleepRecords.find(s => s.id === sleepId);
       await base44.entities.Sleep.delete(sleepId);
+      if (sleep?.linked_activity_id) {
+        try { await base44.entities.Activity.delete(sleep.linked_activity_id); } catch {}
+        queryClient.invalidateQueries({ queryKey: ["activities"] });
+      }
       queryClient.invalidateQueries({ queryKey: ["sleep"] });
       toast.success("🗑 Sleep record deleted");
     } catch (err) {

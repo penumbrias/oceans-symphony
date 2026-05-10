@@ -41,6 +41,16 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const [showSignpostMenu, setShowSignpostMenu] = useState(false);
   const [signpostQuery, setSignpostQuery] = useState("");
   const textareaRef = useRef(null);
+  // First-compose discoverability hint for the Pin / Poll buttons. Stored
+  // in localStorage so it only shows once per device.
+  const [showHint, setShowHint] = useState(() => {
+    try { return localStorage.getItem("symphony_bulletin_compose_hint_seen") !== "1"; }
+    catch { return true; }
+  });
+  const dismissHint = () => {
+    setShowHint(false);
+    try { localStorage.setItem("symphony_bulletin_compose_hint_seen", "1"); } catch {}
+  };
 
   // Fix cursor position: when opened with initialContent, move cursor to end
   React.useEffect(() => {
@@ -240,24 +250,39 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-3">
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setPinned(p => !p)}
-            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${pinned ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
-            <Pin className="w-3 h-3" /> Pin
-          </button>
-          <button onClick={() => setShowPoll(p => !p)}
-            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition-all ${showPoll ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
-            <BarChart2 className="w-3 h-3" /> Poll
-          </button>
-          <button onClick={() => { setShowMentions(true); setContent(c => c + "@"); textareaRef.current?.focus(); }}
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground transition-all">
-            <AtSign className="w-3 h-3" /> Mention
+      {showHint && (
+        <div className="mt-3 flex items-start gap-2 text-xs px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 text-foreground">
+          <span className="text-base leading-none mt-px">💡</span>
+          <p className="flex-1 leading-relaxed">
+            Tip: tap <b>Poll</b> to attach a vote, <b>Pin</b> to keep the post at the top, or <b>Mention</b> to tag an alter.
+          </p>
+          <button onClick={dismissHint} aria-label="Dismiss hint" className="text-muted-foreground hover:text-foreground flex-shrink-0">
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
-        <Button onClick={handlePost} disabled={saving || !content.trim()} size="sm" className="bg-primary">
-          <Send className="w-3 h-3 mr-1" /> Post
-        </Button>
+      )}
+
+      <div className="mt-3">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground/80 mb-1.5">Add to post</div>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => { setPinned(p => !p); dismissHint(); }}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${pinned ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+              <Pin className="w-3.5 h-3.5" /> Pin
+            </button>
+            <button onClick={() => { setShowPoll(p => !p); dismissHint(); }}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${showPoll ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+              <BarChart2 className="w-3.5 h-3.5" /> Poll
+            </button>
+            <button onClick={() => { setShowMentions(true); setContent(c => c + "@"); textareaRef.current?.focus(); dismissHint(); }}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground transition-all">
+              <AtSign className="w-3.5 h-3.5" /> Mention
+            </button>
+          </div>
+          <Button onClick={() => { dismissHint(); handlePost(); }} disabled={saving || !content.trim()} size="sm" className="bg-primary">
+            <Send className="w-3 h-3 mr-1" /> Post
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pin, Search, X, CheckSquare, MessageCircle } from "lucide-react";
@@ -61,6 +61,18 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
     queryKey: ["bulletins"],
     queryFn: () => base44.entities.Bulletin.list("-created_date", 100)
   });
+
+  // One query for every comment on the board so each card can show a
+  // count badge without firing N separate filter() requests on render.
+  const { data: allComments = [] } = useQuery({
+    queryKey: ["bulletinCommentsAll"],
+    queryFn: () => base44.entities.BulletinComment.list("-created_date", 2000),
+  });
+  const commentCounts = useMemo(() => {
+    const m = {};
+    for (const c of allComments) m[c.bulletin_id] = (m[c.bulletin_id] || 0) + 1;
+    return m;
+  }, [allComments]);
 
   useEffect(() => {
     if (!highlightBulletinId || bulletins.length === 0) return;
@@ -182,7 +194,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
                     frontingAlterIds={frontingAlterIds}
                     highlight={highlightBulletinId === b.id}
                   /> :
-                  <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+                  <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} commentCount={commentCounts[b.id] || 0} />
                 }
               </div>
             )}
@@ -222,7 +234,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
                     frontingAlterIds={frontingAlterIds}
                     highlight={highlightBulletinId === b.id}
                   /> :
-                  <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} />
+                  <BulletinCard bulletin={b} alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} canDelete highlight={highlightBulletinId === b.id} commentCount={commentCounts[b.id] || 0} />
                 }
               </div>
             )}
