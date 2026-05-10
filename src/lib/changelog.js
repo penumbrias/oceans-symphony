@@ -13,7 +13,7 @@
 
 export const CHANGELOG = [
   {
-    date: "May 9, 2026",
+    date: "May 10, 2026",
     changes: [
       {
         type: "improve",

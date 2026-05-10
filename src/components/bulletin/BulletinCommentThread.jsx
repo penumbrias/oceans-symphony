@@ -30,6 +30,7 @@ function parseSignposts(content, alters) {
 
 function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, onRefresh }) {
   const terms = useTerms();
+  const qc = useQueryClient();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -127,6 +128,8 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     setText("");
     setSaving(false);
     onRefresh();
+    // Refresh the board-level count badge.
+    qc.invalidateQueries({ queryKey: ["bulletinCommentsAll"] });
   };
 
   const handleKeyDown = (e) => {
@@ -324,7 +327,10 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
         for (const id of Object.keys(next)) {
           const newCount = next[id].countdown - 1;
           if (newCount <= 0) {
-            base44.entities.BulletinComment.delete(id).then(() => onRefresh());
+            base44.entities.BulletinComment.delete(id).then(() => {
+              onRefresh();
+              qc.invalidateQueries({ queryKey: ["bulletinCommentsAll"] });
+            });
             delete next[id];
           } else {
             next[id] = { ...next[id], countdown: newCount };
@@ -352,7 +358,10 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
       if (newCount >= 3) {
         setPendingDeletes(p => { const n = { ...p }; delete n[comment.id]; return n; });
         setDeleteTapCounts(p => { const n = { ...p }; delete n[comment.id]; return n; });
-        base44.entities.BulletinComment.delete(comment.id).then(() => onRefresh());
+        base44.entities.BulletinComment.delete(comment.id).then(() => {
+          onRefresh();
+          qc.invalidateQueries({ queryKey: ["bulletinCommentsAll"] });
+        });
       } else {
         setDeleteTapCounts(p => ({ ...p, [comment.id]: { count: newCount, lastTime: now } }));
       }

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { format, isToday, isThisWeek, isThisMonth, isThisYear, formatDistanceToNow } from "date-fns";
-import { Calendar, Clock, Users } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, Zap } from "lucide-react";
 import { parseDate } from "@/lib/dateUtils";
 
 /**
@@ -147,7 +147,17 @@ function ActivityRow({ activity, altersById, onClick, compact }) {
       style={{ borderLeftColor: colorBar, borderLeftWidth: 3 }}
     >
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{activity.activity_name || "Untitled activity"}</p>
+        <p className="text-sm font-medium truncate flex items-center gap-1.5">
+          {activity.is_critical && (
+            <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500 flex-shrink-0" title="Critical plan" />
+          )}
+          <span className="truncate">{activity.activity_name || "Untitled activity"}</span>
+        </p>
+        {activity.location && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+            <MapPin className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{activity.location}</span>
+          </p>
+        )}
         <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
           <Clock className="w-3 h-3" />
           {format(ts, "EEE, MMM d · h:mm a")} <span className="opacity-70">· in {formatDistanceToNow(ts)}</span>

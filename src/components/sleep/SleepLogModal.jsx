@@ -164,7 +164,7 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         sleepCat = await base44.entities.ActivityCategory.create({ name: "sleep", color: "#6366f1" });
       }
 
-      await base44.entities.Sleep.create({
+      const newSleep = await base44.entities.Sleep.create({
         date: dateStr,
         bedtime: bedtimeISO,
         wake_time: wakeTimeISO,
@@ -193,14 +193,18 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         });
       }
 
-      await base44.entities.Activity.create({
+      const newAct = await base44.entities.Activity.create({
         timestamp: bedtimeISO,
         activity_name: "Sleep",
         duration_minutes: durationMinutes,
         color: "#6366f1",
         notes: notes || null,
         activity_category_ids: [sleepCat.id],
+        source_sleep_id: newSleep.id,
       });
+
+      // Two-way FK so either side can find the other on later edits.
+      await base44.entities.Sleep.update(newSleep.id, { linked_activity_id: newAct.id });
 
       toast.success("Sleep logged!");
       setBedtime("");

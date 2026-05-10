@@ -5,10 +5,11 @@ import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Bell } from "lucide-react";
+import { Heart, Bell, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
@@ -344,6 +345,10 @@ export default function Dashboard() {
       });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
       toast.success("Location logged");
+    } else if (action.type === "view_grocery_list") {
+      window.dispatchEvent(new CustomEvent("open-grocery-list"));
+    } else if (action.type === "add_grocery_item") {
+      window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { focusInput: true } }));
     }
   };
 
@@ -374,10 +379,17 @@ export default function Dashboard() {
         </button>
         </div>
         <button
+            onClick={() => window.dispatchEvent(new CustomEvent("open-grocery-list"))}
+            aria-label="Grocery list (also acts as a privacy cover; triple-tap anywhere to open)"
+            title="Grocery list · triple-tap anywhere to open"
+            className="mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+          <ShoppingCart className="w-5 h-5" />
+        </button>
+        <button
             onClick={() => setShowNotifHistory(true)}
             aria-label="Notifications"
             className="relative mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-            
+
           <Bell className="w-5 h-5" />
           {mentionLogs.some(m =>
             m.log_type !== "authored" &&
@@ -392,6 +404,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <CriticalPinnedPlans />
       <CurrentFronters alters={alters} />
       <CurrentSymptoms onOpenCheckIn={(section) => { setEmotionModalInitialSection(section); setShowEmotionModal(true); }} />
       <NotificationHistoryModal

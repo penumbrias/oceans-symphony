@@ -8,6 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
+import GroceryListPanel from "@/components/grocery/GroceryListPanel";
+import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
@@ -41,6 +43,8 @@ export default function AppLayout() {
   const [showFeatureTour, setShowFeatureTour] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useRemindersScheduler();
+  // Three quick taps anywhere → open Grocery List as a privacy cover.
+  useTripleTapPanic();
 
   // Poll friends every 60 s and show in-app banner when a friend's front changes.
   // On first run (app open) this replaces the old one-time check.
@@ -482,6 +486,7 @@ const handleNotifClick = (mentionLog) => {
 
       <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <FloatingGroundingButton />
+      <GroceryListPanel />
       <ReminderToast />
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
       <NotificationPopups

@@ -210,8 +210,21 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         fronting_alter_ids: data.fronting_alter_ids,
         notes: data.notes,
       });
-      
-      
+
+      // If this is the auto-created Activity that mirrors a Sleep record,
+      // reflect the timestamp / wake_time / notes back so the Sleep page
+      // doesn't drift.
+      if (act.source_sleep_id) {
+        try {
+          const wakeTimeISO = new Date(startDt.getTime() + duration * 60_000).toISOString();
+          await base44.entities.Sleep.update(act.source_sleep_id, {
+            bedtime: startDt.toISOString(),
+            wake_time: wakeTimeISO,
+            notes: data.notes ?? null,
+          });
+        } catch {}
+      }
+
       toast.success("Activity updated");
       setEditingId(null);
       onSave?.();
@@ -226,7 +239,13 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     if (!window.confirm("Delete this activity?")) return;
     setIsLoading(true);
     try {
+      const target = activities.find(a => a.id === actId);
       await base44.entities.Activity.delete(actId);
+      // Cascade-delete the linked Sleep record so the Sleep page doesn't
+      // keep an orphaned entry after the user removes its activity.
+      if (target?.source_sleep_id) {
+        try { await base44.entities.Sleep.delete(target.source_sleep_id); } catch {}
+      }
       toast.success("Activity deleted");
       onSave?.();
       if (activities.length === 1) onClose();

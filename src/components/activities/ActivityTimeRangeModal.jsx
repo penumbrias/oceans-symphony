@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { Plus } from "lucide-react";
+import { Plus, MapPin, Zap } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 
 function toTimeString(date, hour, minute = 0) {
   const d = new Date(date);
@@ -63,6 +64,13 @@ export default function ActivityTimeRangeModal({
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // One-off plan details — only used in plan mode. Title (when set) becomes
+  // the activity_name on save so users don't need to create a permanent
+  // category for "Doctor's appointment" or similar one-time events.
+  const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
+  const [isCritical, setIsCritical] = useState(false);
+  const [leadSteps, setLeadSteps] = useState(DEFAULT_LEAD_STEPS);
   const queryClient = useQueryClient();
 const [newActivityName, setNewActivityName] = useState("");
 const [showNewActivity, setShowNewActivity] = useState(false);
@@ -100,6 +108,10 @@ useMemo(() => {
   }
   setSelectedActivityCategories([]);
   setNotes("");
+  setTitle("");
+  setLocation("");
+  setIsCritical(false);
+  setLeadSteps(DEFAULT_LEAD_STEPS);
 }, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute, planMode]);
 
   // Auto-populate alters from fronting history
@@ -139,7 +151,14 @@ useMemo(() => {
 
   // Update handleSave to allow no duration:
 const handleSave = async () => {
-  if (selectedActivityCategories.length === 0) { toast.error("Select an activity"); return; }
+  const trimmedTitle = title.trim();
+  // Title alone is enough to save a plan — categories are optional in plan
+  // mode so one-offs (a doctor's appointment) don't pollute the category
+  // list. For non-plan logging, a category is still required.
+  if (selectedActivityCategories.length === 0 && !(planMode && trimmedTitle)) {
+    toast.error(planMode ? "Add a title or pick an activity" : "Select an activity");
+    return;
+  }
   if (!startTime) { toast.error("Set start time"); return; }
   // Only validate end time if one was provided
   if (endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
@@ -150,20 +169,35 @@ const handleSave = async () => {
 
   try {
     const catById = Object.fromEntries(activityCategories.map(c => [c.id, c]));
-    for (const catId of selectedActivityCategories) {
-      const cat = catById[catId];
-      // is_planned is derived from timestamp: anything in the future is a
-      // plan, anything past is a logged record. This avoids needing a UI
-      // toggle — picking a future date is the toggle.
-      const isPlanned = timestamp.getTime() > Date.now();
+    const isPlanned = timestamp.getTime() > Date.now();
+
+    // Build the list of records to create. With categories: one per category
+    // (existing behaviour). Without categories but with a title: a single
+    // ad-hoc record with no category linkage.
+    const records = selectedActivityCategories.length > 0
+      ? selectedActivityCategories.map(catId => {
+          const cat = catById[catId];
+          return {
+            activity_name: trimmedTitle || (cat?.name || catId),
+            activity_category_ids: [catId],
+            color: cat?.color,
+          };
+        })
+      : [{ activity_name: trimmedTitle, activity_category_ids: [], color: undefined }];
+
+    for (const r of records) {
       await base44.entities.Activity.create({
         timestamp: timestamp.toISOString(),
-        activity_name: cat?.name || catId,
-        activity_category_ids: [catId],
+        activity_name: r.activity_name,
+        activity_category_ids: r.activity_category_ids,
+        ...(r.color ? { color: r.color } : {}),
         duration_minutes: durationMinutes > 0 ? durationMinutes : null, // null = logged pill
         fronting_alter_ids: selectedAlters,
         notes: notes || null,
+        location: planMode && location.trim() ? location.trim() : null,
         is_planned: isPlanned,
+        is_critical: planMode && isCritical ? true : false,
+        critical_lead_steps: planMode && isCritical ? leadSteps : null,
         // For planned activities, treat selectedAlters as the assignees too
         // so the per-alter "Plans for me" surface picks them up.
         assigned_alter_ids: isPlanned ? selectedAlters : [],
@@ -202,9 +236,13 @@ const handleSave = async () => {
 
       setSelectedActivityCategories([]);
       setNotes("");
+      setTitle("");
+      setLocation("");
+      setIsCritical(false);
+      setLeadSteps(DEFAULT_LEAD_STEPS);
       onSave?.();
       onClose();
-      toast.success("Activity saved!");
+      toast.success(planMode ? "Plan saved!" : "Activity saved!");
     } catch (err) {
       toast.error(err.message || "Failed to log activity");
     } finally {
@@ -284,6 +322,73 @@ const handleCreateNewActivity = async () => {
                 </div>
               )}
           </div>
+
+          {/* Title (plan mode only) — saves into activity_name. Lets users
+              record a one-off plan without polluting their category list. */}
+          {planMode && (
+            <div>
+              <label className="text-sm font-medium block mb-1">Title</label>
+              <Input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Doctor's appointment, school pickup, etc."
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Optional. Picking a category below works too — set both to tag a custom title with a colour.</p>
+            </div>
+          )}
+
+          {/* Location (plan mode only) */}
+          {planMode && (
+            <div>
+              <label className="text-sm font-medium flex items-center gap-1 mb-1"><MapPin className="w-3.5 h-3.5" /> Location <span className="text-xs text-muted-foreground">(optional)</span></label>
+              <Input
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="Westside Clinic, kitchen, anywhere"
+                className="text-sm"
+              />
+            </div>
+          )}
+
+          {/* Critical toggle + lead-step picker (plan mode only) */}
+          {planMode && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => setIsCritical(v => !v)}
+                className={`w-full flex items-center justify-between gap-2 text-sm font-medium transition-colors ${isCritical ? "text-amber-500" : "text-foreground"}`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Zap className={`w-4 h-4 ${isCritical ? "fill-amber-500 text-amber-500" : ""}`} />
+                  Mark as critical
+                </span>
+                <span className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 ${isCritical ? "bg-amber-500" : "bg-muted-foreground/30"}`}>
+                  <span className={`w-4 h-4 rounded-full bg-background transition-transform ${isCritical ? "translate-x-4" : "translate-x-0"}`} />
+                </span>
+              </button>
+              {isCritical && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1.5">Pin to the top of the Dashboard:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {LEAD_STEPS.map(step => {
+                      const active = leadSteps.includes(step.key);
+                      return (
+                        <button
+                          key={step.key}
+                          type="button"
+                          onClick={() => setLeadSteps(prev => active ? prev.filter(k => k !== step.key) : [...prev, step.key])}
+                          className={`text-xs px-2 py-1 rounded-full border transition-all ${active ? "border-amber-500/50 bg-amber-500/10 text-amber-500" : "border-border/50 text-muted-foreground hover:bg-muted/50"}`}
+                        >
+                          {step.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Activities */}
           <ActivityPillSelector

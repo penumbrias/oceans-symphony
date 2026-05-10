@@ -69,7 +69,7 @@ const ENTITY_NAMES = [
   "AlterRelationship", "RelationshipType", "InnerWorldLocation", "GroundingTechnique", "GroundingPreference",
   "SupportJournalEntry", "LearningProgress", "ReportTemplate", "ReportExport",
   "DiaryTemplate", "Reminder", "ReminderInstance", "Poll", "TriggerType",
-  "StatusNote", "Location", "SystemChangeEvent",
+  "StatusNote", "Location", "SystemChangeEvent", "GroceryItem",
 ];
 
 const EXPORT_CATEGORIES = [

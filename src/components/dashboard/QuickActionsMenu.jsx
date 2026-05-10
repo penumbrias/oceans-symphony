@@ -168,8 +168,16 @@ function DiaryFieldRow({ action, onAction }) {
 }
 
 function NavRow({ action, onAction }) {
-  const label = action.type === "open_set_front" ? "Set Fronters" : (SECTION_LABELS[action.config?.section] || action.label || "Open");
-  const emoji = action.type === "open_set_front" ? "🔄" : "📍";
+  const label =
+    action.type === "open_set_front"   ? "Set Fronters" :
+    action.type === "view_grocery_list" ? "Grocery list" :
+    action.type === "add_grocery_item"  ? "Add to grocery list" :
+    (SECTION_LABELS[action.config?.section] || action.label || "Open");
+  const emoji =
+    action.type === "open_set_front"   ? "🔄" :
+    action.type === "view_grocery_list" ? "🛒" :
+    action.type === "add_grocery_item"  ? "🛒" :
+    "📍";
   return (
     <button onClick={() => onAction(action)}
       className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-muted/50 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
@@ -378,6 +386,8 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
         return <LocationRow key={action.id} action={action} onAction={onAction} />;
       case "open_checkin_section":
       case "open_set_front":
+      case "view_grocery_list":
+      case "add_grocery_item":
         return <NavRow key={action.id} action={action} onAction={onAction} />;
       default:
         return null;
