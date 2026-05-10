@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Grocery list with privacy-cover mode. Tap the 🛒 icon in the dashboard header (or set up Grocery list / Add to grocery list as quick actions) to open a full-screen grocery list that covers the entire app, including the bottom tab bar — so a glance at the screen reveals nothing about the system. **Triple-tap anywhere** to open the cover instantly when you need to hide the screen fast. Items persist across sessions; tap to check off, swipe-friendly trash icons to remove, one-tap clear of checked items.",
+      },
+      {
+        type: "improve",
+        text: "Bulletin board: the Comments button now shows a count badge of how many comments a post has, so you can see active threads at a glance without expanding each one.",
+      },
+      {
+        type: "feature",
         text: "Plan Activity now has a free-text Title field and a Location field, so one-off plans like \"Doctor's appointment at Westside Clinic\" no longer need a permanent activity category. Picking a category is still allowed for tagging — set both to colour-tag a custom title.",
       },
       {

@@ -12,7 +12,7 @@ import { renderBulletinContent } from "@/lib/renderBulletinContent";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
-export default function BulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = [], canDelete, highlight }) {
+export default function BulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = [], canDelete, highlight, commentCount = 0 }) {
   const terms = useTerms();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -206,8 +206,9 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
         <button
           onClick={() => {setShowComments((p) => !p);}}
           className="flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50">
-          
+
           <MessageCircle className="w-3.5 h-3.5" />
+          {commentCount > 0 && <span className="font-medium text-foreground/80">{commentCount}</span>}
           {showComments ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           Comments
         </button>

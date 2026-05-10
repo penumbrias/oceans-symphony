@@ -243,6 +243,8 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     { id: "log_diary", label: "Log a diary entry" },
     { id: "log_location", label: "Log a location" },
     { id: "toggle_daily_task", label: "Toggle a daily task" },
+    { id: "view_grocery_list", label: "View grocery list (privacy cover)" },
+    { id: "add_grocery_item", label: "Add to grocery list" },
   ];
 
   const activeAlters = alters.filter(a => !a.is_archived);
@@ -496,6 +498,8 @@ export default function QuickActionsConfig() {
     log_location: "Log location",
     open_set_front: `Open Set ${terms.Front}ers`,
     toggle_daily_task: "Toggle daily task",
+    view_grocery_list: "Grocery list",
+    add_grocery_item: "Add to grocery list",
   }[type] || type);
 
   return (
