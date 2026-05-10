@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 9, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: Try Preview button silently failing — the preview tapestry referenced two alters (Thorne, Scout) that were removed in the recent profile-diversity pass, so build() threw and Preview Mode never started.",
+      },
+      {
         type: "fix",
         text: "Retroactive Quick Check-In: the activity AND the diary card are now stamped at the back-dated time you set, instead of being filed under today. Emotions, symptoms, and the journal note already used the back-dated time correctly; this catches the last two records that were leaking the wall clock.",
       },
