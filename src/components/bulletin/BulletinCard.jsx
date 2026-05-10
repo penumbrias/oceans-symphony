@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Pin, Trash2, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
@@ -19,6 +19,24 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
   const [showReactPicker, setShowReactPicker] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [lastTap, setLastTap] = useState(0);
+  // Tap a reaction pill to see who reacted; the list popover has a small
+  // toggle if the current alter wants to add/remove their own reaction.
+  const [openReactionList, setOpenReactionList] = useState(null);
+  const reactionRowRef = useRef(null);
+  useEffect(() => {
+    if (!openReactionList) return;
+    const onDoc = (e) => {
+      if (reactionRowRef.current && !reactionRowRef.current.contains(e.target)) {
+        setOpenReactionList(null);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("touchstart", onDoc);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("touchstart", onDoc);
+    };
+  }, [openReactionList]);
 
   const { data: comments = [], refetch: refetchComments } = useQuery({
     queryKey: ["bulletinComments", bulletin.id],
@@ -181,15 +199,58 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
       }
 
       {/* Reactions + comment toggle */}
-      <div className="flex flex-wrap gap-1.5 items-center" onClick={(e) => e.stopPropagation()}>
-        {Object.entries(reactions).filter(([, ids]) => ids.length > 0).map(([emoji, ids]) =>
-        <button key={emoji} onClick={() => handleReact(emoji)}
-        className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-all ${
-        currentAlterId && ids.includes(currentAlterId) ? "border-primary/50 bg-primary/10" : "border-border/40 hover:bg-muted/50"}`
-        }>
-            {emoji} <span className="text-muted-foreground">{ids.length}</span>
-          </button>
-        )}
+      <div ref={reactionRowRef} className="flex flex-wrap gap-1.5 items-center" onClick={(e) => e.stopPropagation()}>
+        {Object.entries(reactions).filter(([, ids]) => ids.length > 0).map(([emoji, ids]) => {
+          const youReacted = currentAlterId && ids.includes(currentAlterId);
+          const reactors = ids.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+          return (
+            <div key={emoji} className="relative">
+              <button
+                onClick={() => setOpenReactionList((cur) => cur === emoji ? null : emoji)}
+                className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-all ${youReacted ? "border-primary/50 bg-primary/10" : "border-border/40 hover:bg-muted/50"}`}
+                title="Who reacted"
+              >
+                {emoji} <span className="text-muted-foreground">{ids.length}</span>
+              </button>
+              {openReactionList === emoji && (
+                <div className="absolute bottom-8 left-0 z-50 bg-popover border border-border rounded-2xl shadow-xl p-2 w-56 max-w-[80vw]">
+                  <div className="flex items-center justify-between px-2 pb-2 border-b border-border/40">
+                    <span className="text-sm font-medium">{emoji} <span className="text-muted-foreground">· {ids.length}</span></span>
+                    <button
+                      onClick={() => { setOpenReactionList(null); handleReact(emoji); }}
+                      disabled={!currentAlterId}
+                      className="text-xs px-2 py-0.5 rounded-full border border-border/60 hover:bg-muted/50 disabled:opacity-40"
+                    >
+                      {youReacted ? "Remove yours" : "Add yours"}
+                    </button>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto py-1">
+                    {reactors.length === 0 ? (
+                      <p className="text-xs text-muted-foreground px-2 py-1">No reactors yet.</p>
+                    ) : (
+                      reactors.map((r) => (
+                        <Link
+                          key={r.id}
+                          to={`/alter/${r.id}`}
+                          onClick={() => setOpenReactionList(null)}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50"
+                        >
+                          <span
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
+                            style={{ backgroundColor: r.color || "hsl(var(--muted))", color: "#fff" }}
+                          >
+                            {r.name?.[0] || "?"}
+                          </span>
+                          <span className="text-sm truncate">{r.name}</span>
+                        </Link>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
         <div className="relative">
           <button onClick={() => setShowReactPicker((p) => !p)}
           className="text-xs px-2 py-1 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50">

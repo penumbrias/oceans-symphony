@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 9, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Preview Mode rewritten as a tour of the alter profile editor's capabilities. Six demo alters — Welcome, Atlas, Mira, Echo, Iris, Halo — each show off a different bio mode (Plain / Simple / Blocks / Raw HTML) plus the Custom Fields tab and the Mini Toolbar. Every alter ships its own theme preset so the whole app's look swaps as you change primary fronter. The bulletin board still demonstrates mentions, threaded comments, reactions, and polls.",
+      },
+      {
+        type: "fix",
+        text: "Bulletin reactions: tapping a reaction's count now opens a popover listing who reacted (with avatars + names), instead of removing the current alter's reaction. The popover has a small \"Add yours / Remove yours\" button if you do want to toggle.",
+      },
+      {
         type: "fix",
         text: "Friends \"Notify on change\" now fires for every fronting change, not just saves through the Set Fronters modal. Quick-action gestures (long-press, swipe, hold-menu) used to mutate the local front without pushing the new state to the Friends server, so opted-in friends were never notified. Front-status now syncs from a shared listener that runs on any path.",
       },
