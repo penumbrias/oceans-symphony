@@ -214,12 +214,10 @@ if (isSameCell) {
   setPendingStart(null);
 }
   }
-} else if (allActs.length > 0) {
-      // Single-tap on a cell with activities opens the details sheet —
-      // expand-in-place was making the column impossibly tall when an
-      // activity had long notes (e.g. dream journals).
-      onActivityClick?.(allActs);
-    }
+}
+    // Single-tap on a cell with activities does nothing — users
+    // double-tap a cell to open the details sheet (expand-in-place was
+    // removed because long notes pushed the rest of the day off-screen).
   }, [addMode, pendingStart, getActivitiesForSlot, onTimeRangeSelect, onActivityClick, onToggleAddMode]);
 
   const handleToggleAddMode = () => { setPendingStart(null); onToggleAddMode?.(); };

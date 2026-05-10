@@ -4,14 +4,14 @@ import { useEffect, useRef } from "react";
 // a privacy cover. The panel sits over every other UI in the app so a
 // glance reveals nothing about the system.
 //
-// "Quick" = three pointerdown events within 700 ms total. We deliberately
+// "Quick" = three pointerdown events within 500 ms total. We deliberately
 // look at pointerdown (not click) so the gesture works mid-scroll, mid-
 // long-press, and even on form fields, with no need to defeat
 // stopPropagation in child components.
 //
 // Triggers in form/textarea/[contenteditable] elements are ignored so the
 // gesture doesn't fire while the user is typing in a private note.
-const WINDOW_MS = 700;
+const WINDOW_MS = 500;
 const TAPS_NEEDED = 3;
 
 export default function useTripleTapPanic() {

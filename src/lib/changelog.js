@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Activity Tracker week view: a single tap on a cell no longer opens the details sheet — you need to double-tap, like before. Single tap was firing the sheet by accident while scrolling or picking a time slot for a new entry.",
+      },
+      {
+        type: "improve",
+        text: "Triple-tap privacy gesture is now tighter — three taps within 500ms (was 700ms) to open the grocery-list cover, so it doesn't fire accidentally during normal interaction.",
+      },
+      {
         type: "improve",
         text: "Bulletin board: tapping the \"You were mentioned\" banner now jumps to (and highlights) the bulletin where you were mentioned, the same way clicking on a notification does. The X still just dismisses without navigating.",
       },
