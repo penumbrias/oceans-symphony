@@ -13,6 +13,7 @@ import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
+import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
 import ReminderToast from "@/components/reminders/ReminderToast";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
@@ -35,6 +36,9 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const terms = useTerms();
+  // Push front-status snapshots to the Friends server whenever the active
+  // front changes — covers all paths (modal, dashboard hold, alters swipe).
+  useFriendsFrontSync();
   const [historyDepth, setHistoryDepth] = useState(0);
   const [showFeatureTour, setShowFeatureTour] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);

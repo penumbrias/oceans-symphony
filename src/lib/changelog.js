@@ -16,28 +16,24 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
-        type: "feature",
-        text: "Grocery list with privacy-cover mode. Tap the 🛒 icon in the dashboard header (or set up Grocery list / Add to grocery list as quick actions) to open a full-screen grocery list that covers the entire app, including the bottom tab bar — so a glance at the screen reveals nothing about the system. **Triple-tap anywhere** to open the cover instantly when you need to hide the screen fast. Items persist across sessions; tap to check off, swipe-friendly trash icons to remove, one-tap clear of checked items.",
-      },
-      {
         type: "improve",
-        text: "Bulletin board: the Comments button now shows a count badge of how many comments a post has, so you can see active threads at a glance without expanding each one.",
+        text: "Activity Tracker week view: tapping an activity cell now opens the details sheet directly, instead of expanding the cell in place. Long notes (like dream journals on a Sleep entry) used to push the rest of the day's column off-screen.",
       },
       {
         type: "feature",
-        text: "Plan Activity now has a free-text Title field and a Location field, so one-off plans like \"Doctor's appointment at Westside Clinic\" no longer need a permanent activity category. Picking a category is still allowed for tagging — set both to colour-tag a custom title.",
-      },
-      {
-        type: "feature",
-        text: "Plans can now be marked Critical. A critical plan pins to the top of the Dashboard within whichever lead-time windows you pick (Always, 1 day before, 4 hours, 1 hour, 30 min, 15 min, 5 min — pick more than one to step up as the plan gets closer). Dismissing the pin hides it until the next narrower window opens.",
+        text: "Preview Mode rewritten as a tour of the alter profile editor's capabilities, with the rest of the app fully populated. Six demo alters — Welcome, Atlas, Mira, Echo, Iris, Halo — each show off a different bio mode (Plain / Simple / Blocks / Raw HTML) plus the Custom Fields tab and the Mini Toolbar. Every alter ships its own theme preset so the whole app's look swaps as you change primary fronter. Groups are organised hierarchically (Index → By Role / By Gender / By Age → leaf groups). Every entity table is filled — bulletins, threaded comments, polls, tasks, sleep, locations, inner world rooms, alter messages, alter notes, diary cards, support journals, mention logs.",
       },
       {
         type: "fix",
-        text: "Sleep records and the auto-created \"Sleep\" activity now stay in sync. Editing a Sleep entry's bedtime, wake time, or notes — or deleting it — updates the matching activity on the tracker, and the same applies in reverse if you edit or delete the activity. Legacy records pre-dating this linkage are matched and linked automatically the first time you edit either side.",
+        text: "Bulletin reactions: tapping a reaction's count now opens a popover listing who reacted (with avatars + names), instead of removing the current alter's reaction. The popover has a small \"Add yours / Remove yours\" button if you do want to toggle.",
       },
       {
-        type: "improve",
-        text: "Bulletin composer: the Pin / Poll / Mention buttons are now in a labelled \"Add to post\" row, and a one-time tip points them out so the Poll feature isn't hidden.",
+        type: "fix",
+        text: "Friends \"Notify on change\" now fires for every fronting change, not just saves through the Set Fronters modal. Quick-action gestures (long-press, swipe, hold-menu) used to mutate the local front without pushing the new state to the Friends server, so opted-in friends were never notified. Front-status now syncs from a shared listener that runs on any path.",
+      },
+      {
+        type: "hotfix",
+        text: "Hotfix: Try Preview button silently failing — the preview tapestry referenced two alters (Thorne, Scout) that were removed in the recent profile-diversity pass, so build() threw and Preview Mode never started.",
       },
       {
         type: "fix",

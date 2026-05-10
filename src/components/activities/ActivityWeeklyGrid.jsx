@@ -89,7 +89,6 @@ export default function ActivityWeeklyGrid({
   const [showEmotions,   setShowEmotions]   = useState(false);
   const [showCustomMenu, setShowCustomMenu] = useState(false);
   const [showSettings,   setShowSettings]   = useState(false);
-  const [expandedCells,  setExpandedCells]  = useState(new Set());
   const [pendingStart,   setPendingStart]   = useState(null);
   const [hoveredCell,    setHoveredCell]    = useState(null);
   const lastTapRef     = useRef({ key: "", time: 0 });
@@ -216,11 +215,10 @@ if (isSameCell) {
 }
   }
 } else if (allActs.length > 0) {
-      setExpandedCells(prev => {
-        const next = new Set(prev);
-        next.has(key) ? next.delete(key) : next.add(key);
-        return next;
-      });
+      // Single-tap on a cell with activities opens the details sheet —
+      // expand-in-place was making the column impossibly tall when an
+      // activity had long notes (e.g. dream journals).
+      onActivityClick?.(allActs);
     }
   }, [addMode, pendingStart, getActivitiesForSlot, onTimeRangeSelect, onActivityClick, onToggleAddMode]);
 
@@ -539,7 +537,7 @@ if (isSameCell) {
                   const { timed, logged } = getActivitiesForSlot(date, hour, minute);
                   const alterIds = getAlterIdsForSlot(date, hour, minute);
                   const emotions = getEmotionsForSlot(date, hour, minute);
-                  const isExpanded = expandedCells.has(key);
+                  const isExpanded = false; // expand-in-place removed; tap opens the details sheet instead.
                   const isPending = pendingStart &&
                     pendingStart.date.toDateString() === date.toDateString() &&
                     pendingStart.hour === hour && pendingStart.minute === minute;
