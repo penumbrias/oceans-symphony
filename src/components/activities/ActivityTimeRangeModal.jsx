@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -81,8 +81,13 @@ const [showNewActivity, setShowNewActivity] = useState(false);
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
-  // Reset times/date when modal opens with new props
-useMemo(() => {
+  // Reset times/date when modal opens with new props. MUST be useEffect (not
+  // useMemo): we're calling setState here, which inside a useMemo body would
+  // mutate state during render. With useMemo the deps were also tricky —
+  // startDateProp / endDateProp can be Date instances that recreate every
+  // parent render, which compounded the problem. useEffect schedules the
+  // updates after commit and React batches them.
+useEffect(() => {
   if (!isOpen) return;
   // Reset the picked date back to whatever the parent passed in (or to the
   // plan-mode default tomorrow). Without this the date picker would persist
@@ -114,8 +119,14 @@ useMemo(() => {
   setLeadSteps(DEFAULT_LEAD_STEPS);
 }, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute, planMode]);
 
-  // Auto-populate alters from fronting history
-  useMemo(() => {
+  // Auto-populate alters from fronting history. MUST be useEffect, not
+  // useMemo — `startDate` here is a fresh `new Date(...)` instance on every
+  // render, so a useMemo dep on it changed every render and re-fired
+  // setSelectedAlters every render, causing an infinite update loop that
+  // surfaced as a crash when picking a time range. Switching to useEffect +
+  // a stable date key (yyyy-MM-dd) avoids both bugs.
+  const startDateKey = startDate ? format(startDate, "yyyy-MM-dd") : null;
+  useEffect(() => {
     if (startDate && startHour !== undefined && endHour !== undefined) {
       const startDt = new Date(startDate);
       startDt.setHours(Math.min(startHour, endHour), startMinute, 0, 0);
@@ -133,7 +144,8 @@ useMemo(() => {
       });
       setSelectedAlters(Array.from(alterIds));
     }
-  }, [startDate, startHour, endHour, frontingHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDateKey, startHour, endHour, startMinute, endMinute, frontingHistory]);
 
   const durationMinutes = useMemo(() => {
     if (!startDate || !startTime || !endTime) return 0;
