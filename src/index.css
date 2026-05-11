@@ -8,6 +8,7 @@
 @import '@fontsource/playfair-display/500.css';
 @import '@fontsource/playfair-display/600.css';
 @import '@fontsource/playfair-display/700.css';
+@import '@fontsource/dm-serif-display/400.css';
 @import '@fontsource/atkinson-hyperlegible/400.css';
 @import '@fontsource/atkinson-hyperlegible/700.css';
 @import '@fontsource/nunito/400.css';
@@ -27,7 +28,7 @@
 @layer base {
   :root {
     --font-sans: 'Inter', sans-serif;
-    --font-display: 'Playfair Display', serif;
+    --font-display: 'DM Serif Display', 'Playfair Display', serif;
 
     --color-bg: #F0F9FF;
     --color-surface: #E0F2FE;
@@ -93,19 +94,29 @@ body {
 }
 
 /* ─── App header decoration ──────────────────────────────────────────
- * Replaces the default flat border-b with a soft horizontal gradient
- * wash (primary tint, fading at the edges) plus a thin wavy underline
- * drawn in the primary colour from an inline SVG inside the header.
- * Quiet enough to read as decoration rather than chrome, distinct
- * enough that the bar doesn't look like every other Base44 app.
+ * The header has a slightly lighter wash on its top half whose bottom
+ * edge is wavy and scrolls slowly sideways — calm-waves motion,
+ * deliberately quiet. The wash is drawn inside HeaderWaveBlock.jsx;
+ * this CSS just provides the slide keyframe.
+ *
+ * The keyframe translates the wave SVG by exactly one viewBox-width
+ * (50% of the 200%-wide element). Because the wave path tiles
+ * seamlessly at that width, the motion loops without a visible jump.
+ * Duration is generous (40s) so the motion reads as ambient rather
+ * than animated.
  */
-.app-header-wave {
-  background-image:
-    linear-gradient(90deg,
-      hsl(var(--primary) / 0.06) 0%,
-      hsl(var(--primary) / 0) 30%,
-      hsl(var(--primary) / 0) 70%,
-      hsl(var(--primary) / 0.06) 100%);
+@keyframes app-header-wave-slide {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.app-header-wave-slide {
+  animation: app-header-wave-slide 40s linear infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Honour reduced-motion settings — freeze the wave instead of
+     looping forever. */
+  .app-header-wave-slide { animation: none; }
 }
 
 /* Prevent text from overflowing button/card boundaries at any font scale */

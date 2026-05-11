@@ -118,7 +118,7 @@ function applyFontFamily(value) {
 // `value` is "default" (use --font-display from CSS) or a CSS font-family
 // string; saving anything else falls back to default.
 export const HEADING_FONT_OPTIONS = [
-  { label: "Default (Playfair Display)", value: "default",                               category: "ui" },
+  { label: "Default (DM Serif Display)", value: "default",                               category: "ui" },
   // UI / Accessible
   { label: "Inter",                 value: "'Inter', sans-serif",                        category: "ui" },
   { label: "System font",           value: "system-ui, -apple-system, sans-serif",       category: "ui" },
@@ -128,6 +128,7 @@ export const HEADING_FONT_OPTIONS = [
   { label: "Raleway",               value: "Raleway, sans-serif",                        category: "ui" },
   { label: "Noto Sans",             value: "'Noto Sans', sans-serif",                    category: "ui" },
   // Serif
+  { label: "DM Serif Display",      value: "'DM Serif Display', serif",                  category: "serif" },
   { label: "Playfair Display",      value: "'Playfair Display', serif",                  category: "serif" },
   { label: "Lora",                  value: "Lora, serif",                                category: "serif" },
   { label: "Merriweather",          value: "Merriweather, serif",                        category: "serif" },
