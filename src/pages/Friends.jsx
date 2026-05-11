@@ -403,7 +403,7 @@ function PrivacyDisclaimer() {
         </div>
         <div className="text-muted-foreground leading-relaxed space-y-2 pl-8">
           <p>
-            The Friends feature uses a separate, minimal cloud relay (Vercel KV — basically a Redis store). It only holds:
+            The Friends feature uses a separate, minimal cloud relay (Upstash Redis). It only holds:
           </p>
           <ul className="list-disc pl-5 space-y-1">
             <li><strong>Your chosen display name and friend code</strong> — public-ish info you explicitly choose to share.</li>
@@ -672,7 +672,7 @@ export default function FriendsPage() {
   const pendingSent = friendsData?.pendingSent || [];
 
   const terms = useTerms();
-  // Sync current front status to KV once when identity is available (catches cases where
+  // Sync current front status to the relay once when identity is available (catches cases where
   // the user was already fronting before they set up the Friends profile).
   const syncedRef = useRef(false);
   useEffect(() => {
@@ -710,7 +710,7 @@ export default function FriendsPage() {
     })();
   }, [identity, terms.fronting, terms.front, terms.alter, terms.system]);
 
-  // On mount, re-save push subscription to KV if push is enabled.
+  // On mount, re-save push subscription to the relay if push is enabled.
   // This handles the case where VAPID keys were added after notifyOnChange was set.
   useEffect(() => {
     if (!identity) return;

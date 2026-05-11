@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
@@ -17,6 +18,7 @@ function parseJsonSafe(str, fallback) {
 }
 
 function SessionDetails({ session }) {
+  const terms = useTerms();
   const notes = parseJsonSafe(session.note, []);
   const noteText = Array.isArray(notes) ? notes.map(n => n.text).filter(Boolean).join("\n") : (session.note || "");
   const emotions = parseJsonSafe(session.session_emotions, []);
@@ -31,7 +33,7 @@ function SessionDetails({ session }) {
         <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20">
           <AlertTriangle className="w-3.5 h-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
           <div className="text-xs min-w-0">
-            <span className="font-semibold text-orange-600 dark:text-orange-400">Triggered switch</span>
+            <span className="font-semibold text-orange-600 dark:text-orange-400">Triggered {terms.switch}</span>
             {session.trigger_category && (
               <span className="text-muted-foreground"> · {session.trigger_category}</span>
             )}
@@ -170,6 +172,7 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
 }
 
 export function AlterSessionEdit({ session, alter, onClose }) {
+  const terms = useTerms();
   const editResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   const [editImgError, setEditImgError] = useState(false);
   const queryClient = useQueryClient();
@@ -308,7 +311,7 @@ const handleSave = async () => {
               className="w-4 h-4 accent-primary"
             />
             <label htmlFor="as-primary" className="text-sm text-muted-foreground cursor-pointer select-none">
-              Primary fronter during this session
+              Primary {terms.fronter} during this session
             </label>
           </div>
           <div className="flex gap-2">

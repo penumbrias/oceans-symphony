@@ -270,7 +270,8 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     }
     if (data.type === "open_checkin_section") {
       const s = CHECKIN_SECTIONS.find(s => s.id === data.config?.section);
-      return s?.label || "Check-In section";
+      const label = s?.id === "fronting" ? terms.Fronting : s?.label;
+      return label || "Check-In section";
     }
     if (data.type === "log_symptom") {
       const s = activeSymptoms.find(s => s.id === data.config?.symptom_id);
@@ -327,7 +328,7 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
           <select value={data.config?.section || ""} onChange={e => setConfig("section", e.target.value)}
             className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary">
             <option value="">Select a section…</option>
-            {CHECKIN_SECTIONS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+            {CHECKIN_SECTIONS.map(s => <option key={s.id} value={s.id}>{s.id === "fronting" ? terms.Fronting : s.label}</option>)}
           </select>
         </div>
       )}

@@ -138,6 +138,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
 }
 
 function AlterPanel({ alter, session, onClose, onSaved }) {
+  const terms = useTerms();
   const queryClient = useQueryClient();
 
   const [note, setNote] = useState(() => sessionNoteText(session));
@@ -276,7 +277,7 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
           onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
           aria-label="Mark triggered switch"
           aria-expanded={showTrigger}
-          title="Triggered switch"
+          title={`Triggered ${terms.switch}`}
           className={`flex items-center justify-center min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${
             showTrigger
               ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"

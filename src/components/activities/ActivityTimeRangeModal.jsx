@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { Plus, MapPin, Zap } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
+import { useTerms } from "@/lib/useTerms";
 
 function toTimeString(date, hour, minute = 0) {
   const d = new Date(date);
@@ -41,6 +42,7 @@ export default function ActivityTimeRangeModal({
   // user can plan an activity for any day rather than only tapping a slot.
   planMode = false,
 }) {
+  const terms = useTerms();
   // For plan mode without an explicit start date, default to tomorrow noon so
   // the modal starts from a sensible plannable point.
   const defaultedStart = startDateProp || (planMode ? (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(12, 0, 0, 0); return d; })() : null);
@@ -74,6 +76,10 @@ export default function ActivityTimeRangeModal({
   const queryClient = useQueryClient();
 const [newActivityName, setNewActivityName] = useState("");
 const [showNewActivity, setShowNewActivity] = useState(false);
+  // Optional link to an existing to-do task (plan mode only). Picking a task
+  // is one of the three independent ways to fill a plan — title, activity
+  // category, or task — only one is required.
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
 
   // Fetch categories so we can resolve names for direct entity saves
   const { data: activityCategories = [] } = useQuery({
@@ -81,8 +87,21 @@ const [showNewActivity, setShowNewActivity] = useState(false);
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
-  // Reset times/date when modal opens with new props
-useMemo(() => {
+  // Fetch tasks for the to-do picker (plan mode only). Filter out completed
+  // ones at render time so the dropdown stays useful.
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => base44.entities.Task.list(),
+    enabled: planMode,
+  });
+
+  // Reset times/date when modal opens with new props. MUST be useEffect (not
+  // useMemo): we're calling setState here, which inside a useMemo body would
+  // mutate state during render. With useMemo the deps were also tricky —
+  // startDateProp / endDateProp can be Date instances that recreate every
+  // parent render, which compounded the problem. useEffect schedules the
+  // updates after commit and React batches them.
+useEffect(() => {
   if (!isOpen) return;
   // Reset the picked date back to whatever the parent passed in (or to the
   // plan-mode default tomorrow). Without this the date picker would persist
@@ -112,10 +131,17 @@ useMemo(() => {
   setLocation("");
   setIsCritical(false);
   setLeadSteps(DEFAULT_LEAD_STEPS);
+  setSelectedTaskId(null);
 }, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute, planMode]);
 
-  // Auto-populate alters from fronting history
-  useMemo(() => {
+  // Auto-populate alters from fronting history. MUST be useEffect, not
+  // useMemo — `startDate` here is a fresh `new Date(...)` instance on every
+  // render, so a useMemo dep on it changed every render and re-fired
+  // setSelectedAlters every render, causing an infinite update loop that
+  // surfaced as a crash when picking a time range. Switching to useEffect +
+  // a stable date key (yyyy-MM-dd) avoids both bugs.
+  const startDateKey = startDate ? format(startDate, "yyyy-MM-dd") : null;
+  useEffect(() => {
     if (startDate && startHour !== undefined && endHour !== undefined) {
       const startDt = new Date(startDate);
       startDt.setHours(Math.min(startHour, endHour), startMinute, 0, 0);
@@ -133,7 +159,8 @@ useMemo(() => {
       });
       setSelectedAlters(Array.from(alterIds));
     }
-  }, [startDate, startHour, endHour, frontingHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDateKey, startHour, endHour, startMinute, endMinute, frontingHistory]);
 
   const durationMinutes = useMemo(() => {
     if (!startDate || !startTime || !endTime) return 0;
@@ -152,11 +179,21 @@ useMemo(() => {
   // Update handleSave to allow no duration:
 const handleSave = async () => {
   const trimmedTitle = title.trim();
-  // Title alone is enough to save a plan — categories are optional in plan
-  // mode so one-offs (a doctor's appointment) don't pollute the category
-  // list. For non-plan logging, a category is still required.
-  if (selectedActivityCategories.length === 0 && !(planMode && trimmedTitle)) {
-    toast.error(planMode ? "Add a title or pick an activity" : "Select an activity");
+  const linkedTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
+  // Plan mode: any ONE of (title, activity category, linked to-do) is enough.
+  // Non-plan logging still requires a category — back-dated entries should
+  // tag a real activity so analytics stay meaningful.
+  if (planMode) {
+    if (
+      selectedActivityCategories.length === 0 &&
+      !trimmedTitle &&
+      !linkedTask
+    ) {
+      toast.error("Add a title, pick an activity, or link a to-do");
+      return;
+    }
+  } else if (selectedActivityCategories.length === 0) {
+    toast.error("Select an activity");
     return;
   }
   if (!startTime) { toast.error("Set start time"); return; }
@@ -172,18 +209,20 @@ const handleSave = async () => {
     const isPlanned = timestamp.getTime() > Date.now();
 
     // Build the list of records to create. With categories: one per category
-    // (existing behaviour). Without categories but with a title: a single
-    // ad-hoc record with no category linkage.
+    // (existing behaviour). Without categories but with a title or linked
+    // to-do: a single ad-hoc record. When a to-do is linked and no title
+    // was typed, fall back to the task title so the plan reads naturally.
+    const fallbackName = trimmedTitle || linkedTask?.title || "";
     const records = selectedActivityCategories.length > 0
       ? selectedActivityCategories.map(catId => {
           const cat = catById[catId];
           return {
-            activity_name: trimmedTitle || (cat?.name || catId),
+            activity_name: fallbackName || (cat?.name || catId),
             activity_category_ids: [catId],
             color: cat?.color,
           };
         })
-      : [{ activity_name: trimmedTitle, activity_category_ids: [], color: undefined }];
+      : [{ activity_name: fallbackName, activity_category_ids: [], color: undefined }];
 
     for (const r of records) {
       await base44.entities.Activity.create({
@@ -191,6 +230,7 @@ const handleSave = async () => {
         activity_name: r.activity_name,
         activity_category_ids: r.activity_category_ids,
         ...(r.color ? { color: r.color } : {}),
+        task_id: linkedTask?.id || null,
         duration_minutes: durationMinutes > 0 ? durationMinutes : null, // null = logged pill
         fronting_alter_ids: selectedAlters,
         notes: notes || null,
@@ -202,6 +242,19 @@ const handleSave = async () => {
         // so the per-alter "Plans for me" surface picks them up.
         assigned_alter_ids: isPlanned ? selectedAlters : [],
       });
+    }
+
+    // When a to-do was linked to this plan, sync the task's due_date so
+    // the to-do list also reflects when it's scheduled. We only push the
+    // date (yyyy-MM-dd) since Task.due_date is a date field.
+    if (linkedTask) {
+      try {
+        const dueDateStr = format(timestamp, "yyyy-MM-dd");
+        if (linkedTask.due_date !== dueDateStr) {
+          await base44.entities.Task.update(linkedTask.id, { due_date: dueDateStr });
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        }
+      } catch { /* non-fatal — plan still saves */ }
     }
     // ... rest of fronting session logic unchanged
 
@@ -334,7 +387,42 @@ const handleCreateNewActivity = async () => {
                 placeholder="Doctor's appointment, school pickup, etc."
                 className="text-sm"
               />
-              <p className="text-xs text-muted-foreground mt-1">Optional. Picking a category below works too — set both to tag a custom title with a colour.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Optional — you only need <strong>one</strong> of: a title, an activity category (below), or a linked to-do. Combine them however you like.
+              </p>
+            </div>
+          )}
+
+          {/* Link an existing to-do (plan mode only). Picks from the To-Do
+              list; the plan stores task_id and the task's due_date syncs
+              to the plan's start date on save. */}
+          {planMode && (
+            <div>
+              <label className="text-sm font-medium block mb-1">Link to a to-do <span className="text-xs text-muted-foreground">(optional)</span></label>
+              <select
+                value={selectedTaskId || ""}
+                onChange={e => {
+                  const v = e.target.value || null;
+                  setSelectedTaskId(v);
+                  // If the user picks a task and hasn't typed a title yet,
+                  // mirror the task title into the field as a hint they can
+                  // overwrite. We intentionally don't autofill if title was
+                  // already typed so we don't clobber user input.
+                  if (v && !title.trim()) {
+                    const t = tasks.find(x => x.id === v);
+                    if (t?.title) setTitle(t.title);
+                  }
+                }}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+              >
+                <option value="">— No to-do linked —</option>
+                {tasks.filter(t => !t.completed).map(t => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pick an existing to-do to schedule it for this time. Its due date will update to match.
+              </p>
             </div>
           )}
 
@@ -418,7 +506,7 @@ const handleCreateNewActivity = async () => {
           {/* Alters */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
-              Who was fronting?
+              Who was {terms.fronting}?
               {selectedAlters.length > 0 && (
                 <span className="text-xs font-normal text-muted-foreground ml-2">
                   ({selectedAlters.length} selected)
@@ -441,14 +529,16 @@ const handleCreateNewActivity = async () => {
             </div>
           </div>
 
-          {/* Notes */}
+          {/* Notes / Description */}
           <div>
-            <label className="text-sm font-medium text-foreground">Notes — Optional</label>
+            <label className="text-sm font-medium text-foreground">
+              {planMode ? "Description / notes — Optional" : "Notes — Optional"}
+            </label>
             <MentionTextarea
               value={notes}
               onChange={setNotes}
               alters={alters || []}
-              placeholder="Any additional notes..."
+              placeholder={planMode ? "Extra context: what, why, who's coming, anything to remember…" : "Any additional notes..."}
               className="mt-1 h-20"
             />
           </div>

@@ -143,7 +143,7 @@ const buildSectionDefs = (t) => [
   {
     id: "bulletins",
     label: "Bulletin Board",
-    desc: "Internal system bulletin posts",
+    desc: `Internal ${t.system} bulletin posts`,
     subOptions: (opts, set) => (
       <RadioGroup value={opts.bulletinDetail} onChange={v => set("bulletinDetail", v)} options={[
         { value: "titles", label: "Titles only" },

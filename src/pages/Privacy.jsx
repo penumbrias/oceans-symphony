@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Shield } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 const Section = ({ title, children }) => (
   <div className="space-y-2">
@@ -10,6 +11,7 @@ const Section = ({ title, children }) => (
 );
 
 export default function Privacy() {
+  const terms = useTerms();
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-2xl mx-auto px-5 py-10 space-y-8">
@@ -31,8 +33,8 @@ export default function Privacy() {
 
         <Section title="Data stored on your device">
           <p>
-            All core app data — alter profiles, fronting history, journals, emotions, activities,
-            sleep records, tasks, reminders, diary cards, notes, polls, location history, system
+            All core app data — {terms.alter} profiles, {terms.fronting} history, journals, emotions, activities,
+            sleep records, tasks, reminders, diary cards, notes, polls, location history, {terms.system}
             check-ins, therapy reports, and all other records — is stored exclusively in your
             browser's IndexedDB on your device.
           </p>
@@ -46,12 +48,12 @@ export default function Privacy() {
           <p>
             The Friends feature lets you share your current front status with trusted people.
             If you choose to use it, the following information is stored on our servers
-            (Vercel KV / Upstash):
+            (Upstash Redis):
           </p>
           <ul className="list-disc list-inside space-y-1 pl-2">
-            <li>A display name and optional system name you provide</li>
+            <li>A display name and optional {terms.system} name you provide</li>
             <li>Your unique friend code</li>
-            <li>Your current front status (who is fronting, using names and colours you have set)</li>
+            <li>Your current {terms.front} status (who is {terms.fronting}, using names and colours you have set)</li>
             <li>Your privacy preference (full names / count only / hidden)</li>
             <li>Your approved friend list (stored as anonymous user IDs)</li>
           </ul>
@@ -73,8 +75,8 @@ export default function Privacy() {
         <Section title="Simply Plural integration (optional)">
           <p>
             If you connect a Simply Plural account, your Simply Plural API token is stored
-            locally on your device only. Data imported from Simply Plural (alter profiles,
-            fronting history) is stored locally and subject to Simply Plural's own privacy policy.
+            locally on your device only. Data imported from Simply Plural ({terms.alter} profiles,
+            {terms.fronting} history) is stored locally and subject to Simply Plural's own privacy policy.
             We do not store or transmit your Simply Plural credentials.
           </p>
         </Section>

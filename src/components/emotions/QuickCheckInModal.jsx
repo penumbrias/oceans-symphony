@@ -477,14 +477,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
             <DialogTitle>Check-in saved 🤍</DialogTitle>
             <DialogDescription>
               {isTriggered
-                ? "You've noted a triggered switch. Would you like some support?"
+                ? `You've noted a triggered ${terms.switch}. Would you like some support?`
                 : "Would you like to try a grounding exercise?"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm text-muted-foreground">
               {isTriggered
-                ? "It can help to use a grounding technique after a triggered switch."
+                ? `It can help to use a grounding technique after a triggered ${terms.switch}.`
                 : "It looks like you might be having a hard time. A grounding technique might help."}
             </p>
             <div className="flex gap-2">
@@ -547,6 +547,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           <div className="flex flex-wrap gap-1.5 pb-1">
             {PILLS.map((pill) => {
               const PillIcon = pill.icon;
+              // Module-scope PILLS can't hit useTerms, so resolve the
+              // label for any system-customisable terms here at render.
+              const label = pill.id === "fronting" ? terms.Fronting : pill.label;
               return (
                 <button key={pill.id} onClick={() => toggleSection(pill.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex-shrink-0 ${
@@ -555,7 +558,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
                 "bg-card text-muted-foreground border-border hover:text-foreground"}`
                 }>
                   <PillIcon className="w-3 h-3" />
-                  {pill.label}
+                  {label}
                 </button>);
             })}
           </div>

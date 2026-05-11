@@ -1,6 +1,8 @@
 import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
-import { ChevronRight, Trash2, Edit2, CheckCircle2, Circle, Flag, Plus } from "lucide-react";
+import { ChevronRight, Trash2, Edit2, CheckCircle2, Circle, Flag, Plus, Pin, Zap, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -19,18 +21,19 @@ export default function TaskItem({
     ? Math.round((task.current_progress / task.goal_target) * 100)
     : null;
 
+  // Fetch activity categories so we can render the new array-based tag with
+  // its real name + colour, falling back to the legacy single-string field
+  // for older records.
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+  const catById = Object.fromEntries(activityCategories.map(c => [c.id, c]));
+
   const priorityColors = {
     low: "text-blue-500",
     medium: "text-yellow-500",
     high: "text-red-500",
-  };
-
-  const categoryColors = {
-    work: "bg-blue-500/10 text-blue-600",
-    health: "bg-green-500/10 text-green-600",
-    personal: "bg-purple-500/10 text-purple-600",
-    learning: "bg-orange-500/10 text-orange-600",
-    other: "bg-gray-500/10 text-gray-600",
   };
 
   return (
@@ -80,10 +83,34 @@ export default function TaskItem({
             >
               {task.title}
             </p>
-            {task.category && (
-              <span className={cn("text-xs px-2 py-0.5 rounded-full", categoryColors[task.category])}>
+            {/* Activity category chips (new array field) — render each by
+                name + colour. Legacy `category` string still shows as a
+                fallback chip for older tasks. */}
+            {(task.activity_category_ids || []).map(id => {
+              const c = catById[id];
+              if (!c) return null;
+              return (
+                <span
+                  key={id}
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: `${c.color}22`, color: c.color }}
+                >
+                  {c.name}
+                </span>
+              );
+            })}
+            {!task.activity_category_ids?.length && task.category && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-foreground/80">
                 {task.category}
               </span>
+            )}
+            {task.is_urgent && (
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-500 flex items-center gap-0.5">
+                <Zap className="w-3 h-3 fill-amber-500" /> Urgent
+              </span>
+            )}
+            {task.pinned_to_dashboard && (
+              <Pin className="w-3 h-3 fill-primary text-primary" />
             )}
             {task.priority && (
               <Flag className={cn("w-3.5 h-3.5 mt-0.5", priorityColors[task.priority])} />
@@ -108,11 +135,23 @@ export default function TaskItem({
             </div>
           )}
 
-          {/* Due date */}
-          {task.due_date && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Due: {format(new Date(task.due_date), "MMM d, yyyy")}
-            </p>
+          {/* Due date / scheduled time — separate fields, both rendered when set. */}
+          {(task.due_date || task.scheduled_at) && (
+            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+              {task.due_date && (
+                <p>
+                  <span className="font-medium">Due:</span>{" "}
+                  {format(new Date(task.due_date + (task.due_date.length === 10 ? "T00:00:00" : "")), "MMM d, yyyy")}
+                </p>
+              )}
+              {task.scheduled_at && (
+                <p className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  <span className="font-medium">Scheduled:</span>{" "}
+                  {format(new Date(task.scheduled_at), "MMM d, p")}
+                </p>
+              )}
+            </div>
           )}
 
           {task.description && (

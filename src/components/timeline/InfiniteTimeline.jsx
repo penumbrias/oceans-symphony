@@ -377,7 +377,7 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
             onChange={e => setAsPrimary(e.target.checked)}
             className="w-4 h-4 accent-primary" />
           <label htmlFor="new-as-primary" className="text-xs text-muted-foreground cursor-pointer select-none">
-            Mark as primary fronter
+            Mark as primary {terms.fronter}
           </label>
         </div>
 
@@ -398,6 +398,7 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
 }
 
 function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onClose }) {
+  const terms = useTerms();
   const [adjustedMins, setAdjustedMins] = useState(startMins);
   const timeInputValue = `${String(Math.floor(adjustedMins / 60)).padStart(2, "0")}:${String(adjustedMins % 60).padStart(2, "0")}`;
   const h = Math.floor(adjustedMins / 60) % 12 || 12;
@@ -423,8 +424,8 @@ function RetroEntryPicker({ startMins, onFrontSession, onCheckIn, onClose }) {
           <button onClick={() => onFrontSession(adjustedMins)} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">
             <Users className="w-5 h-5 text-primary flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium">Front Session</p>
-              <p className="text-xs text-muted-foreground">Log who was fronting at this time</p>
+              <p className="text-sm font-medium">{terms.Front} Session</p>
+              <p className="text-xs text-muted-foreground">Log who was {terms.fronting} at this time</p>
             </div>
           </button>
           <button onClick={() => onCheckIn(adjustedMins)} className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left">

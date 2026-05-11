@@ -16,6 +16,50 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Restyled the top header bar so the app doesn't read as a generic Base44 template. Replaced the flat hairline border with a soft horizontal gradient wash in the primary theme colour, plus a thin double-sine wave drawn in the same colour along the bottom edge. The wave is abstract geometry, not literally aquatic, and tints itself to whatever primary colour the user has set.",
+      },
+      {
+        type: "improve",
+        text: "Sweep through the codebase to honour user-configured terminology. Reminders (warnings, scope labels, instance cards), the activity log/plan modal (\"Who was fronting?\"), session popovers (\"Primary fronter\", \"Triggered switch\"), the alter card title tooltip and demote toast, the Set Fronters modal, the data backup category list, the report builder/preview section labels, the noteworthy thresholds page, the Privacy page (Simply Plural + Friends sections), the dashboard fronters panel, and the sidebar's history link — all now respect your custom words for system, alter, fronting, fronter, switch, etc.",
+      },
+      {
+        type: "feature",
+        text: "To-Do List ↔ Activity Tracker integration. (1) To-do categories now use your real activity categories instead of a hardcoded Work/Health/Personal list — same picker, same colours, same analytics. (2) Tasks can be marked **urgent** or **pinned to dashboard**; both surface in the Pinned strip at the top of the Dashboard and Home page, with urgent ones styled like critical plans. (3) Tasks have a new **Scheduled** datetime field, separate from the Due date — Due is a deadline (\"must be done by\"), Scheduled is a deliberate plan (\"I'll do this at\"). (4) Tasks with a Scheduled time or a Due date appear directly on the Activity Tracker week/month/year grid as pills (amber for urgent, indigo otherwise) — tapping one opens the to-do. (5) The To-Do nav button (sidebar + dashboard quick-nav) shows an amber count badge for tasks that are urgent OR have a due date / scheduled time within the next 72 hours. (6) Priority is now a chip group instead of a native dropdown so the selected state is readable on every theme.",
+      },
+      {
+        type: "improve",
+        text: "Moved the alter count display (\"46 active alters · 71 archived\") from the top of the Home page into Settings → Profile. It's hidden by default behind a \"View alter count\" button — tap to reveal, tap \"hide\" to put it away again. Each visit starts hidden.",
+      },
+      {
+        type: "feature",
+        text: "Plan Activity now integrates with the To-Do list. (1) Double-tapping a time range that's in the future on the Activity Tracker week view now opens the Plan modal directly, so you get the planning fields (title, location, critical, to-do link) instead of the leaner log-a-past-activity form. (2) The Plan modal has a new \"Link to a to-do\" picker — pick any open to-do to schedule it for that time; the task's due date syncs automatically. (3) All three plan options — title, activity category, linked to-do — are now independently optional: pick any one (or combine them). (4) The Notes field is relabeled \"Description / notes\" in plan mode and has a richer placeholder, since plans often need more context than past-activity logs.",
+      },
+      {
+        type: "improve",
+        text: "Privacy & Data Notice now explicitly calls out Friends mode: by default nothing leaves this device, and Friends mode is the only feature that transmits anything off-device — it's opt-in, off until you set it up, and only ever sends your system name, display name, and your current front status at the privacy level you choose (full / count only / hidden, with per-friend overrides). Updated wherever the notice appears: Settings, first-run setup, intro tour, and feature tour.",
+      },
+      {
+        type: "fix",
+        text: "Pinned tasks on the Dashboard / Home Pinned strip now render as proper task cards (with checkbox, title, etc.) instead of raw bulletins showing the literal `[task:UUID]` prefix in the content. The Pinned strip was discriminating on `bulletin_type` but tasks are identified by a content prefix.",
+      },
+      {
+        type: "improve",
+        text: "Privacy & Data Notice clarified everywhere it appears (Settings, first-run setup, intro tour, feature tour). Now spells out that local mode is private by design — every record stays on this device only, with nothing uploaded, synced, or sent to any server — and that password encryption is an additional layer of security on top, not the only thing keeping data private.",
+      },
+      {
+        type: "fix",
+        text: "Fix crash when picking an activity time range. Double-tapping to start adding an activity and then tapping an end cell was kicking the time-range modal into an infinite re-render loop, which then crashed the app. The modal now updates state via useEffect instead of mid-render, so the time pickers settle on the values you picked and the modal opens normally.",
+      },
+      {
+        type: "fix",
+        text: "Critical / urgent planned activities now surface on the Home page too, not just the Dashboard. Matches the new behaviour of the Pinned bulletin strip — both pinned posts and urgent plans appear at the top of both surfaces when their lead-step window opens.",
+      },
+      {
+        type: "fix",
+        text: "Bulletin \"Pin to top of dashboard\" now actually appears at the top of the dashboard. The Pinned section was only mounted on the Home page, so pinning from the action menu set the flag but the post never surfaced anywhere visible. The Pinned strip now renders on both the Dashboard (just above Current Symptoms) and the Home page.",
+      },
+      {
         type: "fix",
         text: "Activity Tracker week view: a single tap on a cell no longer opens the details sheet — you need to double-tap, like before. Single tap was firing the sheet by accident while scrolling or picking a time slot for a new entry.",
       },

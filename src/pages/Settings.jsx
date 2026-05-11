@@ -22,7 +22,7 @@ import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "lucide-react";
+import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
@@ -70,6 +70,13 @@ export default function Settings() {
     { id: "updates", label: "Recent Updates", icon: "📋" },
   ];
 
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+  const activeCount = alters.filter(a => !a.is_archived).length;
+  const archivedCount = alters.filter(a => a.is_archived).length;
+
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
@@ -78,6 +85,11 @@ export default function Settings() {
   const settings = settingsList[0] || null;
   const [systemName, setSystemName] = useState("");
   const [systemDescription, setSystemDescription] = useState("");
+  // Alter count is hidden by default — the raw number can feel clinical or
+  // invasive depending on how the user relates to their system. The reveal
+  // toggle is local-only (intentionally not persisted) so each visit starts
+  // hidden again.
+  const [showAlterCount, setShowAlterCount] = useState(false);
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
@@ -144,7 +156,11 @@ export default function Settings() {
         <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground">
           <div className="space-y-1">
             <p className="font-medium text-foreground">🔒 Local Storage</p>
-            <p>By default, your data is stored on this device <strong>unencrypted</strong> in IndexedDB. Anyone with access to this device — or to a device backup — could read it. Enabling password encryption under <em>Storage Mode</em> below adds <strong>on-device encryption at rest</strong> (AES-256-GCM): the data is encrypted with a key derived from your password and decrypted in memory while the app is open. <strong>It is not end-to-end encrypted</strong> — the protection is between this device's storage and the running app, nothing more. <strong>If you lose your encryption password, the data cannot be recovered.</strong></p>
+            <p>Oceans Symphony is private by design: <strong>by default, your data stays on this device only</strong>. Nothing is uploaded, synced, or sent to any server. Records live in this browser's IndexedDB, and the only way data leaves the device is if you explicitly export a backup — <em>or</em> if you turn on Friends mode (see below). By default, those records are stored <strong>unencrypted</strong> — anyone with access to this device, or to a device backup, could read them. For an extra layer of security, enable password encryption under <em>Storage Mode</em> below: this adds <strong>on-device encryption at rest</strong> (AES-256-GCM), where the data is encrypted with a key derived from your password and only decrypted in memory while the app is open. <strong>It is not end-to-end encrypted</strong> — the protection is between this device's storage and the running app, nothing more. <strong>If you lose your encryption password, the data cannot be recovered.</strong></p>
+          </div>
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">👥 Friends Mode (opt-in)</p>
+            <p>Friends mode is the <strong>only</strong> feature that sends anything off-device, and it is <strong>off until you set it up</strong>. When enabled, the only data that leaves this device is what you explicitly choose to share with friends you've added: your system name, the display name you pick, and your current front status. The granularity of that front status is governed by your privacy level — <em>full</em> (alter names + initials + colours), <em>count only</em> (just "N fronting"), or <em>hidden</em> (nothing) — and you can override the level per friend, or hide individual {terms.alters} from specific friends. Nothing else from your local data (journals, symptoms, bulletins, locations, activities, etc.) is ever sent. Disconnecting Friends mode wipes the server-side identity and stops all transmission.</p>
           </div>
           <div className="space-y-1">
             <p className="font-medium text-foreground">💾 Backups</p>
@@ -180,6 +196,33 @@ export default function Settings() {
         {/* ── PROFILE ── */}
         <Section id="system" icon="⚙️" label="Profile" defaultOpen={true}>
           <div className="space-y-4">
+            <div>
+              {showAlterCount ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="w-4 h-4" />
+                  {activeCount} active {activeCount !== 1 ? terms.alters : terms.alter}
+                  {archivedCount > 0 && (
+                    <span className="text-muted-foreground/60">· {archivedCount} archived</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowAlterCount(false)}
+                    className="text-xs text-muted-foreground/70 hover:text-foreground underline underline-offset-2 ml-1"
+                  >
+                    hide
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAlterCount(true)}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Users className="w-4 h-4" />
+                  View {terms.alter} count
+                </button>
+              )}
+            </div>
             <div>
               <Label className="text-sm font-medium">{terms.System} Name</Label>
               <Input placeholder={`Enter your ${terms.system} name...`} value={systemName}

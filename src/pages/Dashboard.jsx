@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
+import DashboardPins from "@/components/dashboard/DashboardPins";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
@@ -406,6 +407,7 @@ export default function Dashboard() {
 
       <CriticalPinnedPlans />
       <CurrentFronters alters={alters} />
+      <DashboardPins />
       <CurrentSymptoms onOpenCheckIn={(section) => { setEmotionModalInitialSection(section); setShowEmotionModal(true); }} />
       <NotificationHistoryModal
   open={showNotifHistory}

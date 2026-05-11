@@ -34,6 +34,10 @@ export default function ToDoList() {
     queryKey: ["tasks"],
     queryFn: () => base44.entities.Task.list(),
   });
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (taskId) => base44.entities.Task.delete(taskId),
@@ -61,9 +65,12 @@ export default function ToDoList() {
 
   const rootTasks = useMemo(() => {
     const root = tasksByParent.get("root") || [];
-    let filtered = root.filter((t) =>
-      filterCategory === "all" ? true : t.category === filterCategory
-    );
+    let filtered = root.filter((t) => {
+      if (filterCategory === "all") return true;
+      const ids = t.activity_category_ids
+        || (t.category ? [t.category] : []);
+      return ids.includes(filterCategory);
+    });
     if (!showCompleted) {
       filtered = filtered.filter((t) => !t.completed);
     }
@@ -127,14 +134,12 @@ export default function ToDoList() {
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+          className="px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm"
         >
-          <option value="all">All Categories</option>
-          <option value="work">Work</option>
-          <option value="health">Health</option>
-          <option value="personal">Personal</option>
-          <option value="learning">Learning</option>
-          <option value="other">Other</option>
+          <option value="all">All categories</option>
+          {activityCategories.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
         </select>
         <Button
           variant={showCompleted ? "default" : "outline"}

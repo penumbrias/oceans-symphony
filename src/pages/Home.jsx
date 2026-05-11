@@ -2,11 +2,12 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Users, Sparkles, Plus } from "lucide-react";
+import { Sparkles, Plus } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import DashboardPins from "@/components/dashboard/DashboardPins";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import AlterEditModal from "@/components/alters/AlterEditModal";
@@ -99,13 +100,6 @@ export default function Home() {
           <h1 className="font-display text-3xl font-semibold text-foreground">
             {systemSettings?.system_name || `Your ${terms.System}`}
           </h1>
-          <p className="text-muted-foreground mt-1 flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            {activeAlters.length} active {activeAlters.length !== 1 ? terms.alters : terms.alter}
-            {archivedAlters.length > 0 &&
-            <span className="text-muted-foreground/60">· {archivedAlters.length} archived</span>
-            }
-          </p>
         </div>
         <Button
           data-tour="alter-add-btn"
@@ -121,6 +115,7 @@ export default function Home() {
       <div className="mb-4">
         <CurrentFronters alters={activeAlters} />
       </div>
+      <CriticalPinnedPlans />
       <UpcomingPlans placement="home_top" />
       <DashboardPins />
       <div data-tour="alters-grid">

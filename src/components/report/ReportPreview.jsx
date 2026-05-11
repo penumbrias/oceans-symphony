@@ -1,17 +1,22 @@
 import { Card } from "@/components/ui/card";
+import { useTerms } from "@/lib/useTerms";
 
-const SECTION_LABELS = {
-  fronting: "Fronting history",
-  emotions: "Emotion check-ins",
-  symptoms: "Symptoms & habits",
-  activities: "Activities",
-  journals: "Journal entries",
-  diary: "Diary cards",
-  patterns: "Patterns summary",
-  alterAppendix: "Alter profiles (appendix)",
-};
+function buildSectionLabels(terms) {
+  return {
+    fronting: `${terms.Fronting} history`,
+    emotions: "Emotion check-ins",
+    symptoms: "Symptoms & habits",
+    activities: "Activities",
+    journals: "Journal entries",
+    diary: "Diary cards",
+    patterns: "Patterns summary",
+    alterAppendix: `${terms.Alter} profiles (appendix)`,
+  };
+}
 
 export default function ReportPreview({ sections, mode }) {
+  const terms = useTerms();
+  const SECTION_LABELS = buildSectionLabels(terms);
   if (!sections || sections.size === 0) {
     return (
       <Card className="p-4 text-center text-muted-foreground text-sm">

@@ -26,7 +26,7 @@ export default function AlterScopeSection({ form, set, alters }) {
     triggerAlterId === form.alter_id
   ) {
     warnings.push(
-      `Heads-up: this reminder is already tied to ${selectedAlter?.name || "this alter"}'s fronting via the trigger — the "when fronting" scope is redundant here. You can leave it or switch to "Always active".`
+      `Heads-up: this reminder is already tied to ${selectedAlter?.name || `this ${terms.alter}`}'s ${terms.fronting} via the trigger — the "when ${terms.fronting}" scope is redundant here. You can leave it or switch to "Always active".`
     );
   }
 
@@ -39,7 +39,7 @@ export default function AlterScopeSection({ form, set, alters }) {
   ) {
     const triggerAlter = alters.find(a => a.id === triggerAlterId);
     warnings.push(
-      `This reminder is tied to ${selectedAlter?.name || "one alter"} but triggers when ${triggerAlter?.name || "another alter"} fronts — is that intentional?`
+      `This reminder is tied to ${selectedAlter?.name || `one ${terms.alter}`} but triggers when ${triggerAlter?.name || `another ${terms.alter}`} ${terms.fronts} — is that intentional?`
     );
   }
 
@@ -49,7 +49,7 @@ export default function AlterScopeSection({ form, set, alters }) {
     form.trigger_type === "event"
   ) {
     warnings.push(
-      `This event reminder will skip if ${selectedAlter?.name || "this alter"} isn't fronting at the event time. Consider "Always active" instead if you don't want to miss it.`
+      `This event reminder will skip if ${selectedAlter?.name || `this ${terms.alter}`} isn't ${terms.fronting} at the event time. Consider "Always active" instead if you don't want to miss it.`
     );
   }
 
