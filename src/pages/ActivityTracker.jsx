@@ -84,9 +84,21 @@ export default function ActivityTracker() {
     return tasks
       .filter(t => !t.completed && (t.scheduled_at || t.due_date))
       .map(t => {
-        const ts = t.scheduled_at
-          ? new Date(t.scheduled_at)
-          : new Date(`${t.due_date}T08:00:00`); // due-only → render at 8am of due date
+        // Robust date parse: scheduled_at is always a full ISO. due_date
+        // can be either a YYYY-MM-DD string (newer tasks created via the
+        // form) or a full ISO (Tapestry preview + older imports). Bare
+        // string-concat of "T08:00:00" only works for the date-only
+        // shape — for full ISO it produced garbage like "…ZT08:00:00"
+        // and Invalid Date, which crashed the activity tracker.
+        let ts;
+        if (t.scheduled_at) {
+          ts = new Date(t.scheduled_at);
+        } else if (typeof t.due_date === "string" && !t.due_date.includes("T")) {
+          ts = new Date(`${t.due_date}T08:00:00`);
+        } else {
+          ts = new Date(t.due_date);
+        }
+        if (Number.isNaN(ts.getTime())) return null;
         return {
           id: `task-${t.id}`,
           _isTask: true,
@@ -104,7 +116,8 @@ export default function ActivityTracker() {
           color: t.is_urgent ? "#f59e0b" : "#6366f1",
           fronting_alter_ids: [],
         };
-      });
+      })
+      .filter(Boolean);
   }, [tasks]);
   const activitiesWithTasks = React.useMemo(
     () => [...activities, ...taskActivities],
