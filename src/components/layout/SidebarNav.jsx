@@ -103,7 +103,18 @@ export default function SidebarNav({ open, onClose }) {
         {/* Safe-area + header */}
         <div style={{ paddingTop: "env(safe-area-inset-top, 0px)" }} className="bg-background/95 backdrop-blur-xl border-b border-border/50 flex-shrink-0">
           <div className="flex items-center justify-between px-4 h-14">
-            <span className="font-display text-base font-semibold text-foreground">Navigation</span>
+            {/* Tappable logo + title — closes the drawer and goes back to
+                the Dashboard. Gives users a quick way home without
+                hunting for the Dashboard nav row. */}
+            <Link
+              to="/"
+              onClick={onClose}
+              className="flex items-center gap-2 select-none min-h-[44px] px-1 -ml-1 rounded-xl hover:bg-muted/50 transition-colors"
+              aria-label="Go to dashboard"
+            >
+              <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
+              <span className="font-display text-base font-semibold text-foreground">Navigation</span>
+            </Link>
             <button
               onClick={onClose}
               aria-label="Close menu"

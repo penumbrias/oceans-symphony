@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Light mode looking dark when the phone was in dark mode (and vice-versa) was actually Android Chrome's force-dark feature inverting the page, not our theme logic. We now set `color-scheme: only light` / `only dark` explicitly on the root element, which opts out of the OS-level inversion entirely. Light is light, dark is dark, regardless of the phone setting. The Sonner toast component also now uses our ThemeContext (was importing next-themes which wasn't wired up).",
+      },
+      {
+        type: "improve",
+        text: "Sidebar drawer header now has the app icon on the left of \"Navigation\" — tapping the logo/title closes the drawer and goes back to the Dashboard, so you don't need to hunt for the Dashboard row.",
+      },
+      {
         type: "improve",
         text: "Settings page now shows the build version + an \"alpha\" chip in the top right. The version (currently 0.5.1) bumps with every changelog entry so testers can reference the exact build when reporting issues.",
       },

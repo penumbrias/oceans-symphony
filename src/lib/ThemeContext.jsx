@@ -391,6 +391,16 @@ export function ThemeProvider({ children }) {
     // isDarkOS fresh, so this re-runs whenever the OS flips.
     const isDark = themeMode === 'dark' || (themeMode === 'system' && isDarkOS);
     document.documentElement.classList.toggle('dark', isDark);
+
+    // Tell the browser explicitly which colour scheme this page handles.
+    // Without this, Android Chrome's "force-dark" / iOS Safari's auto-dark
+    // would invert the page when the OS is in dark mode — that's the
+    // "light mode looks dark when phone is dark" bug the user reported.
+    // `only light` / `only dark` disable the OS-level override outright;
+    // for system mode we keep `light dark` (browser-correct) and rely on
+    // our own class toggle above.
+    document.documentElement.style.colorScheme =
+      themeMode === 'system' ? 'light dark' : (isDark ? 'only dark' : 'only light');
     
     let colors;
     if (customColors) {
