@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Preview Mode banner now shows which app version the walkthrough text is up to date with — currently v0.5.5. The wiki-style walkthrough preview (built on top of the existing example system) will roll out in follow-up commits, with each preview alter dedicated to one app area: Dashboard, the alter profile edit modes, the mini-toolbar, bulletin board, timeline, activity tracker, reminders, friends mode, and so on. The banner version tag tells users when a wiki section was last refreshed.",
+      },
+      {
+        type: "improve",
         text: "Bio Blocks editor: blocks now actually reorder by dragging the grip handle at the left of the block header. Up/down chevron buttons are still there as a keyboard fallback. Powered by @dnd-kit/sortable.",
       },
       {

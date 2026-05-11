@@ -2,13 +2,20 @@ import React from "react";
 import { Eye, X } from "lucide-react";
 import { usePreviewMode } from "@/lib/usePreviewMode";
 import { exitPreview } from "@/lib/previewMode";
+import { APP_VERSION } from "@/lib/appVersion";
 
 // Persistent top banner shown whenever Preview Mode is active. Makes it
-// impossible to confuse demo data with real user data and gives a one-tap
-// exit path. Renders nothing when Preview Mode is off.
+// impossible to confuse demo data with real user data, gives a one-tap
+// exit path, and (for the wiki-style preview system) shows which app
+// version the walkthrough text was written against. Renders nothing
+// when Preview Mode is off.
 export default function PreviewModeBanner() {
   const { active, system } = usePreviewMode();
   if (!active || !system) return null;
+  // The wiki preset uses its alter profiles as a feature walkthrough;
+  // the rest of the preview systems are just curated example data. Only
+  // show the "up to date with vX.Y.Z" tag for the wiki system.
+  const isWiki = system?.key === "wiki" || system?.wiki === true;
 
   return (
     <div
@@ -24,6 +31,11 @@ export default function PreviewModeBanner() {
           <span className="text-muted-foreground sm:hidden"> · </span>
           <span className="font-medium text-foreground truncate">{system.name}</span>
           <span className="text-muted-foreground hidden md:inline">. Your real data is untouched.</span>
+          {isWiki && (
+            <span className="ml-2 text-[10px] font-mono text-amber-700/80 dark:text-amber-300/80">
+              walkthrough up to date with v{APP_VERSION}
+            </span>
+          )}
         </div>
         <button
           type="button"
