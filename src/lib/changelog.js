@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Two more places had the same naive `${task.due_date}T23:59:59` string-concat that silently mis-counted (and could throw on) tasks with full-ISO due_dates: the To-Do nav badge in both the AppLayout sidebar and the dashboard quick-nav grid. Both now branch on whether the string already contains \"T\" and NaN-guard the result so a corrupt timestamp doesn't poison the count.",
+      },
+      {
+        type: "fix",
         text: "Tapping the upcoming-plans banner used to crash the app the moment it navigated to /activities. The activity grid's task-synthesis step did the same naive `${t.due_date}T08:00:00` string-concat that crashed the Dashboard last release — for tasks with full ISO due_dates that produced garbage and Invalid Date, which `ts.toISOString()` threw on. Parser now detects both shapes (YYYY-MM-DD vs full ISO) and skips genuinely broken records instead of unmounting the page.",
       },
       {

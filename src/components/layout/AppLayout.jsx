@@ -173,8 +173,14 @@ const todoAlertCount = React.useMemo(() => {
       if (s >= now && s <= horizon) return true;
     }
     if (t.due_date) {
-      const d = new Date(`${t.due_date}T23:59:59`).getTime();
-      if (d >= now && d <= horizon) return true;
+      // Handle both YYYY-MM-DD (anchor at end-of-day local) and full ISO
+      // (parse straight) — concatenating "T23:59:59" to an already-ISO
+      // string produced Invalid Date and silently zeroed the badge count.
+      const hasTime = typeof t.due_date === "string" && t.due_date.includes("T");
+      const d = hasTime
+        ? new Date(t.due_date).getTime()
+        : new Date(`${t.due_date}T23:59:59`).getTime();
+      if (!Number.isNaN(d) && d >= now && d <= horizon) return true;
     }
     return false;
   }).length;
