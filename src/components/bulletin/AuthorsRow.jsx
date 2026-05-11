@@ -33,10 +33,12 @@ function AlterAvatar({ alter, size = "md" }) {
   );
 }
 
-// authorIds: IDs of alters to show as authors
-// fallbackIds: used when authorIds is empty (e.g. frontingAlterIds)
-export default function AuthorsRow({ authorIds = [], fallbackIds = [], alters = [], timestamp, showNames = true }) {
-  const ids = authorIds.length > 0 ? authorIds : fallbackIds;
+// authorIds: IDs of alters to show as authors (the saved authors on the
+// record). If empty, the post renders as "System" rather than falling
+// back to the current front — authors are fixed to whoever wrote the
+// post, never the live front state.
+export default function AuthorsRow({ authorIds = [], alters = [], timestamp, showNames = true }) {
+  const ids = authorIds;
   if (ids.length === 0) {
     return (
       <div className="flex items-center gap-2">

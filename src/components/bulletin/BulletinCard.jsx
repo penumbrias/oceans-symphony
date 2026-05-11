@@ -45,9 +45,14 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
   });
 
   const reactions = bulletin.reactions || {};
-  const authorIds = bulletin.author_alter_ids?.length > 0 ?
-  bulletin.author_alter_ids :
-  bulletin.author_alter_id ? [bulletin.author_alter_id] : frontingAlterIds;
+  // Authors are FIXED to whatever was saved on the record (current front
+  // at post time, signposted alters, or System if neither). Never fall
+  // back to the *current* frontingAlterIds — the bulletin would then
+  // appear to change author every time the front changes, and the
+  // record would seem to "move" between profiles.
+  const authorIds = bulletin.author_alter_ids?.length > 0
+    ? bulletin.author_alter_ids
+    : (bulletin.author_alter_id ? [bulletin.author_alter_id] : []);
 
 const rawDate = bulletin.created_date;
 const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
@@ -153,7 +158,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
       
       {/* Header: Authors */}
       <div className="flex items-start justify-between gap-2 mb-2">
-        <AuthorsRow authorIds={authorIds} fallbackIds={frontingAlterIds} alters={alters} timestamp={timeAgo} />
+        <AuthorsRow authorIds={authorIds} alters={alters} timestamp={timeAgo} />
         <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
           <button onClick={handlePin} aria-label={bulletin.is_pinned ? "Unpin bulletin" : "Pin bulletin"} className="text-muted-foreground hover:text-foreground p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg">
             <Pin className={`w-3.5 h-3.5 ${bulletin.is_pinned ? "text-primary fill-primary" : ""}`} />
