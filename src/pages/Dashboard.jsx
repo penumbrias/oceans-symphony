@@ -5,7 +5,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Bell, ShoppingCart } from "lucide-react";
+import { Heart, ShoppingCart, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -354,7 +354,7 @@ export default function Dashboard() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-2 sm:pt-0">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0">
       
       
       <div className="mb-3 flex items-start justify-between">
@@ -376,7 +376,7 @@ export default function Dashboard() {
             onClick={() => setShowFeatureTour(true)}
             className="text-xs text-primary hover:text-primary/80 px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors font-medium whitespace-nowrap"
             title="Interactive feature tour">
-          Tour ✨
+          Tour
         </button>
         </div>
         <button
@@ -388,10 +388,11 @@ export default function Dashboard() {
         </button>
         <button
             onClick={() => setShowNotifHistory(true)}
-            aria-label="Notifications"
+            aria-label="Notification history"
+            title="Notification history"
             className="relative mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
 
-          <Bell className="w-5 h-5" />
+          <Inbox className="w-5 h-5" />
           {mentionLogs.some(m =>
             m.log_type !== "authored" &&
             (m.mentioned_alter_id || m.alter_id) &&
