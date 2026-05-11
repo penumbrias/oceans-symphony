@@ -46,7 +46,7 @@ export default function Privacy() {
           <p>
             The Friends feature lets you share your current front status with trusted people.
             If you choose to use it, the following information is stored on our servers
-            (Vercel KV / Upstash):
+            (Upstash Redis):
           </p>
           <ul className="list-disc list-inside space-y-1 pl-2">
             <li>A display name and optional system name you provide</li>

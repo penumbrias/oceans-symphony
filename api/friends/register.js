@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   if (!process.env.KV_REST_API_URL) {
-    return res.status(503).json({ error: 'Friends feature not configured. Add a Vercel KV store to your project.' });
+    return res.status(503).json({ error: 'Friends feature not configured. Add an Upstash Redis integration to your project.' });
   }
 
   const { userId, secret, displayName, systemName, terms, privacyLevel } = req.body || {};
