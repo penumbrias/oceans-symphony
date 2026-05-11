@@ -16,8 +16,12 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
-        type: "fix",
-        text: "Theme no longer auto-follows your OS light/dark setting. Previously \"System (follow OS)\" was the default, which led to confusing states where picking \"Light\" while the OS was in dark mode showed a near-dark palette. Mode is now a strict two-state toggle (Light / Dark) — the app gives you exactly what you pick, and defaults to Dark on first run. Existing users with the legacy \"system\" setting are migrated to Dark.",
+        type: "improve",
+        text: "Quick Actions hold-menu (long-press Quick Check-In) now stays open when you scroll through it — previously every pointerdown anywhere on the page closed it, even when that pointerdown was the start of a scroll inside the menu. Outside-tap detection is now a real tap test (pointerdown → pointerup at roughly the same coordinates), so a scroll gesture is ignored. The long-press that opens the menu also cancels if your finger moves more than ~12px during the hold, so an accidental scroll during the press no longer triggers the menu.",
+      },
+      {
+        type: "improve",
+        text: "Brought back the System (follow OS) theme mode as a third state in the cycle (Dark → Light → System → Dark). When set to System the app now correctly mirrors `prefers-color-scheme` and updates live if the OS flips. The earlier light/dark mismatch bug was about how the saved mode was being read — that path is rewritten so 'system' really tracks the OS now, while 'light' and 'dark' still ignore the OS entirely.",
       },
       {
         type: "fix",

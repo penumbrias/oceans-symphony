@@ -199,7 +199,11 @@ export default function AdvancedAppearance() {
   });
   const systemSettings = systemSettingsList[0] || null;
 
-  const isDark = themeMode === 'dark';
+  // Mirrors ThemeContext's logic: dark when the user picked 'dark' or when
+  // they're on 'system' and the html element currently carries the dark
+  // class (set by the provider based on the OS).
+  const isDark = themeMode === 'dark' ||
+    (themeMode === 'system' && document.documentElement.classList.contains('dark'));
 
   const readCssColors = () => {
     const style = getComputedStyle(document.documentElement);
@@ -238,7 +242,7 @@ export default function AdvancedAppearance() {
         Object.keys(COLOR_LABELS).map(k => [k, sourceColors[k] || liveColors[k] || '#888888'])
       );
 
-  const modeIcon = { light: '☀️', dark: '🌙' }[themeMode] || '🌙';
+  const modeIcon = { light: '☀️', dark: '🌙', system: '💻' }[themeMode] || '🌙';
 
   // ── Font handlers ────────────────────────────────────────────
   const handleFontSelect = (value) => {
@@ -378,8 +382,8 @@ export default function AdvancedAppearance() {
           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
         >
           <span className="text-xl">{modeIcon}</span>
-          <span className="text-sm font-medium capitalize">{themeMode}</span>
-          <span className="ml-auto text-xs text-muted-foreground">tap to toggle</span>
+          <span className="text-sm font-medium capitalize">{themeMode === 'system' ? 'System (follow OS)' : themeMode}</span>
+          <span className="ml-auto text-xs text-muted-foreground">tap to cycle</span>
         </button>
       </div>
 

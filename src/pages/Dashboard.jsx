@@ -160,6 +160,10 @@ export default function Dashboard() {
   const holdStartRef = useRef(null);
   const timerFiredRef = useRef(false);
   const showQuickActionsRef = useRef(false);
+  // Pointer-origin tracking so the hold cancels if the user's finger moves
+  // (e.g. they start to scroll mid-press) — see onPointerMove handler on
+  // the button.
+  const holdOriginRef = useRef({ x: 0, y: 0 });
   const [holdProgress, setHoldProgress] = useState(0);
   const [showQuickActions, setShowQuickActions] = useState(false);
 
@@ -183,6 +187,7 @@ export default function Dashboard() {
     }
     timerFiredRef.current = false;
     holdStartRef.current = Date.now();
+    holdOriginRef.current = { x: e.clientX ?? 0, y: e.clientY ?? 0 };
 
     const tick = () => {
       if (!holdStartRef.current) return;
@@ -214,6 +219,22 @@ export default function Dashboard() {
     setHoldProgress(0);
     if (!timerFiredRef.current && !showQuickActionsRef.current) {
       setShowEmotionModal(true);
+    }
+  };
+
+  // Cancel an in-progress hold if the finger moves more than a few pixels —
+  // a real scroll gesture starts with a press and then moves, and we don't
+  // want that to count as "the user is holding here". 12px of slop allows
+  // for natural finger jitter.
+  const moveHold = (e) => {
+    if (!holdStartRef.current || timerFiredRef.current) return;
+    const SLOP = 12;
+    const dx = (e.clientX ?? 0) - holdOriginRef.current.x;
+    const dy = (e.clientY ?? 0) - holdOriginRef.current.y;
+    if (dx * dx + dy * dy > SLOP * SLOP) {
+      clearTimeout(holdTimerRef.current);
+      holdStartRef.current = null;
+      setHoldProgress(0);
     }
   };
 
@@ -425,6 +446,7 @@ export default function Dashboard() {
         <button
           data-tour="quick-checkin"
           onPointerDown={startHold}
+          onPointerMove={moveHold}
           onPointerUp={endHold}
           onPointerLeave={endHold}
           onPointerCancel={endHold}
