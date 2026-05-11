@@ -164,6 +164,36 @@ export async function pushDiagnostics() {
   return out;
 }
 
+// Show a notification directly from the running app, bypassing the push
+// pipeline entirely. Useful for isolating "the push send succeeded but
+// nothing appeared" issues — if even this local notification doesn't show,
+// the problem is OS-side (notification channel for the browser disabled,
+// battery optimization throttling Chrome, Do Not Disturb, etc.).
+export async function showLocalTestNotification() {
+  if (!('serviceWorker' in navigator)) {
+    return { ok: false, detail: 'Service workers not supported in this browser.' };
+  }
+  if (Notification.permission !== 'granted') {
+    return { ok: false, detail: 'Notification permission is not granted.' };
+  }
+  const registration = await navigator.serviceWorker.getRegistration('/sw-reminders.js');
+  if (!registration) {
+    return { ok: false, detail: 'No service worker registration — tap Enable on push to re-register.' };
+  }
+  try {
+    await registration.showNotification('Local test ✓', {
+      body: 'If you see this, the OS is willing to show notifications from this app.',
+      icon: '/oceans-symphony-logo.png',
+      badge: '/oceans-symphony-logo.png',
+      tag: 'local-test',
+      requireInteraction: false,
+    });
+    return { ok: true, detail: 'Notification dispatched locally — check your tray.' };
+  } catch (e) {
+    return { ok: false, detail: e?.message || 'showNotification rejected.' };
+  }
+}
+
 // Call this whenever you want to deliver a notification via push.
 // payload: { title, body, reminderInstanceId?, inlineActions? }
 export async function sendPushNotification(payload) {

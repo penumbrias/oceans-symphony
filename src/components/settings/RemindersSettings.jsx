@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Check, Loader2, Bell, BellOff, X, Plus } from "lucide-react";
-import { registerPush, unregisterPush, isPushEnabled, pushDiagnostics } from "@/lib/pushRegistration";
+import { registerPush, unregisterPush, isPushEnabled, pushDiagnostics, showLocalTestNotification } from "@/lib/pushRegistration";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "@/components/reminders/snoozeHelpers";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
 
@@ -114,7 +114,7 @@ export default function RemindersSettings() {
             tell *why* their reminders aren't pushing, rather than just
             toggling Enable/Disable hoping it'll work. Sends a real test
             push if everything checks out. */}
-        <div className="pl-12 pt-1">
+        <div className="pl-12 pt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
           <button
             type="button"
             disabled={diagLoading}
@@ -123,22 +123,46 @@ export default function RemindersSettings() {
               try { setPushDiag(await pushDiagnostics()); }
               finally { setDiagLoading(false); }
             }}
-            className="text-xs text-primary hover:underline disabled:opacity-50"
+            className="text-primary hover:underline disabled:opacity-50"
           >
             {diagLoading ? "Testing…" : "Test push notification"}
           </button>
-          {pushDiag && (
-            <ul className="mt-2 space-y-1 text-xs">
-              {pushDiag.map((c, i) => (
-                <li key={i} className={c.ok ? "text-emerald-500" : "text-amber-500 dark:text-amber-400"}>
-                  <span className="font-mono mr-1">{c.ok ? "✓" : "✗"}</span>
-                  {c.label}
-                  {c.detail && <div className="pl-4 text-muted-foreground">{c.detail}</div>}
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* Bypass test — calls showNotification directly from the running
+              app. If "Test push" reports everything green but no notification
+              appears, this isolates whether the issue is the push pipeline
+              (push send → push provider → browser) or OS-side display
+              (Chrome's notification channel disabled, Do Not Disturb,
+              battery optimization, etc.). */}
+          <button
+            type="button"
+            onClick={async () => {
+              const r = await showLocalTestNotification();
+              if (r.ok) toast.success(r.detail);
+              else toast.error(r.detail);
+            }}
+            className="text-primary hover:underline"
+          >
+            Show local test notification
+          </button>
         </div>
+        {pushDiag && (
+          <ul className="pl-12 mt-2 space-y-1 text-xs">
+            {pushDiag.map((c, i) => (
+              <li key={i} className={c.ok ? "text-emerald-500" : "text-amber-500 dark:text-amber-400"}>
+                <span className="font-mono mr-1">{c.ok ? "✓" : "✗"}</span>
+                {c.label}
+                {c.detail && <div className="pl-4 text-muted-foreground">{c.detail}</div>}
+              </li>
+            ))}
+            <li className="text-muted-foreground pt-1 leading-relaxed">
+              If the push test reports all green but nothing appears in your tray, try the
+              "Show local test notification" button — it bypasses the push pipeline. If even
+              that doesn't show, the issue is OS-side: check Chrome's per-site notification
+              permission for this app, your phone's Do-Not-Disturb / Focus mode, and battery
+              optimization for Chrome. TWA / app-store status shouldn't matter.
+            </li>
+          </ul>
+        )}
       </div>
 
       {/* Pause all */}
