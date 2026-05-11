@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Pinned bulletins, pinned to-dos, and critical-plan banners now show only on the Dashboard, not on the Alters / Home page. The Alters page is the directory; the dashboard is the at-a-glance home. Surfacing the same pins on both made the alters list cluttered.",
+      },
+      {
         type: "fix",
         text: "System Meeting page crashed when opened in preview mode (and for any check-in created before the date column existed). The list and detail views both read `checkIn.date.split(\"-\")` without checking whether `date` was set; `undefined.split` threw and unmounted the page. Both sites now fall back to `created_date` when `date` is missing, with an \"Undated check-in\" label if both are absent or unparseable.",
       },
