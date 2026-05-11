@@ -315,6 +315,12 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           const s = active[0];
           setPrimaryId(s.primary_alter_id || "");
           setCoFronterIds(s.co_fronter_ids || []);
+        } else {
+          // No active sessions — clear stale state from any prior open
+          // so the modal doesn't appear to have the last-known fronter
+          // pre-selected after the user cleared the front.
+          setPrimaryId("");
+          setCoFronterIds([]);
         }
 
         if (cleanupHappened) {

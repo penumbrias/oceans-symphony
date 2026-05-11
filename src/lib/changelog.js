@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Set Fronters modal no longer shows the previously-fronting alter as still selected after the front has been cleared. The modal's open-time refresh refetches active sessions, but if there were none, it used to leave whatever was already in state — so the last primary kept appearing as selected. Now it explicitly clears the in-modal primary / co-fronter selection when no active sessions exist.",
+      },
+      {
         type: "improve",
         text: "Smaller gap between the header and the page content (mobile header shrunk back to h-14, Dashboard top padding removed). The Tour button on the Dashboard no longer trails a sparkle emoji.",
       },
