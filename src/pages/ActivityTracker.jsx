@@ -86,7 +86,16 @@ export default function ActivityTracker() {
     setSelectedStartMinute(startMinute);
     setSelectedEndMinute(endMinute);
     setSelectedEndDate(endDate || date);
-    setIsModalOpen(true);
+    // If the selected range starts in the future, open the Plan modal so
+    // users get the planning-specific fields (title / location / critical /
+    // task-link) instead of the leaner "log a past activity" form.
+    const startDt = new Date(date);
+    startDt.setHours(startHour ?? 0, startMinute ?? 0, 0, 0);
+    if (startDt.getTime() > Date.now()) {
+      setPlanModalOpen(true);
+    } else {
+      setIsModalOpen(true);
+    }
   };
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -171,7 +180,17 @@ export default function ActivityTracker() {
               >{t.label}</button>
             ))}
           </div>
-          <Button size="sm" variant="outline" onClick={() => setPlanModalOpen(true)} className="gap-1.5 h-8">
+          <Button size="sm" variant="outline" onClick={() => {
+            // Clear any leftover range from a previous grid selection so the
+            // Plan modal opens fresh (defaults to tomorrow noon).
+            setSelectedDate(null);
+            setSelectedEndDate(null);
+            setSelectedStartHour(undefined);
+            setSelectedEndHour(undefined);
+            setSelectedStartMinute(0);
+            setSelectedEndMinute(0);
+            setPlanModalOpen(true);
+          }} className="gap-1.5 h-8">
             <CalendarPlus className="w-3.5 h-3.5" /> Plan Activity
           </Button>
         </div>
@@ -245,11 +264,17 @@ export default function ActivityTracker() {
       />
       <ActivityTimeRangeModal
         isOpen={planModalOpen}
-        onClose={() => setPlanModalOpen(false)}
+        onClose={() => { setPlanModalOpen(false); handleCloseModal(); }}
         planMode
+        startDate={selectedDate}
+        endDate={selectedEndDate}
+        startHour={selectedStartHour}
+        endHour={selectedEndHour}
+        startMinute={selectedStartMinute}
+        endMinute={selectedEndMinute}
         alters={alters}
         frontingHistory={frontingHistory}
-        onSave={() => { setPlanModalOpen(false); handleActivitySave(); setTab("planned"); }}
+        onSave={() => { setPlanModalOpen(false); handleCloseModal(); handleActivitySave(); setTab("planned"); }}
       />
       {zoomedDate && (
         <ActivityDayView

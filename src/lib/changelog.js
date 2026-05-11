@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Plan Activity now integrates with the To-Do list. (1) Double-tapping a time range that's in the future on the Activity Tracker week view now opens the Plan modal directly, so you get the planning fields (title, location, critical, to-do link) instead of the leaner log-a-past-activity form. (2) The Plan modal has a new \"Link to a to-do\" picker — pick any open to-do to schedule it for that time; the task's due date syncs automatically. (3) All three plan options — title, activity category, linked to-do — are now independently optional: pick any one (or combine them). (4) The Notes field is relabeled \"Description / notes\" in plan mode and has a richer placeholder, since plans often need more context than past-activity logs.",
+      },
+      {
         type: "improve",
         text: "Privacy & Data Notice now explicitly calls out Friends mode: by default nothing leaves this device, and Friends mode is the only feature that transmits anything off-device — it's opt-in, off until you set it up, and only ever sends your system name, display name, and your current front status at the privacy level you choose (full / count only / hidden, with per-friend overrides). Updated wherever the notice appears: Settings, first-run setup, intro tour, and feature tour.",
       },
