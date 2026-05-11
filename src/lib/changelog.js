@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Front session sweep now runs proactively on app load, not just when the Set Fronters modal opens. Users who never open that modal would otherwise sit with stuck state forever — duplicates per alter, multiple is_primary rows, or ghost-active sessions (is_active flipped to false but end_time left null). The same three reconciliations the modal already does (per-alter dedupe, multi-primary demotion, ghost-active end_time fill) now run once per page load with a 1.5s delay.",
+      },
+      {
+        type: "improve",
+        text: "Reminders settings now has a \"Test push notification\" button. It runs through the full push pipeline — service worker support, PushManager support, VAPID key present, browser permission granted, service worker registration, active subscription, and a real call to /api/push/send — and surfaces the specific failing check inline. If everything passes it sends an actual test notification. Saves the \"I enabled push but never get notifications\" guessing game.",
+      },
+      {
+        type: "fix",
         text: "Bulletin posts, bulletin comments, and quick tasks were sometimes attributed to \"System\" with no avatar even though someone was clearly fronting — this happened when the parent query was still hydrating (e.g. a post made right after page load) and the in-memory `frontingAlterIds` was momentarily empty. All three paths now do a defensive live-fetch of active fronting sessions before falling back to System, so authorship reflects who's actually fronting.",
       },
       {

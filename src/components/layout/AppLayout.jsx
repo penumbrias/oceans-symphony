@@ -11,6 +11,7 @@ import FloatingGroundingButton from "@/components/grounding/FloatingGroundingBut
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
+import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
@@ -46,6 +47,10 @@ export default function AppLayout() {
   useRemindersScheduler();
   // Three quick taps anywhere → open Grocery List as a privacy cover.
   useTripleTapPanic();
+  // Reconcile any corrupt fronting-session state (duplicates, ghost-active
+  // rows, multiple is_primary) once per session, so users who never open
+  // the Set Fronters modal don't sit with stuck data forever.
+  useFrontSessionSweep();
 
   // Poll friends every 60 s and show in-app banner when a friend's front changes.
   // On first run (app open) this replaces the old one-time check.
