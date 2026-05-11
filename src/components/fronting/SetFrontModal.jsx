@@ -276,6 +276,21 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
         const now = nowLocalIso();
         let cleanupHappened = false;
 
+        // Sweep orphaned "ghost active" sessions: rows where end_time is
+        // still null but is_active was already flipped to false. They
+        // render as "Active" in the Timeline popover (which keys off
+        // end_time being null) but don't appear in the modal or
+        // CurrentFronters (which key off is_active === true), so the
+        // user can't end them via any normal path. Set end_time = now
+        // for the lot so they reconcile and stop displaying as Active.
+        try {
+          const ghosts = await base44.entities.FrontingSession.filter({ is_active: false, end_time: null });
+          for (const g of ghosts || []) {
+            await base44.entities.FrontingSession.update(g.id, { end_time: now });
+            cleanupHappened = true;
+          }
+        } catch { /* not all backends support filter on end_time: null */ }
+
         // 1. Group by alter_id; for any alter with >1 active session, keep
         // the newest and end the rest. Mirrors the dedupe that already runs
         // inside handleSave so the in-modal state matches what would be
@@ -392,6 +407,16 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
         for (const s of activeSessions) {
           await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
         }
+        // Also reconcile ghost-active sessions (is_active: false but
+        // end_time still null) — they appear as "Active" in the
+        // Timeline popover even though the rest of the app considers
+        // them ended.
+        try {
+          const ghosts = await base44.entities.FrontingSession.filter({ is_active: false, end_time: null });
+          for (const g of ghosts || []) {
+            await base44.entities.FrontingSession.update(g.id, { end_time: now });
+          }
+        } catch { /* filter on end_time: null may not be supported */ }
         toast.success("✅ Front cleared");
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
