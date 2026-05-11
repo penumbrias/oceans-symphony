@@ -21,7 +21,7 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Moved the alter count display (\"46 active alters · 71 archived\") from the top of the Home page into Settings → Profile, where it sits alongside the system name and description.",
+        text: "Moved the alter count display (\"46 active alters · 71 archived\") from the top of the Home page into Settings → Profile. It's hidden by default behind a \"View alter count\" button — tap to reveal, tap \"hide\" to put it away again. Each visit starts hidden.",
       },
       {
         type: "feature",

@@ -85,6 +85,11 @@ export default function Settings() {
   const settings = settingsList[0] || null;
   const [systemName, setSystemName] = useState("");
   const [systemDescription, setSystemDescription] = useState("");
+  // Alter count is hidden by default — the raw number can feel clinical or
+  // invasive depending on how the user relates to their system. The reveal
+  // toggle is local-only (intentionally not persisted) so each visit starts
+  // hidden again.
+  const [showAlterCount, setShowAlterCount] = useState(false);
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
@@ -191,11 +196,31 @@ export default function Settings() {
         {/* ── PROFILE ── */}
         <Section id="system" icon="⚙️" label="Profile" defaultOpen={true}>
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="w-4 h-4" />
-              {activeCount} active {activeCount !== 1 ? terms.alters : terms.alter}
-              {archivedCount > 0 && (
-                <span className="text-muted-foreground/60">· {archivedCount} archived</span>
+            <div>
+              {showAlterCount ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="w-4 h-4" />
+                  {activeCount} active {activeCount !== 1 ? terms.alters : terms.alter}
+                  {archivedCount > 0 && (
+                    <span className="text-muted-foreground/60">· {archivedCount} archived</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowAlterCount(false)}
+                    className="text-xs text-muted-foreground/70 hover:text-foreground underline underline-offset-2 ml-1"
+                  >
+                    hide
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAlterCount(true)}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Users className="w-4 h-4" />
+                  View {terms.alter} count
+                </button>
               )}
             </div>
             <div>
