@@ -687,7 +687,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "settings", sectionLabel: "Settings",
       emoji: "🔒",
       title: "Data & Privacy",
-      body: `All data is stored locally on your device — nothing goes to any server. Optionally enable AES-256 password encryption to lock data behind a passphrase. Export a full JSON backup of everything, or import one to restore. Connect Simply Plural to sync ${t.alter} profiles. Your data is fully yours and always exportable.`,
+      body: `Local mode is private by design — every record stays on this device only, in your browser's IndexedDB. Nothing is uploaded, synced, or sent to any server, and the only way data leaves the device is if you export a backup yourself. For an extra layer of security, optionally enable AES-256 password encryption to lock everything behind a passphrase (on-device only — not end-to-end). Export a full JSON backup of everything, or import one to restore. Connect Simply Plural to sync ${t.alter} profiles. Your data is fully yours and always exportable.`,
       route: "/settings", target: "settings-data",
       look: `the highlighted Data & Privacy section — tap its header to expand it`, action: null,
     },
