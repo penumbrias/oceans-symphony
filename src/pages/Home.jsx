@@ -7,6 +7,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import DashboardPins from "@/components/dashboard/DashboardPins";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import AlterEditModal from "@/components/alters/AlterEditModal";
@@ -121,6 +122,7 @@ export default function Home() {
       <div className="mb-4">
         <CurrentFronters alters={activeAlters} />
       </div>
+      <CriticalPinnedPlans />
       <UpcomingPlans placement="home_top" />
       <DashboardPins />
       <div data-tour="alters-grid">
