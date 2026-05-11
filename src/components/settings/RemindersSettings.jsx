@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Check, Loader2, Bell, BellOff, X, Plus } from "lucide-react";
-import { registerPush, unregisterPush, isPushEnabled, pushDiagnostics, showLocalTestNotification } from "@/lib/pushRegistration";
+import { registerPush, unregisterPush, isPushEnabled, pushDiagnostics, showLocalTestNotification, pushDeepDiagnostic } from "@/lib/pushRegistration";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "@/components/reminders/snoozeHelpers";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
 
@@ -143,6 +143,22 @@ export default function RemindersSettings() {
             className="text-primary hover:underline"
           >
             Show local test notification
+          </button>
+          {/* Deep diagnostic — sends a real push tagged with a unique
+              diagId, listens for the SW to echo it back via postMessage.
+              Distinguishes "SW received push but OS didn't display" from
+              "SW never woke up". Wraps in a 30s timeout. */}
+          <button
+            type="button"
+            onClick={async () => {
+              toast("Sending push + listening for SW receipt (up to 30s)…");
+              const r = await pushDeepDiagnostic();
+              if (r.result === "delivered") toast.success(r.detail);
+              else toast.error(`${r.result.toUpperCase()}: ${r.detail}`, { duration: 12_000 });
+            }}
+            className="text-primary hover:underline"
+          >
+            Deep push test (30s)
           </button>
         </div>
         {pushDiag && (

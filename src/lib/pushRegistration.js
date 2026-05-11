@@ -149,6 +149,21 @@ export async function pushDiagnostics() {
     });
     if (res.ok) {
       out.push({ ok: true, label: 'Test notification dispatched', detail: 'Sent to the OS — check your notification tray.' });
+      // Compare server-side VAPID public key against build-time. A
+      // mismatch means subscriptions were signed against one key and
+      // the server is signing pushes with another — pushes reach the
+      // provider but the browser silently drops them.
+      try {
+        const json = await res.clone().json();
+        const serverPub = json?.vapidPub;
+        if (serverPub && VAPID_PUBLIC_KEY && serverPub !== VAPID_PUBLIC_KEY) {
+          out.push({
+            ok: false,
+            label: 'VAPID public key MISMATCH',
+            detail: `The key your subscription was signed with (build-time VITE_VAPID_PUBLIC_KEY, first 12 chars "${VAPID_PUBLIC_KEY.slice(0, 12)}…") does not match the server's VAPID_PUBLIC_KEY ("${serverPub.slice(0, 12)}…"). The push provider accepts the send but the browser silently drops the payload. Fix: regenerate keys with \`npx web-push generate-vapid-keys\` and set BOTH env vars to the same values, then redeploy and re-subscribe.`,
+          });
+        }
+      } catch { /* server didn't echo, skip */ }
     } else if (res.status === 503) {
       out.push({ ok: false, label: 'Server VAPID keys', detail: 'The deployment is missing VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY env vars. Push send returned 503.' });
     } else if (res.status === 410) {
@@ -162,6 +177,85 @@ export async function pushDiagnostics() {
   }
 
   return out;
+}
+
+// Deep-dive diagnostic: sends a real push that the SW tags with a unique
+// `diagId`, and concurrently listens for that diagId arriving back via a
+// service-worker postMessage. Three outcomes:
+//
+//   - `delivered` — SW received the push AND we got the postMessage. Means
+//     the entire pipeline works; if the user still doesn't see a
+//     notification visually, the OS is suppressing display only (Do Not
+//     Disturb, notification channel disabled at OS level, etc.).
+//   - `sw_only` — server said 200 but no postMessage within 30s. Means the
+//     server signed the payload but the push provider never woke the SW
+//     on this device. Common causes: stale subscription, VAPID key
+//     mismatch (build-time VITE_VAPID_PUBLIC_KEY ≠ server-side
+//     VAPID_PUBLIC_KEY), aggressive battery optimisation killing Chrome's
+//     background process, or a TWA wrapper not routing push to the
+//     underlying SW.
+//   - `send_failed` — server rejected the send (500/410/etc). Surfaced
+//     with the HTTP status.
+//
+// Returns { result, detail }.
+export async function pushDeepDiagnostic() {
+  const subscription = await getActivePushSubscription();
+  if (!subscription) return { result: 'no_subscription', detail: 'No active push subscription on this device.' };
+  if (!('serviceWorker' in navigator)) return { result: 'no_sw', detail: 'serviceWorker not supported.' };
+
+  const diagId = `diag-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  let resolved = false;
+  let resolver;
+  const promise = new Promise((r) => (resolver = r));
+
+  const onMessage = (e) => {
+    if (e.data?.type === 'push-received' && e.data?.diagId === diagId && !resolved) {
+      resolved = true;
+      resolver({ result: 'delivered', detail: 'The push reached your service worker. If you still didn\'t see a tray notification, the OS is suppressing display only (Do Not Disturb, notification channel off, battery optimisation, etc.).' });
+    }
+  };
+  navigator.serviceWorker.addEventListener('message', onMessage);
+
+  try {
+    const res = await fetch('/api/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subscription,
+        payload: {
+          title: 'Push deep-diagnostic',
+          body: 'If you see this and the diagnostic page reports "delivered", push is fully working.',
+          reminderInstanceId: null,
+          inlineActions: [],
+          diagId,
+        },
+      }),
+    });
+    if (!res.ok) {
+      navigator.serviceWorker.removeEventListener('message', onMessage);
+      const txt = await res.text().catch(() => '');
+      return { result: 'send_failed', detail: `Server rejected push send (${res.status}). ${txt}` };
+    }
+  } catch (e) {
+    navigator.serviceWorker.removeEventListener('message', onMessage);
+    return { result: 'send_failed', detail: `Network error contacting /api/push/send: ${e?.message || 'unknown'}` };
+  }
+
+  // Wait up to 30 seconds for the SW to post back.
+  const timeout = new Promise((r) =>
+    setTimeout(
+      () =>
+        r({
+          result: 'sw_only',
+          detail: 'Server accepted the push (200) but your service worker never received it within 30s. Most likely causes: stale subscription, VAPID key mismatch between build and server, or the OS killing Chrome\'s background process (battery saver). Try toggling push Disable → Enable to refresh the subscription.',
+        }),
+      30_000
+    )
+  );
+
+  const outcome = await Promise.race([promise, timeout]);
+  navigator.serviceWorker.removeEventListener('message', onMessage);
+  return outcome;
 }
 
 // Show a notification directly from the running app, bypassing the push

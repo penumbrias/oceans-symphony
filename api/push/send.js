@@ -23,7 +23,12 @@ export default async function handler(req, res) {
 
   try {
     await webpush.sendNotification(subscription, JSON.stringify(payload));
-    return res.status(200).json({ ok: true });
+    // Echo the server-side VAPID public key back so the client can
+    // compare it against the build-time VITE_VAPID_PUBLIC_KEY. A
+    // mismatch between the key the subscription was signed with and
+    // the key the server uses to sign the push is one of the most
+    // common silent "push delivered, nothing happened" causes.
+    return res.status(200).json({ ok: true, vapidPub: pub });
   } catch (err) {
     // 410 Gone / 404 = subscription expired or invalid
     if (err.statusCode === 410 || err.statusCode === 404) {
