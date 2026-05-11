@@ -9,7 +9,7 @@ import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
-import HeaderWave from "@/components/layout/HeaderWave";
+import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
@@ -249,9 +249,9 @@ const handleNotifClick = (mentionLog) => {
       <AnnouncementBanner />
 
       {/* ── Desktop top header (hidden on mobile) ── */}
-      <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block app-header-wave">
-        <HeaderWave />
-        <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between relative">
+      <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block">
+        <HeaderWaveBlock />
+        <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between relative" style={{ zIndex: 1 }}>
           <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Symphony home">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
@@ -306,56 +306,68 @@ const handleNotifClick = (mentionLog) => {
         </div>
       </header>
 
-      {/* ── Mobile top bar (shown only on mobile) ── */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col app-header-wave">
-        <HeaderWave />
-        <div className="flex items-center justify-between px-2 h-14 relative">
-        {/* Left: back button or logo */}
-        {canGoBack ?
-        <button
-          onClick={() => navigate(-1)}
-          aria-label="Go back"
-          className="flex items-center gap-1 text-primary min-w-[44px] min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50">
-            <ChevronLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Back</span>
-          </button> :
+      {/* ── Mobile top bar (shown only on mobile) ──
+          Layout: animated wave-tinted block fills the top half behind
+          everything; the title is centered horizontally; the back/menu
+          button sits on the left and the bell+settings on the right.
+          The wave's bottom edge crosses through the centre of the
+          title and the icons, like a horizon line. */}
+      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col">
+        <HeaderWaveBlock />
+        <div className="flex items-center justify-between px-2 h-16 relative" style={{ zIndex: 1 }}>
+          {/* Left: back button or menu icon */}
+          {canGoBack ?
+            <button
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              className="flex items-center gap-1 text-primary min-w-[44px] min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50">
+              <ChevronLeft className="w-5 h-5" />
+              <span className="text-sm font-medium">Back</span>
+            </button> :
+            <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open navigation menu"
+              className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors hover:bg-muted/50 flex-shrink-0">
+              <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
+            </button>
+          }
 
-        <button
-          onClick={() => setSidebarOpen(true)}
-          aria-label="Open navigation menu"
-          className="flex items-center gap-2 select-none min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50 text-left">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
-            </div>
-            <span className="font-display text-base font-semibold text-foreground">Oceans Symphony</span>
-          </button>
-        }
-
-        {/* Right: bell + settings icons */}
-        <div className="flex items-center gap-1">
-        <Link to="/reminders" aria-label="Reminders"
-          className={cn(
-            "relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
-            location.pathname.startsWith("/reminders") ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
-          )}>
-          <Bell className="w-5 h-5" />
-          {pendingCount > 0 && (
-            <span className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
-              {pendingCount > 9 ? "9+" : pendingCount}
+          {/* Centered title — absolutely positioned so it stays in the
+              true middle regardless of how wide the side controls are. */}
+          <button
+            onClick={() => navigate("/")}
+            aria-label="Home"
+            className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 select-none px-2 max-w-[60%] truncate"
+          >
+            <span className="font-display text-lg font-normal tracking-tight text-foreground">
+              Oceans Symphony
             </span>
-          )}
-        </Link>
-        <Link
-          to="/settings"
-          aria-label="Settings"
-          className={cn(
-            "flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
-            location.pathname.startsWith("/settings") ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
-          )}>
-          
-          <Settings className="w-5 h-5" />
-        </Link>
-        </div>
+          </button>
+
+          {/* Right: bell + settings */}
+          <div className="flex items-center gap-1">
+            <Link to="/reminders" aria-label="Reminders"
+              className={cn(
+                "relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
+                location.pathname.startsWith("/reminders") ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
+              )}>
+              <Bell className="w-5 h-5" />
+              {pendingCount > 0 && (
+                <span className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                  {pendingCount > 9 ? "9+" : pendingCount}
+                </span>
+              )}
+            </Link>
+            <Link
+              to="/settings"
+              aria-label="Settings"
+              className={cn(
+                "flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
+                location.pathname.startsWith("/settings") ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
+              )}>
+              <Settings className="w-5 h-5" />
+            </Link>
+          </div>
         </div>
       </header>
 

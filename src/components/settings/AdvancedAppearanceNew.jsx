@@ -73,7 +73,7 @@ function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolve
   const isSelected = (f) =>
     f.value === currentFont || (f.legacy && f.legacy === currentFont);
 
-  const previewFontFor = (f) => f.value === 'default' ? "'Playfair Display', serif" : f.value;
+  const previewFontFor = (f) => f.value === 'default' ? "'DM Serif Display', 'Playfair Display', serif" : f.value;
   const triggerFont = previewFontFor(currentOption);
 
   return (
@@ -362,7 +362,7 @@ export default function AdvancedAppearance() {
             resolveCurrent={(v) => HEADING_FONT_OPTIONS.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
           />
           <p className="text-xs text-muted-foreground">
-            Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'Playfair Display', serif" : currentHeadingFont }}>
+            Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'DM Serif Display', 'Playfair Display', serif" : currentHeadingFont }}>
               Your System
             </span>
           </p>

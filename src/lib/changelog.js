@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "Restyled the top header bar so the app doesn't read as a generic Base44 template. Replaced the flat hairline border with a soft horizontal gradient wash in the primary theme colour, plus a thin double-sine wave drawn in the same colour along the bottom edge. The wave is abstract geometry, not literally aquatic, and tints itself to whatever primary colour the user has set.",
+        text: "Header redesign, take two. The top bar now has a faint primary-tinted wash on its top half with a wavy bottom edge that scrolls very slowly sideways — calm-waves motion, behind the title and icons so the wave line passes through the middle of them. The \"Oceans Symphony\" title is centered. New default heading font: DM Serif Display (similar high-contrast serif to Playfair, but distinct so the app doesn't look like every other Base44 template). Playfair is still selectable in Appearance → Heading Font for users who prefer it. The animation respects `prefers-reduced-motion` and pauses for users who've asked for less motion.",
       },
       {
         type: "improve",
