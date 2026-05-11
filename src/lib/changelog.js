@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Bulletin \"Pin to top of dashboard\" now actually appears at the top of the dashboard. The Pinned section was only mounted on the Home page, so pinning from the action menu set the flag but the post never surfaced anywhere visible. The Pinned strip now renders on both the Dashboard (just above Current Symptoms) and the Home page.",
+      },
+      {
+        type: "fix",
         text: "Activity Tracker week view: a single tap on a cell no longer opens the details sheet — you need to double-tap, like before. Single tap was firing the sheet by accident while scrolling or picking a time slot for a new entry.",
       },
       {
