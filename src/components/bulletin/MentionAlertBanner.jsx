@@ -2,10 +2,9 @@ import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, X } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function MentionAlertBanner({ bulletins, currentAlterId, alters }) {
+export default function MentionAlertBanner({ bulletins, currentAlterId, alters, onJumpToBulletin }) {
   const qc = useQueryClient();
 
   const unread = bulletins.filter(
@@ -28,15 +27,31 @@ export default function MentionAlertBanner({ bulletins, currentAlterId, alters }
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
+  const handleDismiss = (e) => {
+    e.stopPropagation();
+    markRead();
+  };
+
+  // Tapping the banner jumps to (and highlights) the first unread mention,
+  // matching the notification-click flow. Also marks the mentions as read.
+  const handleBannerClick = () => {
+    const target = unread[0];
+    onJumpToBulletin?.(target.id);
+    markRead();
+  };
+
   const fronterName = alters.find((a) => a.id === currentAlterId)?.name || "You";
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.button
+        type="button"
+        onClick={handleBannerClick}
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -16 }}
-        className="bg-primary/10 border border-primary/40 rounded-2xl p-4 mb-4 flex items-start gap-3"
+        className="w-full text-left bg-primary/10 border border-primary/40 rounded-2xl p-4 mb-4 flex items-start gap-3 hover:bg-primary/15 active:bg-primary/20 transition-colors"
+        aria-label={`Jump to bulletin where you were mentioned`}
       >
         <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
           <Bell className="w-4 h-4 text-primary" />
@@ -54,13 +69,17 @@ export default function MentionAlertBanner({ bulletins, currentAlterId, alters }
             )}
           </p>
         </div>
-        <button
-          onClick={markRead}
-          className="text-muted-foreground hover:text-foreground flex-shrink-0"
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={handleDismiss}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleDismiss(e); }}
+          aria-label="Dismiss"
+          className="text-muted-foreground hover:text-foreground flex-shrink-0 cursor-pointer p-1 -m-1"
         >
           <X className="w-4 h-4" />
-        </button>
-      </motion.div>
+        </span>
+      </motion.button>
     </AnimatePresence>
   );
 }

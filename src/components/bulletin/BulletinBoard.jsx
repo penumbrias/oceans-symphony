@@ -47,11 +47,16 @@ function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
   );
 }
 
-export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds = [], highlightBulletinId }) {
+export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds = [], highlightBulletinId: highlightBulletinIdProp }) {
   const [composing, setComposing] = useState(false);
   const [composeInitial, setComposeInitial] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // Local highlight overrides the prop when the user taps the mention banner —
+  // mirrors the notification-click flow without needing to round-trip through
+  // location state since we're already on the dashboard.
+  const [localHighlightId, setLocalHighlightId] = useState(null);
+  const highlightBulletinId = localHighlightId || highlightBulletinIdProp;
   const [visibleCount, setVisibleCount] = useState(10);
   const [sortByActivity, setSortByActivity] = useState(false);
   const bulletinRefs = useRef({});
@@ -170,7 +175,15 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
 
       {/* Mention alerts */}
       {currentAlterId &&
-        <MentionAlertBanner bulletins={bulletins} currentAlterId={currentAlterId} alters={alters} />
+        <MentionAlertBanner
+          bulletins={bulletins}
+          currentAlterId={currentAlterId}
+          alters={alters}
+          onJumpToBulletin={(id) => {
+            setLocalHighlightId(id);
+            setTimeout(() => setLocalHighlightId(null), 5000);
+          }}
+        />
       }
 
       <UpcomingPlans placement="bulletin_top" />
