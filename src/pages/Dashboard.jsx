@@ -5,7 +5,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, ShoppingCart, Inbox } from "lucide-react";
+import { Heart, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -404,13 +404,6 @@ export default function Dashboard() {
           Tour
         </button>
         </div>
-        <button
-            onClick={() => window.dispatchEvent(new CustomEvent("open-grocery-list"))}
-            aria-label="Grocery list (also acts as a privacy cover; triple-tap anywhere to open)"
-            title="Grocery list · triple-tap anywhere to open"
-            className="mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-          <ShoppingCart className="w-5 h-5" />
-        </button>
         <button
             onClick={() => setShowNotifHistory(true)}
             aria-label="Notification history"
