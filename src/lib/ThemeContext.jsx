@@ -311,7 +311,12 @@ function generateDarkTheme(lightColors) {
 }
 
 export function ThemeProvider({ children }) {
-  const [themeMode, setThemeMode] = useState('system');
+  // Mode is now strictly 'light' | 'dark' — no auto-follow-OS. Mixing OS
+  // preference with the user's chosen palette led to confusing states
+  // (e.g. picking "light" while the OS was dark surfaced as the dark
+  // palette since the OS override won). The user toggles between the
+  // two themselves, and we default to 'dark' on first run.
+  const [themeMode, setThemeMode] = useState('dark');
   const [selectedTheme, setSelectedTheme] = useState('cool');
   const [customColors, setCustomColors] = useState(null);
   const [selectedFont, setSelectedFont] = useState('inter');
@@ -328,7 +333,10 @@ export function ThemeProvider({ children }) {
     const savedUserPresets = localStorage.getItem('symphony_userCustomPresets');
     const savedLinks = localStorage.getItem('symphony_alterThemeLinks');
 
-    setThemeMode(saved || 'system');
+    // Migrate legacy 'system' value → 'dark' so users with the old setting
+    // get a deterministic dark default instead of OS-follow.
+    const normalized = saved === 'system' ? 'dark' : (saved || 'dark');
+    setThemeMode(normalized);
     setSelectedTheme(savedTheme || 'cool');
     if (savedCustom) setCustomColors(JSON.parse(savedCustom));
     if (savedFont) setSelectedFont(savedFont);
@@ -345,7 +353,8 @@ export function ThemeProvider({ children }) {
     // this event. We re-read all of the theme keys so the running app
     // reflects the change immediately.
     const reload = () => {
-      setThemeMode(localStorage.getItem('symphony_themeMode') || 'system');
+      const raw = localStorage.getItem('symphony_themeMode');
+      setThemeMode(raw === 'system' ? 'dark' : (raw || 'dark'));
       setSelectedTheme(localStorage.getItem('symphony_selectedTheme') || 'cool');
       const cc = localStorage.getItem('symphony_customColors');
       setCustomColors(cc ? JSON.parse(cc) : null);
@@ -374,7 +383,9 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('symphony_userCustomPresets', JSON.stringify(userCustomPresets));
     localStorage.setItem('symphony_alterThemeLinks', JSON.stringify(alterThemeLinks));
     
-    const isDark = themeMode === 'dark' || (themeMode === 'system' && isDarkOS);
+    // OS preference (isDarkOS) is deliberately ignored — the mode is now
+    // strictly what the user picked.
+    const isDark = themeMode === 'dark';
     document.documentElement.classList.toggle('dark', isDark);
     
     let colors;
@@ -452,9 +463,9 @@ export function ThemeProvider({ children }) {
   };
 
   const cycleThemeMode = () => {
-    const modes = ['system', 'light', 'dark'];
-    const idx = modes.indexOf(themeMode);
-    setThemeMode(modes[(idx + 1) % modes.length]);
+    // Two-state toggle — no OS-follow. The OS preference is intentionally
+    // ignored so the user gets exactly what they pick.
+    setThemeMode(themeMode === 'dark' ? 'light' : 'dark');
   };
 
   return (

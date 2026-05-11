@@ -73,7 +73,7 @@ export default function AdvancedAppearance() {
             className="w-full gap-2 justify-start"
           >
             <ModeIcon className="w-4 h-4" />
-            <span className="capitalize">{themeMode === 'system' ? 'System' : themeMode}</span>
+            <span className="capitalize">{themeMode}</span>
           </Button>
         </div>
 

@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Theme no longer auto-follows your OS light/dark setting. Previously \"System (follow OS)\" was the default, which led to confusing states where picking \"Light\" while the OS was in dark mode showed a near-dark palette. Mode is now a strict two-state toggle (Light / Dark) — the app gives you exactly what you pick, and defaults to Dark on first run. Existing users with the legacy \"system\" setting are migrated to Dark.",
+      },
+      {
+        type: "fix",
         text: "Front session sweep now runs proactively on app load, not just when the Set Fronters modal opens. Users who never open that modal would otherwise sit with stuck state forever — duplicates per alter, multiple is_primary rows, or ghost-active sessions (is_active flipped to false but end_time left null). The same three reconciliations the modal already does (per-alter dedupe, multi-primary demotion, ghost-active end_time fill) now run once per page load with a 1.5s delay.",
       },
       {
