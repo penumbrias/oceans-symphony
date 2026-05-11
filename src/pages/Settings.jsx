@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { APP_VERSION, APP_RELEASE_STAGE } from "@/lib/appVersion";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -135,7 +136,20 @@ export default function Settings() {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold text-foreground mb-1">Settings</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-display text-3xl font-semibold text-foreground mb-1">Settings</h1>
+          {/* Release tag + version chip — bumped with every changelog entry
+              via src/lib/appVersion.js. Stays visible so testers can
+              reference the exact build when reporting issues. */}
+          <div className="flex items-center gap-1.5 mt-1 flex-shrink-0">
+            {APP_RELEASE_STAGE && (
+              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                {APP_RELEASE_STAGE}
+              </span>
+            )}
+            <span className="text-[11px] font-mono text-muted-foreground">v{APP_VERSION}</span>
+          </div>
+        </div>
         <p className="text-muted-foreground text-sm">
           Customize your {terms.system} and manage your account. {" "}
           <span onClick={() => window.open("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1", "_blank")}

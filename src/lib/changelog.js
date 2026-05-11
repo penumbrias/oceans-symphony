@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Settings page now shows the build version + an \"alpha\" chip in the top right. The version (currently 0.5.1) bumps with every changelog entry so testers can reference the exact build when reporting issues.",
+      },
+      {
+        type: "fix",
+        text: "Reminders that only had \"Browser push\" as the delivery channel could go silent when push wasn't actually enabled on the device. Two changes: (1) saving a push-only reminder while push is off now auto-adds the in-app banner channel, and (2) every fired reminder is now also recorded as an in-app delivery, so the toast/inbox always surfaces it even if push silently fails.",
+      },
+      {
+        type: "improve",
         text: "Quick Actions hold-menu (long-press Quick Check-In) now stays open when you scroll through it — previously every pointerdown anywhere on the page closed it, even when that pointerdown was the start of a scroll inside the menu. Outside-tap detection is now a real tap test (pointerdown → pointerup at roughly the same coordinates), so a scroll gesture is ignored. The long-press that opens the menu also cancels if your finger moves more than ~12px during the hold, so an accidental scroll during the press no longer triggers the menu.",
       },
       {

@@ -107,9 +107,15 @@ Rules:
 
 ---
 
-## Critical: Keep the Changelog Up to Date
+## Critical: Keep the Changelog and Version Up to Date
 
-**Whenever a feature, improvement, or notable fix ships, add an entry to `src/lib/changelog.js`. This is non-negotiable — do it in the same commit, every time, no exceptions.**
+**Whenever a feature, improvement, or notable fix ships, add an entry to `src/lib/changelog.js` AND bump `APP_VERSION` in `src/lib/appVersion.js`. Both are non-negotiable — do them in the same commit as the user-visible change, every time, no exceptions.**
+
+Versioning rules:
+- Bump PATCH (`0.5.0 → 0.5.1`) for fixes, small improvements, and most changes — this is the default.
+- Bump MINOR (`0.5.x → 0.6.0`) for a meaningful new feature block (e.g. "to-do integration", "header redesign").
+- Bump MAJOR (`0.x.y → 1.0.0`) only for big direction shifts.
+- The version is shown in Settings upper-right next to an "alpha" chip. Testers reference it when reporting issues, so keep it accurate.
 
 Rules:
 - Add a new date block at the top of the `CHANGELOG` array when starting a new session's work.

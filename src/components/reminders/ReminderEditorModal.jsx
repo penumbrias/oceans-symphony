@@ -440,8 +440,20 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
     if (!form.title.trim()) { toast.error("Title is required"); return; }
     if (!form.delivery_channels.length) { toast.error("Choose at least one delivery channel"); return; }
     setSaving(true);
+    // If the user picked push but push isn't actually enabled on this
+    // device, auto-add the in-app banner so the reminder still fires
+    // visibly. Otherwise a push-only reminder on a device with push off
+    // would never notify the user, even with the app open.
+    let effectiveChannels = form.delivery_channels;
+    if (effectiveChannels.includes("push") && !effectiveChannels.includes("in_app")) {
+      try {
+        const pushOn = await isPushEnabled();
+        if (!pushOn) effectiveChannels = [...effectiveChannels, "in_app"];
+      } catch { effectiveChannels = [...effectiveChannels, "in_app"]; }
+    }
     const data = {
       ...form,
+      delivery_channels: effectiveChannels,
       alter_id: form.alter_id || null,
       alter_scope: form.alter_id ? (form.alter_scope || "always") : null,
       alter_scope_catchup: form.alter_id && form.alter_scope === "when_fronting" ? (form.alter_scope_catchup || false) : false,
