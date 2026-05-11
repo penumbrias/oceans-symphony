@@ -71,6 +71,45 @@ export default function ActivityTracker() {
     queryKey: ["frontingHistory", format(weekStart, "yyyy-MM-dd")],
     queryFn: () => base44.entities.FrontingSession.list(),
   });
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => base44.entities.Task.list(),
+  });
+
+  // Surface open to-dos with a scheduled-at or due-date on the week grid.
+  // Synthetic records share the Activity shape so the grid renders them
+  // without further changes. They carry _isTask + _task so click handlers
+  // can route to the to-do editor instead of the activity-details modal.
+  const taskActivities = React.useMemo(() => {
+    return tasks
+      .filter(t => !t.completed && (t.scheduled_at || t.due_date))
+      .map(t => {
+        const ts = t.scheduled_at
+          ? new Date(t.scheduled_at)
+          : new Date(`${t.due_date}T08:00:00`); // due-only → render at 8am of due date
+        return {
+          id: `task-${t.id}`,
+          _isTask: true,
+          _task: t,
+          timestamp: ts.toISOString(),
+          activity_name: t.title,
+          activity_category_ids: t.activity_category_ids || [],
+          // Scheduled gets a 60-min duration so it draws as a block;
+          // deadline-only ones render as a small pill (null duration).
+          duration_minutes: t.scheduled_at ? 60 : null,
+          is_planned: ts.getTime() > Date.now(),
+          is_critical: !!t.is_urgent,
+          // Visual tint — amber for urgent, indigo otherwise, so to-dos
+          // are distinguishable from real logged activities at a glance.
+          color: t.is_urgent ? "#f59e0b" : "#6366f1",
+          fronting_alter_ids: [],
+        };
+      });
+  }, [tasks]);
+  const activitiesWithTasks = React.useMemo(
+    () => [...activities, ...taskActivities],
+    [activities, taskActivities],
+  );
 
   useEffect(() => {
     const unsub = base44.entities.Activity.subscribe(() => {
@@ -107,7 +146,21 @@ export default function ActivityTracker() {
     setSelectedEndDate(null);
   };
   const handleActivityClick = (activityOrActivities) => {
-    setSelectedActivity(activityOrActivities);
+    // If the user tapped a synthetic to-do pill on the grid, route them to
+    // the To-Do list (deep-linked to the task) instead of the activity
+    // details modal — that modal doesn't know about tasks.
+    const list = Array.isArray(activityOrActivities) ? activityOrActivities : [activityOrActivities];
+    const onlyTasks = list.every(x => x?._isTask);
+    if (onlyTasks && list.length > 0) {
+      const t = list[0]._task;
+      window.location.href = `/todo?id=${t.id}`;
+      return;
+    }
+    // Mixed list: filter out the synthetic to-do rows so the details modal
+    // gets only real activities. (If everything was filtered out, we
+    // already early-returned above.)
+    const realOnly = list.filter(x => !x?._isTask);
+    setSelectedActivity(realOnly.length === 1 ? realOnly[0] : realOnly);
     setIsDetailsOpen(true);
   };
   const handleDetailsClose = () => {
@@ -200,7 +253,7 @@ export default function ActivityTracker() {
             {viewMode === "week" && (
               <ActivityWeeklyGrid
                 weekDays={weekDays}
-                activities={activities}
+                activities={activitiesWithTasks}
                 alters={alters}
                 frontingHistory={frontingHistory}
                 onTimeRangeSelect={handleTimeRangeSelect}
@@ -215,7 +268,7 @@ export default function ActivityTracker() {
             {viewMode === "month" && (
               <ActivityMonthView
                 monthDate={currentDate}
-                activities={activities}
+                activities={activitiesWithTasks}
                 alters={alters}
                 weekStartsOn={weekStartsOn}
                 onDayClick={setZoomedDate}
@@ -225,7 +278,7 @@ export default function ActivityTracker() {
             {viewMode === "year" && (
               <ActivityYearView
                 yearDate={currentDate}
-                activities={activities}
+                activities={activitiesWithTasks}
                 weekStartsOn={weekStartsOn}
                 onMonthClick={(d) => { setCurrentDate(d); setViewMode("month"); }}
                 onDayClick={setZoomedDate}

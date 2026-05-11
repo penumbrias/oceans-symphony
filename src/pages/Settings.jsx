@@ -22,7 +22,7 @@ import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Zap, Check, BarChart2 } from "lucide-react";
+import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
@@ -69,6 +69,13 @@ export default function Settings() {
     { id: "data", label: "Data & Privacy", icon: "💾" },
     { id: "updates", label: "Recent Updates", icon: "📋" },
   ];
+
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+  const activeCount = alters.filter(a => !a.is_archived).length;
+  const archivedCount = alters.filter(a => a.is_archived).length;
 
   const { data: settingsList = [], isLoading, refetch } = useQuery({
     queryKey: ["systemSettings"],
@@ -184,6 +191,13 @@ export default function Settings() {
         {/* ── PROFILE ── */}
         <Section id="system" icon="⚙️" label="Profile" defaultOpen={true}>
           <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Users className="w-4 h-4" />
+              {activeCount} active {activeCount !== 1 ? terms.alters : terms.alter}
+              {archivedCount > 0 && (
+                <span className="text-muted-foreground/60">· {archivedCount} archived</span>
+              )}
+            </div>
             <div>
               <Label className="text-sm font-medium">{terms.System} Name</Label>
               <Input placeholder={`Enter your ${terms.system} name...`} value={systemName}

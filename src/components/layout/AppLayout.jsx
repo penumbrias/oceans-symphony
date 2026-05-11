@@ -149,6 +149,31 @@ const bottomNavItems = useMemo(() => {
 const { data: pendingReminders = [] } = usePendingReminderInstances();
 const pendingCount = pendingReminders.filter(i => i.status === "fired").length;
 
+// Count tasks the user should "see" right now — urgent + anything with a
+// due_date or scheduled_at coming up in the next 72 hours. Drives the
+// notification badge on the To-Do nav item.
+const { data: todoTasks = [] } = useQuery({
+  queryKey: ["tasks"],
+  queryFn: () => base44.entities.Task.list(),
+});
+const todoAlertCount = React.useMemo(() => {
+  const now = Date.now();
+  const horizon = now + 72 * 60 * 60 * 1000;
+  return todoTasks.filter(t => {
+    if (t.completed) return false;
+    if (t.is_urgent) return true;
+    if (t.scheduled_at) {
+      const s = new Date(t.scheduled_at).getTime();
+      if (s >= now && s <= horizon) return true;
+    }
+    if (t.due_date) {
+      const d = new Date(`${t.due_date}T23:59:59`).getTime();
+      if (d >= now && d <= horizon) return true;
+    }
+    return false;
+  }).length;
+}, [todoTasks]);
+
 const activeSession = sessions.find((s) => s.is_active);
 const frontingAlterIds = activeSession
   ? activeSession.alter_id
@@ -414,6 +439,11 @@ const handleNotifClick = (mentionLog) => {
                         {item.id === "reminders" && pendingCount > 0 && (
                           <span className="w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center shrink-0">
                             {pendingCount > 9 ? "9+" : pendingCount}
+                          </span>
+                        )}
+                        {item.id === "todo" && todoAlertCount > 0 && (
+                          <span className="w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center shrink-0" title="Urgent or due-soon to-dos">
+                            {todoAlertCount > 9 ? "9+" : todoAlertCount}
                           </span>
                         )}
                       </Link>
