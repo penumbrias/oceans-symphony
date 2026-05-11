@@ -669,7 +669,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 <input
                   value={triggerLabel}
                   onChange={e => setTriggerLabel(e.target.value)}
-                  placeholder="Describe what triggered the switch..."
+                  placeholder={`Describe what triggered the ${terms.switch}...`}
                   className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
                 />
               </div>
@@ -680,7 +680,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 variant="outline"
                 onClick={() => { setPrimaryId(""); setCoFronterIds([]); setIsUnsure(false); }}
                 disabled={saving}
-                title="Clear all selected fronters"
+                title={`Clear all selected ${terms.fronters}`}
                 className="flex-shrink-0 px-3">
                 <Trash2 className="w-4 h-4" />
               </Button>

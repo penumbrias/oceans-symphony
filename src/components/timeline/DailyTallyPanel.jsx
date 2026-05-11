@@ -218,7 +218,7 @@ export default function DailyTallyPanel({
                 <NavRow label={`${dayEmotions.length} quick`} route="/checkin-log" navigate={navigate} />
               )}
               {dayCheckIns.length > 0 && (
-                <NavRow label={`${dayCheckIns.length} system`} route="/system-checkin" navigate={navigate} />
+                <NavRow label={`${dayCheckIns.length} ${terms.system}`} route="/system-checkin" navigate={navigate} />
               )}
             </div>
           )}

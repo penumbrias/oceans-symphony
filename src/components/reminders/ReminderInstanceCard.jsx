@@ -1,4 +1,5 @@
 import { formatDistanceToNow, format } from "date-fns";
+import { useTerms } from "@/lib/useTerms";
 import { Clock, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ function AlterAvatar({ alter, categoryIcon }) {
 }
 
 export default function ReminderInstanceCard({ instance, reminder, alter, onAction, onSnooze, onDone, onDismiss, onUnsnooze, readOnly = false }) {
+  const terms = useTerms();
   if (!reminder) return null;
 
   const displayTime = instance.fired_at || instance.scheduled_for;
@@ -96,7 +98,7 @@ export default function ReminderInstanceCard({ instance, reminder, alter, onActi
               </span>
               {reminder.alter_scope === "when_fronting" && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-muted/40 text-muted-foreground border border-border/40">
-                  · when fronting
+                  · when {terms.fronting}
                 </span>
               )}
             </div>

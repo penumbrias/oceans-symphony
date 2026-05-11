@@ -2,17 +2,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DEFAULT_THRESHOLDS } from "@/lib/reportSections";
+import { useTerms } from "@/lib/useTerms";
 
-const THRESHOLD_LABELS = {
-  urge_min: "Urge rating ≥",
-  symptom_severity_min: "Symptom severity ≥",
-  symptom_session_min_minutes: "Active symptom session ≥ (minutes)",
-  rapid_switch_count: "Rapid switching (N switches in window)",
-  rapid_switch_window_minutes: "Rapid switching window (minutes)",
-  mood_avg_below: "Daily mood average below",
-};
+function buildThresholdLabels(t) {
+  return {
+    urge_min: "Urge rating ≥",
+    symptom_severity_min: "Symptom severity ≥",
+    symptom_session_min_minutes: "Active symptom session ≥ (minutes)",
+    rapid_switch_count: `Rapid ${t.switching || `${t.switch}ing`} (N ${t.switches} in window)`,
+    rapid_switch_window_minutes: `Rapid ${t.switching || `${t.switch}ing`} window (minutes)`,
+    mood_avg_below: "Daily mood average below",
+  };
+}
 
 export default function NoteworthySettings({ thresholds, onChange }) {
+  const terms = useTerms();
+  const THRESHOLD_LABELS = buildThresholdLabels(terms);
   const [expanded, setExpanded] = useState(false);
   const [local, setLocal] = useState(thresholds || DEFAULT_THRESHOLDS);
 

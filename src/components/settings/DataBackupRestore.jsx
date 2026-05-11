@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
+import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
@@ -72,6 +73,19 @@ const ENTITY_NAMES = [
   "StatusNote", "Location", "SystemChangeEvent", "GroceryItem",
 ];
 
+// Module-scope so it can't hit useTerms — `label` and `desc` are resolved
+// at render time via resolveCatLabel / resolveCatDesc below.
+function resolveCatLabel(cat, terms) {
+  if (cat.id === "alters")   return `${terms.Alters} & Profiles`;
+  if (cat.id === "fronting") return `${terms.Fronting} History`;
+  return cat.label;
+}
+function resolveCatDesc(cat, terms) {
+  if (cat.id === "alters")   return `Bios, avatars, custom fields, relationships, relationship types, inner world`;
+  if (cat.id === "fronting") return `${terms.Switch} history`;
+  return cat.desc;
+}
+
 const EXPORT_CATEGORIES = [
   { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner world" },
   { id: "fronting",      label: "Fronting History",         entities: ["FrontingSession"],                                                  desc: "Switch history" },
@@ -130,6 +144,7 @@ async function downloadJson(data, filename, format = "json") {
 }
 
 export default function DataBackupRestore() {
+  const terms = useTerms();
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportFormat, setExportFormat] = useState("json"); // "json" | "compact"
@@ -424,11 +439,11 @@ export default function DataBackupRestore() {
                         className="w-4 h-4 rounded accent-primary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-medium">{cat.label}</span>
+                          <span className="text-xs font-medium">{resolveCatLabel(cat, terms)}</span>
                           {cat.isImages && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">⚠️</span>}
                           {catSizes && <span className="text-xs text-muted-foreground ml-auto">{catSizes[cat.id] || 0}KB</span>}
                         </div>
-                        <p className="text-xs text-muted-foreground">{cat.isImages ? "Excluding this means images won't transfer" : cat.desc}</p>
+                        <p className="text-xs text-muted-foreground">{cat.isImages ? "Excluding this means images won't transfer" : resolveCatDesc(cat, terms)}</p>
                       </div>
                     </label>
                   ))}

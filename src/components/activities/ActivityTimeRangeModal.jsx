@@ -12,6 +12,7 @@ import MentionTextarea from "@/components/shared/MentionTextarea";
 import { Plus, MapPin, Zap } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
+import { useTerms } from "@/lib/useTerms";
 
 function toTimeString(date, hour, minute = 0) {
   const d = new Date(date);
@@ -41,6 +42,7 @@ export default function ActivityTimeRangeModal({
   // user can plan an activity for any day rather than only tapping a slot.
   planMode = false,
 }) {
+  const terms = useTerms();
   // For plan mode without an explicit start date, default to tomorrow noon so
   // the modal starts from a sensible plannable point.
   const defaultedStart = startDateProp || (planMode ? (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(12, 0, 0, 0); return d; })() : null);
@@ -504,7 +506,7 @@ const handleCreateNewActivity = async () => {
           {/* Alters */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
-              Who was fronting?
+              Who was {terms.fronting}?
               {selectedAlters.length > 0 && (
                 <span className="text-xs font-normal text-muted-foreground ml-2">
                   ({selectedAlters.length} selected)

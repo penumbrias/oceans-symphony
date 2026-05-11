@@ -146,7 +146,7 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
           />
 
           <div>
-            <p className="text-sm font-medium mb-2">Who's fronting? <span className="text-muted-foreground font-normal">(optional)</span></p>
+            <p className="text-sm font-medium mb-2">Who's {terms.fronting}? <span className="text-muted-foreground font-normal">(optional)</span></p>
             <div className="relative mb-2">
               <Input
                 placeholder="Type name or alias..."

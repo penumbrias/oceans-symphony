@@ -156,8 +156,8 @@ export default function RemindersManage() {
                           border: `1px solid ${(alter.color || "#3B82F6")}44`,
                         }}
                       >
-                        {isArchivedAlter ? "[archived alter]" : `For ${alter.name}`}
-                        {r.alter_scope === "when_fronting" && !isArchivedAlter && " · when fronting"}
+                        {isArchivedAlter ? `[archived ${terms.alter}]` : `For ${alter.name}`}
+                        {r.alter_scope === "when_fronting" && !isArchivedAlter && ` · when ${terms.fronting}`}
                       </span>
                     )}
                   </div>
@@ -165,7 +165,7 @@ export default function RemindersManage() {
                   {isArchivedAlter && (
                     <div className="flex items-center gap-1 mt-1">
                       <AlertTriangle className="w-3 h-3 text-amber-500" />
-                      <p className="text-xs text-amber-600 dark:text-amber-400">Tied to archived alter — currently paused</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">Tied to archived {terms.alter} — currently paused</p>
                     </div>
                   )}
                 </div>

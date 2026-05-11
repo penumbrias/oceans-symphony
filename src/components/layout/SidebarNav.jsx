@@ -49,7 +49,7 @@ function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "analytics",       label: "Analytics",          icon: BarChart2,  path: "/analytics" },
         { id: "system-map",     label: `${systemLabel} Map`, icon: GitBranch,  path: "/system-map" },
         { id: "timeline",       label: "Timeline",           icon: Clock,      path: "/timeline" },
-        { id: "system-history", label: "System History",     icon: GitMerge,   path: "/system-history" },
+        { id: "system-history", label: `${systemLabel} History`, icon: GitMerge, path: "/system-history" },
       ],
     },
   ];

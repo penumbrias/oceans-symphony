@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import {
   Dialog,
@@ -27,6 +28,7 @@ export default function ActivityLogModal({
   selectedDate,
   alters,
 }) {
+  const terms = useTerms();
   const [activityName, setActivityName] = useState("");
   const [category, setCategory] = useState("other");
   const [duration, setDuration] = useState("");
@@ -133,7 +135,7 @@ export default function ActivityLogModal({
           {/* Alters */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
-              Who was fronting?
+              Who was {terms.fronting}?
             </label>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {alters.map((alter) => (

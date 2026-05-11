@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { PREVIEW_SYSTEMS, enterPreview, exitPreview } from "@/lib/previewMode";
 import { usePreviewMode } from "@/lib/usePreviewMode";
+import { useTerms } from "@/lib/useTerms";
 
 export default function PreviewModeSection() {
+  const terms = useTerms();
   const { active, system: activeSystem } = usePreviewMode();
   const [busyKey, setBusyKey] = useState(null);
 
@@ -47,8 +49,8 @@ export default function PreviewModeSection() {
           disappears the moment you exit.
         </p>
         <p className="text-muted-foreground">
-          The example brings its own theme, font, and terminology, and a handful of alters
-          carry their own theme presets that take over when they're the primary fronter — so
+          The example brings its own theme, font, and terminology, and a handful of {terms.alters}
+          carry their own theme presets that take over when they're the primary {terms.fronter} — so
           you can also see how the app feels with different vocabularies and visual identities.
         </p>
       </div>

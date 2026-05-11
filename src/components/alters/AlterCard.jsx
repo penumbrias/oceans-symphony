@@ -6,6 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
+import { useTerms } from "@/lib/useTerms";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -18,6 +19,7 @@ function getContrastColor(hex) {
 }
 
 export function FrontingToggleButton({ alter, activeSessions = [] }) {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const longPressRef = useRef(null);
 
@@ -69,7 +71,7 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
       if (freshIsPrimary) {
         // Already primary → demote
         await base44.entities.FrontingSession.update(freshMySession.id, { is_primary: false });
-        toast.success(`${alter.name} demoted to co-fronter`);
+        toast.success(`${alter.name} demoted to co-${terms.fronter}`);
       } else {
         // Demote EVERY existing primary, not just the first match — handles
         // any case where stale duplicate primaries leaked into the DB.
@@ -135,7 +137,7 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
           ? isPrimary ? "2px solid #f59e0b" : `2px solid ${alter.color || "#9333ea"}`
           : "2px solid hsl(var(--border))",
       }}
-      title={isFronting ? (isPrimary ? "Primary fronter — tap to remove, hold to keep as co-fronter" : "Co-fronting — tap to remove, hold to set primary") : "Tap to add to front, hold to set as primary"}
+      title={isFronting ? (isPrimary ? `Primary ${terms.fronter} — tap to remove, hold to keep as co-${terms.fronter}` : `Co-${terms.fronting} — tap to remove, hold to set primary`) : `Tap to add to ${terms.front}, hold to set as primary`}
     >
       {isFronting ? (
         <Zap className="w-3.5 h-3.5" style={{ color: isPrimary ? "#f59e0b" : alter.color || "#9333ea" }} fill={isPrimary ? "#f59e0b" : alter.color || "#9333ea"} />
