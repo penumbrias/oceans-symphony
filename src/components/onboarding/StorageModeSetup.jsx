@@ -217,7 +217,11 @@ export default function StorageModeSetup({ mode, onComplete }) {
               <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground border-t border-amber-500/20 pt-3">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🔒 Local Storage</p>
-                  <p>Local mode is private by design: <strong className="text-foreground">your data stays on this device only</strong> — nothing is uploaded, synced, or sent to any server. For even greater security you can turn on password encryption, which adds <strong className="text-foreground">AES-256-GCM encryption</strong> on top, with a key derived from a password you set. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
+                  <p>Local mode is private by design: <strong className="text-foreground">by default, your data stays on this device only</strong> — nothing is uploaded, synced, or sent to any server. For even greater security you can turn on password encryption, which adds <strong className="text-foreground">AES-256-GCM encryption</strong> on top, with a key derived from a password you set. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-foreground">👥 Friends Mode (opt-in)</p>
+                  <p>Friends mode is the only feature that sends anything off-device, and it is <strong className="text-foreground">off until you set it up</strong>. When enabled, only what you explicitly choose to share is transmitted: your system name, your display name, and your current front status — at the granularity you pick (full names, count only, or hidden), with per-friend overrides. Nothing else from your local data is ever sent.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">💾 Backups</p>

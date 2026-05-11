@@ -687,7 +687,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "settings", sectionLabel: "Settings",
       emoji: "🔒",
       title: "Data & Privacy",
-      body: `Local mode is private by design — every record stays on this device only, in your browser's IndexedDB. Nothing is uploaded, synced, or sent to any server, and the only way data leaves the device is if you export a backup yourself. For an extra layer of security, optionally enable AES-256 password encryption to lock everything behind a passphrase (on-device only — not end-to-end). Export a full JSON backup of everything, or import one to restore. Connect Simply Plural to sync ${t.alter} profiles. Your data is fully yours and always exportable.`,
+      body: `Local mode is private by design — by default, every record stays on this device only, in your browser's IndexedDB. Nothing is uploaded, synced, or sent to any server. The only ways data leaves this device are: exporting a backup yourself, or opting in to Friends mode (which only transmits your system name, display name, and current front status at the privacy level you choose — never any of your other local data). For an extra layer of security, optionally enable AES-256 password encryption to lock everything behind a passphrase (on-device only — not end-to-end). Export a full JSON backup of everything, or import one to restore. Connect Simply Plural to sync ${t.alter} profiles. Your data is fully yours and always exportable.`,
       route: "/settings", target: "settings-data",
       look: `the highlighted Data & Privacy section — tap its header to expand it`, action: null,
     },
