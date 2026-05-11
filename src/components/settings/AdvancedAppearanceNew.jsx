@@ -443,7 +443,18 @@ export default function AdvancedAppearance() {
           {customColors && (
             <button
               type="button"
-              onClick={() => { clearCustomColors(); setPendingColors(null); setSelectedTheme(originalTheme); }}
+              onClick={() => {
+                clearCustomColors();
+                setPendingColors(null);
+                // If the captured "originalTheme" is still "custom" (the user
+                // had custom colours when Settings opened, no real preset to
+                // fall back to), use the first built-in preset instead so
+                // selectedTheme ends up resolvable.
+                const fallback = allPresets[originalTheme]
+                  ? originalTheme
+                  : Object.keys(allPresets || {})[0] || "cool";
+                setSelectedTheme(fallback);
+              }}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Revert to preset

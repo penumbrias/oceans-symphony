@@ -380,7 +380,14 @@ export function ThemeProvider({ children }) {
     
     localStorage.setItem('symphony_themeMode', themeMode);
     localStorage.setItem('symphony_selectedTheme', selectedTheme);
+    // Persist customColors when set, REMOVE the localStorage entry when
+    // cleared. The old "if (customColors) localStorage.setItem(...)" only
+    // wrote when truthy, never deleted when falsy — so once a user set
+    // custom colours, picking a preset later didn't actually undo them on
+    // the next reload; the stale localStorage value would override the
+    // preset.
     if (customColors) localStorage.setItem('symphony_customColors', JSON.stringify(customColors));
+    else localStorage.removeItem('symphony_customColors');
     localStorage.setItem('symphony_selectedFont', selectedFont);
     localStorage.setItem('symphony_userCustomPresets', JSON.stringify(userCustomPresets));
     localStorage.setItem('symphony_alterThemeLinks', JSON.stringify(alterThemeLinks));
@@ -416,8 +423,11 @@ export function ThemeProvider({ children }) {
       }
     }
 
-    // Update theme-color meta tag to match the app background (for APK status bar)
-    const bgColor = colors.bg || colors['bg'];
+    // Update theme-color meta tag to match the app background (for APK status bar).
+    // Guard `colors` — it can be undefined when the user has cleared their
+    // customColors but selectedTheme still points at "custom" (no real
+    // preset to read). Without this guard, `colors.bg` throws.
+    const bgColor = colors?.bg;
     if (bgColor) {
       let metaTag = document.querySelector('meta[name="theme-color"]:not([media])');
       if (!metaTag) {

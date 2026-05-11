@@ -27,8 +27,11 @@ function isoOffset(daysAgo, hour = 12, min = 0) {
   return d.toISOString();
 }
 
-// Small helper so each wiki alter has the same shape.
-function wikiAlter({ name, alias, role, color, group_id, bio, order_index }) {
+// Small helper so each wiki alter has the same shape. NB: the Alter entity
+// uses `description` (HTML), not `bio` — that was a typo in the first cut
+// and made every wiki bio render empty. Groups likewise own a list of
+// alter IDs (`member_alter_ids`), not the other way around.
+function wikiAlter({ name, alias, role, color, description, order_index }) {
   return {
     id: uid("wiki-alter"),
     name,
@@ -36,9 +39,7 @@ function wikiAlter({ name, alias, role, color, group_id, bio, order_index }) {
     pronouns: "",
     color,
     role,
-    bio,
-    bio_mode: "raw", // walkthrough text is hand-authored HTML
-    group_id,
+    description,
     order_index,
     friends_visible: false,
     is_archived: false,
@@ -47,17 +48,6 @@ function wikiAlter({ name, alias, role, color, group_id, bio, order_index }) {
     birthday: "",
   };
 }
-
-// ─── Group / category structure ─────────────────────────────────────────
-const GROUPS = [
-  { id: "g-start",   name: "1 · Start Here",      order_index: 0, color: "#22d3ee" },
-  { id: "g-dash",    name: "2 · Dashboard",       order_index: 1, color: "#a855f7" },
-  { id: "g-alters",  name: "3 · Alter profiles",  order_index: 2, color: "#f59e0b" },
-  { id: "g-tracking",name: "4 · Tracking",        order_index: 3, color: "#10b981" },
-  { id: "g-sharing", name: "5 · Sharing & relay", order_index: 4, color: "#ec4899" },
-  { id: "g-notifs",  name: "6 · Notifications",   order_index: 5, color: "#ef4444" },
-  { id: "g-personal",name: "7 · Personal",        order_index: 6, color: "#6366f1" },
-];
 
 // ─── Bio templates ──────────────────────────────────────────────────────
 // Each function returns a string of HTML. Kept inline so the file reads
@@ -486,24 +476,40 @@ const bioPrivacy = `
 
 // ─── Build ──────────────────────────────────────────────────────────────
 export function buildWiki() {
-  const alters = [
-    wikiAlter({ name: "1. Welcome",                  alias: "start", role: "Index",            color: "#22d3ee", group_id: "g-start",    order_index: 0, bio: bioWelcome }),
-    wikiAlter({ name: "2. Gestures cheatsheet",      alias: "swipe", role: "Shortcuts",        color: "#06b6d4", group_id: "g-start",    order_index: 1, bio: bioGestures }),
-    wikiAlter({ name: "3. Dashboard",                alias: "dash",  role: "Home screen",      color: "#a855f7", group_id: "g-dash",     order_index: 0, bio: bioDashboard }),
-    wikiAlter({ name: "4. Alters page & groups",     alias: "alt",   role: "Directory",        color: "#f59e0b", group_id: "g-alters",   order_index: 0, bio: bioAltersGroups }),
-    wikiAlter({ name: "5. Profile · edit modes",     alias: "edit",  role: "Profile editing",  color: "#f97316", group_id: "g-alters",   order_index: 1, bio: bioEditModes }),
-    wikiAlter({ name: "6. Profile · mini toolbar",   alias: "tool",  role: "Toolbar reference",color: "#ea580c", group_id: "g-alters",   order_index: 2, bio: bioMiniToolbar }),
-    wikiAlter({ name: "7. Profile · fields & tabs",  alias: "field", role: "Profile reference",color: "#dc2626", group_id: "g-alters",   order_index: 3, bio: bioProfileFields }),
-    wikiAlter({ name: "8. Fronting & switching",     alias: "front", role: "Sessions",         color: "#eab308", group_id: "g-alters",   order_index: 4, bio: bioFronting }),
-    wikiAlter({ name: "9. Bulletin board",           alias: "post",  role: "Sharing wall",     color: "#ec4899", group_id: "g-sharing",  order_index: 0, bio: bioBulletinBoard }),
-    wikiAlter({ name: "10. Timeline",                alias: "time",  role: "Day-by-day view",  color: "#84cc16", group_id: "g-tracking", order_index: 0, bio: bioTimeline }),
-    wikiAlter({ name: "11. Activity Tracker",        alias: "act",   role: "Activities",       color: "#10b981", group_id: "g-tracking", order_index: 1, bio: bioActivities }),
-    wikiAlter({ name: "12. Quick Check-In",          alias: "ci",    role: "Daily capture",    color: "#14b8a6", group_id: "g-tracking", order_index: 2, bio: bioQuickCheckIn }),
-    wikiAlter({ name: "13. To-Do & plans",           alias: "todo",  role: "Tasks",            color: "#06b6d4", group_id: "g-tracking", order_index: 3, bio: bioTodo }),
-    wikiAlter({ name: "14. Reminders & push",        alias: "ping",  role: "Notifications",    color: "#ef4444", group_id: "g-notifs",   order_index: 0, bio: bioReminders }),
-    wikiAlter({ name: "15. Friends mode",            alias: "amigo", role: "Relay & friends",  color: "#f472b6", group_id: "g-sharing",  order_index: 1, bio: bioFriends }),
-    wikiAlter({ name: "16. Settings & themes",       alias: "set",   role: "Customisation",    color: "#6366f1", group_id: "g-personal", order_index: 0, bio: bioSettings }),
-    wikiAlter({ name: "17. Privacy & backup",        alias: "lock",  role: "Data scope",       color: "#4f46e5", group_id: "g-personal", order_index: 1, bio: bioPrivacy }),
+  // Make every wiki alter first so we can reference them by handle when
+  // assembling group.member_alter_ids.
+  const A = {
+    welcome:    wikiAlter({ name: "01. Welcome",                  alias: "start", role: "Index",            color: "#22d3ee", order_index: 0,  description: bioWelcome }),
+    gestures:   wikiAlter({ name: "02. Gestures cheatsheet",      alias: "swipe", role: "Shortcuts",        color: "#06b6d4", order_index: 1,  description: bioGestures }),
+    dashboard:  wikiAlter({ name: "03. Dashboard",                alias: "dash",  role: "Home screen",      color: "#a855f7", order_index: 2,  description: bioDashboard }),
+    altersPage: wikiAlter({ name: "04. Alters page & groups",     alias: "alt",   role: "Directory",        color: "#f59e0b", order_index: 3,  description: bioAltersGroups }),
+    editModes:  wikiAlter({ name: "05. Profile · edit modes",     alias: "edit",  role: "Profile editing",  color: "#f97316", order_index: 4,  description: bioEditModes }),
+    toolbar:    wikiAlter({ name: "06. Profile · mini toolbar",   alias: "tool",  role: "Toolbar reference",color: "#ea580c", order_index: 5,  description: bioMiniToolbar }),
+    fields:     wikiAlter({ name: "07. Profile · fields & tabs",  alias: "field", role: "Profile reference",color: "#dc2626", order_index: 6,  description: bioProfileFields }),
+    fronting:   wikiAlter({ name: "08. Fronting & switching",     alias: "front", role: "Sessions",         color: "#eab308", order_index: 7,  description: bioFronting }),
+    bulletin:   wikiAlter({ name: "09. Bulletin board",           alias: "post",  role: "Sharing wall",     color: "#ec4899", order_index: 8,  description: bioBulletinBoard }),
+    timeline:   wikiAlter({ name: "10. Timeline",                 alias: "time",  role: "Day-by-day view",  color: "#84cc16", order_index: 9,  description: bioTimeline }),
+    activities: wikiAlter({ name: "11. Activity Tracker",         alias: "act",   role: "Activities",       color: "#10b981", order_index: 10, description: bioActivities }),
+    checkIn:    wikiAlter({ name: "12. Quick Check-In",           alias: "ci",    role: "Daily capture",    color: "#14b8a6", order_index: 11, description: bioQuickCheckIn }),
+    todo:       wikiAlter({ name: "13. To-Do & plans",            alias: "todo",  role: "Tasks",            color: "#06b6d4", order_index: 12, description: bioTodo }),
+    reminders:  wikiAlter({ name: "14. Reminders & push",         alias: "ping",  role: "Notifications",    color: "#ef4444", order_index: 13, description: bioReminders }),
+    friends:    wikiAlter({ name: "15. Friends mode",             alias: "amigo", role: "Relay & friends",  color: "#f472b6", order_index: 14, description: bioFriends }),
+    settings:   wikiAlter({ name: "16. Settings & themes",        alias: "set",   role: "Customisation",    color: "#6366f1", order_index: 15, description: bioSettings }),
+    privacy:    wikiAlter({ name: "17. Privacy & backup",         alias: "lock",  role: "Data scope",       color: "#4f46e5", order_index: 16, description: bioPrivacy }),
+  };
+  const alters = Object.values(A);
+
+  // Groups own their members via `member_alter_ids` + `parent` + `order`.
+  // (Matches the Tapestry preview's shape; the alter entity has no
+  // group_id field.)
+  const groups = [
+    { id: uid("wiki-group"), name: "1 · Start Here",      color: "#22d3ee", description: "Welcome + the gestures cheatsheet. Read these first.",                          member_alter_ids: [A.welcome.id, A.gestures.id],                                                              parent: "root", order: 0 },
+    { id: uid("wiki-group"), name: "2 · Dashboard",       color: "#a855f7", description: "What every tile on the home screen does.",                                       member_alter_ids: [A.dashboard.id],                                                                           parent: "root", order: 1 },
+    { id: uid("wiki-group"), name: "3 · Alter profiles",  color: "#f59e0b", description: "The Alters page, profile edit modes, the mini-toolbar, profile fields, fronting.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.fronting.id],               parent: "root", order: 2 },
+    { id: uid("wiki-group"), name: "4 · Tracking",        color: "#10b981", description: "Timeline, Activity Tracker, Quick Check-In, To-Do.",                              member_alter_ids: [A.timeline.id, A.activities.id, A.checkIn.id, A.todo.id],                                  parent: "root", order: 3 },
+    { id: uid("wiki-group"), name: "5 · Sharing & relay", color: "#ec4899", description: "Bulletin board (internal) and Friends mode (opt-in cloud relay).",                member_alter_ids: [A.bulletin.id, A.friends.id],                                                              parent: "root", order: 4 },
+    { id: uid("wiki-group"), name: "6 · Notifications",   color: "#ef4444", description: "Reminder editor, scheduler, push pipeline + diagnostics.",                        member_alter_ids: [A.reminders.id],                                                                           parent: "root", order: 5 },
+    { id: uid("wiki-group"), name: "7 · Personal",        color: "#6366f1", description: "Settings, themes, privacy, backups.",                                             member_alter_ids: [A.settings.id, A.privacy.id],                                                              parent: "root", order: 6 },
   ];
 
   const settings = {
@@ -522,7 +528,7 @@ export function buildWiki() {
   return {
     SystemSettings:    toMap([settings]),
     Alter:             toMap(alters),
-    Group:             toMap(GROUPS),
+    Group:             toMap(groups),
     FrontingSession:   toMap([]),
     EmotionCheckIn:    toMap([]),
     Activity:          toMap([]),

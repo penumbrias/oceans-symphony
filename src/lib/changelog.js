@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "App Wiki preview alters were rendering blank and weren't grouped — the alter entity uses `description` (not `bio`) for the bio HTML, and groups own their members via `member_alter_ids` (not the other way round). Both are corrected and the 17 wiki bios + 7 group folders now show up properly.",
+      },
+      {
+        type: "fix",
+        text: "\"Revert to preset\" in Settings → Appearance no longer crashes the app. The crash was reading `colors.bg` when the resolved theme was undefined (e.g. when selectedTheme was still \"custom\" and customColors had just been cleared). The reading is now null-safe, and Revert falls back to a real preset if the captured originalTheme was also \"custom\".",
+      },
+      {
+        type: "fix",
+        text: "Picking a built-in preset after using Custom Colors used to revert to the custom colours every time the app reopened. The persistence effect only wrote customColors when set and never removed the localStorage entry when cleared, so the stale custom-color blob would override the preset on next load. Switching presets now properly clears the custom-color persistence.",
+      },
+      {
+        type: "fix",
+        text: "Grocery list \"Clear checked items\" now requires two taps within 4 seconds — first tap shows \"Tap again to clear\" in red, second tap actually deletes. Prevents accidental taps from wiping the list. The list still persists across sessions otherwise.",
+      },
+      {
         type: "improve",
         text: "Push notification diagnostics: added a \"Deep push test (30s)\" button next to the existing test. It sends a real push tagged with a unique ID, then listens for the service worker to echo it back via postMessage. Three possible outcomes: **delivered** (whole pipeline works — if no tray notification, the OS is suppressing display only), **sw_only** (server accepted the push but the SW never woke up within 30s — stale subscription or VAPID key mismatch or battery saver), or **send_failed** (server rejected the send). The regular Test push diagnostic also now compares build-time VITE_VAPID_PUBLIC_KEY against the server's VAPID_PUBLIC_KEY and surfaces a clear MISMATCH row if they differ — that's the silent killer where pushes look successful but never get delivered.",
       },
