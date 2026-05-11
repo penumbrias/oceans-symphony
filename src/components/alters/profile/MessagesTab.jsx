@@ -174,6 +174,13 @@ const postMessage = async () => {
 
   return (
     <div className="space-y-3">
+      {/* Help text — explains what the Board is. The Board is this {terms.alter}'s
+          in-app activity log: every bulletin or comment they author, every
+          journal entry, every check-in, every mention directed at them. */}
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        This {terms.alter}'s activity feed — every bulletin or comment they post, journals they author,
+        check-ins they make, and any @mentions directed at them. Tap any item to jump to it.
+      </p>
       {/* Search */}
       <input
         className="w-full h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
@@ -206,7 +213,7 @@ const postMessage = async () => {
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm">
           <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-20" />
-          Nothing here yet
+          Nothing here yet — anything this {terms.alter} posts, comments on, journals, or gets mentioned in will show up here.
         </div>
       ) : (
         <div className="space-y-2">

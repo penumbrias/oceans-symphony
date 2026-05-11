@@ -96,7 +96,7 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onT
   );
 }
 
-export default function PrivateMessagesTab({ alterId, alters, highlightMessageId }) {
+export default function PrivateMessagesTab({ alterId, alters, highlightMessageId, autoOpenCompose = false }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [composing, setComposing] = useState(false);
@@ -129,6 +129,18 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
       setFromAlterId(currentFronter.id);
     }
   }, [currentFronter, fromAlterId]);
+
+  // Triggered by the alter-profile header Message button (which sets
+  // ?compose=1 in the URL). Opens the compose form once on mount when
+  // that param is set, without continuously reopening it if the user
+  // closes it and the URL is still present.
+  const didAutoOpenRef = React.useRef(false);
+  React.useEffect(() => {
+    if (autoOpenCompose && !didAutoOpenRef.current) {
+      didAutoOpenRef.current = true;
+      setComposing(true);
+    }
+  }, [autoOpenCompose]);
 
   // Scroll to and highlight a specific message when arriving from a notification
   useEffect(() => {

@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Bio Blocks editor: blocks now actually reorder by dragging the grip handle at the left of the block header. Up/down chevron buttons are still there as a keyboard fallback. Powered by @dnd-kit/sortable.",
+      },
+      {
+        type: "fix",
+        text: "The \"Message\" button at the top of an alter's Board view used to do nothing — it set state with no listener. It now jumps to the alter's Messages tab and auto-opens the compose form.",
+      },
+      {
+        type: "improve",
+        text: "Lineage tab now also shows the alter's explicit relationships (\"trauma holder for\", \"twin\", \"split from\", etc.) alongside the system-change events, with arrows reflecting direction.",
+      },
+      {
+        type: "improve",
+        text: "Alter profile birthday field is just labeled \"Birthday\" now (was \"Birthday / Split date\"). Board tab has a short help line explaining it's the alter's activity feed — every bulletin, comment, journal, check-in, and mention they're part of.",
+      },
+      {
         type: "fix",
         text: "Bulletin posts, tasks, and comments now stay permanently tied to whoever wrote them — the front at post time, the signposted alters, or System if neither. Previously, when the record had no saved author it fell back to *current* fronters, so a post made by Kane would visually re-author itself to whoever was fronting when you scrolled past it later. The fallback is removed everywhere (BulletinCard, TaskBulletinCard, the standalone BulletinPage, and the comment thread).",
       },

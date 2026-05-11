@@ -5,6 +5,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 
 let _id = 0;
@@ -262,12 +265,31 @@ function AddBlockMenu({ onAdd, onClose }) {
   );
 }
 
-function BlockShell({ index, total, onMoveUp, onMoveDown, onDelete, label, children }) {
+function BlockShell({ id, index, total, onMoveUp, onMoveDown, onDelete, label, children }) {
+  // Wire the grip handle to @dnd-kit so the block reorders on drag. The
+  // chevron up/down buttons are kept as an accessibility fallback for
+  // keyboard / non-pointer users.
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.55 : 1,
+    zIndex: isDragging ? 5 : "auto",
+  };
   return (
-    <div className="group relative rounded-xl border border-border/40 bg-background overflow-hidden hover:border-border transition-colors">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group relative rounded-xl border border-border/40 bg-background overflow-hidden hover:border-border transition-colors"
+    >
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted/20 border-b border-border/30">
-        <span className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-          <GripVertical className="w-3 h-3 opacity-40" />{label}
+        <span
+          {...attributes}
+          {...listeners}
+          className="text-xs text-muted-foreground font-medium flex items-center gap-1.5 cursor-grab active:cursor-grabbing select-none touch-none"
+          title="Drag to reorder"
+        >
+          <GripVertical className="w-3 h-3 opacity-60" />{label}
         </span>
         <div className="flex items-center gap-0.5">
           <button type="button" onClick={onMoveUp} disabled={index === 0}
@@ -532,21 +554,39 @@ export default function BlockEditor({ value, onChange }) {
     setBlocks(bs => [...bs, { id: uid(), type, ...BLOCK_DEFAULTS[type] }]);
   }, []);
 
+  // Drag-to-reorder via @dnd-kit. Pointer sensor with a tiny activation
+  // distance so quick clicks on the grip don't get hijacked as drags.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setBlocks(bs => {
+      const oldIndex = bs.findIndex(b => b.id === active.id);
+      const newIndex = bs.findIndex(b => b.id === over.id);
+      if (oldIndex < 0 || newIndex < 0) return bs;
+      return arrayMove(bs, oldIndex, newIndex);
+    });
+  };
+
   return (
     <div className="space-y-2">
-      <div className="space-y-2">
-        {blocks.map((block, i) => (
-          <BlockShell key={block.id} index={i} total={blocks.length} label={blockLabel(block.type)}
-            onMoveUp={() => moveBlock(block.id, -1)} onMoveDown={() => moveBlock(block.id, 1)} onDelete={() => deleteBlock(block.id)}>
-            {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-            {block.type === "img-solo" && <ImgSoloBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-            {(block.type === "img-left" || block.type === "img-right") && <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-            {block.type === "gallery" && <GalleryBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-            {block.type === "divider" && <DividerBlock />}
-            {block.type === "raw" && <RawBlock block={block} onChange={b => updateBlock(block.id, b)} />}
-          </BlockShell>
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {blocks.map((block, i) => (
+              <BlockShell key={block.id} id={block.id} index={i} total={blocks.length} label={blockLabel(block.type)}
+                onMoveUp={() => moveBlock(block.id, -1)} onMoveDown={() => moveBlock(block.id, 1)} onDelete={() => deleteBlock(block.id)}>
+                {block.type === "text" && <TextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
+                {block.type === "img-solo" && <ImgSoloBlock block={block} onChange={b => updateBlock(block.id, b)} />}
+                {(block.type === "img-left" || block.type === "img-right") && <ImgTextBlock block={block} onChange={b => updateBlock(block.id, b)} />}
+                {block.type === "gallery" && <GalleryBlock block={block} onChange={b => updateBlock(block.id, b)} />}
+                {block.type === "divider" && <DividerBlock />}
+                {block.type === "raw" && <RawBlock block={block} onChange={b => updateBlock(block.id, b)} />}
+              </BlockShell>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
       <button type="button" onClick={() => setShowAddMenu(true)}
         className="w-full py-2 rounded-xl border-2 border-dashed border-border/50 hover:border-primary/40 hover:bg-primary/5 transition-colors flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-sm font-medium">
         <Plus className="w-4 h-4" /> Add block
