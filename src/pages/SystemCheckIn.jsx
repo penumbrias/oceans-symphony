@@ -231,10 +231,22 @@ export default function SystemCheckInPage() {
             <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Meeting</h1>
             <p className="text-muted-foreground text-sm mt-1">
 {(() => {
-  const [y, m, d] = currentCheckIn.date.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
-    weekday: "long", month: "long", day: "numeric", year: "numeric"
-  });
+  // Same fallback shape as the list view — older / preview records
+  // only have created_date.
+  let d2;
+  if (typeof currentCheckIn.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(currentCheckIn.date)) {
+    const [y, m, d] = currentCheckIn.date.split("-").map(Number);
+    d2 = new Date(y, m - 1, d);
+  } else if (currentCheckIn.created_date) {
+    d2 = new Date(currentCheckIn.created_date);
+  } else {
+    d2 = new Date();
+  }
+  return Number.isNaN(d2.getTime())
+    ? "Undated"
+    : d2.toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric"
+      });
 })()}
             </p>
           </div>
@@ -349,11 +361,25 @@ export default function SystemCheckInPage() {
           ) : (
             <div className="grid gap-3">
               {checkIns.map((checkIn) => {
-                const [y, m, d] = checkIn.date.split("-").map(Number);
-const date = new Date(y, m - 1, d);
-const formatted = date.toLocaleDateString("en-US", {
-  weekday: "short", month: "short", day: "numeric", year: "numeric",
-});
+                // `date` is the canonical YYYY-MM-DD field on the entity;
+                // `created_date` is a full ISO string set automatically by
+                // the backend on insert. Older records (and the Tapestry
+                // preview) only have created_date, so fall back rather
+                // than crash on `undefined.split(...)`.
+                let date;
+                if (typeof checkIn.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(checkIn.date)) {
+                  const [y, m, d] = checkIn.date.split("-").map(Number);
+                  date = new Date(y, m - 1, d);
+                } else if (checkIn.created_date) {
+                  date = new Date(checkIn.created_date);
+                } else {
+                  date = new Date();
+                }
+                const formatted = Number.isNaN(date.getTime())
+                  ? "Undated check-in"
+                  : date.toLocaleDateString("en-US", {
+                      weekday: "short", month: "short", day: "numeric", year: "numeric",
+                    });
                 return (
                   <Card key={checkIn.id} id={`item-${checkIn.id}`} className="hover:bg-card/80 transition-colors border-border/50">
                     <CardContent className="py-4 px-4 flex items-center justify-between">
