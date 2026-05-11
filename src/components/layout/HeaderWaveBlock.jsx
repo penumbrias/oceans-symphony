@@ -1,8 +1,10 @@
 import React from "react";
 
-// Animated wave block that fills the top half of the app header with a
+// Animated wave block that fills the header's upper portion with a
 // slightly lighter hue, ending in a wavy bottom edge that scrolls
-// slowly to the side — calm-waves vibe, deliberately understated.
+// slowly to the side — calm-waves vibe, deliberately understated but
+// distinct enough to read as a sky/water boundary rather than a
+// near-invisible wash.
 //
 // Two design choices worth noting:
 //   1. The wave path is drawn inside a 240-wide viewBox and the SVG is
@@ -10,20 +12,20 @@ import React from "react";
 //      keyframe slides the SVG from translateX(0) to translateX(-50%),
 //      i.e. by exactly one viewBox-width, then loops — so the motion
 //      is seamless because the path tiles to itself.
-//   2. The fill is hsl(var(--primary) / 0.08) so it picks up the
-//      user's accent colour at very low opacity — a wash rather than
-//      a feature.
+//   2. Fill is hsl(var(--primary) / 0.18) so it picks up the user's
+//      accent colour, visible enough that the sky/water boundary
+//      reads at a glance without dominating the chrome.
 //
-// Visual placement: parent header sets `position: relative` and
-// contains the title/icons; this component lays a layer behind them
-// with z-index: 0. Title/icons should be z-index ≥ 1 so the wave
-// passes behind their middle.
+// Visual placement: the wash sits in the top ~60% of the header so
+// the wave's trough crosses just below the centre of the title and
+// icons — gives the title a clearer "above the water" framing while
+// keeping the icons mostly below the wash.
 export default function HeaderWaveBlock() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 top-0 h-1/2 overflow-hidden"
-      style={{ zIndex: 0 }}
+      className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden"
+      style={{ zIndex: 0, height: "62%" }}
     >
       <svg
         className="absolute top-0 left-0 h-full app-header-wave-slide"
@@ -35,19 +37,18 @@ export default function HeaderWaveBlock() {
             left edge along y≈22, tiling at every 60 units so x=240
             lands at exactly the same phase as x=0. */}
         <path
-          d="M0 0 L240 0 L240 22 Q225 18 210 22 T180 22 T150 22 T120 22 T90 22 T60 22 T30 22 T0 22 Z"
+          d="M0 0 L240 0 L240 22 Q225 17 210 22 T180 22 T150 22 T120 22 T90 22 T60 22 T30 22 T0 22 Z"
           fill="hsl(var(--primary))"
-          fillOpacity="0.09"
+          fillOpacity="0.18"
         />
-        {/* A second, slightly darker stroke along the wave edge so it
-            reads as a distinct boundary even on themes where the fill
-            is nearly invisible. */}
+        {/* A second, darker stroke along the wave edge so the boundary
+            reads clearly even on themes where the fill is muted. */}
         <path
-          d="M0 22 Q15 18 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22"
+          d="M0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22"
           fill="none"
           stroke="hsl(var(--primary))"
-          strokeOpacity="0.35"
-          strokeWidth="0.8"
+          strokeOpacity="0.55"
+          strokeWidth="1"
         />
       </svg>
     </div>
