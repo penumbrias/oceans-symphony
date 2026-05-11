@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Dashboard crashed in preview mode (and any time a pinned to-do had a full-ISO due_date) because the Pinned strip's row was naively appending \"T00:00:00\" to the date string and feeding the result to `new Date()`. For ISO timestamps that produced \"…ZT00:00:00\" — Invalid Date — and `format()` threw, taking the dashboard with it. Now uses a robust parser that handles both YYYY-MM-DD and full ISO shapes.",
+      },
+      {
+        type: "fix",
         text: "Set Fronters modal was rendering empty (just the title bar) during the feature tour because the tour disables Radix's modal backdrop so the tour buttons stay tappable — without the backdrop, the page behind bled through and the modal looked broken. The dialog now paints its own scrim at z-40 while the tour is active, so modals stay readable as proper modals during walkthrough steps.",
       },
       {
