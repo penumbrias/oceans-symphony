@@ -92,6 +92,22 @@ body {
   }
 }
 
+/* ─── App header decoration ──────────────────────────────────────────
+ * Replaces the default flat border-b with a soft horizontal gradient
+ * wash (primary tint, fading at the edges) plus a thin wavy underline
+ * drawn in the primary colour from an inline SVG inside the header.
+ * Quiet enough to read as decoration rather than chrome, distinct
+ * enough that the bar doesn't look like every other Base44 app.
+ */
+.app-header-wave {
+  background-image:
+    linear-gradient(90deg,
+      hsl(var(--primary) / 0.06) 0%,
+      hsl(var(--primary) / 0) 30%,
+      hsl(var(--primary) / 0) 70%,
+      hsl(var(--primary) / 0.06) 100%);
+}
+
 /* Prevent text from overflowing button/card boundaries at any font scale */
 button, [role="button"] {
   overflow-wrap: break-word;

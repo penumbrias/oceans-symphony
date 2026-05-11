@@ -9,6 +9,7 @@ import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
+import HeaderWave from "@/components/layout/HeaderWave";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
@@ -248,8 +249,9 @@ const handleNotifClick = (mentionLog) => {
       <AnnouncementBanner />
 
       {/* ── Desktop top header (hidden on mobile) ── */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl hidden sm:block">
-        <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block app-header-wave">
+        <HeaderWave />
+        <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between relative">
           <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Symphony home">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
@@ -305,8 +307,9 @@ const handleNotifClick = (mentionLog) => {
       </header>
 
       {/* ── Mobile top bar (shown only on mobile) ── */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col">
-        <div className="flex items-center justify-between px-2 h-14">
+      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col app-header-wave">
+        <HeaderWave />
+        <div className="flex items-center justify-between px-2 h-14 relative">
         {/* Left: back button or logo */}
         {canGoBack ?
         <button

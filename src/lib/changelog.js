@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Restyled the top header bar so the app doesn't read as a generic Base44 template. Replaced the flat hairline border with a soft horizontal gradient wash in the primary theme colour, plus a thin double-sine wave drawn in the same colour along the bottom edge. The wave is abstract geometry, not literally aquatic, and tints itself to whatever primary colour the user has set.",
+      },
+      {
+        type: "improve",
         text: "Sweep through the codebase to honour user-configured terminology. Reminders (warnings, scope labels, instance cards), the activity log/plan modal (\"Who was fronting?\"), session popovers (\"Primary fronter\", \"Triggered switch\"), the alter card title tooltip and demote toast, the Set Fronters modal, the data backup category list, the report builder/preview section labels, the noteworthy thresholds page, the Privacy page (Simply Plural + Friends sections), the dashboard fronters panel, and the sidebar's history link — all now respect your custom words for system, alter, fronting, fronter, switch, etc.",
       },
       {
