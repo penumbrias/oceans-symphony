@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Smaller gap between the header and the page content (mobile header shrunk back to h-14, Dashboard top padding removed). The Tour button on the Dashboard no longer trails a sparkle emoji.",
+      },
+      {
+        type: "fix",
+        text: "Made the Dashboard's \"notification history\" button visually distinct from the global Reminders bell — it now uses an Inbox icon instead of a bell, so the two buttons at the top of the screen are easier to tell apart.",
+      },
+      {
+        type: "fix",
+        text: "Notification History modal: \"Clear all\" no longer overlaps the dialog's own close (X) button — the header reserves padding on the right so the two controls don't collide.",
+      },
+      {
+        type: "improve",
         text: "Header wave block tuned: the wash is now visible enough to clearly read as a sky / water boundary instead of a near-invisible tint (fill opacity ~2× higher, edge stroke noticeably darker). Wave extends a bit lower in the header so its trough sits just under the centre of the title rather than slicing through it. Restored a thin bottom border on the header to match the divider style used on the bottom tab bar.",
       },
       {

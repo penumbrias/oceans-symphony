@@ -67,16 +67,18 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <Bell className="w-4 h-4 text-primary" />
-              Notification History
+          {/* Reserve room on the right for Radix's own X close button so
+              "Clear all" doesn't sit directly underneath it. */}
+          <div className="flex items-center justify-between gap-3 pr-8">
+            <DialogTitle className="flex items-center gap-2 min-w-0">
+              <Bell className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="truncate">Notification History</span>
             </DialogTitle>
             {rawLogs.length > 0 && (
               <button
                 onClick={handleClearAll}
                 disabled={clearing}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 flex-shrink-0"
                 title="Delete all notification history"
               >
                 {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}

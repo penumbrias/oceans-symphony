@@ -314,7 +314,7 @@ const handleNotifClick = (mentionLog) => {
           title and the icons, like a horizon line. */}
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col border-b border-border/50">
         <HeaderWaveBlock />
-        <div className="flex items-center justify-between px-2 h-16 relative" style={{ zIndex: 1 }}>
+        <div className="flex items-center justify-between px-2 h-14 relative" style={{ zIndex: 1 }}>
           {/* Left: back button or menu icon */}
           {canGoBack ?
             <button
