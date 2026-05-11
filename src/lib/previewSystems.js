@@ -1131,7 +1131,23 @@ function buildTapestry() {
 // Public registry — each system declares its key, name, blurb, theme + font,
 // and a builder function so data is freshly generated relative to "now" each
 // time Preview Mode is enabled.
+// Wiki preview is the walkthrough variant — every alter's profile is a
+// docs page for one part of the app. The banner shows "walkthrough up to
+// date with vX.Y.Z" while this preset is active (keyed on `wiki: true`).
+import { buildWiki } from "./previewWiki";
+
 export const PREVIEW_SYSTEMS = [
+  {
+    key: "wiki",
+    wiki: true,
+    name: "App Wiki",
+    blurb: "A wiki-style walkthrough. Every alter's profile in this example system is a docs page for one part of the app — Dashboard, the alter profile edit modes, the mini-toolbar, bulletin board, timeline, activity tracker, reminders, friends mode, and more. Read at your own pace. The banner shows which app version the walkthrough was last refreshed against.",
+    termsLabel: "system / alter / fronting / switching",
+    theme: "cool",
+    font:  "'Atkinson Hyperlegible', sans-serif",
+    themeMode: null,
+    build: buildWiki,
+  },
   {
     key: "tapestry",
     name: "The Tour",

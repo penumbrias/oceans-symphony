@@ -16,8 +16,12 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "feature",
+        text: "**App Wiki preview** — Preview Mode now has a new \"App Wiki\" example system whose alters' profiles are a walkthrough of the whole app. 17 wiki alters across seven categories: Start Here (Welcome + Gestures cheatsheet), Dashboard, Alter profiles (page tour + edit modes + mini-toolbar reference + fields & tabs + fronting), Tracking (Timeline + Activity Tracker + Quick Check-In + To-Do), Sharing & relay (Bulletin Board + Friends Mode), Notifications (Reminders + push diagnostics), and Personal (Settings & themes + Privacy & backup). Tour preserved as a second option. Wiki banner shows the app version the walkthrough is current with.",
+      },
+      {
         type: "improve",
-        text: "Preview Mode banner now shows which app version the walkthrough text is up to date with — currently v0.5.5. The wiki-style walkthrough preview (built on top of the existing example system) will roll out in follow-up commits, with each preview alter dedicated to one app area: Dashboard, the alter profile edit modes, the mini-toolbar, bulletin board, timeline, activity tracker, reminders, friends mode, and so on. The banner version tag tells users when a wiki section was last refreshed.",
+        text: "Preview Mode banner now shows which app version the walkthrough text is up to date with — currently v0.6.0. The wiki-style walkthrough preview (built on top of the existing example system) will roll out in follow-up commits, with each preview alter dedicated to one app area: Dashboard, the alter profile edit modes, the mini-toolbar, bulletin board, timeline, activity tracker, reminders, friends mode, and so on. The banner version tag tells users when a wiki section was last refreshed.",
       },
       {
         type: "improve",
