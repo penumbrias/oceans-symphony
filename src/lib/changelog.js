@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Sweep \"ghost active\" fronting sessions on Set Fronters open and on clear-via-Unsure. These were rows where `is_active` had been flipped to false but `end_time` was still null — they appeared as Active in the Timeline popover but couldn't be ended via the Set Fronters modal because the modal's query only sees `is_active: true`. The sweep sets `end_time = now` for any such orphan so they stop displaying as Active, and the Timeline popover now also shows \"— (no end time)\" instead of \"Active\" for rows that are no longer is_active.",
+      },
+      {
+        type: "fix",
+        text: "Set Fronters modal no longer shows the previously-fronting alter as still selected after the front has been cleared. The modal's open-time refresh refetches active sessions, but if there were none, it used to leave whatever was already in state — so the last primary kept appearing as selected. Now it explicitly clears the in-modal primary / co-fronter selection when no active sessions exist.",
+      },
+      {
         type: "improve",
         text: "Smaller gap between the header and the page content (mobile header shrunk back to h-14, Dashboard top padding removed). The Tour button on the Dashboard no longer trails a sparkle emoji.",
       },

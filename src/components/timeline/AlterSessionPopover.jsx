@@ -115,6 +115,11 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   if (!s) return null;
   const start = parseDate(s.start_time);
   const end = s.end_time ? parseDate(s.end_time) : null;
+  // A session reads as "Active" only when the rest of the app would also
+  // count it as active (is_active === true AND end_time is null). A row
+  // with is_active: false but no end_time is an orphan — show it as
+  // ended-with-no-recorded-time rather than misleadingly Active.
+  const isLive = !end && s.is_active === true;
   const durationMins = end ? differenceInMinutes(end, start) : differenceInMinutes(new Date(), start);
 
   return (
@@ -140,7 +145,13 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Ended</p>
-              <p className="font-medium">{end ? format(end, "h:mm a") : <span className="text-primary italic">Active</span>}</p>
+              <p className="font-medium">{
+                end
+                  ? format(end, "h:mm a")
+                  : (isLive
+                      ? <span className="text-primary italic">Active</span>
+                      : <span className="text-muted-foreground italic">— (no end time)</span>)
+              }</p>
             </div>
           </div>
           <div>
