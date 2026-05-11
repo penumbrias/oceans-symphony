@@ -35,9 +35,22 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 const DialogContent = React.forwardRef(({ className, children, onInteractOutside, style, ...props }, ref) => {
   const keyboardInset = useKeyboardInset();
+  // Manual backdrop for tour mode: Radix's `modal={false}` (used while the
+  // feature tour is active so tour buttons remain tappable) suppresses the
+  // built-in Overlay. Without it, the page behind the dialog bleeds through
+  // and the modal appears empty / transparent. Re-add a visible scrim at a
+  // z-index just below the dialog content so the user can still see the
+  // modal as a proper modal.
+  const inTour = typeof window !== 'undefined' && window.__tourActive;
   return (
   <DialogPortal>
     <DialogOverlay />
+    {inTour && (
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 z-40 bg-black/40 pointer-events-none data-[state=open]:animate-in data-[state=open]:fade-in-0"
+      />
+    )}
     <DialogPrimitive.Content
       ref={ref}
       // When the tour is active, block outside-click dismissal so tapping the

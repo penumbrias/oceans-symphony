@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Set Fronters modal was rendering empty (just the title bar) during the feature tour because the tour disables Radix's modal backdrop so the tour buttons stay tappable — without the backdrop, the page behind bled through and the modal looked broken. The dialog now paints its own scrim at z-40 while the tour is active, so modals stay readable as proper modals during walkthrough steps.",
+      },
+      {
+        type: "improve",
+        text: "Filled out the Tapestry example system (the non-wiki preview) so screenshots have more to show: reminders rewritten in the modern schema with a mix of trigger types (scheduled, interval, contextual, event) and inline actions; ~18 more activities scattered across the past month so the Month + Year views render populated; a couple of pinned and urgent to-dos so the Dashboard Pinned strip surfaces something interesting, plus one with a scheduled_at so it shows on the activity grid as a real block.",
+      },
+      {
         type: "improve",
         text: "Moved the 🛒 Grocery list button from the dashboard header into the sidebar drawer header (next to the X close button). One less icon at the top of the dashboard. Still openable via triple-tap anywhere on the screen, and via the View/Add grocery list quick actions if you've configured them.",
       },

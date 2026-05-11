@@ -372,6 +372,26 @@ function buildTapestry() {
     rec({ timestamp: isoOffset(10, 19),activity_name: "Reading",         duration_minutes: 50, color: "#0ea5e9" }),
     rec({ timestamp: isoOffset(11, 16),activity_name: "Game night",      duration_minutes: 120, color: "#a855f7" }),
     rec({ timestamp: isoOffset(13, 10),activity_name: "Long walk",       duration_minutes: 80, color: "#10b981" }),
+    // Extra activities scattered through the rest of the month so the
+    // Month and Year views look populated for screenshots.
+    rec({ timestamp: isoOffset(14, 9),  activity_name: "Yoga",            duration_minutes: 35, color: "#65a30d" }),
+    rec({ timestamp: isoOffset(15, 14), activity_name: "Therapy session", duration_minutes: 50, color: "#7c3aed" }),
+    rec({ timestamp: isoOffset(15, 18), activity_name: "Cooking",         duration_minutes: 75, color: "#65a30d", notes: "Halo + Iris on a slow stew." }),
+    rec({ timestamp: isoOffset(16, 11), activity_name: "Composing",       duration_minutes: 100, color: "#ec4899", notes: "Mira working on the second movement." }),
+    rec({ timestamp: isoOffset(17, 13), activity_name: "Park visit",      duration_minutes: 60, color: "#10b981" }),
+    rec({ timestamp: isoOffset(18, 17), activity_name: "Code editor",     duration_minutes: 95, color: "#06b6d4" }),
+    rec({ timestamp: isoOffset(19, 19), activity_name: "Reading",         duration_minutes: 45, color: "#0ea5e9" }),
+    rec({ timestamp: isoOffset(20, 10), activity_name: "Errands",         duration_minutes: 90, color: "#fbbf24" }),
+    rec({ timestamp: isoOffset(20, 18), activity_name: "Movie night",     duration_minutes: 110, color: "#a855f7" }),
+    rec({ timestamp: isoOffset(21, 8),  activity_name: "Morning tea",     duration_minutes: 25, color: "#fde68a" }),
+    rec({ timestamp: isoOffset(21, 14), activity_name: "Drawing",         duration_minutes: 65, color: "#f43f5e" }),
+    rec({ timestamp: isoOffset(22, 16), activity_name: "Therapy session", duration_minutes: 50, color: "#7c3aed" }),
+    rec({ timestamp: isoOffset(23, 11), activity_name: "Walk",            duration_minutes: 45, color: "#10b981" }),
+    rec({ timestamp: isoOffset(24, 19), activity_name: "Cooking",         duration_minutes: 60, color: "#65a30d" }),
+    rec({ timestamp: isoOffset(25, 13), activity_name: "Game night",      duration_minutes: 140, color: "#a855f7", notes: "Whole system on the couch." }),
+    rec({ timestamp: isoOffset(26, 17), activity_name: "Composing",       duration_minutes: 70, color: "#ec4899" }),
+    rec({ timestamp: isoOffset(27, 10), activity_name: "Long walk",       duration_minutes: 95, color: "#10b981" }),
+    rec({ timestamp: isoOffset(28, 16), activity_name: "Reading",         duration_minutes: 55, color: "#0ea5e9" }),
   ];
 
   const journals = [
@@ -817,7 +837,12 @@ function buildTapestry() {
 
   // ── Tasks ──────────────────────────────────────────────────────────────
   const tasks = [
-    rec({ title: "Refill prescriptions",       completed: false, priority: "high",   due_date: isoOffset(-2, 17), assigned_alter_ids: [alters.atlas.id] }),
+    // A handful of urgent / pinned tasks so the Dashboard Pinned strip
+    // surfaces something interesting in screenshots, plus one with a
+    // scheduled_at so it renders on the activity grid as a 60-min block.
+    rec({ title: "Refill prescriptions",       completed: false, priority: "high",   due_date: isoOffset(-2, 17), assigned_alter_ids: [alters.atlas.id], is_urgent: true, pinned_to_dashboard: true, description: "Lithium + sertraline at the pharmacy down the block." }),
+    rec({ title: "Call therapist about the Thursday cancel", completed: false, priority: "high", due_date: isoOffset(-1, 12), assigned_alter_ids: [alters.atlas.id], is_urgent: true, description: "She's offline tomorrow — leave a voicemail." }),
+    rec({ title: "Compose lullaby for the inner-world bedtime ritual", completed: false, priority: "low", scheduled_at: isoOffset(-1, 20), assigned_alter_ids: [alters.mira.id], description: "Mira's idea. Forty minutes, piano only." }),
     rec({ title: "Email therapist",            completed: true,  priority: "medium", completed_date: isoOffset(1, 11), assigned_alter_ids: [alters.atlas.id] }),
     rec({ title: "Plan weekend hike",          completed: false, priority: "low",    due_date: isoOffset(-4, 9),  assigned_alter_ids: [alters.halo.id] }),
     rec({ title: "Call Mum",                   completed: false, priority: "medium" }),
@@ -849,11 +874,106 @@ function buildTapestry() {
   ];
 
   const reminders = [
-    rec({ label: "Morning meds",      schedule_time: "08:00", schedule_days: [0,1,2,3,4,5,6], is_active: true }),
-    rec({ label: "Evening journal",   schedule_time: "21:00", schedule_days: [0,1,2,3,4,5,6], is_active: true }),
-    rec({ label: "Therapy weekly",    schedule_time: "16:00", schedule_days: [3],             is_active: true }),
-    rec({ label: "Drink water",       schedule_time: "11:00", schedule_days: [1,2,3,4,5],     is_active: true }),
-    rec({ label: "Weekly system meeting", schedule_time: "19:00", schedule_days: [0],         is_active: true }),
+    // Mix of trigger types so the Reminders settings + inbox look populated
+    // in screenshots. All inactive triggering — these are display-only
+    // examples and the preview is in-memory anyway.
+    rec({
+      title: "Morning meds",
+      body: "Levothyroxine + vitamin D, on empty stomach.",
+      category: "meds",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["08:00"], days: [0, 1, 2, 3, 4, 5, 6] },
+      delivery_channels: ["in_app", "push"],
+      inline_actions: [{ label: "Mark taken", action_type: "dismiss" }],
+      is_active: true,
+    }),
+    rec({
+      title: "Evening journal",
+      body: "Five minutes — even one line counts.",
+      category: "habit",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["21:00"], days: [0, 1, 2, 3, 4, 5, 6] },
+      delivery_channels: ["in_app", "push"],
+      inline_actions: [{ label: "Open journal", action_type: "open_journal" }],
+      is_active: true,
+    }),
+    rec({
+      title: "Therapy session",
+      body: "Wednesday afternoon — check the safety plan beforehand.",
+      category: "appointment",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["16:00"], days: [3] },
+      delivery_channels: ["in_app", "push"],
+      inline_actions: [
+        { label: "Open safety plan", action_type: "open_route", payload: { path: "/safety-plan" } },
+      ],
+      is_active: true,
+    }),
+    rec({
+      title: "Drink water",
+      body: "Two glasses every couple of hours keeps things tolerable.",
+      category: "habit",
+      trigger_type: "interval",
+      trigger_config: { minutes: 120, active_window: { start: "10:00", end: "20:00" } },
+      delivery_channels: ["in_app"],
+      is_active: true,
+    }),
+    rec({
+      title: "Weekly system meeting",
+      body: "Sunday 7pm — quick roll-call + week ahead.",
+      category: "check_in",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["19:00"], days: [0] },
+      delivery_channels: ["in_app", "push"],
+      inline_actions: [
+        { label: "Start meeting", action_type: "open_route", payload: { path: "/system-checkin" } },
+      ],
+      is_active: true,
+    }),
+    rec({
+      title: "Check in after a switch",
+      body: "Quick grounding question — what's needed right now?",
+      category: "grounding",
+      trigger_type: "contextual",
+      trigger_config: { on: "alter_fronts", delay_minutes: 5 },
+      delivery_channels: ["in_app"],
+      inline_actions: [
+        { label: "Grounding exercise", action_type: "open_grounding" },
+        { label: "Quick check-in", action_type: "open_check_in" },
+      ],
+      is_active: true,
+    }),
+    rec({
+      title: "No front update for a while",
+      body: "It's been 6 hours — anyone want to log who's around?",
+      category: "check_in",
+      trigger_type: "contextual",
+      trigger_config: { on: "no_front_update", minutes: 360 },
+      delivery_channels: ["in_app"],
+      inline_actions: [{ label: "Set fronters", action_type: "open_set_front" }],
+      is_active: true,
+    }),
+    rec({
+      title: "Dentist",
+      body: "Annual cleaning. Bring the new insurance card.",
+      category: "appointment",
+      trigger_type: "event",
+      trigger_config: {
+        datetime: new Date(Date.now() + 5 * 86400000).setHours(14, 0, 0, 0) && new Date(Date.now() + 5 * 86400000).toISOString(),
+        pre_alerts: ["1d", "1h"],
+      },
+      delivery_channels: ["in_app", "push"],
+      is_active: true,
+    }),
+    rec({
+      title: "Move car for street sweeping",
+      body: "Tuesday + Friday 8am, otherwise it's a $75 ticket.",
+      category: "custom",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["07:30"], days: [2, 5] },
+      delivery_channels: ["in_app", "push"],
+      is_active: false,
+    }),
   ];
 
   const customEmotions = [
