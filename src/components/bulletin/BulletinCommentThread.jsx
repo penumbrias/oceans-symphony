@@ -89,7 +89,20 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     if (!text.trim()) return;
     setSaving(true);
     const { authorIds, cleanContent } = parseSignposts(text, alters);
-    const finalAuthorIds = authorIds.length > 0 ? authorIds : frontingAlterIds;
+    let finalAuthorIds = authorIds.length > 0 ? authorIds : frontingAlterIds;
+    // Defensive: if no @ signposts and the prop-passed frontingAlterIds is
+    // empty (the parent query might still be hydrating, or a session was
+    // just created and not yet propagated), refetch live so the comment
+    // isn't attributed to "System" while there's clearly a fronter set.
+    if (finalAuthorIds.length === 0) {
+      try {
+        const active = await base44.entities.FrontingSession.filter({ is_active: true });
+        const liveIds = active
+          .map(s => s.alter_id || s.primary_alter_id)
+          .filter(Boolean);
+        if (liveIds.length > 0) finalAuthorIds = liveIds;
+      } catch { /* fall through with the system-attributed save */ }
+    }
     const comment = await base44.entities.BulletinComment.create({
       bulletin_id: bulletinId,
       parent_comment_id: parentCommentId || null,

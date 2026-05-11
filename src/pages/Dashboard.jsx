@@ -122,18 +122,22 @@ export default function Dashboard() {
     queryFn: () => base44.entities.MentionLog.list("-created_date", 200)
   });
 
-  // Extract currently active alter IDs from active FrontingSession records
-  // Support both new individual model (alter_id) and legacy grouped model (primary_alter_id + co_fronter_ids)
+  // Extract currently active alter IDs from active FrontingSession records.
+  // Supports both new individual model (alter_id per row, is_primary flag)
+  // and legacy grouped model (primary_alter_id + co_fronter_ids). For the
+  // new model, the primary session is whichever row has is_primary === true
+  // — not just the first one in `-start_time` order, since that can put a
+  // co-fronter (the most recent join) ahead of the actual primary.
   const activeSessions = sessions.filter((s) => s.is_active);
   let frontingAlterIds = [];
   let currentAlterId = null;
 
   if (activeSessions.length > 0) {
     // New individual model: each session is one alter
-    if (activeSessions[0].alter_id) {
+    if (activeSessions.some(s => s.alter_id)) {
       frontingAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
-      // First active session's alter is the "primary"
-      currentAlterId = frontingAlterIds[0] || null;
+      const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
+      currentAlterId = primarySess?.alter_id || frontingAlterIds[0] || null;
     } else {
       // Legacy grouped model: sessions group multiple alters
       const firstSession = activeSessions[0];

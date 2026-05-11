@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Bulletin posts, bulletin comments, and quick tasks were sometimes attributed to \"System\" with no avatar even though someone was clearly fronting — this happened when the parent query was still hydrating (e.g. a post made right after page load) and the in-memory `frontingAlterIds` was momentarily empty. All three paths now do a defensive live-fetch of active fronting sessions before falling back to System, so authorship reflects who's actually fronting.",
+      },
+      {
+        type: "fix",
+        text: "Dashboard's \"primary fronter\" detection now picks the session marked `is_primary`, not just the first row sorted by start-time. With co-fronters joining/leaving, the most-recent row was sometimes a co-fronter rather than the actual primary, which leaked through into downstream consumers.",
+      },
+      {
+        type: "fix",
         text: "Editing a fronting session via the Timeline popover used to silently fail — there was no error toast on save, so if the backend rejected the update the modal stayed open with no feedback. Errors now surface as a toast, and a successful save shows \"Session ended\" / \"Session saved\". Added an \"End session now\" one-tap button on the popover itself so sessions stuck without an end time can be closed without going into the full Edit flow.",
       },
       {

@@ -129,7 +129,21 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     if (!content.trim()) return;
     setSaving(true);
     const { authorIds: signpostedIds, cleanContent } = parseSignposts(content, alters);
-    const finalAuthorIds = signpostedIds.length > 0 ? signpostedIds : frontingAlterIds;
+    let finalAuthorIds = signpostedIds.length > 0 ? signpostedIds : frontingAlterIds;
+    // Defensive live-fetch when the prop-passed front is empty — covers
+    // first-render hydration windows where the parent query hasn't
+    // returned yet, so a post made right after page load doesn't fall
+    // through to a "System"-attributed bulletin while someone is
+    // clearly fronting.
+    if (finalAuthorIds.length === 0) {
+      try {
+        const active = await base44.entities.FrontingSession.filter({ is_active: true });
+        const liveIds = active
+          .map(s => s.alter_id || s.primary_alter_id)
+          .filter(Boolean);
+        if (liveIds.length > 0) finalAuthorIds = liveIds;
+      } catch { /* fall through */ }
+    }
     const mentionedIds = extractMentionedIds(cleanContent);
 
     const data = {
