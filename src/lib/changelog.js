@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Header wave block tuned: the wash is now visible enough to clearly read as a sky / water boundary instead of a near-invisible tint (fill opacity ~2× higher, edge stroke noticeably darker). Wave extends a bit lower in the header so its trough sits just under the centre of the title rather than slicing through it. Restored a thin bottom border on the header to match the divider style used on the bottom tab bar.",
+      },
+      {
+        type: "improve",
         text: "Header redesign, take two. The top bar now has a faint primary-tinted wash on its top half with a wavy bottom edge that scrolls very slowly sideways — calm-waves motion, behind the title and icons so the wave line passes through the middle of them. The \"Oceans Symphony\" title is centered. New default heading font: DM Serif Display (similar high-contrast serif to Playfair, but distinct so the app doesn't look like every other Base44 template). Playfair is still selectable in Appearance → Heading Font for users who prefer it. The animation respects `prefers-reduced-motion` and pauses for users who've asked for less motion.",
       },
       {

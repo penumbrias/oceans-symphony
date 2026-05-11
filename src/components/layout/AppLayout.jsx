@@ -249,7 +249,7 @@ const handleNotifClick = (mentionLog) => {
       <AnnouncementBanner />
 
       {/* ── Desktop top header (hidden on mobile) ── */}
-      <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block">
+      <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block border-b border-border/50">
         <HeaderWaveBlock />
         <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between relative" style={{ zIndex: 1 }}>
           <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Symphony home">
@@ -312,7 +312,7 @@ const handleNotifClick = (mentionLog) => {
           button sits on the left and the bell+settings on the right.
           The wave's bottom edge crosses through the centre of the
           title and the icons, like a horizon line. */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col">
+      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col border-b border-border/50">
         <HeaderWaveBlock />
         <div className="flex items-center justify-between px-2 h-16 relative" style={{ zIndex: 1 }}>
           {/* Left: back button or menu icon */}
