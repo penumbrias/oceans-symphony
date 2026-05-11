@@ -63,7 +63,19 @@ const section = (title, body) => `
   <div style="font-size:0.92em;line-height:1.55;">${body}</div>
 `;
 
-const kbd = (text) => `<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">${text}</code>`;
+// HTML-escape so example HTML tags render as literal text inside the
+// code chip instead of being parsed as real tags. Without this,
+// kbd("<s>") would emit a real <s> tag that strikethroughs everything
+// after it; same for <strong>, <em>, etc.
+function esc(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const kbd = (text) => `<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">${esc(text)}</code>`;
 
 const tip = (body) => `
   <div style="border-left:3px solid hsl(var(--primary));margin:8px 0;padding:6px 10px;font-size:0.88em;opacity:0.85;">
@@ -129,7 +141,7 @@ const bioGestures = `
   ${section("Bio editor",
     `<ul style="padding-left:22px;line-height:1.6;">
       <li><strong>Drag</strong> the grip handle at the left of a block header → reorder blocks. Chevron up/down buttons are the keyboard fallback.</li>
-      <li>The pencil icon on the mini-toolbar (✎) wraps selected text in a <em>${'\\u003C'}span data-edit="true"${'\\u003E'}</em> region — that region becomes click-to-edit in Simple mode.</li>
+      <li>The pencil icon on the mini-toolbar (✎) wraps selected text in a <code style="font-family:monospace;font-size:0.9em;">&lt;span data-edit="true"&gt;</code> region — that region becomes click-to-edit in Simple mode.</li>
     </ul>`)}
   ${section("Privacy panic — triple-tap",
     `Tap the screen <strong>three times within 500 ms</strong>, anywhere, → the Grocery List privacy cover opens over the entire app. Looks like a generic to-do list; the bottom tab bar is fully hidden. Useful when you need to glance away without revealing what app you were using. The gesture is suppressed while you're typing in an input or textarea.`)}
@@ -193,7 +205,7 @@ const bioEditModes = `
   ${section("Plain",
     `Renders any custom HTML / template as-is and lets you freely edit the visible text. The mini-toolbar appears when you select; you can add formatting on top of an existing template without breaking its code. Good for: heavy edits, full rewrites, raw notes.`)}
   ${section("Simple",
-    `Same rendering as Plain but only text wrapped in <code style="font-family:monospace;font-size:0.9em;">${"\\u003C"}span data-edit="true"${"\\u003E"}</code> is editable. Everything else is read-only. Wrap a bit of your template's text in an editable region via the pencil icon (✎) on the mini-toolbar. Good for: shared templates where the layout shouldn't change but a few fields should.`)}
+    `Same rendering as Plain but only text wrapped in <code style="font-family:monospace;font-size:0.9em;">&lt;span data-edit="true"&gt;</code> is editable. Everything else is read-only. Wrap a bit of your template's text in an editable region via the pencil icon (✎) on the mini-toolbar. Good for: shared templates where the layout shouldn't change but a few fields should.`)}
   ${section("Blocks",
     `The structured editor. Add text blocks, image blocks (solo, left, right, gallery), dividers, raw HTML blocks. <strong>Drag the grip handle</strong> at the left of any block header to reorder; chevron buttons are a keyboard fallback. Most users live here.`)}
   ${section("Raw",

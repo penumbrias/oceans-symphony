@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "App Wiki: the mini-toolbar walkthrough alter had pages of text rendered as one giant strikethrough block, because the code-chip helper inserted example HTML tag text (\"<s>\", \"<strong>\", \"<em>\", etc.) without escaping — the browser parsed them as real formatting tags. Code chip examples now properly escape `<`, `>`, `&`, `\"`, so the wiki reads as documentation instead of as one long crossed-out paragraph.",
+      },
+      {
+        type: "fix",
         text: "App Wiki preview alters were rendering blank and weren't grouped — the alter entity uses `description` (not `bio`) for the bio HTML, and groups own their members via `member_alter_ids` (not the other way round). Both are corrected and the 17 wiki bios + 7 group folders now show up properly.",
       },
       {
