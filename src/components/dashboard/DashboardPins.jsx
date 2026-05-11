@@ -29,7 +29,7 @@ export default function DashboardPins() {
         <Pin className="w-3 h-3" /> Pinned
       </p>
       {pinned.map(b => (
-        b.bulletin_type === "task"
+        b.content?.match(/^\[task:/)
           ? <TaskBulletinCard key={b.id} bulletin={b} alters={alters} />
           : <BulletinCard key={b.id} bulletin={b} alters={alters} canDelete={false} />
       ))}

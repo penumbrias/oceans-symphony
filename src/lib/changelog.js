@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Pinned tasks on the Dashboard / Home Pinned strip now render as proper task cards (with checkbox, title, etc.) instead of raw bulletins showing the literal `[task:UUID]` prefix in the content. The Pinned strip was discriminating on `bulletin_type` but tasks are identified by a content prefix.",
+      },
+      {
         type: "improve",
         text: "Privacy & Data Notice clarified everywhere it appears (Settings, first-run setup, intro tour, feature tour). Now spells out that local mode is private by design — every record stays on this device only, with nothing uploaded, synced, or sent to any server — and that password encryption is an additional layer of security on top, not the only thing keeping data private.",
       },
