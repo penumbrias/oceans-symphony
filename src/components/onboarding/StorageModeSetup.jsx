@@ -217,7 +217,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
               <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground border-t border-amber-500/20 pt-3">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🔒 Local Storage</p>
-                  <p>Local mode is private by design: <strong className="text-foreground">by default, your data stays on this device only</strong> — nothing is uploaded, synced, or sent to any server. For even greater security you can turn on password encryption, which adds <strong className="text-foreground">AES-256-GCM encryption</strong> on top, with a key derived from a password you set. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
+                  <p>Oceans Symphony is private by design: <strong className="text-foreground">by default, your data stays on this device only</strong> — nothing is uploaded, synced, or sent to any server. For even greater security you can turn on password encryption, which adds <strong className="text-foreground">AES-256-GCM encryption</strong> on top, with a key derived from a password you set. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">👥 Friends Mode (opt-in)</p>
