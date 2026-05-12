@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
@@ -99,6 +99,48 @@ function localDatetimeToISO(val) {
   return new Date(year, month - 1, day, hour, minute, 0, 0).toISOString();
 }
 
+// Two-tap-confirm hard-delete button. First press arms it for 4 seconds
+// and shows a "Tap again to delete" warning; second press actually
+// removes the FrontingSession record. Used when a row keeps resurfacing
+// as a ghost and the user wants it gone permanently.
+function DeleteSessionButton({ session, queryClient, onDeleted }) {
+  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  useEffect(() => {
+    if (!armed) return undefined;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className={`w-full ${armed ? "border-destructive text-destructive" : "text-muted-foreground"}`}
+      disabled={deleting}
+      onClick={async () => {
+        if (!armed) { setArmed(true); return; }
+        setDeleting(true);
+        try {
+          await base44.entities.FrontingSession.delete(session.id);
+          toast.success("Session deleted");
+          queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+          queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+          onDeleted?.();
+        } catch (e) {
+          console.error("[AlterSessionInfo] delete failed", e);
+          toast.error(e?.message || "Failed to delete session");
+        } finally {
+          setDeleting(false);
+          setArmed(false);
+        }
+      }}
+    >
+      {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
+      {armed ? "Tap again to delete" : "Delete session"}
+    </Button>
+  );
+}
+
 export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   const infoResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   const [infoImgError, setInfoImgError] = useState(false);
@@ -166,7 +208,10 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
           {/* One-tap "End now" — handy when a session looks Active or has
               no end time recorded. Saves the user a trip into Edit and
               shows the actual error if the update fails so we don't end
-              up with the same "I can't end it" issue silently. */}
+              up with the same "I can't end it" issue silently.
+              Also sweeps OTHER ghost sessions for the same alter (any
+              row >12h old with no end_time) so the user doesn't have
+              to play whack-a-mole when there are multiple stale rows. */}
           {(isLive || (!end && !s.is_active)) && (
             <Button
               size="sm"
@@ -181,6 +226,25 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
                     end_time: now,
                     is_active: false,
                   });
+                  // Sweep other stale rows for the same alter — anything
+                  // missing end_time AND older than 12h is almost certainly
+                  // a ghost. Use a wide net since the user is explicitly
+                  // resolving stuck state.
+                  try {
+                    const others = await base44.entities.FrontingSession.filter({ alter_id: s.alter_id });
+                    const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
+                    for (const o of others || []) {
+                      if (o.id === s.id) continue;
+                      if (o.end_time) continue;
+                      const started = o.start_time ? new Date(o.start_time).getTime() : 0;
+                      if (started < twelveHoursAgo) {
+                        await base44.entities.FrontingSession.update(o.id, {
+                          end_time: now,
+                          is_active: false,
+                        });
+                      }
+                    }
+                  } catch { /* best-effort sweep */ }
                   toast.success("Session ended");
                   queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
                   queryClient.invalidateQueries({ queryKey: ["activeFront"] });
@@ -198,6 +262,11 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
               End session now
             </Button>
           )}
+
+          {/* Hard-delete escape hatch — for sessions that won't stay ended
+              (e.g. when there's no matching alter currently fronting and
+              the row keeps resurfacing). Two-tap confirm to avoid accidents. */}
+          <DeleteSessionButton session={s} queryClient={queryClient} onDeleted={onClose} />
 
           <div className="flex gap-2">
             {alter?.id && (

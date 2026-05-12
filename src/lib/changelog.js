@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Stuck 'ghost' fronting sessions that wouldn't stay ended (a record with no end_time that re-appeared on the Timeline every time you reopened it) now have two escape hatches in the session popover. 1) The existing 'End session now' button additionally sweeps every other ghost session for the same alter that's older than 12 hours, so ending one stuck row clears the whole pile in a single tap. 2) A new red 'Delete session' button (two-tap-confirm) hard-deletes the FrontingSession record outright for cases where ending alone doesn't make it disappear.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: v0.8.8 changelog claimed the Accessibility text-size grid was expanded but the actual options array didn't get updated in that commit — fixing it now. The Accessibility page now genuinely exposes Tiny through Huge (200%).",
       },
