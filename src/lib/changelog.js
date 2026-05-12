@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Dashboard grid defaults overhauled. Every page except 'Home' is now on the grid by default (added the missing To-Do List, System History, and Location History; dropped the redundant 'Home' tile since the grid lives on Home itself). Tiles are now ordered by intent — daily capture flow first (alters, meeting, timeline, journals, tasks, to-do, check-in log), then tracking, then system internals, then care, then sharing/reminders, then settings — instead of the previous random-looking order. Existing users with a custom layout keep their layout; the three new tiles get appended automatically.",
+      },
+      {
+        type: "improve",
         text: "Timeline event column now packs co-timed entries into horizontal lanes instead of stacking everything vertically — a batch of quick-tasks logged within seconds of each other shows up as a single row of small icons rather than a tall ladder, so you can tell at a glance that they all happened at roughly the same moment. Each event still expands into a full detail popup on tap.",
       },
       {
