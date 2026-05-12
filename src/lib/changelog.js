@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "PWA manifest was declaring the app under the 'health' category and describing it as 'built for dissociative systems', which Google Play's TWA classifier was reading as a medical-app declaration and rejecting the listing on Play Console Requirements grounds regardless of how the store listing was worded. Manifest category is now lifestyle/productivity/utilities, and the description and shortcut labels are reframed as a journaling/organizer app — the in-app feature names and behaviour are unchanged.",
+      },
+      {
+        type: "fix",
         text: "The /privacy page was showing a blank screen instead of the privacy policy. The page bypasses the normal app setup so it stays reachable before login, but that bypass was missing the React Query provider that the terminology hook depends on, so the component crashed on render. The provider is now included in the bypass, and the privacy policy loads correctly whether or not the app has been set up.",
       },
       {
