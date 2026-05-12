@@ -104,6 +104,26 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
+function relativeLuminance(hex) {
+  if (!hex) return 1;
+  const clean = hex.replace("#", "");
+  if (clean.length < 6) return 1;
+  const toLin = (n) => {
+    const c = n / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const r = toLin(parseInt(clean.substring(0, 2), 16));
+  const g = toLin(parseInt(clean.substring(2, 4), 16));
+  const b = toLin(parseInt(clean.substring(4, 6), 16));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(a, b) {
+  const l1 = relativeLuminance(a);
+  const l2 = relativeLuminance(b);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
 export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [], saveRef }) {
   const queryClient = useQueryClient();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -365,15 +385,39 @@ useEffect(() => {
                 {alter.alias && <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>}
                 {alter.pronouns && <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>}
                 {alter.birthday && <p className="text-xs" style={{ color: viewHeaderText ? `${viewHeaderText}99` : "hsl(var(--muted-foreground))" }}>🎂 {alter.birthday}</p>}
-                {alter.role && (
-                  <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
-                    style={{
-                      backgroundColor: viewHeaderText ? `${viewHeaderText}20` : (alter.color ? `${alter.color}20` : "hsl(var(--muted))"),
-                      color: viewHeaderText || alter.color || "hsl(var(--muted-foreground))",
-                    }}>
-                    {alter.role}
-                  </span>
-                )}
+                {alter.role && (() => {
+                  // Soft tint pill is the default look. When the alter's color is
+                  // too close to the rendered header backdrop (viewBgColor), the
+                  // tint + text collapse into the same wash — fall back to a
+                  // solid pill so the role stays readable. WCAG AA-large = 3:1.
+                  const pillColor = viewHeaderText || alter.color;
+                  const backdrop = viewBgColor;
+                  const lowContrast =
+                    !viewHeaderText &&
+                    pillColor &&
+                    backdrop &&
+                    contrastRatio(pillColor, backdrop) < 3;
+                  if (lowContrast) {
+                    return (
+                      <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
+                        style={{
+                          backgroundColor: pillColor,
+                          color: getContrastColor(pillColor),
+                        }}>
+                        {alter.role}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
+                      style={{
+                        backgroundColor: viewHeaderText ? `${viewHeaderText}20` : (alter.color ? `${alter.color}20` : "hsl(var(--muted))"),
+                        color: viewHeaderText || alter.color || "hsl(var(--muted-foreground))",
+                      }}>
+                      {alter.role}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
           </div>

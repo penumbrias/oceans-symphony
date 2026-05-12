@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Alter profile role pill was unreadable when the alter's color was similar to their header background color (e.g. a deep-purple alter with a deep-purple header wash) — both the soft tint and the text were the same hue, so the role chip disappeared into the backdrop. The pill now does a WCAG contrast check: if the role-text color and the header background are too close (ratio < 3:1, AA-large), it switches to a solid pill using the alter's color as the background and an automatically-picked black/white text color, so the chip stays visible while still showing the alter's color identity.",
+      },
+      {
+        type: "fix",
         text: "Grocery list / privacy cover header was being clipped under the iOS status bar on iPhones — the panel is `fixed inset-0` and didn't account for `env(safe-area-inset-top)`. The X close button and \"Grocery list\" title were overlapping the time / battery indicators. Added safe-area padding to the panel's top and bottom so the header clears the status bar and the input clears the home indicator.",
       },
     ],
