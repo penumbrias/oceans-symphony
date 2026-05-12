@@ -503,7 +503,7 @@ const TYPE_META = {
   symptom_checkin: { icon: "💊" },
 };
 
-function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth }) {
+function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth, tiedAlters = [] }) {
   const emotions = entry.data.emotions || [];
   const note = entry.data.note;
   const tap = useDoubleTap(onTap, onDoubleTap);
@@ -516,6 +516,14 @@ function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth }) {
       onClick={tap}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
       <div className="relative">
+        {tiedAlters.length > 0 && (
+          <div className="absolute -top-1 -right-1 z-10 flex items-center -space-x-1">
+            {tiedAlters.slice(0, 3).map(a => (
+              <span key={a.id} className="w-2 h-2 rounded-full border border-background"
+                style={{ backgroundColor: a.color || "#8b5cf6" }} title={a.alias || a.name} />
+            ))}
+          </div>
+        )}
         {emotions.length > 0 ? (
           <div className="flex flex-col gap-px">
             {note && <span style={{ fontSize: 8 }} className="text-muted-foreground leading-none">💭</span>}
@@ -655,6 +663,32 @@ export default function InfiniteTimeline({
     categories.forEach(c => { m[c.id] = c; });
     return m;
   }, [categories]);
+
+  // Fast lookup: alter id → alter object.
+  const altersByIdMap = useMemo(
+    () => Object.fromEntries((alters || []).map(a => [a.id, a])),
+    [alters]
+  );
+
+  // Which alters were active at a given moment? Used to tag symptom and
+  // emotion rows with the alter(s) tied to them — surfaced as a small
+  // colored-dot stack on the row and a full chip list in the details popup.
+  const altersAtTime = (timestamp) => {
+    if (!timestamp) return [];
+    const t = new Date(timestamp).getTime();
+    if (Number.isNaN(t)) return [];
+    const ids = new Set();
+    for (const s of sessions || []) {
+      const start = s.start_time ? new Date(s.start_time).getTime() : null;
+      const end   = s.end_time   ? new Date(s.end_time).getTime()   : Date.now();
+      if (start == null || Number.isNaN(start)) continue;
+      if (t < start || t > end) continue;
+      const aid = s.alter_id || s.primary_alter_id;
+      if (aid) ids.add(aid);
+      if (Array.isArray(s.co_fronter_ids)) s.co_fronter_ids.forEach(id => ids.add(id));
+    }
+    return [...ids].map(id => altersByIdMap[id]).filter(Boolean);
+  };
 
   const [collapsed, setCollapsed] = useState(!hasData);
   const [detailPopup, setDetailPopup] = useState(null); // { type, entry }
@@ -1435,8 +1469,9 @@ export default function InfiniteTimeline({
                            heightPx={heightPx}
                            rowH={rowH}
                            expanded={false}
-                           onTap={() => setSymptomDetailModal({ session, symptom })}
-                           onLongPress={() => setSymptomDetailModal({ session, symptom })}
+                           tiedAlters={altersAtTime(session?.start_time)}
+                           onTap={() => setSymptomDetailModal({ session, symptom, tiedAlters: altersAtTime(session?.start_time) })}
+                           onLongPress={() => setSymptomDetailModal({ session, symptom, tiedAlters: altersAtTime(session?.start_time) })}
                            onDoubleTap={() => setSymptomSessionPopover({ session, symptom, splitMins: entry.startMins })}
                          />
                        );
@@ -1475,6 +1510,7 @@ export default function InfiniteTimeline({
                         entry={entry}
                         topPx={entry.adjustedTop}
                         colWidth={emotionColWidth_actual}
+                        tiedAlters={(entry.data.fronting_alter_ids || []).map(id => altersByIdMap[id]).filter(Boolean)}
                         onTap={() => setDetailPopup({ type: "emotion", entry })}
                         onDoubleTap={() => navigate(`/checkin-log?id=${entry.id}`)}
                       />
@@ -1608,6 +1644,7 @@ export default function InfiniteTimeline({
         <SymptomDetailModal
           symptom={symptomDetailModal.symptom}
           session={symptomDetailModal.session}
+          tiedAlters={symptomDetailModal.tiedAlters || []}
           onClose={() => setSymptomDetailModal(null)}
         />
       )}
@@ -1652,6 +1689,7 @@ export default function InfiniteTimeline({
         const emotions = entry.data.emotions || [];
         const note = entry.data.note;
         const timeStr = `${String(Math.floor(entry.mins / 60)).padStart(2, '0')}:${String(entry.mins % 60).padStart(2, '0')}`;
+        const tied = (entry.data.fronting_alter_ids || []).map(id => altersByIdMap[id]).filter(Boolean);
         return (
           <DetailPopup icon="💭" timeStr={timeStr} onClose={() => setDetailPopup(null)}>
             {emotions.length > 0 && (
@@ -1660,6 +1698,20 @@ export default function InfiniteTimeline({
                   <span key={em} className="px-2 py-0.5 rounded-full text-white text-xs font-medium"
                     style={{ backgroundColor: emotionColor(em) }}>{em}</span>
                 ))}
+              </div>
+            )}
+            {tied.length > 0 && (
+              <div className="mb-2">
+                <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-1">Tied to</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {tied.map((a) => (
+                    <span key={a.id} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: `${a.color || "#8b5cf6"}20`, color: a.color || "#8b5cf6", border: `1px solid ${a.color || "#8b5cf6"}40` }}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: a.color || "#8b5cf6" }} />
+                      {a.alias || a.name}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
             {note && <p className="text-sm text-foreground whitespace-pre-wrap">{note}</p>}

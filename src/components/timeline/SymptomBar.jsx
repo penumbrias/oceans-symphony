@@ -21,7 +21,30 @@ function useDoubleTap(onSingleTap, onDoubleTap, ms = 280) {
   }, [onSingleTap, onDoubleTap, ms]);
 }
 
-export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, onTap, onDoubleTap, onLongPress }) {
+// Tiny stack of alter-color dots — a visible cue that this row is tied to
+// a specific alter or set of alters at the moment the symptom started.
+function AlterDotStack({ alters }) {
+  if (!alters || alters.length === 0) return null;
+  const shown = alters.slice(0, 3);
+  const extra = alters.length - shown.length;
+  return (
+    <div className="flex items-center -space-x-1" aria-hidden>
+      {shown.map((a) => (
+        <span
+          key={a.id}
+          className="w-2 h-2 rounded-full border border-background"
+          style={{ backgroundColor: a.color || "#8b5cf6" }}
+          title={a.alias || a.name}
+        />
+      ))}
+      {extra > 0 && (
+        <span className="text-[0.5rem] text-muted-foreground ml-1">+{extra}</span>
+      )}
+    </div>
+  );
+}
+
+export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, onTap, onDoubleTap, onLongPress, tiedAlters = [] }) {
   const sz = Math.max(24, Math.min(32, rowH * 0.5));
   const tap = useDoubleTap(onTap, onDoubleTap);
   const color = symptom?.color || "#8b5cf6";
@@ -81,13 +104,18 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
     >
       {/* Circle — always shown */}
       <div
-        className="rounded-full flex-shrink-0 flex items-center justify-center border-2 border-background"
-        style={{ width: sz, height: sz, backgroundColor: color, zIndex: 2, position: "relative" }}
+        className="rounded-full flex-shrink-0 flex items-center justify-center border-2 border-background relative"
+        style={{ width: sz, height: sz, backgroundColor: color, zIndex: 2 }}
         title={symptom?.label}
       >
         <span className="font-bold text-white" style={{ fontSize: Math.max(7, sz * 0.4) }}>
           {symptom?.label?.charAt(0)?.toUpperCase() || "S"}
         </span>
+        {tiedAlters.length > 0 && (
+          <div className="absolute -top-1 -right-1 z-10 bg-background/70 rounded-full px-0.5 backdrop-blur-sm">
+            <AlterDotStack alters={tiedAlters} />
+          </div>
+        )}
       </div>
 
       {/* Duration line — ALWAYS shown, behind expanded card */}
@@ -134,6 +162,17 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
           <p className="font-semibold leading-tight mb-1" style={{ fontSize: 9, color }}>
             {symptom?.label}
           </p>
+          {tiedAlters.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1">
+              {tiedAlters.map((a) => (
+                <span key={a.id} className="inline-flex items-center gap-0.5 px-1 rounded-full"
+                  style={{ fontSize: 8, backgroundColor: `${a.color || "#8b5cf6"}30`, color: a.color || "#8b5cf6" }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: a.color || "#8b5cf6" }} />
+                  {a.alias || a.name}
+                </span>
+              ))}
+            </div>
+          )}
           {startStr && (
             <p style={{ fontSize: 8, color, opacity: 0.8 }}>
               {startStr}{endStr ? ` → ${endStr}` : " → now"}
@@ -168,7 +207,7 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   );
 }
 
-function SymptomDetailModal({ symptom, session, onClose }) {
+function SymptomDetailModal({ symptom, session, onClose, tiedAlters = [] }) {
   const color = symptom?.color || "#8b5cf6";
   const snapshots = session?.severity_snapshots || [];
   const startStr = session?.start_time ? format(new Date(session.start_time), "h:mm aaa") : null;
@@ -208,6 +247,24 @@ function SymptomDetailModal({ symptom, session, onClose }) {
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {tiedAlters.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tied to</p>
+            <div className="flex flex-wrap gap-1.5">
+              {tiedAlters.map((a) => (
+                <span
+                  key={a.id}
+                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: `${a.color || "#8b5cf6"}20`, color: a.color || "#8b5cf6", border: `1px solid ${a.color || "#8b5cf6"}40` }}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: a.color || "#8b5cf6" }} />
+                  {a.alias || a.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Current severity */}
         {session?.current_severity != null && (
