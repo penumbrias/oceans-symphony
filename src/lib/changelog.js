@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The /privacy page was showing a blank screen instead of the privacy policy. The page bypasses the normal app setup so it stays reachable before login, but that bypass was missing the React Query provider that the terminology hook depends on, so the component crashed on render. The provider is now included in the bypass, and the privacy policy loads correctly whether or not the app has been set up.",
+      },
+      {
         type: "improve",
         text: "Dashboard grid defaults overhauled. Every page except 'Home' is now on the grid by default (added the missing To-Do List, System History, and Location History; dropped the redundant 'Home' tile since the grid lives on Home itself). Tiles are now ordered by intent — daily capture flow first (alters, meeting, timeline, journals, tasks, to-do, check-in log), then tracking, then system internals, then care, then sharing/reminders, then settings — instead of the previous random-looking order. Existing users with a custom layout keep their layout; the three new tiles get appended automatically.",
       },
