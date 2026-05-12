@@ -87,9 +87,18 @@ InfiniteTimeline uses absolute positioning. Column order (left to right):
 
 ---
 
-## Data Backup
+## Critical: Data Backup / Restore Coverage
 
-`src/components/settings/DataBackupRestore.jsx` defines which entities are backed up. When adding new local entities that users care about, add them to the backup list.
+`src/components/settings/DataBackupRestore.jsx` defines which entities are backed up. **Every new local entity that holds user data must ship in the same commit as its backup wiring.** Treat "added to ENTITY_NAMES + assigned to a category" as part of the entity's definition of done.
+
+**Two arrays must be updated together — getting only one wrong silently drops the entity from exports:**
+
+1. `ENTITY_NAMES` — the raw allow-list (gates which entities `getFullDbDump` will read).
+2. `EXPORT_CATEGORIES` — the user-facing checkbox grid. **The export iterator walks `EXPORT_CATEGORIES[].entities`, NOT `ENTITY_NAMES`.** An entity that's only in `ENTITY_NAMES` will never be exported. (This is exactly what happened with `GroceryItem` pre-v0.9.1 — registered but uncategorized, so user grocery lists were silently dropped from backups for months.)
+
+If the entity doesn't fit an existing category, add a new `EXPORT_CATEGORIES` entry rather than lumping unrelated things together.
+
+**Device-specific entities are intentionally excluded** — `FriendIdentity` (the user's friend-server identity, tied to a single browser), `PushSubscription` (per-browser push registration). Restoring them on a different device causes collisions or impersonation. If you add another device-bound entity, leave it out of both arrays AND document the exclusion in the comment block above `ENTITY_NAMES`.
 
 ---
 
