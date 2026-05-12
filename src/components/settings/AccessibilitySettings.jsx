@@ -25,10 +25,17 @@ const NAV_HEIGHT_OPTIONS = [
 ];
 
 const FONT_OPTIONS = [
-  { value: "sm",      label: "Small",       desc: "87.5% of default" },
+  { value: "xs3",     label: "Tiny",        desc: "50%" },
+  { value: "xs2",     label: "XS",          desc: "62.5%" },
+  { value: "xs",      label: "S−",          desc: "75%" },
+  { value: "sm",      label: "Small",       desc: "87.5%" },
   { value: "default", label: "Default",     desc: "100%" },
   { value: "lg",      label: "Large",       desc: "112.5% — easier to read" },
-  { value: "xl",      label: "Extra Large", desc: "125% — maximum readability" },
+  { value: "xl",      label: "XL",          desc: "125%" },
+  { value: "xl2",     label: "XXL",         desc: "137.5%" },
+  { value: "xl3",     label: "XXXL",        desc: "150%" },
+  { value: "xl4",     label: "XXXXL",       desc: "175%" },
+  { value: "xl5",     label: "Huge",        desc: "200% — maximum readability" },
 ];
 
 const TOUCH_OPTIONS = [

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: v0.8.8 changelog claimed the Accessibility text-size grid was expanded but the actual options array didn't get updated in that commit — fixing it now. The Accessibility page now genuinely exposes Tiny through Huge (200%).",
+      },
+      {
         type: "fix",
         text: "Accessibility settings page only had 4 text-size options (Small / Default / Large / Extra Large). The full set — Tiny through Huge (200%) — was added to Advanced Appearance but never made it onto the Accessibility page where it actually belongs. Accessibility now exposes all 11 sizes including the 175% and 200% options.",
       },
