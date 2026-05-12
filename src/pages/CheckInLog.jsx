@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import DiaryAnalyticsSummary from "@/components/diary/DiaryAnalyticsSummary";
 import { getCategoryMeta } from "@/lib/locationCategories";
+import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -489,7 +490,54 @@ function StatusNoteEntry({ sn }) {
   );
 }
 
-function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, diaryCardsByDate, highlightId, defaultExpanded, onDelete }) {
+// One entry from a FrontingSession's per-alter note / emotion / symptom array.
+// Read-only — sourced from the session record, not stored separately.
+function PerAlterEntry({ entry, altersById }) {
+  const alter = altersById[entry.alterId];
+  const color = alter?.color || "#8b5cf6";
+  const name = alter?.alias || alter?.name || "Unknown";
+  const AlterChip = () => (
+    <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-muted/40 border border-border/40 flex-shrink-0">
+      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+      {name}
+    </span>
+  );
+  if (entry.kind === "note") {
+    return (
+      <StandaloneEntry timestamp={entry.ts}>
+        <div className="flex items-start gap-2 min-w-0">
+          <AlterChip />
+          <span className="text-sm text-foreground/80 min-w-0">💬 {entry.payload.text}</span>
+        </div>
+      </StandaloneEntry>
+    );
+  }
+  if (entry.kind === "emotion") {
+    return (
+      <StandaloneEntry timestamp={entry.ts}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <AlterChip />
+          <EmotionPill em={entry.payload.label} />
+        </div>
+      </StandaloneEntry>
+    );
+  }
+  // symptom
+  const sym = entry.payload || {};
+  return (
+    <StandaloneEntry timestamp={entry.ts}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <AlterChip />
+        <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
+          style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
+          {sym.label}{sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}
+        </span>
+      </div>
+    </StandaloneEntry>
+  );
+}
+
+function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const dateObj = parseISO(date + "T12:00:00");
 
@@ -525,6 +573,13 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
     catch { return false; }
   });
 
+  // Per-alter session entries (notes / emotions / symptoms surfaced from
+  // FrontingSession). Read-only — drawn straight from the session records.
+  const dayPerAlterEntries = (perAlterEntries || []).filter(e => {
+    try { return format(new Date(e.ts), "yyyy-MM-dd") === date; }
+    catch { return false; }
+  });
+
   // Activities/locations within ±2min of a check-in are shown inside that CheckInCard.
   // Anything outside that window appears as its own standalone entry.
   const checkInTimes = checkIns.map(ci => new Date(ci.timestamp).getTime());
@@ -541,6 +596,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
   if (dayActivities.length > 0) summaryParts.push(`${dayActivities.length} activit${dayActivities.length !== 1 ? "ies" : "y"}`);
   if (dayLocations.length > 0) summaryParts.push(`${dayLocations.length} location${dayLocations.length !== 1 ? "s" : ""}`);
   if (dayDiaryCards.length > 0) summaryParts.push("diary logged");
+  if (dayPerAlterEntries.length > 0) summaryParts.push(`${dayPerAlterEntries.length} per-alter`);
 
   return (
     <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
@@ -575,6 +631,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
             ...standaloneActivities.map(act => ({ kind: "activity", data: act, ts: new Date(act.timestamp).getTime() })),
             ...standaloneLocations.map(loc => ({ kind: "location", data: loc, ts: new Date(loc.timestamp).getTime() })),
             ...dayStatusNotes.map(sn => ({ kind: "status", data: sn, ts: new Date(sn.timestamp).getTime() })),
+            ...dayPerAlterEntries.map(e => ({ kind: "per-alter", data: e, ts: new Date(e.ts).getTime() })),
           ].sort((a, b) => a.ts - b.ts).map((entry, i) => {
             if (entry.kind === "symptom") {
               return <SymptomUpdateEntry key={`sym-${entry.data.id || i}`} sc={entry.data} symptomsById={symptomsById} />;
@@ -587,6 +644,9 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
             }
             if (entry.kind === "status") {
               return <StatusNoteEntry key={`sn-${entry.data.id || i}`} sn={entry.data} />;
+            }
+            if (entry.kind === "per-alter") {
+              return <PerAlterEntry key={entry.data.id} entry={entry.data} altersById={altersById} />;
             }
             const ci = entry.data;
             const matchedDiaryCard = dayDiaryCards.find(dc => {
@@ -624,7 +684,8 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
               standaloneActivities.length +
               standaloneLocations.length +
               dayStatusNotes.length +
-              dayDiaryCards.length
+              dayDiaryCards.length +
+              dayPerAlterEntries.length
             }
           />
         </div>
@@ -680,8 +741,14 @@ export default function CheckInLog() {
     queryFn: () => localEntities.StatusNote.list(),
   });
 
+  const { data: frontingSessions = [] } = useQuery({
+    queryKey: ["frontingSessions"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
+  });
+
   const altersById = useMemo(() => Object.fromEntries(alters.map(a => [a.id, a])), [alters]);
   const symptomsById = useMemo(() => Object.fromEntries(symptoms.map(s => [s.id, s])), [symptoms]);
+  const perAlterEntries = useMemo(() => extractPerAlterEntries(frontingSessions), [frontingSessions]);
 
   const diaryCardsByDate = useMemo(() => {
     const grouped = {};
@@ -709,6 +776,7 @@ export default function CheckInLog() {
     activities.forEach(act => addDate(act.timestamp));
     locations.forEach(loc => addDate(loc.timestamp));
     statusNotes.forEach(sn => addDate(sn.timestamp));
+    perAlterEntries.forEach(e => addDate(e.ts));
 
     const result = [...allDates].map(date => {
       const cis = checkInsByDate[date] || [];
@@ -716,7 +784,7 @@ export default function CheckInLog() {
       return [date, cis];
     });
     return result.sort(([a], [b]) => b.localeCompare(a));
-  }, [checkIns, symptomCheckIns, activities, locations, statusNotes]);
+  }, [checkIns, symptomCheckIns, activities, locations, statusNotes, perAlterEntries]);
 
   const highlightDate = useMemo(() => {
     if (dateParam) return dateParam;
@@ -783,6 +851,7 @@ export default function CheckInLog() {
               allActivities={activities}
               allLocations={locations}
               allStatusNotes={statusNotes}
+              perAlterEntries={perAlterEntries}
               diaryCardsByDate={diaryCardsByDate}
               highlightId={highlightId}
               defaultExpanded={date === highlightDate || (!highlightId && !dateParam && date === byDate[0]?.[0])}

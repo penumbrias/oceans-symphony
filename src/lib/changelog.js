@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Per-alter notes, emotions, and symptoms — the things you log via the fronting-alter dropdown on the Dashboard, and the 'Note for X appears as 💬 on their timeline' field — now surface read-only in two new places: (1) the Check-In Log shows them on the same day timeline as your regular check-ins, with the alter's name + color chip on each entry; (2) the alter's Board tab gets a new 'Session' filter that lists every per-alter note / emotion / symptom they're associated with. No data is duplicated — both views render directly from the FrontingSession record.",
+      },
+      {
+        type: "feature",
         text: "Long-press a to-do (on the dashboard's Pinned strip or on the To-Do List page) to open a quick-actions sheet with the two most-changed toggles — Pin to dashboard and Mark as urgent — without having to open the full edit form. Tap to navigate as usual; press and hold for ~500ms to bring up the sheet.",
       },
       {
