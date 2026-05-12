@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Loader2, Pin, Zap } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
@@ -209,32 +210,27 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
               urgent to add it to the dashboard's pinned strip with an
               urgency badge regardless of pin state. */}
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, pinned_to_dashboard: !formData.pinned_to_dashboard })}
-              className="w-full flex items-center justify-between gap-2 text-sm font-medium"
-            >
+            <label className="w-full flex items-center justify-between gap-2 text-sm font-medium cursor-pointer">
               <span className="flex items-center gap-1.5">
                 <Pin className={`w-4 h-4 ${formData.pinned_to_dashboard ? "fill-primary text-primary" : ""}`} />
                 Pin to dashboard
               </span>
-              <span className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 ${formData.pinned_to_dashboard ? "bg-primary" : "bg-muted-foreground/30"}`}>
-                <span className={`w-4 h-4 rounded-full bg-background transition-transform ${formData.pinned_to_dashboard ? "translate-x-4" : "translate-x-0"}`} />
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, is_urgent: !formData.is_urgent })}
-              className={`w-full flex items-center justify-between gap-2 text-sm font-medium transition-colors ${formData.is_urgent ? "text-amber-500" : "text-foreground"}`}
-            >
+              <Switch
+                checked={!!formData.pinned_to_dashboard}
+                onCheckedChange={(v) => setFormData({ ...formData, pinned_to_dashboard: v })}
+              />
+            </label>
+            <label className={`w-full flex items-center justify-between gap-2 text-sm font-medium cursor-pointer transition-colors ${formData.is_urgent ? "text-amber-500" : "text-foreground"}`}>
               <span className="flex items-center gap-1.5">
                 <Zap className={`w-4 h-4 ${formData.is_urgent ? "fill-amber-500 text-amber-500" : ""}`} />
                 Mark as urgent
               </span>
-              <span className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 ${formData.is_urgent ? "bg-amber-500" : "bg-muted-foreground/30"}`}>
-                <span className={`w-4 h-4 rounded-full bg-background transition-transform ${formData.is_urgent ? "translate-x-4" : "translate-x-0"}`} />
-              </span>
-            </button>
+              <Switch
+                checked={!!formData.is_urgent}
+                onCheckedChange={(v) => setFormData({ ...formData, is_urgent: v })}
+                className="data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+              />
+            </label>
             <p className="text-xs text-muted-foreground">
               Urgent to-dos show in the Pinned strip at the top of the Dashboard until completed. Pinned (non-urgent) ones show there too, without the urgency styling.
             </p>

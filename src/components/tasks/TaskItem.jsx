@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 import { ChevronRight, Trash2, Edit2, CheckCircle2, Circle, Flag, Plus, Pin, Zap, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import TaskQuickActionsSheet from "./TaskQuickActionsSheet";
 
 export default function TaskItem({
   task,
@@ -36,11 +37,33 @@ export default function TaskItem({
     high: "text-red-500",
   };
 
+  const [quickOpen, setQuickOpen] = useState(false);
+  const longPressRef = useRef(null);
+  const startLongPress = () => {
+    longPressRef.current = setTimeout(() => {
+      longPressRef.current = null;
+      setQuickOpen(true);
+    }, 500);
+  };
+  const cancelLongPress = () => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  };
+
   return (
     <div className={`space-y-1 ${level > 0 ? "ml-4" : ""}`}>
       <div
+        onMouseDown={startLongPress}
+        onMouseUp={cancelLongPress}
+        onMouseLeave={cancelLongPress}
+        onTouchStart={startLongPress}
+        onTouchEnd={cancelLongPress}
+        onTouchMove={cancelLongPress}
+        onContextMenu={(e) => { e.preventDefault(); cancelLongPress(); setQuickOpen(true); }}
         className={cn(
-          "group flex items-start gap-3 p-3 rounded-lg border transition-all hover:bg-muted/30",
+          "group flex items-start gap-3 p-3 rounded-lg border transition-all hover:bg-muted/30 select-none",
           task.completed ? "bg-muted/20 border-border/50" : "border-border/60"
         )}
       >
@@ -192,6 +215,8 @@ export default function TaskItem({
           </Button>
         </div>
       </div>
+
+      <TaskQuickActionsSheet task={task} open={quickOpen} onOpenChange={setQuickOpen} />
 
       {/* Subtasks */}
       {isExpanded && subTasks.length > 0 && (

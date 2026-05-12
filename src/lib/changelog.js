@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Long-press a to-do (on the dashboard's Pinned strip or on the To-Do List page) to open a quick-actions sheet with the two most-changed toggles — Pin to dashboard and Mark as urgent — without having to open the full edit form. Tap to navigate as usual; press and hold for ~500ms to bring up the sheet.",
+      },
+      {
+        type: "fix",
+        text: "Pin to dashboard / Mark as urgent toggles inside the to-do edit form were hand-rolled with `bg-muted-foreground/30` for the off-state, which rendered nearly invisible against the surrounding card on dark themes. Replaced them with the (now-fixed) shadcn Switch component so the off-state has a real border + visible thumb, matching every other toggle in the app.",
+      },
+      {
         type: "fix",
         text: "Simply Plural import was dropping avatars for any member whose avatar was stored as a UUID rather than a full URL (common in larger / older systems where mobile uploads were saved as `avatarUuid`). The importer only read `avatarUrl` / `avatar_url`, so anything in `avatarUuid` was silently discarded. Added a CDN URL composer that builds `https://spaces.apparyllis.com/avatars/{system_uid}/{avatarUuid}` when only the UUID is present, falling back to an empty avatar if neither field is set. Applies to both regular alters and custom fronts.",
       },

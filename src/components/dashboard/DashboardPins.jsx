@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Pin, Zap, Flag, Clock } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import BulletinCard from "@/components/bulletin/BulletinCard";
 import TaskBulletinCard from "@/components/bulletin/TaskBulletinCard";
+import TaskQuickActionsSheet from "@/components/tasks/TaskQuickActionsSheet";
 
 // Robust due-date parser. Old records stored a YYYY-MM-DD string; newer
 // ones (and the Tapestry preview) store full ISO timestamps. Concatenating
@@ -81,10 +82,48 @@ export default function DashboardPins() {
 
 function PinnedTaskRow({ task }) {
   const urgent = !!task.is_urgent;
+  const navigate = useNavigate();
+  const [quickOpen, setQuickOpen] = useState(false);
+  const longPressRef = useRef(null);
+  const firedRef = useRef(false);
+  const startLongPress = () => {
+    firedRef.current = false;
+    longPressRef.current = setTimeout(() => {
+      longPressRef.current = null;
+      firedRef.current = true;
+      setQuickOpen(true);
+    }, 500);
+  };
+  const cancelLongPress = () => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  };
+  const handleClick = (e) => {
+    // If a long-press just fired, suppress the navigate that the
+    // implicit click would otherwise trigger.
+    if (firedRef.current) {
+      e.preventDefault();
+      firedRef.current = false;
+      return;
+    }
+    navigate(`/todo?id=${task.id}`);
+  };
   return (
-    <Link
-      to={`/todo?id=${task.id}`}
-      className={`block rounded-xl p-3 transition-colors ${
+    <>
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={handleClick}
+      onMouseDown={startLongPress}
+      onMouseUp={cancelLongPress}
+      onMouseLeave={cancelLongPress}
+      onTouchStart={startLongPress}
+      onTouchEnd={cancelLongPress}
+      onTouchMove={cancelLongPress}
+      onContextMenu={(e) => { e.preventDefault(); cancelLongPress(); setQuickOpen(true); }}
+      className={`block rounded-xl p-3 transition-colors cursor-pointer select-none ${
         urgent
           ? "bg-amber-500/10 border-l-4 border-amber-500 hover:bg-amber-500/15"
           : "bg-card border border-border/50 hover:bg-muted/30"
@@ -127,6 +166,8 @@ function PinnedTaskRow({ task }) {
           )}
         </div>
       </div>
-    </Link>
+    </div>
+    <TaskQuickActionsSheet task={task} open={quickOpen} onOpenChange={setQuickOpen} />
+    </>
   );
 }
