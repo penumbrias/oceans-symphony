@@ -106,15 +106,18 @@ const AuthenticatedApp = () => {
 
 
 function App() {
-  // Privacy page is always accessible — bypass all setup/unlock state
+  // Privacy page is always accessible — bypass all setup/unlock state.
+  // QueryClientProvider is required because <Privacy> uses useTerms() → useQuery().
   if (window.location.pathname === '/privacy') {
     return (
       <ThemeProvider>
-        <Router>
-          <Routes>
-            <Route path="/privacy" element={<Privacy />} />
-          </Routes>
-        </Router>
+        <QueryClientProvider client={queryClientInstance}>
+          <Router>
+            <Routes>
+              <Route path="/privacy" element={<Privacy />} />
+            </Routes>
+          </Router>
+        </QueryClientProvider>
       </ThemeProvider>
     );
   }
