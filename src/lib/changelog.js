@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Accessibility settings page only had 4 text-size options (Small / Default / Large / Extra Large). The full set — Tiny through Huge (200%) — was added to Advanced Appearance but never made it onto the Accessibility page where it actually belongs. Accessibility now exposes all 11 sizes including the 175% and 200% options.",
+      },
+      {
         type: "improve",
         text: "Task-bulletin cards pinned to the Dashboard now inherit the urgent-orange styling from their linked to-do — so when an urgent to-do is the one being rendered as a bulletin card (the de-dup case), it keeps the amber border + 'Urgent to-do' label instead of looking like a regular pinned task-bulletin.",
       },
