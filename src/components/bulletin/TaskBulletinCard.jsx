@@ -13,7 +13,7 @@ function parseTaskBulletin(content) {
   return null;
 }
 
-export default function TaskBulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = [], highlight }) {
+export default function TaskBulletinCard({ bulletin, alters, currentAlterId, frontingAlterIds = [], highlight, isUrgent = false }) {
   const qc = useQueryClient();
   const [toggling, setToggling] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -104,12 +104,19 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
   return (
     <div className={`border-2 border-dashed rounded-2xl p-3.5 transition-all ${
       highlight ? "border-primary/60 bg-primary/5" :
-      isCompleted ? "border-green-500/40 bg-green-500/5" : "border-border/60 bg-muted/15"
+      isCompleted ? "border-green-500/40 bg-green-500/5" :
+      isUrgent ? "border-amber-500/70 bg-amber-500/10 border-l-4 border-l-amber-500" : "border-border/60 bg-muted/15"
     }`}
       onMouseDown={onPressStart} onMouseMove={onPressMove} onMouseUp={onPressEnd} onMouseLeave={onPressEnd}
       onTouchStart={onPressStart} onTouchMove={onPressMove} onTouchEnd={onPressEnd} onTouchCancel={onPressEnd}
       style={{ touchAction: "pan-y" }}
     >
+      {isUrgent && !isCompleted && (
+        <div className="flex items-center gap-1 text-[0.625rem] uppercase tracking-wider font-semibold text-amber-500 mb-1">
+          <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+          Urgent to-do
+        </div>
+      )}
       <div className="flex items-start gap-3">
         <button
           onClick={handleToggle}

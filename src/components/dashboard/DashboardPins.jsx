@@ -87,12 +87,26 @@ export default function DashboardPins() {
         <PinnedTaskRow key={`task-${t.id}`} task={t} />
       ))}
 
-      {/* Pinned bulletins (and task-bulletins from the board) */}
-      {pinned.map(b => (
-        b.content?.match(/^\[task:/)
-          ? <TaskBulletinCard key={b.id} bulletin={b} alters={alters} />
-          : <BulletinCard key={b.id} bulletin={b} alters={alters} canDelete={false} />
-      ))}
+      {/* Pinned bulletins (and task-bulletins from the board). When a
+          task-bulletin's linked Task is flagged urgent, we surface the
+          urgent styling on the bulletin card itself — that way the
+          de-dup case (task + bulletin both pinned) doesn't lose the
+          urgent-orange visual cue. */}
+      {pinned.map(b => {
+        const taskMatch = b.content?.match(/^\[task:([^:\]]+)/);
+        if (taskMatch) {
+          const linkedTask = tasks.find(t => t.id === taskMatch[1]);
+          return (
+            <TaskBulletinCard
+              key={b.id}
+              bulletin={b}
+              alters={alters}
+              isUrgent={!!linkedTask?.is_urgent}
+            />
+          );
+        }
+        return <BulletinCard key={b.id} bulletin={b} alters={alters} canDelete={false} />;
+      })}
     </div>
   );
 }
