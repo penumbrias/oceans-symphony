@@ -574,11 +574,15 @@ function LocationBubble({ entry, topPx, colWidth, onTap }) {
   );
 }
 
-function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
+function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth, lane = 0, laneWidth = 24 }) {
   const tap = useDoubleTap(onTap, onDoubleTap);
   const meta = TYPE_META[entry.type] || { icon: "•" };
   const isTaskDone = entry.type === "task_done";
-  const showLabel = colWidth >= EVENT_DETAIL_MIN_WIDTH;
+  // When more than one event shares a row, only show the icon (no label
+  // chip) so the row stays compact horizontally. The full label is still
+  // available in the detail popup.
+  const showLabel = lane === 0 && colWidth >= EVENT_DETAIL_MIN_WIDTH;
+  const leftPx = 1 + lane * laneWidth;
 
   // Special rendering for symptom check-ins: list up to 3 symptoms ranked by severity
   if (entry.type === "symptom_checkin") {
@@ -587,11 +591,11 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
       .sort((a, b) => (b.checkIn.severity ?? -1) - (a.checkIn.severity ?? -1))
       .slice(0, 3);
     return (
-      <div className="absolute left-1 cursor-pointer z-10"
+      <div className="absolute cursor-pointer z-10"
         role="button"
         tabIndex={0}
         aria-label={`Symptom check-in — tap to view`}
-        style={{ top: topPx, userSelect: "none" }}
+        style={{ top: topPx, left: leftPx, userSelect: "none" }}
         onClick={tap}
         onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
         <div className="flex flex-col gap-px" style={{ maxWidth: colWidth - 8 }}>
@@ -622,11 +626,11 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth }) {
     entry.type === 'bulletin' ? 'Bulletin' :
     (entry.label || 'Task');
   return (
-    <div className="absolute left-1 cursor-pointer z-10"
+    <div className="absolute cursor-pointer z-10"
       role="button"
       tabIndex={0}
       aria-label={`${shortLabel}${entry.label && entry.label !== shortLabel ? `: ${entry.label}` : ""} — tap to view`}
-      style={{ top: topPx, userSelect: "none" }}
+      style={{ top: topPx, left: leftPx, userSelect: "none" }}
       onClick={tap}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}>
       {showLabel ? (
@@ -967,6 +971,10 @@ export default function InfiniteTimeline({
       if (inDay(mins)) entries.push({ mins, type: "checkin", id: c.id, label: "System Meeting", data: c });
     });
     bulletins.forEach((b) => {
+      // Task-bulletins (`[task:ID] title`) get surfaced via the task entry
+      // below — skip the duplicate bulletin entry so a single quick-task
+      // doesn't show up twice on the timeline (📌 + ✓).
+      if (typeof b.content === "string" && b.content.startsWith("[task:")) return;
       const mins = minutesInDay(parseDate(b.created_date), dayStart);
       if (inDay(mins)) entries.push({ mins, type: "bulletin", id: b.id, label: b.content?.slice(0, 40) || "Bulletin", data: b });
     });
@@ -1032,15 +1040,33 @@ export default function InfiniteTimeline({
     });
   }, [locationEntries, getTopPx]);
 
+  // Pack events into rows. Multiple events that fall at the same minute (or
+  // close enough that they'd otherwise overlap vertically) get assigned to
+  // separate horizontal "lanes" within the events column. We only push a
+  // new row down once every lane in the current row is occupied — so a
+  // batch of quick-tasks logged within seconds shows up as a single row
+  // of small icons rather than a tall vertical stack.
   const eventPositioned = useMemo(() => {
-    let minNext = -Infinity;
-    return eventEntries.map((entry) => {
+    const LANE_WIDTH = 24;
+    const maxLanes = Math.max(1, Math.floor(eventColWidth / LANE_WIDTH));
+    const rows = []; // { top, count }
+    const out = [];
+    for (const entry of eventEntries) {
       const raw = getTopPx(entry.mins);
-      const top = Math.max(raw, minNext);
-      minNext = top + MIN_EVENT_GAP;
-      return { ...entry, adjustedTop: top };
-    });
-  }, [eventEntries, getTopPx]);
+      // Try to land in an existing row whose top is within MIN_EVENT_GAP
+      // of where this entry wants to be AND that still has a free lane.
+      let row = rows.find(r => raw < r.top + MIN_EVENT_GAP && r.count < maxLanes);
+      if (!row) {
+        const lastTop = rows.length > 0 ? rows[rows.length - 1].top : -Infinity;
+        row = { top: Math.max(raw, lastTop + MIN_EVENT_GAP), count: 0 };
+        rows.push(row);
+      }
+      const lane = row.count;
+      row.count += 1;
+      out.push({ ...entry, adjustedTop: row.top, lane, laneWidth: LANE_WIDTH });
+    }
+    return out;
+  }, [eventEntries, getTopPx, eventColWidth]);
 
   const sortedSymptomSessions = useMemo(() => {
     return [...symptomSessions].sort((a, b) => {
@@ -1488,6 +1514,8 @@ export default function InfiniteTimeline({
                         key={entry.key}
                         entry={entry}
                         topPx={entry.adjustedTop}
+                        lane={entry.lane}
+                        laneWidth={entry.laneWidth}
                         colWidth={eventColWidth}
                         onTap={() => setDetailPopup({ type: "event", entry })}
                         onDoubleTap={() => {
@@ -1757,7 +1785,15 @@ export default function InfiniteTimeline({
           <DetailPopup icon={meta.icon} timeStr={timeStr} onClose={() => setDetailPopup(null)}>
             {entry.type === "journal" && <p className="text-sm font-semibold">{entry.label}</p>}
             {entry.type === "checkin" && <p className="text-sm font-semibold">System Meeting</p>}
-            {entry.type === "bulletin" && <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">{entry.data.content}</p>}
+            {entry.type === "bulletin" && (() => {
+              // Defensive: even though we filter task-bulletins out of the
+              // event column above, if one ever sneaks through (e.g. an
+              // older record) strip the `[task:ID] ` prefix so the raw
+              // identifier doesn't surface in the popup body.
+              const raw = entry.data.content || "";
+              const cleaned = raw.replace(/^\[task:[^\]]+\]\s*/, "");
+              return <p className="text-sm text-foreground whitespace-pre-wrap line-clamp-6">{cleaned}</p>;
+            })()}
             {(entry.type === "task" || entry.type === "task_done") && <p className="text-sm font-semibold">{entry.label}</p>}
             {entry.type === "symptom_checkin" && (
               <div className="space-y-1">

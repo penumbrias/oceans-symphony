@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Timeline event column now packs co-timed entries into horizontal lanes instead of stacking everything vertically — a batch of quick-tasks logged within seconds of each other shows up as a single row of small icons rather than a tall ladder, so you can tell at a glance that they all happened at roughly the same moment. Each event still expands into a full detail popup on tap.",
+      },
+      {
+        type: "fix",
+        text: "Quick-task bulletins (the `📊 Quick task` button on the Bulletin Board) were appearing twice on the Timeline — once as a 📌 bulletin entry showing the raw `[task:abc123…] title` content, and once as a ✓ task entry. The bulletin half is now suppressed since the task already represents the same record, and any stray task-bulletin that does slip through has its `[task:ID]` prefix stripped from the detail popup so the raw identifier doesn't leak into the UI.",
+      },
+      {
         type: "fix",
         text: "Backup & restore was silently dropping the Grocery list (and a couple of other entities) — `GroceryItem` was registered in the entity allow-list but never assigned to any export category, and the export iterator walks the categories rather than the allow-list. Added a new 'Grocery List' category, plus folded the previously-missing `SymptomDefinition` into 'Symptoms & Tracking' and `QuickAction` into 'Settings & Custom'. Existing backups taken before this fix won't have those entities — re-export to capture them. Also documented the two-array trap in CLAUDE.md so future entities don't slip through.",
       },
