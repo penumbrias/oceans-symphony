@@ -241,7 +241,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
                           className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted/50"
                         >
                           <span
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-[0.6875rem] font-semibold flex-shrink-0"
                             style={{ backgroundColor: r.color || "hsl(var(--muted))", color: "#fff" }}
                           >
                             {r.name?.[0] || "?"}

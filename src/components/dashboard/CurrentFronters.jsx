@@ -85,7 +85,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none hover:border-border hover:bg-muted/20 relative"
     >
       {swipeHint && (
-        <span className={`absolute top-1 right-2 text-[9px] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+        <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
           {swipeHint === "front" ? "Remove" : isPrimary ? "Demote" : "Promote"}
         </span>
       )}
@@ -109,18 +109,18 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
         )}
         {/* Note indicator — thought bubble on this alter's avatar */}
         {hasNote && !isPrimary && (
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-background border border-border/60 flex items-center justify-center text-[9px] leading-none">
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-background border border-border/60 flex items-center justify-center text-[0.5625rem] leading-none">
             💬
           </div>
         )}
         {hasNote && isPrimary && (
-          <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-background border border-border/60 flex items-center justify-center text-[9px] leading-none">
+          <div className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-background border border-border/60 flex items-center justify-center text-[0.5625rem] leading-none">
             💬
           </div>
         )}
         {/* Triggered indicator */}
         {isTriggered && (
-          <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-orange-500 border-2 border-background flex items-center justify-center text-[9px] leading-none">
+          <div className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-orange-500 border-2 border-background flex items-center justify-center text-[0.5625rem] leading-none">
             ⚡
           </div>
         )}
@@ -128,7 +128,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
 
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground truncate">{alter.name}</p>
-        <p className="text-[11px] text-muted-foreground truncate">
+        <p className="text-[0.6875rem] text-muted-foreground truncate">
           {isPrimary ? "Primary · " : `${coFronterLabel} · `}
           {startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "—"}
         </p>
@@ -339,7 +339,7 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
                     <button
                       key={n}
                       onClick={() => setSymptomValues(v => ({ ...v, [s.id]: v[s.id] === n ? 0 : n }))}
-                      className={`w-5 h-5 rounded text-[10px] border transition-colors ${
+                      className={`w-5 h-5 rounded text-[0.625rem] border transition-colors ${
                         (symptomValues[s.id] || 0) >= n
                           ? "bg-primary text-primary-foreground border-primary"
                           : "border-border text-muted-foreground"
@@ -541,7 +541,7 @@ export default function CurrentFronters({ alters }) {
     <>
       <div className="mb-4" data-tour="fronters-widget">
         {isDemo && (
-          <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[10px] text-primary/80 text-center">
+          <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[0.625rem] text-primary/80 text-center">
             Tour Preview — sample data
           </div>
         )}

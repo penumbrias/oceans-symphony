@@ -65,15 +65,15 @@ export default function MedicationChart({ filteredCards }) {
 
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div className="bg-muted/50 rounded-lg p-2 text-center">
-          <p className="text-muted-foreground text-[10px]">Rx Meds Taken</p>
+          <p className="text-muted-foreground text-[0.625rem]">Rx Meds Taken</p>
           <p className="font-semibold text-foreground">{rxTakenCount}/{data.length}</p>
         </div>
         <div className="bg-muted/50 rounded-lg p-2 text-center">
-          <p className="text-muted-foreground text-[10px]">Self-Harm Incidents</p>
+          <p className="text-muted-foreground text-[0.625rem]">Self-Harm Incidents</p>
           <p className="font-semibold text-destructive">{selfHarmCount}</p>
         </div>
         <div className="bg-muted/50 rounded-lg p-2 text-center">
-          <p className="text-muted-foreground text-[10px]">Avg Substances/Day</p>
+          <p className="text-muted-foreground text-[0.625rem]">Avg Substances/Day</p>
           <p className="font-semibold text-foreground">
             {(data.reduce((sum, d) => sum + d.substances_count, 0) / data.length).toFixed(1)}
           </p>

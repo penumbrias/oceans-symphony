@@ -129,7 +129,7 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
                       {!isDismissed && isForCurrentFronter && (
                         <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                       )}
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[0.625rem] text-muted-foreground">
                         {displayDate ? format(new Date(displayDate), "MM/dd/yyyy") : ""}
                       </span>
                     </div>
@@ -138,7 +138,7 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
                     <p className="text-xs text-muted-foreground line-clamp-2 italic">"{displayPreview}"</p>
                   )}
                   {isDismissed && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Seen</p>
+                    <p className="text-[0.625rem] text-muted-foreground mt-0.5">Seen</p>
                   )}
                 </div>
                 {!isDismissed && isForCurrentFronter && (

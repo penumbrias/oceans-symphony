@@ -163,7 +163,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
   return (
     <div>
       {isDemo && (
-        <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[10px] text-primary/80 text-center">
+        <div className="mb-2 px-2 py-1 rounded-md bg-primary/10 border border-primary/20 text-[0.625rem] text-primary/80 text-center">
           Tour Preview — sample {terms.alters}
         </div>
       )}
@@ -209,7 +209,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {/* Groups section — header always visible */}
         <div>
           <div className="flex items-center gap-2 mb-2 px-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Groups</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Groups</p>
             <div className="flex-1 h-px bg-border/50" />
             {groupControls(rootGroups.length > 0)}
           </div>
@@ -228,7 +228,7 @@ export default function AlterGrid({ alters, currentSession = null }) {
         {/* Alters list/grid */}
         <div>
           <div className="flex items-center gap-2 mb-3 px-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
             <div className="flex-1 h-px bg-border/50" />
             <div className="flex items-center gap-1">
               {/* View / column cycle */}

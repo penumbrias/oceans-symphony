@@ -6,7 +6,7 @@ const LS_NAV_HEIGHT    = "symphony_a11y_navHeight";
 const LS_FONT_FAMILY   = "symphony_a11y_fontFamily";
 const LS_HEADING_FONT  = "symphony_a11y_headingFont";
 
-const FONT_CLASSES  = ["a11y-text-xs3", "a11y-text-xs2", "a11y-text-xs", "a11y-text-sm", "a11y-text-lg", "a11y-text-xl", "a11y-text-xl2", "a11y-text-xl3"];
+const FONT_CLASSES  = ["a11y-text-xs3", "a11y-text-xs2", "a11y-text-xs", "a11y-text-sm", "a11y-text-lg", "a11y-text-xl", "a11y-text-xl2", "a11y-text-xl3", "a11y-text-xl4", "a11y-text-xl5"];
 const TOUCH_CLASSES = ["a11y-touch-comfortable", "a11y-touch-large"];
 
 const NAV_HEIGHTS = {

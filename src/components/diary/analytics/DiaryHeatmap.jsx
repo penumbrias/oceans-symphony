@@ -65,7 +65,7 @@ export default function DiaryHeatmap({ dailyAggregates, metric = "avg_emotional_
           {/* Weekday labels */}
           <div className="flex flex-col gap-1 pt-6">
             {weekdays.map((d, i) => (
-              <div key={i} className="w-3 h-3 flex items-center justify-center text-[9px] text-muted-foreground">
+              <div key={i} className="w-3 h-3 flex items-center justify-center text-[0.5625rem] text-muted-foreground">
                 {i % 2 === 0 ? d : ""}
               </div>
             ))}
@@ -73,7 +73,7 @@ export default function DiaryHeatmap({ dailyAggregates, metric = "avg_emotional_
           {/* Weeks */}
           {weeks.map((wk, wi) => (
             <div key={wi} className="flex flex-col gap-1">
-              <div className="h-5 flex items-center justify-center text-[9px] text-muted-foreground">
+              <div className="h-5 flex items-center justify-center text-[0.5625rem] text-muted-foreground">
                 {wi % 4 === 0 ? format(wk[0], "MMM") : ""}
               </div>
               {wk.map((day, di) => {
@@ -97,11 +97,11 @@ export default function DiaryHeatmap({ dailyAggregates, metric = "avg_emotional_
         </div>
       </div>
       <div className="flex items-center gap-2 mt-3 justify-end">
-        <span className="text-[10px] text-muted-foreground">Low</span>
+        <span className="text-[0.625rem] text-muted-foreground">Low</span>
         {[0.1, 0.3, 0.5, 0.7, 1].map((v, i) => (
           <div key={i} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `hsla(40, 70%, 55%, ${v})` }} />
         ))}
-        <span className="text-[10px] text-muted-foreground">High</span>
+        <span className="text-[0.625rem] text-muted-foreground">High</span>
       </div>
     </div>
   );

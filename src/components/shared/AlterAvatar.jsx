@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 
 const SIZE_CLASSES = {
-  xs:  "w-5 h-5 text-[8px]",
-  sm:  "w-6 h-6 text-[9px]",
+  xs:  "w-5 h-5 text-[0.5rem]",
+  sm:  "w-6 h-6 text-[0.5625rem]",
   md:  "w-8 h-8 text-xs",
   lg:  "w-10 h-10 text-sm",
   xl:  "w-14 h-14 text-base",

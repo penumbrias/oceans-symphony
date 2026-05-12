@@ -80,7 +80,7 @@ export default function TermsSettings() {
               className="rounded-xl border border-border/50 p-2.5 text-left text-xs hover:border-primary/50 hover:bg-primary/5 transition-all"
             >
               <p className="font-medium text-foreground">{p.label}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{p.alter} · {p.front}ing</p>
+              <p className="text-[0.6875rem] text-muted-foreground mt-0.5">{p.alter} · {p.front}ing</p>
             </button>
           ))}
         </div>

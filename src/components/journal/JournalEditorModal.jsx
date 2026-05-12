@@ -241,7 +241,7 @@ useEffect(() => {
                             className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${authorAlterId === a.id ? "bg-primary/5 text-primary" : ""}`}>
                             <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
                             <span className="flex-1 truncate">{a.name}</span>
-                            {a.id === currentAlterId && <span className="text-[10px] text-primary/70 flex-shrink-0">{terms.fronting}</span>}
+                            {a.id === currentAlterId && <span className="text-[0.625rem] text-primary/70 flex-shrink-0">{terms.fronting}</span>}
                           </button>
                         ))}
                       </div>

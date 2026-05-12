@@ -67,7 +67,7 @@ export default function AuthorsRow({ authorIds = [], alters = [], timestamp, sho
           ))}
           {altersToShow.length > 5 && (
             <div className="w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center">
-              <span className="text-[9px] font-bold text-muted-foreground">+{altersToShow.length - 5}</span>
+              <span className="text-[0.5625rem] font-bold text-muted-foreground">+{altersToShow.length - 5}</span>
             </div>
           )}
         </div>

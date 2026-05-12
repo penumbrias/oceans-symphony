@@ -155,7 +155,7 @@ export default function PatternInsights({
           >
             {tab.label}
             {isGroupMode && GROUP_AWARE_TABS.has(tab.id) && hasGroups && (
-              <span className="ml-1 opacity-60 text-[10px]">G</span>
+              <span className="ml-1 opacity-60 text-[0.625rem]">G</span>
             )}
           </button>
         ))}

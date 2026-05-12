@@ -32,7 +32,7 @@ export default function PreviewModeBanner() {
           <span className="font-medium text-foreground truncate">{system.name}</span>
           <span className="text-muted-foreground hidden md:inline">. Your real data is untouched.</span>
           {isWiki && (
-            <span className="ml-2 text-[10px] font-mono text-amber-700/80 dark:text-amber-300/80">
+            <span className="ml-2 text-[0.625rem] font-mono text-amber-700/80 dark:text-amber-300/80">
               walkthrough up to date with v{APP_VERSION}
             </span>
           )}

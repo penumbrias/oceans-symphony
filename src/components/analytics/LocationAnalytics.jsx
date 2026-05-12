@@ -234,7 +234,7 @@ export default function LocationAnalytics({ from, to }) {
                         return (
                           <span
                             key={catId}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[0.625rem] font-medium border"
                             style={{ backgroundColor: cat.color + "20", borderColor: cat.color + "40", color: cat.color }}
                           >
                             {cat.emoji} {cat.label} ×{count}

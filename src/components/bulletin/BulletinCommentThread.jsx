@@ -264,12 +264,12 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
               className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border transition-all ${
                 currentAlterId && ids.includes(currentAlterId) ? "border-primary/50 bg-primary/10" : "border-border/40 hover:bg-muted/50"
               }`}>
-              {emoji} <span className="text-muted-foreground text-[10px]">{ids.length}</span>
+              {emoji} <span className="text-muted-foreground text-[0.625rem]">{ids.length}</span>
             </button>
           ))}
           <div className="relative">
             <button onClick={() => setShowReactPicker(p => !p)}
-              className="text-[10px] px-1.5 py-0.5 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50">
+              className="text-[0.625rem] px-1.5 py-0.5 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50">
               + React
             </button>
             {showReactPicker && (
@@ -282,7 +282,7 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
           </div>
           {(maxDepth === null || depth < maxDepth) && (
             <button onClick={() => setShowReplyInput(p => !p)}
-              className="text-[10px] px-1.5 py-0.5 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50 flex items-center gap-1">
+              className="text-[0.625rem] px-1.5 py-0.5 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50 flex items-center gap-1">
               <Reply className="w-2.5 h-2.5" /> Reply
             </button>
           )}
@@ -415,7 +415,7 @@ export default function BulletinCommentThread({ comments, bulletinId, alters, cu
         <div className="flex justify-end">
           <button
             onClick={() => setSortOrder(p => p === "oldest" ? "newest" : "oldest")}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-full border border-border/40 hover:bg-muted/50 transition-colors"
+            className="flex items-center gap-1 text-[0.625rem] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded-full border border-border/40 hover:bg-muted/50 transition-colors"
           >
             <ArrowUpDown className="w-2.5 h-2.5" />
             {sortOrder === "oldest" ? "Oldest first" : "Newest first"}

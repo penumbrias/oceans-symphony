@@ -24,7 +24,7 @@ function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, o
       </button>
       <div className="grid grid-cols-7 px-1 pt-0.5">
         {orderedLabels.map((l, i) => (
-          <div key={i} className="text-[7px] text-muted-foreground/60 text-center">{l}</div>
+          <div key={i} className="text-[0.4375rem] text-muted-foreground/60 text-center">{l}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-px p-1 pt-0">
@@ -45,7 +45,7 @@ function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, o
               key={key}
               type="button"
               onClick={(e) => { e.stopPropagation(); onDayClick?.(d); }}
-              className={`aspect-square rounded-[2px] text-[7px] flex items-center justify-center hover:ring-1 hover:ring-primary/60 transition ${inMonth ? "text-foreground/80" : "text-transparent pointer-events-none"} ${today ? "ring-1 ring-primary" : ""}`}
+              className={`aspect-square rounded-[2px] text-[0.4375rem] flex items-center justify-center hover:ring-1 hover:ring-primary/60 transition ${inMonth ? "text-foreground/80" : "text-transparent pointer-events-none"} ${today ? "ring-1 ring-primary" : ""}`}
               style={{ backgroundColor: bg }}
               title={inMonth ? `${format(d, "MMM d")} — ${totalMin >= 60 ? (totalMin / 60).toFixed(1) + "h" : totalMin + "m"}` : undefined}
             >

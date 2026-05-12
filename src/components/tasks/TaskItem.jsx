@@ -128,7 +128,7 @@ export default function TaskItem({
               </span>
             )}
             {task.is_urgent && (
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-500 flex items-center gap-0.5">
+              <span className="text-[0.625rem] uppercase tracking-wider font-semibold text-amber-500 flex items-center gap-0.5">
                 <Zap className="w-3 h-3 fill-amber-500" /> Urgent
               </span>
             )}

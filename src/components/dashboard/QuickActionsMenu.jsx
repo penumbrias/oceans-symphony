@@ -105,7 +105,7 @@ function AlterRow({ action, alter, onAction }) {
       className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-primary/5 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
       <RefreshCw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
       <span className="flex-1">{alter.name}</span>
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-md">Set</span>
+      <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-md">Set</span>
     </button>
   );
 }
@@ -116,7 +116,7 @@ function AddToFrontRow({ action, alter, onAction }) {
       className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-green-500/5 border border-border/50 hover:border-green-500/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
       <UserPlus className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
       <span className="flex-1">{alter.name}</span>
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-green-600/80 bg-green-500/10 px-1.5 py-0.5 rounded-md">Add</span>
+      <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-green-600/80 bg-green-500/10 px-1.5 py-0.5 rounded-md">Add</span>
     </button>
   );
 }

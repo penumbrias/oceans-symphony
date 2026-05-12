@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Accessibility: text & UI size in Advanced Appearance now goes up to 175% (XXXXL) and 200% (Huge) for low-vision users — the previous cap was 150%. Also swept the codebase replacing fixed-pixel font sizes (`text-[10px]`, `text-[9px]`, etc.) with rem-equivalent classes so the small text inside chips, badges, and metadata labels now scales properly with the accessibility setting instead of staying tiny at any zoom level.",
+      },
+      {
         type: "feature",
         text: "Per-alter notes, emotions, and symptoms — the things you log via the fronting-alter dropdown on the Dashboard, and the 'Note for X appears as 💬 on their timeline' field — now surface read-only in two new places: (1) the Check-In Log shows them on the same day timeline as your regular check-ins, with the alter's name + color chip on each entry; (2) the alter's Board tab gets a new 'Session' filter that lists every per-alter note / emotion / symptom they're associated with. No data is duplicated — both views render directly from the FrontingSession record.",
       },

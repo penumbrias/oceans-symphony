@@ -142,7 +142,7 @@ export default function SleepTracker() {
         {/* Sleep records list */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 mb-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recent Records</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Recent Records</p>
             <div className="flex-1 h-px bg-border/50" />
           </div>
           {sleepRecords.length === 0 ? (

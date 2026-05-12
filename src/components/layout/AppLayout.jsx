@@ -298,7 +298,7 @@ const handleNotifClick = (mentionLog) => {
               <Bell className="w-4 h-4" />
               <span>Reminders</span>
               {pendingCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center">
                   {pendingCount > 9 ? "9+" : pendingCount}
                 </span>
               )}
@@ -364,7 +364,7 @@ const handleNotifClick = (mentionLog) => {
               )}>
               <Bell className="w-5 h-5" />
               {pendingCount > 0 && (
-                <span className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute top-2 right-2 w-3.5 h-3.5 bg-red-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center">
                   {pendingCount > 9 ? "9+" : pendingCount}
                 </span>
               )}
@@ -437,7 +437,7 @@ const handleNotifClick = (mentionLog) => {
               },
             ].map(({ label, items }) => (
               <div key={label}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
+                <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1">
                   {label}
                 </p>
                 <div className="space-y-0.5">
@@ -463,12 +463,12 @@ const handleNotifClick = (mentionLog) => {
                         <Icon className="w-4 h-4 shrink-0" />
                         <span className="flex-1 truncate">{item.label}</span>
                         {item.id === "reminders" && pendingCount > 0 && (
-                          <span className="w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center shrink-0">
+                          <span className="w-4 h-4 bg-red-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center shrink-0">
                             {pendingCount > 9 ? "9+" : pendingCount}
                           </span>
                         )}
                         {item.id === "todo" && todoAlertCount > 0 && (
-                          <span className="w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center shrink-0" title="Urgent or due-soon to-dos">
+                          <span className="w-4 h-4 bg-amber-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center shrink-0" title="Urgent or due-soon to-dos">
                             {todoAlertCount > 9 ? "9+" : todoAlertCount}
                           </span>
                         )}
@@ -517,7 +517,7 @@ const handleNotifClick = (mentionLog) => {
                 )}>
 
                 <Icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
-                <span className="text-[11px] font-medium text-center leading-tight">{item.label}</span>
+                <span className="text-[0.6875rem] font-medium text-center leading-tight">{item.label}</span>
               </Link>);
 
             })}

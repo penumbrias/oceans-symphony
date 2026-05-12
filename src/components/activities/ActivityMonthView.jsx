@@ -54,7 +54,7 @@ export default function ActivityMonthView({
     <div className="border border-border rounded-lg overflow-hidden bg-card">
       <div className="grid grid-cols-7 bg-muted/40 border-b border-border">
         {orderedLabels.map(l => (
-          <div key={l} className="text-[11px] font-semibold text-muted-foreground text-center py-1.5 uppercase tracking-wider">{l}</div>
+          <div key={l} className="text-[0.6875rem] font-semibold text-muted-foreground text-center py-1.5 uppercase tracking-wider">{l}</div>
         ))}
       </div>
       <div className="grid grid-cols-7">
@@ -79,7 +79,7 @@ export default function ActivityMonthView({
                   {format(d, "d")}
                 </span>
                 {totalMin > 0 && (
-                  <span className="text-[9px] text-muted-foreground tabular-nums">
+                  <span className="text-[0.5625rem] text-muted-foreground tabular-nums">
                     {totalMin >= 60 ? `${(totalMin / 60).toFixed(1)}h` : `${totalMin}m`}
                   </span>
                 )}
@@ -95,7 +95,7 @@ export default function ActivityMonthView({
                   />
                 ))}
                 {list.length > 6 && (
-                  <span className="text-[8px] text-muted-foreground leading-none">+{list.length - 6}</span>
+                  <span className="text-[0.5rem] text-muted-foreground leading-none">+{list.length - 6}</span>
                 )}
               </div>
             </button>

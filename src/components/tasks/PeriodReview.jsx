@@ -103,7 +103,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
 
       {/* Hint shown when no tapInfo */}
       {!tapInfo && (
-        <p className="text-[11px] text-muted-foreground px-1">
+        <p className="text-[0.6875rem] text-muted-foreground px-1">
           Tap ✓ to see {frequency === "daily" ? "completion time" : "completion date"} · Hold 2s to change
         </p>
       )}
@@ -125,11 +125,11 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
                 >
                   {frequency === "daily" ? (
                     <>
-                      <span className="block text-[10px] font-semibold">{getDayOfWeek(key)}</span>
-                      <span className="block text-[10px] opacity-70">{formatPeriodKeyShort(frequency, key)}</span>
+                      <span className="block text-[0.625rem] font-semibold">{getDayOfWeek(key)}</span>
+                      <span className="block text-[0.625rem] opacity-70">{formatPeriodKeyShort(frequency, key)}</span>
                     </>
                   ) : (
-                    <span className="block text-[10px]">{formatPeriodKeyShort(frequency, key)}</span>
+                    <span className="block text-[0.625rem]">{formatPeriodKeyShort(frequency, key)}</span>
                   )}
                 </th>
               ))}
@@ -149,7 +149,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
                     <div className="font-medium text-foreground truncate max-w-[160px]">
                       {applyTerms(task.title, terms)}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">{task.points} pts · {totalDone}/{pageKeys.length} done</div>
+                    <div className="text-[0.625rem] text-muted-foreground">{task.points} pts · {totalDone}/{pageKeys.length} done</div>
                   </td>
                   {pageKeys.map(key => {
                     const entry = progressMap[key];
@@ -186,7 +186,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
           {/* Footer: completion % per period */}
           <tfoot>
             <tr className="border-t border-border/40" style={{ background: "var(--color-muted)" }}>
-              <td className="px-3 py-2 text-[10px] font-semibold text-muted-foreground sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]" style={{ background: "var(--color-muted)" }}>
+              <td className="px-3 py-2 text-[0.625rem] font-semibold text-muted-foreground sticky left-0 z-10 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.15)]" style={{ background: "var(--color-muted)" }}>
                 Completion
               </td>
               {pageKeys.map(key => {
@@ -195,7 +195,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
                 const isCurrent = key === currentKey;
                 return (
                   <td key={key} className={`px-1 py-2 text-center ${isCurrent ? "bg-primary/5" : ""}`}>
-                    <span className={`text-[10px] font-bold ${pct === 100 ? "text-primary" : pct >= 50 ? "text-foreground" : "text-muted-foreground"}`}>
+                    <span className={`text-[0.625rem] font-bold ${pct === 100 ? "text-primary" : pct >= 50 ? "text-foreground" : "text-muted-foreground"}`}>
                       {pct}%
                     </span>
                   </td>

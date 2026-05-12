@@ -145,7 +145,7 @@ export default function SidebarNav({ open, onClose }) {
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
           {groups.map(({ label, items }) => (
             <div key={label}>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
+              <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
                 {label}
               </p>
               <div className="space-y-0.5">
@@ -169,7 +169,7 @@ export default function SidebarNav({ open, onClose }) {
                       <Icon className="w-4 h-4 flex-shrink-0" />
                       <span className="flex-1">{item.label}</span>
                       {item.id === "reminders" && pendingCount > 0 && (
-                        <span className="w-5 h-5 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                        <span className="w-5 h-5 bg-red-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center">
                           {pendingCount > 9 ? "9+" : pendingCount}
                         </span>
                       )}

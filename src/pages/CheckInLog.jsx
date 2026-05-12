@@ -39,7 +39,7 @@ function RatingBar({ label, value, max = 5, isPositive = false }) {
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="flex gap-0.5">
         {Array.from({ length: max }).map((_, i) => (
-          <div key={i} className={`w-4 h-4 rounded text-[9px] flex items-center justify-center font-medium ${
+          <div key={i} className={`w-4 h-4 rounded text-[0.5625rem] flex items-center justify-center font-medium ${
             i < value ? `${color} text-white` : "bg-muted text-muted-foreground"
           }`}>{i + 1}</div>
         ))}
@@ -497,7 +497,7 @@ function PerAlterEntry({ entry, altersById }) {
   const color = alter?.color || "#8b5cf6";
   const name = alter?.alias || alter?.name || "Unknown";
   const AlterChip = () => (
-    <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-muted/40 border border-border/40 flex-shrink-0">
+    <span className="flex items-center gap-1 text-[0.6875rem] px-1.5 py-0.5 rounded-full bg-muted/40 border border-border/40 flex-shrink-0">
       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
       {name}
     </span>

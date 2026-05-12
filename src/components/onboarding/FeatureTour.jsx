@@ -957,11 +957,11 @@ export default function FeatureTour({ onClose }) {
                 <div>
                   <p className="font-semibold text-sm text-foreground leading-tight">{current.title}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded-full leading-none">
+                    <span className="text-[0.5625rem] font-bold uppercase tracking-widest text-primary/80 bg-primary/10 px-1.5 py-0.5 rounded-full leading-none">
                       {current.sectionLabel}
                     </span>
                     {sectionStepCount > 1 && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[0.625rem] text-muted-foreground">
                         {stepInSection} of {sectionStepCount}
                       </span>
                     )}
@@ -980,7 +980,7 @@ export default function FeatureTour({ onClose }) {
             {current.look && (
               <div className="flex items-start gap-1.5 bg-primary/8 border border-primary/20 rounded-lg px-2.5 py-2 mb-3">
                 <MapPin className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-primary leading-snug">
+                <p className="text-[0.6875rem] text-primary leading-snug">
                   <span className="font-semibold">Look for</span> {current.look}
                 </p>
               </div>
@@ -1005,7 +1005,7 @@ export default function FeatureTour({ onClose }) {
                 <button
                   onClick={() => goTo(nextSectionFirstStep)}
                   title="Skip to next section"
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors flex-shrink-0"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border text-[0.6875rem] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors flex-shrink-0"
                 >
                   Skip <ChevronsRight className="w-3 h-3" />
                 </button>

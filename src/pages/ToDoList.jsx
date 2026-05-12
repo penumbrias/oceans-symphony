@@ -154,7 +154,7 @@ export default function ToDoList() {
 
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Active Tasks</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Active Tasks</p>
           <div className="flex-1 h-px bg-border/50" />
         </div>
         {rootTasks.length === 0 ? (
@@ -187,7 +187,7 @@ export default function ToDoList() {
       {completedTasks.length > 0 && (
         <div className="space-y-3 border-t border-border pt-6">
           <div className="flex items-center gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Completed ({completedTasks.length})</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Completed ({completedTasks.length})</p>
             <div className="flex-1 h-px bg-border/50" />
           </div>
           <div className="space-y-2">

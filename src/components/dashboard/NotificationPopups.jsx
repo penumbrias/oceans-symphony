@@ -54,12 +54,12 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
                 <span className="text-xs font-semibold text-foreground truncate">
                   {alter?.name} was mentioned
                 </span>
-                <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">
+                <span className="text-[0.625rem] text-muted-foreground ml-auto flex-shrink-0">
                   {m.source_date ? format(new Date(m.source_date), "MM/dd") : ""}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground line-clamp-2">{m.preview_text}</p>
-              <span className="text-[10px] text-primary mt-1 block">in {m.source_label} · tap to view</span>
+              <span className="text-[0.625rem] text-primary mt-1 block">in {m.source_label} · tap to view</span>
             </button>
             <button
               onClick={() => handleDismiss(m)}

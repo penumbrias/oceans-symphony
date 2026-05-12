@@ -204,7 +204,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
         <div className="mb-4">
           <div className="mr-2 mb-2 px-2 flex items-center gap-2">
             <Pin className="w-3 h-3 text-primary" />
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">Pinned</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-primary">Pinned</p>
             <div className="flex-1 h-px bg-border/50" />
           </div>
           <div className="space-y-3">
@@ -232,7 +232,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
           {/* RECENT header with activity sort toggle */}
           <div className="flex items-center justify-between mb-2 px-2">
             {pinned.length > 0 &&
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recent</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Recent</p>
             }
             <button
               onClick={() => { setSortByActivity(p => !p); setVisibleCount(10); }}

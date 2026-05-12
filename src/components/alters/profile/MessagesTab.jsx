@@ -57,14 +57,14 @@ function LogItem({ item, onDelete }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-            <span className={`text-[10px] font-semibold uppercase tracking-wide ${cfg.color}`}>
+            <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${cfg.color}`}>
               {isSession ? cfg.label : (isAuthored ? `Authored ${cfg.label}` : `Mentioned in ${cfg.label}`)}
             </span>
             {item.source_label && (
-              <span className="text-[10px] text-muted-foreground">· {item.source_label}</span>
+              <span className="text-[0.625rem] text-muted-foreground">· {item.source_label}</span>
             )}
             {item.source_date && (
-              <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">
+              <span className="text-[0.625rem] text-muted-foreground ml-auto flex-shrink-0">
                 {format(new Date(item.source_date), "MMM d, yyyy")}
               </span>
             )}
@@ -73,7 +73,7 @@ function LogItem({ item, onDelete }) {
             <p className="text-xs text-foreground line-clamp-2 leading-relaxed">{item.preview_text}</p>
           )}
           {item.navigate_path && (
-            <p className="text-[10px] text-primary mt-1">tap to view →</p>
+            <p className="text-[0.625rem] text-primary mt-1">tap to view →</p>
           )}
         </div>
         {onDelete && (
@@ -245,7 +245,7 @@ const postMessage = async () => {
               }`}
             >
               {f.label}
-              {count > 0 && <span className="text-[10px] opacity-60">{count}</span>}
+              {count > 0 && <span className="text-[0.625rem] opacity-60">{count}</span>}
             </button>
           );
         })}

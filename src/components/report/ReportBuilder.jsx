@@ -41,7 +41,7 @@ function ExclusionPicker({ items, excluded, onChange, nounSingular = "item" }) {
                 <span className={`text-xs flex-1 ${isExcluded ? "line-through text-muted-foreground" : "text-foreground"}`}>
                   {item.label}
                 </span>
-                {isExcluded && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">excluded</span>}
+                {isExcluded && <span className="text-[0.625rem] text-amber-600 dark:text-amber-400 font-medium">excluded</span>}
               </label>
             );
           })}

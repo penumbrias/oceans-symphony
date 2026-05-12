@@ -87,7 +87,7 @@ function DashboardGridEditor({ checkedItems, onMove, onToggle, cols = 3, resolve
                   </div>
 
                   <div className={`flex-1 flex ${justifyLabel} overflow-hidden px-0.5`}>
-                    <span className={`text-[10px] font-semibold text-foreground leading-tight truncate ${textAlign}`}>
+                    <span className={`text-[0.625rem] font-semibold text-foreground leading-tight truncate ${textAlign}`}>
                       {label}
                     </span>
                   </div>

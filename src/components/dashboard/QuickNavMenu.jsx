@@ -100,12 +100,12 @@ function SortableTile({ item, editMode, onRemove, pendingCount, todoAlertCount =
       <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
         <Icon className="w-5 h-5" />
         {!editMode && item.id === "reminders" && pendingCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center">
             {pendingCount > 9 ? "9+" : pendingCount}
           </span>
         )}
         {!editMode && item.id === "todo" && todoAlertCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center" title="Urgent or due-soon to-dos">
+          <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center" title="Urgent or due-soon to-dos">
             {todoAlertCount > 9 ? "9+" : todoAlertCount}
           </span>
         )}
@@ -358,12 +358,12 @@ export default function QuickNavMenu() {
                           {item.label}
                         </span>
                         {item.id === "reminders" && pendingCount > 0 && (
-                          <span className="w-5 h-5 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                          <span className="w-5 h-5 bg-red-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center flex-shrink-0">
                             {pendingCount > 9 ? "9+" : pendingCount}
                           </span>
                         )}
                         {item.id === "todo" && todoAlertCount > 0 && (
-                          <span className="w-5 h-5 bg-amber-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0" title="Urgent or due-soon to-dos">
+                          <span className="w-5 h-5 bg-amber-500 text-white rounded-full text-[0.5625rem] font-bold flex items-center justify-center flex-shrink-0" title="Urgent or due-soon to-dos">
                             {todoAlertCount > 9 ? "9+" : todoAlertCount}
                           </span>
                         )}

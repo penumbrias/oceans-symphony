@@ -277,7 +277,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       )}
 
       <div className="mt-3">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground/80 mb-1.5">Add to post</div>
+        <div className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground/80 mb-1.5">Add to post</div>
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex gap-2 flex-wrap">
             <button onClick={() => { setPinned(p => !p); dismissHint(); }}

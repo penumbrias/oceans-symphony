@@ -56,7 +56,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
         )}
       </div>
       {swipeHint && (
-        <span className={`text-[10px] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+        <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
           {swipeHint === "front" ? (fronting ? "Remove" : "Add") : (isPrimary ? "Demote" : "Promote")}
         </span>
       )}

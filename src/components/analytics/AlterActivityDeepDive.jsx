@@ -44,7 +44,7 @@ function AlterChip({ alter, count, total }) {
       {alter.avatar_url ? (
         <img src={alter.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
       ) : (
-        <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-[10px] font-bold"
+        <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-[0.625rem] font-bold"
           style={{ backgroundColor: alter.color || "#8b5cf6" }}>
           {alter.name?.charAt(0)}
         </div>

@@ -131,7 +131,7 @@ function PinnedTaskRow({ task }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold">
+          <div className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider font-semibold">
             {urgent ? (
               <>
                 <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
