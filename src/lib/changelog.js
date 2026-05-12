@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Tapestry preview's daily task templates weren't showing up on the Daily Tasks page — the records used the old schedule_days / schedule_time / priority schema instead of the current frequency / mode / is_active / points shape, so the is_active filter dropped every row. Rewrote them with the proper schema (10 templates, six daily + four weekly, with descriptions and point values).",
+      },
+      {
+        type: "fix",
+        text: "Sleep tracker preview data was crashing the Sleep page — bedtime / wake_time were stored as HH:MM strings, but the page expects full ISO datetimes. parseISO returned Invalid Date and format() threw. Rewrote the 14 sleep entries with proper ISO datetimes built from a (daysAgo, bedHour, wakeHour) helper, quality values on the 1–10 scale, plus a couple with extra flags (interrupted, dreamed, had_nightmare) so the Sleep page has variety to show.",
+      },
+      {
         type: "improve",
         text: "Pinned bulletins, pinned to-dos, and critical-plan banners now show only on the Dashboard, not on the Alters / Home page. The Alters page is the directory; the dashboard is the at-a-glance home. Surfacing the same pins on both made the alters list cluttered.",
       },

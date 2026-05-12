@@ -856,21 +856,59 @@ function buildTapestry() {
     rec({ title: "Replace bedroom lightbulb",                        completed: true,  priority: "low", completed_date: isoOffset(3, 19) }),
   ];
 
+  // DailyTaskTemplate uses { frequency, mode, is_active, points,
+  // sort_order } — earlier records here used schedule_days /
+  // schedule_time / priority and were filtered out by is_active===true.
   const dailyTaskTemplates = [
-    rec({ title: "Morning meds",      schedule_days: [0,1,2,3,4,5,6], schedule_time: "08:00", priority: "high"   }),
-    rec({ title: "Evening journal",   schedule_days: [0,1,2,3,4,5,6], schedule_time: "21:00", priority: "low"    }),
-    rec({ title: "Weekly system meeting", schedule_days: [0],         schedule_time: "19:00", priority: "medium" }),
+    rec({ title: "Morning meds",       description: "Levothyroxine + vitamin D, on empty stomach.", frequency: "daily",  mode: "MANUAL", points: 3, is_active: true, sort_order: 0 }),
+    rec({ title: "Brush teeth",        frequency: "daily",  mode: "MANUAL", points: 1, is_active: true, sort_order: 1 }),
+    rec({ title: "Drink water",        description: "Aim for 6 glasses.",                          frequency: "daily",  mode: "MANUAL", points: 2, is_active: true, sort_order: 2 }),
+    rec({ title: "Evening journal",    description: "Five minutes — even one line counts.",        frequency: "daily",  mode: "MANUAL", points: 2, is_active: true, sort_order: 3 }),
+    rec({ title: "Read 15 minutes",    frequency: "daily",  mode: "MANUAL", points: 2, is_active: true, sort_order: 4 }),
+    rec({ title: "Stretch",            frequency: "daily",  mode: "MANUAL", points: 1, is_active: true, sort_order: 5 }),
+    rec({ title: "System meeting",     description: "Sunday roll-call.",                           frequency: "weekly", mode: "MANUAL", points: 5, is_active: true, sort_order: 0 }),
+    rec({ title: "Laundry",            frequency: "weekly", mode: "MANUAL", points: 4, is_active: true, sort_order: 1 }),
+    rec({ title: "Long walk",          description: "Counts as the weekly cardio.",                frequency: "weekly", mode: "MANUAL", points: 4, is_active: true, sort_order: 2 }),
+    rec({ title: "Plan the week",      frequency: "weekly", mode: "MANUAL", points: 3, is_active: true, sort_order: 3 }),
   ];
 
+  // The Sleep page expects full ISO datetimes for bedtime / wake_time
+  // (parseISO → format h:mm a). Earlier Tapestry stored HH:MM strings,
+  // which made the Sleep page crash. Quality is also on a 1–10 scale in
+  // the UI, not 1–5.
+  //
+  // Helper: build a sleep entry where the bedtime is on the previous
+  // calendar day (so "wake on day 5" reads naturally).
+  function sleepEntry(daysAgo, bedHour, bedMin, wakeHour, wakeMin, quality, extra = {}) {
+    const wakeDate = new Date(Date.now() - daysAgo * DAY);
+    wakeDate.setHours(wakeHour, wakeMin, 0, 0);
+    const bedDate = new Date(wakeDate);
+    // Bedtime is the previous evening — subtract a day, then set hour.
+    bedDate.setDate(bedDate.getDate() - 1);
+    bedDate.setHours(bedHour, bedMin, 0, 0);
+    return rec({
+      date: wakeDate.toISOString().slice(0, 10),
+      bedtime: bedDate.toISOString(),
+      wake_time: wakeDate.toISOString(),
+      quality,
+      ...extra,
+    });
+  }
   const sleepEntries = [
-    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), bedtime: "23:00", wake_time: "07:30", quality: 4, notes: "Steady night." }),
-    rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0,10), bedtime: "23:30", wake_time: "07:00", quality: 3 }),
-    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0,10), bedtime: "22:45", wake_time: "06:50", quality: 5, notes: "Fell asleep before Halo's tea even cooled." }),
-    rec({ date: new Date(Date.now() - 3 * DAY).toISOString().slice(0,10), bedtime: "00:15", wake_time: "07:45", quality: 3, notes: "Stayed up writing the bulletins." }),
-    rec({ date: new Date(Date.now() - 5 * DAY).toISOString().slice(0,10), bedtime: "23:15", wake_time: "07:15", quality: 4 }),
-    rec({ date: new Date(Date.now() - 7 * DAY).toISOString().slice(0,10), bedtime: "01:00", wake_time: "08:30", quality: 2, notes: "Therapy night — slept badly." }),
-    rec({ date: new Date(Date.now() - 9 * DAY).toISOString().slice(0,10), bedtime: "22:30", wake_time: "07:00", quality: 5 }),
-    rec({ date: new Date(Date.now() - 11 * DAY).toISOString().slice(0,10),bedtime: "23:30", wake_time: "07:30", quality: 4 }),
+    sleepEntry(0,  23,  0, 7, 30, 8, { notes: "Steady night." }),
+    sleepEntry(1,  23, 30, 7,  0, 6),
+    sleepEntry(2,  22, 45, 6, 50, 9, { notes: "Fell asleep before Halo's tea even cooled." }),
+    sleepEntry(3,   0, 15, 7, 45, 5, { notes: "Stayed up writing the bulletins.", is_interrupted: true, interruption_count: 2 }),
+    sleepEntry(4,  22, 30, 6, 30, 9, { dreamed: true, notes: "Vivid dream about the inner-world garden." }),
+    sleepEntry(5,  23, 15, 7, 15, 7),
+    sleepEntry(6,  22,  0, 6, 45, 8),
+    sleepEntry(7,   1,  0, 8, 30, 3, { notes: "Therapy night — slept badly.", had_nightmare: true }),
+    sleepEntry(8,  23, 30, 7, 30, 7),
+    sleepEntry(9,  22, 30, 7,  0, 9),
+    sleepEntry(10, 23,  0, 7, 15, 8),
+    sleepEntry(11, 23, 30, 7, 30, 7),
+    sleepEntry(13, 22, 45, 6, 50, 8, { dreamed: true }),
+    sleepEntry(14, 23, 15, 7, 30, 7),
   ];
 
   const reminders = [
