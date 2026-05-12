@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Toggle switches (e.g. Pin to dashboard / Mark as urgent in the to-do form) were nearly invisible in their off-state on dark themes — the shadcn Switch was using the `--input` CSS variable for the unchecked track, but the app's themes never define `--input`, so it fell back to a near-black default that blended into the card background. Switched the unchecked track to `bg-muted` with a visible border, and brightened the unchecked thumb to `bg-foreground/80`, so the off-state stays visible on every theme without changing the on-state.",
+      },
+      {
+        type: "fix",
         text: "Alter profile role pill was unreadable when the alter's color was similar to their header background color (e.g. a deep-purple alter with a deep-purple header wash) — both the soft tint and the text were the same hue, so the role chip disappeared into the backdrop. The pill now does a WCAG contrast check: if the role-text color and the header background are too close (ratio < 3:1, AA-large), it switches to a solid pill using the alter's color as the background and an automatically-picked black/white text color, so the chip stays visible while still showing the alter's color identity.",
       },
       {
