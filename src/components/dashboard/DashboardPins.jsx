@@ -45,18 +45,34 @@ export default function DashboardPins() {
     queryFn: () => base44.entities.Task.list(),
   });
 
+  // A to-do can be pinned two ways: via the To-Do page (Task.pinned_to_dashboard)
+  // or via a task-bulletin on the board (Bulletin.dashboard_pinned with the
+  // task id embedded in `[task:ID]` content). When both pin paths target
+  // the same task we want a single card — and we prefer the bulletin one
+  // because it carries comments + the inline complete checkbox.
+  const pinnedTaskIdsFromBulletins = React.useMemo(() => {
+    const ids = new Set();
+    for (const b of pinned) {
+      const m = typeof b.content === "string" && b.content.match(/^\[task:([^:\]]+)/);
+      if (m) ids.add(m[1]);
+    }
+    return ids;
+  }, [pinned]);
+
   // Show every open task the user has flagged urgent OR pinned to the
-  // dashboard. Urgent ones float to the top.
+  // dashboard. Skip any task that's already represented by a pinned
+  // task-bulletin (de-dup). Urgent ones float to the top.
   const surfacingTasks = React.useMemo(() => {
     return tasks
       .filter(t => !t.completed && (t.is_urgent || t.pinned_to_dashboard))
+      .filter(t => !pinnedTaskIdsFromBulletins.has(t.id))
       .sort((a, b) => {
         if ((a.is_urgent ? 1 : 0) !== (b.is_urgent ? 1 : 0)) return b.is_urgent ? 1 : -1;
         const ad = a.scheduled_at || a.due_date || a.created_date;
         const bd = b.scheduled_at || b.due_date || b.created_date;
         return new Date(ad) - new Date(bd);
       });
-  }, [tasks]);
+  }, [tasks, pinnedTaskIdsFromBulletins]);
 
   if (pinned.length === 0 && surfacingTasks.length === 0) return null;
 

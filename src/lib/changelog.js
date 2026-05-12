@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Dashboard's Pinned strip was showing the same to-do twice when it had been pinned both from the To-Do page (Task.pinned_to_dashboard) and from the bulletin board (a task-bulletin's dashboard pin). Now it de-duplicates: if a task-bulletin pinned to the dashboard references the same task as a pinned-to-do, we render only the bulletin card (so the inline checkbox, comments, and rich actions are preserved) and skip the plain to-do row.",
+      },
+      {
         type: "improve",
         text: "Per-alter notes, emotions, and symptoms now also roll up into the Check-In Log's Day Total section under a new 'Per-alter' row, so the at-a-glance day summary reflects them too instead of only the per-entry list above.",
       },
