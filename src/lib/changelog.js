@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Pinned and urgent to-dos on the Dashboard now have a checkbox you can tap to mark them complete inline — no more bouncing into the To-Do List page just to tick something off. Tapping the row still opens the task; tapping just the circle toggles complete. Completed tasks drop off the Pinned strip automatically.",
+      },
+      {
+        type: "feature",
         text: "Timeline symptom and emotion rows now show a small alter-color dot stack indicating which alter(s) were fronting at the moment the entry was logged. Tapping the row opens the details popup, which lists the tied alters as full name + color chips. Symptoms use the active fronting session at start-time; emotions use the check-in's saved fronting_alter_ids.",
       },
       {

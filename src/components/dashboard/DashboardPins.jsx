@@ -1,12 +1,13 @@
 import React, { useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Pin, Zap, Flag, Clock } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pin, Zap, Flag, Clock, CheckCircle2, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import BulletinCard from "@/components/bulletin/BulletinCard";
 import TaskBulletinCard from "@/components/bulletin/TaskBulletinCard";
 import TaskQuickActionsSheet from "@/components/tasks/TaskQuickActionsSheet";
+import { toast } from "sonner";
 
 // Robust due-date parser. Old records stored a YYYY-MM-DD string; newer
 // ones (and the Tapestry preview) store full ISO timestamps. Concatenating
@@ -83,9 +84,26 @@ export default function DashboardPins() {
 function PinnedTaskRow({ task }) {
   const urgent = !!task.is_urgent;
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [quickOpen, setQuickOpen] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const longPressRef = useRef(null);
   const firedRef = useRef(false);
+  const toggleComplete = async (e) => {
+    e.stopPropagation();
+    cancelLongPress();
+    if (toggling) return;
+    setToggling(true);
+    try {
+      await base44.entities.Task.update(task.id, { completed: !task.completed });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["pinnedTasks"] });
+    } catch (err) {
+      toast.error(err?.message || "Failed to update task");
+    } finally {
+      setToggling(false);
+    }
+  };
   const startLongPress = () => {
     firedRef.current = false;
     longPressRef.current = setTimeout(() => {
@@ -129,7 +147,19 @@ function PinnedTaskRow({ task }) {
           : "bg-card border border-border/50 hover:bg-muted/30"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          onClick={toggleComplete}
+          aria-label={task.completed ? "Mark incomplete" : "Mark complete"}
+          className="mt-0.5 p-1 -m-1 hover:bg-muted/40 rounded transition-colors flex-shrink-0"
+        >
+          {task.completed ? (
+            <CheckCircle2 className="w-5 h-5 text-green-500" />
+          ) : (
+            <Circle className={`w-5 h-5 ${urgent ? "text-amber-500" : "text-muted-foreground hover:text-foreground"}`} />
+          )}
+        </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider font-semibold">
             {urgent ? (
@@ -145,7 +175,7 @@ function PinnedTaskRow({ task }) {
             )}
             {task.priority === "high" && <Flag className="w-3 h-3 text-red-500 ml-1" />}
           </div>
-          <div className="text-base font-semibold mt-0.5 truncate">{task.title}</div>
+          <div className={`text-base font-semibold mt-0.5 truncate ${task.completed ? "line-through text-muted-foreground" : ""}`}>{task.title}</div>
           {(task.scheduled_at || task.due_date) && (
             <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-3">
               {task.scheduled_at && (
