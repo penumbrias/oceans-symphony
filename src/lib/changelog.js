@@ -13,6 +13,95 @@
 
 export const CHANGELOG = [
   {
+    date: "May 12, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Dashboard grid defaults overhauled. Every page except 'Home' is now on the grid by default (added the missing To-Do List, System History, and Location History; dropped the redundant 'Home' tile since the grid lives on Home itself). Tiles are now ordered by intent — daily capture flow first (alters, meeting, timeline, journals, tasks, to-do, check-in log), then tracking, then system internals, then care, then sharing/reminders, then settings — instead of the previous random-looking order. Existing users with a custom layout keep their layout; the three new tiles get appended automatically.",
+      },
+      {
+        type: "improve",
+        text: "Timeline event column now packs co-timed entries into horizontal lanes instead of stacking everything vertically — a batch of quick-tasks logged within seconds of each other shows up as a single row of small icons rather than a tall ladder, so you can tell at a glance that they all happened at roughly the same moment. Each event still expands into a full detail popup on tap.",
+      },
+      {
+        type: "fix",
+        text: "Quick-task bulletins (the `📊 Quick task` button on the Bulletin Board) were appearing twice on the Timeline — once as a 📌 bulletin entry showing the raw `[task:abc123…] title` content, and once as a ✓ task entry. The bulletin half is now suppressed since the task already represents the same record, and any stray task-bulletin that does slip through has its `[task:ID]` prefix stripped from the detail popup so the raw identifier doesn't leak into the UI.",
+      },
+      {
+        type: "fix",
+        text: "Backup & restore was silently dropping the Grocery list (and a couple of other entities) — `GroceryItem` was registered in the entity allow-list but never assigned to any export category, and the export iterator walks the categories rather than the allow-list. Added a new 'Grocery List' category, plus folded the previously-missing `SymptomDefinition` into 'Symptoms & Tracking' and `QuickAction` into 'Settings & Custom'. Existing backups taken before this fix won't have those entities — re-export to capture them. Also documented the two-array trap in CLAUDE.md so future entities don't slip through.",
+      },
+      {
+        type: "fix",
+        text: "Stuck 'ghost' fronting sessions that wouldn't stay ended (a record with no end_time that re-appeared on the Timeline every time you reopened it) now have two escape hatches in the session popover. 1) The existing 'End session now' button additionally sweeps every other ghost session for the same alter that's older than 12 hours, so ending one stuck row clears the whole pile in a single tap. 2) A new red 'Delete session' button (two-tap-confirm) hard-deletes the FrontingSession record outright for cases where ending alone doesn't make it disappear.",
+      },
+      {
+        type: "hotfix",
+        text: "Hotfix: v0.8.8 changelog claimed the Accessibility text-size grid was expanded but the actual options array didn't get updated in that commit — fixing it now. The Accessibility page now genuinely exposes Tiny through Huge (200%).",
+      },
+      {
+        type: "fix",
+        text: "Accessibility settings page only had 4 text-size options (Small / Default / Large / Extra Large). The full set — Tiny through Huge (200%) — was added to Advanced Appearance but never made it onto the Accessibility page where it actually belongs. Accessibility now exposes all 11 sizes including the 175% and 200% options.",
+      },
+      {
+        type: "improve",
+        text: "Task-bulletin cards pinned to the Dashboard now inherit the urgent-orange styling from their linked to-do — so when an urgent to-do is the one being rendered as a bulletin card (the de-dup case), it keeps the amber border + 'Urgent to-do' label instead of looking like a regular pinned task-bulletin.",
+      },
+      {
+        type: "fix",
+        text: "Dashboard's Pinned strip was showing the same to-do twice when it had been pinned both from the To-Do page (Task.pinned_to_dashboard) and from the bulletin board (a task-bulletin's dashboard pin). Now it de-duplicates: if a task-bulletin pinned to the dashboard references the same task as a pinned-to-do, we render only the bulletin card (so the inline checkbox, comments, and rich actions are preserved) and skip the plain to-do row.",
+      },
+      {
+        type: "improve",
+        text: "Per-alter notes, emotions, and symptoms now also roll up into the Check-In Log's Day Total section under a new 'Per-alter' row, so the at-a-glance day summary reflects them too instead of only the per-entry list above.",
+      },
+      {
+        type: "fix",
+        text: "Check-In Log was including future-dated planned activities (e.g. an appointment scheduled for next Friday showed up on Friday's row before it had happened). The log is a history view, not a calendar — so planned activities whose timestamp is still in the future are now filtered out and only appear once their time has actually elapsed.",
+      },
+      {
+        type: "feature",
+        text: "Pinned and urgent to-dos on the Dashboard now have a checkbox you can tap to mark them complete inline — no more bouncing into the To-Do List page just to tick something off. Tapping the row still opens the task; tapping just the circle toggles complete. Completed tasks drop off the Pinned strip automatically.",
+      },
+      {
+        type: "feature",
+        text: "Timeline symptom and emotion rows now show a small alter-color dot stack indicating which alter(s) were fronting at the moment the entry was logged. Tapping the row opens the details popup, which lists the tied alters as full name + color chips. Symptoms use the active fronting session at start-time; emotions use the check-in's saved fronting_alter_ids.",
+      },
+      {
+        type: "improve",
+        text: "Accessibility: text & UI size in Advanced Appearance now goes up to 175% (XXXXL) and 200% (Huge) for low-vision users — the previous cap was 150%. Also swept the codebase replacing fixed-pixel font sizes (`text-[10px]`, `text-[9px]`, etc.) with rem-equivalent classes so the small text inside chips, badges, and metadata labels now scales properly with the accessibility setting instead of staying tiny at any zoom level.",
+      },
+      {
+        type: "feature",
+        text: "Per-alter notes, emotions, and symptoms — the things you log via the fronting-alter dropdown on the Dashboard, and the 'Note for X appears as 💬 on their timeline' field — now surface read-only in two new places: (1) the Check-In Log shows them on the same day timeline as your regular check-ins, with the alter's name + color chip on each entry; (2) the alter's Board tab gets a new 'Session' filter that lists every per-alter note / emotion / symptom they're associated with. No data is duplicated — both views render directly from the FrontingSession record.",
+      },
+      {
+        type: "feature",
+        text: "Long-press a to-do (on the dashboard's Pinned strip or on the To-Do List page) to open a quick-actions sheet with the two most-changed toggles — Pin to dashboard and Mark as urgent — without having to open the full edit form. Tap to navigate as usual; press and hold for ~500ms to bring up the sheet.",
+      },
+      {
+        type: "fix",
+        text: "Pin to dashboard / Mark as urgent toggles inside the to-do edit form were hand-rolled with `bg-muted-foreground/30` for the off-state, which rendered nearly invisible against the surrounding card on dark themes. Replaced them with the (now-fixed) shadcn Switch component so the off-state has a real border + visible thumb, matching every other toggle in the app.",
+      },
+      {
+        type: "fix",
+        text: "Simply Plural import was dropping avatars for any member whose avatar was stored as a UUID rather than a full URL (common in larger / older systems where mobile uploads were saved as `avatarUuid`). The importer only read `avatarUrl` / `avatar_url`, so anything in `avatarUuid` was silently discarded. Added a CDN URL composer that builds `https://spaces.apparyllis.com/avatars/{system_uid}/{avatarUuid}` when only the UUID is present, falling back to an empty avatar if neither field is set. Applies to both regular alters and custom fronts.",
+      },
+      {
+        type: "fix",
+        text: "Toggle switches (e.g. Pin to dashboard / Mark as urgent in the to-do form) were nearly invisible in their off-state on dark themes — the shadcn Switch was using the `--input` CSS variable for the unchecked track, but the app's themes never define `--input`, so it fell back to a near-black default that blended into the card background. Switched the unchecked track to `bg-muted` with a visible border, and brightened the unchecked thumb to `bg-foreground/80`, so the off-state stays visible on every theme without changing the on-state.",
+      },
+      {
+        type: "fix",
+        text: "Alter profile role pill was unreadable when the alter's color was similar to their header background color (e.g. a deep-purple alter with a deep-purple header wash) — both the soft tint and the text were the same hue, so the role chip disappeared into the backdrop. The pill now does a WCAG contrast check: if the role-text color and the header background are too close (ratio < 3:1, AA-large), it switches to a solid pill using the alter's color as the background and an automatically-picked black/white text color, so the chip stays visible while still showing the alter's color identity.",
+      },
+      {
+        type: "fix",
+        text: "Grocery list / privacy cover header was being clipped under the iOS status bar on iPhones — the panel is `fixed inset-0` and didn't account for `env(safe-area-inset-top)`. The X close button and \"Grocery list\" title were overlapping the time / battery indicators. Added safe-area padding to the panel's top and bottom so the header clears the status bar and the input clears the home indicator.",
+      },
+    ],
+  },
+  {
     date: "May 10, 2026",
     changes: [
       {

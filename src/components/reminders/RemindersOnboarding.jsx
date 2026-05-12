@@ -224,7 +224,7 @@ export default function RemindersOnboarding({ onDone }) {
                <div className="flex-1 min-w-0">
                  <div className="flex items-center gap-2">
                    <p className="font-semibold text-sm text-foreground leading-tight">{seed.title}</p>
-                   {needsSetup && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 font-medium">Setup required</span>}
+                   {needsSetup && <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 font-medium">Setup required</span>}
                  </div>
                  <p className="text-xs text-muted-foreground mt-0.5">{seed.body}</p>
                  <p className="text-xs text-primary/70 mt-1">{subtitle}</p>

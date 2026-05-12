@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, FileText } from "lucide-react";
+import { Plus, Trash2, MessageSquare, AtSign, BookOpen, CheckSquare, MessageCircle, Reply, FileText, Activity, Smile, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
+import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 
 const SOURCE_TYPE_CONFIG = {
   bulletin:  { label: "Bulletin",   icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10"   },
@@ -17,6 +18,9 @@ const SOURCE_TYPE_CONFIG = {
   task:      { label: "Task",       icon: CheckSquare,   color: "text-orange-500", bg: "bg-orange-500/10" },
   message:   { label: "Message",    icon: MessageSquare, color: "text-muted-foreground", bg: "bg-muted/40" },
   mention:   { label: "Mention",    icon: AtSign,        color: "text-primary",    bg: "bg-primary/10"   },
+  session_note:    { label: "Session note",    icon: StickyNote, color: "text-cyan-500",   bg: "bg-cyan-500/10"   },
+  session_emotion: { label: "Session emotion", icon: Smile,      color: "text-pink-500",   bg: "bg-pink-500/10"   },
+  session_symptom: { label: "Session symptom", icon: Activity,   color: "text-rose-500",   bg: "bg-rose-500/10"   },
 };
 
 const FILTERS = [
@@ -28,6 +32,7 @@ const FILTERS = [
   { key: "journal",  label: "Journals" },
   { key: "checkin",  label: "Check-ins" },
   { key: "message",  label: "Messages" },
+  { key: "session",  label: "Session" },
 ];
 
 function LogItem({ item, onDelete }) {
@@ -35,6 +40,7 @@ function LogItem({ item, onDelete }) {
   const cfg = SOURCE_TYPE_CONFIG[item.source_type] || SOURCE_TYPE_CONFIG.message;
   const Icon = cfg.icon;
   const isAuthored = item.log_type === "authored";
+  const isSession = item.log_type === "session";
 
   const handleClick = () => {
     if (item.navigate_path) navigate(item.navigate_path);
@@ -51,14 +57,14 @@ function LogItem({ item, onDelete }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-            <span className={`text-[10px] font-semibold uppercase tracking-wide ${cfg.color}`}>
-              {isAuthored ? `Authored ${cfg.label}` : `Mentioned in ${cfg.label}`}
+            <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${cfg.color}`}>
+              {isSession ? cfg.label : (isAuthored ? `Authored ${cfg.label}` : `Mentioned in ${cfg.label}`)}
             </span>
             {item.source_label && (
-              <span className="text-[10px] text-muted-foreground">· {item.source_label}</span>
+              <span className="text-[0.625rem] text-muted-foreground">· {item.source_label}</span>
             )}
             {item.source_date && (
-              <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">
+              <span className="text-[0.625rem] text-muted-foreground ml-auto flex-shrink-0">
                 {format(new Date(item.source_date), "MMM d, yyyy")}
               </span>
             )}
@@ -67,7 +73,7 @@ function LogItem({ item, onDelete }) {
             <p className="text-xs text-foreground line-clamp-2 leading-relaxed">{item.preview_text}</p>
           )}
           {item.navigate_path && (
-            <p className="text-[10px] text-primary mt-1">tap to view →</p>
+            <p className="text-[0.625rem] text-primary mt-1">tap to view →</p>
           )}
         </div>
         {onDelete && (
@@ -99,6 +105,19 @@ export default function MessagesTab({ alterId, alters }) {
     queryFn: () => base44.entities.MentionLog.filter({ mentioned_alter_id: alterId }, "-created_date"),
   });
 
+  // FrontingSession is the source of truth for per-alter notes / emotions /
+  // symptoms (the dashboard fronting-chip dropdown writes here). We pull the
+  // sessions where this alter is the primary fronter, then flatten the JSON
+  // arrays via extractPerAlterEntries.
+  const { data: alterSessions = [] } = useQuery({
+    queryKey: ["frontingSessions", "byAlter", alterId],
+    queryFn: () => base44.entities.FrontingSession.filter({ alter_id: alterId }, "-start_time"),
+  });
+  const sessionEntries = React.useMemo(
+    () => extractPerAlterEntries(alterSessions, { alterId }),
+    [alterSessions, alterId]
+  );
+
   const altersById = Object.fromEntries((alters || []).map(a => [a.id, a]));
 
   // Merge messages + logs into unified feed
@@ -114,9 +133,30 @@ export default function MessagesTab({ alterId, alters }) {
     _is_message: true,
   }));
 
+  // Session entries surfaced as feed items. Read-only — sourced from the
+  // session record, no separate AlterMessage / MentionLog is created.
+  const sessionFeedItems = sessionEntries.map(e => {
+    const previews = {
+      note: e.payload.text,
+      emotion: `Felt ${e.payload.label}`,
+      symptom: `${e.payload.label}${e.payload.value !== undefined && e.payload.value !== null && e.payload.value !== true ? ` · ${e.payload.value}` : ""}`,
+    };
+    return {
+      id: `session-${e.id}`,
+      source_type: `session_${e.kind}`,
+      log_type: "session",
+      preview_text: previews[e.kind] || "",
+      source_date: e.ts,
+      source_label: "Per-alter session",
+      navigate_path: null,
+      _is_session: true,
+    };
+  });
+
   const allItems = [
     ...mentionLogs.map(l => ({ ...l, _is_message: false })),
     ...messageFeedItems,
+    ...sessionFeedItems,
   ].sort((a, b) => {
     const da = a.source_date || a.created_date || "";
     const db = b.source_date || b.created_date || "";
@@ -129,15 +169,17 @@ export default function MessagesTab({ alterId, alters }) {
       if (!item.preview_text?.toLowerCase().includes(q) && !item.source_label?.toLowerCase().includes(q)) return false;
     }
     if (activeFilter === "all") return true;
-    if (activeFilter === "mention") return item.log_type === "mention" || (!item.log_type && !item._is_message);
+    if (activeFilter === "mention") return item.log_type === "mention" || (!item.log_type && !item._is_message && !item._is_session);
     if (activeFilter === "message") return item._is_message;
+    if (activeFilter === "session") return item._is_session;
     return item.source_type === activeFilter;
   });
 
   const countFor = (key) => {
     if (key === "all") return allItems.length;
-    if (key === "mention") return allItems.filter(i => i.log_type === "mention" || (!i.log_type && !i._is_message)).length;
+    if (key === "mention") return allItems.filter(i => i.log_type === "mention" || (!i.log_type && !i._is_message && !i._is_session)).length;
     if (key === "message") return messages.length;
+    if (key === "session") return sessionFeedItems.length;
     return allItems.filter(i => i.source_type === key).length;
   };
 
@@ -203,7 +245,7 @@ const postMessage = async () => {
               }`}
             >
               {f.label}
-              {count > 0 && <span className="text-[10px] opacity-60">{count}</span>}
+              {count > 0 && <span className="text-[0.625rem] opacity-60">{count}</span>}
             </button>
           );
         })}

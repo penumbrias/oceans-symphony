@@ -134,6 +134,8 @@ html.a11y-text-lg  { font-size: 112.5%; }
 html.a11y-text-xl  { font-size: 125%; }
 html.a11y-text-xl2 { font-size: 137.5%; }
 html.a11y-text-xl3 { font-size: 150%; }
+html.a11y-text-xl4 { font-size: 175%; }
+html.a11y-text-xl5 { font-size: 200%; }
 
 html.a11y-touch-comfortable button,
 html.a11y-touch-comfortable [role="button"],

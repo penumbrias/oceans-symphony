@@ -178,7 +178,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
           touchAction: "pan-y",
         }}>
         {swipeHint && (
-          <span className={`absolute top-1 right-2 text-[9px] font-semibold uppercase tracking-wide pointer-events-none z-10 ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+          <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none z-10 ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
             {swipeHint === "front" ? (fronting ? "Remove" : "Add") : (isPrimary ? "Demote" : "Promote")}
           </span>
         )}

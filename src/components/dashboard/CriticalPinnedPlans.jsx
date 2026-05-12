@@ -63,7 +63,7 @@ export default function CriticalPinnedPlans() {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-amber-500 font-semibold">
+                <div className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider text-amber-500 font-semibold">
                   <Zap className="w-3 h-3 fill-amber-500" />
                   Critical · {openStep.label.toLowerCase()}
                 </div>

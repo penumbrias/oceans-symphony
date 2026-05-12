@@ -1,11 +1,13 @@
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Pin, Zap, Flag, Clock } from "lucide-react";
-import { Link } from "react-router-dom";
+import React, { useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pin, Zap, Flag, Clock, CheckCircle2, Circle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import BulletinCard from "@/components/bulletin/BulletinCard";
 import TaskBulletinCard from "@/components/bulletin/TaskBulletinCard";
+import TaskQuickActionsSheet from "@/components/tasks/TaskQuickActionsSheet";
+import { toast } from "sonner";
 
 // Robust due-date parser. Old records stored a YYYY-MM-DD string; newer
 // ones (and the Tapestry preview) store full ISO timestamps. Concatenating
@@ -43,18 +45,34 @@ export default function DashboardPins() {
     queryFn: () => base44.entities.Task.list(),
   });
 
+  // A to-do can be pinned two ways: via the To-Do page (Task.pinned_to_dashboard)
+  // or via a task-bulletin on the board (Bulletin.dashboard_pinned with the
+  // task id embedded in `[task:ID]` content). When both pin paths target
+  // the same task we want a single card — and we prefer the bulletin one
+  // because it carries comments + the inline complete checkbox.
+  const pinnedTaskIdsFromBulletins = React.useMemo(() => {
+    const ids = new Set();
+    for (const b of pinned) {
+      const m = typeof b.content === "string" && b.content.match(/^\[task:([^:\]]+)/);
+      if (m) ids.add(m[1]);
+    }
+    return ids;
+  }, [pinned]);
+
   // Show every open task the user has flagged urgent OR pinned to the
-  // dashboard. Urgent ones float to the top.
+  // dashboard. Skip any task that's already represented by a pinned
+  // task-bulletin (de-dup). Urgent ones float to the top.
   const surfacingTasks = React.useMemo(() => {
     return tasks
       .filter(t => !t.completed && (t.is_urgent || t.pinned_to_dashboard))
+      .filter(t => !pinnedTaskIdsFromBulletins.has(t.id))
       .sort((a, b) => {
         if ((a.is_urgent ? 1 : 0) !== (b.is_urgent ? 1 : 0)) return b.is_urgent ? 1 : -1;
         const ad = a.scheduled_at || a.due_date || a.created_date;
         const bd = b.scheduled_at || b.due_date || b.created_date;
         return new Date(ad) - new Date(bd);
       });
-  }, [tasks]);
+  }, [tasks, pinnedTaskIdsFromBulletins]);
 
   if (pinned.length === 0 && surfacingTasks.length === 0) return null;
 
@@ -69,30 +87,111 @@ export default function DashboardPins() {
         <PinnedTaskRow key={`task-${t.id}`} task={t} />
       ))}
 
-      {/* Pinned bulletins (and task-bulletins from the board) */}
-      {pinned.map(b => (
-        b.content?.match(/^\[task:/)
-          ? <TaskBulletinCard key={b.id} bulletin={b} alters={alters} />
-          : <BulletinCard key={b.id} bulletin={b} alters={alters} canDelete={false} />
-      ))}
+      {/* Pinned bulletins (and task-bulletins from the board). When a
+          task-bulletin's linked Task is flagged urgent, we surface the
+          urgent styling on the bulletin card itself — that way the
+          de-dup case (task + bulletin both pinned) doesn't lose the
+          urgent-orange visual cue. */}
+      {pinned.map(b => {
+        const taskMatch = b.content?.match(/^\[task:([^:\]]+)/);
+        if (taskMatch) {
+          const linkedTask = tasks.find(t => t.id === taskMatch[1]);
+          return (
+            <TaskBulletinCard
+              key={b.id}
+              bulletin={b}
+              alters={alters}
+              isUrgent={!!linkedTask?.is_urgent}
+            />
+          );
+        }
+        return <BulletinCard key={b.id} bulletin={b} alters={alters} canDelete={false} />;
+      })}
     </div>
   );
 }
 
 function PinnedTaskRow({ task }) {
   const urgent = !!task.is_urgent;
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const longPressRef = useRef(null);
+  const firedRef = useRef(false);
+  const toggleComplete = async (e) => {
+    e.stopPropagation();
+    cancelLongPress();
+    if (toggling) return;
+    setToggling(true);
+    try {
+      await base44.entities.Task.update(task.id, { completed: !task.completed });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["pinnedTasks"] });
+    } catch (err) {
+      toast.error(err?.message || "Failed to update task");
+    } finally {
+      setToggling(false);
+    }
+  };
+  const startLongPress = () => {
+    firedRef.current = false;
+    longPressRef.current = setTimeout(() => {
+      longPressRef.current = null;
+      firedRef.current = true;
+      setQuickOpen(true);
+    }, 500);
+  };
+  const cancelLongPress = () => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  };
+  const handleClick = (e) => {
+    // If a long-press just fired, suppress the navigate that the
+    // implicit click would otherwise trigger.
+    if (firedRef.current) {
+      e.preventDefault();
+      firedRef.current = false;
+      return;
+    }
+    navigate(`/todo?id=${task.id}`);
+  };
   return (
-    <Link
-      to={`/todo?id=${task.id}`}
-      className={`block rounded-xl p-3 transition-colors ${
+    <>
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={handleClick}
+      onMouseDown={startLongPress}
+      onMouseUp={cancelLongPress}
+      onMouseLeave={cancelLongPress}
+      onTouchStart={startLongPress}
+      onTouchEnd={cancelLongPress}
+      onTouchMove={cancelLongPress}
+      onContextMenu={(e) => { e.preventDefault(); cancelLongPress(); setQuickOpen(true); }}
+      className={`block rounded-xl p-3 transition-colors cursor-pointer select-none ${
         urgent
           ? "bg-amber-500/10 border-l-4 border-amber-500 hover:bg-amber-500/15"
           : "bg-card border border-border/50 hover:bg-muted/30"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          onClick={toggleComplete}
+          aria-label={task.completed ? "Mark incomplete" : "Mark complete"}
+          className="mt-0.5 p-1 -m-1 hover:bg-muted/40 rounded transition-colors flex-shrink-0"
+        >
+          {task.completed ? (
+            <CheckCircle2 className="w-5 h-5 text-green-500" />
+          ) : (
+            <Circle className={`w-5 h-5 ${urgent ? "text-amber-500" : "text-muted-foreground hover:text-foreground"}`} />
+          )}
+        </button>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold">
+          <div className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider font-semibold">
             {urgent ? (
               <>
                 <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
@@ -106,7 +205,7 @@ function PinnedTaskRow({ task }) {
             )}
             {task.priority === "high" && <Flag className="w-3 h-3 text-red-500 ml-1" />}
           </div>
-          <div className="text-base font-semibold mt-0.5 truncate">{task.title}</div>
+          <div className={`text-base font-semibold mt-0.5 truncate ${task.completed ? "line-through text-muted-foreground" : ""}`}>{task.title}</div>
           {(task.scheduled_at || task.due_date) && (
             <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-3">
               {task.scheduled_at && (
@@ -127,6 +226,8 @@ function PinnedTaskRow({ task }) {
           )}
         </div>
       </div>
-    </Link>
+    </div>
+    <TaskQuickActionsSheet task={task} open={quickOpen} onOpenChange={setQuickOpen} />
+    </>
   );
 }

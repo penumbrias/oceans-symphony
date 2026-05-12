@@ -96,13 +96,13 @@ function SessionBlock({ session, altersById, columnIndex, totalColumns }) {
       )}
 
       {/* Duration label */}
-      <p className="text-[10px] text-muted-foreground mt-1 text-center">
+      <p className="text-[0.625rem] text-muted-foreground mt-1 text-center">
         {durationLabel(session.start_time, session.end_time)}
       </p>
 
       {/* Custom status note on hover */}
       {session.note && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full mb-2 bg-card border border-border rounded-lg p-2 text-[10px] text-foreground whitespace-nowrap shadow-lg z-10">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full mb-2 bg-card border border-border rounded-lg p-2 text-[0.625rem] text-foreground whitespace-nowrap shadow-lg z-10">
           {session.note}
         </div>
       )}
@@ -127,7 +127,7 @@ function DaySection({ dateKey, sessions, altersById }) {
         {/* Time column */}
         <div className="flex flex-col gap-2 flex-shrink-0">
           {sessions.map((s) => (
-            <div key={s.id} className="text-[10px] text-muted-foreground/70 w-14 text-right">
+            <div key={s.id} className="text-[0.625rem] text-muted-foreground/70 w-14 text-right">
               {format(new Date(s.start_time), "h:mm a")}
             </div>
           ))}

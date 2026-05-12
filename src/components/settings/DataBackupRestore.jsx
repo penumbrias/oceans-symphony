@@ -61,16 +61,24 @@ function decompressBackup(str) {
   return JSON.parse(json);
 }
 
+// CLAUDE.md NOTE: any new local entity must be added BOTH here (for the
+// raw entity allow-list) AND to the matching EXPORT_CATEGORIES entry
+// below. An entity that's only in ENTITY_NAMES will never be exported
+// because the export iterator walks EXPORT_CATEGORIES.entities, not this
+// list. Device-specific entities (FriendIdentity, PushSubscription) are
+// intentionally NOT included — they tie a record to one browser/device
+// and restoring them onto a different device causes collisions.
 const ENTITY_NAMES = [
   "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
   "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
-  "Symptom", "SymptomSession", "SymptomCheckIn", "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
+  "Symptom", "SymptomDefinition", "SymptomSession", "SymptomCheckIn",
+  "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
   "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
   "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
   "AlterRelationship", "RelationshipType", "InnerWorldLocation", "GroundingTechnique", "GroundingPreference",
   "SupportJournalEntry", "LearningProgress", "ReportTemplate", "ReportExport",
   "DiaryTemplate", "Reminder", "ReminderInstance", "Poll", "TriggerType",
-  "StatusNote", "Location", "SystemChangeEvent", "GroceryItem",
+  "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "QuickAction",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -95,17 +103,18 @@ const EXPORT_CATEGORIES = [
   { id: "tracking",      label: "Daily Tracking",           entities: ["DiaryCard", "DailyProgress", "ActivityGoal", "DailyTaskTemplate", "DiaryTemplate"], desc: "Diary cards, goals, templates" },
   { id: "activities",    label: "Activities & Sleep",       entities: ["Activity", "Sleep"],                                                 desc: "Activity logs and sleep records" },
   { id: "tasks",         label: "Tasks",                    entities: ["Task"],                                                              desc: "To-do list" },
-  { id: "symptoms",      label: "Symptoms & Tracking",      entities: ["Symptom", "SymptomSession", "SymptomCheckIn"],                      desc: "Symptom definitions and check-in history" },
+  { id: "symptoms",      label: "Symptoms & Tracking",      entities: ["Symptom", "SymptomDefinition", "SymptomSession", "SymptomCheckIn"], desc: "Symptom definitions and check-in history" },
   { id: "groups",        label: "Groups",                   entities: ["Group"],                                                             desc: "Alter groups" },
   { id: "grounding",     label: "Grounding & Safety",       entities: ["GroundingTechnique", "GroundingPreference"],                        desc: "Grounding techniques and preferences" },
   { id: "reminders",     label: "Reminders",                entities: ["Reminder", "ReminderInstance"],                                     desc: "Reminders and scheduled instances" },
   { id: "reports",       label: "Therapy Reports",          entities: ["ReportTemplate", "ReportExport"],                                   desc: "Report templates and exports" },
   { id: "learning",      label: "Learning Progress",        entities: ["LearningProgress"],                                                 desc: "Learning module progress" },
-  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType"], desc: "App settings, custom emotions, trigger types" },
+  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType", "QuickAction"], desc: "App settings, custom emotions, trigger types, quick actions" },
   { id: "notes",         label: "Notes & Messages",         entities: ["AlterNote", "AlterMessage", "MentionLog"],                          desc: "Notes, DMs, mentions" },
   { id: "statuses",     label: "Custom Statuses",           entities: ["StatusNote"],                                                          desc: "Timeline status notes" },
   { id: "locations",    label: "Location History",          entities: ["Location"],                                                            desc: "Location log entries" },
   { id: "lineage",      label: "System Change Events",      entities: ["SystemChangeEvent"],                                                   desc: "Fusion, split, dormancy events" },
+  { id: "groceries",    label: "Grocery List",              entities: ["GroceryItem"],                                                         desc: "Grocery / privacy-cover list items" },
   { id: "images",        label: "Local Images",             entities: [],                                                                    desc: "Uploaded images (local mode only)", isImages: true },
 ];
 

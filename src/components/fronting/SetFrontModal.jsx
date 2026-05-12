@@ -91,7 +91,7 @@ function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }
         )}
       </div>
       {swipeHint ? (
-        <span className={`text-[10px] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+        <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
           {swipeHint === "front" ? (selected ? "Deselect" : "Select") : (isPrimary ? "Demote" : "Primary")}
         </span>
       ) : (
@@ -140,7 +140,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
       "border-border/50 bg-card hover:bg-muted/30"}`
       }>
       {swipeHint && (
-        <span className={`absolute top-1 right-2 text-[9px] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+        <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
           {swipeHint === "front" ? (selected ? "Deselect" : "Select") : (isPrimary ? "Demote" : "Primary")}
         </span>
       )}

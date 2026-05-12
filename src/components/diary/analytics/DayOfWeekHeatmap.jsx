@@ -79,7 +79,7 @@ export default function DayOfWeekHeatmap({ dailyAggregates, metric = "avg_emotio
                 {stat.avg !== null ? (
                   <div>
                     <p className="text-sm font-semibold">{stat.avg.toFixed(1)}</p>
-                    <p className="text-[10px] text-muted-foreground">{stat.count} days</p>
+                    <p className="text-[0.625rem] text-muted-foreground">{stat.count} days</p>
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">—</p>

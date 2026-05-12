@@ -499,7 +499,7 @@ export default function GlobalSearch() {
                           {result.title}
                         </p>
                         {result.isArchived && (
-                          <span className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/50">
+                          <span className="flex-shrink-0 text-[0.625rem] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/50">
                             archived
                           </span>
                         )}

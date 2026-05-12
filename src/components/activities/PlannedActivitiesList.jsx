@@ -126,7 +126,7 @@ function Group({ label, items, altersById, onClick }) {
   if (items.length === 0) return null;
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 px-1">{label}</p>
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 px-1">{label}</p>
       <div className="space-y-1.5">
         {items.map(a => <ActivityRow key={a.id} activity={a} altersById={altersById} onClick={onClick} />)}
       </div>
@@ -164,13 +164,13 @@ function ActivityRow({ activity, altersById, onClick, compact }) {
         </p>
       </div>
       {assigned.length > 0 && (
-        <div className="flex items-center gap-1 text-[11px] text-muted-foreground" title={`For ${assigned.map(a => a.name).join(", ")}`}>
+        <div className="flex items-center gap-1 text-[0.6875rem] text-muted-foreground" title={`For ${assigned.map(a => a.name).join(", ")}`}>
           <Users className="w-3 h-3" />
           {assigned.length}
         </div>
       )}
       {activity.reminder_offset_minutes != null && (
-        <span className="text-[10px] text-muted-foreground" title={`Reminder ${activity.reminder_offset_minutes} min before`}>
+        <span className="text-[0.625rem] text-muted-foreground" title={`Reminder ${activity.reminder_offset_minutes} min before`}>
           🔔
         </span>
       )}

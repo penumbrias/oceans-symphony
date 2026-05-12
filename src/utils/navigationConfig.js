@@ -28,26 +28,36 @@ export const ALL_PAGES = [
 export const DEFAULT_CONFIG = {
   topBar: ["home", "alters", "checkin", "journals", "tasks"],
   bottomBar: ["home", "alters", "checkin", "journals", "tasks"],
+  // Dashboard grid default: every page except "home" (since the grid lives
+  // on Home itself), ordered by intent rather than alphabetically:
+  //   1) Daily capture flow  — alters, meeting, timeline, journals, tasks, to-do, check-in log
+  //   2) Tracking            — activities, sleep, location, analytics
+  //   3) System internals    — groups, system map, system history, polls
+  //   4) Care & support      — support, safety plan, therapy report
+  //   5) Sharing & reminders — reminders, friends
+  //   6) Settings            — settings
   dashboardGrid: [
-    "reminders",
     "alters",
-    "friends",
     "checkin",
-    "activities",
-    "analytics",
-    "therapy-report",
-    "support",
-    "checkin-log",
-    "sleep",
     "timeline",
-    "system-map",
     "journals",
     "tasks",
+    "todo",
+    "checkin-log",
+    "activities",
+    "sleep",
+    "location-history",
+    "analytics",
     "groups",
+    "system-map",
+    "system-history",
     "polls",
-    "settings",
+    "support",
     "safety-plan",
-    "home",
+    "therapy-report",
+    "reminders",
+    "friends",
+    "settings",
   ],
   dashboardGridRemoved: [], // pages explicitly removed by the user — never auto-re-added
 };

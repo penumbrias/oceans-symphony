@@ -31,7 +31,7 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {isRestricted && <Lock className="w-3 h-3 text-muted-foreground/60" />}
           {entry.folder && (
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
+            <span className="flex items-center gap-1 text-[0.625rem] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded-md">
               <Folder className="w-2.5 h-2.5" />
               {entry.folder}
             </span>
@@ -56,7 +56,7 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
               );
             })}
             {entry.co_author_alter_ids.length > 4 && (
-              <span className="text-[10px] text-muted-foreground ml-0.5">+{entry.co_author_alter_ids.length - 4}</span>
+              <span className="text-[0.625rem] text-muted-foreground ml-0.5">+{entry.co_author_alter_ids.length - 4}</span>
             )}
           </span>
         )}
@@ -64,7 +64,7 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
       {entry.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {entry.tags.map((tag) => (
-            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/20">
+            <span key={tag} className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/20">
               #{tag}
             </span>
           ))}

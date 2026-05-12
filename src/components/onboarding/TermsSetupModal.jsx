@@ -65,7 +65,7 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
                 }`}
               >
                 <p className="font-medium text-xs mb-1">{p.label}</p>
-                <p className="text-[11px] opacity-70">{p.alter} · {p.front}ing</p>
+                <p className="text-[0.6875rem] opacity-70">{p.alter} · {p.front}ing</p>
               </button>
             ))}
           </div>

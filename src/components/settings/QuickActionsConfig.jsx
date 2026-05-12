@@ -141,7 +141,7 @@ function EmotionPicker({ customEmotions, selectedLabel, onChange }) {
       <div className="max-h-52 overflow-y-auto rounded-lg border border-border/40 divide-y divide-border/30">
         {Object.entries(grouped).map(([cat, emotions]) => (
           <div key={cat}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5 bg-muted/20">{cat}</p>
+            <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5 bg-muted/20">{cat}</p>
             <div className="flex flex-wrap gap-1.5 px-3 py-2">
               {emotions.map(e => (
                 <button key={e.label} type="button"
@@ -207,7 +207,7 @@ function DiaryFieldPicker({ diaryGroups, selectedGroupId, selectedFieldKey, onCh
     <div className="max-h-52 overflow-y-auto rounded-lg border border-border/40 divide-y divide-border/30">
       {diaryGroups.map(group => (
         <div key={group.id}>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5 bg-muted/20">{group.label}</p>
+          <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-3 py-1.5 bg-muted/20">{group.label}</p>
           {group.fields.filter(f => f.enabled !== false).map(field => {
             const isSel = selectedGroupId === group.id && selectedFieldKey === field.data_key;
             return (

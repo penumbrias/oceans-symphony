@@ -143,11 +143,11 @@ export default function Settings() {
               reference the exact build when reporting issues. */}
           <div className="flex items-center gap-1.5 mt-1 flex-shrink-0">
             {APP_RELEASE_STAGE && (
-              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
+              <span className="text-[0.625rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
                 {APP_RELEASE_STAGE}
               </span>
             )}
-            <span className="text-[11px] font-mono text-muted-foreground">v{APP_VERSION}</span>
+            <span className="text-[0.6875rem] font-mono text-muted-foreground">v{APP_VERSION}</span>
           </div>
         </div>
         <p className="text-muted-foreground text-sm">

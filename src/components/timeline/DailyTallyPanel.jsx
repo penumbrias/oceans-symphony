@@ -21,7 +21,7 @@ function fmtMins(mins) {
 }
 
 function SectionLabel({ children }) {
-  return <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{children}</p>;
+  return <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{children}</p>;
 }
 
 function NavRow({ label, sublabel, route, navigate }) {
@@ -31,7 +31,7 @@ function NavRow({ label, sublabel, route, navigate }) {
       className="w-full flex items-center gap-1 text-left hover:bg-muted/40 px-1.5 py-0.5 rounded transition-colors -mx-1.5"
     >
       <span className="text-xs text-foreground truncate flex-1">{label}</span>
-      {sublabel && <span className="text-[10px] text-muted-foreground flex-shrink-0">{sublabel}</span>}
+      {sublabel && <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{sublabel}</span>}
       <ChevronRight className="w-3 h-3 text-muted-foreground/40 flex-shrink-0" />
     </button>
   );
@@ -158,7 +158,7 @@ export default function DailyTallyPanel({
             <div className="flex gap-0.5 bg-muted/40 rounded-full p-0.5">
               {[{ id: "total", label: "All" }, { id: "primary", label: "⭐" }, { id: "cofronting", label: "co" }].map(opt => (
                 <button key={opt.id} onClick={() => setFrontingView(opt.id)}
-                  className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium transition-colors ${frontingView === opt.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  className={`px-1.5 py-0.5 rounded-full text-[0.5625rem] font-medium transition-colors ${frontingView === opt.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                   {opt.label}
                 </button>
               ))}

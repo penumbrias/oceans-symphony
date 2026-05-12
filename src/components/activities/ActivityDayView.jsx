@@ -23,7 +23,7 @@ function EmotionPills({ emotions }) {
       {emotions.map((em, i) => (
         <span
           key={i}
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[10px] font-medium"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[0.625rem] font-medium"
           style={{ backgroundColor: emotionColor(em) }}
         >
           {em}
@@ -42,7 +42,7 @@ function LocationPills({ locations }) {
         return (
           <span
             key={i}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[0.625rem] font-medium"
             style={{ backgroundColor: cat.color + "22", color: cat.color, border: `1px solid ${cat.color}66` }}
           >
             {cat.emoji} {loc.name || cat.label}
@@ -62,7 +62,7 @@ function SymptomPills({ symptomIds, symptomsMap }) {
       {symptoms.map(s => (
         <span
           key={s.id}
-          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border"
+          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[0.625rem] font-medium border"
           style={{ borderColor: s.color || "#94a3b8", color: s.color || "#94a3b8", backgroundColor: (s.color || "#94a3b8") + "22" }}
         >
           {s.label}
@@ -147,7 +147,7 @@ function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptom
         {allEmotions.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {allEmotions.map((em, i) => (
-              <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[10px] font-medium bg-black/20">
+              <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[0.625rem] font-medium bg-black/20">
                 {em}
               </span>
             ))}
@@ -183,7 +183,7 @@ function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAl
       {emotions.length > 0 && (
         <div className="flex flex-wrap gap-1 pl-1">
           {emotions.map((em, i) => (
-            <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-white text-[10px] font-medium" style={{ backgroundColor: emotionColor(em) }}>
+            <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-white text-[0.625rem] font-medium" style={{ backgroundColor: emotionColor(em) }}>
               {em}
             </span>
           ))}

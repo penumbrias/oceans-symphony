@@ -747,7 +747,7 @@ export default function RecordSystemChangeModal({ open, onClose, preselectedAlte
           {steps.map((s, i) => (
             <React.Fragment key={s}>
               <div className={cn(
-                "flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold transition-colors",
+                "flex items-center justify-center w-5 h-5 rounded-full text-[0.625rem] font-bold transition-colors",
                 i < step ? "bg-primary text-primary-foreground"
                   : i === step ? "bg-primary/20 text-primary border border-primary/40"
                   : "bg-muted text-muted-foreground"

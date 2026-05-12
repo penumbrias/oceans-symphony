@@ -31,6 +31,8 @@ const FONT_SIZE_OPTIONS = [
   { value: 'xl',      label: 'XL',          desc: '125%' },
   { value: 'xl2',     label: 'XXL',         desc: '137.5%' },
   { value: 'xl3',     label: 'XXXL',        desc: '150%' },
+  { value: 'xl4',     label: 'XXXXL',       desc: '175%' },
+  { value: 'xl5',     label: 'Huge',        desc: '200%' },
 ];
 
 // ── Font Picker ──────────────────────────────────────────────────────────────
@@ -104,7 +106,7 @@ function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolve
           <div className="max-h-64 overflow-y-auto p-1">
             {Object.entries(grouped).map(([cat, fonts]) => (
               <div key={cat}>
-                <p className="px-2 pt-2 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <p className="px-2 pt-2 pb-1 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">
                   {FONT_CATEGORY_LABELS[cat] || cat}
                 </p>
                 {fonts.map(f => (
@@ -146,7 +148,7 @@ function ColorSwatch({ label, color, onClick }) {
         className="w-10 h-10 rounded-xl border-2 border-border/50 group-hover:border-primary/60 transition-colors shadow-sm"
         style={{ backgroundColor: color }}
       />
-      <span className="text-[10px] text-muted-foreground group-hover:text-foreground">{label}</span>
+      <span className="text-[0.625rem] text-muted-foreground group-hover:text-foreground">{label}</span>
     </button>
   );
 }
@@ -403,7 +405,7 @@ export default function AdvancedAppearance() {
               }`}
             >
               <p className={`text-sm font-semibold ${currentSize === opt.value ? 'text-primary' : ''}`}>{opt.label}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</p>
+              <p className="text-[0.625rem] text-muted-foreground mt-0.5">{opt.desc}</p>
             </button>
           ))}
         </div>
@@ -536,12 +538,12 @@ export default function AdvancedAppearance() {
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-semibold truncate ${isActive ? 'text-primary' : ''}`}>{name}</p>
                     {preset.terms && (
-                      <p className="text-[10px] text-muted-foreground truncate">
+                      <p className="text-[0.625rem] text-muted-foreground truncate">
                         {preset.terms.alter} · {preset.terms.front}ing · {preset.terms.system}
                       </p>
                     )}
                     {linkedAlters.length > 0 && (
-                      <p className="text-[10px] text-muted-foreground truncate">
+                      <p className="text-[0.625rem] text-muted-foreground truncate">
                         Linked: {linkedAlters.map(a => a.alias || a.name).join(', ')}
                       </p>
                     )}

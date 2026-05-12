@@ -33,7 +33,7 @@ export default function RecentUpdates() {
                     <span className="text-sm text-foreground leading-snug">{c.text}</span>
                   </div>
                   {style.label && (
-                    <span className={`flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${style.labelCls}`}>
+                    <span className={`flex-shrink-0 text-[0.625rem] font-semibold px-1.5 py-0.5 rounded-md ${style.labelCls}`}>
                       {style.label}
                     </span>
                   )}
