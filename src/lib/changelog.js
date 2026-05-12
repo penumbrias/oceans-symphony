@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "The Android app was displaying a Chrome URL bar across the top instead of running fullscreen. The Digital Asset Links file at /.well-known/assetlinks.json was returning 403 because Vite doesn't copy dot-prefixed directories from public/ to the build output, so Android couldn't verify the link between the app and the site. The file is now served from /assetlinks.json with a Vercel rewrite exposing it at the well-known path Android looks for. Once the new deploy is live, the URL bar will go away on next app launch (verification re-runs automatically).",
+      },
+      {
+        type: "fix",
         text: "PWA manifest was declaring the app under the 'health' category and describing it as 'built for dissociative systems', which Google Play's TWA classifier was reading as a medical-app declaration and rejecting the listing on Play Console Requirements grounds regardless of how the store listing was worded. Manifest category is now lifestyle/productivity/utilities, and the description and shortcut labels are reframed as a journaling/organizer app — the in-app feature names and behaviour are unchanged.",
       },
       {
