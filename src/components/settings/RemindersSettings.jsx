@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Check, Loader2, Bell, BellOff, X, Plus } from "lucide-react";
-import { registerPush, unregisterPush, isPushEnabled } from "@/lib/pushRegistration";
+import { registerPush, unregisterPush, isPushEnabled, pushDiagnostics, showLocalTestNotification, pushDeepDiagnostic } from "@/lib/pushRegistration";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "@/components/reminders/snoozeHelpers";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
 
@@ -30,6 +30,8 @@ export default function RemindersSettings() {
   const [saved, setSaved] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushDiag, setPushDiag] = useState(null);
+  const [diagLoading, setDiagLoading] = useState(false);
 
   useEffect(() => {
     isPushEnabled().then(setPushEnabled).catch(() => {});
@@ -107,6 +109,75 @@ export default function RemindersSettings() {
           <p className="text-xs text-amber-500 dark:text-amber-400 pl-12">
             Push not configured — add <code className="font-mono bg-muted px-1 rounded">VITE_VAPID_PUBLIC_KEY</code>, <code className="font-mono bg-muted px-1 rounded">VAPID_PUBLIC_KEY</code>, and <code className="font-mono bg-muted px-1 rounded">VAPID_PRIVATE_KEY</code> to your Vercel environment variables. Generate keys with: <code className="font-mono bg-muted px-1 rounded">npx web-push generate-vapid-keys</code>
           </p>
+        )}
+        {/* Diagnostic — surfaces the specific failing check so users can
+            tell *why* their reminders aren't pushing, rather than just
+            toggling Enable/Disable hoping it'll work. Sends a real test
+            push if everything checks out. */}
+        <div className="pl-12 pt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <button
+            type="button"
+            disabled={diagLoading}
+            onClick={async () => {
+              setDiagLoading(true);
+              try { setPushDiag(await pushDiagnostics()); }
+              finally { setDiagLoading(false); }
+            }}
+            className="text-primary hover:underline disabled:opacity-50"
+          >
+            {diagLoading ? "Testing…" : "Test push notification"}
+          </button>
+          {/* Bypass test — calls showNotification directly from the running
+              app. If "Test push" reports everything green but no notification
+              appears, this isolates whether the issue is the push pipeline
+              (push send → push provider → browser) or OS-side display
+              (Chrome's notification channel disabled, Do Not Disturb,
+              battery optimization, etc.). */}
+          <button
+            type="button"
+            onClick={async () => {
+              const r = await showLocalTestNotification();
+              if (r.ok) toast.success(r.detail);
+              else toast.error(r.detail);
+            }}
+            className="text-primary hover:underline"
+          >
+            Show local test notification
+          </button>
+          {/* Deep diagnostic — sends a real push tagged with a unique
+              diagId, listens for the SW to echo it back via postMessage.
+              Distinguishes "SW received push but OS didn't display" from
+              "SW never woke up". Wraps in a 30s timeout. */}
+          <button
+            type="button"
+            onClick={async () => {
+              toast("Sending push + listening for SW receipt (up to 30s)…");
+              const r = await pushDeepDiagnostic();
+              if (r.result === "delivered") toast.success(r.detail);
+              else toast.error(`${r.result.toUpperCase()}: ${r.detail}`, { duration: 12_000 });
+            }}
+            className="text-primary hover:underline"
+          >
+            Deep push test (30s)
+          </button>
+        </div>
+        {pushDiag && (
+          <ul className="pl-12 mt-2 space-y-1 text-xs">
+            {pushDiag.map((c, i) => (
+              <li key={i} className={c.ok ? "text-emerald-500" : "text-amber-500 dark:text-amber-400"}>
+                <span className="font-mono mr-1">{c.ok ? "✓" : "✗"}</span>
+                {c.label}
+                {c.detail && <div className="pl-4 text-muted-foreground">{c.detail}</div>}
+              </li>
+            ))}
+            <li className="text-muted-foreground pt-1 leading-relaxed">
+              If the push test reports all green but nothing appears in your tray, try the
+              "Show local test notification" button — it bypasses the push pipeline. If even
+              that doesn't show, the issue is OS-side: check Chrome's per-site notification
+              permission for this app, your phone's Do-Not-Disturb / Focus mode, and battery
+              optimization for Chrome. TWA / app-store status shouldn't matter.
+            </li>
+          </ul>
         )}
       </div>
 

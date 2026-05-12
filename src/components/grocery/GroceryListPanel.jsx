@@ -69,7 +69,17 @@ export default function GroceryListPanel() {
     refresh();
   };
 
+  // Two-tap confirm so an accidental tap on this button doesn't wipe the
+  // list. First tap arms it for 4s; second tap actually deletes. Items
+  // never disappear unless the user has explicitly done both taps.
+  const [clearArmed, setClearArmed] = useState(false);
   const clearChecked = async () => {
+    if (!clearArmed) {
+      setClearArmed(true);
+      setTimeout(() => setClearArmed(false), 4000);
+      return;
+    }
+    setClearArmed(false);
     const checked = items.filter((i) => i.checked);
     for (const i of checked) await localEntities.GroceryItem.delete(i.id);
     refresh();
@@ -152,9 +162,13 @@ export default function GroceryListPanel() {
         {items.some((i) => i.checked) && (
           <button
             onClick={clearChecked}
-            className="mt-4 mx-auto block text-xs text-neutral-500 hover:text-red-500 underline underline-offset-2"
+            className={`mt-4 mx-auto block text-xs underline underline-offset-2 transition-colors ${
+              clearArmed
+                ? "text-red-500 font-semibold"
+                : "text-neutral-500 hover:text-red-500"
+            }`}
           >
-            Clear checked items
+            {clearArmed ? "Tap again to clear" : "Clear checked items"}
           </button>
         )}
       </div>

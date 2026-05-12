@@ -27,9 +27,12 @@ export default function TaskBulletinCard({ bulletin, alters, currentAlterId, fro
   const parsed = parseTaskBulletin(bulletin.content);
   if (!parsed) return null;
 
+  // Authors are FIXED to whatever was saved on the bulletin at post
+  // time. Never fall back to the live frontingAlterIds — the task
+  // shouldn't appear to switch authors when the front changes.
   const authorIds = bulletin.author_alter_ids?.length > 0
     ? bulletin.author_alter_ids
-    : (bulletin.author_alter_id ? [bulletin.author_alter_id] : frontingAlterIds);
+    : (bulletin.author_alter_id ? [bulletin.author_alter_id] : []);
 
 const rawDate = bulletin.created_date;
 const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
@@ -127,7 +130,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
             {parsed.title}
           </p>
           <div className="mt-1">
-            <AuthorsRow authorIds={authorIds} fallbackIds={frontingAlterIds} alters={alters} timestamp={timeAgo} />
+            <AuthorsRow authorIds={authorIds} alters={alters} timestamp={timeAgo} />
           </div>
         </div>
 

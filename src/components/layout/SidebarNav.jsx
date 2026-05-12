@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -103,14 +103,41 @@ export default function SidebarNav({ open, onClose }) {
         {/* Safe-area + header */}
         <div style={{ paddingTop: "env(safe-area-inset-top, 0px)" }} className="bg-background/95 backdrop-blur-xl border-b border-border/50 flex-shrink-0">
           <div className="flex items-center justify-between px-4 h-14">
-            <span className="font-display text-base font-semibold text-foreground">Navigation</span>
-            <button
+            {/* Tappable logo + title — closes the drawer and goes back to
+                the Dashboard. Gives users a quick way home without
+                hunting for the Dashboard nav row. */}
+            <Link
+              to="/"
               onClick={onClose}
-              aria-label="Close menu"
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              className="flex items-center gap-2 select-none min-h-[44px] px-1 -ml-1 rounded-xl hover:bg-muted/50 transition-colors"
+              aria-label="Go to dashboard"
             >
-              <X className="w-5 h-5" />
-            </button>
+              <img src="/logo.png" className="w-6 h-6 object-contain rounded-md" alt="logo" />
+              <span className="font-display text-base font-semibold text-foreground">Navigation</span>
+            </Link>
+            <div className="flex items-center gap-1">
+              {/* Grocery list / privacy cover — relocated from the
+                  dashboard header. Still openable via triple-tap or
+                  the quick-action shortcuts. */}
+              <button
+                onClick={() => {
+                  onClose();
+                  window.dispatchEvent(new CustomEvent("open-grocery-list"));
+                }}
+                aria-label="Grocery list (also acts as a privacy cover; triple-tap anywhere to open)"
+                title="Grocery list · triple-tap anywhere to open"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <ShoppingCart className="w-5 h-5" />
+              </button>
+              <button
+                onClick={onClose}
+                aria-label="Close menu"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 

@@ -311,7 +311,15 @@ function generateDarkTheme(lightColors) {
 }
 
 export function ThemeProvider({ children }) {
-  const [themeMode, setThemeMode] = useState('system');
+  // Three modes: 'dark' (default), 'light', and 'system' (mirrors the OS
+  // prefers-color-scheme). The earlier OS-follow bug came from preserving
+  // 'system' as the saved value but reading the OS at the wrong time and
+  // sometimes inverting the result. This implementation just reads
+  // matchMedia('(prefers-color-scheme: dark)').matches whenever the mode
+  // is 'system' and toggles the document.documentElement.dark class
+  // accordingly, with a live listener so the app updates if the OS
+  // setting flips while it's running. No legacy quirks.
+  const [themeMode, setThemeMode] = useState('dark');
   const [selectedTheme, setSelectedTheme] = useState('cool');
   const [customColors, setCustomColors] = useState(null);
   const [selectedFont, setSelectedFont] = useState('inter');
@@ -328,7 +336,9 @@ export function ThemeProvider({ children }) {
     const savedUserPresets = localStorage.getItem('symphony_userCustomPresets');
     const savedLinks = localStorage.getItem('symphony_alterThemeLinks');
 
-    setThemeMode(saved || 'system');
+    // Accept 'light' | 'dark' | 'system'. Default 'dark' on first run.
+    const normalized = ['light', 'dark', 'system'].includes(saved) ? saved : 'dark';
+    setThemeMode(normalized);
     setSelectedTheme(savedTheme || 'cool');
     if (savedCustom) setCustomColors(JSON.parse(savedCustom));
     if (savedFont) setSelectedFont(savedFont);
@@ -345,7 +355,8 @@ export function ThemeProvider({ children }) {
     // this event. We re-read all of the theme keys so the running app
     // reflects the change immediately.
     const reload = () => {
-      setThemeMode(localStorage.getItem('symphony_themeMode') || 'system');
+      const raw = localStorage.getItem('symphony_themeMode');
+      setThemeMode(['light', 'dark', 'system'].includes(raw) ? raw : 'dark');
       setSelectedTheme(localStorage.getItem('symphony_selectedTheme') || 'cool');
       const cc = localStorage.getItem('symphony_customColors');
       setCustomColors(cc ? JSON.parse(cc) : null);
@@ -369,13 +380,34 @@ export function ThemeProvider({ children }) {
     
     localStorage.setItem('symphony_themeMode', themeMode);
     localStorage.setItem('symphony_selectedTheme', selectedTheme);
+    // Persist customColors when set, REMOVE the localStorage entry when
+    // cleared. The old "if (customColors) localStorage.setItem(...)" only
+    // wrote when truthy, never deleted when falsy — so once a user set
+    // custom colours, picking a preset later didn't actually undo them on
+    // the next reload; the stale localStorage value would override the
+    // preset.
     if (customColors) localStorage.setItem('symphony_customColors', JSON.stringify(customColors));
+    else localStorage.removeItem('symphony_customColors');
     localStorage.setItem('symphony_selectedFont', selectedFont);
     localStorage.setItem('symphony_userCustomPresets', JSON.stringify(userCustomPresets));
     localStorage.setItem('symphony_alterThemeLinks', JSON.stringify(alterThemeLinks));
     
+    // In 'system' mode, mirror the OS's current prefers-color-scheme. In
+    // 'light' or 'dark' mode, ignore the OS entirely and honour the user
+    // pick. The matchMedia listener mounted up in the init effect keeps
+    // isDarkOS fresh, so this re-runs whenever the OS flips.
     const isDark = themeMode === 'dark' || (themeMode === 'system' && isDarkOS);
     document.documentElement.classList.toggle('dark', isDark);
+
+    // Tell the browser explicitly which colour scheme this page handles.
+    // Without this, Android Chrome's "force-dark" / iOS Safari's auto-dark
+    // would invert the page when the OS is in dark mode — that's the
+    // "light mode looks dark when phone is dark" bug the user reported.
+    // `only light` / `only dark` disable the OS-level override outright;
+    // for system mode we keep `light dark` (browser-correct) and rely on
+    // our own class toggle above.
+    document.documentElement.style.colorScheme =
+      themeMode === 'system' ? 'light dark' : (isDark ? 'only dark' : 'only light');
     
     let colors;
     if (customColors) {
@@ -391,8 +423,11 @@ export function ThemeProvider({ children }) {
       }
     }
 
-    // Update theme-color meta tag to match the app background (for APK status bar)
-    const bgColor = colors.bg || colors['bg'];
+    // Update theme-color meta tag to match the app background (for APK status bar).
+    // Guard `colors` — it can be undefined when the user has cleared their
+    // customColors but selectedTheme still points at "custom" (no real
+    // preset to read). Without this guard, `colors.bg` throws.
+    const bgColor = colors?.bg;
     if (bgColor) {
       let metaTag = document.querySelector('meta[name="theme-color"]:not([media])');
       if (!metaTag) {
@@ -452,9 +487,10 @@ export function ThemeProvider({ children }) {
   };
 
   const cycleThemeMode = () => {
-    const modes = ['system', 'light', 'dark'];
-    const idx = modes.indexOf(themeMode);
-    setThemeMode(modes[(idx + 1) % modes.length]);
+    // Three-state cycle: Dark → Light → System (follow OS) → Dark.
+    const order = ['dark', 'light', 'system'];
+    const idx = order.indexOf(themeMode);
+    setThemeMode(order[(idx + 1) % order.length]);
   };
 
   return (

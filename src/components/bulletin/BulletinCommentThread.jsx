@@ -89,7 +89,20 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     if (!text.trim()) return;
     setSaving(true);
     const { authorIds, cleanContent } = parseSignposts(text, alters);
-    const finalAuthorIds = authorIds.length > 0 ? authorIds : frontingAlterIds;
+    let finalAuthorIds = authorIds.length > 0 ? authorIds : frontingAlterIds;
+    // Defensive: if no @ signposts and the prop-passed frontingAlterIds is
+    // empty (the parent query might still be hydrating, or a session was
+    // just created and not yet propagated), refetch live so the comment
+    // isn't attributed to "System" while there's clearly a fronter set.
+    if (finalAuthorIds.length === 0) {
+      try {
+        const active = await base44.entities.FrontingSession.filter({ is_active: true });
+        const liveIds = active
+          .map(s => s.alter_id || s.primary_alter_id)
+          .filter(Boolean);
+        if (liveIds.length > 0) finalAuthorIds = liveIds;
+      } catch { /* fall through with the system-attributed save */ }
+    }
     const comment = await base44.entities.BulletinComment.create({
       bulletin_id: bulletinId,
       parent_comment_id: parentCommentId || null,
@@ -186,7 +199,13 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const reactions = comment.reactions || {};
   const rawDate = comment.created_date;
   const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
-  const authorIds = comment.author_alter_ids?.length > 0 ? comment.author_alter_ids : (comment.author_alter_id ? [comment.author_alter_id] : frontingAlterIds);
+  // Authors are FIXED to whatever was saved on the comment at post time
+  // (current front or signposts). Never fall back to the live
+  // frontingAlterIds — the comment shouldn't appear to switch authors
+  // when the front changes.
+  const authorIds = comment.author_alter_ids?.length > 0
+    ? comment.author_alter_ids
+    : (comment.author_alter_id ? [comment.author_alter_id] : []);
   const canDelete = currentAlterId === comment.author_alter_id || authorIds.includes(currentAlterId);
   const pending = pendingDeletes[comment.id];
 

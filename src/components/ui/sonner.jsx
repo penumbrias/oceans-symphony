@@ -1,11 +1,17 @@
 "use client";
-import { useTheme } from "next-themes"
+import { useTheme } from "@/lib/ThemeContext"
 import { Toaster as Sonner } from "sonner"
 
 const Toaster = ({
   ...props
 }) => {
-  const { theme = "system" } = useTheme()
+  // Pull from our own ThemeContext so toasts follow the same dark/light
+  // pick as the rest of the app. The previous import was next-themes, but
+  // next-themes isn't wired up anywhere — its useTheme always defaulted
+  // to "system" and the toaster could end up dark while the page was
+  // light (or vice-versa) on OS-mismatched devices.
+  const { themeMode } = useTheme()
+  const theme = themeMode === "system" ? "system" : (themeMode === "dark" ? "dark" : "light")
 
   return (
     (<Sonner

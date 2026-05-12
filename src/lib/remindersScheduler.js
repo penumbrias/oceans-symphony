@@ -433,7 +433,11 @@ export async function runClientScheduler(queryClient) {
          }
 
         const channels = reminder.delivery_channels?.length ? reminder.delivery_channels : ["in_app"];
-        const deliveryAttempted = channels.includes("in_app") ? ["in_app"] : [];
+        // Always record an in-app delivery attempt — the inbox/toast UI
+        // shows banners regardless, and tagging the row as in_app makes
+        // it explicit (and acts as a safety net for push-only reminders
+        // whose push delivery fails or whose push is disabled).
+        const deliveryAttempted = ["in_app"];
 
         const inst = await base44.entities.ReminderInstance.create({
           reminder_id: reminder.id,

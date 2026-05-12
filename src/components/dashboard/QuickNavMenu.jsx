@@ -179,8 +179,13 @@ export default function QuickNavMenu() {
         if (s >= now && s <= horizon) return true;
       }
       if (t.due_date) {
-        const d = new Date(`${t.due_date}T23:59:59`).getTime();
-        if (d >= now && d <= horizon) return true;
+        // Both YYYY-MM-DD and full-ISO due_dates need to work — see the
+        // matching AppLayout fix.
+        const hasTime = typeof t.due_date === "string" && t.due_date.includes("T");
+        const d = hasTime
+          ? new Date(t.due_date).getTime()
+          : new Date(`${t.due_date}T23:59:59`).getTime();
+        if (!Number.isNaN(d) && d >= now && d <= horizon) return true;
       }
       return false;
     }).length;

@@ -48,7 +48,7 @@ function getContrastColor(hex) {
 
 export default function AlterProfile() {
   const { id: alterId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
     const t = searchParams.get("tab");
     const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
@@ -195,7 +195,15 @@ export default function AlterProfile() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowComposeMessage(true)}
+                onClick={() => {
+                  // Switch to the private-messages tab and signal it to
+                  // open the compose form via a URL param. Replaces the
+                  // old setShowComposeMessage state that had no listener.
+                  const params = new URLSearchParams(searchParams);
+                  params.set("tab", "private-messages");
+                  params.set("compose", "1");
+                  setSearchParams(params, { replace: true });
+                }}
                 className="gap-1.5"
               >
                 <Mail className="w-3.5 h-3.5" /> Message
@@ -302,7 +310,7 @@ export default function AlterProfile() {
           )}
           {tab === "info" && <InfoTab alter={alter} systemFields={systemFields} />}
           {tab === "messages" && <MessagesTab alterId={alter.id} alters={alters} />}
-          {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} highlightMessageId={highlightMessageId} />}
+          {tab === "private-messages" && <PrivateMessagesTab alterId={alter.id} alters={alters} highlightMessageId={highlightMessageId} autoOpenCompose={searchParams.get("compose") === "1"} />}
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
           {tab === "lineage" && <LineageTab alterId={alter.id} />}

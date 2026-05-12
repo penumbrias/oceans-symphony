@@ -372,6 +372,26 @@ function buildTapestry() {
     rec({ timestamp: isoOffset(10, 19),activity_name: "Reading",         duration_minutes: 50, color: "#0ea5e9" }),
     rec({ timestamp: isoOffset(11, 16),activity_name: "Game night",      duration_minutes: 120, color: "#a855f7" }),
     rec({ timestamp: isoOffset(13, 10),activity_name: "Long walk",       duration_minutes: 80, color: "#10b981" }),
+    // Extra activities scattered through the rest of the month so the
+    // Month and Year views look populated for screenshots.
+    rec({ timestamp: isoOffset(14, 9),  activity_name: "Yoga",            duration_minutes: 35, color: "#65a30d" }),
+    rec({ timestamp: isoOffset(15, 14), activity_name: "Therapy session", duration_minutes: 50, color: "#7c3aed" }),
+    rec({ timestamp: isoOffset(15, 18), activity_name: "Cooking",         duration_minutes: 75, color: "#65a30d", notes: "Halo + Iris on a slow stew." }),
+    rec({ timestamp: isoOffset(16, 11), activity_name: "Composing",       duration_minutes: 100, color: "#ec4899", notes: "Mira working on the second movement." }),
+    rec({ timestamp: isoOffset(17, 13), activity_name: "Park visit",      duration_minutes: 60, color: "#10b981" }),
+    rec({ timestamp: isoOffset(18, 17), activity_name: "Code editor",     duration_minutes: 95, color: "#06b6d4" }),
+    rec({ timestamp: isoOffset(19, 19), activity_name: "Reading",         duration_minutes: 45, color: "#0ea5e9" }),
+    rec({ timestamp: isoOffset(20, 10), activity_name: "Errands",         duration_minutes: 90, color: "#fbbf24" }),
+    rec({ timestamp: isoOffset(20, 18), activity_name: "Movie night",     duration_minutes: 110, color: "#a855f7" }),
+    rec({ timestamp: isoOffset(21, 8),  activity_name: "Morning tea",     duration_minutes: 25, color: "#fde68a" }),
+    rec({ timestamp: isoOffset(21, 14), activity_name: "Drawing",         duration_minutes: 65, color: "#f43f5e" }),
+    rec({ timestamp: isoOffset(22, 16), activity_name: "Therapy session", duration_minutes: 50, color: "#7c3aed" }),
+    rec({ timestamp: isoOffset(23, 11), activity_name: "Walk",            duration_minutes: 45, color: "#10b981" }),
+    rec({ timestamp: isoOffset(24, 19), activity_name: "Cooking",         duration_minutes: 60, color: "#65a30d" }),
+    rec({ timestamp: isoOffset(25, 13), activity_name: "Game night",      duration_minutes: 140, color: "#a855f7", notes: "Whole system on the couch." }),
+    rec({ timestamp: isoOffset(26, 17), activity_name: "Composing",       duration_minutes: 70, color: "#ec4899" }),
+    rec({ timestamp: isoOffset(27, 10), activity_name: "Long walk",       duration_minutes: 95, color: "#10b981" }),
+    rec({ timestamp: isoOffset(28, 16), activity_name: "Reading",         duration_minutes: 55, color: "#0ea5e9" }),
   ];
 
   const journals = [
@@ -817,7 +837,12 @@ function buildTapestry() {
 
   // ── Tasks ──────────────────────────────────────────────────────────────
   const tasks = [
-    rec({ title: "Refill prescriptions",       completed: false, priority: "high",   due_date: isoOffset(-2, 17), assigned_alter_ids: [alters.atlas.id] }),
+    // A handful of urgent / pinned tasks so the Dashboard Pinned strip
+    // surfaces something interesting in screenshots, plus one with a
+    // scheduled_at so it renders on the activity grid as a 60-min block.
+    rec({ title: "Refill prescriptions",       completed: false, priority: "high",   due_date: isoOffset(-2, 17), assigned_alter_ids: [alters.atlas.id], is_urgent: true, pinned_to_dashboard: true, description: "Lithium + sertraline at the pharmacy down the block." }),
+    rec({ title: "Call therapist about the Thursday cancel", completed: false, priority: "high", due_date: isoOffset(-1, 12), assigned_alter_ids: [alters.atlas.id], is_urgent: true, description: "She's offline tomorrow — leave a voicemail." }),
+    rec({ title: "Compose lullaby for the inner-world bedtime ritual", completed: false, priority: "low", scheduled_at: isoOffset(-1, 20), assigned_alter_ids: [alters.mira.id], description: "Mira's idea. Forty minutes, piano only." }),
     rec({ title: "Email therapist",            completed: true,  priority: "medium", completed_date: isoOffset(1, 11), assigned_alter_ids: [alters.atlas.id] }),
     rec({ title: "Plan weekend hike",          completed: false, priority: "low",    due_date: isoOffset(-4, 9),  assigned_alter_ids: [alters.halo.id] }),
     rec({ title: "Call Mum",                   completed: false, priority: "medium" }),
@@ -831,29 +856,162 @@ function buildTapestry() {
     rec({ title: "Replace bedroom lightbulb",                        completed: true,  priority: "low", completed_date: isoOffset(3, 19) }),
   ];
 
+  // DailyTaskTemplate uses { frequency, mode, is_active, points,
+  // sort_order } — earlier records here used schedule_days /
+  // schedule_time / priority and were filtered out by is_active===true.
   const dailyTaskTemplates = [
-    rec({ title: "Morning meds",      schedule_days: [0,1,2,3,4,5,6], schedule_time: "08:00", priority: "high"   }),
-    rec({ title: "Evening journal",   schedule_days: [0,1,2,3,4,5,6], schedule_time: "21:00", priority: "low"    }),
-    rec({ title: "Weekly system meeting", schedule_days: [0],         schedule_time: "19:00", priority: "medium" }),
+    rec({ title: "Morning meds",       description: "Levothyroxine + vitamin D, on empty stomach.", frequency: "daily",  mode: "MANUAL", points: 3, is_active: true, sort_order: 0 }),
+    rec({ title: "Brush teeth",        frequency: "daily",  mode: "MANUAL", points: 1, is_active: true, sort_order: 1 }),
+    rec({ title: "Drink water",        description: "Aim for 6 glasses.",                          frequency: "daily",  mode: "MANUAL", points: 2, is_active: true, sort_order: 2 }),
+    rec({ title: "Evening journal",    description: "Five minutes — even one line counts.",        frequency: "daily",  mode: "MANUAL", points: 2, is_active: true, sort_order: 3 }),
+    rec({ title: "Read 15 minutes",    frequency: "daily",  mode: "MANUAL", points: 2, is_active: true, sort_order: 4 }),
+    rec({ title: "Stretch",            frequency: "daily",  mode: "MANUAL", points: 1, is_active: true, sort_order: 5 }),
+    rec({ title: "System meeting",     description: "Sunday roll-call.",                           frequency: "weekly", mode: "MANUAL", points: 5, is_active: true, sort_order: 0 }),
+    rec({ title: "Laundry",            frequency: "weekly", mode: "MANUAL", points: 4, is_active: true, sort_order: 1 }),
+    rec({ title: "Long walk",          description: "Counts as the weekly cardio.",                frequency: "weekly", mode: "MANUAL", points: 4, is_active: true, sort_order: 2 }),
+    rec({ title: "Plan the week",      frequency: "weekly", mode: "MANUAL", points: 3, is_active: true, sort_order: 3 }),
   ];
 
+  // The Sleep page expects full ISO datetimes for bedtime / wake_time
+  // (parseISO → format h:mm a). Earlier Tapestry stored HH:MM strings,
+  // which made the Sleep page crash. Quality is also on a 1–10 scale in
+  // the UI, not 1–5.
+  //
+  // Helper: build a sleep entry where the bedtime is on the previous
+  // calendar day (so "wake on day 5" reads naturally).
+  function sleepEntry(daysAgo, bedHour, bedMin, wakeHour, wakeMin, quality, extra = {}) {
+    const wakeDate = new Date(Date.now() - daysAgo * DAY);
+    wakeDate.setHours(wakeHour, wakeMin, 0, 0);
+    const bedDate = new Date(wakeDate);
+    // Bedtime is the previous evening — subtract a day, then set hour.
+    bedDate.setDate(bedDate.getDate() - 1);
+    bedDate.setHours(bedHour, bedMin, 0, 0);
+    return rec({
+      date: wakeDate.toISOString().slice(0, 10),
+      bedtime: bedDate.toISOString(),
+      wake_time: wakeDate.toISOString(),
+      quality,
+      ...extra,
+    });
+  }
   const sleepEntries = [
-    rec({ date: new Date(Date.now() - 0 * DAY).toISOString().slice(0,10), bedtime: "23:00", wake_time: "07:30", quality: 4, notes: "Steady night." }),
-    rec({ date: new Date(Date.now() - 1 * DAY).toISOString().slice(0,10), bedtime: "23:30", wake_time: "07:00", quality: 3 }),
-    rec({ date: new Date(Date.now() - 2 * DAY).toISOString().slice(0,10), bedtime: "22:45", wake_time: "06:50", quality: 5, notes: "Fell asleep before Halo's tea even cooled." }),
-    rec({ date: new Date(Date.now() - 3 * DAY).toISOString().slice(0,10), bedtime: "00:15", wake_time: "07:45", quality: 3, notes: "Stayed up writing the bulletins." }),
-    rec({ date: new Date(Date.now() - 5 * DAY).toISOString().slice(0,10), bedtime: "23:15", wake_time: "07:15", quality: 4 }),
-    rec({ date: new Date(Date.now() - 7 * DAY).toISOString().slice(0,10), bedtime: "01:00", wake_time: "08:30", quality: 2, notes: "Therapy night — slept badly." }),
-    rec({ date: new Date(Date.now() - 9 * DAY).toISOString().slice(0,10), bedtime: "22:30", wake_time: "07:00", quality: 5 }),
-    rec({ date: new Date(Date.now() - 11 * DAY).toISOString().slice(0,10),bedtime: "23:30", wake_time: "07:30", quality: 4 }),
+    sleepEntry(0,  23,  0, 7, 30, 8, { notes: "Steady night." }),
+    sleepEntry(1,  23, 30, 7,  0, 6),
+    sleepEntry(2,  22, 45, 6, 50, 9, { notes: "Fell asleep before Halo's tea even cooled." }),
+    sleepEntry(3,   0, 15, 7, 45, 5, { notes: "Stayed up writing the bulletins.", is_interrupted: true, interruption_count: 2 }),
+    sleepEntry(4,  22, 30, 6, 30, 9, { dreamed: true, notes: "Vivid dream about the inner-world garden." }),
+    sleepEntry(5,  23, 15, 7, 15, 7),
+    sleepEntry(6,  22,  0, 6, 45, 8),
+    sleepEntry(7,   1,  0, 8, 30, 3, { notes: "Therapy night — slept badly.", had_nightmare: true }),
+    sleepEntry(8,  23, 30, 7, 30, 7),
+    sleepEntry(9,  22, 30, 7,  0, 9),
+    sleepEntry(10, 23,  0, 7, 15, 8),
+    sleepEntry(11, 23, 30, 7, 30, 7),
+    sleepEntry(13, 22, 45, 6, 50, 8, { dreamed: true }),
+    sleepEntry(14, 23, 15, 7, 30, 7),
   ];
 
   const reminders = [
-    rec({ label: "Morning meds",      schedule_time: "08:00", schedule_days: [0,1,2,3,4,5,6], is_active: true }),
-    rec({ label: "Evening journal",   schedule_time: "21:00", schedule_days: [0,1,2,3,4,5,6], is_active: true }),
-    rec({ label: "Therapy weekly",    schedule_time: "16:00", schedule_days: [3],             is_active: true }),
-    rec({ label: "Drink water",       schedule_time: "11:00", schedule_days: [1,2,3,4,5],     is_active: true }),
-    rec({ label: "Weekly system meeting", schedule_time: "19:00", schedule_days: [0],         is_active: true }),
+    // Mix of trigger types so the Reminders settings + inbox look populated
+    // in screenshots. All inactive triggering — these are display-only
+    // examples and the preview is in-memory anyway.
+    rec({
+      title: "Morning meds",
+      body: "Levothyroxine + vitamin D, on empty stomach.",
+      category: "meds",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["08:00"], days: [0, 1, 2, 3, 4, 5, 6] },
+      delivery_channels: ["in_app", "push"],
+      inline_actions: [{ label: "Mark taken", action_type: "dismiss" }],
+      is_active: true,
+    }),
+    rec({
+      title: "Evening journal",
+      body: "Five minutes — even one line counts.",
+      category: "habit",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["21:00"], days: [0, 1, 2, 3, 4, 5, 6] },
+      delivery_channels: ["in_app", "push"],
+      inline_actions: [{ label: "Open journal", action_type: "open_journal" }],
+      is_active: true,
+    }),
+    rec({
+      title: "Therapy session",
+      body: "Wednesday afternoon — check the safety plan beforehand.",
+      category: "appointment",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["16:00"], days: [3] },
+      delivery_channels: ["in_app", "push"],
+      inline_actions: [
+        { label: "Open safety plan", action_type: "open_route", payload: { path: "/safety-plan" } },
+      ],
+      is_active: true,
+    }),
+    rec({
+      title: "Drink water",
+      body: "Two glasses every couple of hours keeps things tolerable.",
+      category: "habit",
+      trigger_type: "interval",
+      trigger_config: { minutes: 120, active_window: { start: "10:00", end: "20:00" } },
+      delivery_channels: ["in_app"],
+      is_active: true,
+    }),
+    rec({
+      title: "Weekly system meeting",
+      body: "Sunday 7pm — quick roll-call + week ahead.",
+      category: "check_in",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["19:00"], days: [0] },
+      delivery_channels: ["in_app", "push"],
+      inline_actions: [
+        { label: "Start meeting", action_type: "open_route", payload: { path: "/system-checkin" } },
+      ],
+      is_active: true,
+    }),
+    rec({
+      title: "Check in after a switch",
+      body: "Quick grounding question — what's needed right now?",
+      category: "grounding",
+      trigger_type: "contextual",
+      trigger_config: { on: "alter_fronts", delay_minutes: 5 },
+      delivery_channels: ["in_app"],
+      inline_actions: [
+        { label: "Grounding exercise", action_type: "open_grounding" },
+        { label: "Quick check-in", action_type: "open_check_in" },
+      ],
+      is_active: true,
+    }),
+    rec({
+      title: "No front update for a while",
+      body: "It's been 6 hours — anyone want to log who's around?",
+      category: "check_in",
+      trigger_type: "contextual",
+      trigger_config: { on: "no_front_update", minutes: 360 },
+      delivery_channels: ["in_app"],
+      inline_actions: [{ label: "Set fronters", action_type: "open_set_front" }],
+      is_active: true,
+    }),
+    rec({
+      title: "Dentist",
+      body: "Annual cleaning. Bring the new insurance card.",
+      category: "appointment",
+      trigger_type: "event",
+      trigger_config: {
+        datetime: new Date(Date.now() + 5 * 86400000).setHours(14, 0, 0, 0) && new Date(Date.now() + 5 * 86400000).toISOString(),
+        pre_alerts: ["1d", "1h"],
+      },
+      delivery_channels: ["in_app", "push"],
+      is_active: true,
+    }),
+    rec({
+      title: "Move car for street sweeping",
+      body: "Tuesday + Friday 8am, otherwise it's a $75 ticket.",
+      category: "custom",
+      trigger_type: "scheduled",
+      trigger_config: { times: ["07:30"], days: [2, 5] },
+      delivery_channels: ["in_app", "push"],
+      is_active: false,
+    }),
   ];
 
   const customEmotions = [
@@ -1131,7 +1289,23 @@ function buildTapestry() {
 // Public registry — each system declares its key, name, blurb, theme + font,
 // and a builder function so data is freshly generated relative to "now" each
 // time Preview Mode is enabled.
+// Wiki preview is the walkthrough variant — every alter's profile is a
+// docs page for one part of the app. The banner shows "walkthrough up to
+// date with vX.Y.Z" while this preset is active (keyed on `wiki: true`).
+import { buildWiki } from "./previewWiki";
+
 export const PREVIEW_SYSTEMS = [
+  {
+    key: "wiki",
+    wiki: true,
+    name: "App Wiki",
+    blurb: "A wiki-style walkthrough. Every alter's profile in this example system is a docs page for one part of the app — Dashboard, the alter profile edit modes, the mini-toolbar, bulletin board, timeline, activity tracker, reminders, friends mode, and more. Read at your own pace. The banner shows which app version the walkthrough was last refreshed against.",
+    termsLabel: "system / alter / fronting / switching",
+    theme: "cool",
+    font:  "'Atkinson Hyperlegible', sans-serif",
+    themeMode: null,
+    build: buildWiki,
+  },
   {
     key: "tapestry",
     name: "The Tour",

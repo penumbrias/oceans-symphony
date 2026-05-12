@@ -334,13 +334,40 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
   const { data: activityCategories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
 
+  // Close on outside *tap*, not outside pointerdown. A pointerdown also
+  // fires at the start of a scroll gesture — using it directly meant the
+  // menu closed whenever the user tried to scroll the page or scroll
+  // within the menu's own overflow region. Instead, record the
+  // pointerdown origin and only close if the matching pointerup arrives
+  // close to it (< 10px) and the down landed outside the menu.
   useEffect(() => {
-    let handler = null;
-    const tid = setTimeout(() => {
-      handler = e => { if (menuRef.current && !menuRef.current.contains(e.target)) onClose(); };
-      document.addEventListener("pointerdown", handler);
+    const SLOP = 10;
+    let downX = 0;
+    let downY = 0;
+    let downOutside = false;
+    let onMove = null;
+
+    const onDown = (e) => {
+      downOutside = !!(menuRef.current && !menuRef.current.contains(e.target));
+      downX = e.clientX;
+      downY = e.clientY;
+    };
+    const onUp = (e) => {
+      if (!downOutside) return;
+      const dx = e.clientX - downX;
+      const dy = e.clientY - downY;
+      if (dx * dx + dy * dy <= SLOP * SLOP) onClose();
+    };
+    let timeoutId = setTimeout(() => {
+      document.addEventListener("pointerdown", onDown);
+      document.addEventListener("pointerup", onUp);
     }, 200);
-    return () => { clearTimeout(tid); if (handler) document.removeEventListener("pointerdown", handler); };
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("pointerup", onUp);
+    };
   }, [onClose]);
 
   const handleAdd = () => {

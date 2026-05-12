@@ -74,9 +74,12 @@ export default function BulletinPage() {
     );
   }
 
+  // Authors are FIXED to whatever was saved on the bulletin. Never
+  // fall back to the live front — the bulletin shouldn't switch
+  // authors when the front changes.
   const authorIds = bulletin.author_alter_ids?.length > 0
     ? bulletin.author_alter_ids
-    : (bulletin.author_alter_id ? [bulletin.author_alter_id] : frontingAlterIds);
+    : (bulletin.author_alter_id ? [bulletin.author_alter_id] : []);
   const timeAgo = formatDistanceToNow(new Date(bulletin.created_date), { addSuffix: true });
 
   return (
@@ -88,7 +91,7 @@ export default function BulletinPage() {
       <div className="bg-card border border-border/50 rounded-2xl p-5 mb-4">
         {/* Authors */}
         <div className="flex items-start justify-between gap-2 mb-3">
-          <AuthorsRow authorIds={authorIds} fallbackIds={frontingAlterIds} alters={alters} timestamp={timeAgo} />
+          <AuthorsRow authorIds={authorIds} alters={alters} timestamp={timeAgo} />
           {bulletin.is_pinned && <Pin className="w-4 h-4 text-primary flex-shrink-0 mt-1" />}
         </div>
 

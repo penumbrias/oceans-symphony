@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { localEntities } from "@/api/base44Client";
+import { localEntities, base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 import { GitMerge, Split, MoonStar, Sunrise, Plus, ArrowRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -179,7 +179,29 @@ export default function LineageTab({ alterId }) {
     queryFn: () => localEntities.Alter.list(),
   });
 
+  // Relationships are stored on the cloud-synced AlterRelationship entity
+  // (not the local lineage events). Fetching both lets the lineage tab
+  // show "who this alter is connected to and how" alongside the system-
+  // change history.
+  const { data: relationships = [] } = useQuery({
+    queryKey: ["alterRelationships"],
+    queryFn: () => base44.entities.AlterRelationship.list(),
+  });
+
   const altersById = useMemo(() => Object.fromEntries(alters.map(a => [a.id, a])), [alters]);
+
+  // All relationships that involve this alter, normalised so the "other"
+  // alter and the directional label are easy to render.
+  const myRelationships = useMemo(() => {
+    return (relationships || [])
+      .filter(r => r.alter_id_a === alterId || r.alter_id_b === alterId)
+      .map(r => {
+        const isA = r.alter_id_a === alterId;
+        const other = altersById[isA ? r.alter_id_b : r.alter_id_a];
+        return { ...r, other, _selfIsA: isA };
+      })
+      .filter(r => r.other);
+  }, [relationships, alterId, altersById]);
 
   const relatedEvents = useMemo(() =>
     allEvents
@@ -213,6 +235,35 @@ export default function LineageTab({ alterId }) {
       {/* Connections map */}
       {relatedEvents.length > 0 && (
         <ConnectionsMap alterId={alterId} events={relatedEvents} altersById={altersById} />
+      )}
+
+      {/* Relationships — separate from lineage events. These are the
+          per-pair relationships the user has defined (e.g. "trauma
+          holder for", "protector of", "twin"), independent of any
+          fusion/split history. Sourced from the cloud-synced
+          AlterRelationship entity. */}
+      {myRelationships.length > 0 && (
+        <div className="rounded-xl border border-border/60 bg-card p-3 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Relationships</p>
+          <ul className="space-y-1.5">
+            {myRelationships.map(r => {
+              // Render the label so it reads naturally regardless of
+              // which side of the relationship this alter is on.
+              const label = r.relationship_type || "related to";
+              const arrow = r._selfIsA
+                ? (r.direction === "b_to_a" ? "←" : (r.direction === "a_to_b" ? "→" : "↔"))
+                : (r.direction === "b_to_a" ? "→" : (r.direction === "a_to_b" ? "←" : "↔"));
+              return (
+                <li key={r.id} className="flex items-center gap-2 text-xs flex-wrap">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="text-muted-foreground/60">{arrow}</span>
+                  <AlterPill alter={r.other} />
+                  {r.notes && <span className="text-muted-foreground/70 italic ml-1 line-clamp-1">— {r.notes}</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       {/* Event list */}

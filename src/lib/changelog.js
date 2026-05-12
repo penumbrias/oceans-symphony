@@ -17,6 +17,142 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Tapestry preview's daily task templates weren't showing up on the Daily Tasks page — the records used the old schedule_days / schedule_time / priority schema instead of the current frequency / mode / is_active / points shape, so the is_active filter dropped every row. Rewrote them with the proper schema (10 templates, six daily + four weekly, with descriptions and point values).",
+      },
+      {
+        type: "fix",
+        text: "Sleep tracker preview data was crashing the Sleep page — bedtime / wake_time were stored as HH:MM strings, but the page expects full ISO datetimes. parseISO returned Invalid Date and format() threw. Rewrote the 14 sleep entries with proper ISO datetimes built from a (daysAgo, bedHour, wakeHour) helper, quality values on the 1–10 scale, plus a couple with extra flags (interrupted, dreamed, had_nightmare) so the Sleep page has variety to show.",
+      },
+      {
+        type: "improve",
+        text: "Pinned bulletins, pinned to-dos, and critical-plan banners now show only on the Dashboard, not on the Alters / Home page. The Alters page is the directory; the dashboard is the at-a-glance home. Surfacing the same pins on both made the alters list cluttered.",
+      },
+      {
+        type: "fix",
+        text: "System Meeting page crashed when opened in preview mode (and for any check-in created before the date column existed). The list and detail views both read `checkIn.date.split(\"-\")` without checking whether `date` was set; `undefined.split` threw and unmounted the page. Both sites now fall back to `created_date` when `date` is missing, with an \"Undated check-in\" label if both are absent or unparseable.",
+      },
+      {
+        type: "fix",
+        text: "Two more places had the same naive `${task.due_date}T23:59:59` string-concat that silently mis-counted (and could throw on) tasks with full-ISO due_dates: the To-Do nav badge in both the AppLayout sidebar and the dashboard quick-nav grid. Both now branch on whether the string already contains \"T\" and NaN-guard the result so a corrupt timestamp doesn't poison the count.",
+      },
+      {
+        type: "fix",
+        text: "Tapping the upcoming-plans banner used to crash the app the moment it navigated to /activities. The activity grid's task-synthesis step did the same naive `${t.due_date}T08:00:00` string-concat that crashed the Dashboard last release — for tasks with full ISO due_dates that produced garbage and Invalid Date, which `ts.toISOString()` threw on. Parser now detects both shapes (YYYY-MM-DD vs full ISO) and skips genuinely broken records instead of unmounting the page.",
+      },
+      {
+        type: "fix",
+        text: "Dashboard crashed in preview mode (and any time a pinned to-do had a full-ISO due_date) because the Pinned strip's row was naively appending \"T00:00:00\" to the date string and feeding the result to `new Date()`. For ISO timestamps that produced \"…ZT00:00:00\" — Invalid Date — and `format()` threw, taking the dashboard with it. Now uses a robust parser that handles both YYYY-MM-DD and full ISO shapes.",
+      },
+      {
+        type: "fix",
+        text: "Set Fronters modal was rendering empty (just the title bar) during the feature tour because the tour disables Radix's modal backdrop so the tour buttons stay tappable — without the backdrop, the page behind bled through and the modal looked broken. The dialog now paints its own scrim at z-40 while the tour is active, so modals stay readable as proper modals during walkthrough steps.",
+      },
+      {
+        type: "improve",
+        text: "Filled out the Tapestry example system (the non-wiki preview) so screenshots have more to show: reminders rewritten in the modern schema with a mix of trigger types (scheduled, interval, contextual, event) and inline actions; ~18 more activities scattered across the past month so the Month + Year views render populated; a couple of pinned and urgent to-dos so the Dashboard Pinned strip surfaces something interesting, plus one with a scheduled_at so it shows on the activity grid as a real block.",
+      },
+      {
+        type: "improve",
+        text: "Moved the 🛒 Grocery list button from the dashboard header into the sidebar drawer header (next to the X close button). One less icon at the top of the dashboard. Still openable via triple-tap anywhere on the screen, and via the View/Add grocery list quick actions if you've configured them.",
+      },
+      {
+        type: "fix",
+        text: "App Wiki: the mini-toolbar walkthrough alter had pages of text rendered as one giant strikethrough block, because the code-chip helper inserted example HTML tag text (\"<s>\", \"<strong>\", \"<em>\", etc.) without escaping — the browser parsed them as real formatting tags. Code chip examples now properly escape `<`, `>`, `&`, `\"`, so the wiki reads as documentation instead of as one long crossed-out paragraph.",
+      },
+      {
+        type: "fix",
+        text: "App Wiki preview alters were rendering blank and weren't grouped — the alter entity uses `description` (not `bio`) for the bio HTML, and groups own their members via `member_alter_ids` (not the other way round). Both are corrected and the 17 wiki bios + 7 group folders now show up properly.",
+      },
+      {
+        type: "fix",
+        text: "\"Revert to preset\" in Settings → Appearance no longer crashes the app. The crash was reading `colors.bg` when the resolved theme was undefined (e.g. when selectedTheme was still \"custom\" and customColors had just been cleared). The reading is now null-safe, and Revert falls back to a real preset if the captured originalTheme was also \"custom\".",
+      },
+      {
+        type: "fix",
+        text: "Picking a built-in preset after using Custom Colors used to revert to the custom colours every time the app reopened. The persistence effect only wrote customColors when set and never removed the localStorage entry when cleared, so the stale custom-color blob would override the preset on next load. Switching presets now properly clears the custom-color persistence.",
+      },
+      {
+        type: "fix",
+        text: "Grocery list \"Clear checked items\" now requires two taps within 4 seconds — first tap shows \"Tap again to clear\" in red, second tap actually deletes. Prevents accidental taps from wiping the list. The list still persists across sessions otherwise.",
+      },
+      {
+        type: "improve",
+        text: "Push notification diagnostics: added a \"Deep push test (30s)\" button next to the existing test. It sends a real push tagged with a unique ID, then listens for the service worker to echo it back via postMessage. Three possible outcomes: **delivered** (whole pipeline works — if no tray notification, the OS is suppressing display only), **sw_only** (server accepted the push but the SW never woke up within 30s — stale subscription or VAPID key mismatch or battery saver), or **send_failed** (server rejected the send). The regular Test push diagnostic also now compares build-time VITE_VAPID_PUBLIC_KEY against the server's VAPID_PUBLIC_KEY and surfaces a clear MISMATCH row if they differ — that's the silent killer where pushes look successful but never get delivered.",
+      },
+      {
+        type: "feature",
+        text: "**App Wiki preview** — Preview Mode now has a new \"App Wiki\" example system whose alters' profiles are a walkthrough of the whole app. 17 wiki alters across seven categories: Start Here (Welcome + Gestures cheatsheet), Dashboard, Alter profiles (page tour + edit modes + mini-toolbar reference + fields & tabs + fronting), Tracking (Timeline + Activity Tracker + Quick Check-In + To-Do), Sharing & relay (Bulletin Board + Friends Mode), Notifications (Reminders + push diagnostics), and Personal (Settings & themes + Privacy & backup). Tour preserved as a second option. Wiki banner shows the app version the walkthrough is current with.",
+      },
+      {
+        type: "improve",
+        text: "Preview Mode banner now shows which app version the walkthrough text is up to date with — currently v0.6.0. The wiki-style walkthrough preview (built on top of the existing example system) will roll out in follow-up commits, with each preview alter dedicated to one app area: Dashboard, the alter profile edit modes, the mini-toolbar, bulletin board, timeline, activity tracker, reminders, friends mode, and so on. The banner version tag tells users when a wiki section was last refreshed.",
+      },
+      {
+        type: "improve",
+        text: "Bio Blocks editor: blocks now actually reorder by dragging the grip handle at the left of the block header. Up/down chevron buttons are still there as a keyboard fallback. Powered by @dnd-kit/sortable.",
+      },
+      {
+        type: "fix",
+        text: "The \"Message\" button at the top of an alter's Board view used to do nothing — it set state with no listener. It now jumps to the alter's Messages tab and auto-opens the compose form.",
+      },
+      {
+        type: "improve",
+        text: "Lineage tab now also shows the alter's explicit relationships (\"trauma holder for\", \"twin\", \"split from\", etc.) alongside the system-change events, with arrows reflecting direction.",
+      },
+      {
+        type: "improve",
+        text: "Alter profile birthday field is just labeled \"Birthday\" now (was \"Birthday / Split date\"). Board tab has a short help line explaining it's the alter's activity feed — every bulletin, comment, journal, check-in, and mention they're part of.",
+      },
+      {
+        type: "fix",
+        text: "Bulletin posts, tasks, and comments now stay permanently tied to whoever wrote them — the front at post time, the signposted alters, or System if neither. Previously, when the record had no saved author it fell back to *current* fronters, so a post made by Kane would visually re-author itself to whoever was fronting when you scrolled past it later. The fallback is removed everywhere (BulletinCard, TaskBulletinCard, the standalone BulletinPage, and the comment thread).",
+      },
+      {
+        type: "fix",
+        text: "Light mode looking dark when the phone was in dark mode (and vice-versa) was actually Android Chrome's force-dark feature inverting the page, not our theme logic. We now set `color-scheme: only light` / `only dark` explicitly on the root element, which opts out of the OS-level inversion entirely. Light is light, dark is dark, regardless of the phone setting. The Sonner toast component also now uses our ThemeContext (was importing next-themes which wasn't wired up).",
+      },
+      {
+        type: "improve",
+        text: "Sidebar drawer header now has the app icon on the left of \"Navigation\" — tapping the logo/title closes the drawer and goes back to the Dashboard, so you don't need to hunt for the Dashboard row.",
+      },
+      {
+        type: "improve",
+        text: "Settings page now shows the build version + an \"alpha\" chip in the top right. The version (currently 0.5.1) bumps with every changelog entry so testers can reference the exact build when reporting issues.",
+      },
+      {
+        type: "fix",
+        text: "Reminders that only had \"Browser push\" as the delivery channel could go silent when push wasn't actually enabled on the device. Two changes: (1) saving a push-only reminder while push is off now auto-adds the in-app banner channel, and (2) every fired reminder is now also recorded as an in-app delivery, so the toast/inbox always surfaces it even if push silently fails.",
+      },
+      {
+        type: "improve",
+        text: "Quick Actions hold-menu (long-press Quick Check-In) now stays open when you scroll through it — previously every pointerdown anywhere on the page closed it, even when that pointerdown was the start of a scroll inside the menu. Outside-tap detection is now a real tap test (pointerdown → pointerup at roughly the same coordinates), so a scroll gesture is ignored. The long-press that opens the menu also cancels if your finger moves more than ~12px during the hold, so an accidental scroll during the press no longer triggers the menu.",
+      },
+      {
+        type: "improve",
+        text: "Brought back the System (follow OS) theme mode as a third state in the cycle (Dark → Light → System → Dark). When set to System the app now correctly mirrors `prefers-color-scheme` and updates live if the OS flips. The earlier light/dark mismatch bug was about how the saved mode was being read — that path is rewritten so 'system' really tracks the OS now, while 'light' and 'dark' still ignore the OS entirely.",
+      },
+      {
+        type: "fix",
+        text: "Front session sweep now runs proactively on app load, not just when the Set Fronters modal opens. Users who never open that modal would otherwise sit with stuck state forever — duplicates per alter, multiple is_primary rows, or ghost-active sessions (is_active flipped to false but end_time left null). The same three reconciliations the modal already does (per-alter dedupe, multi-primary demotion, ghost-active end_time fill) now run once per page load with a 1.5s delay.",
+      },
+      {
+        type: "improve",
+        text: "Reminders settings now has a \"Test push notification\" button. It runs through the full push pipeline — service worker support, PushManager support, VAPID key present, browser permission granted, service worker registration, active subscription, and a real call to /api/push/send — and surfaces the specific failing check inline. If everything passes it sends an actual test notification. Saves the \"I enabled push but never get notifications\" guessing game.",
+      },
+      {
+        type: "fix",
+        text: "Bulletin posts, bulletin comments, and quick tasks were sometimes attributed to \"System\" with no avatar even though someone was clearly fronting — this happened when the parent query was still hydrating (e.g. a post made right after page load) and the in-memory `frontingAlterIds` was momentarily empty. All three paths now do a defensive live-fetch of active fronting sessions before falling back to System, so authorship reflects who's actually fronting.",
+      },
+      {
+        type: "fix",
+        text: "Dashboard's \"primary fronter\" detection now picks the session marked `is_primary`, not just the first row sorted by start-time. With co-fronters joining/leaving, the most-recent row was sometimes a co-fronter rather than the actual primary, which leaked through into downstream consumers.",
+      },
+      {
+        type: "fix",
+        text: "Editing a fronting session via the Timeline popover used to silently fail — there was no error toast on save, so if the backend rejected the update the modal stayed open with no feedback. Errors now surface as a toast, and a successful save shows \"Session ended\" / \"Session saved\". Added an \"End session now\" one-tap button on the popover itself so sessions stuck without an end time can be closed without going into the full Edit flow.",
+      },
+      {
+        type: "fix",
         text: "Sweep \"ghost active\" fronting sessions on Set Fronters open and on clear-via-Unsure. These were rows where `is_active` had been flipped to false but `end_time` was still null — they appeared as Active in the Timeline popover but couldn't be ended via the Set Fronters modal because the modal's query only sees `is_active: true`. The sweep sets `end_time = now` for any such orphan so they stop displaying as Active, and the Timeline popover now also shows \"— (no end time)\" instead of \"Active\" for rows that are no longer is_active.",
       },
       {

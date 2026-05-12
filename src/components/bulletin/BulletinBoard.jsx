@@ -18,13 +18,24 @@ function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
   const handleKeyDown = async (e) => {
     if (e.key !== "Enter" || !text.trim()) return;
     setSaving(true);
+    // Same defensive live-fetch pattern as BulletinComposer — a quick
+    // task added right after page load shouldn't be attributed to
+    // "System" while the parent query is still hydrating.
+    let authorIds = frontingAlterIds;
+    if (authorIds.length === 0) {
+      try {
+        const active = await base44.entities.FrontingSession.filter({ is_active: true });
+        const liveIds = active.map(s => s.alter_id || s.primary_alter_id).filter(Boolean);
+        if (liveIds.length > 0) authorIds = liveIds;
+      } catch { /* fall through */ }
+    }
     const task = await base44.entities.Task.create({ title: text.trim(), completed: false, priority: "medium" });
     await base44.entities.Bulletin.create({
       content: `[task:${task.id}] ${text.trim()}`,
-      author_alter_ids: frontingAlterIds,
-      author_alter_id: frontingAlterIds[0] || null,
+      author_alter_ids: authorIds,
+      author_alter_id: authorIds[0] || null,
       reactions: {},
-      read_by_alter_ids: frontingAlterIds
+      read_by_alter_ids: authorIds
     });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
     toast.success("✅ Task added!");

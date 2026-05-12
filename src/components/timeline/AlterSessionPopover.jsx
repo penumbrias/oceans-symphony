@@ -102,6 +102,8 @@ function localDatetimeToISO(val) {
 export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   const infoResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   const [infoImgError, setInfoImgError] = useState(false);
+  const [endingNow, setEndingNow] = useState(false);
+  const queryClient = useQueryClient();
 
   // Always fetch fresh data so note/emotions/symptoms are current
   const { data: freshSession } = useQuery({
@@ -160,6 +162,42 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
           </div>
 
           <SessionDetails session={s} />
+
+          {/* One-tap "End now" — handy when a session looks Active or has
+              no end time recorded. Saves the user a trip into Edit and
+              shows the actual error if the update fails so we don't end
+              up with the same "I can't end it" issue silently. */}
+          {(isLive || (!end && !s.is_active)) && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              disabled={endingNow}
+              onClick={async () => {
+                setEndingNow(true);
+                try {
+                  const now = new Date().toISOString();
+                  await base44.entities.FrontingSession.update(s.id, {
+                    end_time: now,
+                    is_active: false,
+                  });
+                  toast.success("Session ended");
+                  queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+                  queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+                  queryClient.invalidateQueries({ queryKey: ["session", s.id] });
+                  onClose();
+                } catch (e) {
+                  console.error("[AlterSessionInfo] end-now failed", e);
+                  toast.error(e?.message || "Failed to end session");
+                } finally {
+                  setEndingNow(false);
+                }
+              }}
+            >
+              {endingNow ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : null}
+              End session now
+            </Button>
+          )}
 
           <div className="flex gap-2">
             {alter?.id && (
@@ -279,7 +317,16 @@ const handleSave = async () => {
 
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    queryClient.invalidateQueries({ queryKey: ["session", session.id] });
+    toast.success(newEnd ? "Session ended" : "Session saved");
     onClose();
+  } catch (e) {
+    // Surface backend errors instead of silently failing — the previous
+    // try/finally had no catch, so a rejected update closed the modal
+    // with no feedback (or stuck on "Saving…") and the row stayed
+    // stale in the timeline.
+    console.error("[AlterSessionEdit] save failed", e);
+    toast.error(e?.message || "Failed to save session");
   } finally {
     setSaving(false);
   }

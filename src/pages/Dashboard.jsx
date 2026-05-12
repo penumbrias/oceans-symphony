@@ -5,7 +5,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, ShoppingCart, Inbox } from "lucide-react";
+import { Heart, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -122,18 +122,22 @@ export default function Dashboard() {
     queryFn: () => base44.entities.MentionLog.list("-created_date", 200)
   });
 
-  // Extract currently active alter IDs from active FrontingSession records
-  // Support both new individual model (alter_id) and legacy grouped model (primary_alter_id + co_fronter_ids)
+  // Extract currently active alter IDs from active FrontingSession records.
+  // Supports both new individual model (alter_id per row, is_primary flag)
+  // and legacy grouped model (primary_alter_id + co_fronter_ids). For the
+  // new model, the primary session is whichever row has is_primary === true
+  // — not just the first one in `-start_time` order, since that can put a
+  // co-fronter (the most recent join) ahead of the actual primary.
   const activeSessions = sessions.filter((s) => s.is_active);
   let frontingAlterIds = [];
   let currentAlterId = null;
 
   if (activeSessions.length > 0) {
     // New individual model: each session is one alter
-    if (activeSessions[0].alter_id) {
+    if (activeSessions.some(s => s.alter_id)) {
       frontingAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
-      // First active session's alter is the "primary"
-      currentAlterId = frontingAlterIds[0] || null;
+      const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
+      currentAlterId = primarySess?.alter_id || frontingAlterIds[0] || null;
     } else {
       // Legacy grouped model: sessions group multiple alters
       const firstSession = activeSessions[0];
@@ -156,6 +160,10 @@ export default function Dashboard() {
   const holdStartRef = useRef(null);
   const timerFiredRef = useRef(false);
   const showQuickActionsRef = useRef(false);
+  // Pointer-origin tracking so the hold cancels if the user's finger moves
+  // (e.g. they start to scroll mid-press) — see onPointerMove handler on
+  // the button.
+  const holdOriginRef = useRef({ x: 0, y: 0 });
   const [holdProgress, setHoldProgress] = useState(0);
   const [showQuickActions, setShowQuickActions] = useState(false);
 
@@ -179,6 +187,7 @@ export default function Dashboard() {
     }
     timerFiredRef.current = false;
     holdStartRef.current = Date.now();
+    holdOriginRef.current = { x: e.clientX ?? 0, y: e.clientY ?? 0 };
 
     const tick = () => {
       if (!holdStartRef.current) return;
@@ -210,6 +219,22 @@ export default function Dashboard() {
     setHoldProgress(0);
     if (!timerFiredRef.current && !showQuickActionsRef.current) {
       setShowEmotionModal(true);
+    }
+  };
+
+  // Cancel an in-progress hold if the finger moves more than a few pixels —
+  // a real scroll gesture starts with a press and then moves, and we don't
+  // want that to count as "the user is holding here". 12px of slop allows
+  // for natural finger jitter.
+  const moveHold = (e) => {
+    if (!holdStartRef.current || timerFiredRef.current) return;
+    const SLOP = 12;
+    const dx = (e.clientX ?? 0) - holdOriginRef.current.x;
+    const dy = (e.clientY ?? 0) - holdOriginRef.current.y;
+    if (dx * dx + dy * dy > SLOP * SLOP) {
+      clearTimeout(holdTimerRef.current);
+      holdStartRef.current = null;
+      setHoldProgress(0);
     }
   };
 
@@ -380,13 +405,6 @@ export default function Dashboard() {
         </button>
         </div>
         <button
-            onClick={() => window.dispatchEvent(new CustomEvent("open-grocery-list"))}
-            aria-label="Grocery list (also acts as a privacy cover; triple-tap anywhere to open)"
-            title="Grocery list · triple-tap anywhere to open"
-            className="mt-0 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
-          <ShoppingCart className="w-5 h-5" />
-        </button>
-        <button
             onClick={() => setShowNotifHistory(true)}
             aria-label="Notification history"
             title="Notification history"
@@ -421,6 +439,7 @@ export default function Dashboard() {
         <button
           data-tour="quick-checkin"
           onPointerDown={startHold}
+          onPointerMove={moveHold}
           onPointerUp={endHold}
           onPointerLeave={endHold}
           onPointerCancel={endHold}

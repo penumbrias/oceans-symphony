@@ -522,7 +522,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
 
       {/* Birthday */}
       <div className="space-y-1">
-        <label className="text-xs text-muted-foreground font-medium">Birthday / Split date</label>
+        <label className="text-xs text-muted-foreground font-medium">Birthday</label>
         <Input
           type="date"
           value={form.birthday || ""}

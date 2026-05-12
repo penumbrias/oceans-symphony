@@ -7,6 +7,20 @@ import { base44 } from "@/api/base44Client";
 import BulletinCard from "@/components/bulletin/BulletinCard";
 import TaskBulletinCard from "@/components/bulletin/TaskBulletinCard";
 
+// Robust due-date parser. Old records stored a YYYY-MM-DD string; newer
+// ones (and the Tapestry preview) store full ISO timestamps. Concatenating
+// "T00:00:00" to an already-ISO string produced garbage and Invalid Date,
+// which crashed the dashboard via format() — that's the "preview mode
+// dashboard crashes" bug. Handle both shapes.
+function parseDueDate(raw) {
+  if (!raw) return new Date(NaN);
+  // Already a full ISO timestamp ("2026-05-13T17:00:00.000Z" / "2026-05-13T17:00:00")
+  if (typeof raw === "string" && raw.includes("T")) return new Date(raw);
+  // Date-only string ("2026-05-13") — anchor at midnight local
+  if (typeof raw === "string") return new Date(raw + "T00:00:00");
+  return new Date(raw);
+}
+
 /**
  * Renders bulletins/tasks the user has long-pressed → "Pin to dashboard",
  * plus open To-Do entries marked urgent or pinned-to-dashboard. Mounted
@@ -103,7 +117,7 @@ function PinnedTaskRow({ task }) {
               )}
               {task.due_date && (
                 <span>
-                  Due {format(new Date(task.due_date + "T00:00:00"), "MMM d")}
+                  Due {format(parseDueDate(task.due_date), "MMM d")}
                 </span>
               )}
             </div>

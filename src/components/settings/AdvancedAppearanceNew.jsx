@@ -199,6 +199,9 @@ export default function AdvancedAppearance() {
   });
   const systemSettings = systemSettingsList[0] || null;
 
+  // Mirrors ThemeContext's logic: dark when the user picked 'dark' or when
+  // they're on 'system' and the html element currently carries the dark
+  // class (set by the provider based on the OS).
   const isDark = themeMode === 'dark' ||
     (themeMode === 'system' && document.documentElement.classList.contains('dark'));
 
@@ -239,7 +242,7 @@ export default function AdvancedAppearance() {
         Object.keys(COLOR_LABELS).map(k => [k, sourceColors[k] || liveColors[k] || '#888888'])
       );
 
-  const modeIcon = { light: '☀️', dark: '🌙', system: '💻' }[themeMode] || '💻';
+  const modeIcon = { light: '☀️', dark: '🌙', system: '💻' }[themeMode] || '🌙';
 
   // ── Font handlers ────────────────────────────────────────────
   const handleFontSelect = (value) => {
@@ -440,7 +443,18 @@ export default function AdvancedAppearance() {
           {customColors && (
             <button
               type="button"
-              onClick={() => { clearCustomColors(); setPendingColors(null); setSelectedTheme(originalTheme); }}
+              onClick={() => {
+                clearCustomColors();
+                setPendingColors(null);
+                // If the captured "originalTheme" is still "custom" (the user
+                // had custom colours when Settings opened, no real preset to
+                // fall back to), use the first built-in preset instead so
+                // selectedTheme ends up resolvable.
+                const fallback = allPresets[originalTheme]
+                  ? originalTheme
+                  : Object.keys(allPresets || {})[0] || "cool";
+                setSelectedTheme(fallback);
+              }}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Revert to preset
