@@ -128,6 +128,26 @@ export function spFieldType(spType) {
   return SP_TYPE_MAP[spType] || "text";
 }
 
+// SP stores avatars two ways depending on upload era:
+//   - `avatarUrl`: a full CDN URL (newer uploads, web)
+//   - `avatarUuid`: a bare UUID (older / mobile uploads). The full URL is
+//     reconstructed as `https://spaces.apparyllis.com/avatars/{uid}/{uuid}`,
+//     where `uid` is the system's id (present on member `content.uid`).
+//     Reference: https://gist.github.com/lilianalillyy/1d450426eb2e642cd8584e81bdff5ef9
+const SP_AVATAR_CDN_BASE = "https://spaces.apparyllis.com/avatars";
+
+function resolveAvatarUrl(content, systemId) {
+  if (!content) return "";
+  if (content.avatarUrl) return content.avatarUrl;
+  if (content.avatar_url) return content.avatar_url;
+  const uuid = content.avatarUuid || content.avatar_uuid;
+  if (uuid) {
+    const owner = content.uid || systemId;
+    if (owner) return `${SP_AVATAR_CDN_BASE}/${owner}/${uuid}`;
+  }
+  return "";
+}
+
 function remapCustomFields(spInfo, fieldIdMap) {
   if (!spInfo || typeof spInfo !== "object") return {};
   const result = {};
@@ -138,7 +158,7 @@ function remapCustomFields(spInfo, fieldIdMap) {
   return result;
 }
 
-export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}) {
+export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}, systemId = "") {
   const spId = member.id || member._id || "";
   const c = member.content || member;
 
@@ -162,7 +182,7 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}) {
     pronouns: Array.isArray(c.pronouns) ? c.pronouns.join(", ") : (c.pronouns || ""),
     description: c.desc || c.description || "",
     color: normalizeColor(c.color),
-    avatar_url: c.avatarUrl || c.avatar_url || "",
+    avatar_url: resolveAvatarUrl(c, systemId),
     banner_url: c.bannerUrl || c.banner_url || "",
     role: c.role || "",
     custom_fields: remapCustomFields(c.info || {}, fieldIdMap),
@@ -173,7 +193,7 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}) {
   };
 }
 
-export function mapCustomFrontToAlter(customFront) {
+export function mapCustomFrontToAlter(customFront, systemId = "") {
   const spId = customFront.id || customFront._id || "";
   const c = customFront.content || customFront;
   return {
@@ -181,7 +201,7 @@ export function mapCustomFrontToAlter(customFront) {
     name: c.name || "Unknown",
     description: c.desc || c.description || "",
     color: normalizeColor(c.color),
-    avatar_url: c.avatarUrl || c.avatar_url || "",
+    avatar_url: resolveAvatarUrl(c, systemId),
     tags: [],
     groups: [],
     is_archived: !!c.archived,

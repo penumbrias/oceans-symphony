@@ -172,7 +172,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
         if (includeAlters) {
           const effectiveGroupsById = includeGroups ? groupsById : {};
-          const mappedAlters = members.map((m) => mapMemberToAlter(m, effectiveGroupsById, fieldIdMap));
+          const mappedAlters = members.map((m) => mapMemberToAlter(m, effectiveGroupsById, fieldIdMap, sysId));
           setImportProgress("Importing alters…");
           const existingAlters = await localEntities.Alter.list();
           if (importMode === "replace_all") {
@@ -225,7 +225,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
             if (a.sp_id) existingBySpId[a.sp_id] = a;
           }
           for (const cf of spCustomFronts) {
-            const mapped = mapCustomFrontToAlter(cf);
+            const mapped = mapCustomFrontToAlter(cf, sysId);
             if (!mapped.sp_id) continue;
             const existing = existingBySpId[mapped.sp_id];
             if (existing) {

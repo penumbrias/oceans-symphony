@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Simply Plural import was dropping avatars for any member whose avatar was stored as a UUID rather than a full URL (common in larger / older systems where mobile uploads were saved as `avatarUuid`). The importer only read `avatarUrl` / `avatar_url`, so anything in `avatarUuid` was silently discarded. Added a CDN URL composer that builds `https://spaces.apparyllis.com/avatars/{system_uid}/{avatarUuid}` when only the UUID is present, falling back to an empty avatar if neither field is set. Applies to both regular alters and custom fronts.",
+      },
+      {
+        type: "fix",
         text: "Toggle switches (e.g. Pin to dashboard / Mark as urgent in the to-do form) were nearly invisible in their off-state on dark themes — the shadcn Switch was using the `--input` CSS variable for the unchecked track, but the app's themes never define `--input`, so it fell back to a near-black default that blended into the card background. Switched the unchecked track to `bg-muted` with a visible border, and brightened the unchecked thumb to `bg-foreground/80`, so the off-state stays visible on every theme without changing the on-state.",
       },
       {
