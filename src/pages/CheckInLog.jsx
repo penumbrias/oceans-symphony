@@ -243,7 +243,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
   );
 }
 
-function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations, statusNotes = [], diaryCards = [], totalEntryCount }) {
+function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations, statusNotes = [], diaryCards = [], perAlterEntries = [], totalEntryCount }) {
   const allEmotions = useMemo(() => {
     const tally = {};
     checkIns.forEach(ci => (ci.emotions || []).forEach(em => { tally[em] = (tally[em] || 0) + 1; }));
@@ -304,7 +304,8 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   }, [diaryCards]);
 
   const isEmpty = allEmotions.length === 0 && fronters.length === 0 && allSymptoms.length === 0
-    && allActivities.length === 0 && locations.length === 0 && statusNotes.length === 0 && !diaryAggregate;
+    && allActivities.length === 0 && locations.length === 0 && statusNotes.length === 0 && !diaryAggregate
+    && perAlterEntries.length === 0;
   if (isEmpty) return null;
 
   const entryCount = totalEntryCount ?? checkIns.length;
@@ -360,6 +361,37 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
               ⚡ {name}
             </span>
           ))}
+        </div>
+      )}
+
+      {perAlterEntries.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground font-semibold">Per-alter</p>
+          <div className="flex flex-wrap gap-1">
+            {perAlterEntries.map((e) => {
+              const alter = altersById[e.alterId];
+              const color = alter?.color || "#8b5cf6";
+              const name = alter?.alias || alter?.name || "?";
+              let content = "";
+              if (e.kind === "note") content = `💬 ${e.payload.text}`;
+              else if (e.kind === "emotion") content = `Felt ${e.payload.label}`;
+              else if (e.kind === "symptom") {
+                const sym = e.payload || {};
+                content = `${sym.label}${sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}`;
+              }
+              return (
+                <span
+                  key={e.id}
+                  className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border max-w-full"
+                  style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}
+                  title={`${name}: ${content}`}
+                >
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                  <span className="truncate">{name}: {content}</span>
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -678,6 +710,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
             locations={dayLocations}
             statusNotes={dayStatusNotes}
             diaryCards={dayDiaryCards}
+            perAlterEntries={dayPerAlterEntries}
             totalEntryCount={
               checkIns.length +
               standaloneSymptomCheckIns.length +

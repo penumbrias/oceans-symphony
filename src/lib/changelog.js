@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 12, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Per-alter notes, emotions, and symptoms now also roll up into the Check-In Log's Day Total section under a new 'Per-alter' row, so the at-a-glance day summary reflects them too instead of only the per-entry list above.",
+      },
+      {
         type: "fix",
         text: "Check-In Log was including future-dated planned activities (e.g. an appointment scheduled for next Friday showed up on Friday's row before it had happened). The log is a history view, not a calendar — so planned activities whose timestamp is still in the future are now filtered out and only appear once their time has actually elapsed.",
       },
