@@ -96,7 +96,11 @@ export default function GroceryListPanel() {
   return (
     <div
       className="fixed inset-0 z-[9999] bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 flex flex-col"
-      style={{ touchAction: "manipulation" }}
+      style={{
+        touchAction: "manipulation",
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
     >
       {/* Header — intentionally generic so the screen reads as a grocery app. */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">

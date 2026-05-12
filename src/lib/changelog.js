@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 12, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Grocery list / privacy cover header was being clipped under the iOS status bar on iPhones — the panel is `fixed inset-0` and didn't account for `env(safe-area-inset-top)`. The X close button and \"Grocery list\" title were overlapping the time / battery indicators. Added safe-area padding to the panel's top and bottom so the header clears the status bar and the input clears the home indicator.",
+      },
+    ],
+  },
+  {
     date: "May 10, 2026",
     changes: [
       {
