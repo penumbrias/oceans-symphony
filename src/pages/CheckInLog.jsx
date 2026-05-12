@@ -721,10 +721,21 @@ export default function CheckInLog() {
     queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 500),
   });
 
-  const { data: activities = [] } = useQuery({
+  const { data: rawActivities = [] } = useQuery({
     queryKey: ["activities"],
     queryFn: () => base44.entities.Activity.list("-timestamp", 500),
   });
+  // Hide future plans from the Check-In Log — they're scheduled events, not
+  // logged history. Once a plan's timestamp is in the past we let it through
+  // so the log reflects whatever actually happened (or was supposed to).
+  const activities = useMemo(() => {
+    const now = Date.now();
+    return rawActivities.filter(a => {
+      if (!a.is_planned) return true;
+      try { return new Date(a.timestamp).getTime() <= now; }
+      catch { return true; }
+    });
+  }, [rawActivities]);
 
   const { data: diaryCards = [] } = useQuery({
     queryKey: ["diaryCards"],
