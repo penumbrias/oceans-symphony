@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Backup & restore was silently dropping the Grocery list (and a couple of other entities) — `GroceryItem` was registered in the entity allow-list but never assigned to any export category, and the export iterator walks the categories rather than the allow-list. Added a new 'Grocery List' category, plus folded the previously-missing `SymptomDefinition` into 'Symptoms & Tracking' and `QuickAction` into 'Settings & Custom'. Existing backups taken before this fix won't have those entities — re-export to capture them. Also documented the two-array trap in CLAUDE.md so future entities don't slip through.",
+      },
+      {
+        type: "fix",
         text: "Stuck 'ghost' fronting sessions that wouldn't stay ended (a record with no end_time that re-appeared on the Timeline every time you reopened it) now have two escape hatches in the session popover. 1) The existing 'End session now' button additionally sweeps every other ghost session for the same alter that's older than 12 hours, so ending one stuck row clears the whole pile in a single tap. 2) A new red 'Delete session' button (two-tap-confirm) hard-deletes the FrontingSession record outright for cases where ending alone doesn't make it disappear.",
       },
       {
