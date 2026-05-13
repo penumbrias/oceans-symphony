@@ -83,6 +83,15 @@ export default function CustomFieldsManager() {
           <p className="text-sm text-muted-foreground italic py-2">No custom fields defined yet.</p>
         )}
 
+        {/* Once a user has more than a handful of custom fields, the
+            uncapped list pushes everything else on the Settings page
+            way down. Cap the visible area at ~6 rows tall and let
+            longer lists scroll inside the card. The fade hint at the
+            bottom only shows when the list actually overflows. */}
+        <div
+          className={fields.length > 6 ? "max-h-[24rem] overflow-y-auto pr-1 -mr-1 space-y-3" : "space-y-3"}
+          data-scrollable={fields.length > 6 || undefined}
+        >
         {fields.map((field, index) => {
           const Icon = TYPE_ICONS[field.field_type] || Type;
           return (
@@ -121,6 +130,7 @@ export default function CustomFieldsManager() {
             </div>
           );
         })}
+        </div>
 
         {adding ? (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Settings → Custom Fields list is now scrollable when you have more than six fields. Previously a long list of custom fields pushed everything else on the Settings page way down; the list now caps at about six rows tall and scrolls within the card so the rest of the page stays reachable.",
+      },
+      {
         type: "feature",
         text: "PluralKit integration — connect your PluralKit account in Settings → Data & Privacy and (1) import members and groups, (2) import switch history (with selectable date range, last 7 days to all-time), and (3) export local alters back to PluralKit (new local alters get created on PK, existing ones get updated; switches and groups are NOT exported). Your PluralKit token is stored locally on this device only and (if storage encryption is on) encrypted at rest — it is sent only to api.pluralkit.me and never logged. PluralKit tokens are full read-write by design, so the connect dialog reminds you that you can invalidate a leaked token from Discord with `pk;token refresh`. Export is rate-paced to stay under PluralKit's 3-write-per-second limit.",
       },
