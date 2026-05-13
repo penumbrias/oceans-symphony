@@ -21,6 +21,10 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
+        text: "Fixed an annoying ghost-tap when opening modals on Android. Tapping the Dashboard's Quick Check-In button could auto-select whichever emotion chip happened to be rendered under your finger when the modal popped open — same thing for any modal triggered by a tap. Android Chrome (and the TWA wrapper) synthesises a click event ~300ms after each tap, and that click was landing on the freshly-opened dialog content. Modals now ignore taps for the first 300ms after opening, which catches the ghost click without being long enough to feel sluggish.",
+      },
+      {
+        type: "fix",
         text: "TWA URL bar across the top of the Android app is finally gone. Google's Digital Asset Links verifier was hitting the previous Vercel rewrite for /.well-known/assetlinks.json as a redirect, and the spec disallows any redirects when fetching the file. The asset links file is now served directly from the canonical /.well-known/ path in the build output via a tiny Vite plugin that copies it into dist/.well-known/ (Vite normally skips dot-directories under public/). Force-stop and reopen the app once the new deploy is live and Android will re-verify cleanly.",
       },
       {
