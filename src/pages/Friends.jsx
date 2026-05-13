@@ -750,6 +750,16 @@ export default function FriendsPage() {
   }, [identity]);
 
   const handleRespond = async (fromUserId, action) => {
+    // Defensive: surface immediately if the request object is malformed
+    // (otherwise the button looks unresponsive to the user).
+    if (!fromUserId) {
+      toast.error("This request is missing sender info. Try refreshing the page.");
+      return;
+    }
+    // Immediate feedback so the user knows the tap registered, even if the
+    // server round-trip is slow. We'll replace this with a success/error
+    // toast below.
+    const pendingToastId = toast.loading(action === 'approve' ? "Accepting…" : "Declining…");
     // Optimistically remove the request from `pending` so the UI updates
     // before the network round-trip finishes. Refetch reconciles state.
     queryClient.setQueryData(['friendsList'], (prev) => {
@@ -759,10 +769,10 @@ export default function FriendsPage() {
     });
     try {
       await respondToRequest(fromUserId, action);
-      toast.success(action === 'approve' ? 'Friend request accepted!' : 'Request declined.');
+      toast.success(action === 'approve' ? 'Friend request accepted!' : 'Request declined.', { id: pendingToastId });
       refetchFriends();
     } catch (e) {
-      toast.error(e.message || 'Failed.');
+      toast.error(e?.message || 'Failed — check your connection and try again.', { id: pendingToastId });
       refetchFriends(); // restore truth on failure
     }
   };
@@ -939,14 +949,16 @@ export default function FriendsPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
+                    type="button"
                     onClick={() => handleRespond(req.fromUserId, 'approve')}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                    className="flex items-center gap-1 px-3 py-2 min-h-[36px] rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 active:bg-primary/80 transition-colors touch-manipulation"
                   >
                     <Check className="w-3.5 h-3.5" /> Accept
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleRespond(req.fromUserId, 'deny')}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-muted transition-colors"
+                    className="flex items-center gap-1 px-3 py-2 min-h-[36px] rounded-lg border border-border text-xs hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation"
                   >
                     <X className="w-3.5 h-3.5" /> Decline
                   </button>
