@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: reverted the modal ghost-tap shield from v0.9.9 — it was breaking interactions in every dialog (Terms Setup wouldn't accept a selection, Set Fronters dismissed when you tapped the search field, etc.). Taps inside dialog content were falling through to the backdrop for the first 300ms after open. The original ghost-tap problem on the Dashboard's Quick Check-In button can come back, but a frozen modal is much worse than an occasional mis-selection — we'll re-do that fix more carefully in a future release with a different approach.",
+      },
+      {
         type: "feature",
         text: "Plans can now repeat on a schedule. When you create a new plan, a Repeat section lets you pick Daily / Weekly / Every 2 weeks / Monthly and how many occurrences (up to 52) — perfect for setting up a weekly therapy appointment or a daily standing meeting in one shot. Each occurrence is its own plan record so individual ones can be edited or skipped, and they all share a recurrence group so future versions of the app can offer edit-series / delete-series.",
       },

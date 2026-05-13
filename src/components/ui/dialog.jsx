@@ -35,22 +35,6 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 const DialogContent = React.forwardRef(({ className, children, onInteractOutside, style, ...props }, ref) => {
   const keyboardInset = useKeyboardInset();
-  // Block input on the content for ~300ms after open. Mobile browsers (and
-  // Chrome inside the Android TWA) synthesise a click event ~300ms after a
-  // touchend, and that click lands on whatever element sits at the same
-  // screen coordinate as the trigger button. When the dialog opens at that
-  // coordinate, the synthesised click selects whatever button happens to be
-  // there — e.g. tapping Quick Check-In on the dashboard auto-selects the
-  // emotion chip rendered under that finger. preventDefault() on pointerup
-  // doesn't reliably suppress the synthetic click in Android Chrome, so we
-  // gate the content's pointer-events here for the duration of the synthetic
-  // click window. The Radix open animation runs ~200ms so 300ms is
-  // imperceptible while being long enough to catch the ghost click.
-  const [tapShielded, setTapShielded] = React.useState(true);
-  React.useEffect(() => {
-    const t = setTimeout(() => setTapShielded(false), 300);
-    return () => clearTimeout(t);
-  }, []);
   // Manual backdrop for tour mode: Radix's `modal={false}` (used while the
   // feature tour is active so tour buttons remain tappable) suppresses the
   // built-in Overlay. Without it, the page behind the dialog bleeds through
@@ -80,7 +64,6 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
         // and above the on-screen keyboard when one is open.
         top: `calc((100dvh - ${keyboardInset}px - var(--tour-card-height, 0px)) / 2)`,
         maxHeight: `calc(100dvh - ${keyboardInset}px - var(--tour-card-height, 0px) - 2rem)`,
-        pointerEvents: tapShielded ? 'none' : undefined,
         ...style,
       }}
       className={cn(
