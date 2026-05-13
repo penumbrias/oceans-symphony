@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Added Google Play's app-signing certificate fingerprint to the Digital Asset Links file. Play re-signs uploaded bundles with its own key, so the cert running on installed devices is different from the local upload key — without Play's fingerprint in assetlinks.json, Android can't verify the link and the Chrome URL bar shows across the top of the installed app. Both fingerprints are now listed (upload key + Play signing key). Force-stop and reopen the app once the new deploy is live to clear Android's cached verdict.",
+      },
+      {
+        type: "fix",
         text: "The Android app was displaying a Chrome URL bar across the top instead of running fullscreen. The Digital Asset Links file at /.well-known/assetlinks.json was returning 403 because Vite doesn't copy dot-prefixed directories from public/ to the build output, so Android couldn't verify the link between the app and the site. The file is now served from /assetlinks.json with a Vercel rewrite exposing it at the well-known path Android looks for. Once the new deploy is live, the URL bar will go away on next app launch (verification re-runs automatically).",
       },
       {
