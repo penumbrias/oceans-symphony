@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Plans can now repeat on a schedule. When you create a new plan, a Repeat section lets you pick Daily / Weekly / Every 2 weeks / Monthly and how many occurrences (up to 52) — perfect for setting up a weekly therapy appointment or a daily standing meeting in one shot. Each occurrence is its own plan record so individual ones can be edited or skipped, and they all share a recurrence group so future versions of the app can offer edit-series / delete-series.",
+      },
+      {
+        type: "improve",
+        text: "Activity picker now has a search box that works just like the emotion search. Type to filter all activities (including nested ones inside categories like Self Care or Recreation) into a flat list — no more drilling through the tree when you remember the activity name but not which category it lives in. Each result shows the category path so you can tell similarly-named entries apart.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: belt-and-suspenders for the Android URL bar fix — the Vite plugin that copies the Digital Asset Links file into the build output works locally but may be unreliable on Vercel's build environment, so the build script now also explicitly copies the file as a postbuild step and prints the resulting directory to the build log so we can verify it ran.",
       },

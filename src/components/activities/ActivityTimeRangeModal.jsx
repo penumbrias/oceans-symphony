@@ -3,13 +3,13 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format, addHours, differenceInMinutes } from "date-fns";
+import { format, addHours, differenceInMinutes, addDays, addWeeks, addMonths } from "date-fns";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { Plus, MapPin, Zap } from "lucide-react";
+import { Plus, MapPin, Zap, Repeat } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import { useTerms } from "@/lib/useTerms";
@@ -73,6 +73,11 @@ export default function ActivityTimeRangeModal({
   const [location, setLocation] = useState("");
   const [isCritical, setIsCritical] = useState(false);
   const [leadSteps, setLeadSteps] = useState(DEFAULT_LEAD_STEPS);
+  // Recurrence (plan mode only). "none" means single occurrence. When set
+  // to anything else, handleSave generates `recurrenceCount` Activity records
+  // spaced by the chosen interval, all sharing a `recurrence_group_id`.
+  const [recurrenceInterval, setRecurrenceInterval] = useState("none");
+  const [recurrenceCount, setRecurrenceCount] = useState(8);
   const queryClient = useQueryClient();
 const [newActivityName, setNewActivityName] = useState("");
 const [showNewActivity, setShowNewActivity] = useState(false);
@@ -132,6 +137,8 @@ useEffect(() => {
   setIsCritical(false);
   setLeadSteps(DEFAULT_LEAD_STEPS);
   setSelectedTaskId(null);
+  setRecurrenceInterval("none");
+  setRecurrenceCount(8);
 }, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute, planMode]);
 
   // Auto-populate alters from fronting history. MUST be useEffect, not
@@ -224,24 +231,51 @@ const handleSave = async () => {
         })
       : [{ activity_name: fallbackName, activity_category_ids: [], color: undefined }];
 
-    for (const r of records) {
-      await base44.entities.Activity.create({
-        timestamp: timestamp.toISOString(),
-        activity_name: r.activity_name,
-        activity_category_ids: r.activity_category_ids,
-        ...(r.color ? { color: r.color } : {}),
-        task_id: linkedTask?.id || null,
-        duration_minutes: durationMinutes > 0 ? durationMinutes : null, // null = logged pill
-        fronting_alter_ids: selectedAlters,
-        notes: notes || null,
-        location: planMode && location.trim() ? location.trim() : null,
-        is_planned: isPlanned,
-        is_critical: planMode && isCritical ? true : false,
-        critical_lead_steps: planMode && isCritical ? leadSteps : null,
-        // For planned activities, treat selectedAlters as the assignees too
-        // so the per-alter "Plans for me" surface picks them up.
-        assigned_alter_ids: isPlanned ? selectedAlters : [],
-      });
+    // Compute the timestamps for this save. Single-occurrence is just
+    // [timestamp]. For a recurring plan we generate up to recurrenceCount
+    // future timestamps spaced by the chosen interval. All instances share
+    // a `recurrence_group_id` so future edits can identify the series.
+    const recurrenceGroupId =
+      planMode && recurrenceInterval !== "none"
+        ? `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        : null;
+    const advance = (d, n) => {
+      if (recurrenceInterval === "daily") return addDays(d, n);
+      if (recurrenceInterval === "weekly") return addWeeks(d, n);
+      if (recurrenceInterval === "biweekly") return addWeeks(d, n * 2);
+      if (recurrenceInterval === "monthly") return addMonths(d, n);
+      return d;
+    };
+    const occurrences = recurrenceGroupId
+      ? Array.from({ length: Math.max(1, Math.min(52, recurrenceCount)) }, (_, i) => advance(timestamp, i))
+      : [timestamp];
+
+    for (const occurrence of occurrences) {
+      const occurrenceIsPlanned = occurrence.getTime() > Date.now();
+      for (const r of records) {
+        await base44.entities.Activity.create({
+          timestamp: occurrence.toISOString(),
+          activity_name: r.activity_name,
+          activity_category_ids: r.activity_category_ids,
+          ...(r.color ? { color: r.color } : {}),
+          task_id: linkedTask?.id || null,
+          duration_minutes: durationMinutes > 0 ? durationMinutes : null, // null = logged pill
+          fronting_alter_ids: selectedAlters,
+          notes: notes || null,
+          location: planMode && location.trim() ? location.trim() : null,
+          is_planned: occurrenceIsPlanned,
+          is_critical: planMode && isCritical ? true : false,
+          critical_lead_steps: planMode && isCritical ? leadSteps : null,
+          // Recurrence metadata — null on single-occurrence plans. Stored on
+          // every instance so future "edit series / delete series" can find
+          // the group from any one record.
+          recurrence_group_id: recurrenceGroupId,
+          recurrence_interval: recurrenceGroupId ? recurrenceInterval : null,
+          // For planned activities, treat selectedAlters as the assignees too
+          // so the per-alter "Plans for me" surface picks them up.
+          assigned_alter_ids: occurrenceIsPlanned ? selectedAlters : [],
+        });
+      }
     }
 
     // When a to-do was linked to this plan, sync the task's due_date so
@@ -295,7 +329,13 @@ const handleSave = async () => {
       setLeadSteps(DEFAULT_LEAD_STEPS);
       onSave?.();
       onClose();
-      toast.success(planMode ? "Plan saved!" : "Activity saved!");
+      toast.success(
+        planMode
+          ? (recurrenceGroupId
+              ? `Plan saved — ${occurrences.length} occurrences scheduled.`
+              : "Plan saved!")
+          : "Activity saved!"
+      );
     } catch (err) {
       toast.error(err.message || "Failed to log activity");
     } finally {
@@ -436,6 +476,57 @@ const handleCreateNewActivity = async () => {
                 placeholder="Westside Clinic, kitchen, anywhere"
                 className="text-sm"
               />
+            </div>
+          )}
+
+          {/* Recurrence picker (plan mode only). When set to anything other
+              than "none", the save loop generates `recurrenceCount` Activity
+              records spaced by the interval, all tagged with a shared
+              recurrence_group_id. */}
+          {planMode && (
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Repeat className={`w-4 h-4 ${recurrenceInterval !== "none" ? "text-primary" : "text-muted-foreground"}`} />
+                <span>Repeat</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { value: "none", label: "None" },
+                  { value: "daily", label: "Daily" },
+                  { value: "weekly", label: "Weekly" },
+                  { value: "biweekly", label: "Every 2 weeks" },
+                  { value: "monthly", label: "Monthly" },
+                ].map(opt => {
+                  const active = recurrenceInterval === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setRecurrenceInterval(opt.value)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-all ${active ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/50"}`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {recurrenceInterval !== "none" && (
+                <div className="flex items-center gap-2 pt-1">
+                  <label className="text-xs text-muted-foreground">How many occurrences?</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={52}
+                    value={recurrenceCount}
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      setRecurrenceCount(Number.isFinite(n) ? Math.max(1, Math.min(52, n)) : 1);
+                    }}
+                    className="w-20 h-8 text-sm"
+                  />
+                  <span className="text-xs text-muted-foreground">(max 52)</span>
+                </div>
+              )}
             </div>
           )}
 
