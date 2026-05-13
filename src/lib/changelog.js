@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Grocery list got a real upgrade. (1) Frequent items — tap the star next to any item to save it as a frequent purchase; saved items appear as one-tap chips above the list so you can re-add them without retyping. (2) Lock-on-close — if you have encryption turned on, a lock icon in the header lets you arm 'closing this list requires my password', turning the grocery cover into a one-tap hide-and-lock gesture. (3) The list now stays anchored when you tap the input — only the input slides up with the keyboard, so you can still see everything you've already written. The grocery list also got its own feature-tour step explaining the privacy-cover behaviour and the triple-tap gesture, since it's not just a grocery list. Frequent-item favourites are included in your data backup.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: belt-and-suspenders for the Android URL bar fix — the Vite plugin that copies the Digital Asset Links file into the build output works locally but may be unreliable on Vercel's build environment, so the build script now also explicitly copies the file as a postbuild step and prints the resulting directory to the build log so we can verify it ran.",
       },

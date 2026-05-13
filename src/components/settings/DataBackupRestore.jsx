@@ -78,7 +78,7 @@ const ENTITY_NAMES = [
   "AlterRelationship", "RelationshipType", "InnerWorldLocation", "GroundingTechnique", "GroundingPreference",
   "SupportJournalEntry", "LearningProgress", "ReportTemplate", "ReportExport",
   "DiaryTemplate", "Reminder", "ReminderInstance", "Poll", "TriggerType",
-  "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "QuickAction",
+  "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "GroceryFavorite", "QuickAction",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -114,7 +114,7 @@ const EXPORT_CATEGORIES = [
   { id: "statuses",     label: "Custom Statuses",           entities: ["StatusNote"],                                                          desc: "Timeline status notes" },
   { id: "locations",    label: "Location History",          entities: ["Location"],                                                            desc: "Location log entries" },
   { id: "lineage",      label: "System Change Events",      entities: ["SystemChangeEvent"],                                                   desc: "Fusion, split, dormancy events" },
-  { id: "groceries",    label: "Grocery List",              entities: ["GroceryItem"],                                                         desc: "Grocery / privacy-cover list items" },
+  { id: "groceries",    label: "Grocery List",              entities: ["GroceryItem", "GroceryFavorite"],                                      desc: "Grocery / privacy-cover list items and frequent-purchase favourites" },
   { id: "images",        label: "Local Images",             entities: [],                                                                    desc: "Uploaded images (local mode only)", isImages: true },
 ];
 
