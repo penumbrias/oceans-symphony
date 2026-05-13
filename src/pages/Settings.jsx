@@ -15,6 +15,7 @@ import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
+import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
@@ -367,6 +368,12 @@ export default function Settings() {
           </div>
           <div className="border-t border-border/30 pt-4">
             <SimplyPluralConnect settings={settings} onSettingsChange={() => {
+              refetch();
+              queryClient.invalidateQueries({ queryKey: ["alters"] });
+            }} />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <PluralKitConnect settings={settings} onSettingsChange={() => {
               refetch();
               queryClient.invalidateQueries({ queryKey: ["alters"] });
             }} />

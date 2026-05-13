@@ -81,6 +81,24 @@ export default function Privacy() {
           </p>
         </Section>
 
+        <Section title="PluralKit integration (optional)">
+          <p>
+            If you connect a PluralKit account, your PluralKit API token is stored locally
+            on your device only (encrypted at rest if you have storage encryption enabled).
+            The app sends authenticated requests directly to api.pluralkit.me using that token —
+            your token is not transmitted to any other server and is not logged.
+          </p>
+          <p>
+            Data imported from PluralKit ({terms.alter} profiles, group lists, and switch
+            history when you request it) is stored locally and subject to PluralKit's own
+            privacy policy. If you choose to export your local {terms.alters} back to
+            PluralKit, only the {terms.alter} profile fields PluralKit understands are
+            sent ({terms.fronting} sessions and {terms.alter}-specific notes are not exported).
+            When you disconnect, the token is removed from this device. If you ever expose
+            your token, you can invalidate it from Discord with <code>pk;token refresh</code>.
+          </p>
+        </Section>
+
         <Section title="What we do not collect">
           <ul className="list-disc list-inside space-y-1 pl-2">
             <li>No analytics or usage tracking</li>

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "PluralKit integration — connect your PluralKit account in Settings → Data & Privacy and (1) import members and groups, (2) import switch history (with selectable date range, last 7 days to all-time), and (3) export local alters back to PluralKit (new local alters get created on PK, existing ones get updated; switches and groups are NOT exported). Your PluralKit token is stored locally on this device only and (if storage encryption is on) encrypted at rest — it is sent only to api.pluralkit.me and never logged. PluralKit tokens are full read-write by design, so the connect dialog reminds you that you can invalidate a leaked token from Discord with `pk;token refresh`. Export is rate-paced to stay under PluralKit's 3-write-per-second limit.",
+      },
+      {
         type: "fix",
         text: "The in-app Back button (top-left chevron) sometimes did nothing when you tapped it — particularly after deep-linking into a page or reloading. The button was driven by a counter that incremented on every navigation including backward navigation, so it could think there was history to go back to when there wasn't, and React Router's navigate(-1) silently no-ops in that case. The button now reads React Router's own history index, and if there's no real history to pop it falls back to the Dashboard so the tap is never a dead end.",
       },
