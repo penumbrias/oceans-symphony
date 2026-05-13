@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "The in-app Back button (top-left chevron) sometimes did nothing when you tapped it — particularly after deep-linking into a page or reloading. The button was driven by a counter that incremented on every navigation including backward navigation, so it could think there was history to go back to when there wasn't, and React Router's navigate(-1) silently no-ops in that case. The button now reads React Router's own history index, and if there's no real history to pop it falls back to the Dashboard so the tap is never a dead end.",
+      },
+      {
+        type: "fix",
         text: "Critical accessibility fix: the first-run disclaimer modal was unreadable / unsignable at large OS text sizes. The checkbox label was pushing the Continue button off the bottom of the visible area with no way to scroll to it, so anyone using accessibility text sizing was hard-locked out of the app after their first install. The whole disclaimer card now scrolls as one unit (header sticky at the top while you scroll), the Continue button is taller, and the layout works at any text scaling.",
       },
       {

@@ -41,7 +41,15 @@ export default function AppLayout() {
   // Push front-status snapshots to the Friends server whenever the active
   // front changes — covers all paths (modal, dashboard hold, alters swipe).
   useFriendsFrontSync();
-  const [historyDepth, setHistoryDepth] = useState(0);
+  // Whether the in-app Back button should be shown (vs the menu icon).
+  // Was previously a manual increment-on-each-pathname-change counter,
+  // which mis-incremented on backward navigation and didn't reset on
+  // refresh, so the button could appear when there was actually no
+  // history to go back to — tapping it did nothing visible. We now read
+  // React Router's own history index (window.history.state.idx) which
+  // it bumps on PUSH and decrements on POP; falling back to "show menu"
+  // when idx is 0 or unavailable.
+  const [historyIdx, setHistoryIdx] = useState(() => (typeof window !== "undefined" ? (window.history.state?.idx ?? 0) : 0));
   const [showFeatureTour, setShowFeatureTour] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useRemindersScheduler();
@@ -242,10 +250,24 @@ const handleNotifClick = (mentionLog) => {
 };
 
   useEffect(() => {
-    setHistoryDepth((prev) => isTabRoot(location.pathname) ? 0 : prev + 1);
+    // Track React Router's own history index on each navigation. PUSH
+    // bumps it, POP decrements, REPLACE leaves it where it is.
+    setHistoryIdx(window.history.state?.idx ?? 0);
   }, [location.pathname]);
 
-  const canGoBack = historyDepth > 0 && !isTabRoot(location.pathname);
+  const canGoBack = historyIdx > 0 && !isTabRoot(location.pathname);
+
+  // Bulletproof back: try navigate(-1) if we genuinely have history to
+  // pop, otherwise fall back to the Dashboard. Prevents the "tap does
+  // nothing" case where the user opened the page via deep link / fresh
+  // reload (no history) but the button was still being rendered.
+  const handleBack = () => {
+    if ((window.history.state?.idx ?? 0) > 0) {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  };
   const { indicatorVisible, indicatorProgress } = useSwipeBack();
 
   return (
@@ -329,7 +351,7 @@ const handleNotifClick = (mentionLog) => {
           {/* Left: back button or menu icon */}
           {canGoBack ?
             <button
-              onClick={() => navigate(-1)}
+              onClick={handleBack}
               aria-label="Go back"
               className="flex items-center gap-1 text-primary min-w-[44px] min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50">
               <ChevronLeft className="w-5 h-5" />
