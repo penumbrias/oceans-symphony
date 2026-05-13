@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: belt-and-suspenders for the Android URL bar fix — the Vite plugin that copies the Digital Asset Links file into the build output works locally but may be unreliable on Vercel's build environment, so the build script now also explicitly copies the file as a postbuild step and prints the resulting directory to the build log so we can verify it ran.",
+      },
+      {
         type: "fix",
         text: "TWA URL bar across the top of the Android app is finally gone. Google's Digital Asset Links verifier was hitting the previous Vercel rewrite for /.well-known/assetlinks.json as a redirect, and the spec disallows any redirects when fetching the file. The asset links file is now served directly from the canonical /.well-known/ path in the build output via a tiny Vite plugin that copies it into dist/.well-known/ (Vite normally skips dot-directories under public/). Force-stop and reopen the app once the new deploy is live and Android will re-verify cleanly.",
       },
