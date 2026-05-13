@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Critical accessibility fix: the first-run disclaimer modal was unreadable / unsignable at large OS text sizes. The checkbox label was pushing the Continue button off the bottom of the visible area with no way to scroll to it, so anyone using accessibility text sizing was hard-locked out of the app after their first install. The whole disclaimer card now scrolls as one unit (header sticky at the top while you scroll), the Continue button is taller, and the layout works at any text scaling.",
+      },
+      {
+        type: "fix",
         text: "Friend-request Accept and Decline buttons on the Friends page now give immediate visible feedback when tapped — a 'Accepting…' / 'Declining…' loading toast appears the instant you tap, then resolves to success or a real error message. Previously the buttons felt unresponsive if the network call was slow or failed silently. The tap targets are also a bit taller (36px min height) for easier finger placement and use the standard touch-manipulation hint so Android doesn't insert its own ~300ms tap delay.",
       },
       {
