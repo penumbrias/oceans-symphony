@@ -2,7 +2,6 @@
   "installCommand": "npm ci",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/.well-known/assetlinks.json", "destination": "/assetlinks.json" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
