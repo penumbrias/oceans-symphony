@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Friend-request Accept and Decline buttons on the Friends page now give immediate visible feedback when tapped — a 'Accepting…' / 'Declining…' loading toast appears the instant you tap, then resolves to success or a real error message. Previously the buttons felt unresponsive if the network call was slow or failed silently. The tap targets are also a bit taller (36px min height) for easier finger placement and use the standard touch-manipulation hint so Android doesn't insert its own ~300ms tap delay.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: reverted the modal ghost-tap shield from v0.9.9 — it was breaking interactions in every dialog (Terms Setup wouldn't accept a selection, Set Fronters dismissed when you tapped the search field, etc.). Taps inside dialog content were falling through to the backdrop for the first 300ms after open. The original ghost-tap problem on the Dashboard's Quick Check-In button can come back, but a frozen modal is much worse than an occasional mis-selection — we'll re-do that fix more carefully in a future release with a different approach.",
       },
