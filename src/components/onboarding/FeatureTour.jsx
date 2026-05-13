@@ -85,6 +85,14 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       route: "/", target: null,
       look: `the 🔔 bell icon in the top bar — a dot appears when you have unread notifications`, action: null,
     },
+    {
+      section: "dashboard", sectionLabel: "Dashboard",
+      emoji: "🛒",
+      title: "Grocery list — also a privacy cover",
+      body: `The cart icon in the sidebar opens what looks like a normal grocery list — and works as one. It's also a one-tap privacy screen for those moments when someone glances at your phone. Triple-tap anywhere in the app to open it instantly. Inside the list: star any item to save it as a frequent purchase so you can re-add it with one tap later. If you have encryption turned on, you'll also see a lock icon in the header — toggling it on means closing the list clears your session and bounces you to the password screen, so you can "hide and lock" in one move.`,
+      route: "/", target: "grocery-list-button",
+      look: `the 🛒 cart icon in the sidebar (tap the ☰ menu top-left to see it). Triple-tap anywhere to open it without using the icon.`, action: null,
+    },
 
     // ─── FRONTING ───────────────────────────────────────────────────────────
     {
