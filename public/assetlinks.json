@@ -12,7 +12,10 @@
     "target": {
       "namespace": "android_app",
       "package_name": "app.oceans_symphony.twa",
-      "sha256_cert_fingerprints": ["7B:E4:32:89:BE:22:FA:3C:AE:75:DD:F4:39:51:6C:11:CC:23:3F:5F:0E:4A:B2:C1:CC:8E:C0:6C:6F:6A:D7:42"]
+      "sha256_cert_fingerprints": [
+        "7B:E4:32:89:BE:22:FA:3C:AE:75:DD:F4:39:51:6C:11:CC:23:3F:5F:0E:4A:B2:C1:CC:8E:C0:6C:6F:6A:D7:42",
+        "86:7F:D9:22:97:89:A8:9C:81:8F:81:2A:C9:0F:81:43:A0:D4:5F:6B:C9:60:33:A4:DE:2C:05:B4:66:4F:6F:7A"
+      ]
     }
   }
 ]
