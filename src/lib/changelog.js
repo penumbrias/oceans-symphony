@@ -13,8 +13,12 @@
 
 export const CHANGELOG = [
   {
-    date: "May 12, 2026",
+    date: "May 13, 2026",
     changes: [
+      {
+        type: "fix",
+        text: "TWA URL bar across the top of the Android app is finally gone. Google's Digital Asset Links verifier was hitting the previous Vercel rewrite for /.well-known/assetlinks.json as a redirect, and the spec disallows any redirects when fetching the file. The asset links file is now served directly from the canonical /.well-known/ path in the build output via a tiny Vite plugin that copies it into dist/.well-known/ (Vite normally skips dot-directories under public/). Force-stop and reopen the app once the new deploy is live and Android will re-verify cleanly.",
+      },
       {
         type: "fix",
         text: "Added Google Play's app-signing certificate fingerprint to the Digital Asset Links file. Play re-signs uploaded bundles with its own key, so the cert running on installed devices is different from the local upload key — without Play's fingerprint in assetlinks.json, Android can't verify the link and the Chrome URL bar shows across the top of the installed app. Both fingerprints are now listed (upload key + Play signing key). Force-stop and reopen the app once the new deploy is live to clear Android's cached verdict.",
