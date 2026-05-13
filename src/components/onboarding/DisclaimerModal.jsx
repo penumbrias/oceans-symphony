@@ -28,20 +28,25 @@ export default function DisclaimerModal({ onAcknowledge }) {
 
   return (
     <div
-      className="fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[10000] bg-black/80 flex items-stretch justify-center p-2 sm:p-4 sm:items-center"
       style={{
-        paddingTop: "max(env(safe-area-inset-top), 1rem)",
-        paddingBottom: "max(env(safe-area-inset-bottom), 1rem)",
+        paddingTop: "max(env(safe-area-inset-top), 0.5rem)",
+        paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
       }}
       aria-modal="true"
       role="dialog"
     >
-      <div className="bg-background text-foreground border border-border rounded-2xl shadow-xl w-full max-w-2xl max-h-full flex flex-col overflow-hidden">
-        <div className="flex items-start gap-3 px-5 py-4 border-b border-border/50">
+      {/* The whole card scrolls as one unit. At large OS text sizes the
+          checkbox label and Continue button would otherwise get pushed off
+          the bottom of the viewport because the inner footer was a fixed
+          flex row — the tester literally could not scroll to the button.
+          With one scroll container the footer always becomes reachable. */}
+      <div className="bg-background text-foreground border border-border rounded-2xl shadow-xl w-full max-w-2xl max-h-full overflow-y-auto flex flex-col">
+        <div className="flex items-start gap-3 px-5 py-4 border-b border-border/50 sticky top-0 bg-background z-10">
           <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
             <Shield className="w-5 h-5 text-amber-500" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-semibold">Before you continue</h2>
             <p className="text-xs text-muted-foreground">
               Please read this carefully — it explains what Oceans Symphony is and isn't.
@@ -49,7 +54,7 @@ export default function DisclaimerModal({ onAcknowledge }) {
           </div>
         </div>
 
-        <div className="overflow-y-auto px-5 py-4 flex-1">
+        <div className="px-5 py-4">
           <MedicalDisclaimer />
         </div>
 
@@ -58,7 +63,7 @@ export default function DisclaimerModal({ onAcknowledge }) {
             <Checkbox
               checked={checked}
               onCheckedChange={(v) => setChecked(!!v)}
-              className="mt-0.5"
+              className="mt-0.5 flex-shrink-0"
             />
             <span className="text-sm leading-relaxed">
               I understand that Oceans Symphony is not a medical product, the
@@ -69,7 +74,8 @@ export default function DisclaimerModal({ onAcknowledge }) {
           <Button
             onClick={handleConfirm}
             disabled={!checked}
-            className="w-full"
+            className="w-full min-h-[48px]"
+            size="lg"
           >
             Continue
           </Button>
