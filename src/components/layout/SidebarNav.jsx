@@ -120,6 +120,7 @@ export default function SidebarNav({ open, onClose }) {
                   dashboard header. Still openable via triple-tap or
                   the quick-action shortcuts. */}
               <button
+                data-tour="grocery-list-button"
                 onClick={() => {
                   onClose();
                   window.dispatchEvent(new CustomEvent("open-grocery-list"));
