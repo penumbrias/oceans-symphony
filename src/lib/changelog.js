@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Added a clear medical / scope disclaimer to the app. Oceans Symphony is a personal journaling and organisation tool — it is not a health app, not a therapy app, and not a substitute for professional care. The developers are a DID system, not licensed clinicians, and the app has not been reviewed or endorsed by any medical institution. A first-run modal asks new users to acknowledge this before continuing, and the full text is always available under Settings → Disclaimer (including crisis-line numbers in case the app is opened in an emergency it can't help with).",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: belt-and-suspenders for the Android URL bar fix — the Vite plugin that copies the Digital Asset Links file into the build output works locally but may be unreliable on Vercel's build environment, so the build script now also explicitly copies the file as a postbuild step and prints the resulting directory to the build log so we can verify it ran.",
       },

@@ -20,6 +20,7 @@ import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import TourModal from "@/components/onboarding/TourModal";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
+import DisclaimerModal, { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
 import { useTerms } from "@/lib/useTerms";
 
 export default function Dashboard() {
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const { setShowFeatureTour } = useOutletContext() || {};
+  const [showDisclaimer, setShowDisclaimer] = useState(() => !localStorage.getItem(DISCLAIMER_ACK_KEY));
   const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
@@ -473,8 +475,14 @@ export default function Dashboard() {
       <QuickNavMenu />
       <BulletinBoard alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlightBulletinId={highlightBulletinId} />
 
+      {/* Legal/scope disclaimer — gates everything else on first run.
+          TermsSetup waits until the disclaimer is acknowledged. */}
+      {showDisclaimer && (
+        <DisclaimerModal onAcknowledge={() => setShowDisclaimer(false)} />
+      )}
+
       <TermsSetupModal
-        open={showTermsSetup}
+        open={showTermsSetup && !showDisclaimer}
         onClose={handleTermsDone}
         existingSettingsId={settings[0]?.id || null} />
       
