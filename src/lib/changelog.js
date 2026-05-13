@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Grocery list now doubles as a one-tap privacy lock. If encryption is enabled, a small lock icon appears in the grocery list header — tap it once to arm 'lock on close'. With it on, hitting the X (or closing the panel any other way) clears your unlock session and bounces you to the password screen, so you can use the grocery list as a quick way to hide your data in unsafe environments. Off by default, persists per device.",
+      },
+      {
+        type: "fix",
+        text: "Adding a new item to the grocery list no longer scrolls the rest of the list out of view when the keyboard opens. The panel now pins itself to the visible viewport so the existing items stay anchored above the input while only the input slides up with the keyboard.",
+      },
+      {
         type: "fix",
         text: "TWA URL bar across the top of the Android app is finally gone. Google's Digital Asset Links verifier was hitting the previous Vercel rewrite for /.well-known/assetlinks.json as a redirect, and the spec disallows any redirects when fetching the file. The asset links file is now served directly from the canonical /.well-known/ path in the build output via a tiny Vite plugin that copies it into dist/.well-known/ (Vite normally skips dot-directories under public/). Force-stop and reopen the app once the new deploy is live and Android will re-verify cleanly.",
       },
