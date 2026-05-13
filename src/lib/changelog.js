@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Added a Play Store tester recruitment banner to the Dashboard. We need a handful of testers to graduate Oceans Symphony from internal testing to the public Google Play listing — drop your Google account email in the banner and tap Sign me up, and your phone's email app will open with a pre-filled message addressed to the developer. The banner is dismissable per device.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: belt-and-suspenders for the Android URL bar fix — the Vite plugin that copies the Digital Asset Links file into the build output works locally but may be unreliable on Vercel's build environment, so the build script now also explicitly copies the file as a postbuild step and prints the resulting directory to the build log so we can verify it ran.",
       },
