@@ -11,7 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
-import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, encodeCanvasForMime } from "@/lib/localImageStorage";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) {
@@ -75,7 +75,8 @@ const handleAvatarUpload = async (e) => {
             canvas.height = height;
             canvas.getContext("2d").drawImage(img, 0, 0, width, height);
             URL.revokeObjectURL(url);
-            resolve(canvas.toDataURL("image/jpeg", quality));
+            // Preserve PNG transparency — JPEG would flatten it to black.
+            resolve(encodeCanvasForMime(canvas, file.type, quality));
           };
           img.onerror = reject;
           img.src = url;

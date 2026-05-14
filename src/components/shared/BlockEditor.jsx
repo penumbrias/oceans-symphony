@@ -4,6 +4,7 @@ import {
   LayoutGrid, Minus, Type, Eye, X, Upload, Loader2, GripVertical, Crop
 } from "lucide-react";
 import { toast } from "sonner";
+import { encodeCanvasForMime } from "@/lib/localImageStorage";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -170,7 +171,8 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
           canvas.width = width; canvas.height = height;
           canvas.getContext("2d").drawImage(img, 0, 0, width, height);
           URL.revokeObjectURL(url);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          // Preserve PNG transparency.
+          resolve(encodeCanvasForMime(canvas, f.type, quality));
         };
         img.onerror = reject;
         img.src = url;

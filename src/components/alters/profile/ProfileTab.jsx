@@ -10,7 +10,7 @@ import BioEditor from "@/components/alters/BioEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
-import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
@@ -45,7 +45,8 @@ function AvatarModal({ src, onSave, onClose }) {
           canvas.width = width; canvas.height = height;
           canvas.getContext("2d").drawImage(img, 0, 0, width, height);
           URL.revokeObjectURL(u);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          // Preserve PNG transparency — JPEG would flatten it to black.
+          resolve(encodeCanvasForMime(canvas, file.type, quality));
         };
         img.onerror = reject;
         img.src = u;
@@ -229,7 +230,8 @@ useEffect(() => {
           canvas.width = width; canvas.height = height;
           canvas.getContext("2d").drawImage(img, 0, 0, width, height);
           URL.revokeObjectURL(url);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          // Preserve PNG transparency — JPEG would flatten it to black.
+          resolve(encodeCanvasForMime(canvas, file.type, quality));
         };
         img.onerror = reject;
         img.src = url;
@@ -263,7 +265,8 @@ useEffect(() => {
           canvas.width = width; canvas.height = height;
           canvas.getContext("2d").drawImage(img, 0, 0, width, height);
           URL.revokeObjectURL(url);
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          // Preserve PNG transparency — JPEG would flatten it to black.
+          resolve(encodeCanvasForMime(canvas, file.type, quality));
         };
         img.onerror = reject;
         img.src = url;

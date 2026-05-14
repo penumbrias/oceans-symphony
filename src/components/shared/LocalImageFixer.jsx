@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Upload, Check } from "lucide-react";
 import { isLocalMode } from "@/lib/storageMode";
-import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
 
 /**
  * Shows a small amber "⚠️ Fix image" pill when:
@@ -49,7 +49,8 @@ export default function LocalImageFixer({
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
         URL.revokeObjectURL(url);
-        resolve(canvas.toDataURL("image/jpeg", quality));
+        // Preserve PNG transparency.
+        resolve(encodeCanvasForMime(canvas, file.type, quality));
       };
       img.onerror = reject;
       img.src = url;
