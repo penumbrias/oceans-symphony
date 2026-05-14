@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Globe, Minus } from "lucide-react";
+import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Globe, Minus, Users, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -55,7 +55,107 @@ function VoterGridPicker({ alters, value, onChange }) {
   );
 }
 
-function VoterGridTile({ alter, label, sublabel, selected, onSelect, systemTile = false }) {
+// Multi-select voter chooser: a button that summarises the current
+// selection ("Voting as: System-wide" / "Voting as: Castiel + 2 others")
+// and pops a Dialog containing a checkbox-style avatar grid. The default
+// selection is the active fronters; the user can pick any combination of
+// alters (and/or System-wide) and confirm. Each subsequent vote action
+// applies once per selected voter.
+function MultiVoterPicker({ alters, value, onChange, defaultVoters }) {
+  const terms = useTerms();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  // Re-sync the draft when the modal opens so unsaved toggling doesn't
+  // leak between sessions of opening it.
+  useEffect(() => {
+    if (open) setDraft(value);
+  }, [open, value]);
+
+  const toggle = (id) => {
+    setDraft((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const selectedLabels = (() => {
+    if (!value || value.length === 0) return `${terms.System}-wide`;
+    const named = value
+      .filter((id) => id !== "")
+      .map((id) => alters.find((a) => a.id === id))
+      .filter(Boolean)
+      .map((a) => a.alias || a.name);
+    const sys = value.includes("");
+    if (named.length === 0 && sys) return `${terms.System}-wide`;
+    const head = named[0] || `${terms.System}-wide`;
+    const extras = named.length - 1 + (sys && named.length > 0 ? 1 : 0);
+    return extras > 0 ? `${head} + ${extras} other${extras !== 1 ? "s" : ""}` : head;
+  })();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-border/60 bg-card hover:bg-muted/30 transition-colors text-left"
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <span className="text-sm truncate">{selectedLabels}</span>
+        </span>
+        <span className="text-xs text-muted-foreground flex-shrink-0">Change</span>
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Voting As</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Pick any combination. Each vote you cast applies once per selected voter. Default is the current {terms.front} ({(defaultVoters || []).length} active).
+          </p>
+
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto py-2">
+            <VoterGridTile
+              label={`${terms.System}-wide`}
+              sublabel={`(no specific ${terms.alter})`}
+              selected={draft.includes("")}
+              onSelect={() => toggle("")}
+              systemTile
+              showCheck
+            />
+            {alters.map((a) => (
+              <VoterGridTile
+                key={a.id}
+                alter={a}
+                label={a.alias || a.name}
+                selected={draft.includes(a.id)}
+                onSelect={() => toggle(a.id)}
+                showCheck
+              />
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setDraft(defaultVoters || [])}
+              className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Reset to current {terms.front}
+            </button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button onClick={() => { onChange(draft); setOpen(false); }}>
+                <Check className="w-4 h-4 mr-1.5" />Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function VoterGridTile({ alter, label, sublabel, selected, onSelect, systemTile = false, showCheck = false }) {
   const color = alter?.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -68,32 +168,42 @@ function VoterGridTile({ alter, label, sublabel, selected, onSelect, systemTile 
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className="flex flex-col items-center gap-1.5 select-none focus:outline-none"
+      className="flex flex-col items-center gap-1.5 select-none focus:outline-none relative"
     >
-      {systemTile ? (
-        <div
-          style={{ boxShadow, backgroundColor: selected ? "hsl(var(--muted))" : "transparent" }}
-          className={`rounded-full flex items-center justify-center transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
-        >
-          <Globe className={selected ? "w-7 h-7 text-muted-foreground" : "w-6 h-6 text-muted-foreground"} />
-        </div>
-      ) : resolvedUrl && !imgError ? (
-        <img
-          src={resolvedUrl}
-          alt={alter.name}
-          style={{ boxShadow }}
-          className={`rounded-full object-cover transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
-          draggable={false}
-          onError={() => setImgError(true)}
-        />
-      ) : (
-        <div
-          style={{ backgroundColor: selected ? `${color}30` : "hsl(var(--muted))", boxShadow }}
-          className={`rounded-full flex items-center justify-center transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
-        >
-          <span className="text-xs font-semibold text-muted-foreground">{(alter?.name || "?").slice(0, 2)}</span>
-        </div>
-      )}
+      <div className="relative">
+        {systemTile ? (
+          <div
+            style={{ boxShadow, backgroundColor: selected ? "hsl(var(--muted))" : "transparent" }}
+            className={`rounded-full flex items-center justify-center transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
+          >
+            <Globe className={selected ? "w-7 h-7 text-muted-foreground" : "w-6 h-6 text-muted-foreground"} />
+          </div>
+        ) : resolvedUrl && !imgError ? (
+          <img
+            src={resolvedUrl}
+            alt={alter.name}
+            style={{ boxShadow }}
+            className={`rounded-full object-cover transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
+            draggable={false}
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div
+            style={{ backgroundColor: selected ? `${color}30` : "hsl(var(--muted))", boxShadow }}
+            className={`rounded-full flex items-center justify-center transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
+          >
+            <span className="text-xs font-semibold text-muted-foreground">{(alter?.name || "?").slice(0, 2)}</span>
+          </div>
+        )}
+        {/* Multi-select check badge — only the multi-select picker passes
+            showCheck so the single-select grid (Created By on Create
+            Poll) keeps its cleaner look. */}
+        {showCheck && selected && (
+          <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background">
+            <Check className="w-3.5 h-3.5" />
+          </span>
+        )}
+      </div>
       <span className="text-xs text-center font-medium truncate w-full px-1">
         {label}
       </span>
@@ -325,12 +435,189 @@ function CreatePollModal({ open, onClose, alters }) {
   );
 }
 
-function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
+// Edit Poll: change the question, edit / add / remove options, and flip
+// the voting mode. Existing votes are preserved across label edits;
+// removing an option drops that option's votes (after a confirm) and
+// re-keys the higher option indices so `votes` stays aligned with
+// `options`. Adding an option initialises an empty voter array for it.
+function EditPollModal({ open, onClose, poll }) {
   const terms = useTerms();
-  const [selectedAlter, setSelectedAlter] = useState("");
+  const queryClient = useQueryClient();
+  const [question, setQuestion] = useState(poll?.question || "");
+  const [options, setOptions] = useState(() => poll?.options || ["", ""]);
+  const [tallyMode, setTallyMode] = useState(!!poll?.tally_mode);
   const [saving, setSaving] = useState(false);
+
+  // Track which previous-option-index a row maps to (or null for "newly
+  // added" rows). On save, we use this to migrate the votes object so
+  // existing votes stay attached to their option even after re-ordering
+  // / adding / removing.
+  const [optionOrigin, setOptionOrigin] = useState(() =>
+    (poll?.options || ["", ""]).map((_, i) => i)
+  );
+
+  useEffect(() => {
+    if (!open || !poll) return;
+    setQuestion(poll.question || "");
+    setOptions(poll.options || ["", ""]);
+    setTallyMode(!!poll.tally_mode);
+    setOptionOrigin((poll.options || ["", ""]).map((_, i) => i));
+  }, [open, poll]);
+
+  const updateLabel = (idx, val) => {
+    setOptions((prev) => prev.map((o, i) => (i === idx ? val : o)));
+  };
+  const addOption = () => {
+    if (options.length >= 8) return;
+    setOptions((prev) => [...prev, ""]);
+    setOptionOrigin((prev) => [...prev, null]);
+  };
+  const removeOption = (idx) => {
+    if (options.length <= 2) return;
+    const origin = optionOrigin[idx];
+    const existingVotes = origin != null ? (poll.votes?.[String(origin)] || []) : [];
+    if (existingVotes.length > 0) {
+      const ok = confirm(`Remove "${options[idx] || `Option ${idx + 1}`}"? That option has ${existingVotes.length} vote${existingVotes.length !== 1 ? "s" : ""} which will be lost.`);
+      if (!ok) return;
+    }
+    setOptions((prev) => prev.filter((_, i) => i !== idx));
+    setOptionOrigin((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSave = async () => {
+    if (!question.trim()) { toast.error("Enter a question"); return; }
+    const filled = options.map((o) => o.trim());
+    const filledOrigin = optionOrigin.filter((_, i) => filled[i]);
+    const filledOpts = filled.filter(Boolean);
+    if (filledOpts.length < 2) { toast.error("Need at least 2 options"); return; }
+
+    setSaving(true);
+    try {
+      // Migrate votes: each new index pulls from its origin's old key.
+      // Newly-added rows (origin null) start with [].
+      const newVotes = {};
+      filledOpts.forEach((_, newIdx) => {
+        const origin = filledOrigin[newIdx];
+        newVotes[String(newIdx)] = origin != null ? ((poll.votes || {})[String(origin)] || []) : [];
+      });
+      await base44.entities.Poll.update(poll.id, {
+        question: question.trim(),
+        options: filledOpts,
+        votes: newVotes,
+        tally_mode: tallyMode,
+        // If the user flipped to tally mode in the editor, drop the
+        // creator alter to match the create-flow's behaviour.
+        ...(tallyMode ? { created_by_alter_id: null } : {}),
+      });
+      writeTallyDefault(tallyMode);
+      queryClient.invalidateQueries({ queryKey: ["polls"] });
+      toast.success("Poll updated");
+      onClose();
+    } catch (e) {
+      toast.error(e.message || "Failed to update poll");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!poll) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Poll</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Question</label>
+            <Input value={question} onChange={(e) => setQuestion(e.target.value)} className="mt-1" />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Options</label>
+            <div className="space-y-2 mt-2">
+              {options.map((opt, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Input
+                    placeholder={`Option ${idx + 1}`}
+                    value={opt}
+                    onChange={(e) => updateLabel(idx, e.target.value)}
+                  />
+                  {options.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => removeOption(idx)}
+                      className="px-2 py-1 text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                      aria-label="Remove option"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {options.length < 8 && (
+              <Button variant="outline" size="sm" onClick={addOption} className="mt-2 w-full">
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add Option
+              </Button>
+            )}
+            <p className="text-[0.625rem] text-muted-foreground mt-1.5">
+              Editing a label keeps that option's existing votes. Removing an option drops its votes (you'll be asked first if there are any).
+            </p>
+          </div>
+
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <Switch checked={tallyMode} onCheckedChange={(v) => setTallyMode(!!v)} />
+            <span className="flex-1 -mt-0.5">
+              <span className="text-sm font-medium block">Anonymous tally count</span>
+              <span className="text-xs text-muted-foreground block">
+                Each tap adds 1 to that option's count. No per-{terms.alter} tracking.
+              </span>
+            </span>
+          </label>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button onClick={handleSave} loading={saving} className="flex-1">Save changes</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFronterIds = [] }) {
+  const terms = useTerms();
+  // Multi-voter selection: each entry is an alter id, or "" for system-
+  // wide. Defaults to the active fronters; falls back to system-wide if
+  // nobody is fronting. The user can multi-select via the "Voting As"
+  // modal so a single tap on an option votes once per selected voter.
+  const defaultVoters = currentFronterIds.length > 0 ? [...currentFronterIds] : [""];
+  const [selectedVoters, setSelectedVoters] = useState(defaultVoters);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
   const creator = alters.find(a => a.id === poll.created_by_alter_id);
+
+  // Re-pin the default to current fronters whenever the active fronter
+  // list changes — but only if the user hasn't actively customised the
+  // selection (still equals the previous default). Identity check via
+  // joined string keeps the comparison cheap.
+  const lastDefaultRef = useRef(defaultVoters.join("|"));
+  useEffect(() => {
+    const newDefault = currentFronterIds.length > 0 ? [...currentFronterIds] : [""];
+    const newKey = newDefault.join("|");
+    if (lastDefaultRef.current !== newKey) {
+      // If the previously selected set matched the previous default,
+      // assume the user wanted "current front" behaviour and update.
+      const prevKey = lastDefaultRef.current;
+      if (selectedVoters.join("|") === prevKey) {
+        setSelectedVoters(newDefault);
+      }
+      lastDefaultRef.current = newKey;
+    }
+  }, [currentFronterIds, selectedVoters]);
 
   const handleVote = async (optionIdx) => {
     if (poll.is_closed) return;
@@ -347,15 +634,24 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
         // our anonymous voter id (already used for system-wide votes
         // elsewhere, so the array length still reads as the count).
         newVotes[key].push("");
-      } else if (newVotes[key].includes(selectedAlter)) {
-        // Alter mode, same option tapped again → toggle off.
-        newVotes[key] = newVotes[key].filter((id) => id !== selectedAlter);
       } else {
-        // Alter mode, new option → move this voter from any other option.
-        Object.keys(newVotes).forEach((k) => {
-          newVotes[k] = newVotes[k].filter((id) => id !== selectedAlter);
-        });
-        newVotes[key].push(selectedAlter);
+        // Per-alter mode. The picker now supports multi-select, so the
+        // existing toggle-on/move-from-other-options logic runs once per
+        // selected voter. An empty selection collapses to a single
+        // system-wide vote so the user always casts SOMETHING.
+        const voters = selectedVoters.length > 0 ? selectedVoters : [""];
+        for (const voterId of voters) {
+          if (newVotes[key].includes(voterId)) {
+            // This voter already voted on this option → toggle them off.
+            newVotes[key] = newVotes[key].filter((id) => id !== voterId);
+          } else {
+            // Move this voter from any other option to here.
+            Object.keys(newVotes).forEach((k) => {
+              newVotes[k] = newVotes[k].filter((id) => id !== voterId);
+            });
+            newVotes[key].push(voterId);
+          }
+        }
       }
 
       await base44.entities.Poll.update(poll.id, { votes: newVotes });
@@ -456,15 +752,26 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
             {poll.pinned_to_dashboard && <Pin className="w-5 h-5 text-primary fill-primary flex-shrink-0 mt-0.5" />}
             <span>{poll.question}</span>
           </h2>
-          <button
-            type="button"
-            onClick={handleTogglePin}
-            aria-label={poll.pinned_to_dashboard ? "Unpin poll from Bulletin Board" : "Pin poll to Bulletin Board"}
-            title={poll.pinned_to_dashboard ? "Unpin from Bulletin Board" : "Pin to Bulletin Board"}
-            className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40 flex-shrink-0"
-          >
-            <Pin className={`w-4 h-4 ${poll.pinned_to_dashboard ? "fill-primary text-primary" : ""}`} />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Edit poll"
+              title="Edit poll"
+              className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleTogglePin}
+              aria-label={poll.pinned_to_dashboard ? "Unpin poll from Bulletin Board" : "Pin poll to Bulletin Board"}
+              title={poll.pinned_to_dashboard ? "Unpin from Bulletin Board" : "Pin to Bulletin Board"}
+              className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40"
+            >
+              <Pin className={`w-4 h-4 ${poll.pinned_to_dashboard ? "fill-primary text-primary" : ""}`} />
+            </button>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           By {creator?.name || `${terms.System}-wide`} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
@@ -493,11 +800,10 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
         {poll.options.map((option, idx) => {
           const optionVotes = poll.votes?.[idx] || [];
           const percent = totalVotes === 0 ? 0 : (optionVotes.length / totalVotes) * 100;
-          // selectedAlter may be "" (system-wide vote) — that's a valid
-          // value so we don't gate on truthiness here. In tally mode the
-          // visual "voted by you" highlight goes away (no per-voter
-          // identity).
-          const isVotedBySelected = !poll.tally_mode && optionVotes.includes(selectedAlter);
+          // In tally mode the visual "voted by you" highlight goes away
+          // (no per-voter identity). In alter mode, highlight if ANY of
+          // the currently-selected voters has voted for this option.
+          const isVotedBySelected = !poll.tally_mode && selectedVoters.some((v) => optionVotes.includes(v));
 
           return (
             <div key={idx} className="flex items-stretch gap-2">
@@ -571,14 +877,22 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
         })}
       </div>
 
-      {/* Voter grid only matters in alter mode — tally polls are
-          anonymous so there's no "voting as" choice to make. */}
+      {/* Voter picker only matters in alter mode — tally polls are
+          anonymous so there's no "voting as" choice to make. The picker
+          is now a button that opens a multi-select modal so several
+          alters can vote at once; defaults to whoever is currently
+          fronting. */}
       {!poll.is_closed && !poll.tally_mode && (
         <div>
           <label className="text-xs font-medium text-muted-foreground block mb-2">
-            Voting As <span className="text-muted-foreground/60">(optional)</span>
+            Voting As <span className="text-muted-foreground/60">(tap to choose voters)</span>
           </label>
-          <VoterGridPicker alters={alters} value={selectedAlter} onChange={setSelectedAlter} />
+          <MultiVoterPicker
+            alters={alters}
+            value={selectedVoters}
+            onChange={setSelectedVoters}
+            defaultVoters={defaultVoters}
+          />
         </div>
       )}
 
@@ -590,8 +904,10 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
       )}
 
       {/* Close button shows for the poll creator, or for anyone if the poll
-          has no specific creator alter (a system-wide poll). */}
-      {!poll.is_closed && (!poll.created_by_alter_id || selectedAlter === poll.created_by_alter_id) && (
+          has no specific creator alter (a system-wide poll). With multi-
+          voter selection, "creator can close" means at least one of the
+          currently-selected voters is the creator alter. */}
+      {!poll.is_closed && (!poll.created_by_alter_id || selectedVoters.includes(poll.created_by_alter_id)) && (
         <Button
           variant="destructive"
           onClick={handleClosePoll}
@@ -601,6 +917,8 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
           Close Poll
         </Button>
       )}
+
+      <EditPollModal open={editing} onClose={() => setEditing(false)} poll={poll} />
     </motion.div>
   );
 }
@@ -621,6 +939,17 @@ export default function Polls() {
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
+
+  // Active fronting sessions — used to default the multi-voter picker
+  // to whoever is currently up front. Same query key the rest of the
+  // app uses, so cache stays warm.
+  const { data: activeSessions = [] } = useQuery({
+    queryKey: ["frontingSessions", "active"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const currentFronterIds = activeSessions
+    .map((s) => s.alter_id || s.primary_alter_id)
+    .filter(Boolean);
 
   const activeAlters = alters.filter(a => !a.is_archived);
 
@@ -674,6 +1003,7 @@ export default function Polls() {
             <PollDetailView
               poll={selectedPoll}
               alters={activeAlters}
+              currentFronterIds={currentFronterIds}
               onBack={handleBackToList}
               onClose={() => {}}
             />
