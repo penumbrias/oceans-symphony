@@ -124,9 +124,12 @@ export async function restoreLocalImages(imagesMap) {
 
 // Resize + re-encode a data URL to JPEG. Returns original if it's an SVG,
 // already small enough, or if canvas fails. maxDim caps the longer edge.
+// Preserves transparency when the input is a PNG by re-encoding as PNG;
+// other formats get encoded as JPEG (smaller, no transparency support).
 export async function compressImageDataUrl(dataUrl, maxDim = 512, quality = 0.82) {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return dataUrl;
   if (dataUrl.startsWith('data:image/svg')) return dataUrl;
+  const inputIsPng = dataUrl.startsWith('data:image/png');
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -142,7 +145,7 @@ export async function compressImageDataUrl(dataUrl, maxDim = 512, quality = 0.82
         canvas.width = width;
         canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        resolve(inputIsPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality));
       } catch {
         resolve(dataUrl);
       }
@@ -150,6 +153,16 @@ export async function compressImageDataUrl(dataUrl, maxDim = 512, quality = 0.82
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
   });
+}
+
+// Picks the right canvas output mime for a file or canvas based on the
+// original file's mime type. PNG in → PNG out (preserves alpha). Anything
+// else → JPEG with quality (smaller). Used by avatar / header / banner
+// upload paths so users who pick a transparent PNG don't end up with a
+// black background after compression.
+export function encodeCanvasForMime(canvas, mime, quality = 0.82) {
+  if (mime === 'image/png') return canvas.toDataURL('image/png');
+  return canvas.toDataURL('image/jpeg', quality);
 }
 
 // Re-encode every image already in IDB. Skips SVGs and anything that doesn't

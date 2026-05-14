@@ -9,6 +9,7 @@ import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
+import { encodeCanvasForMime } from "@/lib/localImageStorage";
 
 export function AlterAvatar({ alter, size = 24 }) {
   if (!alter) return <div className="rounded-full bg-muted flex-shrink-0" style={{ width: size, height: size }} />;
@@ -476,7 +477,8 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
         canvas.width = width; canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
         URL.revokeObjectURL(url);
-        resolve(canvas.toDataURL("image/jpeg", quality));
+        // Preserve PNG transparency.
+        resolve(encodeCanvasForMime(canvas, f.type, quality));
       };
       img.onerror = reject;
       img.src = url;
