@@ -22,8 +22,23 @@ export async function registerPush() {
     throw new Error('Notification permission denied.');
   }
 
-  const registration = await navigator.serviceWorker.register('/sw-reminders.js');
+  // Ensure /sw.js is registered (main.jsx registers it on startup, but
+  // calling register again is a no-op if it's already the active SW with
+  // the same URL). We deliberately reuse /sw.js so there's exactly one
+  // SW at scope "/" — previously a separate /sw-reminders.js was
+  // registered here too, and the two flip-flopped as the active SW
+  // because they shared the same scope, silently dropping push events.
+  const registration = await navigator.serviceWorker.register('/sw.js');
   await navigator.serviceWorker.ready;
+
+  // Best-effort: unregister any leftover /sw-reminders.js registration
+  // from older builds so it doesn't fight with /sw.js for the scope.
+  try {
+    const stale = await navigator.serviceWorker.getRegistration('/sw-reminders.js');
+    if (stale && stale.scope === registration.scope && stale !== registration) {
+      await stale.unregister();
+    }
+  } catch { /* non-fatal */ }
 
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
@@ -51,7 +66,7 @@ export async function registerPush() {
 export async function unregisterPush() {
   if (!('serviceWorker' in navigator)) return;
 
-  const registration = await navigator.serviceWorker.getRegistration('/sw-reminders.js');
+  const registration = await navigator.serviceWorker.getRegistration('/sw.js');
   if (!registration) return;
 
   const subscription = await registration.pushManager.getSubscription();
@@ -71,7 +86,7 @@ export async function isPushEnabled() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
   if (Notification.permission !== 'granted') return false;
 
-  const registration = await navigator.serviceWorker.getRegistration('/sw-reminders.js');
+  const registration = await navigator.serviceWorker.getRegistration('/sw.js');
   if (!registration) return false;
 
   const subscription = await registration.pushManager.getSubscription();
@@ -86,7 +101,7 @@ export async function getActivePushSubscription() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
   if (Notification.permission !== 'granted') return null;
 
-  const registration = await navigator.serviceWorker.getRegistration('/sw-reminders.js');
+  const registration = await navigator.serviceWorker.getRegistration('/sw.js');
   if (!registration) return null;
 
   const sub = await registration.pushManager.getSubscription();
@@ -121,7 +136,7 @@ export async function pushDiagnostics() {
   if (!permOk) return out;
 
   let registration;
-  try { registration = await navigator.serviceWorker.getRegistration('/sw-reminders.js'); } catch {}
+  try { registration = await navigator.serviceWorker.getRegistration('/sw.js'); } catch {}
   const regOk = !!registration;
   out.push({ ok: regOk, label: 'Reminders service worker registered', detail: regOk ? null : 'No service worker registration — tap Disable then Enable to re-register.' });
   if (!regOk) return out;
@@ -270,7 +285,7 @@ export async function showLocalTestNotification() {
   if (Notification.permission !== 'granted') {
     return { ok: false, detail: 'Notification permission is not granted.' };
   }
-  const registration = await navigator.serviceWorker.getRegistration('/sw-reminders.js');
+  const registration = await navigator.serviceWorker.getRegistration('/sw.js');
   if (!registration) {
     return { ok: false, detail: 'No service worker registration — tap Enable on push to re-register.' };
   }

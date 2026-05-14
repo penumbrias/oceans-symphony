@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Push notifications were being silently dropped because two separate service workers were registered at the same root scope — the main offline-caching SW (sw.js) and a dedicated push SW (sw-reminders.js). Per the Service Worker spec, two registrations at the same scope conflict and alternate as the active one; after every page load /sw.js was the active SW, and pushes still routed to it but it had no push event handler, so they vanished. Local 'Show local test' notifications worked because they bypass the push event lifecycle. The push handler is now folded into the main sw.js so there's exactly one SW at the root scope, and old /sw-reminders.js registrations from previous builds are unregistered automatically the next time push is enabled. After the deploy, force-stop the app and reopen so the new SW activates (or uninstall+reinstall if you really want to be sure).",
+      },
+      {
+        type: "fix",
         text: "Push notifications never appeared in the system tray even though every check in the diagnostic was green. Cause: the service worker's notification icon was pointing at /oceans-symphony-logo.png, which doesn't exist (the actual icon is /icon-192.png). When Chrome on Android handles a push event, a failing icon fetch during showNotification can silently abort the entire notification display — local 'Show local test' notifications don't go through the same code path, which is why those worked while real pushes didn't. Icon paths now point at /icon-192.png everywhere. After the new deploy is live, force-stop the app and reopen to let the new service worker take over.",
       },
       {

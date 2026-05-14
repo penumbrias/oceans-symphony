@@ -2,7 +2,7 @@
 // Cache-First for static assets; Stale-While-Revalidate for navigation
 // IndexedDB pass-through for /local-image/ avatar requests
 
-const CACHE_NAME = 'oceans-symphony-v3';
+const CACHE_NAME = 'oceans-symphony-v4';
 
 // ── Default avatar returned when an image ID isn't found in IDB ──
 const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
@@ -92,8 +92,12 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET requests from our own origin
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // Skip push-notification SW requests
-  if (url.pathname === '/sw-reminders.js') return;
+  // Skip serving the SW file itself from cache — let the browser fetch
+  // it directly so deploys actually pick up the new SW. The legacy
+  // /sw-reminders.js path is no longer registered (its handlers are
+  // folded into this SW), but if an older client still has a
+  // registration for it we let those requests pass through too.
+  if (url.pathname === '/sw.js' || url.pathname === '/sw-reminders.js') return;
 
   // ── Local image pass-through: serve avatar blobs directly from IndexedDB ──
   if (url.pathname.startsWith('/local-image/')) {
@@ -189,5 +193,80 @@ self.addEventListener('fetch', (event) => {
         return cached || networkFetch;
       })
     )
+  );
+});
+
+// ── Push notifications ──────────────────────────────────────────────────
+// Previously lived in a separate /sw-reminders.js. That SW registered at the
+// same scope ("/") as this one, so the two flip-flopped as the active SW —
+// whichever was registered most recently took over. After every page load
+// /sw.js was the active SW, and pushes still went to it but it had no
+// `push` handler, so they silently dropped. Local notifications still
+// worked because they go through registration.showNotification directly,
+// bypassing the push-event lifecycle. Folding the push handler in here
+// fixes the silent-drop and reduces the active-SW count to one.
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'Reminder', body: event.data.text(), reminderInstanceId: null, inlineActions: [] };
+  }
+
+  // Wake up open clients so the Deep push test in Settings can confirm
+  // the SW received the push (independent of whether the OS displays it).
+  console.log('[sw] push event received', payload?.title || '(no title)');
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        try { c.postMessage({ type: 'push-received', title: payload?.title, diagId: payload?.diagId || null }); } catch {}
+      }
+    })
+  );
+
+  const { title, body, reminderInstanceId, inlineActions = [] } = payload;
+
+  const notifOptions = {
+    body: body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    // Diagnostic pushes use a unique tag so they don't get collapsed into
+    // one notification by the OS. Reminder pushes use a stable tag so
+    // repeats of the same reminder replace.
+    tag: payload?.diagId
+      ? `diag-${payload.diagId}`
+      : (reminderInstanceId ? `reminder-${reminderInstanceId}` : 'reminder'),
+    data: { reminderInstanceId, inlineActions },
+    actions: inlineActions.slice(0, 2).map(a => ({ action: a.action_type, title: a.label })),
+    requireInteraction: false,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, notifOptions));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const { reminderInstanceId, inlineActions = [] } = event.notification.data || {};
+  let url = '/reminders';
+
+  if (event.action && reminderInstanceId) {
+    url = `/reminders?act=${reminderInstanceId}&action=${event.action}`;
+  }
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin)) {
+          client.focus();
+          client.navigate(url);
+          return;
+        }
+      }
+      return self.clients.openWindow(url);
+    })
   );
 });
