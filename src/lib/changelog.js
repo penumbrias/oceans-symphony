@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 14, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Re-importing from Simply Plural now refreshes avatars and banners on existing alters by default. Previously the 'Overwrite avatars on existing alters' checkbox defaulted to OFF, so if an alter's avatar URL changed on SP's side (e.g. you sync SP from PluralKit on Discord and PK migrated their image CDN from cdn.discordapp.com to cdn.pluralkit.me), the new URL was silently skipped and your local copy kept the stale URL — which now 404s because Discord's CDN started rejecting unsigned attachment URLs. The checkbox is now ON by default and is labelled 'Refresh avatars & banners on existing alters'; uncheck it before importing if you've manually customised avatars locally and want to keep them.",
+      },
+    ],
+  },
+  {
     date: "May 13, 2026",
     changes: [
       {
