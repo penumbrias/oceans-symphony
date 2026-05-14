@@ -119,11 +119,11 @@ const STEPS = (t) => [
   {
     title: 'Support & Learn',
     subtitle: 'Grounding tools and trauma-informed skills',
-    body: `Access breathing exercises, imagery techniques, and grounding tools instantly. The Learn section is a full 10-module curriculum of trauma-informed coping skills you can work through at your own pace.`,
+    body: `Access breathing exercises, imagery techniques, and grounding tools instantly. The Learn section is a full 13-module curriculum of trauma-informed coping skills you can work through at your own pace.`,
     icon: <Shield className='w-8 h-8' />,
     color: 'from-pink-500/20 to-rose-500/20',
     tip: 'The floating bubble button gives instant access to support from anywhere in the app',
-    features: ['9 breathing techniques', 'Imagery grounding', '10-module curriculum', 'Interactive exercises', 'Personal coping cards'],
+    features: ['9 breathing techniques', 'Imagery grounding', '13-module curriculum', 'Interactive exercises', 'Personal coping cards'],
   },
   {
     title: 'Therapy Report',
