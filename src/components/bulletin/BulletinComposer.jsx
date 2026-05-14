@@ -168,10 +168,18 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         options: filledOptions,
         votes,
         is_closed: false,
+        // New polls posted to the Bulletin Board auto-pin themselves to
+        // the board so the question is hard to miss; the user can unpin
+        // anytime from either surface.
+        pinned_to_dashboard: true,
         created_by_alter_id: finalAuthorIds[0] || authorAlterId || null,
         // Back-ref filled in after the bulletin exists.
       });
       data.poll_id = createdPoll.id;
+      // Auto-pin the bulletin so its poll block surfaces in the
+      // BulletinBoard's Pinned section without the user having to long-
+      // press → Pin afterwards.
+      data.is_pinned = true;
       // Keep an inline copy in the legacy shape (label+votes) so any
       // surface that still reads `bulletin.poll` (older builds, exports,
       // …) keeps showing the question and options. The render path

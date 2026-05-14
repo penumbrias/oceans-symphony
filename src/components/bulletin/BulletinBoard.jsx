@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
 import BulletinComposer from "./BulletinComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
+import PinnedPollCard from "./PinnedPollCard";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { toast } from "sonner";
 
@@ -77,6 +78,20 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
     queryKey: ["bulletins"],
     queryFn: () => base44.entities.Bulletin.list("-created_date", 100)
   });
+
+  // Polls flagged `pinned_to_dashboard` from the Polls page surface in
+  // this Pinned section. We render only the standalone ones (no
+  // bulletin_id) here — polls created from a bulletin already appear via
+  // their auto-pinned BulletinCard, so showing the Poll record again
+  // would duplicate.
+  const { data: allPinnedPolls = [] } = useQuery({
+    queryKey: ["polls", "pinned_in_board"],
+    queryFn: () => base44.entities.Poll.filter({ pinned_to_dashboard: true }, "-created_date"),
+  });
+  const standalonePinnedPolls = useMemo(
+    () => allPinnedPolls.filter((p) => !p.bulletin_id),
+    [allPinnedPolls]
+  );
 
   // One query for every comment on the board so each card can show a
   // count badge without firing N separate filter() requests on render.
@@ -199,8 +214,10 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
 
       <UpcomingPlans placement="bulletin_top" />
 
-      {/* Pinned — always on top, never reordered */}
-      {pinned.length > 0 &&
+      {/* Pinned — always on top, never reordered. Includes both pinned
+          bulletins/tasks AND standalone pinned polls (Polls page polls
+          with no source bulletin). */}
+      {(pinned.length > 0 || standalonePinnedPolls.length > 0) &&
         <div className="mb-4">
           <div className="mr-2 mb-2 px-2 flex items-center gap-2">
             <Pin className="w-3 h-3 text-primary" />
@@ -208,6 +225,9 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
             <div className="flex-1 h-px bg-border/50" />
           </div>
           <div className="space-y-3">
+            {standalonePinnedPolls.map((p) =>
+              <PinnedPollCard key={`poll-${p.id}`} poll={p} currentAlterId={currentAlterId} />
+            )}
             {pinned.map((b) =>
               <div key={b.id} id={`bulletin-${b.id}`} ref={(el) => bulletinRefs.current[b.id] = el}>
                 {b.content?.match(/^\[task:/) ?

@@ -459,7 +459,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "polls", sectionLabel: "Polls",
       emoji: "➕",
       title: "Create a Poll",
-      body: `Tap the highlighted Create button to make a new poll. Enter a question and add 2–4 options. Picking a specific creator ${t.alter} is optional — leave it on "${t.System}-wide" if the question is for the whole ${t.system}. To vote, open any open poll, optionally choose which ${t.alter} you're voting as (or leave it ${t.system}-wide), and tap your choice. The creator ${t.alter} can close their own poll; ${t.system}-wide polls can be closed by anyone. Polls attached to a Bulletin Board post automatically show up here too — voting in either place updates both. Tap the Pin icon on a poll's detail view to surface it in the Dashboard's Pinned section. Double-tap a poll inside a bulletin to open it here.`,
+      body: `Tap the highlighted Create button to make a new poll. Enter a question and add 2–4 options. Pick the creator from the avatar grid (or leave it on the ${t.System}-wide tile if the question is for the whole ${t.system}). Voting works the same way: an avatar grid with a ${t.System}-wide tile, no dropdown. Polls posted to the Bulletin Board automatically pin themselves to the board's Pinned section so the question is hard to miss; voting is unified between the two surfaces. Tap the Pin icon on a poll's detail view to pin/unpin it from the Bulletin Board (creator-only polls close via their creator; ${t.system}-wide polls close by anyone). Double-tap a poll inside a bulletin to open it on the Polls page.`,
       route: "/polls", target: "polls-create",
       look: `the highlighted "Create" button in the top-right of the Polls header`, action: null,
     },
