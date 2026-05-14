@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
 import { format, startOfWeek, addDays, addMonths, addYears, startOfMonth, startOfYear } from "date-fns";
@@ -22,6 +23,7 @@ function lsGet(key, fallback) {
 
 export default function ActivityTracker() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
   const jumpDate = urlParams.get("date") || null;
   // Deep-link target for the Activity Details modal — used by the
@@ -188,7 +190,7 @@ export default function ActivityTracker() {
     const onlyTasks = list.every(x => x?._isTask);
     if (onlyTasks && list.length > 0) {
       const t = list[0]._task;
-      window.location.href = `/todo?id=${t.id}`;
+      navigate(`/todo?id=${t.id}`);
       return;
     }
     // Mixed list: filter out the synthetic to-do rows so the details modal
