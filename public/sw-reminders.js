@@ -25,8 +25,8 @@ self.addEventListener('push', (event) => {
 
   const notifOptions = {
     body: body || '',
-    icon: '/oceans-symphony-logo.png',
-    badge: '/oceans-symphony-logo.png',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     // Use a unique tag for diagnostic tests so they don't get collapsed
     // into a single notification by the OS. Reminder pushes still use a
     // stable tag so repeats of the same reminder replace.

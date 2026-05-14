@@ -277,8 +277,8 @@ export async function showLocalTestNotification() {
   try {
     await registration.showNotification('Local test ✓', {
       body: 'If you see this, the OS is willing to show notifications from this app.',
-      icon: '/oceans-symphony-logo.png',
-      badge: '/oceans-symphony-logo.png',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag: 'local-test',
       requireInteraction: false,
     });
