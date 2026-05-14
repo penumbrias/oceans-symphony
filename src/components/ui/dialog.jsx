@@ -33,7 +33,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-const DialogContent = React.forwardRef(({ className, children, onInteractOutside, style, ...props }, ref) => {
+const DialogContent = React.forwardRef(({ className, children, onInteractOutside, style, showCloseButton = true, ...props }, ref) => {
   const keyboardInset = useKeyboardInset();
   // Manual backdrop for tour mode: Radix's `modal={false}` (used while the
   // feature tour is active so tour buttons remain tappable) suppresses the
@@ -72,11 +72,13 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
       )}
       {...props}>
       {children}
-      <DialogPrimitive.Close
-        className="absolute right-2 top-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg opacity-70 ring-offset-background transition-opacity hover:opacity-100 hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
+      {showCloseButton && (
+        <DialogPrimitive.Close
+          className="absolute right-2 top-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg opacity-70 ring-offset-background transition-opacity hover:opacity-100 hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      )}
     </DialogPrimitive.Content>
   </DialogPortal>
   );

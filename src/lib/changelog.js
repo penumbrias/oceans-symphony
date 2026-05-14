@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Removed the misleading X close button on the first-run 'Choose your language' modal. The X never actually closed the modal — terminology selection is required to proceed — but its presence suggested otherwise. The Save & Continue button is now the only way forward, which matches reality.",
+      },
+      {
         type: "feature",
         text: "Simply Plural's custom fronts can now be imported as symptoms in addition to (or instead of) alters. Custom fronts often represent dissociative / emotional / physical states — anxious, depressed, in pain — which are usually a better fit for the Symptoms tracker than the alter list. Settings → Data & Privacy → Simply Plural → 'Custom Fronts → symptoms' is a separate checkbox from 'Custom Fronts → alters', so you can pick either, both, or neither. Each imported symptom is tagged with the SP id so a second import updates the label/color instead of duplicating, and your per-symptom is_positive flag is preserved across re-imports.",
       },

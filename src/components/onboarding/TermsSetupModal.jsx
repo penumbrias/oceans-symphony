@@ -43,7 +43,7 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} showCloseButton={false}>
         <div className="space-y-5">
           <div>
             <h2 className="text-xl font-semibold">Choose your language 💜</h2>
