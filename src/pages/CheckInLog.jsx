@@ -3,13 +3,52 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format, parseISO, startOfDay } from "date-fns";
-import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import DiaryAnalyticsSummary from "@/components/diary/DiaryAnalyticsSummary";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
+
+// User-controllable filter for what shows in the Check-In Log. Stored in
+// localStorage so the choice persists across sessions. All toggles default
+// to ON — disabling one only hides that entry type from THIS view (it does
+// not stop the data from being recorded or appear anywhere else, e.g. the
+// Timeline page).
+const DEFAULT_DISPLAY = {
+  checkIns: true,
+  statusNotes: true,
+  symptoms: true,
+  activities: true,
+  locations: true,
+  perAlter: true,
+  diary: true,
+};
+const DISPLAY_STORAGE_KEY = "symphony_checkin_log_display";
+
+function useDisplaySettings() {
+  const [settings, setSettings] = useState(() => {
+    try {
+      const raw = localStorage.getItem(DISPLAY_STORAGE_KEY);
+      if (raw) return { ...DEFAULT_DISPLAY, ...JSON.parse(raw) };
+    } catch { /* fall through to defaults */ }
+    return DEFAULT_DISPLAY;
+  });
+  useEffect(() => {
+    try { localStorage.setItem(DISPLAY_STORAGE_KEY, JSON.stringify(settings)); }
+    catch { /* localStorage full or disabled — non-fatal */ }
+  }, [settings]);
+  return [settings, setSettings];
+}
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -126,7 +165,7 @@ function DiaryDataSection({ diaryCard }) {
   );
 }
 
-function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete }) {
+function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete, display = DEFAULT_DISPLAY }) {
   const ts = parseISO(checkIn.timestamp);
   const timeStr = format(ts, "h:mm a");
   const emotions = checkIn.emotions || [];
@@ -191,7 +230,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         </div>
       )}
 
-      {mySymptomCheckIns.length > 0 && (
+      {display.symptoms && mySymptomCheckIns.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {mySymptomCheckIns.map((sc, i) => {
             const symptom = symptomsById[sc.symptom_id];
@@ -206,7 +245,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         </div>
       )}
 
-      {myActivities.length > 0 && (
+      {display.activities && myActivities.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {myActivities.map((act, i) => (
             <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
@@ -216,7 +255,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         </div>
       )}
 
-      {myLocations.length > 0 && (
+      {display.locations && myLocations.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {myLocations.map((loc, i) => {
             const meta = getCategoryMeta(loc.category);
@@ -238,38 +277,44 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         <p className="text-xs text-primary italic">📓 Extended note saved as journal entry</p>
       )}
 
-      <DiaryDataSection diaryCard={diaryCard} />
+      {display.diary && <DiaryDataSection diaryCard={diaryCard} />}
     </div>
   );
 }
 
-function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations, statusNotes = [], diaryCards = [], perAlterEntries = [], totalEntryCount }) {
+function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activities, locations, statusNotes = [], diaryCards = [], perAlterEntries = [], totalEntryCount, display = DEFAULT_DISPLAY }) {
+  // Emotions and fronters are surfaced from EmotionCheckIn records — both
+  // get hidden when the user has the "Check-ins" toggle off, since that's
+  // their parent entry type.
   const allEmotions = useMemo(() => {
+    if (!display.checkIns) return [];
     const tally = {};
     checkIns.forEach(ci => (ci.emotions || []).forEach(em => { tally[em] = (tally[em] || 0) + 1; }));
     return Object.entries(tally).sort((a, b) => b[1] - a[1]);
-  }, [checkIns]);
+  }, [checkIns, display.checkIns]);
 
   const allFronterIds = useMemo(() =>
-    [...new Set(checkIns.flatMap(ci => ci.fronting_alter_ids || []))],
-    [checkIns]
+    display.checkIns ? [...new Set(checkIns.flatMap(ci => ci.fronting_alter_ids || []))] : [],
+    [checkIns, display.checkIns]
   );
   const fronters = allFronterIds.map(id => altersById[id]).filter(Boolean);
 
   // De-duplicate symptoms by symptom_id, keeping highest severity
   const allSymptoms = useMemo(() => {
+    if (!display.symptoms) return [];
     const seen = {};
     symptomCheckIns.forEach(sc => {
       const prev = seen[sc.symptom_id];
       if (!prev || (sc.severity ?? -1) > (prev.severity ?? -1)) seen[sc.symptom_id] = sc;
     });
     return Object.values(seen);
-  }, [symptomCheckIns]);
+  }, [symptomCheckIns, display.symptoms]);
 
-  const allActivities = [...new Set(activities.map(a => a.activity_name))];
+  const allActivities = display.activities ? [...new Set(activities.map(a => a.activity_name))] : [];
 
   // Aggregate diary data across all diary cards for the day
   const diaryAggregate = useMemo(() => {
+    if (!display.diary) return null;
     if (!diaryCards.length) return null;
     const joyVals = [], skillsVals = [], suicidalVals = [], selfHarmVals = [];
     const emotionalMiseryVals = [], physicalMiseryVals = [];
@@ -301,11 +346,19 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
       rxTaken,
       selfHarmOccurred,
     };
-  }, [diaryCards]);
+  }, [diaryCards, display.diary]);
+
+  // After the display filter is applied, the per-row visibility uses the
+  // local arrays above (which are already empty when their toggle is off),
+  // while the standalone-feed arrays (locations, statusNotes, perAlterEntries)
+  // still arrive populated — short-circuit those here.
+  const visibleLocations = display.locations ? locations : [];
+  const visibleStatusNotes = display.statusNotes ? statusNotes : [];
+  const visiblePerAlterEntries = display.perAlter ? perAlterEntries : [];
 
   const isEmpty = allEmotions.length === 0 && fronters.length === 0 && allSymptoms.length === 0
-    && allActivities.length === 0 && locations.length === 0 && statusNotes.length === 0 && !diaryAggregate
-    && perAlterEntries.length === 0;
+    && allActivities.length === 0 && visibleLocations.length === 0 && visibleStatusNotes.length === 0 && !diaryAggregate
+    && visiblePerAlterEntries.length === 0;
   if (isEmpty) return null;
 
   const entryCount = totalEntryCount ?? checkIns.length;
@@ -364,11 +417,11 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
         </div>
       )}
 
-      {perAlterEntries.length > 0 && (
+      {visiblePerAlterEntries.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground font-semibold">Per-alter</p>
           <div className="flex flex-wrap gap-1">
-            {perAlterEntries.map((e) => {
+            {visiblePerAlterEntries.map((e) => {
               const alter = altersById[e.alterId];
               const color = alter?.color || "#8b5cf6";
               const name = alter?.alias || alter?.name || "?";
@@ -395,9 +448,9 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
         </div>
       )}
 
-      {locations.length > 0 && (
+      {visibleLocations.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {locations.map((loc, i) => {
+          {visibleLocations.map((loc, i) => {
             const meta = getCategoryMeta(loc.category);
             return (
               <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
@@ -454,9 +507,9 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
         </div>
       )}
 
-      {statusNotes.length > 0 && (
+      {visibleStatusNotes.length > 0 && (
         <div className="space-y-0.5">
-          {statusNotes.map((sn, i) => (
+          {visibleStatusNotes.map((sn, i) => (
             <p key={i} className="text-xs text-foreground/70 italic">💬 {sn.note}</p>
           ))}
         </div>
@@ -569,7 +622,7 @@ function PerAlterEntry({ entry, altersById }) {
   );
 }
 
-function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete }) {
+function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, display = DEFAULT_DISPLAY }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const dateObj = parseISO(date + "T12:00:00");
 
@@ -622,13 +675,34 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
 
   const dayDiaryCards = diaryCardsByDate[date] || [];
 
+  // Apply the user's display toggles. Once every entry type for a day is
+  // hidden we render nothing (the day's row would otherwise be confusing
+  // with an empty summary + 0 count).
+  const visibleCheckIns = display.checkIns ? checkIns : [];
+  const visibleStandaloneSymptoms = display.symptoms ? standaloneSymptomCheckIns : [];
+  const visibleStandaloneActivities = display.activities ? standaloneActivities : [];
+  const visibleStandaloneLocations = display.locations ? standaloneLocations : [];
+  const visibleStatusNotes = display.statusNotes ? dayStatusNotes : [];
+  const visiblePerAlter = display.perAlter ? dayPerAlterEntries : [];
+  const visibleDiaryCards = display.diary ? dayDiaryCards : [];
+
+  // Summary chips on the collapsed day header — reflect the filtered view.
   const summaryParts = [];
-  if (allEmotions.length > 0) summaryParts.push(allEmotions.slice(0, 3).join(", ") + (allEmotions.length > 3 ? ` +${allEmotions.length - 3}` : ""));
-  if (daySymptomCheckIns.length > 0) summaryParts.push(`${daySymptomCheckIns.length} symptom${daySymptomCheckIns.length !== 1 ? "s" : ""}`);
-  if (dayActivities.length > 0) summaryParts.push(`${dayActivities.length} activit${dayActivities.length !== 1 ? "ies" : "y"}`);
-  if (dayLocations.length > 0) summaryParts.push(`${dayLocations.length} location${dayLocations.length !== 1 ? "s" : ""}`);
-  if (dayDiaryCards.length > 0) summaryParts.push("diary logged");
-  if (dayPerAlterEntries.length > 0) summaryParts.push(`${dayPerAlterEntries.length} per-alter`);
+  if (display.checkIns && allEmotions.length > 0) summaryParts.push(allEmotions.slice(0, 3).join(", ") + (allEmotions.length > 3 ? ` +${allEmotions.length - 3}` : ""));
+  if (display.symptoms && daySymptomCheckIns.length > 0) summaryParts.push(`${daySymptomCheckIns.length} symptom${daySymptomCheckIns.length !== 1 ? "s" : ""}`);
+  if (display.activities && dayActivities.length > 0) summaryParts.push(`${dayActivities.length} activit${dayActivities.length !== 1 ? "ies" : "y"}`);
+  if (display.locations && dayLocations.length > 0) summaryParts.push(`${dayLocations.length} location${dayLocations.length !== 1 ? "s" : ""}`);
+  if (display.diary && dayDiaryCards.length > 0) summaryParts.push("diary logged");
+  if (display.perAlter && dayPerAlterEntries.length > 0) summaryParts.push(`${dayPerAlterEntries.length} per-alter`);
+
+  const totalVisibleEntries =
+    visibleCheckIns.length +
+    visibleStandaloneSymptoms.length +
+    visibleStandaloneActivities.length +
+    visibleStandaloneLocations.length +
+    visibleStatusNotes.length +
+    visiblePerAlter.length;
+  if (totalVisibleEntries === 0 && visibleDiaryCards.length === 0) return null;
 
   return (
     <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
@@ -649,7 +723,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-xs text-muted-foreground">{checkIns.length} check-in{checkIns.length !== 1 ? "s" : ""}</span>
+            <span className="text-xs text-muted-foreground">{totalVisibleEntries} entr{totalVisibleEntries !== 1 ? "ies" : "y"}</span>
             {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
           </div>
         </div>
@@ -658,12 +732,12 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
       {expanded && (
         <div className="border-t border-border/30 divide-y divide-border/20">
           {[
-            ...checkIns.map(ci => ({ kind: "checkin", data: ci, ts: new Date(ci.timestamp).getTime() })),
-            ...standaloneSymptomCheckIns.map(sc => ({ kind: "symptom", data: sc, ts: new Date(sc.timestamp).getTime() })),
-            ...standaloneActivities.map(act => ({ kind: "activity", data: act, ts: new Date(act.timestamp).getTime() })),
-            ...standaloneLocations.map(loc => ({ kind: "location", data: loc, ts: new Date(loc.timestamp).getTime() })),
-            ...dayStatusNotes.map(sn => ({ kind: "status", data: sn, ts: new Date(sn.timestamp).getTime() })),
-            ...dayPerAlterEntries.map(e => ({ kind: "per-alter", data: e, ts: new Date(e.ts).getTime() })),
+            ...visibleCheckIns.map(ci => ({ kind: "checkin", data: ci, ts: new Date(ci.timestamp).getTime() })),
+            ...visibleStandaloneSymptoms.map(sc => ({ kind: "symptom", data: sc, ts: new Date(sc.timestamp).getTime() })),
+            ...visibleStandaloneActivities.map(act => ({ kind: "activity", data: act, ts: new Date(act.timestamp).getTime() })),
+            ...visibleStandaloneLocations.map(loc => ({ kind: "location", data: loc, ts: new Date(loc.timestamp).getTime() })),
+            ...visibleStatusNotes.map(sn => ({ kind: "status", data: sn, ts: new Date(sn.timestamp).getTime() })),
+            ...visiblePerAlter.map(e => ({ kind: "per-alter", data: e, ts: new Date(e.ts).getTime() })),
           ].sort((a, b) => a.ts - b.ts).map((entry, i) => {
             if (entry.kind === "symptom") {
               return <SymptomUpdateEntry key={`sym-${entry.data.id || i}`} sc={entry.data} symptomsById={symptomsById} />;
@@ -681,7 +755,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
               return <PerAlterEntry key={entry.data.id} entry={entry.data} altersById={altersById} />;
             }
             const ci = entry.data;
-            const matchedDiaryCard = dayDiaryCards.find(dc => {
+            const matchedDiaryCard = visibleDiaryCards.find(dc => {
               try {
                 return Math.abs(new Date(dc.created_date).getTime() - new Date(ci.timestamp).getTime()) < 5 * 60 * 1000;
               } catch { return false; }
@@ -698,28 +772,22 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
                 diaryCard={matchedDiaryCard || null}
                 highlighted={ci.id === highlightId}
                 onDelete={onDelete}
+                display={display}
               />
             );
           })}
           <DayTotals
-            checkIns={checkIns}
+            checkIns={visibleCheckIns}
             altersById={altersById}
             symptomCheckIns={daySymptomCheckIns}
             symptomsById={symptomsById}
             activities={dayActivities}
             locations={dayLocations}
-            statusNotes={dayStatusNotes}
-            diaryCards={dayDiaryCards}
-            perAlterEntries={dayPerAlterEntries}
-            totalEntryCount={
-              checkIns.length +
-              standaloneSymptomCheckIns.length +
-              standaloneActivities.length +
-              standaloneLocations.length +
-              dayStatusNotes.length +
-              dayDiaryCards.length +
-              dayPerAlterEntries.length
-            }
+            statusNotes={visibleStatusNotes}
+            diaryCards={visibleDiaryCards}
+            perAlterEntries={visiblePerAlter}
+            totalEntryCount={totalVisibleEntries + visibleDiaryCards.length}
+            display={display}
           />
         </div>
       )}
@@ -731,8 +799,13 @@ export default function CheckInLog() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [view, setView] = useState("list");
+  const [display, setDisplay] = useDisplaySettings();
   const highlightId = searchParams.get("id");
   const dateParam = searchParams.get("date");
+
+  const toggleDisplay = (key) => (next) => setDisplay((prev) => ({ ...prev, [key]: !!next }));
+  const allOn = Object.values(display).every(Boolean);
+  const allOff = Object.values(display).every((v) => !v);
 
   const { data: checkIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
@@ -864,16 +937,61 @@ export default function CheckInLog() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="font-display text-3xl font-semibold">Check-In Log</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{checkIns.length} check-in{checkIns.length !== 1 ? "s" : ""}</p>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            {checkIns.length} check-in{checkIns.length !== 1 ? "s" : ""}
+            {!allOn && <span className="ml-1.5">· filtered view</span>}
+          </p>
         </div>
-        {diaryCards.length > 0 && (
-          <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
-            <BarChart2 className="w-4 h-4" /> Analytics
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" data-tour="checkin-log-display" className="gap-1.5">
+                <SlidersHorizontal className="w-4 h-4" /> Display
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Show in log</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem checked={display.checkIns} onCheckedChange={toggleDisplay("checkIns")}>
+                Check-ins
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={display.statusNotes} onCheckedChange={toggleDisplay("statusNotes")}>
+                Status notes
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={display.symptoms} onCheckedChange={toggleDisplay("symptoms")}>
+                Symptoms
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={display.activities} onCheckedChange={toggleDisplay("activities")}>
+                Activities
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={display.locations} onCheckedChange={toggleDisplay("locations")}>
+                Locations
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={display.perAlter} onCheckedChange={toggleDisplay("perAlter")}>
+                Per-alter entries
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={display.diary} onCheckedChange={toggleDisplay("diary")}>
+                Diary data
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSeparator />
+              <button
+                type="button"
+                onClick={() => setDisplay(allOff ? DEFAULT_DISPLAY : Object.fromEntries(Object.keys(DEFAULT_DISPLAY).map((k) => [k, false])))}
+                className="w-full text-left px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded-sm"
+              >
+                {allOff ? "Show everything" : "Hide everything"}
+              </button>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {diaryCards.length > 0 && (
+            <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
+              <BarChart2 className="w-4 h-4" /> Analytics
+            </Button>
+          )}
+        </div>
       </div>
 
       {byDate.length === 0 ? (
@@ -881,6 +999,12 @@ export default function CheckInLog() {
           <div className="text-4xl mb-3">💭</div>
           <p className="text-sm font-medium text-foreground mb-1">Nothing logged yet</p>
           <p className="text-xs text-muted-foreground">Use Quick Check-In to log emotions, symptoms, activities, and more.</p>
+        </div>
+      ) : allOff ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+          <div className="text-4xl mb-3">🙈</div>
+          <p className="text-sm font-medium text-foreground mb-1">Everything is hidden</p>
+          <p className="text-xs text-muted-foreground">Open the Display menu in the top-right to choose which entry types appear here.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -900,6 +1024,7 @@ export default function CheckInLog() {
               highlightId={highlightId}
               defaultExpanded={date === highlightDate || (!highlightId && !dateParam && date === byDate[0]?.[0])}
               onDelete={handleDelete}
+              display={display}
             />
           ))}
         </div>

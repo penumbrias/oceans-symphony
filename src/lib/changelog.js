@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Display menu on the Check-In Log lets you choose which entry types appear in the log: check-ins, status notes (the 'What's happening right now…' Dashboard inputs), symptoms, activities, locations, per-alter entries, and diary data. Toggling one off only hides it from the Check-In Log view — your data is still recorded and still surfaces elsewhere (Timeline, analytics, etc.). The choice persists across sessions. Use 'Hide everything' / 'Show everything' at the bottom of the menu to flip the whole set at once. Replaces the long-standing request to be able to remove individual status note rows from the log; in practice, hiding the entry type is what most testers actually wanted.",
+      },
+      {
         type: "fix",
         text: "Voting on a poll posted to the Bulletin Board now works when no specific alter is fronting (or when fronters haven't been set at all). Previously the vote handler silently bailed out unless `currentAlterId` was truthy, which made the option buttons appear unresponsive — and because the app also has a triple-tap-anywhere panic gesture that opens the Grocery List privacy cover, mashing the option three times in quick succession would open the Grocery panel instead of voting. Votes are now stored against the active fronter or, when nobody is fronting, a system-wide identifier. The same fix also covers bulletin reactions (the +React button and the 'Add yours' button in the reaction list).",
       },
