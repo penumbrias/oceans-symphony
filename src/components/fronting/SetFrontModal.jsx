@@ -170,6 +170,55 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
     </div>);
 }
 
+// Selected-alter chip shown at the top of the modal. Mirrors the gesture
+// model from the dashboard's CurrentFronters widget and the list rows
+// (AlterPill) below — so the muscle memory carries over.
+//   tap          → toggle primary (existing behaviour)
+//   swipe right  → deselect / remove from the chip row
+//   swipe left   → toggle primary
+//   long-press   → toggle primary
+function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove }) {
+  const { bind, dragX, swipeHint } = useSwipeActions({
+    onTap: () => onSetPrimary(),
+    onSwipeRight: () => onRemove(),
+    onSwipeLeft: () => onSetPrimary(),
+    onLongPress: () => onSetPrimary(),
+  });
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      aria-label={`${alter.name}. Tap or long-press to toggle primary, swipe right to remove.`}
+      {...bind}
+      onKeyDown={e => e.key === "Enter" || e.key === " " ? onSetPrimary() : undefined}
+      style={{
+        transform: `translateX(${dragX}px)`,
+        transition: dragX === 0 ? "transform 150ms ease-out" : "none",
+        touchAction: "pan-y",
+        backgroundColor: alter.color ? `${alter.color}20` : undefined,
+        borderColor: alter.color || undefined,
+      }}
+      className="relative px-3 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 border select-none cursor-pointer"
+    >
+      {swipeHint && (
+        <span className={`absolute -top-4 left-1/2 -translate-x-1/2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none whitespace-nowrap ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
+          {swipeHint === "front" ? "Remove" : (isPrimary ? "Demote" : "Primary")}
+        </span>
+      )}
+      {isPrimary && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
+      <span className="text-sm">{alter.name}</span>
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        onPointerDown={(e) => e.stopPropagation()}
+        aria-label={`Remove ${alter.name}`}
+        className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </span>
+  );
+}
+
 export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
@@ -556,25 +605,14 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 const a = (alters || []).find((x) => x.id === id);
                 if (!a) return null;
                 return (
-                  <span
-                    key={id} className="px-3 py-1 text-xs font-medium rounded-full flex items-center gap-1 border"
-
-                    style={{ backgroundColor: a.color ? `${a.color}20` : undefined, borderColor: a.color || undefined }}>
-                    
-                        {id === primaryId && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-                        <button
-                      onClick={() => setPrimary(id)} className="text-sm hover:underline"
-                      aria-label={id === primaryId ? `${a.name} is primary — click to demote` : `Set ${a.name} as primary`}>
-                          {a.name}
-                        </button>
-                        <button
-                      onClick={(e) => {e.stopPropagation();toggleAlter(id);}}
-                      aria-label={`Remove ${a.name}`}
-                      className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors">
-                          <X className="lucide lucide-x w-3 h-3" />
-                        </button>
-                      </span>);
-
+                  <SelectedChip
+                    key={id}
+                    alter={a}
+                    isPrimary={id === primaryId}
+                    onSetPrimary={() => setPrimary(id)}
+                    onRemove={() => toggleAlter(id)}
+                  />
+                );
               })
               }
               </div>
