@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Voting on a poll posted to the Bulletin Board now works when no specific alter is fronting (or when fronters haven't been set at all). Previously the vote handler silently bailed out unless `currentAlterId` was truthy, which made the option buttons appear unresponsive — and because the app also has a triple-tap-anywhere panic gesture that opens the Grocery List privacy cover, mashing the option three times in quick succession would open the Grocery panel instead of voting. Votes are now stored against the active fronter or, when nobody is fronting, a system-wide identifier. The same fix also covers bulletin reactions (the +React button and the 'Add yours' button in the reaction list).",
+      },
+      {
         type: "improve",
         text: "Picking a specific alter is now optional everywhere it used to be required. On Polls, both creating a poll and voting on one no longer block you with 'Select an alter' — the dropdown defaults to a clear 'System-wide (no specific alter)' option so you can post or vote as the system as a whole. System-wide polls can be closed by anyone (poll-creator polls still close only via the creator). Vote counts include system-wide votes with a neutral system chip in the avatars row.",
       },

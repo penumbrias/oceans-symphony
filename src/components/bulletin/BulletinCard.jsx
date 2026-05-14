@@ -57,12 +57,18 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
 const rawDate = bulletin.created_date;
 const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
 
+  // Normalize `currentAlterId` to an empty string when there's no active
+  // fronter so reacting / voting still works system-wide. Without this the
+  // handlers would silently bail, which is what made bulletin poll
+  // buttons appear unresponsive (and led the user into the triple-tap
+  // panic gesture by trying to click again and again).
+  const voterId = currentAlterId || "";
+
   const handleReact = async (emoji) => {
-    if (!currentAlterId) return;
     const existing = reactions[emoji] || [];
-    const next = existing.includes(currentAlterId) ?
-    existing.filter((id) => id !== currentAlterId) :
-    [...existing, currentAlterId];
+    const next = existing.includes(voterId) ?
+    existing.filter((id) => id !== voterId) :
+    [...existing, voterId];
     const newReactions = { ...reactions, [emoji]: next };
     // Optimistic update
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
@@ -74,10 +80,10 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
   };
 
   const handleVote = async (optionIndex) => {
-    if (!currentAlterId || !bulletin.poll) return;
+    if (!bulletin.poll) return;
     const poll = { ...bulletin.poll };
-    poll.options = poll.options.map((opt) => ({ ...opt, votes: (opt.votes || []).filter((id) => id !== currentAlterId) }));
-    poll.options[optionIndex] = { ...poll.options[optionIndex], votes: [...(poll.options[optionIndex].votes || []), currentAlterId] };
+    poll.options = poll.options.map((opt) => ({ ...opt, votes: (opt.votes || []).filter((id) => id !== voterId) }));
+    poll.options[optionIndex] = { ...poll.options[optionIndex], votes: [...(poll.options[optionIndex].votes || []), voterId] };
     // Optimistic update
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
     Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, poll } : b) : old
@@ -184,7 +190,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
             {bulletin.poll.options.map((opt, i) => {
             const votes = opt.votes?.length || 0;
             const pct = totalVotes > 0 ? Math.round(votes / totalVotes * 100) : 0;
-            const voted = currentAlterId && opt.votes?.includes(currentAlterId);
+            const voted = opt.votes?.includes(voterId);
             return (
               <button key={i} onClick={() => handleVote(i)}
               className={`w-full text-left rounded-lg overflow-hidden border transition-all ${voted ? "border-primary/60" : "border-border/40"}`}>
@@ -206,7 +212,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
       {/* Reactions + comment toggle */}
       <div ref={reactionRowRef} className="flex flex-wrap gap-1.5 items-center" onClick={(e) => e.stopPropagation()}>
         {Object.entries(reactions).filter(([, ids]) => ids.length > 0).map(([emoji, ids]) => {
-          const youReacted = currentAlterId && ids.includes(currentAlterId);
+          const youReacted = ids.includes(voterId);
           const reactors = ids.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
           return (
             <div key={emoji} className="relative">
@@ -223,8 +229,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
                     <span className="text-sm font-medium">{emoji} <span className="text-muted-foreground">· {ids.length}</span></span>
                     <button
                       onClick={() => { setOpenReactionList(null); handleReact(emoji); }}
-                      disabled={!currentAlterId}
-                      className="text-xs px-2 py-0.5 rounded-full border border-border/60 hover:bg-muted/50 disabled:opacity-40"
+                      className="text-xs px-2 py-0.5 rounded-full border border-border/60 hover:bg-muted/50"
                     >
                       {youReacted ? "Remove yours" : "Add yours"}
                     </button>
