@@ -264,7 +264,7 @@ export default function TourModal({ open, onClose }) {
           {/* Skip */}
           {!isLast && (
             <button onClick={onClose} className='w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center'>
-              Skip tour
+              Skip guide
             </button>
           )}
         </div>
