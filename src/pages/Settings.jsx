@@ -24,7 +24,10 @@ import NavigationSettings from "@/components/settings/NavigationSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users } from "lucide-react";
+import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe } from "lucide-react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { isLocalMode } from "@/lib/storageMode";
+import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
@@ -91,6 +94,9 @@ export default function Settings() {
   const settings = settingsList[0] || null;
   const [systemName, setSystemName] = useState("");
   const [systemDescription, setSystemDescription] = useState("");
+  const [systemAvatarUrl, setSystemAvatarUrl] = useState("");
+  const [uploadingSysAvatar, setUploadingSysAvatar] = useState(false);
+  const resolvedSysAvatar = useResolvedAvatarUrl(systemAvatarUrl);
   // Alter count is hidden by default — the raw number can feel clinical or
   // invasive depending on how the user relates to their system. The reveal
   // toggle is local-only (intentionally not persisted) so each visit starts
@@ -101,14 +107,54 @@ export default function Settings() {
   React.useEffect(() => {
     if (settings?.system_name) setSystemName(settings.system_name);
     if (settings?.system_description !== undefined) setSystemDescription(settings.system_description || "");
+    if (settings?.system_avatar_url !== undefined) setSystemAvatarUrl(settings.system_avatar_url || "");
   }, [settings]);
+
+  // Upload + compress a new system-wide avatar. Mirrors the alter
+  // avatar uploader in ProfileTab so the user experience is identical
+  // (PNG transparency preserved, local-mode images go through the
+  // saveLocalImage path so they survive reload).
+  const handleSystemAvatarUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingSysAvatar(true);
+    try {
+      const compress = (f, maxWidth = 400, quality = 0.85) => new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const u = URL.createObjectURL(f);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(u);
+          resolve(encodeCanvasForMime(canvas, f.type, quality));
+        };
+        img.onerror = reject;
+        img.src = u;
+      });
+      const dataUrl = await compress(file);
+      if (isLocalMode()) {
+        const imageId = `system-avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        setSystemAvatarUrl(createLocalImageUrl(imageId));
+      } else {
+        setSystemAvatarUrl(dataUrl);
+      }
+    } catch { toast.error("Failed to process image"); }
+    finally { setUploadingSysAvatar(false); e.target.value = ""; }
+  };
 
   const [saved, setSaved] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
 
   const handleSaveName = async () => {
     setSaving(true);
-    const data = { system_name: systemName, system_description: systemDescription };
+    const data = {
+      system_name: systemName,
+      system_description: systemDescription,
+      system_avatar_url: systemAvatarUrl || null,
+    };
     try {
       if (settings?.id) {
         await base44.entities.SystemSettings.update(settings.id, data);
@@ -242,6 +288,43 @@ export default function Settings() {
                   View {terms.alter} count
                 </button>
               )}
+            </div>
+            <div>
+              <Label className="text-sm font-medium">{terms.System} Picture</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Shown anywhere a post or vote is attributed to the {terms.system} as a whole (no specific {terms.alter}).
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center flex-shrink-0">
+                  {resolvedSysAvatar ? (
+                    <img src={resolvedSysAvatar} alt={`${terms.system} avatar`} className="w-full h-full object-cover" />
+                  ) : (
+                    <Globe className="w-6 h-6 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40 cursor-pointer">
+                    {uploadingSysAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {uploadingSysAvatar ? "Uploading…" : "Upload"}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleSystemAvatarUpload} />
+                  </label>
+                  {systemAvatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setSystemAvatarUrl("")}
+                      className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                    >
+                      <XIcon className="w-4 h-4" /> Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+              <Input
+                placeholder="Or paste an image URL…"
+                value={systemAvatarUrl}
+                onChange={e => setSystemAvatarUrl(e.target.value)}
+                className="mt-2 text-xs"
+              />
             </div>
             <div>
               <Label className="text-sm font-medium">{terms.System} Name</Label>

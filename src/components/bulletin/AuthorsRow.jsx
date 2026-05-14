@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { User } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import SystemAvatar from "@/components/shared/SystemAvatar";
+import { useSystemIdentity } from "@/lib/useSystemIdentity";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -39,14 +41,13 @@ function AlterAvatar({ alter, size = "md" }) {
 // post, never the live front state.
 export default function AuthorsRow({ authorIds = [], alters = [], timestamp, showNames = true }) {
   const ids = authorIds;
+  const systemIdentity = useSystemIdentity();
   if (ids.length === 0) {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
-          <User className="w-4 h-4 text-muted-foreground" />
-        </div>
+        <SystemAvatar />
         <div>
-          <p className="text-sm font-medium text-foreground leading-tight">System</p>
+          <p className="text-sm font-medium text-foreground leading-tight">{systemIdentity.name}</p>
           {timestamp && <p className="text-xs text-muted-foreground">{timestamp}</p>}
         </div>
       </div>

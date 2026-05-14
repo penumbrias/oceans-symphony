@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New system-wide profile picture. Upload an image (or paste a URL) under Settings → System Name section and it surfaces anywhere the app refers to the system as a whole — 'System' bulletin posts (no specific alter author), 'System-wide' polls in the Polls page (creator avatar + name in the header, system-vote chip next to options), and the AuthorsRow placeholder. Connecting Simply Plural OR PluralKit also auto-fills the system avatar from that account's system-level avatar (and a missing system name from PK), so SP / PK users don't have to upload it twice.",
+      },
+      {
+        type: "improve",
+        text: "Bulletin delete is now a two-tap confirm. The trash icon arms on the first tap (turns red and reads 'Confirm') and only deletes on a second tap within 4 seconds — the icon is small and easy to misfire on a phone, especially with how tightly it sits next to the pin. Auto-disarms if you walk away.",
+      },
+      {
         type: "fix",
         text: "The Guide modal (the welcome / overview cards reachable from the Guide button on the home page) no longer cuts off the dots and the Next/Skip buttons on the last few pages. The modal used `overflow-hidden` on its outer container, so when the body text was tall enough to exceed the dialog's max-height — Privacy & Data is the worst offender — the footer was clipped off the bottom and the user couldn't advance. The header + footer are now pinned, and the body scrolls inside the dialog. Same scroll fix applied to the Report a Bug modal so the Open-on-GitHub / Cancel buttons never get cut off either on shorter phones.",
       },

@@ -54,6 +54,15 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
         pk_system_id: sys.id,
         pk_system_name: sys.name || "",
         pk_last_sync: null,
+        // PluralKit systems carry a system-level `avatar_url`. Mirror it
+        // into our system avatar so the bulletin / poll "System" author
+        // gets the user's PK system picture on connect. Only overwrite
+        // when PK has one — leave the local choice alone otherwise.
+        ...(sys.avatar_url ? { system_avatar_url: sys.avatar_url } : {}),
+        // Same for the system name: only fill it in when PK has a name
+        // AND the user hasn't already set one locally, so we don't stomp
+        // on a system name they typed by hand earlier.
+        ...(sys.name && !settings?.system_name ? { system_name: sys.name } : {}),
       };
       if (settings?.id) {
         await base44.entities.SystemSettings.update(settings.id, data);
