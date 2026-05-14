@@ -157,7 +157,22 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
+  // Two-tap confirm to delete a bulletin. The trash icon sits next to
+  // the post body and is easy to misfire on a small screen, so the
+  // first tap arms a 4-second "Tap again to delete" state and only the
+  // second tap inside that window actually deletes. Auto-disarms.
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const deleteTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(deleteTimerRef.current), []);
   const handleDelete = async () => {
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = setTimeout(() => setDeleteArmed(false), 4000);
+      return;
+    }
+    clearTimeout(deleteTimerRef.current);
+    setDeleteArmed(false);
     // Optimistic removal
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
     Array.isArray(old) ? old.filter((b) => b.id !== bulletin.id) : old
@@ -259,8 +274,16 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
             <Pin className={`w-3.5 h-3.5 ${bulletin.is_pinned ? "text-primary fill-primary" : ""}`} />
           </button>
           {canDelete &&
-          <button onClick={handleDelete} aria-label="Delete bulletin" className="text-muted-foreground hover:text-destructive p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg">
+          <button
+            onClick={handleDelete}
+            aria-label={deleteArmed ? "Tap again to delete" : "Delete bulletin"}
+            title={deleteArmed ? "Tap again to confirm" : "Delete"}
+            className={`p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-colors ${
+              deleteArmed ? "bg-destructive/15 text-destructive ring-1 ring-destructive/40" : "text-muted-foreground hover:text-destructive"
+            }`}
+          >
               <Trash2 className="w-3.5 h-3.5" />
+              {deleteArmed && <span className="ml-1 text-[0.625rem] uppercase tracking-wide font-semibold">Confirm</span>}
             </button>
           }
         </div>

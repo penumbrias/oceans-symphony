@@ -12,6 +12,8 @@ import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useSystemIdentity } from "@/lib/useSystemIdentity";
+import SystemAvatar from "@/components/shared/SystemAvatar";
 
 // Per-user default for what voting mode a NEW poll should start in.
 // Persists in localStorage so the user's preferred mode carries forward.
@@ -214,6 +216,7 @@ function VoterGridTile({ alter, label, sublabel, selected, onSelect, systemTile 
 
 function PollListView({ polls, alters, onSelectPoll }) {
   const terms = useTerms();
+  const systemIdentity = useSystemIdentity();
   if (!polls || polls.length === 0) {
     return (
       <div className="text-center py-16">
@@ -244,7 +247,7 @@ function PollListView({ polls, alters, onSelectPoll }) {
                   <span>{poll.question}</span>
                 </h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  By {creator?.name || `${terms.System}-wide`} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
+                  By {creator?.name || systemIdentity.name} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
                   {poll.bulletin_id && <span className="ml-1.5"><MessageCircle className="inline w-3 h-3 mr-0.5" />from Bulletin Board</span>}
                 </p>
               </div>
@@ -589,6 +592,7 @@ function EditPollModal({ open, onClose, poll }) {
 
 function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFronterIds = [] }) {
   const terms = useTerms();
+  const systemIdentity = useSystemIdentity();
   // Multi-voter selection: each entry is an alter id, or "" for system-
   // wide. Defaults to the active fronters; falls back to system-wide if
   // nobody is fronting. The user can multi-select via the "Voting As"
@@ -799,9 +803,18 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
             </button>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          By {creator?.name || `${terms.System}-wide`} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
-          {poll.bulletin_id && <span className="ml-1.5"><MessageCircle className="inline w-3 h-3 mr-0.5" />from Bulletin Board</span>}
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+          By
+          {creator ? (
+            <span>{creator.name}</span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <SystemAvatar size="sm" />
+              <span>{systemIdentity.name}</span>
+            </span>
+          )}
+          • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
+          {poll.bulletin_id && <span><MessageCircle className="inline w-3 h-3 mr-0.5" />from Bulletin Board</span>}
         </p>
       </div>
 
@@ -863,10 +876,10 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
                         return (
                           <div
                             key={`sys-${voteIdx}`}
-                            className="w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-xs font-bold bg-muted text-muted-foreground"
-                            title={`${terms.System}-wide vote`}
+                            className="border-2 border-background rounded-full overflow-hidden"
+                            title={`${systemIdentity.name} vote`}
                           >
-                            {(terms.System?.charAt(0) || "S").toUpperCase()}
+                            <SystemAvatar size="sm" />
                           </div>
                         );
                       }

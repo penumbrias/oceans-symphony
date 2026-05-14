@@ -87,8 +87,32 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
       const systemUser = await getSystemUser(token.trim(), systemId);
       const systemName = systemUser?.username || systemUser?.name || "";
       const systemDescription = systemUser?.desc || systemUser?.description || "";
+      // SP exposes a system-level avatar on the user record — same
+      // shape as a member avatar (`avatarUrl` for a full URL, or
+      // `avatarUuid` reconstructed against the apparyllis CDN).
+      // Reuse the member resolver path: pass the user record through
+      // the same handler so URL / UUID both work. Falls back to "" so
+      // it doesn't blow away an avatar the user uploaded locally.
+      let systemAvatarUrl = "";
+      if (systemUser) {
+        if (systemUser.avatarUrl) systemAvatarUrl = systemUser.avatarUrl;
+        else if (systemUser.avatar_url) systemAvatarUrl = systemUser.avatar_url;
+        else if (systemUser.avatarUuid) {
+          const owner = systemUser.uid || systemId;
+          if (owner) systemAvatarUrl = `https://spaces.apparyllis.com/avatars/${owner}/${systemUser.avatarUuid}`;
+        }
+      }
 
-      const spData = { sp_token: token.trim(), sp_system_id: systemId, system_name: systemName, system_description: systemDescription };
+      const spData = {
+        sp_token: token.trim(),
+        sp_system_id: systemId,
+        system_name: systemName,
+        system_description: systemDescription,
+        // Only overwrite an existing local avatar when SP actually has
+        // one to give us — otherwise the user's hand-picked avatar
+        // survives a reconnect.
+        ...(systemAvatarUrl ? { system_avatar_url: systemAvatarUrl } : {}),
+      };
       if (effectiveSettings?.id) {
         await base44.entities.SystemSettings.update(effectiveSettings.id, spData);
       } else {
