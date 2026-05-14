@@ -72,7 +72,7 @@ export default function UpcomingPlans({ placement, limit = 5, filterByAlterId = 
         alters={alters}
         compact
         limit={limit}
-        onClick={() => navigate("/activities")}
+        onClick={(activity) => navigate(activity?.id ? `/activities?activityId=${activity.id}` : "/activities")}
       />
     </div>
   );

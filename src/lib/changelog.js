@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Critical pinned-plan cards on the Dashboard (the orange 'Critical · 15 min before / Therapy' style cards at the top of the page) now respond to a double-tap by opening that plan's Activity Details modal in the Activity Tracker. Single-tap is still a no-op so you don't accidentally navigate while reaching for the dismiss X. Upcoming-plans rows in the Coming Up widget also deep-link straight into the matching plan's details modal now (instead of dropping you on the calendar with no selection).",
+      },
+      {
         type: "feature",
         text: "Polls now have two voting modes: per-alter (the existing behaviour — one vote per alter, tap again to remove) and anonymous tally count (each tap on an option just adds 1, no toggle, no per-alter accounting). Toggle 'Anonymous tally count' at the top of the Create Poll modal or on any existing poll's detail view. Whichever mode you pick becomes the default for the next poll you make (each poll can still be flipped individually). In tally mode the 'Voting As' avatar grid is hidden (no voter to pick), the 'you voted' highlight goes away, and a − button appears next to each option so you can subtract a click that landed on the wrong option. Bulletin Board polls and pinned poll cards both honour whichever mode the linked poll is in, so voting from any surface stays consistent.",
       },

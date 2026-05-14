@@ -24,6 +24,9 @@ export default function ActivityTracker() {
   const qc = useQueryClient();
   const urlParams = new URLSearchParams(window.location.search);
   const jumpDate = urlParams.get("date") || null;
+  // Deep-link target for the Activity Details modal — used by the
+  // dashboard's pinned-critical-plan cards (double-tap → /activities?activityId=…).
+  const [focusActivityId, setFocusActivityId] = useState(() => urlParams.get("activityId") || null);
   const [highlightId, setHighlightId] = useState(() => urlParams.get("highlight") || null);
   const [currentDate, setCurrentDate] = useState(() => jumpDate ? new Date(jumpDate + "T00:00:00") : new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,6 +78,25 @@ export default function ActivityTracker() {
     queryKey: ["tasks"],
     queryFn: () => base44.entities.Task.list(),
   });
+
+  // Open the Activity Details modal automatically when this page is
+  // entered via /activities?activityId=<id> — used by the Dashboard's
+  // critical-pinned-plan cards (double-tap → straight into details).
+  // Clear the param after opening so back-button doesn't re-open the
+  // modal in a loop.
+  useEffect(() => {
+    if (!focusActivityId) return;
+    const target = activities.find((a) => a.id === focusActivityId);
+    if (!target) return;
+    setSelectedActivity(target);
+    setIsDetailsOpen(true);
+    setFocusActivityId(null);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("activityId");
+      window.history.replaceState(null, "", url.toString());
+    } catch { /* non-fatal */ }
+  }, [focusActivityId, activities]);
 
   // Surface open to-dos with a scheduled-at or due-date on the week grid.
   // Synthetic records share the Activity shape so the grid renders them
