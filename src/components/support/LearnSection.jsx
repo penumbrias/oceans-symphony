@@ -5,10 +5,11 @@ import ModuleCard from "./ModuleCard";
 import TopicView, { CURRICULUM } from "./TopicView";
 import MyReflections from "./MyReflections";
 import NeedsCheckIn from "./NeedsCheckIn";
-import { FileText, Heart } from "lucide-react";
+import ResourcesView from "./ResourcesView";
+import { FileText, Heart, BookOpen } from "lucide-react";
 
 export default function LearnSection({ onTryTechnique }) {
-  const [view, setView] = useState("overview"); // "overview" | "topic" | "reflections" | "needs"
+  const [view, setView] = useState("overview"); // "overview" | "topic" | "reflections" | "needs" | "resources"
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [selectedModuleId, setSelectedModuleId] = useState(null);
 
@@ -46,6 +47,10 @@ export default function LearnSection({ onTryTechnique }) {
     return <NeedsCheckIn onBack={() => setView("overview")} />;
   }
 
+  if (view === "resources") {
+    return <ResourcesView onBack={() => setView("overview")} />;
+  }
+
   return (
     <div className="max-w-xl mx-auto p-4 space-y-6 pb-12">
       {/* Gentle intro */}
@@ -53,6 +58,9 @@ export default function LearnSection({ onTryTechnique }) {
         <h2 className="text-lg font-semibold text-foreground">Learn at your own pace</h2>
         <p className="text-sm text-muted-foreground">
           A gentle curriculum you can move through whenever you're ready. No pressure, no deadlines, no right order. You can revisit anything as many times as you like.
+        </p>
+        <p className="text-xs text-muted-foreground italic">
+          Curriculum drawn primarily from the <em>Finding Solid Ground</em> workbook, with additional material from <em>Coping With Trauma-Related Dissociation</em>. See <button onClick={() => setView("resources")} className="text-primary hover:underline">Resources</button> for full credits and further reading.
         </p>
         {completedTopics > 0 && (
           <p className="text-xs text-primary/80">
@@ -62,20 +70,27 @@ export default function LearnSection({ onTryTechnique }) {
       </div>
 
       {/* Quick access tools */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           onClick={() => setView("reflections")}
-          className="flex-1 flex items-center gap-2 bg-card border border-border/60 rounded-xl p-3 hover:border-primary/30 hover:bg-primary/5 transition-all"
+          className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 bg-card border border-border/60 rounded-xl p-3 hover:border-primary/30 hover:bg-primary/5 transition-all text-center sm:text-left"
         >
-          <FileText className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">My Reflections</span>
+          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-xs sm:text-sm font-medium text-foreground">My Reflections</span>
         </button>
         <button
           onClick={() => setView("needs")}
-          className="flex-1 flex items-center gap-2 bg-card border border-border/60 rounded-xl p-3 hover:border-primary/30 hover:bg-primary/5 transition-all"
+          className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 bg-card border border-border/60 rounded-xl p-3 hover:border-primary/30 hover:bg-primary/5 transition-all text-center sm:text-left"
         >
-          <Heart className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-foreground">Needs Check-In</span>
+          <Heart className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-xs sm:text-sm font-medium text-foreground">Needs Check-In</span>
+        </button>
+        <button
+          onClick={() => setView("resources")}
+          className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 bg-card border border-border/60 rounded-xl p-3 hover:border-primary/30 hover:bg-primary/5 transition-all text-center sm:text-left"
+        >
+          <BookOpen className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-xs sm:text-sm font-medium text-foreground">Resources</span>
         </button>
       </div>
 

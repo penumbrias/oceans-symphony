@@ -593,6 +593,14 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "grounding", sectionLabel: "Support",
+      emoji: "📖",
+      title: "Resources page",
+      body: `At the top of the Learn tab there's a Resources button that credits the workbooks the curriculum is drawn from — primarily Finding Solid Ground, with material from Coping With Trauma-Related Dissociation — and links to further reading (Dissociation Made Simple, When Rabbit Howls) plus a handful of online resources (did-research.org, ISSTD, An Infinite Mind). Use it to go straight to the source material when you want to dig deeper than the app's summaries.`,
+      route: "/grounding", target: null,
+      look: `the Resources tile in the top row of the Learn tab`, action: null,
+    },
+    {
+      section: "grounding", sectionLabel: "Support",
       emoji: "🛡️",
       title: "Safety Plan",
       body: `Your Safety Plan lives at /safety-plan (linked from the Support tab footer). It stores Warning Signs (earliest/escalating/emergency), Coping Cards, and Window of Tolerance levels. Build it gradually over time, or fill it in during a calmer moment. Access it instantly from the nav or the Support tab.`,
