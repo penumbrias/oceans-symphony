@@ -11,6 +11,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 
 function PollListView({ polls, alters, onSelectPoll }) {
+  const terms = useTerms();
   if (!polls || polls.length === 0) {
     return (
       <div className="text-center py-16">
@@ -38,7 +39,7 @@ function PollListView({ polls, alters, onSelectPoll }) {
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-foreground line-clamp-2">{poll.question}</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  By {creator?.name || "Unknown"} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
+                  By {creator?.name || `${terms.System}-wide`} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
                 </p>
               </div>
               {poll.is_closed && <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />}
@@ -96,10 +97,6 @@ function CreatePollModal({ open, onClose, alters }) {
       toast.error("Enter a question");
       return;
     }
-    if (!selectedAlter) {
-      toast.error(`Select an ${terms.alter}`);
-      return;
-    }
     const filledOptions = options.filter(o => o.trim());
     if (filledOptions.length < 2) {
       toast.error("Enter at least 2 options");
@@ -117,7 +114,7 @@ function CreatePollModal({ open, onClose, alters }) {
       await base44.entities.Poll.create({
         question: question.trim(),
         options: filledOptions,
-        created_by_alter_id: selectedAlter,
+        created_by_alter_id: selectedAlter || null,
         is_closed: false,
         votes,
       });
@@ -191,13 +188,15 @@ function CreatePollModal({ open, onClose, alters }) {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Voting As</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Created By <span className="text-muted-foreground/60">(optional)</span>
+            </label>
             <select
               value={selectedAlter}
               onChange={(e) => setSelectedAlter(e.target.value)}
               className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
             >
-              <option value="">Select an {terms.alter}...</option>
+              <option value="">{terms.System}-wide (no specific {terms.alter})</option>
               {alters.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -222,10 +221,6 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
   const creator = alters.find(a => a.id === poll.created_by_alter_id);
 
   const handleVote = async (optionIdx) => {
-    if (!selectedAlter) {
-      toast.error(`Select an ${terms.alter} first`);
-      return;
-    }
     if (poll.is_closed) return;
 
     setSaving(true);
@@ -286,7 +281,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
         <button onClick={onBack} className="text-primary hover:underline text-sm mb-4">← Back</button>
         <h2 className="text-xl font-display font-semibold text-foreground mb-2">{poll.question}</h2>
         <p className="text-xs text-muted-foreground">
-          By {creator?.name || "Unknown"} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
+          By {creator?.name || `${terms.System}-wide`} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
         </p>
       </div>
 
@@ -294,7 +289,9 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
         {poll.options.map((option, idx) => {
           const optionVotes = poll.votes?.[idx] || [];
           const percent = totalVotes === 0 ? 0 : (optionVotes.length / totalVotes) * 100;
-          const isVotedBySelected = selectedAlter && optionVotes.includes(selectedAlter);
+          // selectedAlter may be "" (system-wide vote) — that's a valid
+          // value so we don't gate on truthiness here.
+          const isVotedBySelected = optionVotes.includes(selectedAlter);
 
           return (
             <div key={idx}>
@@ -318,10 +315,22 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
                   <p className="text-xs text-muted-foreground font-medium">{optionVotes.length}</p>
                 </div>
 
-                {/* Alter avatars */}
+                {/* Alter avatars (+ a generic chip per system-wide vote so the
+                    visible count matches optionVotes.length) */}
                 {optionVotes.length > 0 && (
                   <div className="flex gap-1 -space-x-2">
-                    {optionVotes.map((alterId) => {
+                    {optionVotes.map((alterId, voteIdx) => {
+                      if (!alterId) {
+                        return (
+                          <div
+                            key={`sys-${voteIdx}`}
+                            className="w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-xs font-bold bg-muted text-muted-foreground"
+                            title={`${terms.System}-wide vote`}
+                          >
+                            {(terms.System?.charAt(0) || "S").toUpperCase()}
+                          </div>
+                        );
+                      }
                       const alter = alters.find(a => a.id === alterId);
                       if (!alter) return null;
                       return (
@@ -345,13 +354,15 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
 
       {!poll.is_closed && (
         <div>
-          <label className="text-xs font-medium text-muted-foreground">Voting As</label>
+          <label className="text-xs font-medium text-muted-foreground">
+            Voting As <span className="text-muted-foreground/60">(optional)</span>
+          </label>
           <select
             value={selectedAlter}
             onChange={(e) => setSelectedAlter(e.target.value)}
             className="w-full mt-2 px-3 py-2 rounded-md border border-input bg-background text-sm"
           >
-            <option value="">Select an {terms.alter}...</option>
+            <option value="">{terms.System}-wide (no specific {terms.alter})</option>
             {alters.map((a) => (
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
@@ -366,7 +377,9 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
         </div>
       )}
 
-      {creator?.id && selectedAlter === creator.id && !poll.is_closed && (
+      {/* Close button shows for the poll creator, or for anyone if the poll
+          has no specific creator alter (a system-wide poll). */}
+      {!poll.is_closed && (!poll.created_by_alter_id || selectedAlter === poll.created_by_alter_id) && (
         <Button
           variant="destructive"
           onClick={handleClosePoll}

@@ -459,7 +459,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "polls", sectionLabel: "Polls",
       emoji: "➕",
       title: "Create a Poll",
-      body: `Tap the highlighted Create button to make a new poll. Enter a question, add 2–4 options, and select who is creating it. To vote, open any open poll, select "Voting as" (which ${t.alter} is voting), and tap your choice. Only the poll creator can close it when a decision is reached.`,
+      body: `Tap the highlighted Create button to make a new poll. Enter a question and add 2–4 options. Picking a specific creator ${t.alter} is optional — leave it on "${t.System}-wide" if the question is for the whole ${t.system}. To vote, open any open poll, optionally choose which ${t.alter} you're voting as (or leave it ${t.system}-wide), and tap your choice. The creator ${t.alter} can close their own poll; ${t.system}-wide polls can be closed by anyone.`,
       route: "/polls", target: "polls-create",
       look: `the highlighted "Create" button in the top-right of the Polls header`, action: null,
     },
