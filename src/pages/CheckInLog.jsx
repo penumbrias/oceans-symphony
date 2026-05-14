@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format, parseISO, startOfDay } from "date-fns";
-import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal, Pencil } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -171,6 +171,23 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
   const emotions = checkIn.emotions || [];
   const note = checkIn.note;
   const fronters = (checkIn.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
+  // Inline note editor — lets the user fix typos in the quick check-in
+  // note without re-doing the whole check-in. State scoped to this card.
+  const queryClientForNote = useQueryClient();
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(note || "");
+  const [savingNote, setSavingNote] = useState(false);
+  useEffect(() => { setNoteDraft(note || ""); }, [note]);
+  const handleSaveNote = async () => {
+    const next = noteDraft.trim();
+    setSavingNote(true);
+    try {
+      await base44.entities.EmotionCheckIn.update(checkIn.id, { note: next || null });
+      queryClientForNote.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      setEditingNote(false);
+    } catch (e) { toast.error(e.message || "Failed to save"); }
+    finally { setSavingNote(false); }
+  };
 
   const ciTime = ts.getTime();
   const TWO_MIN = 2 * 60 * 1000;
@@ -269,9 +286,42 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         </div>
       )}
 
-      {note && (
-        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{note}</p>
-      )}
+      {/* Quick-check-in note: editable inline so typos are fixable
+          without re-doing the check-in. Hidden until the user opens
+          the editor when no note exists yet (a small + button). */}
+      {editingNote ? (
+        <div className="space-y-1.5">
+          <textarea
+            autoFocus
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { setNoteDraft(note || ""); setEditingNote(false); }
+            }}
+            rows={3}
+            placeholder="Note for this check-in…"
+            className="w-full bg-background border border-border/60 rounded-md px-2 py-1.5 text-sm"
+          />
+          <div className="flex items-center gap-1.5">
+            <Button size="sm" onClick={handleSaveNote} loading={savingNote}>Save</Button>
+            <Button size="sm" variant="outline" onClick={() => { setNoteDraft(note || ""); setEditingNote(false); }}>Cancel</Button>
+          </div>
+        </div>
+      ) : note ? (
+        <div className="flex items-start gap-2 group">
+          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed flex-1">{note}</p>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground flex-shrink-0"
+            onClick={() => setEditingNote(true)}
+            aria-label="Edit note"
+            title="Edit note"
+          >
+            <Pencil className="w-3 h-3" />
+          </Button>
+        </div>
+      ) : null}
 
       {checkIn.journal_entry_id && (
         <p className="text-xs text-primary italic">📓 Extended note saved as journal entry</p>
@@ -568,9 +618,103 @@ function LocationEntry({ loc }) {
 }
 
 function StatusNoteEntry({ sn }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(sn.note || "");
+  const [saving, setSaving] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const disarmRef = useRef(null);
+  useEffect(() => () => clearTimeout(disarmRef.current), []);
+
+  const handleSave = async () => {
+    const next = draft.trim();
+    if (!next) { toast.error("Status can't be empty"); return; }
+    setSaving(true);
+    try {
+      await localEntities.StatusNote.update(sn.id, { note: next });
+      qc.invalidateQueries({ queryKey: ["statusNotes"] });
+      setEditing(false);
+    } catch (e) { toast.error(e.message || "Failed to save"); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      clearTimeout(disarmRef.current);
+      disarmRef.current = setTimeout(() => setDeleteArmed(false), 4000);
+      return;
+    }
+    clearTimeout(disarmRef.current);
+    setDeleteArmed(false);
+    try {
+      await localEntities.StatusNote.delete(sn.id);
+      qc.invalidateQueries({ queryKey: ["statusNotes"] });
+      toast.success("Status deleted");
+    } catch (e) { toast.error(e.message || "Failed to delete"); }
+  };
+
   return (
     <StandaloneEntry timestamp={sn.timestamp}>
-      <span className="text-sm text-foreground/80 italic">💬 {sn.note}</span>
+      {editing ? (
+        <div className="flex-1 w-full flex flex-col gap-2">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); handleSave(); }
+              if (e.key === "Escape") { setDraft(sn.note || ""); setEditing(false); }
+            }}
+            className="w-full bg-background border border-border/60 rounded-md px-2 py-1 text-sm"
+            placeholder="Edit status…"
+          />
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="text-xs px-2 py-0.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDraft(sn.note || ""); setEditing(false); }}
+              className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-start gap-2">
+          <span className="text-sm text-foreground/80 italic flex-1">💬 {sn.note}</span>
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Edit status"
+              title="Edit"
+              className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              aria-label={deleteArmed ? "Tap again to delete" : "Delete status"}
+              title={deleteArmed ? "Tap again to confirm" : "Delete"}
+              className={`p-1 rounded-md transition-colors ${
+                deleteArmed ? "bg-destructive/15 text-destructive ring-1 ring-destructive/40" : "text-muted-foreground hover:text-destructive"
+              }`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {deleteArmed && <span className="ml-1 text-[0.625rem] uppercase tracking-wide font-semibold">Confirm</span>}
+            </button>
+          </div>
+        </div>
+      )}
     </StandaloneEntry>
   );
 }
