@@ -130,6 +130,10 @@ function stripHash(raw) {
 // next import updates it instead of creating a new row.
 export function mapPkMemberToAlter(member, groupsByMemberId = {}) {
   const groups = groupsByMemberId[member.id] || [];
+  const banner = member.banner || "";
+  // PK "banner" doubles as the alter profile header in OS — surface it via
+  // the `_header_image` custom-field key that ProfileTab reads.
+  const customFields = banner ? { _header_image: banner } : {};
   return {
     pk_id: member.id,
     name: member.name || "Unknown",
@@ -138,10 +142,11 @@ export function mapPkMemberToAlter(member, groupsByMemberId = {}) {
     description: member.description || "",
     color: normalizeColor(member.color),
     avatar_url: member.avatar_url || "",
-    banner_url: member.banner || "",
+    banner_url: banner,
     birthday: member.birthday || "",
     tags: [],
     groups,
+    custom_fields: customFields,
     is_archived: false, // PK has no archive concept; preserve local archive flag separately
   };
 }

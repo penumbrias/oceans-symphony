@@ -116,6 +116,13 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
         const mapped = mapPkMemberToAlter(m, groupsByMemberId);
         const match = byPkId[m.id];
         if (match) {
+          // Merge custom_fields: preserve local-only `_*` keys (profile-
+          // style settings like _bg_color, _hide_header, …) while letting
+          // PK authoritatively set `_header_image` from the banner.
+          const localOnly = Object.fromEntries(
+            Object.entries(match.custom_fields || {}).filter(([k]) => k.startsWith("_"))
+          );
+          mapped.custom_fields = { ...localOnly, ...(mapped.custom_fields || {}) };
           await localEntities.Alter.update(match.id, mapped);
           updated += 1;
         } else {
