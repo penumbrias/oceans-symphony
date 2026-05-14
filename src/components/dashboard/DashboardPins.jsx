@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pin, Zap, Flag, Clock, CheckCircle2, Circle } from "lucide-react";
+import { Pin, Zap, Flag, Clock, CheckCircle2, Circle, BarChart2, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
@@ -45,6 +45,13 @@ export default function DashboardPins() {
     queryFn: () => base44.entities.Task.list(),
   });
 
+  // Polls pinned via the Polls page detail view → they appear in the
+  // Pinned section here so they're one tap from the Dashboard.
+  const { data: pinnedPolls = [] } = useQuery({
+    queryKey: ["polls", "dashboard_pinned"],
+    queryFn: () => base44.entities.Poll.filter({ pinned_to_dashboard: true }, "-created_date"),
+  });
+
   // A to-do can be pinned two ways: via the To-Do page (Task.pinned_to_dashboard)
   // or via a task-bulletin on the board (Bulletin.dashboard_pinned with the
   // task id embedded in `[task:ID]` content). When both pin paths target
@@ -74,7 +81,7 @@ export default function DashboardPins() {
       });
   }, [tasks, pinnedTaskIdsFromBulletins]);
 
-  if (pinned.length === 0 && surfacingTasks.length === 0) return null;
+  if (pinned.length === 0 && surfacingTasks.length === 0 && pinnedPolls.length === 0) return null;
 
   return (
     <div className="mb-3 space-y-2" data-tour="dashboard-pins">
@@ -85,6 +92,13 @@ export default function DashboardPins() {
       {/* Urgent / pinned to-dos */}
       {surfacingTasks.map(t => (
         <PinnedTaskRow key={`task-${t.id}`} task={t} />
+      ))}
+
+      {/* Pinned polls (from the Polls page). Compact card with the
+          question, top option, and vote count; tap deep-links into the
+          Polls page detail view. */}
+      {pinnedPolls.map((p) => (
+        <PinnedPollRow key={`poll-${p.id}`} poll={p} />
       ))}
 
       {/* Pinned bulletins (and task-bulletins from the board). When a
@@ -229,5 +243,49 @@ function PinnedTaskRow({ task }) {
     </div>
     <TaskQuickActionsSheet task={task} open={quickOpen} onOpenChange={setQuickOpen} />
     </>
+  );
+}
+
+function PinnedPollRow({ poll }) {
+  const navigate = useNavigate();
+  const totalVotes = Object.values(poll.votes || {}).reduce((s, arr) => s + (Array.isArray(arr) ? arr.length : 0), 0);
+  // Pick a representative option for the preview line — the leading
+  // option by vote count (ties broken by the option's natural order).
+  let leadIdx = -1;
+  let leadCount = -1;
+  (poll.options || []).forEach((_, i) => {
+    const c = (poll.votes?.[String(i)] || []).length;
+    if (c > leadCount) { leadCount = c; leadIdx = i; }
+  });
+  const leadLabel = leadIdx >= 0 ? poll.options[leadIdx] : null;
+  const leadPct = totalVotes > 0 && leadCount > 0 ? Math.round((leadCount / totalVotes) * 100) : 0;
+  const handleClick = () => navigate(`/polls?id=${poll.id}`);
+  return (
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleClick(); }}
+      className="block rounded-xl p-3 transition-colors cursor-pointer select-none bg-card border border-border/50 hover:bg-muted/30"
+    >
+      <div className="flex items-start gap-2.5">
+        <BarChart2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider font-semibold text-muted-foreground">
+            <Pin className="w-3 h-3 fill-primary text-primary" />
+            <span>Pinned poll</span>
+            {poll.is_closed && <span className="inline-flex items-center gap-0.5 ml-1"><Lock className="w-3 h-3" /> closed</span>}
+          </div>
+          <div className="text-base font-semibold mt-0.5 truncate">{poll.question}</div>
+          {leadLabel ? (
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              Leading: <span className="text-foreground">{leadLabel}</span> · {leadPct}% · {totalVotes} vote{totalVotes !== 1 ? "s" : ""}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-0.5">No votes yet</p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

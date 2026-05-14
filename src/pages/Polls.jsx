@@ -1,13 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, X, Lock, MessageSquare } from "lucide-react";
+import { Plus, X, Lock, MessageSquare, Pin, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 
 function PollListView({ polls, alters, onSelectPoll }) {
@@ -37,9 +38,13 @@ function PollListView({ polls, alters, onSelectPoll }) {
           >
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-foreground line-clamp-2">{poll.question}</h3>
+                <h3 className="font-medium text-foreground line-clamp-2 flex items-center gap-1.5">
+                  {poll.pinned_to_dashboard && <Pin className="w-3.5 h-3.5 text-primary fill-primary flex-shrink-0" />}
+                  <span>{poll.question}</span>
+                </h3>
                 <p className="text-xs text-muted-foreground mt-1">
                   By {creator?.name || `${terms.System}-wide`} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
+                  {poll.bulletin_id && <span className="ml-1.5"><MessageCircle className="inline w-3 h-3 mr-0.5" />from Bulletin Board</span>}
                 </p>
               </div>
               {poll.is_closed && <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1" />}
@@ -268,6 +273,18 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
     }
   };
 
+  const handleTogglePin = async () => {
+    const next = !poll.pinned_to_dashboard;
+    try {
+      await base44.entities.Poll.update(poll.id, { pinned_to_dashboard: next });
+      queryClient.invalidateQueries({ queryKey: ["polls"] });
+      queryClient.invalidateQueries({ queryKey: ["polls", "dashboard_pinned"] });
+      toast.success(next ? "Pinned to dashboard" : "Unpinned from dashboard");
+    } catch (e) {
+      toast.error(e.message || "Failed to update pin");
+    }
+  };
+
   const totalVotes = Object.values(poll.votes || {}).reduce((sum, votes) => sum + (votes?.length || 0), 0);
 
   return (
@@ -279,9 +296,24 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
     >
       <div>
         <button onClick={onBack} className="text-primary hover:underline text-sm mb-4">← Back</button>
-        <h2 className="text-xl font-display font-semibold text-foreground mb-2">{poll.question}</h2>
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <h2 className="text-xl font-display font-semibold text-foreground flex items-start gap-2">
+            {poll.pinned_to_dashboard && <Pin className="w-5 h-5 text-primary fill-primary flex-shrink-0 mt-0.5" />}
+            <span>{poll.question}</span>
+          </h2>
+          <button
+            type="button"
+            onClick={handleTogglePin}
+            aria-label={poll.pinned_to_dashboard ? "Unpin poll from dashboard" : "Pin poll to dashboard"}
+            title={poll.pinned_to_dashboard ? "Unpin from dashboard" : "Pin to dashboard"}
+            className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40 flex-shrink-0"
+          >
+            <Pin className={`w-4 h-4 ${poll.pinned_to_dashboard ? "fill-primary text-primary" : ""}`} />
+          </button>
+        </div>
         <p className="text-xs text-muted-foreground">
           By {creator?.name || `${terms.System}-wide`} • {formatDistanceToNow(new Date(poll.created_date), { addSuffix: true })}
+          {poll.bulletin_id && <span className="ml-1.5"><MessageCircle className="inline w-3 h-3 mr-0.5" />from Bulletin Board</span>}
         </p>
       </div>
 
@@ -396,6 +428,9 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
 export default function Polls() {
   const [selectedPoll, setSelectedPoll] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const focusId = searchParams.get("id");
 
   const { data: polls = [], isLoading: pollsLoading } = useQuery({
     queryKey: ["polls"],
@@ -408,6 +443,33 @@ export default function Polls() {
   });
 
   const activeAlters = alters.filter(a => !a.is_archived);
+
+  // Deep-link support: /polls?id=<pollId> auto-opens that poll's detail
+  // view. Clearing the URL param when the user goes back avoids the
+  // back button bouncing them into detail mode forever.
+  useEffect(() => {
+    if (!focusId) return;
+    const target = polls.find((p) => p.id === focusId);
+    if (target) setSelectedPoll(target);
+  }, [focusId, polls]);
+
+  // Keep `selectedPoll` in sync with the latest polls query so that
+  // optimistic vote updates / pin toggles propagate into the detail
+  // view without forcing the user to back out and re-open.
+  useEffect(() => {
+    if (!selectedPoll) return;
+    const fresh = polls.find((p) => p.id === selectedPoll.id);
+    if (fresh && fresh !== selectedPoll) setSelectedPoll(fresh);
+  }, [polls, selectedPoll]);
+
+  const handleBackToList = () => {
+    setSelectedPoll(null);
+    if (focusId) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("id");
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   if (pollsLoading) {
     return (
@@ -432,7 +494,7 @@ export default function Polls() {
             <PollDetailView
               poll={selectedPoll}
               alters={activeAlters}
-              onBack={() => setSelectedPoll(null)}
+              onBack={handleBackToList}
               onClose={() => {}}
             />
           </div>
