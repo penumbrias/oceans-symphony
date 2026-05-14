@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Polls page: 'Voting As' is now a button that pops a multi-select modal (instead of a tall inline grid). The modal defaults to whoever is currently fronting, and you can pick any combination of alters and/or System-wide. Each tap on an option then casts a vote once per selected voter, so multiple alters can cast their votes in one shot. Hit 'Reset to current front' inside the modal to snap back to the fronters; tap individual tiles to add or remove them. The button label summarises the picks ('Castiel + 2 others', 'System-wide', etc.) so you can see at a glance who's voting next.",
+      },
+      {
+        type: "feature",
+        text: "Polls can now be edited after creation. A pencil icon next to the poll's question opens an Edit modal where you can rename the question, edit existing option labels (votes stay attached), add new options (up to 8), remove options (with a confirm if there are votes that would be lost), and flip the voting mode between per-alter and anonymous tally. Re-keying of votes is handled automatically when options are added or removed, so vote counts stay aligned with the visible options.",
+      },
+      {
         type: "improve",
         text: "Critical pinned-plan cards on the Dashboard (the orange 'Critical · 15 min before / Therapy' style cards at the top of the page) now respond to a double-tap by opening that plan's Activity Details modal in the Activity Tracker. Single-tap is still a no-op so you don't accidentally navigate while reaching for the dismiss X. Upcoming-plans rows in the Coming Up widget also deep-link straight into the matching plan's details modal now (instead of dropping you on the calendar with no selection).",
       },
