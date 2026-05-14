@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Push notifications never appeared in the system tray even though every check in the diagnostic was green. Cause: the service worker's notification icon was pointing at /oceans-symphony-logo.png, which doesn't exist (the actual icon is /icon-192.png). When Chrome on Android handles a push event, a failing icon fetch during showNotification can silently abort the entire notification display — local 'Show local test' notifications don't go through the same code path, which is why those worked while real pushes didn't. Icon paths now point at /icon-192.png everywhere. After the new deploy is live, force-stop the app and reopen to let the new service worker take over.",
+      },
+      {
         type: "improve",
         text: "Settings → Custom Fields list is now scrollable when you have more than six fields. Previously a long list of custom fields pushed everything else on the Settings page way down; the list now caps at about six rows tall and scrolls within the card so the rest of the page stays reachable.",
       },
