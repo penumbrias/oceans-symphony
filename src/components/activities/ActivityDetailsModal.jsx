@@ -121,7 +121,7 @@ function AlterSelector({ selectedIds, onChange, alters }) {
   );
 }
 
-export default function ActivityDetailsModal({ isOpen, onClose, activity, alters = [], onSave }) {
+export default function ActivityDetailsModal({ isOpen, onClose, activity, alters = [], onSave, onEditPlan }) {
   const terms = useTerms();
   const [editingId, setEditingId] = useState(null);
   // keyed by act.id so each activity has independent edit state
@@ -369,6 +369,30 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                         </div>
                       </div>
                     )}
+                    {act.location && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Location</p>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.location)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-sm text-primary hover:underline bg-muted/30 rounded-lg p-3"
+                        >
+                          📍 <span>{act.location}</span>
+                          <span className="text-xs text-muted-foreground">· open in Maps ↗</span>
+                        </a>
+                      </div>
+                    )}
+                    {act.is_critical && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Critical lead-window alerts</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(act.critical_lead_steps || []).map((k) => (
+                            <span key={k} className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30">{k}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {act.notes && (
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Notes</p>
@@ -376,7 +400,24 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                       </div>
                     )}
                     <div className="flex gap-2 pt-2">
-                      <Button variant="outline" onClick={() => handleEdit(act)} className="flex-1">Edit</Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          // Plans get the full Plan Activity modal so all
+                          // their fields (location, critical lead steps,
+                          // assigned alters, …) are editable in one place.
+                          // Logged activities keep the lightweight inline
+                          // edit.
+                          if (act.is_planned && onEditPlan) {
+                            onEditPlan(act);
+                            return;
+                          }
+                          handleEdit(act);
+                        }}
+                        className="flex-1"
+                      >
+                        Edit
+                      </Button>
                       <Button variant="destructive" size="icon" onClick={() => handleDelete(act.id)} disabled={isLoading}>
                         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                       </Button>

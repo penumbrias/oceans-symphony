@@ -46,6 +46,9 @@ export default function ActivityTracker() {
   const [tab, setTab] = useState("logged"); // "logged" | "planned"
   const [viewMode, setViewMode] = useState(() => lsGet("symphony_act_view_mode", "week")); // "week" | "month" | "year"
   const [planModalOpen, setPlanModalOpen] = useState(false);
+  // When set, the Plan Activity modal opens pre-filled to edit this
+  // existing plan instead of creating a new one. Cleared on close.
+  const [editingPlan, setEditingPlan] = useState(null);
 
   useEffect(() => {
     try { localStorage.setItem("symphony_act_view_mode", JSON.stringify(viewMode)); } catch {}
@@ -354,8 +357,9 @@ export default function ActivityTracker() {
       />
       <ActivityTimeRangeModal
         isOpen={planModalOpen}
-        onClose={() => { setPlanModalOpen(false); handleCloseModal(); }}
+        onClose={() => { setPlanModalOpen(false); setEditingPlan(null); handleCloseModal(); }}
         planMode
+        editingPlan={editingPlan}
         startDate={selectedDate}
         endDate={selectedEndDate}
         startHour={selectedStartHour}
@@ -364,7 +368,7 @@ export default function ActivityTracker() {
         endMinute={selectedEndMinute}
         alters={alters}
         frontingHistory={frontingHistory}
-        onSave={() => { setPlanModalOpen(false); handleCloseModal(); handleActivitySave(); setTab("planned"); }}
+        onSave={() => { setPlanModalOpen(false); setEditingPlan(null); handleCloseModal(); handleActivitySave(); setTab("planned"); }}
       />
       {zoomedDate && (
         <ActivityDayView
@@ -386,6 +390,15 @@ export default function ActivityTracker() {
         activity={selectedActivity}
         alters={alters}
         onSave={handleActivitySave}
+        onEditPlan={(act) => {
+          // Close Details, hand the plan off to the full Plan modal so
+          // location / critical lead-step / assigned alters etc. are all
+          // editable in one place.
+          setIsDetailsOpen(false);
+          setSelectedActivity(null);
+          setEditingPlan(act);
+          setPlanModalOpen(true);
+        }}
       />
     </div>
   );
