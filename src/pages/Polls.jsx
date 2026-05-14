@@ -5,11 +5,88 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, X, Lock, MessageSquare, Pin, MessageCircle } from "lucide-react";
+import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Grid-style picker for "who is voting" / "who created this". Replaces
+// a long dropdown that listed every alter — a single-select avatar grid
+// with a "System-wide" tile in front, mirroring how the Set Front modal
+// looks. Single-select: tapping a tile sets it; tapping "System-wide"
+// clears the alter selection.
+function VoterGridPicker({ alters, value, onChange }) {
+  const terms = useTerms();
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+      <VoterGridTile
+        label={`${terms.System}-wide`}
+        sublabel={`(no specific ${terms.alter})`}
+        selected={!value}
+        onSelect={() => onChange("")}
+        systemTile
+      />
+      {alters.map((a) => (
+        <VoterGridTile
+          key={a.id}
+          alter={a}
+          label={a.alias || a.name}
+          selected={value === a.id}
+          onSelect={() => onChange(a.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function VoterGridTile({ alter, label, sublabel, selected, onSelect, systemTile = false }) {
+  const color = alter?.color || "#9333ea";
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  const [imgError, setImgError] = useState(false);
+  const ringColor = systemTile ? "hsl(var(--muted-foreground))" : color;
+  const boxShadow = selected
+    ? `inset 0 0 0 3px ${ringColor}, 0 0 0 1px ${ringColor}, 0 0 18px ${ringColor}cc`
+    : `inset 0 0 0 2px ${ringColor}80`;
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className="flex flex-col items-center gap-1.5 select-none focus:outline-none"
+    >
+      {systemTile ? (
+        <div
+          style={{ boxShadow, backgroundColor: selected ? "hsl(var(--muted))" : "transparent" }}
+          className={`rounded-full flex items-center justify-center transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
+        >
+          <Globe className={selected ? "w-7 h-7 text-muted-foreground" : "w-6 h-6 text-muted-foreground"} />
+        </div>
+      ) : resolvedUrl && !imgError ? (
+        <img
+          src={resolvedUrl}
+          alt={alter.name}
+          style={{ boxShadow }}
+          className={`rounded-full object-cover transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
+          draggable={false}
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div
+          style={{ backgroundColor: selected ? `${color}30` : "hsl(var(--muted))", boxShadow }}
+          className={`rounded-full flex items-center justify-center transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
+        >
+          <span className="text-xs font-semibold text-muted-foreground">{(alter?.name || "?").slice(0, 2)}</span>
+        </div>
+      )}
+      <span className="text-xs text-center font-medium truncate w-full px-1">
+        {label}
+      </span>
+      {sublabel && <span className="text-[0.625rem] text-muted-foreground text-center px-1 -mt-1">{sublabel}</span>}
+    </button>
+  );
+}
 
 function PollListView({ polls, alters, onSelectPoll }) {
   const terms = useTerms();
@@ -193,19 +270,10 @@ function CreatePollModal({ open, onClose, alters }) {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-muted-foreground">
+            <label className="text-xs font-medium text-muted-foreground block mb-2">
               Created By <span className="text-muted-foreground/60">(optional)</span>
             </label>
-            <select
-              value={selectedAlter}
-              onChange={(e) => setSelectedAlter(e.target.value)}
-              className="w-full mt-1 px-3 py-2 rounded-md border border-input bg-background text-sm"
-            >
-              <option value="">{terms.System}-wide (no specific {terms.alter})</option>
-              {alters.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
+            <VoterGridPicker alters={alters} value={selectedAlter} onChange={setSelectedAlter} />
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -278,8 +346,18 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
     try {
       await base44.entities.Poll.update(poll.id, { pinned_to_dashboard: next });
       queryClient.invalidateQueries({ queryKey: ["polls"] });
-      queryClient.invalidateQueries({ queryKey: ["polls", "dashboard_pinned"] });
-      toast.success(next ? "Pinned to dashboard" : "Unpinned from dashboard");
+      queryClient.invalidateQueries({ queryKey: ["polls", "pinned_in_board"] });
+      // Polls created from a bulletin are also pinned in-place via the
+      // bulletin's `is_pinned` flag so the bulletin (with the poll
+      // embedded) shows in the board's Pinned section. Standalone polls
+      // surface in the same section via PinnedPollCard.
+      if (poll.bulletin_id) {
+        try {
+          await base44.entities.Bulletin.update(poll.bulletin_id, { is_pinned: next });
+          queryClient.invalidateQueries({ queryKey: ["bulletins"] });
+        } catch { /* non-fatal: the poll pin still flips */ }
+      }
+      toast.success(next ? "Pinned to Bulletin Board" : "Unpinned from Bulletin Board");
     } catch (e) {
       toast.error(e.message || "Failed to update pin");
     }
@@ -304,8 +382,8 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
           <button
             type="button"
             onClick={handleTogglePin}
-            aria-label={poll.pinned_to_dashboard ? "Unpin poll from dashboard" : "Pin poll to dashboard"}
-            title={poll.pinned_to_dashboard ? "Unpin from dashboard" : "Pin to dashboard"}
+            aria-label={poll.pinned_to_dashboard ? "Unpin poll from Bulletin Board" : "Pin poll to Bulletin Board"}
+            title={poll.pinned_to_dashboard ? "Unpin from Bulletin Board" : "Pin to Bulletin Board"}
             className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40 flex-shrink-0"
           >
             <Pin className={`w-4 h-4 ${poll.pinned_to_dashboard ? "fill-primary text-primary" : ""}`} />
@@ -386,19 +464,10 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
 
       {!poll.is_closed && (
         <div>
-          <label className="text-xs font-medium text-muted-foreground">
+          <label className="text-xs font-medium text-muted-foreground block mb-2">
             Voting As <span className="text-muted-foreground/60">(optional)</span>
           </label>
-          <select
-            value={selectedAlter}
-            onChange={(e) => setSelectedAlter(e.target.value)}
-            className="w-full mt-2 px-3 py-2 rounded-md border border-input bg-background text-sm"
-          >
-            <option value="">{terms.System}-wide (no specific {terms.alter})</option>
-            {alters.map((a) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
+          <VoterGridPicker alters={alters} value={selectedAlter} onChange={setSelectedAlter} />
         </div>
       )}
 

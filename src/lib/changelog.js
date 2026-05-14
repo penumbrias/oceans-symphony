@@ -16,12 +16,16 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
-        type: "feature",
-        text: "Bulletin Board polls now mirror to the Polls page. When you post a bulletin with a poll attached, a corresponding Poll entity is created automatically and shows up in the Polls page list. Voting from either surface updates the same record, so counts and your selected option stay consistent. Double-tap a bulletin's poll block to jump straight to its detail view on the Polls page (a small Open-in-Polls icon does the same with one tap). The Polls list and detail view label these as 'from Bulletin Board' so you can tell them apart from polls created directly on the Polls page. Existing inline-only bulletin polls (made before this change) keep working in-place; only new bulletins create the linked Poll record.",
+        type: "improve",
+        text: "Pinning a poll now surfaces it in the Bulletin Board's Pinned section (in a votable card) instead of the Dashboard's top Pinned section. Polls posted to the Bulletin Board auto-pin themselves there too, so the question is hard to miss right after you post it. Hit the pin icon again on the poll's detail view (or the small pin in the corner of the pinned card) to unpin from the board. The Dashboard's top Pinned section is back to just to-dos and bulletins — pinned polls live where the votes are, alongside the rest of the board.",
+      },
+      {
+        type: "improve",
+        text: "On the Polls page, the 'Voting As' and 'Created By' dropdowns are gone. They're replaced by an avatar grid that mirrors the Set Front modal — a circular tile per alter plus a leading 'System-wide' tile, with the selected one highlighted. Tap a tile to pick that voter; tap System-wide to vote/post as the system. No more scrolling a tall dropdown to find an alter.",
       },
       {
         type: "feature",
-        text: "New 'Pin to Dashboard' control on every poll's detail view (the pin icon next to the question). Pinned polls surface in the Dashboard's Pinned section — same place as pinned to-dos and pinned bulletins — with the question, the currently leading option, and the vote count. Tap the pinned card to deep-link straight into that poll. Hit the pin again to unpin.",
+        text: "Bulletin Board polls now mirror to the Polls page. When you post a bulletin with a poll attached, a corresponding Poll entity is created automatically and shows up in the Polls page list. Voting from either surface updates the same record, so counts and your selected option stay consistent. Double-tap a bulletin's poll block to jump straight to its detail view on the Polls page (a small Open-in-Polls icon does the same with one tap). The Polls list and detail view label these as 'from Bulletin Board' so you can tell them apart from polls created directly on the Polls page. Existing inline-only bulletin polls (made before this change) keep working in-place; only new bulletins create the linked Poll record.",
       },
       {
         type: "improve",
