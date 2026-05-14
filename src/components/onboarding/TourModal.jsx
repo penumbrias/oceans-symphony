@@ -119,11 +119,11 @@ const STEPS = (t) => [
   {
     title: 'Support & Learn',
     subtitle: 'Grounding tools and trauma-informed skills',
-    body: `Access breathing exercises, imagery techniques, and grounding tools instantly. The Learn section is a full 13-module curriculum of trauma-informed coping skills you can work through at your own pace.`,
+    body: `Access breathing exercises, imagery techniques, and grounding tools instantly. The Learn section is a full 13-module curriculum of trauma-informed coping skills you can work through at your own pace. The curriculum draws primarily from the Finding Solid Ground workbook, with additional material from Coping With Trauma-Related Dissociation — these are validated, clinician-authored sources, but the app itself is not a substitute for professional care.`,
     icon: <Shield className='w-8 h-8' />,
     color: 'from-pink-500/20 to-rose-500/20',
-    tip: 'The floating bubble button gives instant access to support from anywhere in the app',
-    features: ['9 breathing techniques', 'Imagery grounding', '13-module curriculum', 'Interactive exercises', 'Personal coping cards'],
+    tip: 'The floating bubble button gives instant access to support from anywhere in the app. See the Resources page in Learn for links to the source workbooks and other validated material.',
+    features: ['9 breathing techniques', 'Imagery grounding', '13-module curriculum (based on Finding Solid Ground)', 'Interactive exercises', 'Personal coping cards', 'Resources page with validated sources'],
   },
   {
     title: 'Therapy Report',
