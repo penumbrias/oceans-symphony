@@ -32,6 +32,7 @@ import MigrationBanner from "@/components/shared/MigrationBanner";
 import RecentUpdates from "@/components/settings/RecentUpdates";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
+import BugReportModal from "@/components/settings/BugReportModal";
 
 
 function Section({ id, icon, label, defaultOpen = false, children }) {
@@ -71,6 +72,7 @@ export default function Settings() {
     { id: "reminders", label: "Reminders", icon: "🔔" },
     { id: "data", label: "Data & Privacy", icon: "💾" },
     { id: "disclaimer", label: "Disclaimer", icon: "⚠️" },
+    { id: "bug-report", label: "Report a Bug", icon: "🐛" },
     { id: "updates", label: "Recent Updates", icon: "📋" },
   ];
 
@@ -102,6 +104,7 @@ export default function Settings() {
   }, [settings]);
 
   const [saved, setSaved] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
 
   const handleSaveName = async () => {
     setSaving(true);
@@ -385,12 +388,26 @@ export default function Settings() {
           <MedicalDisclaimer />
         </Section>
 
+        {/* ── BUG REPORT ── */}
+        <Section id="bug-report" icon="🐛" label="Report a Bug" defaultOpen={false}>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Found something broken? Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
+            </p>
+            <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
+              <span>🐛</span> Open bug report form
+            </Button>
+          </div>
+        </Section>
+
         {/* ── RECENT UPDATES ── */}
         <Section id="updates" icon="📋" label="Recent Updates" defaultOpen={false}>
           <RecentUpdates />
         </Section>
 
       </div>
+
+      <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
     </motion.div>
   );
 }

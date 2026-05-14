@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New in-app bug reporter under Settings → Report a Bug. Fill in a short summary, what happened, what you expected, and (optionally) repro steps. Tap 'Open on GitHub' and your phone's browser opens a fully pre-filled GitHub issue — your app version, current URL, screen size, and user agent are auto-attached so we don't have to ask. A mailto: fallback covers users without a GitHub account. All bug reports land in one place where they're labelled and triaged.",
+      },
+      {
         type: "improve",
         text: "Anonymize / screenshot-mode toggle (the camera icon on the Alters page) now also blurs the alters in the Dashboard's Currently Fronting widget — names blur in 'names' mode, names AND avatars blur in 'all' mode. Previously the toggle only affected the Alters page, so screenshots that included the dashboard's currently-fronting strip would still reveal identities. The mode persists in localStorage so it stays consistent across both surfaces.",
       },
