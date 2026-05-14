@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Simply Plural's custom fronts can now be imported as symptoms in addition to (or instead of) alters. Custom fronts often represent dissociative / emotional / physical states — anxious, depressed, in pain — which are usually a better fit for the Symptoms tracker than the alter list. Settings → Data & Privacy → Simply Plural → 'Custom Fronts → symptoms' is a separate checkbox from 'Custom Fronts → alters', so you can pick either, both, or neither. Each imported symptom is tagged with the SP id so a second import updates the label/color instead of duplicating, and your per-symptom is_positive flag is preserved across re-imports.",
+      },
+      {
         type: "fix",
         text: "PNG image uploads (avatars, banners, headers, inner-world backgrounds, journal block images, relationship images) preserve transparency now. The compression step was force-encoding every uploaded image to JPEG, which doesn't support transparency, so transparent PNGs ended up with black backgrounds. Uploads that come in as PNG now stay as PNG; everything else (JPEG, etc.) still gets JPEG-compressed as before.",
       },

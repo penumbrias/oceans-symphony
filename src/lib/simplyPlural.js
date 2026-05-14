@@ -208,6 +208,32 @@ export function mapCustomFrontToAlter(customFront, systemId = "") {
   };
 }
 
+// SP custom fronts often represent emotional / physical / dissociative
+// states rather than identities (anxious, depressed, dissociating, in
+// pain, etc). Some users prefer to track those as symptoms in Oceans
+// Symphony instead of (or in addition to) bringing them in as alters.
+// This mapper produces the local `Symptom` shape — a boolean-typed
+// entry under the "mental" category by default, tagged with the SP id
+// for dedupe on re-import.
+export function mapCustomFrontToSymptom(customFront) {
+  const spId = customFront.id || customFront._id || "";
+  const c = customFront.content || customFront;
+  return {
+    sp_id: spId,
+    label: c.name || "Unknown",
+    category: "mental",
+    type: "boolean",
+    // Default to "not a positive thing" — most custom fronts represent
+    // states users want to track, not celebrate. They can flip the
+    // toggle after import on a per-symptom basis.
+    is_positive: false,
+    color: normalizeColor(c.color) || "#9333EA",
+    is_default: false,
+    is_archived: !!c.archived,
+    order: 999,
+  };
+}
+
 export function mapGroupToLocalGroup(group) {
   const spId = group.id || group._id || "";
   const c = group.content || group;
