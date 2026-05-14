@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import AlterCard from "./AlterCard";
 import AlterGridView from "./AlterGridView";
 import FolderGroupsSection from "./FolderGroupsSection.jsx";
+import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { useTerms } from "@/lib/useTerms";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
@@ -28,8 +29,10 @@ export default function AlterGrid({ alters, currentSession = null }) {
     if (oldCols) return oldCols;
     return "list";
   });
-  // anonymize cycles: "off" | "names" | "all"
-  const [anonymize, setAnonymize] = useState("off");
+  // anonymize cycles: "off" | "names" | "all" — persisted to localStorage
+  // so the toggle applies system-wide (Dashboard's Currently Fronting
+  // widget reads the same mode).
+  const { mode: anonymize, cycle: cycleAnonymize } = useAnonymizeMode();
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [hideGrouped, setHideGrouped] = useState(() => localStorage.getItem("alter_hide_grouped") === "true");
 
@@ -40,9 +43,6 @@ export default function AlterGrid({ alters, currentSession = null }) {
     localStorage.setItem("alter_display_mode", next);
   };
 
-  const cycleAnonymize = () => {
-    setAnonymize(a => ({ "off": "names", "names": "all", "all": "off" }[a]));
-  };
 
   const { data: allGroups = [] } = useQuery({
     queryKey: ["groups"],

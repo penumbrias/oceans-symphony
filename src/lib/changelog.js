@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Anonymize / screenshot-mode toggle (the camera icon on the Alters page) now also blurs the alters in the Dashboard's Currently Fronting widget — names blur in 'names' mode, names AND avatars blur in 'all' mode. Previously the toggle only affected the Alters page, so screenshots that included the dashboard's currently-fronting strip would still reveal identities. The mode persists in localStorage so it stays consistent across both surfaces.",
+      },
+      {
         type: "feature",
         text: "Two small icons (orange ⚠ Triggered, 📖 Journal) now sit next to the Switch button in the Currently Fronting widget on the Dashboard. When you switch via a method that doesn't go through the Set Fronters modal — long-press, quick action, etc. — you can still flag the switch as triggered and capture a category/label, or open the Switch Journal flow, after the fact. The trigger icon glows orange when the current switch is already flagged. Available whenever there's at least one active fronting session.",
       },

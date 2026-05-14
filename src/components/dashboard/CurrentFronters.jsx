@@ -20,6 +20,7 @@ import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
+import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 
 const TRIGGER_CATEGORIES = [
@@ -54,6 +55,11 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
+  // Mirror the anonymize toggle from the Alters page so the chips here
+  // blur the same way for screenshots.
+  const { mode: anonymize } = useAnonymizeMode();
+  const blurNames = anonymize !== "off";
+  const blurAvatar = anonymize === "all";
 
   const hasNote = !!sessionNoteText(session);
   const isTriggered = !!session?.is_triggered_switch;
@@ -94,7 +100,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       {/* Avatar with badges */}
       <div className="relative flex-shrink-0">
         <div
-          className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center border border-border/30"
+          className={`w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center border border-border/30 ${blurAvatar ? "blur-sm" : ""}`}
           style={{ backgroundColor: bg || "hsl(var(--muted))" }}
         >
           {alter.avatar_url ? (
@@ -129,7 +135,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground truncate">{alter.name}</p>
+        <p className={`text-sm font-semibold text-foreground truncate ${blurNames ? "blur-sm" : ""}`}>{alter.name}</p>
         <p className="text-[0.6875rem] text-muted-foreground truncate">
           {isPrimary ? "Primary · " : `${coFronterLabel} · `}
           {startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "—"}
