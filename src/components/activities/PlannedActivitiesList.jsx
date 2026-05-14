@@ -155,7 +155,17 @@ function ActivityRow({ activity, altersById, onClick, compact }) {
         </p>
         {activity.location && (
           <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
-            <MapPin className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{activity.location}</span>
+            <MapPin className="w-3 h-3 flex-shrink-0" />
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.location)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="truncate hover:underline hover:text-foreground"
+              title="Open in Google Maps"
+            >
+              {activity.location}
+            </a>
           </p>
         )}
         <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">

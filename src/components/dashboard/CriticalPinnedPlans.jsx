@@ -106,7 +106,16 @@ function CriticalPlanCard({ plan, openStep, onDismiss, onOpen }) {
           {plan.location && (
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
               <MapPin className="w-3 h-3 flex-shrink-0" />
-              <span className="truncate">{plan.location}</span>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(plan.location)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="truncate hover:underline hover:text-foreground"
+                title="Open in Google Maps"
+              >
+                {plan.location}
+              </a>
             </div>
           )}
           <div className="text-xs text-muted-foreground mt-0.5">

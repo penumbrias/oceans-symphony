@@ -41,6 +41,12 @@ export default function ActivityTimeRangeModal({
   // When true, show date inputs and default to a near-future timestamp so the
   // user can plan an activity for any day rather than only tapping a slot.
   planMode = false,
+  // When provided, the modal opens pre-populated from this existing
+  // Activity (must already be is_planned) and saves with Activity.update
+  // instead of creating new records. Recurrence editing is intentionally
+  // out of scope — editing the start/end/category/etc. of a single plan
+  // is what users have been asking for.
+  editingPlan = null,
 }) {
   const terms = useTerms();
   // For plan mode without an explicit start date, default to tomorrow noon so
@@ -108,6 +114,37 @@ const [showNewActivity, setShowNewActivity] = useState(false);
   // updates after commit and React batches them.
 useEffect(() => {
   if (!isOpen) return;
+  // Edit-an-existing-plan branch: hydrate every field from the record.
+  // Falls through to the same selectedAlters auto-populate effect below.
+  if (editingPlan) {
+    const ts = new Date(editingPlan.timestamp);
+    const endTs = editingPlan.duration_minutes
+      ? new Date(ts.getTime() + editingPlan.duration_minutes * 60_000)
+      : null;
+    setDatePicked(format(ts, "yyyy-MM-dd"));
+    setEndDatePicked(format(endTs || ts, "yyyy-MM-dd"));
+    setStartTime(format(ts, "HH:mm"));
+    setEndTime(endTs ? format(endTs, "HH:mm") : "");
+    setSelectedActivityCategories(editingPlan.activity_category_ids || []);
+    setSelectedAlters(
+      editingPlan.assigned_alter_ids?.length
+        ? editingPlan.assigned_alter_ids
+        : (editingPlan.fronting_alter_ids || [])
+    );
+    setNotes(editingPlan.notes || "");
+    // The activity_name doubles as the plan title for ad-hoc plans (no
+    // category linked) and as the category name when categories are set.
+    // Only pre-fill the title field for the ad-hoc case so the user
+    // doesn't see the category name duplicated in the title input.
+    setTitle((editingPlan.activity_category_ids || []).length === 0 ? (editingPlan.activity_name || "") : "");
+    setLocation(editingPlan.location || "");
+    setIsCritical(!!editingPlan.is_critical);
+    setLeadSteps(editingPlan.critical_lead_steps || DEFAULT_LEAD_STEPS);
+    setSelectedTaskId(editingPlan.task_id || null);
+    setRecurrenceInterval("none");
+    setRecurrenceCount(8);
+    return;
+  }
   // Reset the picked date back to whatever the parent passed in (or to the
   // plan-mode default tomorrow). Without this the date picker would persist
   // across opens, which is confusing.
@@ -139,7 +176,7 @@ useEffect(() => {
   setSelectedTaskId(null);
   setRecurrenceInterval("none");
   setRecurrenceCount(8);
-}, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute, planMode]);
+}, [isOpen, editingPlan, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute, planMode]);
 
   // Auto-populate alters from fronting history. MUST be useEffect, not
   // useMemo — `startDate` here is a fresh `new Date(...)` instance on every
@@ -214,6 +251,47 @@ const handleSave = async () => {
   try {
     const catById = Object.fromEntries(activityCategories.map(c => [c.id, c]));
     const isPlanned = timestamp.getTime() > Date.now();
+
+    // Edit-an-existing-plan path: update that single record and bail
+    // before the create-many recurrence flow runs. Recurrence is a
+    // create-time concept here; editing a plan touches just this one
+    // instance.
+    if (editingPlan) {
+      const firstCatId = selectedActivityCategories[0];
+      const firstCat = firstCatId ? catById[firstCatId] : null;
+      const fallbackName = trimmedTitle || linkedTask?.title || firstCat?.name || editingPlan.activity_name || "";
+      await base44.entities.Activity.update(editingPlan.id, {
+        timestamp: timestamp.toISOString(),
+        activity_name: fallbackName,
+        activity_category_ids: selectedActivityCategories,
+        ...(firstCat?.color ? { color: firstCat.color } : {}),
+        task_id: linkedTask?.id || null,
+        duration_minutes: durationMinutes > 0 ? durationMinutes : null,
+        fronting_alter_ids: selectedAlters,
+        notes: notes || null,
+        location: location.trim() || null,
+        is_planned: isPlanned,
+        is_critical: !!isCritical,
+        critical_lead_steps: isCritical ? leadSteps : null,
+        assigned_alter_ids: isPlanned ? selectedAlters : [],
+      });
+      // Keep the linked to-do's due_date in sync.
+      if (linkedTask) {
+        try {
+          const dueDateStr = format(timestamp, "yyyy-MM-dd");
+          if (linkedTask.due_date !== dueDateStr) {
+            await base44.entities.Task.update(linkedTask.id, { due_date: dueDateStr });
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          }
+        } catch { /* non-fatal — plan still saves */ }
+      }
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      toast.success("Plan updated");
+      onSave?.();
+      onClose?.();
+      setIsLoading(false);
+      return;
+    }
 
     // Build the list of records to create. With categories: one per category
     // (existing behaviour). Without categories but with a title or linked
@@ -361,7 +439,7 @@ const handleCreateNewActivity = async () => {
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {planMode ? "Plan Activity" : "Log Activity"}
+            {editingPlan ? "Edit Plan" : (planMode ? "Plan Activity" : "Log Activity")}
             {startDate && !planMode && (
               <div className="text-sm font-normal text-muted-foreground mt-1">
                 {format(startDate, "MMM d, yyyy")}
@@ -482,8 +560,10 @@ const handleCreateNewActivity = async () => {
           {/* Recurrence picker (plan mode only). When set to anything other
               than "none", the save loop generates `recurrenceCount` Activity
               records spaced by the interval, all tagged with a shared
-              recurrence_group_id. */}
-          {planMode && (
+              recurrence_group_id. Hidden when editing an existing plan —
+              recurrence is a create-time concept and editing one
+              instance of a series is what the user is doing here. */}
+          {planMode && !editingPlan && (
             <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
               <div className="flex items-center gap-1.5 text-sm font-medium">
                 <Repeat className={`w-4 h-4 ${recurrenceInterval !== "none" ? "text-primary" : "text-muted-foreground"}`} />

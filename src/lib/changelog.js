@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Editing a planned activity now opens the full Plan Activity modal (with start/end date+time, recurrence stays read-only, activity category picker, title, location, critical lead-step windows, fronting alters, linked to-do, and notes) instead of the lightweight Activity Details edit form that only let you change start/end/category/alters/notes. Tap a plan on the calendar or in the Coming Up list → Edit → all of the plan's fields are now editable in one place. (Logged activities still use the lighter inline edit since they don't have the full plan-only field set.)",
+      },
+      {
+        type: "improve",
+        text: "Plan locations are now tappable everywhere they show up — Activity Details, the Coming Up widget, and the Critical pinned-plan cards. Tapping opens Google Maps (web or your default Maps app on mobile) pre-filled with that location text. No more copy-paste-to-Maps shuffle when you're heading out the door.",
+      },
+      {
         type: "fix",
         text: "Buttons that navigate to another page inside the app no longer reload the whole page. Previously a handful of in-app navigations (the Quick Check-In 'open grounding' prompt, the Inner-World Map 'View full profile', the 404 page's Go Home button, and the Activity Tracker's row-click that routes to a linked to-do) used `window.location.href = '/path'` — which does a full page reload, and in some Android Chrome / PWA combinations a full reload can occasionally pop the standalone app out into the browser tab. Those calls now use the in-app navigation (react-router's `navigate`), so they stay client-side and shouldn't bounce out of the installed PWA anymore. (Intentional full reloads remain after destructive resets — Delete-all-data, logout — where the entire app state needs to clear.)",
       },
