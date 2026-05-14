@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "New Auto-Backup feature under Settings → Data & Privacy. Pick a schedule (Daily / Weekly / Every 2 weeks / Monthly) and the app writes a full JSON backup of your data to your device's Downloads folder on that cadence. The Downloads folder lives outside the app's WebView sandbox, so a backup file there survives 'Clear app data', device-cleaner apps, app updates that reset storage, app reinstalls, and most other ways an installed PWA / TWA can lose its data. A 'Back up now' button forces an immediate write and the panel shows the timestamp of the last backup. The same panel also surfaces the browser's storage-persistence verdict (whether your data is eviction-resistant) and offers a button to re-request persistence if the browser hasn't granted it yet — on app boot we now automatically call navigator.storage.persist() so installed PWAs / TWAs get persistence by default. Backups are equivalent to the manual Export — every entity, all local images, and your local UI settings.",
+      },
+      {
+        type: "feature",
         text: "Check-In Log entries can now be edited and deleted in place. The 💬 status-note rows (the 'What's happening right now…' Dashboard saves) get a pencil + trash pair: tap pencil to edit the text inline, tap trash once to arm, tap again within 4 seconds to actually delete (two-tap confirm so a stray finger doesn't lose a note). Formal check-in cards grow a small pencil next to their note text so you can fix typos in the quick-check-in note without re-doing the whole check-in. Edits and deletes propagate everywhere those records show up — the Timeline, the Dashboard's status preview, Therapy Report, etc. all refresh immediately.",
       },
       {

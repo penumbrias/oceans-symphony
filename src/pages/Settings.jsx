@@ -18,6 +18,7 @@ import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
+import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import UpcomingPlansSurfacesSection from "@/components/settings/UpcomingPlansSurfacesSection";
 import NavigationSettings from "@/components/settings/NavigationSettings";
@@ -451,6 +452,9 @@ export default function Settings() {
           </div>
           <div className="border-t border-border/30 pt-4">
             <DataBackupRestore />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <AutoBackupSettings />
           </div>
           <div className="border-t border-border/30 pt-4">
             <SimplyPluralConnect settings={settings} onSettingsChange={() => {

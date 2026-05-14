@@ -44,6 +44,7 @@ import { initAccessibility } from '@/lib/useAccessibility';
 // Apply saved accessibility settings before first render
 initAccessibility();
 import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal, migrateLocalImageUrlScheme } from '@/lib/localDb';
+import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
 import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
@@ -151,6 +152,16 @@ function App() {
       migrateBase64AvatarsToLocal().catch(() => {});
       // Rewrite legacy local-image:// URLs to /local-image/ so the SW can serve them
       migrateLocalImageUrlScheme().catch(() => {});
+      // Ask the browser to keep our storage "persistent" so it isn't
+      // evicted by background cleanup. Android Chrome / TWAs grant this
+      // for installed PWAs; no-op on other platforms. Fire-and-forget.
+      requestPersistentStorage().catch(() => {});
+      // Skip auto-backup while preview mode is active — preview's
+      // in-memory snapshot is not the user's real data, exporting it
+      // would overwrite their last real backup file with junk.
+      if (!isPreviewActive()) {
+        runAutoBackupIfDue().catch(() => {});
+      }
     }
   }, [setupState]);
 
