@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Set Fronters modal: the selected-alter chips at the top now support the same gestures as the dashboard's Currently Fronting widget and the list rows below. Long-press a chip to toggle primary, swipe left to toggle primary, swipe right to remove the chip from the selection. Tap still toggles primary as before. Helpful preview labels now fade in above each chip as you start a swipe so you can tell what's about to happen.",
+      },
+      {
+        type: "improve",
         text: "Feature Tour caught up to recent UI changes. The 'Notifications Bell' step is now 'Notifications Inbox' and references the inbox icon the header actually uses (which we picked deliberately to distinguish it from the bell used for reminders elsewhere). Older steps that mentioned 'a notification in the bell' have been updated to say 'in the inbox' to match. Also added a new step on the dashboard explaining how to open the sidebar — tap the logo in the top-left of the header.",
       },
       {
