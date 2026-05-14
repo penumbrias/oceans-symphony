@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Two small icons (orange ⚠ Triggered, 📖 Journal) now sit next to the Switch button in the Currently Fronting widget on the Dashboard. When you switch via a method that doesn't go through the Set Fronters modal — long-press, quick action, etc. — you can still flag the switch as triggered and capture a category/label, or open the Switch Journal flow, after the fact. The trigger icon glows orange when the current switch is already flagged. Available whenever there's at least one active fronting session.",
+      },
+      {
         type: "improve",
         text: "Set Fronters modal: the selected-alter chips at the top now support the same gestures as the dashboard's Currently Fronting widget and the list rows below. Long-press a chip to toggle primary, swipe left to toggle primary, swipe right to remove the chip from the selection. Tap still toggles primary as before. Helpful preview labels now fade in above each chip as you start a swipe so you can tell what's about to happen.",
       },
