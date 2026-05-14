@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: renamed the welcome modal's 'Skip tour' button to 'Skip guide' — the modal is the Guide (overview cards on first run), and the Tour is the separate interactive feature walkthrough. Calling its skip button 'Skip tour' was confusing.",
+      },
+      {
         type: "fix",
         text: "Removed the misleading X close button on the first-run 'Choose your language' modal. The X never actually closed the modal — terminology selection is required to proceed — but its presence suggested otherwise. The Save & Continue button is now the only way forward, which matches reality.",
       },
