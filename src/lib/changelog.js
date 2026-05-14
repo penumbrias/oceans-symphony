@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Desktop / web header now reads 'Oceans Symphony' (not just 'Symphony') and stretches edge-to-edge: the logo + name sit flush to the left side of the window and the nav buttons sit flush to the right. Previously the header content was constrained to a centred max-width column, so on a wide window the title floated near the centre with empty space on either side. Mobile header layout is unchanged.",
+      },
+      {
         type: "feature",
         text: "New Display menu on the Check-In Log lets you choose which entry types appear in the log: check-ins, status notes (the 'What's happening right now…' Dashboard inputs), symptoms, activities, locations, per-alter entries, and diary data. Toggling one off only hides it from the Check-In Log view — your data is still recorded and still surfaces elsewhere (Timeline, analytics, etc.). The choice persists across sessions. Use 'Hide everything' / 'Show everything' at the bottom of the menu to flip the whole set at once. Replaces the long-standing request to be able to remove individual status note rows from the log; in practice, hiding the entry type is what most testers actually wanted.",
       },

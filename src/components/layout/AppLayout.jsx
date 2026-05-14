@@ -281,15 +281,18 @@ const handleNotifClick = (mentionLog) => {
       {/* ── Announcement Banner ── */}
       <AnnouncementBanner />
 
-      {/* ── Desktop top header (hidden on mobile) ── */}
+      {/* ── Desktop top header (hidden on mobile) ──
+          The inner row spans the full viewport width so the logo + name
+          sit flush to the left edge and the nav buttons sit flush to the
+          right edge, instead of being centred inside a max-w-6xl block. */}
       <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block border-b border-border/50">
         <HeaderWaveBlock />
-        <div className="mx-auto px-4 max-w-6xl sm:px-6 h-16 flex items-center justify-between relative" style={{ zIndex: 1 }}>
-          <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Symphony home">
+        <div className="w-full px-4 sm:px-6 h-16 flex items-center justify-between relative" style={{ zIndex: 1 }}>
+          <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Oceans Symphony home">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <img src="/logo.png" className="w-7 h-7 object-contain rounded-md" alt="logo" />
             </div>
-            <span className="font-display text-lg font-semibold tracking-tight text-foreground">Symphony</span>
+            <span className="font-display text-lg font-semibold tracking-tight text-foreground">Oceans Symphony</span>
           </Link>
 
           <nav className="flex items-center gap-1" aria-label="Main navigation">
