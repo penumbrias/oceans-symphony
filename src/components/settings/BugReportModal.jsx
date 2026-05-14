@@ -81,14 +81,20 @@ export default function BugReportModal({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      {/*
+        Constrain the dialog and let its body scroll so the Open-on-
+        GitHub / Cancel buttons at the bottom never get clipped off the
+        screen on shorter phones (where the form is taller than the
+        dialog's max-height).
+      */}
+      <DialogContent className="max-w-lg flex flex-col max-h-[90vh] sm:max-h-[85vh]">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Bug className="w-5 h-5 text-amber-500" />
             Report a bug
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3 overflow-y-auto overscroll-contain flex-1 -mx-1 px-1">
           <p className="text-xs text-muted-foreground leading-relaxed">
             Fill in what you can — even a one-line summary is useful. When you submit, your phone's browser opens a GitHub issue pre-filled with everything you typed, plus the current app version and browser info. You'll need a GitHub account to post it (free to sign up), or you can email it instead.
           </p>

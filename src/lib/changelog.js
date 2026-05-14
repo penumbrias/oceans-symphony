@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "The Guide modal (the welcome / overview cards reachable from the Guide button on the home page) no longer cuts off the dots and the Next/Skip buttons on the last few pages. The modal used `overflow-hidden` on its outer container, so when the body text was tall enough to exceed the dialog's max-height — Privacy & Data is the worst offender — the footer was clipped off the bottom and the user couldn't advance. The header + footer are now pinned, and the body scrolls inside the dialog. Same scroll fix applied to the Report a Bug modal so the Open-on-GitHub / Cancel buttons never get cut off either on shorter phones.",
+      },
+      {
+        type: "fix",
         text: "After finishing the intro breathing exercise inside the 'Help me figure out what I need' flow on the Grounding page, the screen no longer drops you back to the main grounding entry. The state-check answers and the three suggested techniques are still right where you left them, so you can pick the technique you actually wanted after the breathing. Breathing exercises launched from anywhere else (the main entry, the breathing-only picker) still settle back to the entry screen, since those landing pages don't carry any state worth restoring.",
       },
       {
