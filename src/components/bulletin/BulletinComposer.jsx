@@ -157,13 +157,39 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     };
 
     if (showPoll && pollQuestion.trim()) {
+      // Create the linked Poll entity FIRST so the bulletin can store its
+      // id. Both the bulletin's poll block and the standalone Polls page
+      // read/write the same Poll record, so voting is unified.
+      const filledOptions = pollOptions.filter((o) => o.trim());
+      const votes = {};
+      filledOptions.forEach((_, idx) => { votes[String(idx)] = []; });
+      const createdPoll = await base44.entities.Poll.create({
+        question: pollQuestion.trim(),
+        options: filledOptions,
+        votes,
+        is_closed: false,
+        created_by_alter_id: finalAuthorIds[0] || authorAlterId || null,
+        // Back-ref filled in after the bulletin exists.
+      });
+      data.poll_id = createdPoll.id;
+      // Keep an inline copy in the legacy shape (label+votes) so any
+      // surface that still reads `bulletin.poll` (older builds, exports,
+      // …) keeps showing the question and options. The render path
+      // prefers the Poll entity for vote state — the inline copy is only
+      // a label fallback and is NOT kept in sync after creation.
       data.poll = {
         question: pollQuestion.trim(),
-        options: pollOptions.filter(o => o.trim()).map(label => ({ label, votes: [] })),
+        options: filledOptions.map((label) => ({ label, votes: [] })),
       };
     }
 
     const bulletin = await base44.entities.Bulletin.create(data);
+    // Close the loop on the Poll → Bulletin back-ref now that we have an id.
+    if (data.poll_id) {
+      try { await base44.entities.Poll.update(data.poll_id, { bulletin_id: bulletin.id }); }
+      catch { /* non-fatal — the bulletin already references the poll */ }
+      qc.invalidateQueries({ queryKey: ["polls"] });
+    }
     qc.invalidateQueries({ queryKey: ["bulletins"] });
     await saveMentions({
       content: cleanContent,

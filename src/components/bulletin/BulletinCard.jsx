@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { Pin, Trash2, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
+import { Pin, Trash2, ChevronDown, ChevronUp, MessageCircle, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate, Link } from "react-router-dom";
 import AuthorsRow from "./AuthorsRow";
@@ -79,17 +79,68 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
-  const handleVote = async (optionIndex) => {
+  // Linked Poll entity (created when this bulletin was posted with a
+  // poll attached). React Query dedupes the list query so every
+  // BulletinCard on screen shares the same fetch and shares the cache
+  // with the standalone Polls page.
+  const { data: allPolls = [] } = useQuery({
+    queryKey: ["polls"],
+    queryFn: () => base44.entities.Poll.list("-created_date"),
+    enabled: !!bulletin.poll_id,
+  });
+  const linkedPoll = bulletin.poll_id ? allPolls.find((p) => p.id === bulletin.poll_id) : null;
+
+  // Legacy inline polls (bulletins created before the Poll entity link)
+  // still vote against `bulletin.poll`. New ones (with poll_id) write to
+  // the Poll record so the standalone Polls page reflects the same votes.
+  const handleVoteInline = async (optionIndex) => {
     if (!bulletin.poll) return;
     const poll = { ...bulletin.poll };
     poll.options = poll.options.map((opt) => ({ ...opt, votes: (opt.votes || []).filter((id) => id !== voterId) }));
     poll.options[optionIndex] = { ...poll.options[optionIndex], votes: [...(poll.options[optionIndex].votes || []), voterId] };
-    // Optimistic update
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
     Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, poll } : b) : old
     );
     await base44.entities.Bulletin.update(bulletin.id, { poll });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
+  };
+
+  const handleVoteLinked = async (optionIndex) => {
+    if (!linkedPoll) return;
+    if (linkedPoll.is_closed) return;
+    const key = String(optionIndex);
+    const newVotes = JSON.parse(JSON.stringify(linkedPoll.votes || {}));
+    if (!newVotes[key]) newVotes[key] = [];
+    if (newVotes[key].includes(voterId)) {
+      // Tap same option → toggle off, matching the standalone Polls page.
+      newVotes[key] = newVotes[key].filter((id) => id !== voterId);
+    } else {
+      Object.keys(newVotes).forEach((k) => { newVotes[k] = newVotes[k].filter((id) => id !== voterId); });
+      newVotes[key].push(voterId);
+    }
+    qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
+      Array.isArray(old) ? old.map((p) => p.id === linkedPoll.id ? { ...p, votes: newVotes } : p) : old
+    );
+    await base44.entities.Poll.update(linkedPoll.id, { votes: newVotes });
+    qc.invalidateQueries({ queryKey: ["polls"] });
+  };
+
+  const handleVote = bulletin.poll_id ? handleVoteLinked : handleVoteInline;
+
+  // Double-tap on the poll block opens the standalone Polls page for the
+  // linked Poll record. Single tap still falls through to the vote
+  // handler.
+  const pollLastTapRef = useRef(0);
+  const handlePollSectionClick = (e) => {
+    if (!bulletin.poll_id) return;
+    const now = Date.now();
+    if (now - pollLastTapRef.current < 350) {
+      e.stopPropagation();
+      pollLastTapRef.current = 0;
+      navigate(`/polls?id=${bulletin.poll_id}`);
+      return;
+    }
+    pollLastTapRef.current = now;
   };
 
   const handlePin = async () => {
@@ -151,9 +202,40 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
     longPressTimer.current = null;
   };
 
-  const totalVotes = bulletin.poll ?
-  bulletin.poll.options.reduce((s, o) => s + (o.votes?.length || 0), 0) :
-  0;
+  // Normalize poll data to a single shape for rendering: question, an array
+  // of options as `{ label, voters: [alterIds...] }`, total votes, and a
+  // closed flag. The linked Poll entity (newer bulletins) takes precedence
+  // over the inline `bulletin.poll` (legacy bulletins).
+  const pollView = (() => {
+    if (linkedPoll) {
+      const options = (linkedPoll.options || []).map((label, idx) => ({
+        label,
+        voters: (linkedPoll.votes || {})[String(idx)] || [],
+      }));
+      return {
+        source: "linked",
+        question: linkedPoll.question,
+        options,
+        totalVotes: options.reduce((s, o) => s + o.voters.length, 0),
+        isClosed: !!linkedPoll.is_closed,
+      };
+    }
+    if (bulletin.poll) {
+      const options = (bulletin.poll.options || []).map((opt) => ({
+        label: opt.label,
+        voters: opt.votes || [],
+      }));
+      return {
+        source: "inline",
+        question: bulletin.poll.question,
+        options,
+        totalVotes: options.reduce((s, o) => s + o.voters.length, 0),
+        isClosed: false,
+      };
+    }
+    return null;
+  })();
+  const totalVotes = pollView?.totalVotes ?? 0;
 
   return (
     <div className="bg-card px-4 py-2 rounded-2xl border transition-all duration-700 cursor-pointer border-border/50"
@@ -183,17 +265,34 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
       </div>
 
       {/* Poll */}
-      {bulletin.poll &&
-      <div className="bg-muted/30 rounded-xl p-3 mb-3" onClick={(e) => e.stopPropagation()}>
-          <p className="text-sm font-medium mb-2">{bulletin.poll.question}</p>
+      {pollView &&
+      <div
+        className="bg-muted/30 rounded-xl p-3 mb-3"
+        onClick={(e) => { e.stopPropagation(); handlePollSectionClick(e); }}
+      >
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <p className="text-sm font-medium">{pollView.question}{pollView.isClosed ? <span className="ml-1.5 text-xs text-muted-foreground font-normal">· closed</span> : null}</p>
+            {pollView.source === "linked" && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); navigate(`/polls?id=${bulletin.poll_id}`); }}
+                aria-label="Open poll in Polls page"
+                title="Open in Polls page"
+                className="text-muted-foreground hover:text-foreground p-1 -m-1 rounded"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <div className="space-y-1.5">
-            {bulletin.poll.options.map((opt, i) => {
-            const votes = opt.votes?.length || 0;
+            {pollView.options.map((opt, i) => {
+            const votes = opt.voters.length;
             const pct = totalVotes > 0 ? Math.round(votes / totalVotes * 100) : 0;
-            const voted = opt.votes?.includes(voterId);
+            const voted = opt.voters.includes(voterId);
             return (
               <button key={i} onClick={() => handleVote(i)}
-              className={`w-full text-left rounded-lg overflow-hidden border transition-all ${voted ? "border-primary/60" : "border-border/40"}`}>
+              disabled={pollView.isClosed}
+              className={`w-full text-left rounded-lg overflow-hidden border transition-all ${voted ? "border-primary/60" : "border-border/40"} ${pollView.isClosed ? "opacity-70 cursor-default" : ""}`}>
                   <div className="relative px-3 py-2">
                     <div className="absolute inset-0 rounded-lg" style={{ width: `${pct}%`, backgroundColor: voted ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted) / 0.5)" }} />
                     <div className="relative flex justify-between items-center">
@@ -204,7 +303,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
                 </button>);
 
           })}
-            <p className="text-xs text-muted-foreground">{totalVotes} vote{totalVotes !== 1 ? "s" : ""}</p>
+            <p className="text-xs text-muted-foreground">{totalVotes} vote{totalVotes !== 1 ? "s" : ""}{pollView.source === "linked" ? " · double-tap to open in Polls" : ""}</p>
           </div>
         </div>
       }

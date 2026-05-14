@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Bulletin Board polls now mirror to the Polls page. When you post a bulletin with a poll attached, a corresponding Poll entity is created automatically and shows up in the Polls page list. Voting from either surface updates the same record, so counts and your selected option stay consistent. Double-tap a bulletin's poll block to jump straight to its detail view on the Polls page (a small Open-in-Polls icon does the same with one tap). The Polls list and detail view label these as 'from Bulletin Board' so you can tell them apart from polls created directly on the Polls page. Existing inline-only bulletin polls (made before this change) keep working in-place; only new bulletins create the linked Poll record.",
+      },
+      {
+        type: "feature",
+        text: "New 'Pin to Dashboard' control on every poll's detail view (the pin icon next to the question). Pinned polls surface in the Dashboard's Pinned section — same place as pinned to-dos and pinned bulletins — with the question, the currently leading option, and the vote count. Tap the pinned card to deep-link straight into that poll. Hit the pin again to unpin.",
+      },
+      {
         type: "improve",
         text: "Desktop / web header now reads 'Oceans Symphony' (not just 'Symphony') and stretches edge-to-edge: the logo + name sit flush to the left side of the window and the nav buttons sit flush to the right. Previously the header content was constrained to a centred max-width column, so on a wide window the title floated near the centre with empty space on either side. Mobile header layout is unchanged.",
       },
