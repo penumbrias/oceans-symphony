@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Feature Tour caught up to recent UI changes. The 'Notifications Bell' step is now 'Notifications Inbox' and references the inbox icon the header actually uses (which we picked deliberately to distinguish it from the bell used for reminders elsewhere). Older steps that mentioned 'a notification in the bell' have been updated to say 'in the inbox' to match. Also added a new step on the dashboard explaining how to open the sidebar — tap the logo in the top-left of the header.",
+      },
+      {
         type: "feature",
         text: "New Resources page in Support → Learn that credits the source workbooks the curriculum is drawn from (Finding Solid Ground primarily, with material from Coping With Trauma-Related Dissociation) and links to further reading and well-known online resources for the plural / DID community — Dissociation Made Simple, When Rabbit Howls, did-research.org, ISSTD, An Infinite Mind. Reachable from a new Resources tile alongside My Reflections and Needs Check-In at the top of the Learn tab. The Guide's Support & Learn slide and the Feature Tour now also mention the source workbooks so credit is visible from the very first run.",
       },
