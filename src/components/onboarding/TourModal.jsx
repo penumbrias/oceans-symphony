@@ -180,58 +180,73 @@ export default function TourModal({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className='max-w-md p-0 overflow-hidden gap-0 border-border/50'>
-        
-        {/* Progress bar */}
-        <div className='h-1 bg-muted'>
-          <div 
+      {/*
+        Layout: flex column inside the dialog so the header + footer
+        stay fixed and the body scrolls when the page content exceeds
+        the viewport. Without this, longer steps (Privacy & Data, the
+        last few pages) overflowed the dialog's max-height and `overflow-
+        hidden` clipped the dots + Next button right off the bottom of
+        the screen — the user had no way to advance.
+      */}
+      <DialogContent className='max-w-md p-0 gap-0 border-border/50 flex flex-col max-h-[90vh] sm:max-h-[85vh]'>
+
+        {/* Progress bar (fixed at top) */}
+        <div className='h-1 bg-muted flex-shrink-0'>
+          <div
             className='h-full bg-primary transition-all duration-500 ease-out'
             style={{ width: `${progress}%` }}
           />
         </div>
 
-        {/* Header gradient */}
-        <div className={`bg-gradient-to-br ${current.color} px-6 pt-6 pb-4`}>
-          <div className='text-4xl mb-3'>
-            {typeof current.icon === 'string' ? current.icon : current.icon}
+        {/* Scrollable region: header gradient + body content all flow
+            together so a long Privacy step can scroll without losing
+            the footer below. */}
+        <div className='flex-1 overflow-y-auto overscroll-contain'>
+          {/* Header gradient */}
+          <div className={`bg-gradient-to-br ${current.color} px-6 pt-6 pb-4`}>
+            <div className='text-4xl mb-3'>
+              {typeof current.icon === 'string' ? current.icon : current.icon}
+            </div>
+            <h2 className='text-xl font-bold text-foreground leading-tight pr-10'>{current.title}</h2>
+            <p className='text-sm text-primary font-medium mt-0.5'>{current.subtitle}</p>
           </div>
-          <h2 className='text-xl font-bold text-foreground leading-tight'>{current.title}</h2>
-          <p className='text-sm text-primary font-medium mt-0.5'>{current.subtitle}</p>
+
+          {/* Content */}
+          <div className='px-6 py-4 space-y-4'>
+            <p className='text-sm text-muted-foreground leading-relaxed'>{current.body}</p>
+
+            {/* Feature list */}
+            {current.features && (
+              <div className='space-y-1.5'>
+                {current.features.map((f, i) => (
+                  <div key={i} className='flex items-center gap-2 text-sm'>
+                    <div className='w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0' />
+                    <span className='text-foreground'>{f}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Tip */}
+            {current.tip && (
+              <div className='bg-primary/5 border border-primary/20 rounded-xl px-3 py-2.5'>
+                <p className='text-xs text-primary font-medium'>💡 Tip</p>
+                <p className='text-xs text-muted-foreground mt-0.5'>{current.tip}</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Content */}
-        <div className='px-6 py-4 space-y-4'>
-          <p className='text-sm text-muted-foreground leading-relaxed'>{current.body}</p>
-
-          {/* Feature list */}
-          {current.features && (
-            <div className='space-y-1.5'>
-              {current.features.map((f, i) => (
-                <div key={i} className='flex items-center gap-2 text-sm'>
-                  <div className='w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0' />
-                  <span className='text-foreground'>{f}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Tip */}
-          {current.tip && (
-            <div className='bg-primary/5 border border-primary/20 rounded-xl px-3 py-2.5'>
-              <p className='text-xs text-primary font-medium'>💡 Tip</p>
-              <p className='text-xs text-muted-foreground mt-0.5'>{current.tip}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className='px-6 pb-6 space-y-3'>
+        {/* Footer — fixed at the bottom so the dots + Next/Back stay
+            on screen no matter how long the current step's body is. */}
+        <div className='px-6 pb-6 pt-3 space-y-3 flex-shrink-0 border-t border-border/40 bg-background'>
           {/* Step dots */}
-          <div className='flex items-center justify-center gap-1'>
+          <div className='flex items-center justify-center gap-1 flex-wrap'>
             {steps.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setStep(i)}
+                aria-label={`Go to step ${i + 1}`}
                 className={`rounded-full transition-all ${
                   i === step ? 'w-4 h-2 bg-primary' : 'w-2 h-2 bg-muted hover:bg-muted-foreground/30'
                 }`}
@@ -241,17 +256,17 @@ export default function TourModal({ open, onClose }) {
 
           {/* Nav buttons */}
           <div className='flex items-center gap-2'>
-            <Button 
-              variant='outline' 
-              size='sm' 
-              onClick={() => go(-1)} 
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => go(-1)}
               disabled={isFirst}
               className='flex-shrink-0'
             >
               <ChevronLeft className='w-4 h-4' />
             </Button>
-            <Button 
-              size='sm' 
+            <Button
+              size='sm'
               onClick={() => isLast ? onClose() : go(1)}
               className='flex-1'
             >
