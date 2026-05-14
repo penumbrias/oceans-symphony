@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Banners imported from Simply Plural and PluralKit now show up as the alter's profile header image. Previously the banner URL was stored on the alter but nothing displayed it, so headers stayed blank even when SP/PK had a banner set. The header image is wired to the same checkbox as avatars on SP import — uncheck 'Refresh avatars & banners on existing alters' if you've manually picked a different header in OS and want to keep it.",
+      },
+      {
+        type: "fix",
+        text: "Re-importing from Simply Plural no longer wipes locally-customised profile-style settings on existing alters. The importer was passing the full custom_fields object to update, which replaced any local-only keys (background color, background image, hide-header flag, header text color, header image, section background opacity, page text color) with just the SP custom fields. Local `_*` keys are now preserved across re-imports while SP custom fields stay authoritative.",
+      },
+      {
+        type: "fix",
         text: "Re-importing from Simply Plural now refreshes avatars and banners on existing alters by default. Previously the 'Overwrite avatars on existing alters' checkbox defaulted to OFF, so if an alter's avatar URL changed on SP's side (e.g. you sync SP from PluralKit on Discord and PK migrated their image CDN from cdn.discordapp.com to cdn.pluralkit.me), the new URL was silently skipped and your local copy kept the stale URL — which now 404s because Discord's CDN started rejecting unsigned attachment URLs. The checkbox is now ON by default and is labelled 'Refresh avatars & banners on existing alters'; uncheck it before importing if you've manually customised avatars locally and want to keep them.",
       },
     ],

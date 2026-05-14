@@ -176,6 +176,12 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}, syste
       };
     });
 
+  const banner = c.bannerUrl || c.banner_url || "";
+  const customFields = remapCustomFields(c.info || {}, fieldIdMap);
+  // SP "banner" doubles as the alter profile header in OS — surface it
+  // via the `_header_image` custom-field key that ProfileTab reads.
+  if (banner) customFields._header_image = banner;
+
   return {
     sp_id: spId,
     name: c.name || "Unknown",
@@ -183,9 +189,9 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}, syste
     description: c.desc || c.description || "",
     color: normalizeColor(c.color),
     avatar_url: resolveAvatarUrl(c, systemId),
-    banner_url: c.bannerUrl || c.banner_url || "",
+    banner_url: banner,
     role: c.role || "",
-    custom_fields: remapCustomFields(c.info || {}, fieldIdMap),
+    custom_fields: customFields,
     tags: Array.isArray(c.tags) ? c.tags : [],
     groups: memberGroups,
     is_archived: !!c.archived,
@@ -196,12 +202,17 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}, syste
 export function mapCustomFrontToAlter(customFront, systemId = "") {
   const spId = customFront.id || customFront._id || "";
   const c = customFront.content || customFront;
+  const banner = c.bannerUrl || c.banner_url || "";
+  const customFields = {};
+  if (banner) customFields._header_image = banner;
   return {
     sp_id: spId,
     name: c.name || "Unknown",
     description: c.desc || c.description || "",
     color: normalizeColor(c.color),
     avatar_url: resolveAvatarUrl(c, systemId),
+    banner_url: banner,
+    custom_fields: customFields,
     tags: [],
     groups: [],
     is_archived: !!c.archived,

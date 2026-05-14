@@ -199,10 +199,22 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               if (existing) {
                 if (importMode !== "new_only") {
                   const updateData = { ...incoming };
+                  // custom_fields update would otherwise REPLACE the whole
+                  // object, wiping local-only profile-style keys (_bg_color,
+                  // _header_image, _hide_header, …). Merge: preserve local-
+                  // only `_*` keys from the existing record, then layer SP
+                  // fields on top. `_header_image` is treated as part of the
+                  // avatar/banner bundle and respects `includeAvatars`.
+                  const localOnly = Object.fromEntries(
+                    Object.entries(existing.custom_fields || {}).filter(([k]) => k.startsWith("_"))
+                  );
+                  const incomingFields = { ...(incoming.custom_fields || {}) };
                   if (!includeAvatars) {
                     delete updateData.avatar_url;
                     delete updateData.banner_url;
+                    delete incomingFields._header_image;
                   }
+                  updateData.custom_fields = { ...localOnly, ...incomingFields };
                   await localEntities.Alter.update(existing.id, updateData);
                   altersUpdated++;
                 }
@@ -244,7 +256,18 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
             if (existing) {
               if (importMode !== "new_only") {
                 const updateData = { ...mapped };
-                if (!includeAvatars) delete updateData.avatar_url;
+                // Same merge rule as the members path — preserve local-only
+                // `_*` keys; `_header_image` follows `includeAvatars`.
+                const localOnly = Object.fromEntries(
+                  Object.entries(existing.custom_fields || {}).filter(([k]) => k.startsWith("_"))
+                );
+                const incomingFields = { ...(mapped.custom_fields || {}) };
+                if (!includeAvatars) {
+                  delete updateData.avatar_url;
+                  delete updateData.banner_url;
+                  delete incomingFields._header_image;
+                }
+                updateData.custom_fields = { ...localOnly, ...incomingFields };
                 await localEntities.Alter.update(existing.id, updateData);
                 customFrontsUpdated++;
               }
