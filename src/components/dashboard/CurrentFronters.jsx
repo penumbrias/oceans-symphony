@@ -6,8 +6,10 @@ import { TOUR_DEMO_ALTERS, TOUR_DEMO_SESSIONS } from "@/lib/tourDemoData";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
-  Check, Loader2, MessageSquare
+  Check, Loader2, MessageSquare, BookOpen
 } from "lucide-react";
+import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -388,6 +390,13 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 
 export default function CurrentFronters({ alters }) {
   const [showModal, setShowModal] = useState(false);
+  // Post-hoc switch metadata: open the same Trigger picker and Switch
+  // journal flows that the SetFront modal offers, even when the user
+  // didn't go through that modal to set the front (e.g. they used a
+  // long-press shortcut or a quick action). Icons live next to the
+  // Switch button below.
+  const [showTriggerEdit, setShowTriggerEdit] = useState(false);
+  const [showSwitchJournal, setShowSwitchJournal] = useState(false);
   const [holdMenuAlter, setHoldMenuAlter] = useState(null);
   const [expandedAlterId, setExpandedAlterId] = useState(null);
   const navigate = useNavigate();
@@ -550,9 +559,43 @@ export default function CurrentFronters({ alters }) {
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Currently {terms.Fronting}</p>
           </div>
-          <Button data-tour="set-front" size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs h-7 px-2.5">
-            <RefreshCw className="w-3 h-3" /> {terms.Switch}
-          </Button>
+          <div className="flex items-center gap-1">
+            {/* Post-hoc switch metadata icons. Visible whenever there's
+                at least one active fronting session so users can flag
+                the switch as triggered or journal it after the fact,
+                regardless of how the switch was actually made (long-
+                press, quick action, etc.) without going through the
+                full Set Fronters flow. */}
+            {activeSessions.length > 0 && !isDemo && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowTriggerEdit(true)}
+                  aria-label={`Flag the current ${terms.switch} as triggered`}
+                  title={`Flag this ${terms.switch} as triggered`}
+                  className={`min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md transition-colors ${
+                    activeSessions.some(s => s.is_triggered_switch)
+                      ? "text-orange-500 bg-orange-500/10 hover:bg-orange-500/20"
+                      : "text-muted-foreground hover:text-orange-500 hover:bg-orange-500/10"
+                  }`}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSwitchJournal(true)}
+                  aria-label={`Journal this ${terms.switch}`}
+                  title={`Journal this ${terms.switch}`}
+                  className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+            <Button data-tour="set-front" size="sm" variant="outline" onClick={() => setShowModal(true)} className="gap-1.5 text-xs h-7 px-2.5">
+              <RefreshCw className="w-3 h-3" /> {terms.Switch}
+            </Button>
+          </div>
         </div>
 
         <div className="mb-2 grid grid-cols-2 gap-2">
@@ -632,6 +675,21 @@ export default function CurrentFronters({ alters }) {
         )}
       </div>
       <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={active} />
+
+      <TriggerEditModal
+        open={showTriggerEdit}
+        onClose={() => setShowTriggerEdit(false)}
+        sessions={activeSessions}
+      />
+
+      {showSwitchJournal && (
+        <SwitchJournalModal
+          open={showSwitchJournal}
+          onClose={() => setShowSwitchJournal(false)}
+          sessionId={(activeSessions.find(s => s.is_primary) || activeSessions[0])?.id}
+          authorAlterId={primaryAlterId}
+        />
+      )}
 
       {holdMenuAlter && (
         <Dialog open={!!holdMenuAlter} onOpenChange={() => setHoldMenuAlter(null)}>
