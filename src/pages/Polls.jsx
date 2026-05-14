@@ -4,13 +4,27 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Globe } from "lucide-react";
+import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Globe, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Per-user default for what voting mode a NEW poll should start in.
+// Persists in localStorage so the user's preferred mode carries forward.
+// Per-poll override is still possible from the poll's detail view.
+const TALLY_DEFAULT_KEY = "symphony_polls_default_tally_mode";
+function readTallyDefault() {
+  try { return localStorage.getItem(TALLY_DEFAULT_KEY) === "1"; }
+  catch { return false; }
+}
+function writeTallyDefault(on) {
+  try { localStorage.setItem(TALLY_DEFAULT_KEY, on ? "1" : "0"); }
+  catch { /* non-fatal */ }
+}
 
 // Grid-style picker for "who is voting" / "who created this". Replaces
 // a long dropdown that listed every alter — a single-select avatar grid
@@ -159,8 +173,16 @@ function CreatePollModal({ open, onClose, alters }) {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
   const [selectedAlter, setSelectedAlter] = useState("");
+  const [tallyMode, setTallyMode] = useState(() => readTallyDefault());
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
+
+  // Re-sync the toggle when the modal re-opens — the user might have
+  // flipped the default on another poll's detail view between sessions
+  // of opening this modal.
+  useEffect(() => {
+    if (open) setTallyMode(readTallyDefault());
+  }, [open]);
 
   const handleAddOption = () => {
     if (options.length < 4) {
@@ -196,11 +218,16 @@ function CreatePollModal({ open, onClose, alters }) {
       await base44.entities.Poll.create({
         question: question.trim(),
         options: filledOptions,
-        created_by_alter_id: selectedAlter || null,
+        // In tally mode there's no per-alter accounting, so the
+        // creator-alter concept is meaningless — store null.
+        created_by_alter_id: tallyMode ? null : (selectedAlter || null),
         is_closed: false,
+        tally_mode: tallyMode,
         votes,
       });
-      
+      // Remember this mode as the default for future polls.
+      writeTallyDefault(tallyMode);
+
       toast.success("Poll created!");
       queryClient.invalidateQueries({ queryKey: ["polls"] });
       setQuestion("");
@@ -269,12 +296,24 @@ function CreatePollModal({ open, onClose, alters }) {
             )}
           </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-2">
-              Created By <span className="text-muted-foreground/60">(optional)</span>
-            </label>
-            <VoterGridPicker alters={alters} value={selectedAlter} onChange={setSelectedAlter} />
-          </div>
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <Switch checked={tallyMode} onCheckedChange={(v) => setTallyMode(!!v)} />
+            <span className="flex-1 -mt-0.5">
+              <span className="text-sm font-medium block">Anonymous tally count</span>
+              <span className="text-xs text-muted-foreground block">
+                Each tap adds 1 to that option's count. No per-{terms.alter} tracking, no toggle-off. Useful for quick group counts.
+              </span>
+            </span>
+          </label>
+
+          {!tallyMode && (
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-2">
+                Created By <span className="text-muted-foreground/60">(optional)</span>
+              </label>
+              <VoterGridPicker alters={alters} value={selectedAlter} onChange={setSelectedAlter} />
+            </div>
+          )}
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
@@ -298,24 +337,25 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
 
     setSaving(true);
     try {
+      const key = optionIdx.toString();
       const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
-      
-      // Initialize option if needed
-      if (!newVotes[optionIdx.toString()]) {
-        newVotes[optionIdx.toString()] = [];
-      }
+      if (!newVotes[key]) newVotes[key] = [];
 
-      // Check if alter already voted for this option
-      if (newVotes[optionIdx.toString()].includes(selectedAlter)) {
-        // Unvote
-        newVotes[optionIdx.toString()] = newVotes[optionIdx.toString()].filter(id => id !== selectedAlter);
+      if (poll.tally_mode) {
+        // Anonymous tally: each tap is +1 on this option, full stop. No
+        // toggle-off, no removal-from-other-options. The empty string is
+        // our anonymous voter id (already used for system-wide votes
+        // elsewhere, so the array length still reads as the count).
+        newVotes[key].push("");
+      } else if (newVotes[key].includes(selectedAlter)) {
+        // Alter mode, same option tapped again → toggle off.
+        newVotes[key] = newVotes[key].filter((id) => id !== selectedAlter);
       } else {
-        // Remove vote from other options
-        Object.keys(newVotes).forEach(key => {
-          newVotes[key] = newVotes[key].filter(id => id !== selectedAlter);
+        // Alter mode, new option → move this voter from any other option.
+        Object.keys(newVotes).forEach((k) => {
+          newVotes[k] = newVotes[k].filter((id) => id !== selectedAlter);
         });
-        // Add vote to this option
-        newVotes[optionIdx.toString()].push(selectedAlter);
+        newVotes[key].push(selectedAlter);
       }
 
       await base44.entities.Poll.update(poll.id, { votes: newVotes });
@@ -324,6 +364,43 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
       toast.error("Failed to vote");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Tally mode only — pop one anonymous vote off the chosen option.
+  // We pop the LAST entry to play nicest with mixed polls (a poll that
+  // accumulated alter-tagged votes before being switched to tally mode
+  // keeps those records; only the anonymous trailing pushes get peeled
+  // back here, preferring the most recent one).
+  const handleTallyDecrement = async (optionIdx) => {
+    if (poll.is_closed) return;
+    setSaving(true);
+    try {
+      const key = optionIdx.toString();
+      const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
+      if (!newVotes[key] || newVotes[key].length === 0) return;
+      // Remove the last anonymous "" if there is one; otherwise pop the
+      // last entry regardless so the count goes down.
+      const lastAnon = newVotes[key].lastIndexOf("");
+      if (lastAnon >= 0) newVotes[key].splice(lastAnon, 1);
+      else newVotes[key].pop();
+      await base44.entities.Poll.update(poll.id, { votes: newVotes });
+      queryClient.invalidateQueries({ queryKey: ["polls"] });
+    } catch (e) {
+      toast.error("Failed to decrement");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleTallyMode = async () => {
+    const next = !poll.tally_mode;
+    try {
+      await base44.entities.Poll.update(poll.id, { tally_mode: next });
+      writeTallyDefault(next);
+      queryClient.invalidateQueries({ queryKey: ["polls"] });
+    } catch (e) {
+      toast.error(e.message || "Failed to switch voting mode");
     }
   };
 
@@ -395,20 +472,39 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
         </p>
       </div>
 
+      {/* Voting mode toggle — controls per-poll. Flipping also updates the
+          stored default for new polls so the user's last choice carries
+          forward. */}
+      {!poll.is_closed && (
+        <label className="flex items-center gap-3 p-2.5 rounded-lg border border-border/40 bg-card cursor-pointer select-none">
+          <Switch checked={!!poll.tally_mode} onCheckedChange={handleToggleTallyMode} />
+          <span className="flex-1 text-sm">
+            <span className="font-medium block">Anonymous tally count</span>
+            <span className="text-xs text-muted-foreground block">
+              {poll.tally_mode
+                ? `Each tap adds 1 to that option's count. Use the − to decrement.`
+                : `Per-${terms.alter} voting. Tap an option again to remove your vote.`}
+            </span>
+          </span>
+        </label>
+      )}
+
       <div className="space-y-3">
         {poll.options.map((option, idx) => {
           const optionVotes = poll.votes?.[idx] || [];
           const percent = totalVotes === 0 ? 0 : (optionVotes.length / totalVotes) * 100;
           // selectedAlter may be "" (system-wide vote) — that's a valid
-          // value so we don't gate on truthiness here.
-          const isVotedBySelected = optionVotes.includes(selectedAlter);
+          // value so we don't gate on truthiness here. In tally mode the
+          // visual "voted by you" highlight goes away (no per-voter
+          // identity).
+          const isVotedBySelected = !poll.tally_mode && optionVotes.includes(selectedAlter);
 
           return (
-            <div key={idx}>
+            <div key={idx} className="flex items-stretch gap-2">
               <button
                 onClick={() => handleVote(idx)}
                 disabled={poll.is_closed || saving}
-                className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
+                className={`flex-1 p-3 rounded-lg border-2 transition-all text-left ${
                   isVotedBySelected
                     ? "border-primary bg-primary/10"
                     : "border-border/50 bg-card hover:border-primary/50"
@@ -426,8 +522,9 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
                 </div>
 
                 {/* Alter avatars (+ a generic chip per system-wide vote so the
-                    visible count matches optionVotes.length) */}
-                {optionVotes.length > 0 && (
+                    visible count matches optionVotes.length). In tally
+                    mode there are no avatars to show — only the count. */}
+                {!poll.tally_mode && optionVotes.length > 0 && (
                   <div className="flex gap-1 -space-x-2">
                     {optionVotes.map((alterId, voteIdx) => {
                       if (!alterId) {
@@ -457,12 +554,26 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose }) {
                   </div>
                 )}
               </button>
+              {poll.tally_mode && !poll.is_closed && (
+                <button
+                  type="button"
+                  onClick={() => handleTallyDecrement(idx)}
+                  disabled={saving || optionVotes.length === 0}
+                  aria-label={`Decrement ${option} count`}
+                  title="Subtract one"
+                  className="px-2.5 rounded-lg border-2 border-border/50 bg-card text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
-      {!poll.is_closed && (
+      {/* Voter grid only matters in alter mode — tally polls are
+          anonymous so there's no "voting as" choice to make. */}
+      {!poll.is_closed && !poll.tally_mode && (
         <div>
           <label className="text-xs font-medium text-muted-foreground block mb-2">
             Voting As <span className="text-muted-foreground/60">(optional)</span>

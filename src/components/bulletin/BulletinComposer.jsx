@@ -163,16 +163,27 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       const filledOptions = pollOptions.filter((o) => o.trim());
       const votes = {};
       filledOptions.forEach((_, idx) => { votes[String(idx)] = []; });
+      // Inherit the user's last-used voting mode (alter vs anonymous
+      // tally count) from the same localStorage key the Polls page
+      // CreatePollModal writes. Same default contract: missing/0 = alter
+      // mode, "1" = tally mode. Per-poll override is still possible from
+      // the poll's detail view.
+      let tallyDefault = false;
+      try { tallyDefault = localStorage.getItem("symphony_polls_default_tally_mode") === "1"; }
+      catch { /* localStorage might be off; default to alter mode */ }
       const createdPoll = await base44.entities.Poll.create({
         question: pollQuestion.trim(),
         options: filledOptions,
         votes,
         is_closed: false,
+        tally_mode: tallyDefault,
         // New polls posted to the Bulletin Board auto-pin themselves to
         // the board so the question is hard to miss; the user can unpin
         // anytime from either surface.
         pinned_to_dashboard: true,
-        created_by_alter_id: finalAuthorIds[0] || authorAlterId || null,
+        // In tally mode there's no per-alter accounting — leave the
+        // creator alter null even if a fronter is set.
+        created_by_alter_id: tallyDefault ? null : (finalAuthorIds[0] || authorAlterId || null),
         // Back-ref filled in after the bulletin exists.
       });
       data.poll_id = createdPoll.id;

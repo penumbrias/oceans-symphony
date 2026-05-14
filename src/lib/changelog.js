@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Polls now have two voting modes: per-alter (the existing behaviour — one vote per alter, tap again to remove) and anonymous tally count (each tap on an option just adds 1, no toggle, no per-alter accounting). Toggle 'Anonymous tally count' at the top of the Create Poll modal or on any existing poll's detail view. Whichever mode you pick becomes the default for the next poll you make (each poll can still be flipped individually). In tally mode the 'Voting As' avatar grid is hidden (no voter to pick), the 'you voted' highlight goes away, and a − button appears next to each option so you can subtract a click that landed on the wrong option. Bulletin Board polls and pinned poll cards both honour whichever mode the linked poll is in, so voting from any surface stays consistent.",
+      },
+      {
         type: "improve",
         text: "Pinning a poll now surfaces it in the Bulletin Board's Pinned section (in a votable card) instead of the Dashboard's top Pinned section. Polls posted to the Bulletin Board auto-pin themselves there too, so the question is hard to miss right after you post it. Hit the pin icon again on the poll's detail view (or the small pin in the corner of the pinned card) to unpin from the board. The Dashboard's top Pinned section is back to just to-dos and bulletins — pinned polls live where the votes are, alongside the rest of the board.",
       },

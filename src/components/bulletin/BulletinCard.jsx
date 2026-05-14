@@ -111,7 +111,12 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
     const key = String(optionIndex);
     const newVotes = JSON.parse(JSON.stringify(linkedPoll.votes || {}));
     if (!newVotes[key]) newVotes[key] = [];
-    if (newVotes[key].includes(voterId)) {
+    if (linkedPoll.tally_mode) {
+      // Anonymous tally: each tap is +1, no toggle, no removal from
+      // other options. Decrement is only exposed on the standalone Polls
+      // page detail view to keep the in-card UI simple.
+      newVotes[key].push("");
+    } else if (newVotes[key].includes(voterId)) {
       // Tap same option → toggle off, matching the standalone Polls page.
       newVotes[key] = newVotes[key].filter((id) => id !== voterId);
     } else {
@@ -218,6 +223,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
         options,
         totalVotes: options.reduce((s, o) => s + o.voters.length, 0),
         isClosed: !!linkedPoll.is_closed,
+        tallyMode: !!linkedPoll.tally_mode,
       };
     }
     if (bulletin.poll) {
@@ -231,6 +237,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
         options,
         totalVotes: options.reduce((s, o) => s + o.voters.length, 0),
         isClosed: false,
+        tallyMode: false,
       };
     }
     return null;
@@ -288,7 +295,9 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
             {pollView.options.map((opt, i) => {
             const votes = opt.voters.length;
             const pct = totalVotes > 0 ? Math.round(votes / totalVotes * 100) : 0;
-            const voted = opt.voters.includes(voterId);
+            // In tally mode there's no per-voter identity, so the "you
+            // voted" highlight doesn't apply.
+            const voted = !pollView.tallyMode && opt.voters.includes(voterId);
             return (
               <button key={i} onClick={() => handleVote(i)}
               disabled={pollView.isClosed}

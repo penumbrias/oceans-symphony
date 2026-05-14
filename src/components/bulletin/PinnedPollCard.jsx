@@ -1,7 +1,7 @@
 import React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Pin, ExternalLink, Lock } from "lucide-react";
+import { Pin, ExternalLink, Lock, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 
@@ -28,7 +28,9 @@ export default function PinnedPollCard({ poll, currentAlterId }) {
     const key = String(optionIndex);
     const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
     if (!newVotes[key]) newVotes[key] = [];
-    if (newVotes[key].includes(voterId)) {
+    if (poll.tally_mode) {
+      newVotes[key].push("");
+    } else if (newVotes[key].includes(voterId)) {
       newVotes[key] = newVotes[key].filter((id) => id !== voterId);
     } else {
       Object.keys(newVotes).forEach((k) => {
@@ -36,6 +38,24 @@ export default function PinnedPollCard({ poll, currentAlterId }) {
       });
       newVotes[key].push(voterId);
     }
+    qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
+      Array.isArray(old)
+        ? old.map((p) => (p.id === poll.id ? { ...p, votes: newVotes } : p))
+        : old
+    );
+    await base44.entities.Poll.update(poll.id, { votes: newVotes });
+    qc.invalidateQueries({ queryKey: ["polls"] });
+  };
+
+  const handleDecrement = async (optionIndex, e) => {
+    if (e) e.stopPropagation();
+    if (poll.is_closed) return;
+    const key = String(optionIndex);
+    const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
+    if (!newVotes[key] || newVotes[key].length === 0) return;
+    const lastAnon = newVotes[key].lastIndexOf("");
+    if (lastAnon >= 0) newVotes[key].splice(lastAnon, 1);
+    else newVotes[key].pop();
     qc.setQueriesData({ queryKey: ["polls"] }, (old) =>
       Array.isArray(old)
         ? old.map((p) => (p.id === poll.id ? { ...p, votes: newVotes } : p))
@@ -102,36 +122,50 @@ export default function PinnedPollCard({ poll, currentAlterId }) {
           const optionVotes = (poll.votes || {})[String(i)] || [];
           const votes = optionVotes.length;
           const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
-          const voted = optionVotes.includes(voterId);
+          const voted = !poll.tally_mode && optionVotes.includes(voterId);
           return (
-            <button
-              key={i}
-              onClick={() => handleVote(i)}
-              disabled={poll.is_closed}
-              className={`w-full text-left rounded-lg overflow-hidden border transition-all ${
-                voted ? "border-primary/60" : "border-border/40"
-              } ${poll.is_closed ? "opacity-70 cursor-default" : ""}`}
-            >
-              <div className="relative px-3 py-2">
-                <div
-                  className="absolute inset-0 rounded-lg"
-                  style={{
-                    width: `${pct}%`,
-                    backgroundColor: voted
-                      ? "hsl(var(--primary) / 0.15)"
-                      : "hsl(var(--muted) / 0.5)",
-                  }}
-                />
-                <div className="relative flex justify-between items-center">
-                  <span className="text-sm">{label}</span>
-                  <span className="text-xs text-muted-foreground">{pct}%</span>
+            <div key={i} className="flex items-stretch gap-1.5">
+              <button
+                onClick={() => handleVote(i)}
+                disabled={poll.is_closed}
+                className={`flex-1 text-left rounded-lg overflow-hidden border transition-all ${
+                  voted ? "border-primary/60" : "border-border/40"
+                } ${poll.is_closed ? "opacity-70 cursor-default" : ""}`}
+              >
+                <div className="relative px-3 py-2">
+                  <div
+                    className="absolute inset-0 rounded-lg"
+                    style={{
+                      width: `${pct}%`,
+                      backgroundColor: voted
+                        ? "hsl(var(--primary) / 0.15)"
+                        : "hsl(var(--muted) / 0.5)",
+                    }}
+                  />
+                  <div className="relative flex justify-between items-center">
+                    <span className="text-sm">{label}</span>
+                    <span className="text-xs text-muted-foreground">{pct}%</span>
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              {poll.tally_mode && !poll.is_closed && (
+                <button
+                  type="button"
+                  onClick={(e) => handleDecrement(i, e)}
+                  disabled={optionVotes.length === 0}
+                  aria-label={`Decrement ${label} count`}
+                  title="Subtract one"
+                  className="px-2 rounded-lg border border-border/40 text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           );
         })}
         <p className="text-xs text-muted-foreground">
           {totalVotes} vote{totalVotes !== 1 ? "s" : ""}
+          {poll.tally_mode ? " · tally mode" : ""}
         </p>
       </div>
     </div>
