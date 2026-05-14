@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "fix",
+        text: "After finishing the intro breathing exercise inside the 'Help me figure out what I need' flow on the Grounding page, the screen no longer drops you back to the main grounding entry. The state-check answers and the three suggested techniques are still right where you left them, so you can pick the technique you actually wanted after the breathing. Breathing exercises launched from anywhere else (the main entry, the breathing-only picker) still settle back to the entry screen, since those landing pages don't carry any state worth restoring.",
+      },
+      {
         type: "improve",
         text: "Editing a planned activity now opens the full Plan Activity modal (with start/end date+time, recurrence stays read-only, activity category picker, title, location, critical lead-step windows, fronting alters, linked to-do, and notes) instead of the lightweight Activity Details edit form that only let you change start/end/category/alters/notes. Tap a plan on the calendar or in the Coming Up list → Edit → all of the plan's fields are now editable in one place. (Logged activities still use the lighter inline edit since they don't have the full plan-only field set.)",
       },

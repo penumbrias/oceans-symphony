@@ -37,6 +37,13 @@ export default function Grounding({ initialPath = null }) {
   const [selectedStates, setSelectedStates] = useState([]);
   const [selectedTechnique, setSelectedTechnique] = useState(null);
   const [selectedBreathing, setSelectedBreathing] = useState(null);
+  // Remembers which path opened the breathing exercise so we can return
+  // the user to it after they finish. Without this, finishing a breathing
+  // exercise launched from the "Help me figure out what I need" flow
+  // (path === "suggestions") would drop the user back at the main entry
+  // screen and the state-check answers + suggested techniques would
+  // appear to vanish — that's the tester report we're fixing.
+  const [breathingReturnPath, setBreathingReturnPath] = useState(null);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [seeded, setSeeded] = useState(false);
   const [returnPath, setReturnPath] = useState(null); // for "try now" from Learn
@@ -154,6 +161,11 @@ export default function Grounding({ initialPath = null }) {
   };
 
   const handleStartBreathing = (name) => {
+    // Remember the screen the user came from so we can return them
+    // there after the exercise. Only "suggestions" gets bookmarked —
+    // entry/picker are stateless landing pages and settling back to
+    // entry is the saner behaviour for them.
+    setBreathingReturnPath(path === "suggestions" ? "suggestions" : null);
     setSelectedBreathing(name);
     setPath("breathing");
   };
@@ -262,12 +274,17 @@ export default function Grounding({ initialPath = null }) {
   }
 
   if (path === "breathing") {
+    const exitBreathing = () => {
+      const next = breathingReturnPath || "entry";
+      setBreathingReturnPath(null);
+      setPath(next);
+    };
     return (
       <div className="max-w-lg mx-auto p-4">
         <BreathingExercise
           patternName={selectedBreathing || "Box breathing"}
-          onStop={() => setPath("entry")}
-          onComplete={() => setPath("entry")}
+          onStop={exitBreathing}
+          onComplete={exitBreathing}
         />
       </div>
     );
