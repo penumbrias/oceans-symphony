@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Picking a specific alter is now optional everywhere it used to be required. On Polls, both creating a poll and voting on one no longer block you with 'Select an alter' — the dropdown defaults to a clear 'System-wide (no specific alter)' option so you can post or vote as the system as a whole. System-wide polls can be closed by anyone (poll-creator polls still close only via the creator). Vote counts include system-wide votes with a neutral system chip in the avatars row.",
+      },
+      {
         type: "fix",
         text: "Banners imported from Simply Plural and PluralKit now show up as the alter's profile header image. Previously the banner URL was stored on the alter but nothing displayed it, so headers stayed blank even when SP/PK had a banner set. The header image is wired to the same checkbox as avatars on SP import — uncheck 'Refresh avatars & banners on existing alters' if you've manually picked a different header in OS and want to keep it.",
       },
