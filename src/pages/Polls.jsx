@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Globe, Minus, Users, Pencil, Check } from "lucide-react";
+import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Globe, Minus, Users, Pencil, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -744,6 +744,40 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
     }
   };
 
+  // Two-tap confirm to delete the poll. Polls that originated from a
+  // bulletin also clear the bulletin's poll_id so the bulletin no longer
+  // tries to render a non-existent linked poll.
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const deleteTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(deleteTimerRef.current), []);
+  const handleDeletePoll = async () => {
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = setTimeout(() => setDeleteArmed(false), 4000);
+      return;
+    }
+    clearTimeout(deleteTimerRef.current);
+    setDeleteArmed(false);
+    setSaving(true);
+    try {
+      if (poll.bulletin_id) {
+        try {
+          await base44.entities.Bulletin.update(poll.bulletin_id, { poll_id: null });
+          queryClient.invalidateQueries({ queryKey: ["bulletins"] });
+        } catch { /* non-fatal */ }
+      }
+      await base44.entities.Poll.delete(poll.id);
+      queryClient.invalidateQueries({ queryKey: ["polls"] });
+      toast.success("Poll deleted");
+      onBack();
+    } catch (e) {
+      toast.error(e.message || "Failed to delete poll");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleTogglePin = async () => {
     const next = !poll.pinned_to_dashboard;
     try {
@@ -800,6 +834,19 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
               className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40"
             >
               <Pin className={`w-4 h-4 ${poll.pinned_to_dashboard ? "fill-primary text-primary" : ""}`} />
+            </button>
+            <button
+              type="button"
+              onClick={handleDeletePoll}
+              disabled={saving}
+              aria-label={deleteArmed ? "Tap again to delete poll" : "Delete poll"}
+              title={deleteArmed ? "Tap again to confirm" : "Delete poll"}
+              className={`p-1.5 rounded-lg transition-colors ${
+                deleteArmed ? "bg-destructive/15 text-destructive ring-1 ring-destructive/40" : "text-muted-foreground hover:text-destructive"
+              }`}
+            >
+              <Trash2 className="w-4 h-4" />
+              {deleteArmed && <span className="ml-1 text-[0.625rem] uppercase tracking-wide font-semibold">Confirm</span>}
             </button>
           </div>
         </div>

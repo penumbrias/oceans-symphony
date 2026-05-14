@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Check-In Log entries can now be edited and deleted in place. The 💬 status-note rows (the 'What's happening right now…' Dashboard saves) get a pencil + trash pair: tap pencil to edit the text inline, tap trash once to arm, tap again within 4 seconds to actually delete (two-tap confirm so a stray finger doesn't lose a note). Formal check-in cards grow a small pencil next to their note text so you can fix typos in the quick-check-in note without re-doing the whole check-in. Edits and deletes propagate everywhere those records show up — the Timeline, the Dashboard's status preview, Therapy Report, etc. all refresh immediately.",
+      },
+      {
+        type: "improve",
+        text: "Polls can now be deleted from the detail view. A trash icon next to the Edit / Pin buttons asks for a second tap to confirm (4-second arm window) and then removes the poll record. For polls that originated from a Bulletin Board post, the bulletin's `poll_id` link is cleared too so the bulletin's poll block stops showing as a stale linked-poll.",
+      },
+      {
+        type: "feature",
         text: "New system-wide profile picture. Upload an image (or paste a URL) under Settings → System Name section and it surfaces anywhere the app refers to the system as a whole — 'System' bulletin posts (no specific alter author), 'System-wide' polls in the Polls page (creator avatar + name in the header, system-vote chip next to options), and the AuthorsRow placeholder. Connecting Simply Plural OR PluralKit also auto-fills the system avatar from that account's system-level avatar (and a missing system name from PK), so SP / PK users don't have to upload it twice.",
       },
       {
