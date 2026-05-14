@@ -597,6 +597,12 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
   const [selectedVoters, setSelectedVoters] = useState(defaultVoters);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  // Quick "+ Add option" affordance on the detail view: tapping the
+  // button reveals an inline input so the user can append a new option
+  // without going through the full Edit modal. Same 8-option cap as the
+  // Edit modal.
+  const [addingOption, setAddingOption] = useState(false);
+  const [newOptionText, setNewOptionText] = useState("");
   const queryClient = useQueryClient();
   const creator = alters.find(a => a.id === poll.created_by_alter_id);
 
@@ -668,6 +674,26 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
   // accumulated alter-tagged votes before being switched to tally mode
   // keeps those records; only the anonymous trailing pushes get peeled
   // back here, preferring the most recent one).
+  const handleQuickAddOption = async () => {
+    const label = newOptionText.trim();
+    if (!label) { setAddingOption(false); return; }
+    if ((poll.options || []).length >= 8) {
+      toast.error("Polls can have up to 8 options");
+      return;
+    }
+    try {
+      const newOptions = [...(poll.options || []), label];
+      const newVotes = { ...(poll.votes || {}) };
+      newVotes[String(newOptions.length - 1)] = [];
+      await base44.entities.Poll.update(poll.id, { options: newOptions, votes: newVotes });
+      queryClient.invalidateQueries({ queryKey: ["polls"] });
+      setNewOptionText("");
+      setAddingOption(false);
+    } catch (e) {
+      toast.error(e.message || "Failed to add option");
+    }
+  };
+
   const handleTallyDecrement = async (optionIdx) => {
     if (poll.is_closed) return;
     setSaving(true);
@@ -875,6 +901,39 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
             </div>
           );
         })}
+
+        {/* Inline "+ Add option" — quick way to extend the poll without
+            opening the Edit modal. Hidden when the poll is closed or
+            already at the 8-option cap. */}
+        {!poll.is_closed && (poll.options || []).length < 8 && (
+          addingOption ? (
+            <div className="flex gap-2">
+              <Input
+                autoFocus
+                placeholder={`Option ${(poll.options || []).length + 1}`}
+                value={newOptionText}
+                onChange={(e) => setNewOptionText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); handleQuickAddOption(); }
+                  if (e.key === "Escape") { setNewOptionText(""); setAddingOption(false); }
+                }}
+                className="flex-1"
+              />
+              <Button onClick={handleQuickAddOption}>Add</Button>
+              <Button variant="outline" onClick={() => { setNewOptionText(""); setAddingOption(false); }}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => setAddingOption(true)}
+              className="w-full border-dashed text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> Add option
+            </Button>
+          )
+        )}
       </div>
 
       {/* Voter picker only matters in alter mode — tally polls are
