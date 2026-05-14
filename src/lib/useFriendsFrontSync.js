@@ -31,21 +31,47 @@ export function useFriendsFrontSync() {
     if (isPreviewActive()) return;
 
     const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
-    const primaryId =
-      activeSessions.find((s) => s.is_primary)?.alter_id ||
-      activeSessions[0]?.alter_id ||
-      null;
 
-    const fronters = activeSessions
-      .map((s) => altersById[s.alter_id])
-      .filter((a) => a && !a.is_archived && a.friends_visible !== false)
-      .map((a) => ({
-        id: a.id,
-        name: a.name,
-        initial: a.name?.[0] || "?",
-        color: a.color || null,
-        isPrimary: a.id === primaryId,
-        isCofronter: a.id !== primaryId,
+    // Build a list of alter ids that are currently up front. Handles both
+    // schemas:
+    //   - new: each FrontingSession row has `alter_id` and `is_primary`
+    //   - legacy: a single FrontingSession row carries `primary_alter_id`
+    //     and `co_fronter_ids[]` (one row per group of fronters). A
+    //     long-running legacy session would otherwise push an empty
+    //     fronters list to friends — which is what users see when their
+    //     friend's view goes blank despite an actively-fronting alter.
+    const collected = []; // [{alterId, isPrimary}]
+    let seenPrimary = false;
+    for (const s of activeSessions) {
+      if (s.alter_id) {
+        collected.push({ alterId: s.alter_id, isPrimary: !!s.is_primary });
+        if (s.is_primary) seenPrimary = true;
+      } else if (s.primary_alter_id) {
+        collected.push({ alterId: s.primary_alter_id, isPrimary: true });
+        seenPrimary = true;
+        for (const coId of s.co_fronter_ids || []) {
+          collected.push({ alterId: coId, isPrimary: false });
+        }
+      }
+    }
+    // Fallback: if no row was flagged primary, treat the first as primary
+    // so the friend's display still has a name to lead with.
+    if (!seenPrimary && collected.length > 0) {
+      collected[0].isPrimary = true;
+    }
+
+    const primaryId = collected.find((c) => c.isPrimary)?.alterId || collected[0]?.alterId || null;
+
+    const fronters = collected
+      .map((c) => ({ entry: c, alter: altersById[c.alterId] }))
+      .filter(({ alter }) => alter && !alter.is_archived && alter.friends_visible !== false)
+      .map(({ entry, alter }) => ({
+        id: alter.id,
+        name: alter.name,
+        initial: alter.name?.[0] || "?",
+        color: alter.color || null,
+        isPrimary: alter.id === primaryId,
+        isCofronter: alter.id !== primaryId,
       }));
 
     // Deterministic signature so we only push when the front actually changed.

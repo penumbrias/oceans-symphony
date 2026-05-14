@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 13, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Friends who used to see 'No one fronting' even while you had an active alter up front should now see the right names. The cause: the friend-front sync was only reading the new per-alter session format and skipping the older grouped session format (one row with primary_alter_id + co_fronter_ids). Long-running sessions from before the schema change pushed an empty fronters list every time. Sync now handles both formats. A switch via any path will trigger a fresh push within 30 seconds; you can also open and save Set Fronters once to force one immediately.",
+      },
+      {
         type: "feature",
         text: "New in-app bug reporter under Settings → Report a Bug. Fill in a short summary, what happened, what you expected, and (optionally) repro steps. Tap 'Open on GitHub' and your phone's browser opens a fully pre-filled GitHub issue — your app version, current URL, screen size, and user agent are auto-attached so we don't have to ask. A mailto: fallback covers users without a GitHub account. All bug reports land in one place where they're labelled and triaged.",
       },
