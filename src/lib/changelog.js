@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Quick '+ Add option' button at the bottom of a poll's option list. Tap it on the detail view to reveal an inline input, type a new option, hit Enter (or the Add button) and it appends to the poll right away — no more bouncing through the Edit modal just to add a missing option. Same 8-option cap as the Edit modal. Hidden when the poll is closed.",
+      },
+      {
         type: "feature",
         text: "Polls page: 'Voting As' is now a button that pops a multi-select modal (instead of a tall inline grid). The modal defaults to whoever is currently fronting, and you can pick any combination of alters and/or System-wide. Each tap on an option then casts a vote once per selected voter, so multiple alters can cast their votes in one shot. Hit 'Reset to current front' inside the modal to snap back to the fronters; tap individual tiles to add or remove them. The button label summarises the picks ('Castiel + 2 others', 'System-wide', etc.) so you can see at a glance who's voting next.",
       },
