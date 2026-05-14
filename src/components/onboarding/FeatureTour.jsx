@@ -501,6 +501,14 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "analytics", sectionLabel: "Analytics",
+      emoji: "🎛️",
+      title: "Check-In Log · Display Menu",
+      body: `On the Check-In Log, the Display menu lets you choose which entry types appear in the log: check-ins, status notes, symptoms, activities, locations, per-${t.alter} entries, and diary data. Toggling one off only hides it from this view — your data is still recorded and still appears on the Timeline. The choice persists across sessions.`,
+      route: "/checkin-log", target: "checkin-log-display",
+      look: `the highlighted Display button in the top-right of the Check-In Log header`, action: null,
+    },
+    {
+      section: "analytics", sectionLabel: "Analytics",
       emoji: "👥",
       title: `${t.Alters}`,
       body: `${t.Alters} ranks ${t.alters} by ${t.fronting} time. Stat modes: Total time, Primary-only, Co-${t.front}-only, Average session length, Max, Min, and Count. The "Time of Day" tab shows a heatmap of when each ${t.alter} tends to front by hour — useful for spotting patterns.`,
