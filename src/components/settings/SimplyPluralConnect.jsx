@@ -57,7 +57,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const [includeAlters, setIncludeAlters] = useState(true);
   const [includeGroups, setIncludeGroups] = useState(true);
   const [includeCustomFields, setIncludeCustomFields] = useState(true);
-  const [includeAvatars, setIncludeAvatars] = useState(false);
+  const [includeAvatars, setIncludeAvatars] = useState(true);
   const [includePolls, setIncludePolls] = useState(true);
   const [includeNotes, setIncludeNotes] = useState(false);
   const [includeCustomFronts, setIncludeCustomFronts] = useState(false);
@@ -611,8 +611,8 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                     />
                     <ImageOff className="w-3.5 h-3.5 text-muted-foreground" />
                     <span>
-                      Overwrite avatars on existing alters
-                      <span className="text-muted-foreground/60 text-xs ml-1">(new alters always get theirs)</span>
+                      Refresh avatars &amp; banners on existing alters
+                      <span className="text-muted-foreground/60 text-xs ml-1">(uncheck to keep locally-customised images)</span>
                     </span>
                   </label>
                 )}
