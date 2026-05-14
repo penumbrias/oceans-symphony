@@ -3,6 +3,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
 import { findNearbyLocationName } from "@/lib/locationUtils";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ const PILLS = [
 
 export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null, retroTimestamp = null }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const terms = useTerms();
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   const [hadFrontingOpen, setHadFrontingOpen] = useState(false);
@@ -491,7 +493,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               <Button variant="outline" onClick={() => { setShowGroundingPrompt(false); onClose(); }} className="flex-1">
                 No thanks
               </Button>
-              <Button onClick={() => { setShowGroundingPrompt(false); onClose(); window.location.href = "/grounding"; }} className="flex-1">
+              <Button onClick={() => { setShowGroundingPrompt(false); onClose(); navigate("/grounding"); }} className="flex-1">
                 Yes, open grounding
               </Button>
             </div>

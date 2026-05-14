@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 14, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Buttons that navigate to another page inside the app no longer reload the whole page. Previously a handful of in-app navigations (the Quick Check-In 'open grounding' prompt, the Inner-World Map 'View full profile', the 404 page's Go Home button, and the Activity Tracker's row-click that routes to a linked to-do) used `window.location.href = '/path'` — which does a full page reload, and in some Android Chrome / PWA combinations a full reload can occasionally pop the standalone app out into the browser tab. Those calls now use the in-app navigation (react-router's `navigate`), so they stay client-side and shouldn't bounce out of the installed PWA anymore. (Intentional full reloads remain after destructive resets — Delete-all-data, logout — where the entire app state needs to clear.)",
+      },
+      {
         type: "improve",
         text: "Quick '+ Add option' button at the bottom of a poll's option list. Tap it on the detail view to reveal an inline input, type a new option, hit Enter (or the Add button) and it appends to the poll right away — no more bouncing through the Edit modal just to add a missing option. Same 8-option cap as the Edit modal. Hidden when the poll is closed.",
       },

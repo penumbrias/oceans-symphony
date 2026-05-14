@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { useTerms } from "@/lib/useTerms";
@@ -286,6 +287,7 @@ function AlterRelationshipsSection({ alter, relationships, alterMap }) {
 
 export default function InnerWorldMap({ alters: allAlters, relationships, onRefreshRelationships }) {
   const terms = useTerms();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const svgRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -1054,7 +1056,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
             {selectedAlter.pronouns && <p className="text-xs text-muted-foreground">{selectedAlter.pronouns}</p>}
             {selectedAlter.role && <p className="text-xs text-muted-foreground capitalize">{selectedAlter.role}</p>}
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => window.location.href = `/alter/${selectedAlter.id}`}
+              <button onClick={() => navigate(`/alter/${selectedAlter.id}`)}
                 className="text-xs text-primary hover:underline">View full profile →</button>
               <button onClick={async () => {
                 const newLocked = !selectedAlter.inner_world_locked;
