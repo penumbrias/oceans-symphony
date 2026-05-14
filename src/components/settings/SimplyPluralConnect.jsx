@@ -18,6 +18,7 @@ import {
   spFieldType,
   mapMemberToAlter,
   mapCustomFrontToAlter,
+  mapCustomFrontToSymptom,
   mapGroupToLocalGroup,
   mapFrontHistoryEntry,
   mapSPPoll,
@@ -60,6 +61,11 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
   const [includePolls, setIncludePolls] = useState(true);
   const [includeNotes, setIncludeNotes] = useState(false);
   const [includeCustomFronts, setIncludeCustomFronts] = useState(false);
+  // Independent of "as alters" — users can do either, both, or neither.
+  // Custom fronts often represent dissociative / emotional / physical
+  // states rather than identities, so importing them as symptoms is the
+  // better fit for many systems.
+  const [includeCustomFrontsAsSymptoms, setIncludeCustomFrontsAsSymptoms] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [importProgress, setImportProgress] = useState("");
 
@@ -214,11 +220,18 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           for (const a of existingAlters) { if (a.sp_id) alterIdBySpId[a.sp_id] = a.id; }
         }
 
+        // ── Steps 3b/3c: Custom fronts as alters and/or as symptoms ──
+        // Fetched once if either path is enabled, then passed to whichever
+        // import blocks below want to consume them.
+        let spCustomFronts = null;
+        if (includeCustomFronts || includeCustomFrontsAsSymptoms) {
+          spCustomFronts = await getCustomFronts(tok, sysId);
+        }
+
         // ── Step 3b: Custom fronts as alters (optional) ──
         let customFrontsCreated = 0, customFrontsUpdated = 0;
         if (includeCustomFronts) {
           setImportProgress("Importing custom fronts as alters…");
-          const spCustomFronts = await getCustomFronts(tok, sysId);
           const existingBySpId = {};
           const existingAltersNow = await localEntities.Alter.list();
           for (const a of existingAltersNow) {
@@ -240,6 +253,37 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               const created = await localEntities.Alter.create(mapped);
               alterIdBySpId[mapped.sp_id] = created.id;
               customFrontsCreated++;
+            }
+          }
+        }
+
+        // ── Step 3c: Custom fronts as symptoms (optional, independent of 3b) ──
+        let symptomsCreated = 0, symptomsUpdated = 0;
+        if (includeCustomFrontsAsSymptoms && spCustomFronts) {
+          setImportProgress("Importing custom fronts as symptoms…");
+          const existingSymptoms = await base44.entities.Symptom.list();
+          const symptomBySpId = {};
+          for (const s of existingSymptoms) {
+            if (s.sp_id) symptomBySpId[s.sp_id] = s;
+          }
+          for (const cf of spCustomFronts) {
+            const mapped = mapCustomFrontToSymptom(cf);
+            if (!mapped.sp_id) continue;
+            const existing = symptomBySpId[mapped.sp_id];
+            if (existing) {
+              if (importMode !== "new_only") {
+                // Don't overwrite user-flipped is_positive — only refresh
+                // metadata that's safe to re-import.
+                await base44.entities.Symptom.update(existing.id, {
+                  label: mapped.label,
+                  color: mapped.color,
+                  is_archived: mapped.is_archived,
+                });
+                symptomsUpdated++;
+              }
+            } else {
+              await base44.entities.Symptom.create(mapped);
+              symptomsCreated++;
             }
           }
         }
@@ -350,7 +394,8 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
         const parts = [
           includeAlters && `Alters: ${altersCreated} new, ${altersUpdated} updated`,
-          includeCustomFronts && (customFrontsCreated > 0 || customFrontsUpdated > 0) && `Custom fronts: ${customFrontsCreated} new, ${customFrontsUpdated} updated`,
+          includeCustomFronts && (customFrontsCreated > 0 || customFrontsUpdated > 0) && `Custom fronts → alters: ${customFrontsCreated} new, ${customFrontsUpdated} updated`,
+          includeCustomFrontsAsSymptoms && (symptomsCreated > 0 || symptomsUpdated > 0) && `Custom fronts → symptoms: ${symptomsCreated} new, ${symptomsUpdated} updated`,
           includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
           includeCustomFields && fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
           includePolls && `Polls: ${pollsCreated} new, ${pollsUpdated} updated`,
@@ -619,7 +664,17 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                     className="rounded"
                   />
                   <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                  Custom Fronts <span className="text-muted-foreground/60 text-xs">(imported as alters)</span>
+                  Custom Fronts → alters
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={includeCustomFrontsAsSymptoms}
+                    onChange={(e) => setIncludeCustomFrontsAsSymptoms(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  Custom Fronts → symptoms <span className="text-muted-foreground/60 text-xs">(for states like anxious, dissociating, etc.)</span>
                 </label>
               </div>
 
