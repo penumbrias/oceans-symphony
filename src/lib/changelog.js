@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Dashboard edit mode now shows 'ghost' tiles for every nav item you've previously removed from the grid — they appear at the end of the live tiles, at a lighter opacity, with a green + badge instead of the red ×. Tap to add the tile back to your dashboard, no detour through Settings. Ghosts can't be dragged above live tiles (they're outside the drag region by design) so 'ghosts always at the end' holds even mid-edit.",
+      },
+      {
+        type: "feature",
         text: "Native Android build: long-press the app icon on your home screen for a 'Quick Actions' shortcut that drops you straight into the same Quick Actions overlay you already get from long-pressing the in-app Quick Check-In button. Customise the menu items themselves from Settings → Quick Actions; the OS shortcut just opens whatever menu you've configured.",
       },
       {
