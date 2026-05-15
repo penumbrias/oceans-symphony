@@ -84,6 +84,15 @@ export function useTerms() {
   const sw = safe(s.term_switch, DEFAULT_TERMS.switch);
   const fr = safe(s.term_front, DEFAULT_TERMS.front);
 
+  // Optional overrides for derived word forms. The auto-conjugation
+  // helpers (gerund/agent) assume the base term is a regular verb root.
+  // Adjective-ish terms like "active" produce wrong results ("activing"
+  // instead of "activating"), so users can fill these in to bypass the
+  // helpers entirely. Blank → fall back to auto-conjugation.
+  const frontingOverride = (s.term_fronting || "").trim();
+  const fronterOverride = (s.term_fronter || "").trim();
+  const switchingOverride = (s.term_switching || "").trim();
+
   // Memoize derived terms to avoid rebuilds
   const terms = useMemo(() => {
     // System variants
@@ -103,7 +112,7 @@ export function useTerms() {
     const Switch_cap = capitalize(sw);
     const switches_lower = pluralize(sw);
     const Switches_cap = capitalize(switches_lower);
-    const switching_lower = gerund(sw);
+    const switching_lower = switchingOverride || gerund(sw);
     const Switching_cap = capitalize(switching_lower);
 
     // Front variants
@@ -111,9 +120,9 @@ export function useTerms() {
     const Front_cap = capitalize(fr);
     const fronts_lower = pluralize(fr);
     const Fronts_cap = capitalize(fronts_lower);
-    const fronting_lower = gerund(fr);
+    const fronting_lower = frontingOverride || gerund(fr);
     const Fronting_cap = capitalize(fronting_lower);
-    const fronter_lower = agent(fr);
+    const fronter_lower = fronterOverride || agent(fr);
     const Fronter_cap = capitalize(fronter_lower);
     const fronters_lower = pluralize(fronter_lower);
     const Fronters_cap = capitalize(fronters_lower);
@@ -171,7 +180,7 @@ export function useTerms() {
       _settingsId: s.id || null,
       _hasSettings: !!s.id,
     };
-  }, [sys, alt, sw, fr, s.id]);
+  }, [sys, alt, sw, fr, frontingOverride, fronterOverride, switchingOverride, s.id]);
 
   return terms;
 }

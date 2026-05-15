@@ -18,11 +18,20 @@ import { useTerms } from "@/lib/useTerms";
 export default function TermsSettings() {
   const qc = useQueryClient();
   const terms = useTerms();
-  const [vals, setVals] = useState({ system: "", alter: "", switch: "", front: "" });
+  const [vals, setVals] = useState({
+    system: "", alter: "", switch: "", front: "",
+    fronting: "", fronter: "", switching: "",
+  });
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const applyPreset = (preset) => {
-    setVals({ system: preset.system, alter: preset.alter, switch: preset.switch, front: preset.front });
+    setVals((p) => ({
+      ...p,
+      system: preset.system, alter: preset.alter, switch: preset.switch, front: preset.front,
+      // Presets are regular bases — clear any overrides the user had.
+      fronting: "", fronter: "", switching: "",
+    }));
   };
 
   useEffect(() => {
@@ -31,16 +40,33 @@ export default function TermsSettings() {
       alter: terms.alter,
       switch: terms.switch,
       front: terms.front,
+      // Show the resolved values (override or auto-derived) so the user
+      // sees what's currently in effect; leaving them blank on save
+      // means "fall back to auto" again.
+      fronting: terms.fronting,
+      fronter: terms.fronter,
+      switching: terms.switching,
     });
-  }, [terms.system, terms.alter, terms.switch, terms.front]);
+  }, [terms.system, terms.alter, terms.switch, terms.front, terms.fronting, terms.fronter, terms.switching]);
 
   const handleSave = async () => {
     setSaving(true);
+    // Only persist override fields when they differ from the auto-derived
+    // form — otherwise blank them so future base-term edits propagate
+    // through the auto-conjugation again.
+    const baseFront = vals.front.trim() || "front";
+    const baseSwitch = vals.switch.trim() || "switch";
+    const autoFronting = gerund(baseFront);
+    const autoFronter = agent(baseFront);
+    const autoSwitching = gerund(baseSwitch);
     const data = {
       term_system: vals.system.trim() || "system",
       term_alter: vals.alter.trim() || "alter",
-      term_switch: vals.switch.trim() || "switch",
-      term_front: vals.front.trim() || "front",
+      term_switch: baseSwitch,
+      term_front: baseFront,
+      term_fronting: vals.fronting.trim() && vals.fronting.trim() !== autoFronting ? vals.fronting.trim() : "",
+      term_fronter: vals.fronter.trim() && vals.fronter.trim() !== autoFronter ? vals.fronter.trim() : "",
+      term_switching: vals.switching.trim() && vals.switching.trim() !== autoSwitching ? vals.switching.trim() : "",
     };
     if (terms._settingsId) {
       await base44.entities.SystemSettings.update(terms._settingsId, data);
@@ -112,9 +138,61 @@ export default function TermsSettings() {
           </p>
           <p>
             <span className="font-medium">Front:</span>{" "}
-            <span className="text-foreground font-medium">{vals.front}</span> · <span className="text-foreground font-medium">{pluralize(vals.front)}</span> · <span className="text-foreground font-medium">{gerund(vals.front)}</span> · <span className="text-foreground font-medium">{agent(vals.front)}</span>
+            <span className="text-foreground font-medium">{vals.front}</span> · <span className="text-foreground font-medium">{pluralize(vals.front)}</span> · <span className="text-foreground font-medium">{vals.fronting || gerund(vals.front)}</span> · <span className="text-foreground font-medium">{vals.fronter || agent(vals.front)}</span>
           </p>
         </div>
+
+        {/* Advanced word-form overrides. The auto-conjugator assumes the
+            base term is a regular verb root; adjectives like "active"
+            yield "activing" / "activer" instead of "activating" /
+            "active fronter". This section lets the user type the
+            correct forms explicitly. */}
+        <div className="border-t border-border/40 pt-3">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showAdvanced ? "▾" : "▸"} Advanced word forms (override if auto-conjugation looks off)
+          </button>
+          {showAdvanced && (
+            <div className="mt-2 space-y-2">
+              <p className="text-[0.6875rem] text-muted-foreground leading-relaxed">
+                Used when the base term isn't a regular verb. e.g. setting Front to "active" would auto-conjugate to "activing" / "activer" — type "activating" / "active fronter" here instead. Leave blank to fall back to auto-conjugation.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Fronting form</label>
+                  <Input
+                    value={vals.fronting}
+                    onChange={(e) => setVals((p) => ({ ...p, fronting: e.target.value }))}
+                    placeholder={gerund(vals.front || "front")}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Fronter form</label>
+                  <Input
+                    value={vals.fronter}
+                    onChange={(e) => setVals((p) => ({ ...p, fronter: e.target.value }))}
+                    placeholder={agent(vals.front || "front")}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Switching form</label>
+                  <Input
+                    value={vals.switching}
+                    onChange={(e) => setVals((p) => ({ ...p, switching: e.target.value }))}
+                    placeholder={gerund(vals.switch || "switch")}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <Button onClick={handleSave} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
           {saving ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Terms</>}
         </Button>

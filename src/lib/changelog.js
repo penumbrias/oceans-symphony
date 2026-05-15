@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Custom terminology now supports word-form overrides. The auto-conjugator assumes the base term you set for 'Front' is a regular verb root — which works for 'front', 'shift', 'influenc', etc., but produced nonsense for adjective-ish terms like 'active' (yielding 'activing' / 'activer' instead of 'activating' / 'active fronter'). Settings → Terminology now has an 'Advanced word forms' expander where you can type the correct Fronting / Fronter / Switching forms explicitly. Leave them blank and the auto-conjugation runs as before.",
+      },
+      {
+        type: "improve",
+        text: "Alter birthday field is now free-form text instead of forcing a YYYY-MM-DD date picker — you can enter 'Age 7', 'around middle school', 'March 2018', or an exact date, depending on what fits each alter. The 🎂 line on the alter profile renders whatever you type. PluralKit sync still only sends the value when it's a valid ISO date so the API doesn't reject the upload.",
+      },
+      {
         type: "fix",
         text: "TWA-to-native migration modal (the 'Welcome to the native Oceans Symphony' screen shown on the very first launch after the Play auto-update) was unscrollable on shorter screens — the explanation paragraphs pushed the Import/Start-fresh buttons off the bottom of the viewport with no way to scroll or dismiss, trapping users on the screen. The modal backdrop is now scrollable, with safe-area padding so the buttons stay clear of the gesture pill.",
       },

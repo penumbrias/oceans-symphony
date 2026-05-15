@@ -567,13 +567,17 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         </div>
       </div>
 
-      {/* Birthday */}
+      {/* Birthday / age first appeared — free-form text so users can
+          enter an exact date (2018-03-15), an age ("Age 7"), or a more
+          general description ("first appeared in middle school"). The
+          🎂 line on the profile renders whatever string is here. */}
       <div className="space-y-1">
-        <label className="text-xs text-muted-foreground font-medium">Birthday</label>
+        <label className="text-xs text-muted-foreground font-medium">Birthday / age first appeared</label>
         <Input
-          type="date"
+          type="text"
           value={form.birthday || ""}
           onChange={(e) => set("birthday", e.target.value)}
+          placeholder="e.g. 2018-03-15, Age 7, around middle school"
           className="text-sm"
         />
       </div>
