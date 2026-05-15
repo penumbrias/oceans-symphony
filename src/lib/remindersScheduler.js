@@ -3,6 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { zonedFireInstant, getUserLocalDate, getCurrentMinutesInZone } from "@/lib/timezoneHelpers";
 import { sendPushNotification, isPushEnabled } from "@/lib/pushRegistration";
+import { isNative } from "@/lib/platform";
+import { isPrescheduleableType } from "@/lib/nativeReminderScheduler";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -454,8 +456,12 @@ export async function runClientScheduler(queryClient) {
         recentInstances.push(inst);
         newInstances.push(inst);
 
-        // Send native push notification if push is in delivery channels (fire-and-forget)
-        if (channels.includes("push")) {
+        // Send native push notification if push is in delivery channels (fire-and-forget).
+        // On native: skip if this reminder type is being pre-scheduled by the OS — the
+        // pre-scheduled notification has either already fired (back-filled in this poll)
+        // or will fire on its own. Doing both would deliver twice.
+        const skipPushForOSPrescheduled = isNative() && isPrescheduleableType(reminder);
+        if (channels.includes("push") && !skipPushForOSPrescheduled) {
           isPushEnabled().then(async enabled => {
             if (enabled) {
               try {

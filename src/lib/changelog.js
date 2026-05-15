@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Native Android build: reminders now fire even when the app is fully closed. We pre-schedule each upcoming `scheduled` (daily/weekly at HH:MM), `interval` (every N minutes), and `event` (calendar event) reminder with the OS up to 14 days in advance — Android's AlarmManager handles the wake-up, so a 9 AM 'morning check-in' will buzz your phone whether the app is open, backgrounded, or swiped away. On reopen, any reminders the OS fired while you were away are back-filled into the inbox so you don't lose track. Pure-context reminders (e.g. 'when no front update for 2h') still need the app open to evaluate — they keep the existing in-app polling. Pause-all and quiet-hours settings are honoured. Web and TWA users are unaffected.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: reminder notifications now have sound, vibration, and the heads-up bubble — they were silent before because the default Capacitor channel is IMPORTANCE_LOW. We now create a dedicated 'Reminders' channel at IMPORTANCE_HIGH on first launch. Per-channel sound/vibration can be customised in system Settings → Apps → Oceans Symphony → Notifications → Reminders.",
+      },
+      {
+        type: "improve",
+        text: "Landscape orientation now uses the mobile layout (top + bottom bars, full-width content) instead of trying to squeeze a 208px sidebar onto a phone landscape viewport — the previous behaviour squished the main content into a 500px-ish column with empty space on the right. The desktop sidebar layout now kicks in at the lg: breakpoint (1024px CSS px) so tablets in landscape and actual desktop browsers still get it; phones in any orientation get the mobile layout.",
+      },
+      {
+        type: "fix",
+        text: "Reminders onboarding: the 'Hi [{terms.alter} name]' preset showed the literal text {terms.alter} instead of your alter term, and the 'When a specific {alter} takes {front} — pick {alter} first' subtitle only replaced the first {alter} placeholder. Both now interpolate every occurrence using your customised terminology.",
+      },
+      {
         type: "fix",
         text: "Native Android build: the sticky page header no longer slides behind the system status bar when you scroll, and no longer collides with the system clock/signal/battery icons in landscape orientation. The previous fix only handled the at-rest position by reserving a separate spacer above the header — the safe-area inset is now baked into the header itself, so it stays clear of system UI in both portrait and landscape, scrolled or not. The bottom navigation bar and the in-app banners get the same treatment for the side and bottom insets. Web and TWA continue to render identically (the OS reports zero insets).",
       },

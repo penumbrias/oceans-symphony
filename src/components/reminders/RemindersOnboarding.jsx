@@ -127,14 +127,17 @@ export default function RemindersOnboarding({ onDone }) {
   const [saving, setSaving] = useState(false);
   const [setupSeed, setSetupSeed] = useState(null); // open editor for seeds needing setup
 
-  // Build seeds with terminology interpolation
+  // Build seeds with terminology interpolation. Use replaceAll because
+  // some templates contain the same placeholder twice (e.g. "When a
+  // specific {alter} takes {front} — pick {alter} first") and .replace
+  // only hits the first occurrence.
   const getSeedsWithTerms = () => {
     const interpolate = (str) =>
-      str.replace("{system}", terms.system)
-        .replace("{alter}", terms.alter)
-        .replace("{alters}", terms.alters)
-        .replace("{front}", terms.front)
-        .replace("{fronting}", terms.fronting);
+      str.replaceAll("{system}", terms.system)
+        .replaceAll("{alter}", terms.alter)
+        .replaceAll("{alters}", terms.alters)
+        .replaceAll("{front}", terms.front)
+        .replaceAll("{fronting}", terms.fronting);
 
     return SEEDS.map((seed, i) => {
       let title = seed.title;
@@ -147,7 +150,10 @@ export default function RemindersOnboarding({ onDone }) {
         body = `It's been a while since the ${terms.front} last updated. Who's here right now?`;
       }
       if (seed.title === "SEED_ALTER_GREETING_TITLE") {
-        title = `Hi [{terms.alter} name] 🤍`;
+        // Was previously a string literal containing the JS expression
+        // `{terms.alter}` — got rendered as raw text instead of
+        // interpolated. Use a real template literal.
+        title = `Hi [${terms.alter} name] 🤍`;
       }
 
       const inline_actions = (seed.inline_actions || []).map(a => ({
@@ -206,11 +212,11 @@ export default function RemindersOnboarding({ onDone }) {
            const on = enabled.has(i);
            const needsSetup = NEEDS_SETUP.has(i);
            const subtitle = SEED_SUBTITLES_BASE[i]
-             .replace("{system}", terms.system)
-             .replace("{alter}", terms.alter)
-             .replace("{alters}", terms.alters)
-             .replace("{front}", terms.front)
-             .replace("{fronting}", terms.fronting);
+             .replaceAll("{system}", terms.system)
+             .replaceAll("{alter}", terms.alter)
+             .replaceAll("{alters}", terms.alters)
+             .replaceAll("{front}", terms.front)
+             .replaceAll("{fronting}", terms.fronting);
            return (
              <button
                key={i}

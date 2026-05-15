@@ -7,8 +7,27 @@
 // the web bundle.
 
 import { isNative } from '@/lib/platform';
+import { ensureRemindersChannel } from '@/lib/nativeNotifications';
+import { backfillFiredWhileClosed, recordPrescheduledFire } from '@/lib/nativeReminderScheduler';
 
 let started = false;
+
+// Set by the OS notification-tap listener. AuthenticatedApp watches this
+// on each render and, once routing is up, navigates to the reminders
+// inbox so the user can act on the tap.
+export const pendingNativeTap = { reminderId: null, scheduledFor: null };
+const pendingTapSubscribers = new Set();
+
+export function subscribeToNativeTap(fn) {
+  pendingTapSubscribers.add(fn);
+  return () => pendingTapSubscribers.delete(fn);
+}
+
+function notifyTap() {
+  for (const fn of pendingTapSubscribers) {
+    try { fn(pendingNativeTap); } catch { /* keep going */ }
+  }
+}
 
 export async function initNativeShell() {
   if (started) return;
@@ -27,4 +46,29 @@ export async function initNativeShell() {
     // Non-fatal: an older Android WebView or a missing native plugin
     // shouldn't block the app from booting.
   }
+
+  // Make sure the high-importance Android notification channel exists
+  // before any reminder schedules a notification against it.
+  try { await ensureRemindersChannel(); } catch { /* non-fatal */ }
+
+  // Back-fill ReminderInstance rows for OS-fired notifications that
+  // happened while the app was closed, so the inbox catches up.
+  try { await backfillFiredWhileClosed(); } catch { /* non-fatal */ }
+
+  // Action listener: when the user taps a pre-scheduled OS notification,
+  // record the fire (so the inbox tracks it) and surface a pending-tap
+  // event to the React tree, which routes to /reminders.
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    LocalNotifications.addListener('localNotificationActionPerformed', async (event) => {
+      const extra = event?.notification?.extra || {};
+      const reminderId = extra.reminderId;
+      const scheduledFor = extra.scheduledFor;
+      if (!reminderId) return;
+      try { await recordPrescheduledFire({ reminderId, scheduledFor }); } catch { /* non-fatal */ }
+      pendingNativeTap.reminderId = reminderId;
+      pendingNativeTap.scheduledFor = scheduledFor;
+      notifyTap();
+    });
+  } catch { /* non-fatal */ }
 }

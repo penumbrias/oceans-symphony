@@ -21,6 +21,50 @@ function nextImmediateId() {
   return immediateIdCounter;
 }
 
+// Android 8+ requires every notification to belong to a channel — the
+// channel determines whether the OS plays a sound, vibrates, and shows
+// a heads-up bubble. Without an explicit channel, the plugin's
+// "default" channel ends up at IMPORTANCE_LOW, which is silent and
+// gets clustered into the notification shade with no peek. We create
+// a HIGH-importance channel on first use so reminders feel like real
+// notifications rather than silent log entries.
+//
+// Channel properties are applied ONCE per install — Android refuses to
+// downgrade an existing channel's importance/sound/vibration after the
+// user has installed the app, so picking sensible defaults up front
+// matters. Users can override per-channel afterwards in system
+// Settings → Apps → Oceans Symphony → Notifications.
+export const REMINDERS_CHANNEL_ID = "reminders-default";
+let channelEnsured = false;
+
+export async function ensureRemindersChannel() {
+  if (!isNative()) return;
+  if (channelEnsured) return;
+  try {
+    const { LocalNotifications } = await import("@capacitor/local-notifications");
+    if (!LocalNotifications.createChannel) {
+      // iOS or older plugin — channels are an Android-only concept.
+      channelEnsured = true;
+      return;
+    }
+    await LocalNotifications.createChannel({
+      id: REMINDERS_CHANNEL_ID,
+      name: "Reminders",
+      description: "Scheduled reminders and check-in nudges",
+      importance: 4, // IMPORTANCE_HIGH — heads-up + sound + vibration
+      visibility: 1, // public lock-screen visibility
+      sound: undefined, // OS default tone
+      vibration: true,
+      lights: true,
+    });
+    channelEnsured = true;
+  } catch {
+    /* createChannel can throw on older Android — fall through; the
+       notification just won't have the heads-up treatment. */
+    channelEnsured = true;
+  }
+}
+
 export async function requestNativePermission() {
   if (!isNative()) return { display: "denied" };
   const { LocalNotifications } = await import("@capacitor/local-notifications");
@@ -48,6 +92,7 @@ export async function sendNativeNotification(payload) {
     const { LocalNotifications } = await import("@capacitor/local-notifications");
     const granted = await isNativeNotificationsEnabled();
     if (!granted) return false;
+    await ensureRemindersChannel();
     const id = nextImmediateId();
     await LocalNotifications.schedule({
       notifications: [
@@ -55,6 +100,7 @@ export async function sendNativeNotification(payload) {
           id,
           title: payload?.title || "Reminder",
           body: payload?.body || "",
+          channelId: REMINDERS_CHANNEL_ID,
           // Carry the reminder instance id so a future tap-listener can
           // route to the right screen / quick action.
           extra: {

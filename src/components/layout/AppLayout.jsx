@@ -288,7 +288,7 @@ const handleNotifClick = (mentionLog) => {
           web/TWA these envs evaluate to 0 and the header looks the
           same as before. */}
       <header
-        className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block border-b border-border/50"
+        className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden lg:block border-b border-border/50"
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -358,7 +358,7 @@ const handleNotifClick = (mentionLog) => {
           The wave's bottom edge crosses through the centre of the
           title and the icons, like a horizon line. */}
       <header
-        className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col border-b border-border/50"
+        className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl lg:hidden flex flex-col border-b border-border/50"
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -427,7 +427,7 @@ const handleNotifClick = (mentionLog) => {
       <div className="flex flex-1 overflow-hidden">
 
         {/* Desktop persistent sidebar */}
-        <aside className="hidden sm:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto sticky top-16 self-start h-[calc(100vh-4rem)]">
+        <aside className="hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto sticky top-16 self-start h-[calc(100vh-4rem)]">
           <nav className="px-2 py-4 space-y-5 flex-1 overflow-y-auto" aria-label="Sidebar navigation">
             {[
               {
@@ -523,8 +523,8 @@ const handleNotifClick = (mentionLog) => {
         </aside>
 
         {/* Main content */}
-        <main className="app-content-main flex-1 min-w-0 px-4 sm:px-6 py-0 sm:py-8 sm:pb-8 overflow-auto">
-          <div className="pt-3 sm:pt-0 pb-2 sm:pb-4">
+        <main className="app-content-main flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
+          <div className="pt-3 lg:pt-0 pb-2 lg:pb-4">
             <Base44MigrationBanner />
           </div>
           <Outlet context={{ setShowFeatureTour }} />
@@ -534,7 +534,7 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
         style={{
           height: "var(--bottom-nav-height, 56px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",

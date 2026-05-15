@@ -52,7 +52,9 @@ import {
   EncryptedDataWithoutKeyError,
 } from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
-import { initNativeShell } from '@/lib/nativeBootstrap';
+import { initNativeShell, subscribeToNativeTap, pendingNativeTap } from '@/lib/nativeBootstrap';
+import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
+import { useNavigate } from 'react-router-dom';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
 import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
@@ -64,6 +66,23 @@ import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
 const AuthenticatedApp = () => {
   const { isLoadingAuth } = useAuth();
   useTimezoneSync();
+  // Re-syncs the native pre-scheduled reminder queue whenever reminders
+  // or settings change. No-op on web/TWA.
+  useNativeReminderSync();
+  // When the user taps a native OS notification we route to the
+  // reminders inbox; the actual ReminderInstance was already recorded
+  // by the bootstrap listener.
+  const navigate = useNavigate();
+  useEffect(() => {
+    const consume = () => {
+      if (!pendingNativeTap.reminderId) return;
+      pendingNativeTap.reminderId = null;
+      pendingNativeTap.scheduledFor = null;
+      navigate('/reminders');
+    };
+    consume();
+    return subscribeToNativeTap(consume);
+  }, [navigate]);
 
   if (isLoadingAuth) {
     return (
