@@ -36,6 +36,18 @@ export const CHANGELOG = [
         text: "Clarified the Birthday + Origin Year fields on the alter editor — they were reading as duplicate boxes because nothing told you what each one drives. They're now grouped under a 'When they first appeared' heading with inline hints: Birthday is free-form and shows on the profile's 🎂 line, Origin Year is the integer that feeds the Alter History timeline. The auto-link + sync button behavior is unchanged.",
       },
       {
+        type: "improve",
+        text: "Location features (Log Location quick action, the GPS button on Check-In, and the Get-GPS button on the Location History add modal) now request location permission properly on the native Android build. Previously the location permission was stripped from the manifest entirely (we'd removed everything the background-runner library injected because nothing was using them yet), so the Android permission dialog could never appear — feature would just silently fail. Now: foreground location permission is declared, @capacitor/geolocation prompts when needed, and a denial shows a clear toast pointing the user at Settings → Apps → Oceans Symphony → Permissions.",
+      },
+      {
+        type: "fix",
+        text: "Home-screen 'Log location' quick action used to silently create a record literally named 'Location' with no GPS data — because the OS-launcher path skipped the in-app row that collects category + coords. Tapping the shortcut now pops the in-app quick actions sheet so you can capture GPS and pick a category pill before saving, matching the long-press menu flow.",
+      },
+      {
+        type: "improve",
+        text: "Location entries in the Check-In Log now show the raw GPS coordinates beneath the pill with a tap-to-open-in-Maps link, matching the Location History page and timeline view. Previously the pill only showed the place name — useful for at-a-glance reading, but you couldn't see where exactly the GPS captured.",
+      },
+      {
         type: "fix",
         text: "TWA-to-native migration modal (the 'Welcome to the native Oceans Symphony' screen shown on the very first launch after the Play auto-update) was unscrollable on shorter screens — the explanation paragraphs pushed the Import/Start-fresh buttons off the bottom of the viewport with no way to scroll or dismiss, trapping users on the screen. The modal backdrop is now scrollable, with safe-area padding so the buttons stay clear of the gesture pill.",
       },

@@ -380,6 +380,17 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
       toast.success(`${field_label || "Diary"} logged`);
     } else if (action.type === "log_location") {
+      // OS-launcher shortcut path: executeQuickAction(qa) was called
+      // with no extraData. The in-app LocationRow normally collects
+      // category/name/coords first, but the OS shortcut bypasses it,
+      // which previously produced a record literally named "Location"
+      // with no GPS data. Pop the in-app quick actions sheet so the
+      // user gets the pills + Get-GPS button before we save.
+      if (!extraData || (extraData.category === undefined && extraData.name === undefined && extraData.coords === undefined)) {
+        showQuickActionsRef.current = true;
+        setShowQuickActions(true);
+        return;
+      }
       const { category, name, coords } = extraData;
       const catMeta = LOCATION_CATEGORIES.find(c => c.id === category);
       await localEntities.Location.create({
