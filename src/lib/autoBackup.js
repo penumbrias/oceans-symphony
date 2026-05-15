@@ -107,28 +107,79 @@ async function buildFullBackupPayload() {
 }
 
 // Native delivery: write directly to a documents folder via the
-// Capacitor Filesystem plugin. Skips the Web Share UI entirely — no
-// tap, no chooser, no surprise. Returns "filesystem" on success, or
-// null if the plugin path fails so the caller can fall back to the
-// web-style share/download.
+// Capacitor Filesystem plugin. On Android 10+ scoped storage means
+// the public Documents directory needs an explicit permission grant;
+// when that fails (denied, dismissed, or unsupported), we fall back
+// to writing into the app's sandboxed cache and handing the file to
+// @capacitor/share so the user picks where it lands.
+//
+// Returns the delivery result string ("filesystem" | "shared" |
+// "cancelled" | null). Null means everything failed and the caller
+// should try the web delivery path.
 async function deliverBackupNative(filename, json) {
   if (!isNative()) return null;
+  let Filesystem, Directory, Encoding;
   try {
-    const { Filesystem, Directory, Encoding } = await import("@capacitor/filesystem");
-    // Use the app's Documents directory (Directory.Documents). On
-    // Android this maps to /storage/emulated/0/Documents/<app>/, which
-    // is public storage and survives "Clear app data" — the whole
-    // point of an auto-backup.
-    await Filesystem.writeFile({
+    ({ Filesystem, Directory, Encoding } = await import("@capacitor/filesystem"));
+  } catch (e) {
+    console.warn("[Auto-backup] @capacitor/filesystem not available:", e?.message);
+    return null;
+  }
+
+  // Best-effort permission request. The plugin returns
+  // { publicStorage: 'granted' | 'denied' } on Android.
+  try {
+    if (Filesystem.checkPermissions) {
+      const status = await Filesystem.checkPermissions();
+      if (status?.publicStorage !== "granted" && Filesystem.requestPermissions) {
+        await Filesystem.requestPermissions().catch(() => {});
+      }
+    }
+  } catch { /* keep going — writeFile will surface a clear error */ }
+
+  // Primary path: public Documents folder. Survives "Clear app data".
+  try {
+    const writeRes = await Filesystem.writeFile({
       path: filename,
       data: json,
       directory: Directory.Documents,
       encoding: Encoding.UTF8,
       recursive: true,
     });
+    console.log("[Auto-backup] wrote to Documents:", writeRes?.uri || filename);
     return "filesystem";
   } catch (e) {
-    console.warn("[Auto-backup] native filesystem write failed:", e);
+    console.warn("[Auto-backup] Documents write failed, falling back to share:", e?.message || e);
+  }
+
+  // Fallback: write to the app's sandboxed cache (always permitted)
+  // and use the Capacitor Share plugin to let the user file it.
+  try {
+    const writeRes = await Filesystem.writeFile({
+      path: filename,
+      data: json,
+      directory: Directory.Cache,
+      encoding: Encoding.UTF8,
+      recursive: true,
+    });
+    const uri = writeRes?.uri;
+    if (!uri) throw new Error("Filesystem.writeFile returned no uri");
+    const { Share } = await import("@capacitor/share");
+    try {
+      await Share.share({
+        title: "Oceans Symphony backup",
+        url: uri,
+        dialogTitle: "Save backup file",
+      });
+      return "shared";
+    } catch (shareErr) {
+      if (shareErr?.message?.toLowerCase().includes("canceled") || shareErr?.message?.toLowerCase().includes("cancelled")) {
+        return "cancelled";
+      }
+      throw shareErr;
+    }
+  } catch (e) {
+    console.warn("[Auto-backup] cache + share fallback also failed:", e?.message || e);
     return null;
   }
 }
@@ -165,22 +216,37 @@ async function deliverBackup(filename, json) {
 
 // Run a backup right now. Returns the delivery result string.
 //
-// preferNative: when true (the auto-backup path), try the silent
-// Filesystem write before falling back to Web Share. Manual "Back up
-// now" leaves this false so the user gets the standard share sheet —
-// they explicitly asked for it.
-export async function runAutoBackupNow({ silent = false, preferNative = false } = {}) {
+// On native we always try the Filesystem path first — the "Back up now"
+// button in a Capacitor WebView has no working anchor-download or
+// reliable navigator.share, so calling the web path would just silently
+// fail. Web/TWA continues to use Web Share / anchor download.
+export async function runAutoBackupNow({ silent = false } = {}) {
   const payload = await buildFullBackupPayload();
   const json = JSON.stringify(payload);
   const date = new Date().toISOString().slice(0, 10);
   const filename = `oceans-symphony-backup-${date}.json`;
 
   let result = null;
-  if (preferNative && isNative()) {
-    result = await deliverBackupNative(filename, json);
+  let nativeError = null;
+  if (isNative()) {
+    try { result = await deliverBackupNative(filename, json); }
+    catch (e) { nativeError = e; }
   }
   if (!result) {
-    result = await deliverBackup(filename, json);
+    try { result = await deliverBackup(filename, json); }
+    catch (e) {
+      // Both paths failed. Tell the user explicitly so they can take
+      // their data elsewhere — silent failure on a backup feature is
+      // the worst possible outcome.
+      console.error("[Auto-backup] all delivery paths failed:", nativeError || e);
+      if (!silent) {
+        try {
+          const { toast } = await import("sonner");
+          toast.error("Backup failed to save. Check storage permissions or use the manual Export button.");
+        } catch { /* sonner unavailable */ }
+      }
+      throw nativeError || e;
+    }
   }
 
   if (result !== "cancelled") setAutoBackupLastAt(new Date().toISOString());
@@ -190,6 +256,7 @@ export async function runAutoBackupNow({ silent = false, preferNative = false } 
       if (result === "filesystem") toast.success("Backup saved to Documents");
       else if (result === "shared") toast.success("Backup saved");
       else if (result === "downloaded") toast.success("Backup downloaded");
+      else if (result === "cancelled") toast("Backup canceled");
     } catch { /* sonner not available, ignore */ }
   }
   return result;
@@ -219,8 +286,9 @@ export async function runAutoBackupIfDue() {
   if (!isAutoBackupDue()) return false;
   try {
     // Native: write straight to Documents (silent, no chooser). Web:
-    // existing Web Share / anchor download path.
-    await runAutoBackupNow({ silent: true, preferNative: true });
+    // existing Web Share / anchor download path. Both routes are
+    // baked into runAutoBackupNow now — no preferNative flag.
+    await runAutoBackupNow({ silent: true });
     return true;
   } catch (e) {
     console.warn("[Auto-backup] failed:", e);

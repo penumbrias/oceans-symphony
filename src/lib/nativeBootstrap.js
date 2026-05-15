@@ -105,7 +105,7 @@ export async function initNativeShell() {
       if (extra.kind === BACKUP_NOTIFICATION_EXTRA_KIND) {
         try {
           if (getAutoBackupMode() === BACKUP_MODES.OFF) return; // user turned it off after the OS scheduled
-          await runAutoBackupNow({ silent: false, preferNative: true });
+          await runAutoBackupNow({ silent: false });
         } catch { /* non-fatal */ }
         // Re-arm for the next interval — `every: 'day'` covers the
         // daily case at the OS level, but for weekly/biweekly/monthly

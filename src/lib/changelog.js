@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Native Android build: 'Back up now' (and the auto-backup-on-open path) were silently failing because the previous build only opted into the native Filesystem write for the auto path, not the manual button — the manual button fell through to navigator.share / anchor download, neither of which work inside a Capacitor WebView. On native we now always try the Filesystem write first; if scoped-storage permission to write into the public Documents folder is denied, we fall back to writing to the app cache + handing the file to the system share sheet via @capacitor/share so you can still file it. Both successes and failures now toast explicitly — no more silent no-shows.",
+      },
+      {
         type: "feature",
         text: "Scheduled backups got a proper mode picker in Settings → Data & Privacy → Auto-backup. Three choices: Off (no scheduled backups), Back up automatically (runs when you open the app and a backup is due — on native Android, writes straight to your device's Documents folder with no chooser; on web/TWA, the share sheet pops up like before), and Notify me to back up (NATIVE ANDROID ONLY — the OS sends you a tray notification at your chosen interval, tap it to run the backup). The reminder mode also schedules itself with the OS so it fires on the right day even if you haven't opened the app, and survives reboots. Web/PWA shows a 'Native only' explainer for the reminder mode so it's clear why it's unavailable.",
       },
