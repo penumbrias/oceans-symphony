@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delete your data — Oceans Symphony</title>
+  <meta name="description" content="How to delete your Oceans Symphony account and on-device data." />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      background: #0A0E17;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+    header img { width: 48px; height: 48px; border-radius: 12px; }
+    header .titles h1 { font-size: 1.05rem; font-weight: 600; line-height: 1.2; }
+    header .titles p { font-size: 0.8rem; color: #94a3b8; margin-top: 0.15rem; }
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 0.75rem;
+      color: #f1f5f9;
+    }
+    h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 1.75rem 0 0.5rem;
+      color: #f1f5f9;
+    }
+    p, li { font-size: 0.95rem; color: #cbd5e1; }
+    p { margin-bottom: 0.85rem; }
+    ol, ul { padding-left: 1.4rem; margin-bottom: 0.85rem; }
+    li { margin-bottom: 0.35rem; }
+    a { color: #38BDF8; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      background: #1e293b;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: #f1f5f9;
+    }
+    .card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 1.25rem 1.25rem;
+      margin: 1rem 0;
+    }
+    .card p:last-child { margin-bottom: 0; }
+    .lead {
+      font-size: 1.05rem;
+      color: #cbd5e1;
+      margin-bottom: 1.5rem;
+    }
+    .muted { color: #94a3b8; font-size: 0.85rem; }
+    .divider { height: 1px; background: #1f2937; margin: 2rem 0; border: 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <img src="/icon-192.png" alt="Oceans Symphony" />
+      <div class="titles">
+        <h1>Oceans Symphony</h1>
+        <p>Account &amp; data deletion</p>
+      </div>
+    </header>
+
+    <h2>Delete your account and data</h2>
+
+    <p class="lead">
+      Oceans Symphony stores most of your data — journals, check-ins, fronting log,
+      locations, reminders, custom statuses, and everything else you log — only on
+      your device. A small profile is stored on our server only if you opt in to the
+      Friends feature. You can delete either or both at any time. Nothing is retained.
+    </p>
+
+    <h3>Step 1 — Delete everything (in-app)</h3>
+    <ol>
+      <li>Open Oceans Symphony.</li>
+      <li>Go to <strong>Settings &rarr; Data Storage</strong>.</li>
+      <li>Tap <strong>"Delete All Local Data"</strong>.</li>
+      <li>Type <code>delete my data</code> to confirm.</li>
+    </ol>
+    <p>
+      This wipes the entire on-device database <em>and</em> tells our server to delete
+      your Friends profile (if you ever set one up). The server entry is removed
+      immediately; nothing is retained after the request completes.
+    </p>
+
+    <h3>Step 2 — Delete only your Friends profile</h3>
+    <p>
+      If you'd like to keep your on-device journal but remove the small profile we
+      store on our server (display name, system name, current fronter status, push
+      subscription):
+    </p>
+    <ol>
+      <li>Open Oceans Symphony.</li>
+      <li>Go to the <strong>Friends</strong> page.</li>
+      <li>Tap the settings (gear) icon &rarr; <strong>"Delete Profile"</strong>.</li>
+    </ol>
+    <p>
+      Your local data stays intact; your friend code stops working immediately and
+      any friends you had will no longer see your status.
+    </p>
+
+    <h3>Step 3 — If you can't open the app</h3>
+    <p>
+      Email <a href="mailto:pesturedrawing@gmail.com?subject=Account%20deletion%20request%20%E2%80%94%20Oceans%20Symphony">pesturedrawing@gmail.com</a>
+      with your friend code (the 8-character code shown on the Friends page when you
+      had the app installed). We'll remove the server-side Friends profile manually.
+    </p>
+    <p class="muted">
+      Note: on-device data lives only inside the app's storage on your phone. Once
+      the app is uninstalled, that data is gone with it — we have no copy and can't
+      retrieve or delete it from our side. Re-installing gives you a clean start.
+    </p>
+
+    <hr class="divider" />
+
+    <h2>What gets deleted vs. kept</h2>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Deleted immediately</h3>
+      <ul>
+        <li>All on-device data: journals, check-ins, fronting sessions, locations, reminders, alters, custom statuses, settings, integration tokens (PluralKit, SimplyPlural), encrypted vault if enabled.</li>
+        <li>Friends profile on our server: display name, system name, custom terms, fronter status, friend code, privacy settings, per-friend visibility overrides.</li>
+        <li>Push notification subscription tied to your Friends profile.</li>
+        <li>Pending friend requests sent to or from your account.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Kept (because we never have it)</h3>
+      <ul>
+        <li>Email address — we don't collect one.</li>
+        <li>Real name, phone number, address — we don't collect these.</li>
+        <li>Payment info — the app is free; there is no billing system.</li>
+        <li>Analytics, crash logs, or device identifiers — none are collected.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Retention period after deletion</h3>
+      <p>
+        <strong>None.</strong> Deletion is immediate. We do not retain backups or
+        archives of deleted profiles. Server logs (Vercel access logs) may retain
+        the IP address of the deletion request for up to 30 days as part of standard
+        infrastructure logging — they are not associated with your account after
+        deletion and are not used for any purpose other than abuse prevention.
+      </p>
+    </div>
+
+    <hr class="divider" />
+
+    <p class="muted">
+      Oceans Symphony &middot; Published by penumbrias &middot;
+      Contact: <a href="mailto:pesturedrawing@gmail.com">pesturedrawing@gmail.com</a>
+    </p>
+  </div>
+</body>
+</html>
