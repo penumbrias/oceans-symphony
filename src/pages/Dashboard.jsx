@@ -380,6 +380,17 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
       toast.success(`${field_label || "Diary"} logged`);
     } else if (action.type === "log_location") {
+      // OS-launcher shortcut path: executeQuickAction(qa) was called
+      // with no extraData. The in-app LocationRow normally collects
+      // category/name/coords first, but the OS shortcut bypasses it,
+      // which previously produced a record literally named "Location"
+      // with no GPS data. Pop the in-app quick actions sheet so the
+      // user gets the pills + Get-GPS button before we save.
+      if (!extraData || (extraData.category === undefined && extraData.name === undefined && extraData.coords === undefined)) {
+        showQuickActionsRef.current = true;
+        setShowQuickActions(true);
+        return;
+      }
       const { category, name, coords } = extraData;
       const catMeta = LOCATION_CATEGORIES.find(c => c.id === category);
       await localEntities.Location.create({
@@ -396,42 +407,93 @@ export default function Dashboard() {
       window.dispatchEvent(new CustomEvent("open-grocery-list"));
     } else if (action.type === "add_grocery_item") {
       window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { focusInput: true } }));
+    } else if (action.type === "toggle_daily_task") {
+      // Mirrors handleToggle in DailyTaskRow (components/dashboard/QuickActionsMenu.jsx)
+      // — the in-app quick-actions menu renders DailyTaskRow with its
+      // own toggle button, but the OS-launcher shortcut path goes
+      // through executeQuickAction directly and needs to do the same
+      // work here. Without this case the shortcut tap appeared to do
+      // nothing.
+      const taskId = action.config?.task_id;
+      if (!taskId) return;
+      const today = format(new Date(), "yyyy-MM-dd");
+      const templates = await base44.entities.DailyTaskTemplate.list("sort_order", 200);
+      const tpl = templates.find(t => t.id === taskId);
+      if (!tpl || tpl.mode !== "MANUAL") {
+        toast.error("That daily task can't be toggled from a shortcut");
+        return;
+      }
+      const allProgress = await base44.entities.DailyProgress.list("-date", 100);
+      const currentRecord = allProgress.find(p =>
+        (p.frequency === "daily" || !p.frequency) &&
+        (p.period_key === today || p.date === today)
+      );
+      const completedIds = new Set(currentRecord?.completed_task_ids || []);
+      const nowCompleted = !completedIds.has(taskId);
+      if (nowCompleted) completedIds.add(taskId);
+      else completedIds.delete(taskId);
+      const currentXP = currentRecord?.xp_earned || 0;
+      const newXP = nowCompleted
+        ? currentXP + (tpl.points || 0)
+        : Math.max(0, currentXP - (tpl.points || 0));
+      if (currentRecord) {
+        await base44.entities.DailyProgress.update(currentRecord.id, {
+          completed_task_ids: [...completedIds],
+          xp_earned: newXP,
+        });
+      } else {
+        await base44.entities.DailyProgress.create({
+          date: today,
+          period_key: today,
+          frequency: "daily",
+          completed_task_ids: [...completedIds],
+          xp_earned: newXP,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
+      toast.success(
+        nowCompleted
+          ? (tpl.points > 0 ? `+${tpl.points} XP — ${tpl.title} done! 🎉` : `${tpl.title} done!`)
+          : `${tpl.title} unchecked`
+      );
     }
   };
 
   // Deep-link from the native OS launcher shortcut. nativeQuickActions
   // pushes each QuickAction as an Android home-screen shortcut whose
   // intent URL is /?quickAction=<id>. When the user taps one of those
-  // shortcuts, the Dashboard mounts (or the warm-start route handler
-  // navigates here) and we look up the matching QuickAction record
-  // and execute it via the same code path the in-app long-press menu
-  // uses. Guarded by a ref so a navigation that revisits the page
-  // with the same query doesn't re-execute the action.
-  const consumedQuickActionParamRef = useRef(false);
+  // shortcuts, the Dashboard mounts (cold launch) or react-router
+  // navigates here with the new query (warm launch via appUrlOpen).
+  //
+  // We watch location.search rather than using a one-shot ref so a
+  // second shortcut tap in the same session re-triggers — the old
+  // ref-based guard meant only the FIRST shortcut after launch did
+  // anything (the user reported this: "stoned symptom triggers but
+  // daily tasks and other things will not"). The URL itself is the
+  // lock now: we clear `?quickAction=…` from history before running
+  // the action so a refresh / re-render won't repeat it.
   useEffect(() => {
-    if (consumedQuickActionParamRef.current) return;
     if (!quickActionsRaw || quickActionsRaw.length === 0) return; // wait for data
     let qaId;
     try {
-      qaId = new URLSearchParams(window.location.search).get("quickAction");
+      qaId = new URLSearchParams(location.search).get("quickAction");
     } catch { return; }
     if (!qaId) return;
     const qa = quickActionsRaw.find(a => a.id === qaId);
-    if (!qa) {
-      consumedQuickActionParamRef.current = true;
-      return;
-    }
-    consumedQuickActionParamRef.current = true;
-    // Clean the URL first so a refresh doesn't re-trigger.
+    // Clean the URL whether or not we found a matching record — a
+    // stale id shouldn't keep retrying. Use navigate(replace:true) so
+    // react-router's location.search updates too (window.history
+    // alone wouldn't, which would make tapping the same shortcut
+    // twice in a row look like a no-op the second time).
     try {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(location.search);
       params.delete("quickAction");
       const qs = params.toString();
-      const newUrl = window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash;
-      window.history.replaceState(null, "", newUrl);
+      navigate(location.pathname + (qs ? `?${qs}` : "") + location.hash, { replace: true });
     } catch { /* non-fatal */ }
+    if (!qa) return;
     executeQuickAction(qa);
-  }, [quickActionsRaw]);
+  }, [quickActionsRaw, location.search]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0">

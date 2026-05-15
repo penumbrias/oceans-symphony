@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { getTodayString, applyTerms } from "@/lib/dailyTaskSystem";
+import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 
 const SECTION_LABELS = {
   feeling: "Feeling / Emotions",
@@ -199,23 +200,16 @@ function LocationRow({ action, onAction }) {
     queryFn: () => localEntities.Location.list(),
   });
 
-  const handleGPS = () => {
-    if (!navigator.geolocation) return;
+  const handleGPS = async () => {
     setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setCoords({ lat, lng });
-        setGpsLoading(false);
-        if (!name.trim()) {
-          const nearby = findNearbyLocationName(lat, lng, pastLocations);
-          if (nearby) setName(nearby);
-        }
-      },
-      () => setGpsLoading(false),
-      { timeout: 8000 }
-    );
+    const pos = await getCurrentPositionWithPrompt({ timeout: 8000 });
+    setGpsLoading(false);
+    if (!pos) return;
+    setCoords({ lat: pos.lat, lng: pos.lng });
+    if (!name.trim()) {
+      const nearby = findNearbyLocationName(pos.lat, pos.lng, pastLocations);
+      if (nearby) setName(nearby);
+    }
   };
 
   const catMeta = LOCATION_CATEGORIES.find(c => c.id === category);

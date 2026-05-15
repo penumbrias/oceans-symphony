@@ -63,7 +63,6 @@ export default function AnnouncementBanner() {
     <div
       className="bg-primary/10 border-b border-primary/30 px-4 py-2 flex items-center gap-2 text-sm"
       style={{
-        paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))',
         paddingLeft: 'calc(1rem + env(safe-area-inset-left, 0px))',
         paddingRight: 'calc(1rem + env(safe-area-inset-right, 0px))',
       }}

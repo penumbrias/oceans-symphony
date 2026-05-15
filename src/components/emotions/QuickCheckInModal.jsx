@@ -19,6 +19,7 @@ import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet } from "@/lib/emotionDistress";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 
 const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
@@ -199,25 +200,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setGpsLoading(false);
   };
 
-  const handleGPS = () => {
-    if (!navigator.geolocation) { toast.error("GPS not available on this device"); return; }
+  const handleGPS = async () => {
     setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setLocationLat(lat);
-        setLocationLng(lng);
-        setGpsLoading(false);
-        if (!locationName.trim()) {
-          const nearby = findNearbyLocationName(lat, lng, pastLocations);
-          if (nearby) setLocationName(nearby);
-        }
-        toast.success("Location captured");
-      },
-      (err) => { toast.error("Could not get location: " + err.message); setGpsLoading(false); },
-      { timeout: 10000, maximumAge: 60000 }
-    );
+    const pos = await getCurrentPositionWithPrompt();
+    setGpsLoading(false);
+    if (!pos) return;
+    setLocationLat(pos.lat);
+    setLocationLng(pos.lng);
+    if (!locationName.trim()) {
+      const nearby = findNearbyLocationName(pos.lat, pos.lng, pastLocations);
+      if (nearby) setLocationName(nearby);
+    }
+    toast.success("Location captured");
   };
 
   // Derived: all selected alter IDs

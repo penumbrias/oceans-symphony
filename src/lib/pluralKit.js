@@ -164,7 +164,9 @@ export function mapAlterToPkMember(alter) {
   if (color) body.color = color;
   if (alter.avatar_url) body.avatar_url = alter.avatar_url;
   if (alter.banner_url) body.banner = alter.banner_url;
-  if (alter.birthday) body.birthday = alter.birthday;
+  // PK only accepts ISO dates (YYYY-MM-DD). Skip free-form values like
+  // "Age 7" or "around middle school" so the upload doesn't 400.
+  if (alter.birthday && /^\d{4}-\d{2}-\d{2}$/.test(alter.birthday)) body.birthday = alter.birthday;
   return body;
 }
 

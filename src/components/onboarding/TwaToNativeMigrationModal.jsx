@@ -53,8 +53,17 @@ export default function TwaToNativeMigrationModal({ open, onClose, onImport }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
+    <div
+      className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-sm overflow-y-auto"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
+      }}
+    >
+      <div className="min-h-full flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center flex-shrink-0">
             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -101,6 +110,7 @@ export default function TwaToNativeMigrationModal({ open, onClose, onImport }) {
             </Button>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

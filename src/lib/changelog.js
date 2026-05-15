@@ -20,6 +20,54 @@ export const CHANGELOG = [
         text: "Added a public account-deletion page at oceans-symphony.app/delete-account that explains how to wipe your on-device data and your Friends server profile, what gets deleted vs. kept, and how to reach us if you can't open the app. This is the URL referenced from the Play Store listing under Data Safety, but it works for anyone — bookmark it if it's useful.",
       },
       {
+        type: "improve",
+        text: "Custom terminology now supports word-form overrides. The auto-conjugator assumes the base term you set for 'Front' is a regular verb root — which works for 'front', 'shift', 'influenc', etc., but produced nonsense for adjective-ish terms like 'active' (yielding 'activing' / 'activer' instead of 'activating' / 'active fronter'). Settings → Terminology now has an 'Advanced word forms' expander where you can type the correct Fronting / Fronter / Switching forms explicitly. Leave them blank and the auto-conjugation runs as before.",
+      },
+      {
+        type: "improve",
+        text: "Alter birthday field is now free-form text instead of forcing a YYYY-MM-DD date picker — you can enter 'Age 7', 'around middle school', 'March 2018', or an exact date, depending on what fits each alter. The 🎂 line on the alter profile renders whatever you type. PluralKit sync still only sends the value when it's a valid ISO date so the API doesn't reject the upload.",
+      },
+      {
+        type: "improve",
+        text: "Birthday and Origin Year are now linked since they're the same 'when did this alter first appear' idea — both fields show up in the alter edit modal AND the inline profile editor. If only one is filled, the other auto-fills from it on load (and as you type). Once both have values, edits stay independent. A small 'Sync from birthday (YYYY)' button surfaces next to Origin Year whenever the years drift apart, so you can re-link them in one click.",
+      },
+      {
+        type: "fix",
+        text: "Home-screen quick actions (long-press the app icon on Android) weren't reliably triggering on the native build. Two bugs: (1) the 'Toggle a daily task' action type had no executor in the Dashboard's quick-action handler, so tapping that shortcut appeared to do nothing — added the missing handler so it now flips today's task completion (and awards/refunds XP) just like the in-app menu. (2) The Dashboard's quick-action effect used a one-shot ref guard, so after the FIRST shortcut tap of a session subsequent taps were ignored even when the URL changed via appUrlOpen — switched to watching the URL itself (cleared via router navigate so even tapping the same shortcut twice in a row works).",
+      },
+      {
+        type: "improve",
+        text: "Clarified the Birthday + Origin Year fields on the alter editor — they were reading as duplicate boxes because nothing told you what each one drives. They're now grouped under a 'When they first appeared' heading with inline hints: Birthday is free-form and shows on the profile's 🎂 line, Origin Year is the integer that feeds the Alter History timeline. The auto-link + sync button behavior is unchanged.",
+      },
+      {
+        type: "improve",
+        text: "Location features (Log Location quick action, the GPS button on Check-In, and the Get-GPS button on the Location History add modal) now request location permission properly on the native Android build. Previously the location permission was stripped from the manifest entirely (we'd removed everything the background-runner library injected because nothing was using them yet), so the Android permission dialog could never appear — feature would just silently fail. Now: foreground location permission is declared, @capacitor/geolocation prompts when needed, and a denial shows a clear toast pointing the user at Settings → Apps → Oceans Symphony → Permissions.",
+      },
+      {
+        type: "fix",
+        text: "Home-screen 'Log location' quick action used to silently create a record literally named 'Location' with no GPS data — because the OS-launcher path skipped the in-app row that collects category + coords. Tapping the shortcut now pops the in-app quick actions sheet so you can capture GPS and pick a category pill before saving, matching the long-press menu flow.",
+      },
+      {
+        type: "improve",
+        text: "Location entries in the Check-In Log now show the raw GPS coordinates beneath the pill with a tap-to-open-in-Maps link, matching the Location History page and timeline view. Previously the pill only showed the place name — useful for at-a-glance reading, but you couldn't see where exactly the GPS captured.",
+      },
+      {
+        type: "fix",
+        text: "TWA-to-native migration modal (the 'Welcome to the native Oceans Symphony' screen shown on the very first launch after the Play auto-update) was unscrollable on shorter screens — the explanation paragraphs pushed the Import/Start-fresh buttons off the bottom of the viewport with no way to scroll or dismiss, trapping users on the screen. The modal backdrop is now scrollable, with safe-area padding so the buttons stay clear of the gesture pill.",
+      },
+      {
+        type: "fix",
+        text: "Edge-to-edge follow-up: the Preview Mode banner and the Upcoming Plans 'You have X planned…' banner are now full-bleed — their amber/primary background stretches to the screen edges to match the header, instead of being inset 16px by the main content padding. The banners moved out of the scrolling content area to sit directly under the header bar (where the user expects them); the Base44 migration card stays inside the page padding because it's a rounded card that needs breathing room.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: app now renders edge-to-edge — the header background extends up under the system status bar and the bottom nav extends down to the screen edge, instead of the WebView being a boxed area below/above the system UI. Content (icons, text, tap targets) still respects the safe-area insets via env(safe-area-inset-*) paddings, so nothing ends up tucked under the clock or the gesture pill. Modern Android look.",
+      },
+      {
+        type: "fix",
+        text: "Banners (preview mode, upcoming-plans 'You have X planned in Y minutes', base44 migration) used to render in document flow ABOVE the sticky page header. Once the body became unscrollable in 0.16.7, those banners stopped scrolling out of the way and permanently pushed the header down — stacking awkwardly with the in-app notification popup at the very top of the screen. Banners now render INSIDE the main scroll area so they scroll with page content; the 'Oceans Symphony' header sits cleanly at the top in every state.",
+      },
+      {
         type: "fix",
         text: "PluralKit avatar imports now actually display. The PK API returns whatever avatar URL is set on each member — for migrated members that's pluralkit.me's CDN (works fine), but for older un-migrated members it's a Discord CDN URL, which expires under Discord's signed-URL policy and won't load from a browser. We now download each avatar at import time, save it to local image storage, and store a `local-image://` URL on the alter so it survives URL expiration AND works offline. Discord URLs are detected and skipped (the user is told to re-upload in PluralKit so it migrates to PK's CDN, then re-run import). Cached avatars are reported in the success toast.",
       },

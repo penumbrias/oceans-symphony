@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -15,6 +15,16 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
+import { useTerms } from "@/lib/useTerms";
+
+// Pull a 4-digit year out of a free-form birthday string so we can keep
+// the integer origin_year (used by Alter History / lineage) linked
+// to whatever the user typed in Birthday.
+function extractYear(str) {
+  if (!str) return "";
+  const m = String(str).match(/\b(1[89]\d{2}|20\d{2}|21\d{2})\b/);
+  return m ? m[1] : "";
+}
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -127,13 +137,14 @@ function contrastRatio(a, b) {
 
 export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [], saveRef }) {
   const queryClient = useQueryClient();
+  const t = useTerms();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
   const [showPageTextPicker, setShowPageTextPicker] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [form, setForm] = useState({
-    name: "", alias: "", pronouns: "", role: "", birthday: "",
+    name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
     description: "", color: "", avatar_url: "",
     custom_fields: {},
   });
@@ -146,12 +157,19 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const headerFileInputRef = useRef(null);
 
   useEffect(() => {
+    let birthday = alter.birthday || "";
+    let origin_year = alter.origin_year ? String(alter.origin_year) : "";
+    // Mirror a blank field from the filled one — birthday and
+    // origin_year are conceptually the same "first appeared" idea.
+    if (!birthday && origin_year) birthday = origin_year;
+    if (!origin_year && birthday) origin_year = extractYear(birthday);
     setForm({
       name: alter.name || "",
       alias: alter.alias || "",
       pronouns: alter.pronouns || "",
       role: alter.role || "",
-      birthday: alter.birthday || "",
+      birthday,
+      origin_year,
       description: alter.description || "",
       color: alter.color || "",
       avatar_url: alter.avatar_url || "",
@@ -183,7 +201,11 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   if (!form.name.trim()) { toast.error("Name is required"); return; }
   setSaving(true);
   try {
-    await base44.entities.Alter.update(alter.id, form);
+    const payload = {
+      ...form,
+      origin_year: form.origin_year ? parseInt(form.origin_year, 10) : null,
+    };
+    await base44.entities.Alter.update(alter.id, payload);
     toast.success("Saved!");
     queryClient.invalidateQueries({ queryKey: ["alters"] });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
@@ -567,16 +589,73 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         </div>
       </div>
 
-      {/* Birthday */}
-      <div className="space-y-1">
-        <label className="text-xs text-muted-foreground font-medium">Birthday</label>
-        <Input
-          type="date"
-          value={form.birthday || ""}
-          onChange={(e) => set("birthday", e.target.value)}
-          className="text-sm"
-        />
-      </div>
+      {/* Birthday + Origin Year — same "first appeared" idea, two
+          shapes. Birthday is free-form (exact date, age, era).
+          Origin Year is the integer feeding Alter History / lineage.
+          Editing one when the other is blank auto-fills it; once both
+          are set, edits stay independent and a "sync" link surfaces
+          when the years drift apart. */}
+      {(() => {
+        const setBirthday = (val) => setForm(f => {
+          const update = { ...f, birthday: val };
+          if (!f.origin_year && val) {
+            const y = extractYear(val);
+            if (y) update.origin_year = y;
+          }
+          return update;
+        });
+        const setOriginYear = (val) => setForm(f => {
+          const update = { ...f, origin_year: val };
+          if (!f.birthday && val) update.birthday = val;
+          return update;
+        });
+        const birthdayYear = extractYear(form.birthday);
+        const canSync = form.birthday && form.origin_year && birthdayYear && birthdayYear !== form.origin_year;
+        return (
+          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
+            <p className="text-xs font-medium text-foreground">When they first appeared</p>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground font-medium">
+                Birthday <span className="font-normal">— shown on the profile (🎂 line)</span>
+              </label>
+              <Input
+                type="text"
+                value={form.birthday || ""}
+                onChange={(e) => setBirthday(e.target.value)}
+                placeholder="e.g. 2018-03-15, Age 7, around middle school"
+                className="text-sm"
+              />
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Free-form — write whatever fits (exact date, age, era).</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-muted-foreground font-medium">
+                  Origin year <span className="font-normal">— used in {t.Alter} History timeline</span>
+                </label>
+                {canSync && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, origin_year: birthdayYear }))}
+                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                  >
+                    <Link2 className="w-3 h-3" /> Sync from birthday ({birthdayYear})
+                  </button>
+                )}
+              </div>
+              <Input
+                type="number"
+                min={1900}
+                max={new Date().getFullYear()}
+                value={form.origin_year || ""}
+                onChange={(e) => setOriginYear(e.target.value)}
+                placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
+                className="text-sm"
+              />
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Just the year — feeds the lineage/timeline view. Auto-filled from Birthday when blank.</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Profile Background — compact */}
       <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">

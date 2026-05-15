@@ -286,12 +286,6 @@ const handleNotifClick = (mentionLog) => {
     // and drags the "sticky" header up with it in some Capacitor
     // WebView versions.
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* ── Preview Mode Banner ── */}
-      <PreviewModeBanner />
-
-      {/* ── Announcement Banner ── */}
-      <AnnouncementBanner />
-
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the
@@ -441,6 +435,13 @@ const handleNotifClick = (mentionLog) => {
           </div>
         </div>
       </header>
+
+      {/* Full-bleed banners — siblings of the header so their
+          background/border stretch to the screen edges. Cards that need
+          breathing room (like Base44MigrationBanner) stay inside
+          <main> where the px-4 gutter wraps them. */}
+      <PreviewModeBanner />
+      <AnnouncementBanner />
 
       {/* ── Desktop: sidebar + content / Mobile: content only ── */}
       <div className="flex flex-1 overflow-hidden">
