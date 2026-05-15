@@ -399,6 +399,40 @@ export default function Dashboard() {
     }
   };
 
+  // Deep-link from the native OS launcher shortcut. nativeQuickActions
+  // pushes each QuickAction as an Android home-screen shortcut whose
+  // intent URL is /?quickAction=<id>. When the user taps one of those
+  // shortcuts, the Dashboard mounts (or the warm-start route handler
+  // navigates here) and we look up the matching QuickAction record
+  // and execute it via the same code path the in-app long-press menu
+  // uses. Guarded by a ref so a navigation that revisits the page
+  // with the same query doesn't re-execute the action.
+  const consumedQuickActionParamRef = useRef(false);
+  useEffect(() => {
+    if (consumedQuickActionParamRef.current) return;
+    if (!quickActionsRaw || quickActionsRaw.length === 0) return; // wait for data
+    let qaId;
+    try {
+      qaId = new URLSearchParams(window.location.search).get("quickAction");
+    } catch { return; }
+    if (!qaId) return;
+    const qa = quickActionsRaw.find(a => a.id === qaId);
+    if (!qa) {
+      consumedQuickActionParamRef.current = true;
+      return;
+    }
+    consumedQuickActionParamRef.current = true;
+    // Clean the URL first so a refresh doesn't re-trigger.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      params.delete("quickAction");
+      const qs = params.toString();
+      const newUrl = window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash;
+      window.history.replaceState(null, "", newUrl);
+    } catch { /* non-fatal */ }
+    executeQuickAction(qa);
+  }, [quickActionsRaw]);
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0">
       

@@ -54,6 +54,7 @@ import {
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
+import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useNavigate } from 'react-router-dom';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
@@ -69,6 +70,9 @@ const AuthenticatedApp = () => {
   // Re-syncs the native pre-scheduled reminder queue whenever reminders
   // or settings change. No-op on web/TWA.
   useNativeReminderSync();
+  // Mirrors the user's QuickAction list onto the OS launcher's
+  // long-press shortcut menu via ShortcutManager. No-op on web/TWA.
+  useNativeQuickActionsSync();
   // When the user taps a native OS notification we route to the
   // reminders inbox; the actual ReminderInstance was already recorded
   // by the bootstrap listener.

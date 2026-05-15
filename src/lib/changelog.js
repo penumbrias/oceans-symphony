@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Native Android build: long-pressing the app icon on your home screen now shows YOUR configured Quick Actions (the same ones you get from long-pressing the in-app Quick Check-In button), not a single generic 'Quick Actions' entry. Tapping a shortcut opens the app and runs that exact action — log a feeling, set a fronter, start a grounding exercise, whatever you've set up. Reorder or rename them in Settings → Quick Actions and the home-screen list updates automatically. Android caps the menu at 4 shortcuts per app, so the first four (by your saved order) get surfaced.",
+      },
+      {
         type: "improve",
         text: "Native Android build: the 'Storage persistence' row in Settings → Auto-backup never did anything on the native app (the Web Storage API the button calls always returns false in a Capacitor WebView — the concept only applies to browsers). Replaced it on native with a 'Backup destination' picker: 'Documents folder' (silent — backups land directly in your Documents folder with no share-sheet popup, the new default) or 'Ask each time' (share sheet, the previous behaviour). On web/TWA the persistence row stays as-is because there it's actually meaningful.",
       },
