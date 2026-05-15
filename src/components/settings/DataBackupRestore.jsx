@@ -13,6 +13,7 @@ import {
   FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
 import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
+import { shareFile } from "@/lib/shareFile";
 import pako from "pako";
 
 // Single source of truth for the localStorage keys that belong in a
@@ -97,29 +98,18 @@ async function downloadJson(data, filename, format = "json") {
   const mime = isCompact ? "application/octet-stream" : "application/json";
   const blob = new Blob([text], { type: mime });
 
-  // Try Web Share API (works on Android APK)
-  if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: mime });
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
-        return;
-      } catch (e) {
-        if (e.name === "AbortError") return; // user cancelled
-        // other share errors fall through to anchor download
-      }
-    }
-  }
-
-  // Desktop fallback: anchor click
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Single delivery pipeline shared with the Auto-backup "Back up now"
+  // button and the therapy-report "Save PDF" — see src/lib/shareFile.js.
+  // Native (Capacitor) routes through Filesystem.Cache + @capacitor/share;
+  // web/TWA keeps the existing navigator.share → anchor-download chain.
+  // Returning the result so the caller can distinguish "failed" from
+  // "shared" / "downloaded" / "cancelled".
+  return shareFile({
+    blob,
+    filename,
+    title: "Oceans Symphony Backup",
+    dialogTitle: "Save backup file",
+  });
 }
 
 export default function DataBackupRestore() {
@@ -228,8 +218,14 @@ export default function DataBackupRestore() {
       const exportData = await buildExportData();
       const date = new Date().toISOString().slice(0, 10);
       const ext = exportFormat === "compact" ? "txt" : "json";
-      await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat);
-      showStatus("success", "Backup exported!");
+      const res = await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat);
+      if (res?.result === "failed") {
+        showStatus("error", `Export failed${res.error ? `: ${res.error}` : ""}`);
+      } else if (res?.result === "cancelled") {
+        // User dismissed the share sheet — no toast, no surprise.
+      } else {
+        showStatus("success", res?.result === "shared" ? "Backup ready — pick a destination" : "Backup exported!");
+      }
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
     } finally {

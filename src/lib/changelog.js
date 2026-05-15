@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Native Android build: 'Download Backup' (the primary export in Settings → Data & Privacy → Backup & Export) and the Recovery screen's 'Save standard backup' / 'Save raw on-device file' / pre-reset auto-save buttons were ALL still using the old anchor-download path that no-ops in a Capacitor WebView. Routed every remaining file-save call site through the shared shareFile helper. The Backup & Export screen and the Recovery screen now pop the system share sheet on native exactly like 'Back up now' and 'Save PDF' do.",
+      },
+      {
+        type: "fix",
         text: "Native Android build: 'Back up now' and the therapy-report 'Save PDF' button were both silently doing nothing. Same root cause — navigator.share inside the Capacitor WebView reports canShare({files}) as false and the anchor-download fallback is a no-op there, so the buttons appeared to do nothing with no error. Both now route through a shared file-share helper (src/lib/shareFile.js) that writes to the app's cache via @capacitor/filesystem and hands the file to @capacitor/share — the system share sheet pops up so you can save it to Files, Drive, email, etc. Failures now toast loudly instead of silently. Web/TWA users continue to use the existing Web Share / anchor download path unchanged.",
       },
       {
