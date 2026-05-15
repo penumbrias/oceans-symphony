@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
 import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
+import {
+  parseImportText,
+  decryptRawEncrypted,
+  FORMAT_STANDARD,
+  FORMAT_RAW_PLAIN,
+  FORMAT_RAW_ENCRYPTED,
+} from "@/lib/backupFormat";
 import pako from "pako";
 
 const LS_SETTINGS_KEYS = [
@@ -50,15 +57,6 @@ function compressBackup(data) {
   let binary = "";
   compressed.forEach(b => binary += String.fromCharCode(b));
   return "SYMPHONYZ:" + btoa(binary);
-}
-
-function decompressBackup(str) {
-  if (!str.startsWith("SYMPHONYZ:")) return JSON.parse(str);
-  const binary = atob(str.slice(10));
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const json = pako.inflate(bytes, { to: "string" });
-  return JSON.parse(json);
 }
 
 // CLAUDE.md NOTE: any new local entity must be added BOTH here (for the
@@ -267,26 +265,52 @@ export default function DataBackupRestore() {
     }
   };
 
-  const processImport = async (parsed) => {
-    if (parsed.__format !== "symphony_backup" || !parsed.data) {
-      throw new Error("Unknown format. Expected Symphony backup.");
-    }
-    if (parsed.__local_images) {
-      try { await restoreLocalImages(parsed.__local_images); } catch (e) {
+  // Applies an already-parsed { data, localImages?, localSettings? } payload
+  // to the in-memory DB. Shared by the standard-backup, raw-plain, and
+  // raw-encrypted (post-decryption) paths.
+  const applyImportPayload = async ({ data, localImages, localSettings }) => {
+    if (localImages) {
+      try { await restoreLocalImages(localImages); } catch (e) {
         console.warn("Failed to restore local images:", e);
       }
     }
-    if (parsed.__local_settings) {
-      importLocalSettings(parsed.__local_settings);
+    if (localSettings) {
+      importLocalSettings(localSettings);
     }
     if (importMode === "replace") {
-      await loadDbDump(parsed.data);
+      await loadDbDump(data);
       showStatus("success", "Data replaced! The app will reload.");
     } else {
-      await mergeDbDump(parsed.data);
+      await mergeDbDump(data);
       showStatus("success", "New records added (existing data preserved)! The app will reload.");
     }
     setTimeout(() => window.location.reload(), 1200);
+  };
+
+  // Encrypted raw imports need a password to decrypt before they can be
+  // applied. We park the parsed envelope here and surface a small prompt
+  // modal; the modal's submit calls applyImportPayload once decrypted.
+  const [pendingEncryptedImport, setPendingEncryptedImport] = useState(null);
+
+  const processImport = async (text) => {
+    const parsed = parseImportText(text);
+    if (parsed.format === FORMAT_STANDARD) {
+      await applyImportPayload({
+        data: parsed.data,
+        localImages: parsed.localImages,
+        localSettings: parsed.localSettings,
+      });
+      return;
+    }
+    if (parsed.format === FORMAT_RAW_PLAIN) {
+      await applyImportPayload({ data: parsed.data });
+      return;
+    }
+    if (parsed.format === FORMAT_RAW_ENCRYPTED) {
+      // Defer to the password modal — caller flow resumes there.
+      setPendingEncryptedImport(parsed);
+      return;
+    }
   };
 
   const handleCacheUrlImages = async () => {
@@ -334,14 +358,41 @@ export default function DataBackupRestore() {
     if (!file) return;
     setImportLoading(true);
     try {
-      const text = await file.text();
-      const parsed = decompressBackup(text.trim());
-      await processImport(parsed);
+      // Two-stage decode: try the compact (gzip) wrapper first to get
+      // the inner JSON text, then hand off to parseImportText which
+      // accepts standard backup, raw plain, or raw encrypted shapes.
+      const fileText = await file.text();
+      const trimmed = fileText.trim();
+      let innerJsonText;
+      if (trimmed.startsWith("SYMPHONYZ:")) {
+        const binary = atob(trimmed.slice(10));
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        innerJsonText = pako.inflate(bytes, { to: "string" });
+      } else {
+        innerJsonText = trimmed;
+      }
+      await processImport(innerJsonText);
     } catch (e) {
       showStatus("error", `Import failed: ${e.message}`);
     } finally {
       setImportLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // Submit handler for the encrypted-raw password modal.
+  const handleDecryptAndImport = async (password) => {
+    if (!pendingEncryptedImport) return;
+    setImportLoading(true);
+    try {
+      const data = await decryptRawEncrypted(pendingEncryptedImport, password);
+      setPendingEncryptedImport(null);
+      await applyImportPayload({ data });
+    } catch (e) {
+      showStatus("error", `Decrypt failed: ${e.message}`);
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -580,6 +631,54 @@ export default function DataBackupRestore() {
           )}
         </div>
       </CardContent>
+      <EncryptedImportPasswordModal
+        open={!!pendingEncryptedImport}
+        onClose={() => setPendingEncryptedImport(null)}
+        onSubmit={handleDecryptAndImport}
+        busy={importLoading}
+      />
     </Card>
+  );
+}
+
+function EncryptedImportPasswordModal({ open, onClose, onSubmit, busy }) {
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
+        <h3 className="font-semibold text-lg">Encrypted file</h3>
+        <p className="text-sm text-muted-foreground">
+          This file is an encrypted raw on-device snapshot. Enter the password
+          you used when the file was created to decrypt and import it.
+        </p>
+        <div className="relative">
+          <input
+            type={showPass ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && password) onSubmit(password); }}
+            placeholder="Password used to encrypt the file"
+            className="w-full px-3 py-2 pr-10 rounded-md border border-input bg-background text-sm"
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={() => setShowPass(p => !p)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs"
+          >
+            {showPass ? "Hide" : "Show"}
+          </button>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button onClick={() => onSubmit(password)} disabled={busy || !password}>
+            {busy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            Decrypt &amp; Import
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

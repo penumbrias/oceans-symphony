@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Raw on-device data files saved from the Recovery screen are now importable as backups. Settings → Data & Privacy → Import (and the Recovery screen's own Restore button) accept three formats now: a standard Symphony backup file, a raw on-device file (plain), and a raw on-device file (encrypted — you'll be prompted for the password the file was encrypted with). The Recovery screen also gains a new 'Save as standard backup file' button (alongside 'Save a copy of my raw data') so you can choose to download the on-device data wrapped in the standard backup envelope when it isn't encrypted — convenient for importing on another device without going through the raw-file path.",
+      },
+      {
+        type: "improve",
+        text: "Recovery screen's Restore step now has a Replace / Add-only toggle, matching the Settings importer — useful when you're recovering onto a device that already has some data you want to keep.",
+      },
+      {
         type: "fix",
         text: "Hotfix: clarified the Data Recovery screen copy. The previous wording said the saved raw file 'can be used to recover your data later, even if it's encrypted' — which was misleading, because the file is ciphertext and still needs your password to be decrypted. The new copy explains honestly that recovering encrypted data requires BOTH the saved file AND the password, so people don't reset under the false impression that the raw copy alone is enough.",
       },
