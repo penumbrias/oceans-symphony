@@ -1,10 +1,19 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { Label } from "@/components/ui/label";
-import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown } from "lucide-react";
+import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } from "lucide-react";
 import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
-import { initLocalDb, peekStoredData } from "@/lib/localDb";
+import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
+import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
+import {
+  parseImportText,
+  decryptRawEncrypted,
+  FORMAT_STANDARD,
+  FORMAT_RAW_PLAIN,
+  FORMAT_RAW_ENCRYPTED,
+} from "@/lib/backupFormat";
 
 function FirstRunSetup({ onComplete }) {
   const [step, setStep] = useState("choose");
@@ -14,9 +23,107 @@ function FirstRunSetup({ onComplete }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [pendingEncryptedImport, setPendingEncryptedImport] = useState(null);
+  const [importPassword, setImportPassword] = useState("");
+  const [importStatus, setImportStatus] = useState(null); // {type, text}
+  const fileInputRef = useRef(null);
+
+  // TWA-to-native migration modal: native users who just got auto-
+  // updated from the old TWA build see this as the first screen on
+  // their fresh-looking install. Their data lives in Chrome's
+  // storage at oceans-symphony.app and isn't reachable from the
+  // native sandbox — modal walks them through grabbing a backup
+  // there and importing it here. "Import backup file" delegates to
+  // the same fileInputRef the "Import a backup file" button below
+  // uses, so they land in the same well-tested code path. Dismiss
+  // sets a localStorage flag so it only fires once per install.
+  const [showMigration, setShowMigration] = useState(() => shouldShowTwaToNativeMigration());
 
   const handleChooseCloud = () => { setMode("cloud"); onComplete(); };
   const handleChooseLocal = () => { setStep("local_password"); };
+
+  // Brand-new install path: let the user pull in data from a backup file
+  // BEFORE they decide whether to set up encryption fresh. Reuses the
+  // existing import logic from src/lib/backupFormat.js so all three file
+  // shapes (standard backup, raw plain, raw encrypted) work — same as
+  // the Settings → Import flow.
+  //
+  // After a successful import we treat the user as a returning user and
+  // complete setup without offering encryption (their old data may
+  // already be encrypted and re-deriving keys here would be confusing).
+  // They can flip encryption on or off later from Settings.
+  const applyDumpAndComplete = async ({ data, localImages, localSettings }) => {
+    if (localImages) {
+      try {
+        const { restoreLocalImages } = await import("@/lib/localImageStorage");
+        await restoreLocalImages(localImages);
+      } catch (e) {
+        console.warn("[Setup import] failed to restore local images:", e);
+      }
+    }
+    if (localSettings) {
+      for (const [k, v] of Object.entries(localSettings)) {
+        try { localStorage.setItem(k, v); } catch { /* localStorage full / disabled */ }
+      }
+    }
+    setMode("local");
+    setEncryptionEnabled(false);
+    await initLocalDb(null);
+    await loadDbDump(data);
+    onComplete();
+  };
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    setImportStatus(null);
+    setError("");
+    try {
+      // Refuse to import on top of existing data — same defence as
+      // handleLocalConfirm below.
+      const peek = await peekStoredData();
+      if (peek.exists) {
+        setError("Existing data was found on this device. Reload — you should be prompted to unlock or recover before importing.");
+        return;
+      }
+      const text = await file.text();
+      const parsed = parseImportText(text);
+      if (parsed.format === FORMAT_STANDARD) {
+        await applyDumpAndComplete({
+          data: parsed.data,
+          localImages: parsed.localImages,
+          localSettings: parsed.localSettings,
+        });
+      } else if (parsed.format === FORMAT_RAW_PLAIN) {
+        await applyDumpAndComplete({ data: parsed.data });
+      } else if (parsed.format === FORMAT_RAW_ENCRYPTED) {
+        setPendingEncryptedImport(parsed);
+      }
+    } catch (e) {
+      setImportStatus({ type: "error", text: `Import failed: ${e.message}` });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDecryptAndImport = async () => {
+    if (!pendingEncryptedImport || !importPassword) return;
+    setImporting(true);
+    setImportStatus(null);
+    try {
+      const data = await decryptRawEncrypted(pendingEncryptedImport, importPassword);
+      setPendingEncryptedImport(null);
+      setImportPassword("");
+      await applyDumpAndComplete({ data });
+    } catch (e) {
+      setImportStatus({ type: "error", text: `Decrypt failed: ${e.message}` });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleLocalConfirm = async () => {
     if (useEncryption && password !== confirmPassword) { setError("Passwords do not match."); return; }
@@ -60,6 +167,24 @@ function FirstRunSetup({ onComplete }) {
 
   return (
     <div className="space-y-4">
+      {/* Native-only TWA-to-native migration prompt. Rendered as the
+          first UI on the onboarding screen so users coming from a
+          Play Store auto-update see it BEFORE the storage-mode picker.
+          onImport delegates to the existing fileInputRef so the
+          import flow reuses the well-tested first-run importer
+          below. */}
+      <TwaToNativeMigrationModal
+        open={showMigration}
+        onClose={() => setShowMigration(false)}
+        onImport={() => {
+          setShowMigration(false);
+          // Defer one tick so the modal unmounts before we open the
+          // native file picker — otherwise some Android WebView
+          // versions race the activity-stack transitions and
+          // suppress the picker dialog.
+          setTimeout(() => fileInputRef.current?.click(), 50);
+        }}
+      />
       <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
         <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
         <p className="text-sm text-foreground">
@@ -109,11 +234,84 @@ function FirstRunSetup({ onComplete }) {
       )}
       <div className="flex gap-2 pt-2">
         <Button variant="outline" onClick={() => setStep("choose")} className="flex-1">Back</Button>
-        <Button onClick={handleLocalConfirm} disabled={loading} className="flex-1 bg-primary hover:bg-primary/90">
+        <Button onClick={handleLocalConfirm} disabled={loading || importing} className="flex-1 bg-primary hover:bg-primary/90">
           {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <HardDrive className="w-4 h-4 mr-2" />}
           {useEncryption ? "Set Up Encrypted Local" : "Use Local Storage"}
         </Button>
       </div>
+
+      <div className="border-t border-border/40 pt-4 mt-2 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Moved from another device, or installing the native app after using
+          the web version? Import an existing backup instead of starting empty.
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json,.txt"
+          onChange={handleImportFile}
+          className="hidden"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={loading || importing}
+          className="w-full justify-start"
+        >
+          {importing
+            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            : <Upload className="w-4 h-4 mr-2" />}
+          Import a backup file
+        </Button>
+        {importStatus && (
+          <p className={`text-xs ${importStatus.type === "error" ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+            {importStatus.text}
+          </p>
+        )}
+      </div>
+
+      {pendingEncryptedImport && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
+            <h3 className="font-semibold text-lg">Encrypted backup</h3>
+            <p className="text-sm text-muted-foreground">
+              This backup is encrypted. Enter the password it was created with
+              to decrypt and load it. Once imported, the data will be loaded
+              as plain — you can flip encryption back on later from Settings.
+            </p>
+            <Input
+              type="password"
+              value={importPassword}
+              onChange={e => setImportPassword(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && importPassword) handleDecryptAndImport(); }}
+              placeholder="Password used to encrypt the backup"
+              autoFocus
+            />
+            {importStatus && importStatus.type === "error" && (
+              <p className="text-xs text-destructive">{importStatus.text}</p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setPendingEncryptedImport(null); setImportPassword(""); setImportStatus(null); }}
+                disabled={importing}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDecryptAndImport}
+                disabled={importing || !importPassword}
+              >
+                {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Decrypt &amp; Import
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -203,7 +401,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
             <strong className="text-foreground">
               Looking for the latest version?{" "}
               <span
-                onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+                onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
                 className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
               >
                 Check releases on GitHub
@@ -248,7 +446,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
                   🌊 Free and open source, shared by a DID system to fill a void in the community.{" "}
                   Contact: pesturedrawing@gmail.com ·{" "}
                   <span
-                    onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+                    onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
                     className="text-primary underline cursor-pointer"
                   >
                     Latest releases on GitHub →

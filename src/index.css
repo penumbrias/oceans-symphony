@@ -86,8 +86,12 @@ body {
   }
 }
 
-/* Mobile main-content bottom padding tracks the nav bar height */
-@media (max-width: 639px) {
+/* The bottom nav is rendered at every viewport below the lg: breakpoint
+   (1024px) — phone portrait, phone landscape, tablet portrait — so the
+   content must reserve space for it across that whole range, not just
+   below 639px. Tracks --bottom-nav-height which the user can resize in
+   Settings → Accessibility. */
+@media (max-width: 1023px) {
   .app-content-main {
     padding-bottom: calc(var(--bottom-nav-height, 56px) + 16px) !important;
   }

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, X as XIcon, Pencil, Check } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, X as XIcon, Plus as PlusIcon, Pencil, Check } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -133,6 +133,40 @@ function SortableTile({ item, editMode, onRemove, pendingCount, todoAlertCount =
   );
 }
 
+// Edit-mode-only "ghost" tile for items the user has previously removed
+// from the dashboard. Sits AFTER the sortable region so it can never be
+// dragged above live tiles (it's not in the SortableContext at all).
+// Tap the green + (or the tile itself) to add it back; on the next
+// render it transitions from ghost to a real SortableTile.
+function GhostTile({ item, onAdd }) {
+  const Icon = item.icon;
+  return (
+    <div className="relative select-none">
+      <button
+        type="button"
+        onClick={() => onAdd(item.id)}
+        className="w-full bg-card/40 px-3 py-1 rounded-2xl flex flex-col items-center gap-2 border border-dashed border-border/30 opacity-50 hover:opacity-90 hover:border-primary/40 transition-all h-full cursor-pointer"
+        aria-label={`Add ${item.label} to dashboard`}
+      >
+        <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <span className="text-xs font-medium text-foreground text-center leading-tight">
+          {item.label}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onAdd(item.id)}
+        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow z-20 hover:bg-emerald-500 transition-colors"
+        aria-label={`Add ${item.label} to dashboard`}
+      >
+        <PlusIcon className="w-2.5 h-2.5" />
+      </button>
+    </div>
+  );
+}
+
 const NAV_DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
 
 export default function QuickNavMenu() {
@@ -218,6 +252,17 @@ export default function QuickNavMenu() {
     return localOrder.map(id => GRID_ITEMS.find(item => item.id === id)).filter(Boolean);
   }, [localOrder, configuredGridItems, GRID_ITEMS]);
 
+  // Items the user has previously removed (or never had on the
+  // dashboard) — rendered as low-opacity "ghost" tiles in edit mode so
+  // they can add them back without opening Settings. We derive this
+  // fresh from GRID_ITEMS minus localOrder so ghosts always reflect
+  // the current draft state of the edit session.
+  const ghostItems = useMemo(() => {
+    if (!editMode || !localOrder) return [];
+    const live = new Set(localOrder);
+    return GRID_ITEMS.filter(item => !live.has(item.id));
+  }, [editMode, localOrder, GRID_ITEMS]);
+
   // DnD sensors — pointer needs distance threshold; touch needs delay so scroll still works
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -242,6 +287,17 @@ export default function QuickNavMenu() {
     setLocalOrder(prev => prev.filter(id => id !== itemId));
   }, []);
 
+  // Append to the end of the live grid (per spec: ghosts always sit at
+  // the end, never above live tiles). Idempotent — if the id is
+  // already in localOrder we leave it alone.
+  const handleAddInEdit = useCallback((itemId) => {
+    setLocalOrder(prev => {
+      if (!prev) return prev;
+      if (prev.includes(itemId)) return prev;
+      return [...prev, itemId];
+    });
+  }, []);
+
   const handleDoneEdit = useCallback(async () => {
     if (!localOrder) { setEditMode(false); return; }
     setSaving(true);
@@ -250,7 +306,10 @@ export default function QuickNavMenu() {
       const removed = navConfig.dashboardGridRemoved || [];
       // Any item in the original grid that's no longer in localOrder was removed here
       const removedNow = configuredGridItems.map(i => i.id).filter(id => !localOrder.includes(id));
-      const newRemoved = [...new Set([...removed, ...removedNow])];
+      // Items added back from the ghost row need to come OUT of the
+      // removed list, otherwise we'd silently re-hide them on the next
+      // mergedGrid build.
+      const newRemoved = [...new Set([...removed, ...removedNow])].filter(id => !localOrder.includes(id));
       const newConfig = { ...navConfig, dashboardGrid: localOrder, dashboardGridRemoved: newRemoved };
 
       if (settings?.id) {
@@ -314,14 +373,18 @@ export default function QuickNavMenu() {
         </p>
       )}
 
-      {/* Grid layout */}
+      {/* Grid layout. In edit mode the ghost tiles are rendered as a
+          continuation of the same grid (so they line up column-wise),
+          but they live OUTSIDE the SortableContext — keeping them
+          undraggable enforces the "ghosts always at the end" rule for
+          free, and tap-to-add is enough interaction. */}
       {navDisplayMode !== "list" && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={displayItems.map(i => i.id)} strategy={rectSortingStrategy}>
-            <div
-              className="grid gap-2"
-              style={{ gridTemplateColumns: `repeat(${navDisplayMode}, minmax(0, 1fr))` }}
-            >
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${navDisplayMode}, minmax(0, 1fr))` }}
+          >
+            <SortableContext items={displayItems.map(i => i.id)} strategy={rectSortingStrategy}>
               {displayItems.map(item => (
                 <SortableTile
                   key={item.id}
@@ -332,8 +395,11 @@ export default function QuickNavMenu() {
                   todoAlertCount={todoAlertCount}
                 />
               ))}
-            </div>
-          </SortableContext>
+            </SortableContext>
+            {ghostItems.map(item => (
+              <GhostTile key={`ghost-${item.id}`} item={item} onAdd={handleAddInEdit} />
+            ))}
+          </div>
         </DndContext>
       )}
 

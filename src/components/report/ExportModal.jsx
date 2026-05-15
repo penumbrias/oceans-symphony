@@ -2,11 +2,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Copy, Share2, X, Download } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { shareFile } from "@/lib/shareFile";
+import { isNative } from "@/lib/platform";
 
 export default function ExportModal({ isOpen, onClose, content, filename, format = "json", blob }) {
   const [copied, setCopied] = useState(false);
 
-  const canShareFiles = !!(navigator.share && navigator.canShare);
+  // Native Capacitor WebView pretends to support Web Share but the
+  // canShare({files}) check usually returns false and the anchor-click
+  // fallback is a no-op — meaning the previous flow silently failed.
+  // On native we always have the @capacitor/share path so the button
+  // is always available. On web we keep the original
+  // navigator.share-or-anchor detection.
+  const canShareFiles = isNative() || !!(navigator.share && navigator.canShare);
 
   const handleCopy = async () => {
     try {
@@ -18,50 +27,45 @@ export default function ExportModal({ isOpen, onClose, content, filename, format
     }
   };
 
-  // PDF: use Web Share API when available (reliable on Android/iOS PWA),
-  // fall back to anchor-click download on desktop where share isn't supported.
+  // PDF: route through the shared helper so native (Capacitor) and
+  // web (Chrome / TWA / desktop) share one delivery path. Failures
+  // toast loudly — silent failure on "Save PDF" was exactly the
+  // bug reported.
   const handleSavePdf = async () => {
     if (!blob) return;
-
-    if (canShareFiles) {
-      const file = new File([blob], filename, { type: "application/pdf" });
-      if (navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: filename });
-          return;
-        } catch (err) {
-          if (err.name === "AbortError") return;
-          // fall through to anchor download
-        }
-      }
+    const { result, error } = await shareFile({
+      blob,
+      filename,
+      title: filename,
+      dialogTitle: "Save PDF report",
+    });
+    if (result === "failed") {
+      toast.error(`Could not save the PDF${error ? `: ${error}` : ""}`);
+    } else if (result === "shared" || result === "downloaded") {
+      toast.success(result === "shared" ? "PDF ready to share" : "PDF downloaded");
     }
-
-    // Desktop fallback
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   const handleShareText = async () => {
-    if (!navigator.share) return;
-    try {
-      if (format === "text") {
-        await navigator.share({ title: filename, text: content });
-      } else {
-        const jsonBlob = new Blob([content], { type: "application/json" });
-        const file = new File([jsonBlob], filename, { type: "application/json" });
-        if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename });
+    if (format === "text") {
+      // Plain-text reports go through the simpler text share path.
+      if (typeof navigator !== "undefined" && navigator.share) {
+        try {
+          await navigator.share({ title: filename, text: content });
+        } catch (err) {
+          if (err?.name !== "AbortError") console.error("Share failed:", err);
         }
       }
-    } catch (err) {
-      if (err.name !== "AbortError") console.error("Share failed:", err);
+      return;
     }
+    // JSON: hand it through the same file-share pipeline.
+    const jsonBlob = new Blob([content], { type: "application/json" });
+    await shareFile({
+      blob: jsonBlob,
+      filename,
+      title: filename,
+      dialogTitle: "Save file",
+    });
   };
 
   return (

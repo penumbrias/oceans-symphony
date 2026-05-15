@@ -35,6 +35,35 @@ Users can customise the words used for their system, alters, fronting, and switc
 
 ---
 
+## Routing Gotcha — `/Home` is NOT the home page
+
+The route names are a base44 leftover and don't match what the user (or
+the bottom-nav labels) call them. Renaming would touch too many places
+to be worth the risk this late, so internalise the mapping:
+
+- **`/`** → `Dashboard.jsx`. This is the actual home page — the thing
+  users (and the "Home" bottom-nav tab) think of as "Home". Pinned
+  bulletins, critical-plan banners, and any "home_top" / "home_bottom"
+  UpcomingPlans surfaces belong here.
+- **`/Home`** → `Home.jsx`. This is the **alters directory** — the
+  page reached by the "Alters" bottom-nav tab. Its own header comment
+  describes it as "the alters directory and doesn't need to
+  double-surface" Dashboard items.
+
+Implications:
+- `SURFACE_HOME_TOP` and `SURFACE_HOME_BOTTOM` in
+  `src/lib/upcomingPlansSurfaces.js` refer to the **Dashboard** in the
+  user's mental model, despite the `home_*` ids. Their Settings labels
+  should say "Dashboard", not "Home" — fix any hint text that still
+  says otherwise.
+- If you find Dashboard-style features being rendered on `Home.jsx`,
+  that's a regression worth fixing — move them to `Dashboard.jsx`.
+- Don't propose renaming `/Home` → `/alters` to the user — they've
+  considered it and explicitly rejected it as too disruptive given how
+  many references point at the route id.
+
+---
+
 ## Two Separate "Status" Concepts — Do Not Confuse
 
 1. **Custom Status Notes** (`localEntities.StatusNote`) — the Dashboard field described above. System-wide, timestamped, immutable log. Like Facebook statuses.
@@ -144,6 +173,62 @@ What always needs a changelog entry:
 - Onboarding changes
 - Any bug fix the user would notice (crashes, broken buttons, wrong labels, missing UI)
 - Terminology corrections in user-facing text
+
+---
+
+## Build Targets — Web, TWA, Native (post v0.11.3)
+
+Single React codebase, three build targets. Native work must be **purely
+additive** — every web-only code path stays untouched unless a runtime
+`isNative()` branch is needed.
+
+| Target | Built by | Distributed via | Background tasks? |
+|--------|----------|-----------------|-------------------|
+| Web PWA | `npm run build` → Vercel | `oceans-symphony.app` (canonical) / `oceans-symphony.vercel.app` (staging) | No |
+| Bubblewrap TWA | Existing Bubblewrap pipeline against the Vercel deploy | Existing Play Store listing | No |
+| Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | Shipped as an UPDATE to the existing TWA Play listing (`app.oceans_symphony.twa`) — see migration note below | Yes (Phase 3+) |
+
+Rules for keeping the targets healthy:
+
+- **Branch at runtime, not at build time.** Use `isNative()` /
+  `getNativePlatform()` from `src/lib/platform.js`. Do NOT sniff the
+  user agent. Do NOT add separate entry-point files for the native
+  build.
+- **Native-only dependencies must be dynamically imported inside an
+  `isNative()` guard** so Vite tree-shakes them out of the web bundle
+  (e.g. `if (isNative()) { const { Filesystem } = await import('@capacitor/filesystem'); … }`).
+- **`server.url` must never be set** in `capacitor.config.ts`. The
+  Capacitor build bundles web assets into the APK; pointing at the live
+  Vercel URL would kill offline behaviour and skip the native-bridge JS
+  injection.
+- **The native app's package id is `app.oceans_symphony.twa`** — the
+  same id as the existing TWA Play listing (see
+  `public/assetlinks.json`). This was a deliberate change in 0.16.3
+  to ship the native build as an UPDATE to the existing internal-
+  testing Play listing rather than under a separate co-installable
+  listing. Implications:
+    1. The TWA Bubblewrap pipeline is effectively shelved going
+       forward — testers on Play will auto-update to the native
+       build the next time they get the Play Store.
+    2. TWA data lives in Chrome's IndexedDB scope for
+       `oceans-symphony.app` (the canonical production domain — NOT
+       the .vercel.app staging URL; Chrome storage is keyed by origin,
+       so anything pointing users at .vercel.app sends them to an
+       empty database), NOT inside the TWA package.
+       The Play update does not touch Chrome's storage, so users
+       CAN still open the URL in Chrome browser to access their
+       old data and export a backup before importing into native.
+       The first-launch
+       `src/components/onboarding/TwaToNativeMigrationModal.jsx`
+       explains this path.
+    3. Signing key must match the TWA's existing key (Play rejects
+       uploads under a mismatched cert fingerprint).
+- **PWA / TWA non-regression is non-negotiable.** At every native phase,
+  the `git diff` of web-only code paths must remain empty or very near
+  empty.
+
+See `/root/.claude/plans/is-there-any-way-glowing-wand.md` for the full
+phasing plan.
 
 ---
 

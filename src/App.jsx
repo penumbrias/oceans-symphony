@@ -52,6 +52,11 @@ import {
   EncryptedDataWithoutKeyError,
 } from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
+import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
+import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
+import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
+import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
+import { useNavigate } from 'react-router-dom';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
 import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
@@ -63,6 +68,50 @@ import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
 const AuthenticatedApp = () => {
   const { isLoadingAuth } = useAuth();
   useTimezoneSync();
+  // Re-syncs the native pre-scheduled reminder queue whenever reminders
+  // or settings change. No-op on web/TWA.
+  useNativeReminderSync();
+  // Mirrors the user's QuickAction list onto the OS launcher's
+  // long-press shortcut menu via ShortcutManager. No-op on web/TWA.
+  useNativeQuickActionsSync();
+  // (TwaToNativeMigrationModal moved into the onboarding flow —
+  // src/components/onboarding/StorageModeSetup.jsx → FirstRunSetup
+  // — so it shows at the right moment for users coming from a
+  // Play auto-update, not after they've already completed setup.)
+  // Native-only fallback for friend-front-change push notifications —
+  // the Web Push pipeline doesn't reach a Capacitor WebView, so we
+  // poll client-side and fire LocalNotifications on change. No-op
+  // on web/TWA (Web Push handles it there).
+  useFriendsFrontChangeNotifications();
+  // When the user taps a native OS notification we route to the
+  // reminders inbox; the actual ReminderInstance was already recorded
+  // by the bootstrap listener.
+  const navigate = useNavigate();
+  useEffect(() => {
+    const consume = () => {
+      if (!pendingNativeTap.reminderId) return;
+      pendingNativeTap.reminderId = null;
+      pendingNativeTap.scheduledFor = null;
+      navigate('/reminders');
+    };
+    consume();
+    return subscribeToNativeTap(consume);
+  }, [navigate]);
+
+  // When the user taps an OS launcher shortcut while the app is warm
+  // (already running), nativeBootstrap captures the appUrlOpen event
+  // and stashes the in-app route here. Drain on subscribe so a tap
+  // that landed before the listener mounted still navigates.
+  useEffect(() => {
+    const consume = () => {
+      const target = pendingNativeRoute.target;
+      if (!target) return;
+      pendingNativeRoute.target = null;
+      navigate(target);
+    };
+    consume();
+    return subscribeToNativeRoute(consume);
+  }, [navigate]);
 
   if (isLoadingAuth) {
     return (
@@ -153,6 +202,10 @@ function App() {
     if (setupState !== 'booting') return;
     let cancelled = false;
     (async () => {
+      // No-op on web/TWA. On native, pushes the WebView below the status
+      // bar so the app header doesn't overlap the system clock/icons.
+      try { await initNativeShell(); } catch { /* non-fatal */ }
+
       // Best-effort, but call it before anything that depends on storage.
       try { await requestPersistentStorage(); } catch { /* non-fatal */ }
 

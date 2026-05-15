@@ -22,6 +22,11 @@ export default function PreviewModeBanner() {
       role="status"
       aria-live="polite"
       className="w-full bg-amber-500/15 border-b border-amber-500/40"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
+      }}
     >
       <div className="max-w-5xl mx-auto px-3 py-2 flex items-center gap-2 text-xs sm:text-sm">
         <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />

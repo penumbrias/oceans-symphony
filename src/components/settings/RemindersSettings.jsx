@@ -8,8 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Check, Loader2, Bell, BellOff, X, Plus } from "lucide-react";
 import { registerPush, unregisterPush, isPushEnabled, pushDiagnostics, showLocalTestNotification, pushDeepDiagnostic } from "@/lib/pushRegistration";
+import { isNative } from "@/lib/platform";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "@/components/reminders/snoozeHelpers";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
+
+const NATIVE_MODE = isNative();
 
 export default function RemindersSettings() {
   const queryClient = useQueryClient();
@@ -101,11 +104,11 @@ export default function RemindersSettings() {
               <p className="text-xs text-muted-foreground">{pushEnabled ? "Enabled — reminders appear as native notifications even when the app is in the background" : "Disabled — reminders only show while the app is open"}</p>
             </div>
           </div>
-          <Button size="sm" variant={pushEnabled ? "outline" : "default"} onClick={handleTogglePush} disabled={pushLoading || !import.meta.env.VITE_VAPID_PUBLIC_KEY}>
+          <Button size="sm" variant={pushEnabled ? "outline" : "default"} onClick={handleTogglePush} disabled={pushLoading || (!NATIVE_MODE && !import.meta.env.VITE_VAPID_PUBLIC_KEY)}>
             {pushLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : pushEnabled ? "Disable" : "Enable"}
           </Button>
         </div>
-        {!import.meta.env.VITE_VAPID_PUBLIC_KEY && (
+        {!NATIVE_MODE && !import.meta.env.VITE_VAPID_PUBLIC_KEY && (
           <p className="text-xs text-amber-500 dark:text-amber-400 pl-12">
             Push not configured — add <code className="font-mono bg-muted px-1 rounded">VITE_VAPID_PUBLIC_KEY</code>, <code className="font-mono bg-muted px-1 rounded">VAPID_PUBLIC_KEY</code>, and <code className="font-mono bg-muted px-1 rounded">VAPID_PRIVATE_KEY</code> to your Vercel environment variables. Generate keys with: <code className="font-mono bg-muted px-1 rounded">npx web-push generate-vapid-keys</code>
           </p>
@@ -147,19 +150,22 @@ export default function RemindersSettings() {
           {/* Deep diagnostic — sends a real push tagged with a unique
               diagId, listens for the SW to echo it back via postMessage.
               Distinguishes "SW received push but OS didn't display" from
-              "SW never woke up". Wraps in a 30s timeout. */}
-          <button
-            type="button"
-            onClick={async () => {
-              toast("Sending push + listening for SW receipt (up to 30s)…");
-              const r = await pushDeepDiagnostic();
-              if (r.result === "delivered") toast.success(r.detail);
-              else toast.error(`${r.result.toUpperCase()}: ${r.detail}`, { duration: 12_000 });
-            }}
-            className="text-primary hover:underline"
-          >
-            Deep push test (30s)
-          </button>
+              "SW never woke up". Wraps in a 30s timeout. Web-Push only —
+              hide on native, where there's no SW round-trip to test. */}
+          {!NATIVE_MODE && (
+            <button
+              type="button"
+              onClick={async () => {
+                toast("Sending push + listening for SW receipt (up to 30s)…");
+                const r = await pushDeepDiagnostic();
+                if (r.result === "delivered") toast.success(r.detail);
+                else toast.error(`${r.result.toUpperCase()}: ${r.detail}`, { duration: 12_000 });
+              }}
+              className="text-primary hover:underline"
+            >
+              Deep push test (30s)
+            </button>
+          )}
         </div>
         {pushDiag && (
           <ul className="pl-12 mt-2 space-y-1 text-xs">

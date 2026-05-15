@@ -21,33 +21,49 @@
 
 import { getFullDbDump } from "@/lib/localDb";
 import { getAllLocalImages } from "@/lib/localImageStorage";
+import { readBackupLocalSettings } from "@/lib/backupKeys";
+import { isNative } from "@/lib/platform";
+import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
+import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
+// Backup *mode* controls how the file is delivered.
+//   - "off":      no scheduled backups (only manual + on-recovery)
+//   - "auto":     runs silently on app open if interval has elapsed
+//                 (native → writes to Documents; web/TWA → Web Share /
+//                 anchor download as before)
+//   - "reminder": [native only] schedules a recurring OS notification
+//                 at the interval; tapping it opens the app and runs
+//                 the backup immediately. Falls back to "auto" on web.
+// Stored separately from the interval so flipping mode doesn't reset
+// the user's chosen frequency.
+const MODE_KEY = "symphony_autobackup_mode";
+export const BACKUP_MODES = {
+  OFF: "off",
+  AUTO: "auto",
+  REMINDER: "reminder",
+};
 
-// LocalStorage keys to roll into the backup. Mirrors the manual export
-// in DataBackupRestore.jsx — if you add a new key there, add it here
-// too so the auto-backup payload stays equivalent to the manual one.
-const LS_BACKUP_KEYS = [
-  "symphony_themeMode",
-  "symphony_selectedTheme",
-  "symphony_customColors",
-  "symphony_selectedFont",
-  "symphony_userCustomPresets",
-  "symphony_alterThemeLinks",
-  "symphony_a11y_fontSize",
-  "symphony_a11y_fontFamily",
-  "symphony_a11y_reduceMotion",
-  "symphony_a11y_highContrast",
-  "symphony_a11y_largeTouch",
-  "symphony_a11y_navHeight",
-  "alter_hide_grouped",
-  "alter_grid_cols",
-  "alter_display_mode",
-  "nav_grid_layout",
-  "nav_grid_cols",
-  "nav_display_mode",
-];
+// Native-only: where the backup file actually lands.
+//   - "documents": silent write to the OS Documents folder via
+//                  @capacitor/filesystem. No share-sheet prompt.
+//                  File shows up in Files app → Internal storage →
+//                  Documents (or Android/data/<pkg>/Documents on
+//                  scoped-storage Android 11+, still visible to the
+//                  user). Best default — backups land in a known
+//                  spot without interrupting the user every time
+//                  auto-backup fires.
+//   - "ask":       hand the file to the system share sheet so the
+//                  user picks where it goes (Files / Drive / email
+//                  / etc) on each backup. Existing behaviour pre-
+//                  0.14.x. Default on web because we don't have
+//                  Filesystem there.
+const DESTINATION_KEY = "symphony_autobackup_destination";
+export const BACKUP_DESTINATIONS = {
+  DOCUMENTS: "documents",
+  ASK: "ask",
+};
 
 // User-pickable backup intervals. 0 means off.
 export const AUTO_BACKUP_INTERVALS = [
@@ -81,13 +97,38 @@ function setAutoBackupLastAt(iso) {
   catch { /* non-fatal */ }
 }
 
-function exportLocalSettings() {
-  const out = {};
-  for (const key of LS_BACKUP_KEYS) {
-    const val = localStorage.getItem(key);
-    if (val !== null) out[key] = val;
-  }
-  return out;
+export function getAutoBackupMode() {
+  try {
+    const v = localStorage.getItem(MODE_KEY);
+    if (v === BACKUP_MODES.REMINDER || v === BACKUP_MODES.AUTO || v === BACKUP_MODES.OFF) return v;
+  } catch { /* non-fatal */ }
+  // Default: "auto" if the user had an interval set previously (preserves
+  // pre-mode behaviour), otherwise "off".
+  return getAutoBackupInterval() > 0 ? BACKUP_MODES.AUTO : BACKUP_MODES.OFF;
+}
+
+export function setAutoBackupMode(mode) {
+  if (![BACKUP_MODES.OFF, BACKUP_MODES.AUTO, BACKUP_MODES.REMINDER].includes(mode)) return;
+  try { localStorage.setItem(MODE_KEY, mode); }
+  catch { /* non-fatal */ }
+}
+
+export function getBackupDestination() {
+  try {
+    const v = localStorage.getItem(DESTINATION_KEY);
+    if (v === BACKUP_DESTINATIONS.DOCUMENTS || v === BACKUP_DESTINATIONS.ASK) return v;
+  } catch { /* non-fatal */ }
+  // Native: silent write to Documents is the natural default — the
+  // user is on a real OS and expects auto-backups to "just save
+  // somewhere I can find later". Web/TWA: only the share-sheet path
+  // works.
+  return isNative() ? BACKUP_DESTINATIONS.DOCUMENTS : BACKUP_DESTINATIONS.ASK;
+}
+
+export function setBackupDestination(value) {
+  if (![BACKUP_DESTINATIONS.DOCUMENTS, BACKUP_DESTINATIONS.ASK].includes(value)) return;
+  try { localStorage.setItem(DESTINATION_KEY, value); }
+  catch { /* non-fatal */ }
 }
 
 async function buildFullBackupPayload() {
@@ -101,72 +142,138 @@ async function buildFullBackupPayload() {
     __auto: true,
     data: dump,
     __local_images: images,
-    __local_settings: exportLocalSettings(),
+    __local_settings: readBackupLocalSettings(),
   };
 }
 
-async function deliverBackup(filename, json) {
-  const blob = new Blob([json], { type: "application/json" });
-  // Web Share API (Android Chrome / TWA): lets the user file it under
-  // any installed sharing target (Files, Drive, Dropbox, etc.). On
-  // Android the Files target writes to the Downloads folder.
-  if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: "application/json" });
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: "Oceans Symphony backup" });
-        return "shared";
-      } catch (e) {
-        if (e.name === "AbortError") return "cancelled";
-        // fall through to anchor download
-      }
-    }
-  }
-  // Standard browser download. On Android Chrome / TWA, anchor
-  // downloads go to the public Downloads folder by default.
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  return "downloaded";
-}
-
-// Run a backup right now. Returns the delivery result string.
+// Run a backup right now. Two delivery paths:
+//   - BACKUP_DESTINATIONS.DOCUMENTS (native only): silent write
+//     straight to Filesystem.Documents. On failure, falls back to
+//     the share sheet so the backup attempt still succeeds.
+//   - BACKUP_DESTINATIONS.ASK: hand the file to shareFile (system
+//     share sheet on native, navigator.share/anchor on web).
+//
+// Returns the result string ("filesystem" | "shared" | "downloaded"
+// | "cancelled" | "failed").
 export async function runAutoBackupNow({ silent = false } = {}) {
   const payload = await buildFullBackupPayload();
   const json = JSON.stringify(payload);
   const date = new Date().toISOString().slice(0, 10);
   const filename = `oceans-symphony-backup-${date}.json`;
-  const result = await deliverBackup(filename, json);
-  if (result !== "cancelled") setAutoBackupLastAt(new Date().toISOString());
+  const blob = new Blob([json], { type: "application/json" });
+
+  const destination = getBackupDestination();
+  let result = "failed";
+  let error = null;
+  let location = null;
+
+  if (isNative() && destination === BACKUP_DESTINATIONS.DOCUMENTS) {
+    // Preferred path: MediaStore.Downloads via our custom Java
+    // plugin. Works without a permission prompt on Android 10+ AND
+    // survives uninstall (the whole point of an auto-backup).
+    const mediaRes = await saveBlobToPublicDownloads({
+      blob,
+      filename,
+      mimeType: "application/json",
+    });
+    if (mediaRes.result === "filesystem") {
+      result = mediaRes.result;
+      location = mediaRes.location;
+    } else {
+      // Fallback 1: Filesystem.Documents direct. Likely fails on
+      // Android 11+ scoped storage too, but worth a shot on older
+      // devices where legacy storage permits it (and the file lands
+      // in /storage/emulated/0/Documents/, also surviving uninstall).
+      console.warn("[Auto-backup] MediaStore failed, trying Filesystem.Documents:", mediaRes.error);
+      const silentRes = await writeFileToDocumentsSilent({ blob, filename });
+      if (silentRes.result === "filesystem") {
+        result = silentRes.result;
+        location = silentRes.location;
+      } else {
+        // Fallback 2: share sheet. Last resort — gives the user a
+        // chance to file the backup somewhere themselves. We
+        // deliberately do NOT silently write into the app-scoped
+        // External directory because that gets wiped on uninstall,
+        // defeating the point of having a backup.
+        console.warn("[Auto-backup] Documents also failed, falling back to share sheet:", silentRes.error);
+        const fb = await shareFile({
+          blob,
+          filename,
+          title: "Oceans Symphony backup",
+          dialogTitle: "Save backup file",
+        });
+        result = fb.result;
+        error = fb.error;
+      }
+    }
+  } else {
+    const fb = await shareFile({
+      blob,
+      filename,
+      title: "Oceans Symphony backup",
+      dialogTitle: "Save backup file",
+    });
+    result = fb.result;
+    error = fb.error;
+  }
+
+  if (result === "filesystem" || result === "shared" || result === "downloaded") {
+    setAutoBackupLastAt(new Date().toISOString());
+  }
   if (!silent) {
     try {
       const { toast } = await import("sonner");
-      if (result === "shared") toast.success("Backup saved");
+      if (result === "filesystem") {
+        // location can be "Downloads/Oceans Symphony" (MediaStore
+        // path on Android 10+) or "Documents" (legacy fallback on
+        // Android <= 9). Both survive uninstall, so the user can
+        // trust the toast no matter which path won.
+        toast.success(
+          location
+            ? `Backup saved to ${location}`
+            : "Backup saved"
+        );
+      }
+      else if (result === "shared") toast.success("Backup saved — pick a destination in the share sheet");
       else if (result === "downloaded") toast.success("Backup downloaded");
-    } catch { /* sonner not available, ignore */ }
+      else if (result === "cancelled") toast("Backup canceled");
+      else toast.error(`Backup failed${error ? `: ${error}` : ""}`);
+    } catch { /* sonner not available */ }
+  }
+  if (result === "failed") {
+    const err = new Error(error || "backup_delivery_failed");
+    err.deliveryResult = result;
+    throw err;
   }
   return result;
 }
 
-// Called on app boot. Quietly runs a backup if the user has the
-// feature enabled AND enough time has passed since their last one.
-export async function runAutoBackupIfDue() {
+// True if the configured interval has elapsed since the last backup.
+// Shared between the on-boot check and the native reminder-notification
+// reconciler so they agree on "is a backup due right now".
+export function isAutoBackupDue() {
   const interval = getAutoBackupInterval();
-  if (interval <= 0) return false; // feature off
+  if (interval <= 0) return false;
   const last = getAutoBackupLastAt();
-  if (last) {
-    const lastMs = Date.parse(last);
-    if (Number.isFinite(lastMs)) {
-      const diffDays = (Date.now() - lastMs) / (1000 * 60 * 60 * 24);
-      if (diffDays < interval) return false;
-    }
-  }
+  if (!last) return true;
+  const lastMs = Date.parse(last);
+  if (!Number.isFinite(lastMs)) return true;
+  const diffDays = (Date.now() - lastMs) / (1000 * 60 * 60 * 24);
+  return diffDays >= interval;
+}
+
+// Called on app boot. Quietly runs a backup if the user has the
+// feature in "auto" mode AND enough time has passed since their last
+// one. "reminder" mode handles its own delivery via OS notification;
+// "off" does nothing here.
+export async function runAutoBackupIfDue() {
+  const mode = getAutoBackupMode();
+  if (mode !== BACKUP_MODES.AUTO) return false;
+  if (!isAutoBackupDue()) return false;
   try {
+    // Native: write straight to Documents (silent, no chooser). Web:
+    // existing Web Share / anchor download path. Both routes are
+    // baked into runAutoBackupNow now — no preferNative flag.
     await runAutoBackupNow({ silent: true });
     return true;
   } catch (e) {

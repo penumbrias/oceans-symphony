@@ -2,8 +2,27 @@
 // Identity (userId, secret) lives in localEntities.FriendIdentity (IDB).
 import { localEntities } from "@/api/base44Client";
 import { getActivePushSubscription } from "@/lib/pushRegistration";
+import { isNative } from "@/lib/platform";
 
-const BASE = '/api/friends';
+// On web/TWA the Friends API lives at /api/friends on the same origin
+// the page was served from — relative paths work. On the Capacitor
+// native build the WebView is served from a private hostname
+// (app.local.oceans-symphony, see capacitor.config.ts) which doesn't
+// exist on the public internet, so relative /api/* requests return a
+// 404 HTML page → the JSON parser throws "Unexpected token '<', '<!doctype'…".
+// On native we point at the production Vercel deployment explicitly.
+// Exported so other callers (Friends.jsx's save-push-sub fetch) can
+// use the same base without re-implementing the platform check.
+// Must be oceans-symphony.app (the canonical production domain),
+// NOT .vercel.app — Chrome storage / CORS / cookies are scoped by
+// origin and the TWA was wrapping the .app origin, so anything else
+// would land us in a different storage scope from web users.
+const NATIVE_API_HOST = "https://oceans-symphony.app";
+export const FRIENDS_API_BASE = isNative()
+  ? `${NATIVE_API_HOST}/api/friends`
+  : "/api/friends";
+
+const BASE = FRIENDS_API_BASE;
 
 // ─── Identity ─────────────────────────────────────────────────────────────────
 
@@ -40,6 +59,16 @@ export async function registerIdentity({ displayName, systemName, terms, privacy
     await localEntities.FriendIdentity.create({ userId, secret, friendCode, displayName, systemName, terms, privacyLevel });
   }
 
+  // Native-only: seed the background poll runner with the freshly-
+  // saved credentials so it can authenticate when WorkManager wakes
+  // it up. resetState wipes any stale last-front snapshot left over
+  // from a previous profile so the next poll doesn't spam false
+  // "front changed" notifications.
+  try {
+    const { pushIdentityToBackgroundRunner } = await import("@/lib/nativeBackgroundFriendSync");
+    await pushIdentityToBackgroundRunner({ resetState: !existing });
+  } catch { /* non-fatal on web */ }
+
   return { userId, secret, friendCode };
 }
 
@@ -61,6 +90,14 @@ export async function deleteIdentity() {
   } catch {}
 
   await localEntities.FriendIdentity.delete(identity.id);
+
+  // Native-only: wipe the background runner's stored identity so its
+  // periodic poll no-ops instead of hammering the API with the old
+  // credentials.
+  try {
+    const { clearBackgroundRunnerIdentity } = await import("@/lib/nativeBackgroundFriendSync");
+    await clearBackgroundRunnerIdentity();
+  } catch { /* non-fatal on web */ }
 }
 
 // ─── Friend list & pending ─────────────────────────────────────────────────────

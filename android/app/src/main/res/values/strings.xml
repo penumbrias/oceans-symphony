@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Oceans Symphony</string>
+    <string name="title_activity_main">Oceans Symphony</string>
+    <string name="package_name">app.oceans_symphony.twa</string>
+    <string name="custom_url_scheme">app.oceans_symphony.twa</string>
+</resources>

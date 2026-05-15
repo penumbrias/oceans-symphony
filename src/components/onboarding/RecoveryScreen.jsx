@@ -27,6 +27,7 @@ import {
   peekStoredData,
 } from "@/lib/localDb";
 import { runAutoBackupNow } from "@/lib/autoBackup";
+import { shareFile } from "@/lib/shareFile";
 import {
   parseImportText,
   decryptRawEncrypted,
@@ -66,16 +67,18 @@ export default function RecoveryScreen({ reason, onResolved }) {
   const kind = reason?.kind || "unknown";
   const message = describeReason(kind, reason?.error);
 
-  const downloadFile = (filename, jsonText) => {
+  // Route through the shared file-share helper so the recovery flow
+  // works on native (Capacitor) — the previous inline anchor-click
+  // path was silently no-op'ing inside the WebView, which is the
+  // worst possible failure mode on a recovery screen.
+  const downloadFile = async (filename, jsonText) => {
     const blob = new Blob([jsonText], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    return shareFile({
+      blob,
+      filename,
+      title: "Oceans Symphony recovery file",
+      dialogTitle: "Save recovery file",
+    });
   };
 
   const handleExportStandard = async () => {
@@ -99,11 +102,15 @@ export default function RecoveryScreen({ reason, onResolved }) {
       }
       const envelope = wrapAsStandardBackup(parsed);
       const date = new Date().toISOString().slice(0, 10);
-      downloadFile(`oceans-symphony-backup-${date}.json`, JSON.stringify(envelope));
-      setStatus({
-        type: "success",
-        text: "Standard backup saved. You can import this file from Settings → Data & Privacy, or from the Restore button on this screen.",
-      });
+      const res = await downloadFile(`oceans-symphony-backup-${date}.json`, JSON.stringify(envelope));
+      if (res?.result === "failed") {
+        setStatus({ type: "error", text: `Save failed${res.error ? `: ${res.error}` : ""}` });
+      } else if (res?.result !== "cancelled") {
+        setStatus({
+          type: "success",
+          text: "Standard backup saved. You can import this file from Settings → Data & Privacy, or from the Restore button on this screen.",
+        });
+      }
     } catch (e) {
       setStatus({ type: "error", text: `Export failed: ${e?.message || e}` });
     } finally {
@@ -121,11 +128,15 @@ export default function RecoveryScreen({ reason, onResolved }) {
         return;
       }
       const date = new Date().toISOString().slice(0, 10);
-      downloadFile(`oceans-symphony-raw-${date}.json`, raw);
-      setStatus({
-        type: "success",
-        text: "Raw data file saved. If your data is encrypted, you'll still need your password to decrypt it — but as long as you have this file AND the password, the data can be recovered.",
-      });
+      const res = await downloadFile(`oceans-symphony-raw-${date}.json`, raw);
+      if (res?.result === "failed") {
+        setStatus({ type: "error", text: `Save failed${res.error ? `: ${res.error}` : ""}` });
+      } else if (res?.result !== "cancelled") {
+        setStatus({
+          type: "success",
+          text: "Raw data file saved. If your data is encrypted, you'll still need your password to decrypt it — but as long as you have this file AND the password, the data can be recovered.",
+        });
+      }
     } catch (e) {
       setStatus({ type: "error", text: `Export failed: ${e?.message || e}` });
     } finally {
@@ -218,22 +229,24 @@ export default function RecoveryScreen({ reason, onResolved }) {
     setBusy(true);
     setStatus(null);
     try {
-      // Always try to back up the raw blob to Downloads first, even
-      // though the user already saw the manual export button. The cost
-      // of an extra file is nothing compared to losing data forever.
+      // Always try to back up the raw blob first, even though the user
+      // already saw the manual export button. The cost of an extra
+      // file is nothing compared to losing data forever. Routes through
+      // shareFile so it works inside a Capacitor WebView (where the
+      // old anchor-click was a silent no-op). The user sees a share
+      // sheet and picks a destination — we proceed with the reset
+      // regardless of whether they save it (they were warned).
       try {
         const raw = await exportRawStorageBlob();
         if (raw) {
           const blob = new Blob([raw], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
           const ts = new Date().toISOString().replace(/[:.]/g, "-");
-          a.href = url;
-          a.download = `oceans-symphony-raw-pre-reset-${ts}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 1500);
+          await shareFile({
+            blob,
+            filename: `oceans-symphony-raw-pre-reset-${ts}.json`,
+            title: "Pre-reset backup",
+            dialogTitle: "Save before resetting",
+          });
         }
       } catch { /* best-effort */ }
       // Also try to write a regular auto-backup of whatever is currently

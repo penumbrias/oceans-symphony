@@ -26,6 +26,7 @@ import {
   pushFrontStatus,
   saveFriendVisibility,
   deleteIdentity,
+  FRIENDS_API_BASE,
 } from "@/lib/friendsApi";
 import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
 
@@ -718,7 +719,7 @@ export default function FriendsPage() {
       if (!enabled) return;
       return getActivePushSubscription().then(sub => {
         if (!sub) return;
-        fetch('/api/friends/save-push-sub', {
+        fetch(`${FRIENDS_API_BASE}/save-push-sub`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: identity.userId, secret: identity.secret, subscription: sub }),

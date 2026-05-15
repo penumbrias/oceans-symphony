@@ -5,9 +5,14 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
+import { isValidHexColor } from "@/lib/colorUtils";
 
 function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, anonymize = "off" }) {
-  const alterColor = alter.color || "#9333ea";
+  // Falls back to the default purple for missing OR invalid colours
+  // (e.g. "#8b5c1" — 5 hex digits, not parseable by CSS) so a single
+  // malformed alter doesn't render as a blank uncoloured tile next
+  // to its siblings.
+  const alterColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
   const { bind, dragX, swipeHint } = useSwipeActions({ onTap, onSwipeRight, onSwipeLeft });

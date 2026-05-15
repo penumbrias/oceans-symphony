@@ -38,6 +38,11 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const terms = useTerms();
+  // Header auto-hide on scroll was a recurring source of confusion —
+  // even with a landscape-only gate, edge cases let it fire in
+  // portrait. Reverted to a permanently-pinned header. If we want
+  // landscape-only auto-hide back, it should be an opt-in
+  // accessibility toggle, not a default behaviour.
   // Push front-status snapshots to the Friends server whenever the active
   // front changes — covers all paths (modal, dashboard hold, alters swipe).
   useFriendsFrontSync();
@@ -271,10 +276,16 @@ const handleNotifClick = (mentionLog) => {
   const { indicatorVisible, indicatorProgress } = useSwipeBack();
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      {/* ── Safe area top spacer (mobile only) ── */}
-      <div style={{ height: 'env(safe-area-inset-top, 0px)', background: 'var(--background)' }} className="sm:hidden" />
-
+    // Root is pinned to EXACTLY viewport height (h-screen) and clips
+    // overflow. This forces the document body to be unscrollable —
+    // only the inner <main> with its own overflow-auto can scroll.
+    // The mobile sticky header therefore literally cannot scroll out
+    // of view because the only scroll context is below it (inside
+    // main). Previous min-h-screen lets root grow taller than the
+    // viewport when content overflows, which makes the body scroll
+    // and drags the "sticky" header up with it in some Capacitor
+    // WebView versions.
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* ── Preview Mode Banner ── */}
       <PreviewModeBanner />
 
@@ -284,8 +295,20 @@ const handleNotifClick = (mentionLog) => {
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the
-          right edge, instead of being centred inside a max-w-6xl block. */}
-      <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block border-b border-border/50">
+          right edge, instead of being centred inside a max-w-6xl block.
+          paddingTop/Left/Right pull in the OS safe-area insets so the
+          header sits below the status bar (and clear of the rounded
+          corners/notch in landscape) on the native Android build. On
+          web/TWA these envs evaluate to 0 and the header looks the
+          same as before. */}
+      <header
+        className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden lg:block border-b border-border/50"
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
+        }}
+      >
         <HeaderWaveBlock />
         <div className="w-full px-4 sm:px-6 h-16 flex items-center justify-between relative" style={{ zIndex: 1 }}>
           <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Oceans Symphony home">
@@ -348,9 +371,21 @@ const handleNotifClick = (mentionLog) => {
           button sits on the left and the bell+settings on the right.
           The wave's bottom edge crosses through the centre of the
           title and the icons, like a horizon line. */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col border-b border-border/50">
+      <header
+        className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl lg:hidden flex flex-col border-b border-border/50"
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
+        }}
+      >
         <HeaderWaveBlock />
-        <div className="flex items-center justify-between px-2 h-14 relative" style={{ zIndex: 1 }}>
+        {/* Landscape phones have ~360 CSS px of vertical space — shrink
+            the header row from 56px to 44px so the chrome doesn't eat
+            a sixth of the viewport. The 44px inner row still meets the
+            Apple/Google 44x44 minimum tap target for the icon buttons
+            inside. Portrait keeps the more spacious 56px. */}
+        <div className="flex items-center justify-between px-2 h-14 landscape:h-11 relative" style={{ zIndex: 1 }}>
           {/* Left: back button or menu icon */}
           {canGoBack ?
             <button
@@ -411,7 +446,7 @@ const handleNotifClick = (mentionLog) => {
       <div className="flex flex-1 overflow-hidden">
 
         {/* Desktop persistent sidebar */}
-        <aside className="hidden sm:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto sticky top-16 self-start h-[calc(100vh-4rem)]">
+        <aside className="hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto sticky top-16 self-start h-[calc(100vh-4rem)]">
           <nav className="px-2 py-4 space-y-5 flex-1 overflow-y-auto" aria-label="Sidebar navigation">
             {[
               {
@@ -507,8 +542,8 @@ const handleNotifClick = (mentionLog) => {
         </aside>
 
         {/* Main content */}
-        <main className="app-content-main flex-1 min-w-0 px-4 sm:px-6 py-0 sm:py-8 sm:pb-8 overflow-auto">
-          <div className="pt-3 sm:pt-0 pb-2 sm:pb-4">
+        <main className="app-content-main flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
+          <div className="pt-3 lg:pt-0 pb-2 lg:pb-4">
             <Base44MigrationBanner />
           </div>
           <Outlet context={{ setShowFeatureTour }} />
@@ -518,8 +553,13 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
-        style={{ height: "var(--bottom-nav-height, 56px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
+        style={{
+          height: "var(--bottom-nav-height, 56px)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+          paddingRight: "env(safe-area-inset-right, 0px)",
+        }}
         aria-label="Tab bar navigation">
 
         <div className="flex items-center justify-around" style={{ height: "var(--bottom-nav-height, 56px)" }}>

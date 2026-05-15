@@ -12,44 +12,17 @@ import {
   FORMAT_RAW_PLAIN,
   FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
+import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
+import { shareFile } from "@/lib/shareFile";
 import pako from "pako";
 
-const LS_SETTINGS_KEYS = [
-  "symphony_themeMode",
-  "symphony_selectedTheme",
-  "symphony_customColors",
-  "symphony_selectedFont",
-  "symphony_userCustomPresets",
-  "symphony_alterThemeLinks",
-  "symphony_a11y_fontSize",
-  "symphony_a11y_fontFamily",
-  "symphony_a11y_reduceMotion",
-  "symphony_a11y_highContrast",
-  "symphony_a11y_largeTouch",
-  "symphony_a11y_navHeight",
-  "alter_hide_grouped",
-  "alter_grid_cols",
-  "alter_display_mode",
-  "nav_grid_layout",
-  "nav_grid_cols",
-  "nav_display_mode",
-];
-
-function exportLocalSettings() {
-  const out = {};
-  for (const key of LS_SETTINGS_KEYS) {
-    const val = localStorage.getItem(key);
-    if (val !== null) out[key] = val;
-  }
-  return out;
-}
-
-function importLocalSettings(settings) {
-  if (!settings || typeof settings !== "object") return;
-  for (const key of LS_SETTINGS_KEYS) {
-    if (settings[key] != null) localStorage.setItem(key, settings[key]);
-  }
-}
+// Single source of truth for the localStorage keys that belong in a
+// backup lives in src/lib/backupKeys.js — keep the rules and the list
+// there so the manual export, the auto-backup, and the recovery raw
+// snapshot can't drift apart again (see changelog 0.11.7 for the
+// 8-key regression that prompted the refactor).
+const exportLocalSettings = readBackupLocalSettings;
+const importLocalSettings = writeBackupLocalSettings;
 
 function compressBackup(data) {
   const json = JSON.stringify(data);
@@ -125,29 +98,18 @@ async function downloadJson(data, filename, format = "json") {
   const mime = isCompact ? "application/octet-stream" : "application/json";
   const blob = new Blob([text], { type: mime });
 
-  // Try Web Share API (works on Android APK)
-  if (navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: mime });
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: "Oceans Symphony Backup" });
-        return;
-      } catch (e) {
-        if (e.name === "AbortError") return; // user cancelled
-        // other share errors fall through to anchor download
-      }
-    }
-  }
-
-  // Desktop fallback: anchor click
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Single delivery pipeline shared with the Auto-backup "Back up now"
+  // button and the therapy-report "Save PDF" — see src/lib/shareFile.js.
+  // Native (Capacitor) routes through Filesystem.Cache + @capacitor/share;
+  // web/TWA keeps the existing navigator.share → anchor-download chain.
+  // Returning the result so the caller can distinguish "failed" from
+  // "shared" / "downloaded" / "cancelled".
+  return shareFile({
+    blob,
+    filename,
+    title: "Oceans Symphony Backup",
+    dialogTitle: "Save backup file",
+  });
 }
 
 export default function DataBackupRestore() {
@@ -256,8 +218,14 @@ export default function DataBackupRestore() {
       const exportData = await buildExportData();
       const date = new Date().toISOString().slice(0, 10);
       const ext = exportFormat === "compact" ? "txt" : "json";
-      await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat);
-      showStatus("success", "Backup exported!");
+      const res = await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat);
+      if (res?.result === "failed") {
+        showStatus("error", `Export failed${res.error ? `: ${res.error}` : ""}`);
+      } else if (res?.result === "cancelled") {
+        // User dismissed the share sheet — no toast, no surprise.
+      } else {
+        showStatus("success", res?.result === "shared" ? "Backup ready — pick a destination" : "Backup exported!");
+      }
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
     } finally {

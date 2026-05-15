@@ -21,6 +21,170 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "Native Android build: app icon and splash screen are now generated from the Oceans Symphony logo (the same one you see in the PWA / on the web), not the default Capacitor placeholder. Source PNGs live in assets/icon-only.png and assets/splash.png; running 'npx capacitor-assets generate --android' regenerates every mipmap and drawable density bucket from them.",
+      },
+      {
+        type: "hotfix",
+        text: "Hotfix: Play Console rejected the 0.16.7 build because @capacitor/background-runner declares ACCESS_BACKGROUND_LOCATION and several other sensitive permissions that we don't actually use (the runner could do geolocation, our task just polls a URL). Stripped the unused permission declarations from the merged manifest via tools:node='remove' so Play stops flagging them. Bumped versionCode to 101 for the resubmit.",
+      },
+      {
+        type: "fix",
+        text: "Header was STILL sliding off-screen on scroll despite removing the auto-hide hook in 0.16.4. Root cause: the app-shell root container was min-h-screen (could grow taller than viewport when content overflowed), which let the document body itself scroll and dragged the 'sticky' header up with it. Pinned the root to exactly h-screen with overflow-hidden — only inner <main> with overflow-auto can scroll now, and the header has nowhere to go.",
+      },
+      {
+        type: "improve",
+        text: "TWA-to-native migration prompt now appears on the first-run onboarding screen instead of as a modal that pops up on top of the Dashboard after setup is already complete. Users coming from the Play Store auto-update see the 'go grab a backup from oceans-symphony.app in Chrome' guidance before they make any storage-mode choices, so they don't accidentally start fresh and then get told mid-app that they should have imported something.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build: corrected the production domain references throughout the app. The TWA was wrapping oceans-symphony.app (the canonical domain), not oceans-symphony.vercel.app (a staging URL). Chrome's storage is keyed by origin, so the migration modal pointing TWA users at the vercel.app URL would have sent them to an empty database. Fixed: the migration modal copy, the native-app Friends API base URL, the background-runner's Friends poll URL, and the CLAUDE.md notes future agents read.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: auto-backup now saves to the public Downloads folder (under 'Downloads/Oceans Symphony/') via a new MediaStore plugin instead of the @capacitor/filesystem Documents path that scoped-storage Android 11+ silently refuses. Backups survive app uninstall AND don't trigger a share-sheet prompt — they just land in a place every Files app shows. On Android 9 and below the plugin falls back to a direct legacy-storage write to the same place. Share sheet is now only used as a last-resort if both paths fail; we explicitly do NOT silently drop into the app-scoped External folder because that gets wiped on uninstall and defeats the point of a backup.",
+      },
+      {
+        type: "fix",
+        text: "Header auto-hide on scroll was still firing in portrait despite the landscape-only guard introduced in 0.15.4 — turned out to be Capacitor WebView quirks around how viewport dimensions get reported during scroll. Removed the auto-hide feature entirely so the header is now reliably pinned at the top in every orientation. If we want a landscape-only auto-hide back later it'll come as an opt-in accessibility toggle rather than default behaviour.",
+      },
+      {
+        type: "feature",
+        text: "Native Android build now ships as an UPDATE to the existing TWA Play listing instead of a separate co-installable app. Your closed-internal testers will get the native build automatically the next time they get the Play Store. A first-launch modal explains that their old TWA data is still safe in Chrome (open oceans-symphony.app in Chrome → Download Backup → import into the new native app). Bumped versionCode to 100 so the upload supersedes any prior TWA build.",
+      },
+      {
+        type: "fix",
+        text: "Alter colour wasn't applying to the row treatment (icon background, left border, role chip) for any alter whose saved hex value wasn't a valid CSS hex — most commonly a stray 5-digit value like '#8b5c1' instead of a 6-digit one. The validation in the list / folder / grid renderers was a naive `length > 3` check that accepted invalid values, which CSS then refused to parse, leaving that one alter looking unstyled next to the others. Now validated as a proper CSS hex (3/4/6/8 digits with a leading #). Invalid colours fall back to the default purple in grid view and to a neutral 'no colour' treatment in the list rows — consistent with alters that genuinely have no colour set. If your alter is still missing their colour after this update, open Aspects → that alter → re-save the colour from the picker; the picker won't let you save anything other than a valid 6-digit hex.",
+      },
+      {
+        type: "hotfix",
+        text: "Hotfix: Android build was failing on @capacitor/background-runner due to an outdated proguard-android.txt reference in the plugin's gradle config. Patched via patch-package so the fix applies automatically on every npm install.",
+      },
+      {
+        type: "feature",
+        text: "Native Android build: friends' front-change notifications now fire even when the app is fully closed — we wire @capacitor/background-runner up to Android's WorkManager, which wakes a tiny JS task every ~15 minutes to poll the Friends server and fire a local notification on any tracked change. Caveats kept honest: 15 minutes is WorkManager's floor (won't run more often even if we asked), and some OEM battery savers (Samsung One UI, Xiaomi MIUI) throttle background tasks aggressively — disabling battery-optimisation for Symphony in Android Settings fixes that. The in-app 30s polling still runs while the app is open, so foreground delivery stays snappy.",
+      },
+      {
+        type: "feature",
+        text: "Native Android build: notifications now route to one of two channels so you can configure each independently in system Settings → Apps → Oceans Symphony → Notifications. 'Reminders' (used by check-in nudges, scheduled / interval reminders, the backup reminder, etc.) defaults to high importance with sound, vibration, and a heads-up bubble. 'Switch updates' (used for own-system 'alter takes front' reminders and friend front-change notifications) defaults to low importance — silent and banner-only in the tray, no vibration, no heads-up. Each channel's sound, vibration, and importance can be customised separately in the OS Settings page.",
+      },
+      {
+        type: "fix",
+        text: "Auto-hide header was firing in PORTRAIT despite the 0.15.2 landscape-only guard — the orientation media query was returning wrong values in some Capacitor WebView builds. Switched to a direct innerWidth/innerHeight comparison so the gate is rock-solid. Portrait always shows the header; landscape still auto-hides on scroll-down.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build: tapping an external link inside the app (GitHub releases, Notion template, Google Maps location pins on activities and check-ins, the CTAD Clinic YouTube link, the ISSTD / DID-Research / Infinite Mind resources, any URL someone pastes into a bulletin) now opens in a system Chrome tab you can swipe back from, instead of trapping you on that external page inside the Symphony app with no way back. A single global anchor-click listener catches every <a target='_blank'>, plus the handful of explicit window.open call sites switched to the new openExternalUrl helper. Web and TWA are unchanged.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build: friends' front-change notifications now fire even though Web Push doesn't work in a Capacitor WebView. The Web Push pipeline that delivers these notifications on web/TWA never reached the native build, so toggling 'Notify on change' for a friend silently did nothing. Native now polls the Friends server every 30 seconds while the app is open, compares each friend's front timestamp against the last value we saw, and fires a local notification on change for any friend you've enabled. Honest caveat: this only runs while the app process is alive (foreground or recent-background) — fully-closed Android stops the polling, so friends who update while you've fully swiped the app away won't trigger a notification until you reopen.",
+      },
+      {
+        type: "improve",
+        text: "Auto-hide header on scroll now activates ONLY in landscape orientation (previously triggered at large font sizes regardless of orientation). Portrait keeps the header fixed in place so it never disappears mid-tap. Landscape gets the auto-hide so the chrome doesn't eat ~20% of the limited vertical viewport.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build: Friends profile setup was failing with 'Unexpected token < … is not valid JSON' because /api/friends requests resolved against the WebView's private hostname (app.local.oceans-symphony) and returned a 404 HTML page instead of the real API JSON. The Friends client now points at the production Vercel deployment when running natively. Web and TWA continue to use same-origin relative paths.",
+      },
+      {
+        type: "improve",
+        text: "Online resources: the CTAD Clinic entry now links directly to the UK CTAD Clinic's YouTube channel (still useful content even if you're not in the UK). The blurb still notes that several clinics use the CTAD name regionally, so 'search CTAD clinic plus your region' for local treatment remains the right path.",
+      },
+      {
+        type: "feature",
+        text: "Native Android build: long-pressing the app icon on your home screen now shows YOUR configured Quick Actions (the same ones you get from long-pressing the in-app Quick Check-In button), not a single generic 'Quick Actions' entry. Tapping a shortcut opens the app and runs that exact action — log a feeling, set a fronter, start a grounding exercise, whatever you've set up. Reorder or rename them in Settings → Quick Actions and the home-screen list updates automatically. Android caps the menu at 4 shortcuts per app, so the first four (by your saved order) get surfaced.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: the 'Storage persistence' row in Settings → Auto-backup never did anything on the native app (the Web Storage API the button calls always returns false in a Capacitor WebView — the concept only applies to browsers). Replaced it on native with a 'Backup destination' picker: 'Documents folder' (silent — backups land directly in your Documents folder with no share-sheet popup, the new default) or 'Ask each time' (share sheet, the previous behaviour). On web/TWA the persistence row stays as-is because there it's actually meaningful.",
+      },
+      {
+        type: "feature",
+        text: "Dashboard edit mode now shows 'ghost' tiles for every nav item you've previously removed from the grid — they appear at the end of the live tiles, at a lighter opacity, with a green + badge instead of the red ×. Tap to add the tile back to your dashboard, no detour through Settings. Ghosts can't be dragged above live tiles (they're outside the drag region by design) so 'ghosts always at the end' holds even mid-edit.",
+      },
+      {
+        type: "feature",
+        text: "Native Android build: long-press the app icon on your home screen for a 'Quick Actions' shortcut that drops you straight into the same Quick Actions overlay you already get from long-pressing the in-app Quick Check-In button. Customise the menu items themselves from Settings → Quick Actions; the OS shortcut just opens whatever menu you've configured.",
+      },
+      {
+        type: "improve",
+        text: "At large accessibility font sizes (150% / 175% / 200%) the mobile header now auto-hides when you scroll down and slides back in when you scroll up. The chrome was eating more than a fifth of the viewport at those sizes — defeating the point of bumping the font for legibility. At normal sizes the header stays put as before, no surprise motion.",
+      },
+      {
+        type: "fix",
+        text: "Journals page: opening the Author filter dropdown no longer wrecks the layout (search bar truncated, header pushed off-screen left, etc). The dropdown was overflowing the right edge of the viewport, which let the page horizontal-scroll. Added a defensive overflow-x:hidden at the app root so any future stray-wide child can't trigger this same class of bug, plus constrained the dropdown to the viewport width.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build: 'Download Backup' (the primary export in Settings → Data & Privacy → Backup & Export) and the Recovery screen's 'Save standard backup' / 'Save raw on-device file' / pre-reset auto-save buttons were ALL still using the old anchor-download path that no-ops in a Capacitor WebView. Routed every remaining file-save call site through the shared shareFile helper. The Backup & Export screen and the Recovery screen now pop the system share sheet on native exactly like 'Back up now' and 'Save PDF' do.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build: 'Back up now' and the therapy-report 'Save PDF' button were both silently doing nothing. Same root cause — navigator.share inside the Capacitor WebView reports canShare({files}) as false and the anchor-download fallback is a no-op there, so the buttons appeared to do nothing with no error. Both now route through a shared file-share helper (src/lib/shareFile.js) that writes to the app's cache via @capacitor/filesystem and hands the file to @capacitor/share — the system share sheet pops up so you can save it to Files, Drive, email, etc. Failures now toast loudly instead of silently. Web/TWA users continue to use the existing Web Share / anchor download path unchanged.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build (regression): 'Back up now' was silently failing because the previous build only opted into the native Filesystem write for the auto path, not the manual button — the manual button fell through to navigator.share / anchor download, neither of which work inside a Capacitor WebView. On native we now always try the Filesystem write first; if scoped-storage permission to write into the public Documents folder is denied, we fall back to writing to the app cache + handing the file to the system share sheet via @capacitor/share so you can still file it. Both successes and failures now toast explicitly — no more silent no-shows.",
+      },
+      {
+        type: "feature",
+        text: "Scheduled backups got a proper mode picker in Settings → Data & Privacy → Auto-backup. Three choices: Off (no scheduled backups), Back up automatically (runs when you open the app and a backup is due — on native Android, writes straight to your device's Documents folder with no chooser; on web/TWA, the share sheet pops up like before), and Notify me to back up (NATIVE ANDROID ONLY — the OS sends you a tray notification at your chosen interval, tap it to run the backup). The reminder mode also schedules itself with the OS so it fires on the right day even if you haven't opened the app, and survives reboots. Web/PWA shows a 'Native only' explainer for the reminder mode so it's clear why it's unavailable.",
+      },
+      {
+        type: "improve",
+        text: "Backup keys list (the set of localStorage preferences that get bundled into every backup) is now a single source of truth in src/lib/backupKeys.js, used by the manual export, the auto-backup, and the recovery raw snapshot. Previously each had its own copy and they had silently drifted — the auto-backup had been missing the same 8 keys the manual export was missing prior to 0.11.7 (journal folders, auto-backup interval, etc.). Auto-backups now capture everything the manual export captures.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: reminder notifications in the tray now show Snooze 10m and Snooze 1h buttons — tap one and the OS will re-fire the reminder at that time, without you needing to open the app. The snooze also writes a record into your inbox so you can see what's been deferred. For more detailed snooze options (tomorrow, next week, custom), tap the notification itself to open the in-app inbox.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: pre-scheduled reminders that the OS fires while the app is closed now honour each reminder's auto-resolve rule when they're back-filled into the inbox on reopen. Example: a 'check in if you haven't recently' reminder set to auto-resolve will no longer leave a stale 'fired' entry in your inbox if you actually had checked in just before it buzzed. The tray notification still appears (Android delivers it before we can evaluate), but the inbox stays clean.",
+      },
+      {
+        type: "fix",
+        text: "Landscape orientation: the mobile header was eating roughly a fifth of the viewport because it inherited the portrait 56px row height and the decorative wave block. The header row is now 44px in landscape (still meets the 44x44 tap target minimum) and the wave decoration is hidden in landscape — content area gets the breathing room back.",
+      },
+      {
+        type: "feature",
+        text: "Native Android build: reminders now fire even when the app is fully closed. We pre-schedule each upcoming `scheduled` (daily/weekly at HH:MM), `interval` (every N minutes), and `event` (calendar event) reminder with the OS up to 14 days in advance — Android's AlarmManager handles the wake-up, so a 9 AM 'morning check-in' will buzz your phone whether the app is open, backgrounded, or swiped away. On reopen, any reminders the OS fired while you were away are back-filled into the inbox so you don't lose track. Pure-context reminders (e.g. 'when no front update for 2h') still need the app open to evaluate — they keep the existing in-app polling. Pause-all and quiet-hours settings are honoured. Web and TWA users are unaffected.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: reminder notifications now have sound, vibration, and the heads-up bubble — they were silent before because the default Capacitor channel is IMPORTANCE_LOW. We now create a dedicated 'Reminders' channel at IMPORTANCE_HIGH on first launch. Per-channel sound/vibration can be customised in system Settings → Apps → Oceans Symphony → Notifications → Reminders.",
+      },
+      {
+        type: "improve",
+        text: "Landscape orientation now uses the mobile layout (top + bottom bars, full-width content) instead of trying to squeeze a 208px sidebar onto a phone landscape viewport — the previous behaviour squished the main content into a 500px-ish column with empty space on the right. The desktop sidebar layout now kicks in at the lg: breakpoint (1024px CSS px) so tablets in landscape and actual desktop browsers still get it; phones in any orientation get the mobile layout.",
+      },
+      {
+        type: "fix",
+        text: "Reminders onboarding: the 'Hi [{terms.alter} name]' preset showed the literal text {terms.alter} instead of your alter term, and the 'When a specific {alter} takes {front} — pick {alter} first' subtitle only replaced the first {alter} placeholder. Both now interpolate every occurrence using your customised terminology.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build: the sticky page header no longer slides behind the system status bar when you scroll, and no longer collides with the system clock/signal/battery icons in landscape orientation. The previous fix only handled the at-rest position by reserving a separate spacer above the header — the safe-area inset is now baked into the header itself, so it stays clear of system UI in both portrait and landscape, scrolled or not. The bottom navigation bar and the in-app banners get the same treatment for the side and bottom insets. Web and TWA continue to render identically (the OS reports zero insets).",
+      },
+      {
+        type: "fix",
+        text: "Backup export now includes eight previously-missed user preferences and one piece of real user data that was being silently dropped from every backup: your journal folder structure (os_journal_folders), your auto-backup interval, the heading-font accessibility setting, the grocery cover privacy lock, and four small view-mode/display preferences. If you've ever restored a backup and noticed your journal folders were gone or your backup schedule had reset, that was why. Existing backup files don't contain these keys; new backups taken after this update do.",
+      },
+      {
+        type: "feature",
+        text: "Native Android build: reminders now appear as real system-tray notifications instead of being silenced. Web Push doesn't work inside the native WebView, so on the native app reminders go through Android's local-notifications channel instead. Tap Enable in Settings → Reminders → Push notifications to grant the OS permission; the Web-Push-specific 'VAPID not configured' warning is hidden on native. The 'Test push notification' and 'Show local test notification' buttons both work on native — the Deep-push test is web-only and is hidden. Web and TWA users continue to use the existing Web Push pipeline unchanged.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: the WebView no longer overlaps the system status bar, so the app header sits below the clock and signal icons instead of underneath them. Web and TWA builds are unaffected.",
+      },
+      {
+        type: "feature",
+        text: "First-run setup now has an 'Import a backup file' button. Useful when you're installing on a new device — instead of starting empty and then finding the Import option in Settings, you can pull in an existing backup before you've even finished setup. Accepts all three file shapes the app supports: a standard backup, a raw plain on-device file, or a raw encrypted on-device file (you'll be prompted for the password the file was encrypted with). Imported data is loaded as plain on the new device; you can re-enable encryption from Settings afterwards if you want.",
+      },
+      {
+        type: "improve",
         text: "Auto-backup settings now say upfront that backups only run when the app is opened. If you don't open the app for a stretch, the schedule pauses for that gap — open the app at least as often as your interval, or hit 'Back up now' before a long break. Browsers and installed PWAs can't reliably run scheduled tasks in the background, so we want to be clear about it rather than imply set-and-forget.",
       },
       {
