@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background>
-        <inset android:drawable="@mipmap/ic_launcher_background" android:inset="16.7%" />
-    </background>
+    <!-- Background is the solid colour defined in
+         res/values/ic_launcher_background.xml. Capacitor's scaffold
+         uses a colour resource here, not a drawable — the
+         @capacitor/assets generator defaults to expecting a
+         mipmap/ic_launcher_background image, so we manually point
+         this back at the colour. -->
+    <background android:drawable="@color/ic_launcher_background" />
     <foreground>
         <inset android:drawable="@mipmap/ic_launcher_foreground" android:inset="16.7%" />
     </foreground>
