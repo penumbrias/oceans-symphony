@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Native Android build: app now renders edge-to-edge — the header background extends up under the system status bar and the bottom nav extends down to the screen edge, instead of the WebView being a boxed area below/above the system UI. Content (icons, text, tap targets) still respects the safe-area insets via env(safe-area-inset-*) paddings, so nothing ends up tucked under the clock or the gesture pill. Modern Android look.",
+      },
+      {
         type: "fix",
         text: "Banners (preview mode, upcoming-plans 'You have X planned in Y minutes', base44 migration) used to render in document flow ABOVE the sticky page header. Once the body became unscrollable in 0.16.7, those banners stopped scrolling out of the way and permanently pushed the header down — stacking awkwardly with the in-app notification popup at the very top of the screen. Banners now render INSIDE the main scroll area so they scroll with page content; the 'Oceans Symphony' header sits cleanly at the top in every state.",
       },

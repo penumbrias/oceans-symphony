@@ -48,14 +48,15 @@ const config: CapacitorConfig = {
     hostname: 'app.local.oceans-symphony',
   },
   plugins: {
-    // Apply at native init time so the WebView is sized below the system
-    // status bar BEFORE the first paint. The JS-side
-    // StatusBar.setOverlaysWebView call in src/lib/nativeBootstrap.js
-    // still runs as a belt-and-braces re-assert after boot, but
-    // configuring it here means the user never sees a frame where the
-    // header sits behind the clock/icons.
+    // overlaysWebView: true lets the WebView render edge-to-edge,
+    // including up into the status bar area and down behind the
+    // navigation-gesture pill. The app chrome (sticky header, bottom
+    // nav, banners) already has env(safe-area-inset-*) paddings that
+    // push CONTENT clear of system UI while letting BACKGROUND fill
+    // the entire screen — that combination produces the modern
+    // edge-to-edge mobile look.
     StatusBar: {
-      overlaysWebView: false,
+      overlaysWebView: true,
       style: 'LIGHT',
     },
     // Periodic background poll of the Friends API so friend-front
