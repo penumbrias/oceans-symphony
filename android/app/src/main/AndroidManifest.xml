@@ -46,16 +46,22 @@
          the app doesn't actually use. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 
-    <!-- @capacitor/background-runner declares a bunch of permissions
-         defensively because the plugin's API SURFACES geolocation +
-         exact-alarm helpers that we don't use. Strip them from the
-         merged manifest so Play Console doesn't flag the build as
-         requesting sensitive permissions we can't justify. If we
-         ever wire up CapacitorGeolocation or exact alarms inside the
-         runner script, drop the matching tools:node="remove" line.
+    <!-- Foreground location — used by the "Log location" feature
+         (Dashboard quick action, Check-In modal, Location History
+         "Get GPS" button). The user actively taps a button to capture
+         their current coordinates, which are stored locally as a
+         Location record. @capacitor/geolocation also injects these,
+         but listing them here makes the justification explicit.
          -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- @capacitor/background-runner declares a couple of permissions
+         defensively for API surfaces we don't use. Strip them from
+         the merged manifest so Play Console doesn't flag the build
+         as requesting sensitive permissions we can't justify. If we
+         ever wire up exact alarms or background-location inside the
+         runner script, drop the matching tools:node="remove" line. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove" />
 </manifest>

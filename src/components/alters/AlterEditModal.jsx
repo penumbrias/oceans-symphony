@@ -13,6 +13,17 @@ import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, encodeCanvasForMime } from "@/lib/localImageStorage";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
+import { Link2 } from "lucide-react";
+
+// Pull a 4-digit year out of a free-form birthday string so we can keep
+// the integer origin_year (used by Alter History / lineage) in sync
+// with whatever the user typed in Birthday — even if it's just "2018"
+// or "around 2018, age 7".
+function extractYear(str) {
+  if (!str) return "";
+  const m = String(str).match(/\b(1[89]\d{2}|20\d{2}|21\d{2})\b/);
+  return m ? m[1] : "";
+}
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) {
   const queryClient = useQueryClient();
@@ -21,7 +32,8 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
 
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
-    description: "", color: "", avatar_url: "", origin_year: "",
+    description: "", color: "", avatar_url: "",
+    birthday: "", origin_year: "",
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -31,14 +43,24 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
 
   useEffect(() => {
     if (alter && !isNew) {
+      let birthday = alter.birthday || "";
+      let origin_year = alter.origin_year ? String(alter.origin_year) : "";
+      // Default a blank field from the filled one — birthday and
+      // origin_year are conceptually "when did this alter first
+      // appear", so if the user only set one, mirror it into the
+      // other on load. They can still edit either independently
+      // afterwards.
+      if (!birthday && origin_year) birthday = origin_year;
+      if (!origin_year && birthday) origin_year = extractYear(birthday);
       setForm({
         name: alter.name || "", alias: alter.alias || "",
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
-        avatar_url: alter.avatar_url || "", origin_year: alter.origin_year ? String(alter.origin_year) : "",
+        avatar_url: alter.avatar_url || "",
+        birthday, origin_year,
       });
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "" });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "" });
     }
   }, [alter, open, isNew]);
 
@@ -169,6 +191,26 @@ const handleAvatarUpload = async (e) => {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Birthday/Origin-Year linking: when one is blank, typing into the
+  // other auto-fills it. Once both are populated, edits stay
+  // independent — the explicit "sync year from birthday" button
+  // below re-links them if the user wants.
+  const setBirthday = (val) => setForm((f) => {
+    const update = { ...f, birthday: val };
+    if (!f.origin_year && val) {
+      const y = extractYear(val);
+      if (y) update.origin_year = y;
+    }
+    return update;
+  });
+  const setOriginYear = (val) => setForm((f) => {
+    const update = { ...f, origin_year: val };
+    if (!f.birthday && val) update.birthday = val;
+    return update;
+  });
+  const birthdayYear = extractYear(form.birthday);
+  const canSyncYear = form.birthday && form.origin_year && birthdayYear && birthdayYear !== form.origin_year;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
@@ -207,16 +249,45 @@ const handleAvatarUpload = async (e) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Origin Year</Label>
-            <Input
-              type="number"
-              min={1900}
-              max={new Date().getFullYear()}
-              value={form.origin_year}
-              onChange={(e) => set("origin_year", e.target.value)}
-              placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
-            />
+          {/* When-they-first-appeared block. Birthday and Origin Year
+              are two shapes of the same idea — the helper text under
+              each label spells out which surface uses which value so
+              they don't read as duplicates. */}
+          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
+            <p className="text-xs font-medium text-foreground">When they first appeared</p>
+            <div className="space-y-1">
+              <Label className="text-xs">Birthday <span className="text-muted-foreground font-normal">— shown on the profile (🎂 line)</span></Label>
+              <Input
+                type="text"
+                value={form.birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+                placeholder="e.g. 2018-03-15, Age 7, around middle school"
+              />
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Free-form — write whatever fits (exact date, age, era).</p>
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Origin year <span className="text-muted-foreground font-normal">— used in {t.Alter} History timeline</span></Label>
+                {canSyncYear && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, origin_year: birthdayYear }))}
+                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                  >
+                    <Link2 className="w-3 h-3" /> Sync from birthday ({birthdayYear})
+                  </button>
+                )}
+              </div>
+              <Input
+                type="number"
+                min={1900}
+                max={new Date().getFullYear()}
+                value={form.origin_year}
+                onChange={(e) => setOriginYear(e.target.value)}
+                placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
+              />
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Just the year — feeds the lineage/timeline view. Auto-filled from Birthday when blank.</p>
+            </div>
           </div>
 
           <div className="space-y-2">

@@ -273,14 +273,27 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
       )}
 
       {display.locations && myLocations.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5">
           {myLocations.map((loc, i) => {
             const meta = getCategoryMeta(loc.category);
             return (
-              <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
-                <MapPin className="w-3 h-3 flex-shrink-0" />
-                {loc.name || meta?.label || "Location"}
-              </span>
+              <div key={i} className="flex flex-col gap-0.5">
+                <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 self-start">
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  {loc.name || meta?.label || "Location"}
+                </span>
+                {loc.latitude != null && loc.longitude != null && (
+                  <a
+                    href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[0.6875rem] text-blue-400 hover:text-blue-300 underline self-start"
+                  >
+                    {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} ↗
+                  </a>
+                )}
+              </div>
             );
           })}
         </div>
@@ -609,10 +622,23 @@ function LocationEntry({ loc }) {
   const meta = getCategoryMeta(loc.category);
   return (
     <StandaloneEntry timestamp={loc.timestamp}>
-      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20">
-        <MapPin className="w-3 h-3 flex-shrink-0" />
-        {loc.name || meta?.label || "Location"}
-      </span>
+      <div className="flex flex-col gap-0.5">
+        <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 self-start">
+          <MapPin className="w-3 h-3 flex-shrink-0" />
+          {loc.name || meta?.label || "Location"}
+        </span>
+        {loc.latitude != null && loc.longitude != null && (
+          <a
+            href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-[0.6875rem] text-blue-400 hover:text-blue-300 underline self-start"
+          >
+            {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} ↗
+          </a>
+        )}
+      </div>
     </StandaloneEntry>
   );
 }

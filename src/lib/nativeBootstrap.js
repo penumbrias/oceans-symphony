@@ -81,7 +81,7 @@ export async function initNativeShell() {
     const { StatusBar, Style } = await import('@capacitor/status-bar');
     // Stop the WebView from drawing under the system status bar so the
     // app header doesn't sit beneath the clock / signal icons.
-    await StatusBar.setOverlaysWebView({ overlay: false });
+    await StatusBar.setOverlaysWebView({ overlay: true });
     // App is dark-themed — Style.Light means light foreground content
     // (white icons/text), which is what we want on the dark backdrop.
     await StatusBar.setStyle({ style: Style.Light });

@@ -12,6 +12,7 @@ import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
 import { findNearbyLocationName } from "@/lib/locationUtils";
+import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 
 function toDatetimeLocal(iso) {
   const d = iso ? new Date(iso) : new Date();
@@ -46,28 +47,18 @@ function LocationLogForm({ location, allLocations = [], onSave, onClose }) {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const handleGPS = () => {
-    if (!navigator.geolocation) { toast.error("GPS not available on this device"); return; }
+  const handleGPS = async () => {
     setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setLat(lat);
-        setLng(lng);
-        setGpsLoading(false);
-        if (!name.trim()) {
-          const nearby = findNearbyLocationName(lat, lng, allLocations);
-          if (nearby) setName(nearby);
-        }
-        toast.success("GPS location captured");
-      },
-      (err) => {
-        toast.error("Could not get location: " + err.message);
-        setGpsLoading(false);
-      },
-      { timeout: 10000, maximumAge: 60000 }
-    );
+    const pos = await getCurrentPositionWithPrompt();
+    setGpsLoading(false);
+    if (!pos) return; // getCurrentPositionWithPrompt already toasted the reason
+    setLat(pos.lat);
+    setLng(pos.lng);
+    if (!name.trim()) {
+      const nearby = findNearbyLocationName(pos.lat, pos.lng, allLocations);
+      if (nearby) setName(nearby);
+    }
+    toast.success("GPS location captured");
   };
 
   const handleSave = async () => {
