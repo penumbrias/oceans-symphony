@@ -170,6 +170,24 @@ export default function Dashboard() {
   const [holdProgress, setHoldProgress] = useState(0);
   const [showQuickActions, setShowQuickActions] = useState(false);
 
+  // Native home-screen shortcut deep-links here with ?openQuickActions=1.
+  // Auto-trigger the in-app Quick Actions overlay so the long-press is
+  // unnecessary — same UI, OS-level entry point.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("openQuickActions") === "1") {
+        showQuickActionsRef.current = true;
+        setShowQuickActions(true);
+        // Clean the URL so a refresh doesn't keep re-opening the menu.
+        params.delete("openQuickActions");
+        const qs = params.toString();
+        const newUrl = window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash;
+        window.history.replaceState(null, "", newUrl);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
   const { data: quickActionsRaw = [] } = useQuery({
     queryKey: ["quickActions"],
     queryFn: () => base44.entities.QuickAction.list("order"),

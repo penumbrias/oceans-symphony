@@ -298,7 +298,7 @@ export default function Journals() {
             {showAuthorFilter && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowAuthorFilter(false)} />
-                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-52 overflow-hidden">
+                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-52 max-w-[calc(100vw-2rem)] overflow-hidden">
                   <div className="px-3 py-2 border-b border-border/50">
                     <input
                       autoFocus

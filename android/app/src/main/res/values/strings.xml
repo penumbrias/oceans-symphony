@@ -4,4 +4,11 @@
     <string name="title_activity_main">Oceans Symphony</string>
     <string name="package_name">app.oceans_symphony.nativeapp</string>
     <string name="custom_url_scheme">app.oceans_symphony.nativeapp</string>
+
+    <!-- Home-screen long-press shortcut labels. Static strings — Android
+         shortcut metadata can't be customised at runtime per user, so
+         we use generic wording that doesn't depend on the user's
+         terminology overrides (alter/system/etc). -->
+    <string name="shortcut_quick_actions_short">Quick Actions</string>
+    <string name="shortcut_quick_actions_long">Open Quick Actions menu</string>
 </resources>

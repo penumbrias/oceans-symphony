@@ -4,6 +4,7 @@ import Base44MigrationBanner from "@/components/shared/MigrationBanner";
 import { Settings, ChevronLeft, Wifi, Menu, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
+import useAutoHideHeader from "@/lib/useAutoHideHeader";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
@@ -38,6 +39,10 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const terms = useTerms();
+  // Hide the mobile sticky header on scroll-down at large font sizes
+  // (150%+) so the chrome stops eating the limited landscape /
+  // accessibility-mode viewport. No-op at normal sizes.
+  const headerHidden = useAutoHideHeader();
   // Push front-status snapshots to the Friends server whenever the active
   // front changes — covers all paths (modal, dashboard hold, alters swipe).
   useFriendsFrontSync();
@@ -271,7 +276,7 @@ const handleNotifClick = (mentionLog) => {
   const { indicatorVisible, indicatorProgress } = useSwipeBack();
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background overflow-x-hidden">
       {/* ── Preview Mode Banner ── */}
       <PreviewModeBanner />
 
@@ -363,6 +368,14 @@ const handleNotifClick = (mentionLog) => {
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
           paddingRight: 'env(safe-area-inset-right, 0px)',
+          // useAutoHideHeader returns true only when the user is on a
+          // large accessibility font size (150%+) AND is scrolling
+          // down — at those sizes the chrome eats more of the
+          // viewport than the content. transition keeps it smooth;
+          // willChange hints the compositor to keep a transform layer.
+          transform: headerHidden ? 'translateY(-110%)' : 'translateY(0)',
+          transition: 'transform 200ms ease',
+          willChange: 'transform',
         }}
       >
         <HeaderWaveBlock />

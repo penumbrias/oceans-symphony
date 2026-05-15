@@ -39,6 +39,39 @@ function notifyTap() {
   }
 }
 
+// Set by the @capacitor/app `appUrlOpen` listener. Holds the next in-app
+// route the React tree should navigate to (path + search + hash, no
+// origin). Used for OS launcher shortcuts that deep-link via VIEW
+// intents at our Capacitor hostname.
+export const pendingNativeRoute = { target: null };
+const pendingRouteSubscribers = new Set();
+
+export function subscribeToNativeRoute(fn) {
+  pendingRouteSubscribers.add(fn);
+  return () => pendingRouteSubscribers.delete(fn);
+}
+
+function notifyRoute() {
+  for (const fn of pendingRouteSubscribers) {
+    try { fn(pendingNativeRoute); } catch { /* keep going */ }
+  }
+}
+
+// Trim a Capacitor app URL down to the SPA-relative bit we can hand to
+// react-router. Returns null if the URL isn't ours.
+function extractInAppRoute(rawUrl) {
+  if (!rawUrl) return null;
+  try {
+    const u = new URL(rawUrl);
+    // Only handle URLs that match our Capacitor hostname; ignore mailto:,
+    // tel:, or external https links that happen to come through.
+    if (u.hostname !== "app.local.oceans-symphony") return null;
+    return `${u.pathname || "/"}${u.search || ""}${u.hash || ""}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function initNativeShell() {
   if (started) return;
   started = true;
@@ -69,6 +102,24 @@ export async function initNativeShell() {
   // BACKUP_MODES.REMINDER). Idempotent — cancels any previous one
   // before laying down the new schedule.
   try { await reconcileNativeBackupReminder(); } catch { /* non-fatal */ }
+
+  // Deep-link handling for OS launcher shortcuts (and any other
+  // appUrlOpen source). When the app is cold-launched via a shortcut,
+  // the WebView's initial location already has the query params, so
+  // the page reads them on mount and we don't need to do anything
+  // here. When the app is WARM (already in memory) and a shortcut is
+  // tapped, appUrlOpen fires — we stash the target route and let
+  // AuthenticatedApp's subscriber pick it up via react-router's
+  // navigate().
+  try {
+    const { App } = await import("@capacitor/app");
+    App.addListener("appUrlOpen", (event) => {
+      const route = extractInAppRoute(event?.url);
+      if (!route) return;
+      pendingNativeRoute.target = route;
+      notifyRoute();
+    });
+  } catch { /* non-fatal */ }
 
   // Register tray action buttons (Snooze 10m / 1h) so the user can
   // snooze straight from the notification without opening the app. The

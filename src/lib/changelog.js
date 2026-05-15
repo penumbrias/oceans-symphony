@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Native Android build: long-press the app icon on your home screen for a 'Quick Actions' shortcut that drops you straight into the same Quick Actions overlay you already get from long-pressing the in-app Quick Check-In button. Customise the menu items themselves from Settings → Quick Actions; the OS shortcut just opens whatever menu you've configured.",
+      },
+      {
+        type: "improve",
+        text: "At large accessibility font sizes (150% / 175% / 200%) the mobile header now auto-hides when you scroll down and slides back in when you scroll up. The chrome was eating more than a fifth of the viewport at those sizes — defeating the point of bumping the font for legibility. At normal sizes the header stays put as before, no surprise motion.",
+      },
+      {
+        type: "fix",
+        text: "Journals page: opening the Author filter dropdown no longer wrecks the layout (search bar truncated, header pushed off-screen left, etc). The dropdown was overflowing the right edge of the viewport, which let the page horizontal-scroll. Added a defensive overflow-x:hidden at the app root so any future stray-wide child can't trigger this same class of bug, plus constrained the dropdown to the viewport width.",
+      },
+      {
         type: "fix",
         text: "Native Android build: 'Download Backup' (the primary export in Settings → Data & Privacy → Backup & Export) and the Recovery screen's 'Save standard backup' / 'Save raw on-device file' / pre-reset auto-save buttons were ALL still using the old anchor-download path that no-ops in a Capacitor WebView. Routed every remaining file-save call site through the shared shareFile helper. The Backup & Export screen and the Recovery screen now pop the system share sheet on native exactly like 'Back up now' and 'Save PDF' do.",
       },

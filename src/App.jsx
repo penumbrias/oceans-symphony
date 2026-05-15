@@ -52,7 +52,7 @@ import {
   EncryptedDataWithoutKeyError,
 } from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
-import { initNativeShell, subscribeToNativeTap, pendingNativeTap } from '@/lib/nativeBootstrap';
+import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useNavigate } from 'react-router-dom';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
@@ -82,6 +82,21 @@ const AuthenticatedApp = () => {
     };
     consume();
     return subscribeToNativeTap(consume);
+  }, [navigate]);
+
+  // When the user taps an OS launcher shortcut while the app is warm
+  // (already running), nativeBootstrap captures the appUrlOpen event
+  // and stashes the in-app route here. Drain on subscribe so a tap
+  // that landed before the listener mounted still navigates.
+  useEffect(() => {
+    const consume = () => {
+      const target = pendingNativeRoute.target;
+      if (!target) return;
+      pendingNativeRoute.target = null;
+      navigate(target);
+    };
+    consume();
+    return subscribeToNativeRoute(consume);
   }, [navigate]);
 
   if (isLoadingAuth) {
