@@ -55,6 +55,7 @@ import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
+import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
 import { useNavigate } from 'react-router-dom';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
@@ -73,6 +74,11 @@ const AuthenticatedApp = () => {
   // Mirrors the user's QuickAction list onto the OS launcher's
   // long-press shortcut menu via ShortcutManager. No-op on web/TWA.
   useNativeQuickActionsSync();
+  // Native-only fallback for friend-front-change push notifications —
+  // the Web Push pipeline doesn't reach a Capacitor WebView, so we
+  // poll client-side and fire LocalNotifications on change. No-op
+  // on web/TWA (Web Push handles it there).
+  useFriendsFrontChangeNotifications();
   // When the user taps a native OS notification we route to the
   // reminders inbox; the actual ReminderInstance was already recorded
   // by the bootstrap listener.

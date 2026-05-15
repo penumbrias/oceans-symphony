@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Native Android build: friends' front-change notifications now fire even though Web Push doesn't work in a Capacitor WebView. The Web Push pipeline that delivers these notifications on web/TWA never reached the native build, so toggling 'Notify on change' for a friend silently did nothing. Native now polls the Friends server every 30 seconds while the app is open, compares each friend's front timestamp against the last value we saw, and fires a local notification on change for any friend you've enabled. Honest caveat: this only runs while the app process is alive (foreground or recent-background) — fully-closed Android stops the polling, so friends who update while you've fully swiped the app away won't trigger a notification until you reopen.",
+      },
+      {
+        type: "improve",
+        text: "Auto-hide header on scroll now activates ONLY in landscape orientation (previously triggered at large font sizes regardless of orientation). Portrait keeps the header fixed in place so it never disappears mid-tap. Landscape gets the auto-hide so the chrome doesn't eat ~20% of the limited vertical viewport.",
+      },
+      {
+        type: "fix",
         text: "Native Android build: Friends profile setup was failing with 'Unexpected token < … is not valid JSON' because /api/friends requests resolved against the WebView's private hostname (app.local.oceans-symphony) and returned a 404 HTML page instead of the real API JSON. The Friends client now points at the production Vercel deployment when running natively. Web and TWA continue to use same-origin relative paths.",
       },
       {

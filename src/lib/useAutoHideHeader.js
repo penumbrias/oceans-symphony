@@ -2,54 +2,58 @@ import { useEffect, useState, useRef } from "react";
 
 // Returns a boolean that flips to `true` while the user is scrolling
 // DOWN past a small threshold, and back to `false` when they scroll
-// UP. Designed for the mobile sticky header at high accessibility
-// font scales (150% / 175% / 200%) — at those sizes the header eats
-// roughly 25%+ of the landscape viewport, which kills legibility for
-// the people who set the larger font in the first place. Auto-hiding
-// only activates at xl3 / xl4 / xl5 so users at normal sizes don't
-// get unexpected motion they didn't ask for.
+// UP. Wired into the mobile sticky header.
+//
+// Activation rule: landscape orientation ONLY. In landscape on a
+// phone the viewport is only ~360 CSS px tall and the header chrome
+// eats ~20% of that — the auto-hide claws back that vertical space
+// while scrolling content. Portrait keeps a fixed header so it never
+// disappears on the user mid-tap, which is what they asked for.
 //
 // Watches the scroll position of the nearest `.app-content-main`
-// element (AppLayout's <main>), because that's the element that
-// scrolls in this app — `window.scrollY` stays at 0.
-//
-// Listens to changes on the <html> class list so flipping font
-// size in Settings → Accessibility takes effect without a reload.
+// element (AppLayout's <main>) — the scroll happens there, not on
+// window in this app.
 
-const LARGE_FONT_CLASSES = new Set(["a11y-text-xl3", "a11y-text-xl4", "a11y-text-xl5"]);
 const HIDE_DELTA_PX = 8;   // need at least this much scroll-down to hide
 const SHOW_DELTA_PX = 8;   // and at least this much scroll-up to reveal
 const TOP_GUARD_PX = 32;   // never hide if we're near the top
 
-function htmlHasLargeFont() {
-  if (typeof document === "undefined") return false;
-  const cls = document.documentElement.classList;
-  for (const c of LARGE_FONT_CLASSES) {
-    if (cls.contains(c)) return true;
+function isLandscape() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.matchMedia("(orientation: landscape)").matches;
+  } catch {
+    // Fallback for environments where matchMedia is missing.
+    return window.innerWidth > window.innerHeight;
   }
-  return false;
 }
 
 export default function useAutoHideHeader() {
   const [hidden, setHidden] = useState(false);
-  const [enabled, setEnabled] = useState(htmlHasLargeFont);
+  const [landscape, setLandscape] = useState(isLandscape);
   const lastYRef = useRef(0);
 
-  // Re-check enabled when the user toggles font size — Accessibility
-  // settings flip the className on <html> rather than re-rendering us,
-  // so a MutationObserver is the cleanest hook in.
+  // Listen for orientation changes — flipping the phone should
+  // enable / disable auto-hide without a reload. Use matchMedia's
+  // change event rather than the deprecated orientationchange.
   useEffect(() => {
-    const obs = new MutationObserver(() => {
-      const next = htmlHasLargeFont();
-      setEnabled(prev => (prev !== next ? next : prev));
-      if (!next) setHidden(false); // dropping back to normal size un-hides
-    });
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-    return () => obs.disconnect();
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(orientation: landscape)");
+    const onChange = (e) => {
+      setLandscape(e.matches);
+      if (!e.matches) setHidden(false); // rotating to portrait re-reveals
+    };
+    if (mq.addEventListener) {
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    }
+    // Safari < 14 fallback
+    mq.addListener(onChange);
+    return () => mq.removeListener(onChange);
   }, []);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!landscape) {
       setHidden(false);
       return;
     }
@@ -75,7 +79,7 @@ export default function useAutoHideHeader() {
     };
     scroller.addEventListener("scroll", onScroll, { passive: true });
     return () => scroller.removeEventListener("scroll", onScroll);
-  }, [enabled, hidden]);
+  }, [landscape, hidden]);
 
   return hidden;
 }
