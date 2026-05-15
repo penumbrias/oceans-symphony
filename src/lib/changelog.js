@@ -24,6 +24,10 @@ export const CHANGELOG = [
         text: "Alter birthday field is now free-form text instead of forcing a YYYY-MM-DD date picker — you can enter 'Age 7', 'around middle school', 'March 2018', or an exact date, depending on what fits each alter. The 🎂 line on the alter profile renders whatever you type. PluralKit sync still only sends the value when it's a valid ISO date so the API doesn't reject the upload.",
       },
       {
+        type: "improve",
+        text: "Birthday and Origin Year are now linked since they're the same 'when did this alter first appear' idea — both fields show up in the alter edit modal AND the inline profile editor. If only one is filled, the other auto-fills from it on load (and as you type). Once both have values, edits stay independent. A small 'Sync from birthday (YYYY)' button surfaces next to Origin Year whenever the years drift apart, so you can re-link them in one click.",
+      },
+      {
         type: "fix",
         text: "TWA-to-native migration modal (the 'Welcome to the native Oceans Symphony' screen shown on the very first launch after the Play auto-update) was unscrollable on shorter screens — the explanation paragraphs pushed the Import/Start-fresh buttons off the bottom of the viewport with no way to scroll or dismiss, trapping users on the screen. The modal backdrop is now scrollable, with safe-area padding so the buttons stay clear of the gesture pill.",
       },
