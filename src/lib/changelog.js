@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Native Android build: the WebView no longer overlaps the system status bar, so the app header sits below the clock and signal icons instead of underneath them. Web and TWA builds are unaffected.",
+      },
+      {
         type: "feature",
         text: "First-run setup now has an 'Import a backup file' button. Useful when you're installing on a new device — instead of starting empty and then finding the Import option in Settings, you can pull in an existing backup before you've even finished setup. Accepts all three file shapes the app supports: a standard backup, a raw plain on-device file, or a raw encrypted on-device file (you'll be prompted for the password the file was encrypted with). Imported data is loaded as plain on the new device; you can re-enable encryption from Settings afterwards if you want.",
       },

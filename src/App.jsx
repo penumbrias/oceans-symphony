@@ -52,6 +52,7 @@ import {
   EncryptedDataWithoutKeyError,
 } from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
+import { initNativeShell } from '@/lib/nativeBootstrap';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
 import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
@@ -153,6 +154,10 @@ function App() {
     if (setupState !== 'booting') return;
     let cancelled = false;
     (async () => {
+      // No-op on web/TWA. On native, pushes the WebView below the status
+      // bar so the app header doesn't overlap the system clock/icons.
+      try { await initNativeShell(); } catch { /* non-fatal */ }
+
       // Best-effort, but call it before anything that depends on storage.
       try { await requestPersistentStorage(); } catch { /* non-fatal */ }
 
