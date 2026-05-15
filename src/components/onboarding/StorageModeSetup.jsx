@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } from "lucide-react";
 import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
+import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
 import {
   parseImportText,
   decryptRawEncrypted,
@@ -27,6 +28,17 @@ function FirstRunSetup({ onComplete }) {
   const [importPassword, setImportPassword] = useState("");
   const [importStatus, setImportStatus] = useState(null); // {type, text}
   const fileInputRef = useRef(null);
+
+  // TWA-to-native migration modal: native users who just got auto-
+  // updated from the old TWA build see this as the first screen on
+  // their fresh-looking install. Their data lives in Chrome's
+  // storage at oceans-symphony.app and isn't reachable from the
+  // native sandbox — modal walks them through grabbing a backup
+  // there and importing it here. "Import backup file" delegates to
+  // the same fileInputRef the "Import a backup file" button below
+  // uses, so they land in the same well-tested code path. Dismiss
+  // sets a localStorage flag so it only fires once per install.
+  const [showMigration, setShowMigration] = useState(() => shouldShowTwaToNativeMigration());
 
   const handleChooseCloud = () => { setMode("cloud"); onComplete(); };
   const handleChooseLocal = () => { setStep("local_password"); };
@@ -155,6 +167,24 @@ function FirstRunSetup({ onComplete }) {
 
   return (
     <div className="space-y-4">
+      {/* Native-only TWA-to-native migration prompt. Rendered as the
+          first UI on the onboarding screen so users coming from a
+          Play Store auto-update see it BEFORE the storage-mode picker.
+          onImport delegates to the existing fileInputRef so the
+          import flow reuses the well-tested first-run importer
+          below. */}
+      <TwaToNativeMigrationModal
+        open={showMigration}
+        onClose={() => setShowMigration(false)}
+        onImport={() => {
+          setShowMigration(false);
+          // Defer one tick so the modal unmounts before we open the
+          // native file picker — otherwise some Android WebView
+          // versions race the activity-stack transitions and
+          // suppress the picker dialog.
+          setTimeout(() => fileInputRef.current?.click(), 50);
+        }}
+      />
       <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
         <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
         <p className="text-sm text-foreground">

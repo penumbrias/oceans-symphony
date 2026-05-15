@@ -53,7 +53,6 @@ import {
 } from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
-import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from '@/components/onboarding/TwaToNativeMigrationModal';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
@@ -75,13 +74,10 @@ const AuthenticatedApp = () => {
   // Mirrors the user's QuickAction list onto the OS launcher's
   // long-press shortcut menu via ShortcutManager. No-op on web/TWA.
   useNativeQuickActionsSync();
-
-  // First launch of the native build under the TWA's package id —
-  // warn the user their TWA data didn't transfer and offer to
-  // import a backup. Shown once per install (localStorage flag).
-  // No-op on web/TWA.
-  const [showMigration, setShowMigration] = useState(false);
-  useEffect(() => { setShowMigration(shouldShowTwaToNativeMigration()); }, []);
+  // (TwaToNativeMigrationModal moved into the onboarding flow —
+  // src/components/onboarding/StorageModeSetup.jsx → FirstRunSetup
+  // — so it shows at the right moment for users coming from a
+  // Play auto-update, not after they've already completed setup.)
   // Native-only fallback for friend-front-change push notifications —
   // the Web Push pipeline doesn't reach a Capacitor WebView, so we
   // poll client-side and fire LocalNotifications on change. No-op
@@ -129,12 +125,6 @@ const AuthenticatedApp = () => {
   }
 
   return (
-    <>
-      <TwaToNativeMigrationModal
-        open={showMigration}
-        onClose={() => setShowMigration(false)}
-        onImport={() => navigate('/settings?openDataPrivacy=1')}
-      />
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
@@ -169,7 +159,6 @@ const AuthenticatedApp = () => {
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
-    </>
   );
 };
 

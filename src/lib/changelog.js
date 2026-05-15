@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "improve",
+        text: "TWA-to-native migration prompt now appears on the first-run onboarding screen instead of as a modal that pops up on top of the Dashboard after setup is already complete. Users coming from the Play Store auto-update see the 'go grab a backup from oceans-symphony.app in Chrome' guidance before they make any storage-mode choices, so they don't accidentally start fresh and then get told mid-app that they should have imported something.",
+      },
+      {
         type: "fix",
         text: "Native Android build: corrected the production domain references throughout the app. The TWA was wrapping oceans-symphony.app (the canonical domain), not oceans-symphony.vercel.app (a staging URL). Chrome's storage is keyed by origin, so the migration modal pointing TWA users at the vercel.app URL would have sent them to an empty database. Fixed: the migration modal copy, the native-app Friends API base URL, the background-runner's Friends poll URL, and the CLAUDE.md notes future agents read.",
       },
