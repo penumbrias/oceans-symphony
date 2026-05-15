@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Matches the dark theme's --color-bg (#0A0E17) from
+         src/index.css so the launcher icon's background reads as
+         "same dark canvas the app launches into" rather than the
+         default Capacitor white. The Oceans Symphony wave/glow
+         logo is built to sit on a dark backdrop. -->
+    <color name="ic_launcher_background">#0A0E17</color>
 </resources>
