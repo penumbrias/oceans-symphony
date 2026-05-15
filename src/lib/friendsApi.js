@@ -55,6 +55,16 @@ export async function registerIdentity({ displayName, systemName, terms, privacy
     await localEntities.FriendIdentity.create({ userId, secret, friendCode, displayName, systemName, terms, privacyLevel });
   }
 
+  // Native-only: seed the background poll runner with the freshly-
+  // saved credentials so it can authenticate when WorkManager wakes
+  // it up. resetState wipes any stale last-front snapshot left over
+  // from a previous profile so the next poll doesn't spam false
+  // "front changed" notifications.
+  try {
+    const { pushIdentityToBackgroundRunner } = await import("@/lib/nativeBackgroundFriendSync");
+    await pushIdentityToBackgroundRunner({ resetState: !existing });
+  } catch { /* non-fatal on web */ }
+
   return { userId, secret, friendCode };
 }
 
@@ -76,6 +86,14 @@ export async function deleteIdentity() {
   } catch {}
 
   await localEntities.FriendIdentity.delete(identity.id);
+
+  // Native-only: wipe the background runner's stored identity so its
+  // periodic poll no-ops instead of hammering the API with the old
+  // credentials.
+  try {
+    const { clearBackgroundRunnerIdentity } = await import("@/lib/nativeBackgroundFriendSync");
+    await clearBackgroundRunnerIdentity();
+  } catch { /* non-fatal on web */ }
 }
 
 // ─── Friend list & pending ─────────────────────────────────────────────────────

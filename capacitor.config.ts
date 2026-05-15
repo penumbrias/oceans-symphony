@@ -51,6 +51,26 @@ const config: CapacitorConfig = {
       overlaysWebView: false,
       style: 'LIGHT',
     },
+    // Periodic background poll of the Friends API so friend-front
+    // updates fire a local notification even when the Symphony app
+    // is fully closed. Without this we'd rely on the in-app polling
+    // in src/lib/useFriendsFrontNotifications.js, which only runs
+    // while the app is alive. Source lives in
+    // public/runners/friends-poll.js (copied verbatim into dist/ by
+    // Vite, the runner runtime loads it from the bundled assets).
+    //
+    // 15-minute interval is Android WorkManager's floor — anything
+    // smaller is silently rounded up. Some OEMs throttle more
+    // aggressively under battery optimisation; nothing we can do
+    // about that from JS.
+    BackgroundRunner: {
+      label: 'app.oceans_symphony.nativeapp.friends',
+      src: 'runners/friends-poll.js',
+      event: 'checkFriends',
+      repeat: true,
+      interval: 15,
+      autoStart: true,
+    },
   },
 };
 

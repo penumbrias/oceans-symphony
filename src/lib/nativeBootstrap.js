@@ -103,6 +103,17 @@ export async function initNativeShell() {
   // before laying down the new schedule.
   try { await reconcileNativeBackupReminder(); } catch { /* non-fatal */ }
 
+  // Seed the friends background-poll runner with the current identity.
+  // Idempotent — overwrites whatever credentials the runner had. Safe
+  // to call even if the user has no Friends profile (the bridge
+  // short-circuits when getLocalIdentity returns null). Covers the
+  // uninstall-reinstall case where the runner's CapacitorKV is fresh
+  // but the IndexedDB identity survived restore.
+  try {
+    const { pushIdentityToBackgroundRunner } = await import("@/lib/nativeBackgroundFriendSync");
+    await pushIdentityToBackgroundRunner();
+  } catch { /* non-fatal */ }
+
   // Document-level interceptor for external anchor clicks. In a
   // Capacitor WebView, <a target="_blank"> opens INSIDE the WebView
   // instead of in the user's browser — which means tapping a

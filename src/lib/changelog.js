@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Native Android build: friends' front-change notifications now fire even when the app is fully closed — we wire @capacitor/background-runner up to Android's WorkManager, which wakes a tiny JS task every ~15 minutes to poll the Friends server and fire a local notification on any tracked change. Caveats kept honest: 15 minutes is WorkManager's floor (won't run more often even if we asked), and some OEM battery savers (Samsung One UI, Xiaomi MIUI) throttle background tasks aggressively — disabling battery-optimisation for Symphony in Android Settings fixes that. The in-app 30s polling still runs while the app is open, so foreground delivery stays snappy.",
+      },
+      {
+        type: "feature",
         text: "Native Android build: notifications now route to one of two channels so you can configure each independently in system Settings → Apps → Oceans Symphony → Notifications. 'Reminders' (used by check-in nudges, scheduled / interval reminders, the backup reminder, etc.) defaults to high importance with sound, vibration, and a heads-up bubble. 'Switch updates' (used for own-system 'alter takes front' reminders and friend front-change notifications) defaults to low importance — silent and banner-only in the tray, no vibration, no heads-up. Each channel's sound, vibration, and importance can be customised separately in the OS Settings page.",
       },
       {
