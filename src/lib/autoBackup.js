@@ -23,7 +23,7 @@ import { getFullDbDump } from "@/lib/localDb";
 import { getAllLocalImages } from "@/lib/localImageStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
-import { shareFile } from "@/lib/shareFile";
+import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
@@ -42,6 +42,26 @@ export const BACKUP_MODES = {
   OFF: "off",
   AUTO: "auto",
   REMINDER: "reminder",
+};
+
+// Native-only: where the backup file actually lands.
+//   - "documents": silent write to the OS Documents folder via
+//                  @capacitor/filesystem. No share-sheet prompt.
+//                  File shows up in Files app → Internal storage →
+//                  Documents (or Android/data/<pkg>/Documents on
+//                  scoped-storage Android 11+, still visible to the
+//                  user). Best default — backups land in a known
+//                  spot without interrupting the user every time
+//                  auto-backup fires.
+//   - "ask":       hand the file to the system share sheet so the
+//                  user picks where it goes (Files / Drive / email
+//                  / etc) on each backup. Existing behaviour pre-
+//                  0.14.x. Default on web because we don't have
+//                  Filesystem there.
+const DESTINATION_KEY = "symphony_autobackup_destination";
+export const BACKUP_DESTINATIONS = {
+  DOCUMENTS: "documents",
+  ASK: "ask",
 };
 
 // User-pickable backup intervals. 0 means off.
@@ -92,6 +112,24 @@ export function setAutoBackupMode(mode) {
   catch { /* non-fatal */ }
 }
 
+export function getBackupDestination() {
+  try {
+    const v = localStorage.getItem(DESTINATION_KEY);
+    if (v === BACKUP_DESTINATIONS.DOCUMENTS || v === BACKUP_DESTINATIONS.ASK) return v;
+  } catch { /* non-fatal */ }
+  // Native: silent write to Documents is the natural default — the
+  // user is on a real OS and expects auto-backups to "just save
+  // somewhere I can find later". Web/TWA: only the share-sheet path
+  // works.
+  return isNative() ? BACKUP_DESTINATIONS.DOCUMENTS : BACKUP_DESTINATIONS.ASK;
+}
+
+export function setBackupDestination(value) {
+  if (![BACKUP_DESTINATIONS.DOCUMENTS, BACKUP_DESTINATIONS.ASK].includes(value)) return;
+  try { localStorage.setItem(DESTINATION_KEY, value); }
+  catch { /* non-fatal */ }
+}
+
 async function buildFullBackupPayload() {
   const dump = getFullDbDump();
   let images = {};
@@ -107,10 +145,15 @@ async function buildFullBackupPayload() {
   };
 }
 
-// Run a backup right now. Routes through src/lib/shareFile.js — which
-// has the native (cache + @capacitor/share) and web (navigator.share
-// → anchor download) paths in one place. Returns the result string
-// ("shared" | "downloaded" | "cancelled" | "failed").
+// Run a backup right now. Two delivery paths:
+//   - BACKUP_DESTINATIONS.DOCUMENTS (native only): silent write
+//     straight to Filesystem.Documents. On failure, falls back to
+//     the share sheet so the backup attempt still succeeds.
+//   - BACKUP_DESTINATIONS.ASK: hand the file to shareFile (system
+//     share sheet on native, navigator.share/anchor on web).
+//
+// Returns the result string ("filesystem" | "shared" | "downloaded"
+// | "cancelled" | "failed").
 export async function runAutoBackupNow({ silent = false } = {}) {
   const payload = await buildFullBackupPayload();
   const json = JSON.stringify(payload);
@@ -118,20 +161,47 @@ export async function runAutoBackupNow({ silent = false } = {}) {
   const filename = `oceans-symphony-backup-${date}.json`;
   const blob = new Blob([json], { type: "application/json" });
 
-  const { result, error } = await shareFile({
-    blob,
-    filename,
-    title: "Oceans Symphony backup",
-    dialogTitle: "Save backup file",
-  });
+  const destination = getBackupDestination();
+  let result = "failed";
+  let error = null;
 
-  if (result === "shared" || result === "downloaded") {
+  if (isNative() && destination === BACKUP_DESTINATIONS.DOCUMENTS) {
+    const silentRes = await writeFileToDocumentsSilent({ blob, filename });
+    result = silentRes.result;
+    error = silentRes.error;
+    // On silent-write failure (typically scoped-storage refusal on
+    // some OEMs), fall back to share sheet so the user still gets
+    // their backup somewhere.
+    if (result === "failed") {
+      console.warn("[Auto-backup] silent write fell back to share sheet:", error);
+      const fb = await shareFile({
+        blob,
+        filename,
+        title: "Oceans Symphony backup",
+        dialogTitle: "Save backup file",
+      });
+      result = fb.result;
+      error = fb.error;
+    }
+  } else {
+    const fb = await shareFile({
+      blob,
+      filename,
+      title: "Oceans Symphony backup",
+      dialogTitle: "Save backup file",
+    });
+    result = fb.result;
+    error = fb.error;
+  }
+
+  if (result === "filesystem" || result === "shared" || result === "downloaded") {
     setAutoBackupLastAt(new Date().toISOString());
   }
   if (!silent) {
     try {
       const { toast } = await import("sonner");
-      if (result === "shared") toast.success("Backup saved — pick a destination in the share sheet");
+      if (result === "filesystem") toast.success("Backup saved to Documents");
+      else if (result === "shared") toast.success("Backup saved — pick a destination in the share sheet");
       else if (result === "downloaded") toast.success("Backup downloaded");
       else if (result === "cancelled") toast("Backup canceled");
       else toast.error(`Backup failed${error ? `: ${error}` : ""}`);

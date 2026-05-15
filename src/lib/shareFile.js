@@ -121,3 +121,41 @@ export async function shareFile({ blob, filename, title, dialogTitle }) {
   }
   return shareWeb(blob, filename, title || filename);
 }
+
+// Native-only silent write to the public Documents folder. Used by
+// auto-backup when the user picked "Documents" as the destination,
+// so the backup file lands in a known place without popping a share
+// sheet every time.
+//
+// On Android 11+ with scoped storage, Capacitor's Filesystem plugin
+// scopes Directory.Documents under /storage/emulated/0/Android/data/
+// <pkg>/Documents/ — still browsable in Files app, just one level
+// deeper. We do NOT request MANAGE_EXTERNAL_STORAGE (Play Store
+// virtually never approves it) so the truly-global Documents path
+// is off the table.
+//
+// Returns { result, uri?, error? }.
+//   result: "filesystem" on success, "failed" on error.
+export async function writeFileToDocumentsSilent({ blob, filename }) {
+  if (!isNative()) {
+    return { result: "failed", error: "silent_write_native_only" };
+  }
+  if (!(blob instanceof Blob)) {
+    return { result: "failed", error: "not_a_blob" };
+  }
+  try {
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const base64 = await blobToBase64(blob);
+    const writeRes = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Documents,
+      recursive: true,
+    });
+    console.log("[shareFile] silent write OK:", writeRes?.uri);
+    return { result: "filesystem", uri: writeRes?.uri };
+  } catch (e) {
+    console.warn("[shareFile] silent write failed:", e?.message || e);
+    return { result: "failed", error: e?.message || "write_failed" };
+  }
+}

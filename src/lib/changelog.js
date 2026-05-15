@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Native Android build: the 'Storage persistence' row in Settings → Auto-backup never did anything on the native app (the Web Storage API the button calls always returns false in a Capacitor WebView — the concept only applies to browsers). Replaced it on native with a 'Backup destination' picker: 'Documents folder' (silent — backups land directly in your Documents folder with no share-sheet popup, the new default) or 'Ask each time' (share sheet, the previous behaviour). On web/TWA the persistence row stays as-is because there it's actually meaningful.",
+      },
+      {
         type: "feature",
         text: "Dashboard edit mode now shows 'ghost' tiles for every nav item you've previously removed from the grid — they appear at the end of the live tiles, at a lighter opacity, with a green + badge instead of the red ×. Tap to add the tile back to your dashboard, no detour through Settings. Ghosts can't be dragged above live tiles (they're outside the drag region by design) so 'ghosts always at the end' holds even mid-edit.",
       },
