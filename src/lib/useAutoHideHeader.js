@@ -1,55 +1,56 @@
 import { useEffect, useState, useRef } from "react";
 
 // Returns a boolean that flips to `true` while the user is scrolling
-// DOWN past a small threshold, and back to `false` when they scroll
-// UP. Wired into the mobile sticky header.
+// DOWN past a small threshold in LANDSCAPE orientation, and back to
+// `false` when they scroll UP. In portrait it's always false — the
+// header never moves.
 //
-// Activation rule: landscape orientation ONLY. In landscape on a
-// phone the viewport is only ~360 CSS px tall and the header chrome
-// eats ~20% of that — the auto-hide claws back that vertical space
-// while scrolling content. Portrait keeps a fixed header so it never
-// disappears on the user mid-tap, which is what they asked for.
+// Why landscape-only: on a phone in landscape the viewport is only
+// ~360 CSS px tall and the header chrome eats ~20% of that, so
+// reclaiming it during scroll is a real legibility win. In portrait
+// the header is small relative to the viewport and users expect it
+// to stay put (they kept asking — version 0.15.2 hid it at large
+// font sizes regardless of orientation and that felt wrong).
 //
-// Watches the scroll position of the nearest `.app-content-main`
-// element (AppLayout's <main>) — the scroll happens there, not on
-// window in this app.
+// Orientation detection: a previous version used
+// `matchMedia('(orientation: landscape)')` which Capacitor's Android
+// WebView was reporting wrong in some cases — users in portrait saw
+// the header disappear on scroll. Switched to a direct
+// innerWidth/innerHeight comparison which is rock-solid in every
+// browser engine (and refreshes via resize events, which DO fire
+// reliably on rotation in Capacitor).
 
 const HIDE_DELTA_PX = 8;   // need at least this much scroll-down to hide
 const SHOW_DELTA_PX = 8;   // and at least this much scroll-up to reveal
 const TOP_GUARD_PX = 32;   // never hide if we're near the top
 
-function isLandscape() {
+function detectLandscape() {
   if (typeof window === "undefined") return false;
-  try {
-    return window.matchMedia("(orientation: landscape)").matches;
-  } catch {
-    // Fallback for environments where matchMedia is missing.
-    return window.innerWidth > window.innerHeight;
-  }
+  return window.innerWidth > window.innerHeight;
 }
 
 export default function useAutoHideHeader() {
   const [hidden, setHidden] = useState(false);
-  const [landscape, setLandscape] = useState(isLandscape);
+  const [landscape, setLandscape] = useState(detectLandscape);
   const lastYRef = useRef(0);
 
-  // Listen for orientation changes — flipping the phone should
-  // enable / disable auto-hide without a reload. Use matchMedia's
-  // change event rather than the deprecated orientationchange.
+  // Track orientation via resize events. Capacitor fires these on
+  // rotation; web browsers fire on window resize. matchMedia is
+  // deliberately NOT used here — see comment at the top.
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(orientation: landscape)");
-    const onChange = (e) => {
-      setLandscape(e.matches);
-      if (!e.matches) setHidden(false); // rotating to portrait re-reveals
+    if (typeof window === "undefined") return;
+    const refresh = () => {
+      const next = detectLandscape();
+      setLandscape(prev => (prev === next ? prev : next));
+      if (!next) setHidden(false);
     };
-    if (mq.addEventListener) {
-      mq.addEventListener("change", onChange);
-      return () => mq.removeEventListener("change", onChange);
-    }
-    // Safari < 14 fallback
-    mq.addListener(onChange);
-    return () => mq.removeListener(onChange);
+    refresh();
+    window.addEventListener("resize", refresh);
+    window.addEventListener("orientationchange", refresh);
+    return () => {
+      window.removeEventListener("resize", refresh);
+      window.removeEventListener("orientationchange", refresh);
+    };
   }, []);
 
   useEffect(() => {

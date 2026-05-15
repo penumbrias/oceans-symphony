@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Auto-hide header was firing in PORTRAIT despite the 0.15.2 landscape-only guard — the orientation media query was returning wrong values in some Capacitor WebView builds. Switched to a direct innerWidth/innerHeight comparison so the gate is rock-solid. Portrait always shows the header; landscape still auto-hides on scroll-down.",
+      },
+      {
+        type: "fix",
         text: "Native Android build: tapping an external link inside the app (GitHub releases, Notion template, Google Maps location pins on activities and check-ins, the CTAD Clinic YouTube link, the ISSTD / DID-Research / Infinite Mind resources, any URL someone pastes into a bulletin) now opens in a system Chrome tab you can swipe back from, instead of trapping you on that external page inside the Symphony app with no way back. A single global anchor-click listener catches every <a target='_blank'>, plus the handful of explicit window.open call sites switched to the new openExternalUrl helper. Web and TWA are unchanged.",
       },
       {
