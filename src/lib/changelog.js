@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Banners (preview mode, upcoming-plans 'You have X planned in Y minutes', base44 migration) used to render in document flow ABOVE the sticky page header. Once the body became unscrollable in 0.16.7, those banners stopped scrolling out of the way and permanently pushed the header down — stacking awkwardly with the in-app notification popup at the very top of the screen. Banners now render INSIDE the main scroll area so they scroll with page content; the 'Oceans Symphony' header sits cleanly at the top in every state.",
+      },
+      {
+        type: "fix",
         text: "PluralKit avatar imports now actually display. The PK API returns whatever avatar URL is set on each member — for migrated members that's pluralkit.me's CDN (works fine), but for older un-migrated members it's a Discord CDN URL, which expires under Discord's signed-URL policy and won't load from a browser. We now download each avatar at import time, save it to local image storage, and store a `local-image://` URL on the alter so it survives URL expiration AND works offline. Discord URLs are detected and skipped (the user is told to re-upload in PluralKit so it migrates to PK's CDN, then re-run import). Cached avatars are reported in the success toast.",
       },
       {
