@@ -29,6 +29,10 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
+        text: "Home-screen quick actions (long-press the app icon on Android) weren't reliably triggering on the native build. Two bugs: (1) the 'Toggle a daily task' action type had no executor in the Dashboard's quick-action handler, so tapping that shortcut appeared to do nothing — added the missing handler so it now flips today's task completion (and awards/refunds XP) just like the in-app menu. (2) The Dashboard's quick-action effect used a one-shot ref guard, so after the FIRST shortcut tap of a session subsequent taps were ignored even when the URL changed via appUrlOpen — switched to watching the URL itself (cleared via router navigate so even tapping the same shortcut twice in a row works).",
+      },
+      {
+        type: "fix",
         text: "TWA-to-native migration modal (the 'Welcome to the native Oceans Symphony' screen shown on the very first launch after the Play auto-update) was unscrollable on shorter screens — the explanation paragraphs pushed the Import/Start-fresh buttons off the bottom of the viewport with no way to scroll or dismiss, trapping users on the screen. The modal backdrop is now scrollable, with safe-area padding so the buttons stay clear of the gesture pill.",
       },
       {
