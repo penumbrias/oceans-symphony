@@ -43,7 +43,24 @@ import {
   isNativeNotificationsEnabled,
   ensureRemindersChannel,
   REMINDERS_CHANNEL_ID,
+  SWITCH_CHANNEL_ID,
 } from "@/lib/nativeNotifications";
+
+// "Switch" notifications are reminders fired when an alter takes
+// front — contextual reminders with on: "alter_fronts". They tend to
+// fire often during the day and the user typically wants ambient
+// awareness rather than a heads-up interruption, so they go to the
+// quieter SWITCH_CHANNEL_ID. Everything else uses the default
+// reminders channel.
+function channelForReminder(reminder) {
+  if (
+    reminder?.trigger_type === "contextual" &&
+    reminder?.trigger_config?.on === "alter_fronts"
+  ) {
+    return SWITCH_CHANNEL_ID;
+  }
+  return REMINDERS_CHANNEL_ID;
+}
 import {
   zonedFireInstant,
   getUserLocalDate,
@@ -289,7 +306,7 @@ export async function reconcileNativeSchedule(reminders, settings) {
       id: nativeId,
       title: c.reminder.title || "Reminder",
       body: c.reminder.body || "",
-      channelId: REMINDERS_CHANNEL_ID,
+      channelId: channelForReminder(c.reminder),
       actionTypeId: REMINDER_ACTION_TYPE_ID,
       schedule: { at: new Date(c.fireMs) },
       extra: {
@@ -455,7 +472,7 @@ export async function snoozePrescheduledFire({ reminderId, scheduledFor, opt }) 
           id: nativeId,
           title: reminder.title || "Reminder",
           body: reminder.body || "",
-          channelId: REMINDERS_CHANNEL_ID,
+          channelId: channelForReminder(reminder),
           actionTypeId: REMINDER_ACTION_TYPE_ID,
           schedule: { at: new Date(untilMs) },
           extra: { reminderId, scheduledFor: untilISO },

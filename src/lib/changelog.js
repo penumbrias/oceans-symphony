@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Native Android build: notifications now route to one of two channels so you can configure each independently in system Settings → Apps → Oceans Symphony → Notifications. 'Reminders' (used by check-in nudges, scheduled / interval reminders, the backup reminder, etc.) defaults to high importance with sound, vibration, and a heads-up bubble. 'Switch updates' (used for own-system 'alter takes front' reminders and friend front-change notifications) defaults to low importance — silent and banner-only in the tray, no vibration, no heads-up. Each channel's sound, vibration, and importance can be customised separately in the OS Settings page.",
+      },
+      {
         type: "fix",
         text: "Auto-hide header was firing in PORTRAIT despite the 0.15.2 landscape-only guard — the orientation media query was returning wrong values in some Capacitor WebView builds. Switched to a direct innerWidth/innerHeight comparison so the gate is rock-solid. Portrait always shows the header; landscape still auto-hides on scroll-down.",
       },

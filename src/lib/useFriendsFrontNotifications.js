@@ -28,7 +28,7 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchFriendsList } from "@/lib/friendsApi";
 import { isNative } from "@/lib/platform";
-import { sendNativeNotification } from "@/lib/nativeNotifications";
+import { sendNativeNotification, SWITCH_CHANNEL_ID } from "@/lib/nativeNotifications";
 
 const STATE_KEY = "symphony_friends_last_front_state_v1";
 const POLL_MS = 30 * 1000;
@@ -103,6 +103,13 @@ export function useFriendsFrontChangeNotifications() {
       sendNativeNotification({
         title: `${friend.displayName || "A friend"} updated their front`,
         body,
+        // Friend front changes are ambient awareness rather than
+        // tap-now interruptions — route to the quieter switch
+        // channel (silent + banner, no heads-up). Users who want
+        // more or less attention can adjust per-channel in system
+        // Settings → Apps → Oceans Symphony → Notifications →
+        // Switch updates.
+        channelId: SWITCH_CHANNEL_ID,
       }).catch(() => { /* non-fatal */ });
     }
 

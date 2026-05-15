@@ -34,17 +34,38 @@ function nextImmediateId() {
 // user has installed the app, so picking sensible defaults up front
 // matters. Users can override per-channel afterwards in system
 // Settings → Apps → Oceans Symphony → Notifications.
+// Two channels, two purposes:
+//
+// REMINDERS_CHANNEL_ID — IMPORTANCE_HIGH. Sound, vibration, heads-up
+//   bubble. Used for the bulk of reminders + the auto-backup nudge —
+//   the user explicitly asked to be told about these.
+//
+// SWITCH_CHANNEL_ID — IMPORTANCE_LOW. Silent (no sound), no heads-up,
+//   banner-only in the tray. Used for "an alter took front" type
+//   notifications (own system via contextual `alter_fronts` reminders
+//   and friends' front updates) — these can fire many times a day
+//   and the user typically wants ambient awareness, not an
+//   interruption.
+//
+// CRITICAL: Android pins a channel's importance/sound/vibration AT
+// CREATION TIME and refuses to let the app upgrade them after
+// install. createChannel called on an existing channel id is a
+// no-op for those fields. Users CAN still customise each channel
+// from system Settings → Apps → Oceans Symphony → Notifications →
+// <channel name>. We just want sensible defaults on first run.
 export const REMINDERS_CHANNEL_ID = "reminders-default";
-let channelEnsured = false;
+export const SWITCH_CHANNEL_ID = "reminders-switch";
+
+let channelsEnsured = false;
 
 export async function ensureRemindersChannel() {
   if (!isNative()) return;
-  if (channelEnsured) return;
+  if (channelsEnsured) return;
   try {
     const { LocalNotifications } = await import("@capacitor/local-notifications");
     if (!LocalNotifications.createChannel) {
       // iOS or older plugin — channels are an Android-only concept.
-      channelEnsured = true;
+      channelsEnsured = true;
       return;
     }
     await LocalNotifications.createChannel({
@@ -57,11 +78,20 @@ export async function ensureRemindersChannel() {
       vibration: true,
       lights: true,
     });
-    channelEnsured = true;
+    await LocalNotifications.createChannel({
+      id: SWITCH_CHANNEL_ID,
+      name: "Switch updates",
+      description: "Notifications when an alter takes front (your system or a friend's)",
+      importance: 2, // IMPORTANCE_LOW — banner in tray, no sound, no heads-up
+      visibility: 1,
+      vibration: false,
+      lights: false,
+    });
+    channelsEnsured = true;
   } catch {
     /* createChannel can throw on older Android — fall through; the
        notification just won't have the heads-up treatment. */
-    channelEnsured = true;
+    channelsEnsured = true;
   }
 }
 
@@ -86,6 +116,9 @@ export async function isNativeNotificationsEnabled() {
 // the web Push pipeline would have done — same payload shape so callers
 // don't need to translate.
 //   payload: { title, body, reminderInstanceId?, inlineActions? }
+// payload.channelId optionally overrides REMINDERS_CHANNEL_ID — pass
+// SWITCH_CHANNEL_ID for ambient "alter took front" notifications so
+// they go to the silent / banner-only channel.
 export async function sendNativeNotification(payload) {
   if (!isNative()) return false;
   try {
@@ -100,7 +133,7 @@ export async function sendNativeNotification(payload) {
           id,
           title: payload?.title || "Reminder",
           body: payload?.body || "",
-          channelId: REMINDERS_CHANNEL_ID,
+          channelId: payload?.channelId || REMINDERS_CHANNEL_ID,
           // Carry the reminder instance id so a future tap-listener can
           // route to the right screen / quick action.
           extra: {
