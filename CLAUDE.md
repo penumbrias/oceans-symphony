@@ -35,6 +35,35 @@ Users can customise the words used for their system, alters, fronting, and switc
 
 ---
 
+## Routing Gotcha — `/Home` is NOT the home page
+
+The route names are a base44 leftover and don't match what the user (or
+the bottom-nav labels) call them. Renaming would touch too many places
+to be worth the risk this late, so internalise the mapping:
+
+- **`/`** → `Dashboard.jsx`. This is the actual home page — the thing
+  users (and the "Home" bottom-nav tab) think of as "Home". Pinned
+  bulletins, critical-plan banners, and any "home_top" / "home_bottom"
+  UpcomingPlans surfaces belong here.
+- **`/Home`** → `Home.jsx`. This is the **alters directory** — the
+  page reached by the "Alters" bottom-nav tab. Its own header comment
+  describes it as "the alters directory and doesn't need to
+  double-surface" Dashboard items.
+
+Implications:
+- `SURFACE_HOME_TOP` and `SURFACE_HOME_BOTTOM` in
+  `src/lib/upcomingPlansSurfaces.js` refer to the **Dashboard** in the
+  user's mental model, despite the `home_*` ids. Their Settings labels
+  should say "Dashboard", not "Home" — fix any hint text that still
+  says otherwise.
+- If you find Dashboard-style features being rendered on `Home.jsx`,
+  that's a regression worth fixing — move them to `Dashboard.jsx`.
+- Don't propose renaming `/Home` → `/alters` to the user — they've
+  considered it and explicitly rejected it as too disruptive given how
+  many references point at the route id.
+
+---
+
 ## Two Separate "Status" Concepts — Do Not Confuse
 
 1. **Custom Status Notes** (`localEntities.StatusNote`) — the Dashboard field described above. System-wide, timestamped, immutable log. Like Facebook statuses.
