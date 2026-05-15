@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "TWA-to-native migration modal (the 'Welcome to the native Oceans Symphony' screen shown on the very first launch after the Play auto-update) was unscrollable on shorter screens — the explanation paragraphs pushed the Import/Start-fresh buttons off the bottom of the viewport with no way to scroll or dismiss, trapping users on the screen. The modal backdrop is now scrollable, with safe-area padding so the buttons stay clear of the gesture pill.",
+      },
+      {
+        type: "fix",
         text: "Edge-to-edge follow-up: the Preview Mode banner and the Upcoming Plans 'You have X planned…' banner are now full-bleed — their amber/primary background stretches to the screen edges to match the header, instead of being inset 16px by the main content padding. The banners moved out of the scrolling content area to sit directly under the header bar (where the user expects them); the Base44 migration card stays inside the page padding because it's a rounded card that needs breathing room.",
       },
       {
