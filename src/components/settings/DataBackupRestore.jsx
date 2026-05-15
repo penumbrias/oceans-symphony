@@ -14,6 +14,13 @@ import {
 } from "@/lib/backupFormat";
 import pako from "pako";
 
+// CLAUDE.md NOTE: every localStorage key that holds user data or a
+// user-set preference must be listed here, otherwise it's silently
+// dropped from backups. Audit by searching `localStorage.(setItem|
+// getItem)` across the codebase and classifying each hit. Skip:
+// onboarding flags (tour_seen, terms_setup_done), UI dismissal state
+// (*_dismissed, *_hint_seen), runtime caches (preview_open,
+// friends_front_snapshots), and per-device encryption config (KEYS.*).
 const LS_SETTINGS_KEYS = [
   "symphony_themeMode",
   "symphony_selectedTheme",
@@ -23,6 +30,7 @@ const LS_SETTINGS_KEYS = [
   "symphony_alterThemeLinks",
   "symphony_a11y_fontSize",
   "symphony_a11y_fontFamily",
+  "symphony_a11y_headingFont",
   "symphony_a11y_reduceMotion",
   "symphony_a11y_highContrast",
   "symphony_a11y_largeTouch",
@@ -33,6 +41,18 @@ const LS_SETTINGS_KEYS = [
   "nav_grid_layout",
   "nav_grid_cols",
   "nav_display_mode",
+  // Journal folder structure — user-created, definitely user data.
+  "os_journal_folders",
+  // Per-feature display / view-mode preferences.
+  "symphony_checkin_log_display",
+  "symphony_act_view_mode",
+  "symphony_polls_default_tally_mode",
+  "symphony_grounding_step_mode",
+  // Backup-system preference — losing this on restore silently resets
+  // the user's chosen schedule.
+  "symphony_autobackup_interval_days",
+  // Privacy preference for the grocery cover screen.
+  "grocery_lock_on_close_v1",
 ];
 
 function exportLocalSettings() {

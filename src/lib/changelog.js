@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Backup export now includes eight previously-missed user preferences and one piece of real user data that was being silently dropped from every backup: your journal folder structure (os_journal_folders), your auto-backup interval, the heading-font accessibility setting, the grocery cover privacy lock, and four small view-mode/display preferences. If you've ever restored a backup and noticed your journal folders were gone or your backup schedule had reset, that was why. Existing backup files don't contain these keys; new backups taken after this update do.",
+      },
+      {
         type: "feature",
         text: "Native Android build: reminders now appear as real system-tray notifications instead of being silenced. Web Push doesn't work inside the native WebView, so on the native app reminders go through Android's local-notifications channel instead. Tap Enable in Settings → Reminders → Push notifications to grant the OS permission; the Web-Push-specific 'VAPID not configured' warning is hidden on native. The 'Test push notification' and 'Show local test notification' buttons both work on native — the Deep-push test is web-only and is hidden. Web and TWA users continue to use the existing Web Push pipeline unchanged.",
       },
