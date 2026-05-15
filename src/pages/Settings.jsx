@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { APP_VERSION, APP_RELEASE_STAGE } from "@/lib/appVersion";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -205,11 +206,11 @@ export default function Settings() {
         </div>
         <p className="text-muted-foreground text-sm">
           Customize your {terms.system} and manage your account. {" "}
-          <span onClick={() => window.open("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1", "_blank")}
+          <span onClick={() => openExternalUrl("https://www.notion.so/709a266d2e0f4da7a4aaa02e180ee1ad?v=e950ba087a1d42bea4ee0784dc8307b1")}
             className="text-primary underline hover:text-primary/80 cursor-pointer">
             Template gallery →
           </span><p>
-          <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+          <span onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
                 className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
         </p></p>
       </div>
@@ -239,7 +240,7 @@ export default function Settings() {
           </div>
           <p className="text-amber-600 dark:text-amber-400 font-medium">
             🌊 Free and open source, shared by a DID system to fill a void in the community. Contact: pesturedrawing@gmail.com.{" "}
-            <span onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+            <span onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
               className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
           </p>
         </div>

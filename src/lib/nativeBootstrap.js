@@ -103,6 +103,44 @@ export async function initNativeShell() {
   // before laying down the new schedule.
   try { await reconcileNativeBackupReminder(); } catch { /* non-fatal */ }
 
+  // Document-level interceptor for external anchor clicks. In a
+  // Capacitor WebView, <a target="_blank"> opens INSIDE the WebView
+  // instead of in the user's browser — which means tapping a
+  // GitHub link, a Google Maps link, a YouTube channel, or a
+  // user-pasted bulletin URL strands the user on that page with no
+  // back-to-app affordance. Route every external http(s) anchor
+  // click through @capacitor/browser so it opens in a Chrome Custom
+  // Tab (swipeable back to the app). Catches all existing call sites
+  // — no need to refactor every <a> in the tree.
+  //
+  // Skipped:
+  //   - same-origin clicks (in-app react-router navigation)
+  //   - non-http protocols (mailto:, tel:, geo:, sms: — let Android
+  //     decide which app handles them)
+  //   - in-page anchors (#hash)
+  try {
+    document.addEventListener("click", async (e) => {
+      const anchor = e.target && typeof e.target.closest === "function"
+        ? e.target.closest("a[href]")
+        : null;
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+      let url;
+      try { url = new URL(href, window.location.href); }
+      catch { return; }
+      if (url.origin === window.location.origin) return;
+      if (url.protocol !== "http:" && url.protocol !== "https:") return;
+      e.preventDefault();
+      try {
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url: url.toString() });
+      } catch (err) {
+        console.warn("[nativeBootstrap] Browser.open failed:", err?.message || err);
+      }
+    }, true);
+  } catch { /* non-fatal */ }
+
   // Deep-link handling for OS launcher shortcuts (and any other
   // appUrlOpen source). When the app is cold-launched via a shortcut,
   // the WebView's initial location already has the query params, so

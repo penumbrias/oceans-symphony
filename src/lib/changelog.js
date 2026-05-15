@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Native Android build: tapping an external link inside the app (GitHub releases, Notion template, Google Maps location pins on activities and check-ins, the CTAD Clinic YouTube link, the ISSTD / DID-Research / Infinite Mind resources, any URL someone pastes into a bulletin) now opens in a system Chrome tab you can swipe back from, instead of trapping you on that external page inside the Symphony app with no way back. A single global anchor-click listener catches every <a target='_blank'>, plus the handful of explicit window.open call sites switched to the new openExternalUrl helper. Web and TWA are unchanged.",
+      },
+      {
+        type: "fix",
         text: "Native Android build: friends' front-change notifications now fire even though Web Push doesn't work in a Capacitor WebView. The Web Push pipeline that delivers these notifications on web/TWA never reached the native build, so toggling 'Notify on change' for a friend silently did nothing. Native now polls the Friends server every 30 seconds while the app is open, compares each friend's front timestamp against the last value we saw, and fires a local notification on change for any friend you've enabled. Honest caveat: this only runs while the app process is alive (foreground or recent-background) — fully-closed Android stops the polling, so friends who update while you've fully swiped the app away won't trigger a notification until you reopen.",
       },
       {

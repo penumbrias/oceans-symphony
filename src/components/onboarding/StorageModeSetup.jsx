@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { Label } from "@/components/ui/label";
 import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } from "lucide-react";
 import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
@@ -370,7 +371,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
             <strong className="text-foreground">
               Looking for the latest version?{" "}
               <span
-                onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+                onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
                 className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
               >
                 Check releases on GitHub
@@ -415,7 +416,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
                   🌊 Free and open source, shared by a DID system to fill a void in the community.{" "}
                   Contact: pesturedrawing@gmail.com ·{" "}
                   <span
-                    onClick={() => window.open("https://github.com/penumbrias/oceans-symphony/releases", "_blank")}
+                    onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
                     className="text-primary underline cursor-pointer"
                   >
                     Latest releases on GitHub →
