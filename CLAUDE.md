@@ -147,6 +147,44 @@ What always needs a changelog entry:
 
 ---
 
+## Build Targets — Web, TWA, Native (post v0.11.3)
+
+Single React codebase, three build targets. Native work must be **purely
+additive** — every web-only code path stays untouched unless a runtime
+`isNative()` branch is needed.
+
+| Target | Built by | Distributed via | Background tasks? |
+|--------|----------|-----------------|-------------------|
+| Web PWA | `npm run build` → Vercel | `oceans-symphony.vercel.app` | No |
+| Bubblewrap TWA | Existing Bubblewrap pipeline against the Vercel deploy | Existing Play Store listing | No |
+| Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | **Separate** Play Store listing under `app.oceans_symphony.nativeapp` | Yes (Phase 3+) |
+
+Rules for keeping the targets healthy:
+
+- **Branch at runtime, not at build time.** Use `isNative()` /
+  `getNativePlatform()` from `src/lib/platform.js`. Do NOT sniff the
+  user agent. Do NOT add separate entry-point files for the native
+  build.
+- **Native-only dependencies must be dynamically imported inside an
+  `isNative()` guard** so Vite tree-shakes them out of the web bundle
+  (e.g. `if (isNative()) { const { Filesystem } = await import('@capacitor/filesystem'); … }`).
+- **`server.url` must never be set** in `capacitor.config.ts`. The
+  Capacitor build bundles web assets into the APK; pointing at the live
+  Vercel URL would kill offline behaviour and skip the native-bridge JS
+  injection.
+- **The native app's package id (`app.oceans_symphony.nativeapp`) is
+  distinct from the TWA's id(s) in `public/assetlinks.json`**, so the
+  two apps can co-exist on the Play Store and on user devices. Do not
+  change the TWA id; do not point the native app at a TWA id.
+- **PWA / TWA non-regression is non-negotiable.** At every native phase,
+  the `git diff` of web-only code paths must remain empty or very near
+  empty.
+
+See `/root/.claude/plans/is-there-any-way-glowing-wand.md` for the full
+phasing plan.
+
+---
+
 ## User Data Preservation — Non-Negotiable
 
 **User data must never be silently lost or overwritten. People should be able to keep their data always and forever — that is the contract this app makes.** Every implementation, refactor, and bug fix must protect this. Specific rules:
