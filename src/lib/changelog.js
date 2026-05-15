@@ -17,7 +17,11 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Native Android build: 'Back up now' (and the auto-backup-on-open path) were silently failing because the previous build only opted into the native Filesystem write for the auto path, not the manual button — the manual button fell through to navigator.share / anchor download, neither of which work inside a Capacitor WebView. On native we now always try the Filesystem write first; if scoped-storage permission to write into the public Documents folder is denied, we fall back to writing to the app cache + handing the file to the system share sheet via @capacitor/share so you can still file it. Both successes and failures now toast explicitly — no more silent no-shows.",
+        text: "Native Android build: 'Back up now' and the therapy-report 'Save PDF' button were both silently doing nothing. Same root cause — navigator.share inside the Capacitor WebView reports canShare({files}) as false and the anchor-download fallback is a no-op there, so the buttons appeared to do nothing with no error. Both now route through a shared file-share helper (src/lib/shareFile.js) that writes to the app's cache via @capacitor/filesystem and hands the file to @capacitor/share — the system share sheet pops up so you can save it to Files, Drive, email, etc. Failures now toast loudly instead of silently. Web/TWA users continue to use the existing Web Share / anchor download path unchanged.",
+      },
+      {
+        type: "fix",
+        text: "Native Android build (regression): 'Back up now' was silently failing because the previous build only opted into the native Filesystem write for the auto path, not the manual button — the manual button fell through to navigator.share / anchor download, neither of which work inside a Capacitor WebView. On native we now always try the Filesystem write first; if scoped-storage permission to write into the public Documents folder is denied, we fall back to writing to the app cache + handing the file to the system share sheet via @capacitor/share so you can still file it. Both successes and failures now toast explicitly — no more silent no-shows.",
       },
       {
         type: "feature",

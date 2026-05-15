@@ -23,6 +23,7 @@ import { getFullDbDump } from "@/lib/localDb";
 import { getAllLocalImages } from "@/lib/localImageStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
+import { shareFile } from "@/lib/shareFile";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
@@ -106,158 +107,40 @@ async function buildFullBackupPayload() {
   };
 }
 
-// Native delivery: write directly to a documents folder via the
-// Capacitor Filesystem plugin. On Android 10+ scoped storage means
-// the public Documents directory needs an explicit permission grant;
-// when that fails (denied, dismissed, or unsupported), we fall back
-// to writing into the app's sandboxed cache and handing the file to
-// @capacitor/share so the user picks where it lands.
-//
-// Returns the delivery result string ("filesystem" | "shared" |
-// "cancelled" | null). Null means everything failed and the caller
-// should try the web delivery path.
-async function deliverBackupNative(filename, json) {
-  if (!isNative()) return null;
-  let Filesystem, Directory, Encoding;
-  try {
-    ({ Filesystem, Directory, Encoding } = await import("@capacitor/filesystem"));
-  } catch (e) {
-    console.warn("[Auto-backup] @capacitor/filesystem not available:", e?.message);
-    return null;
-  }
-
-  // Best-effort permission request. The plugin returns
-  // { publicStorage: 'granted' | 'denied' } on Android.
-  try {
-    if (Filesystem.checkPermissions) {
-      const status = await Filesystem.checkPermissions();
-      if (status?.publicStorage !== "granted" && Filesystem.requestPermissions) {
-        await Filesystem.requestPermissions().catch(() => {});
-      }
-    }
-  } catch { /* keep going — writeFile will surface a clear error */ }
-
-  // Primary path: public Documents folder. Survives "Clear app data".
-  try {
-    const writeRes = await Filesystem.writeFile({
-      path: filename,
-      data: json,
-      directory: Directory.Documents,
-      encoding: Encoding.UTF8,
-      recursive: true,
-    });
-    console.log("[Auto-backup] wrote to Documents:", writeRes?.uri || filename);
-    return "filesystem";
-  } catch (e) {
-    console.warn("[Auto-backup] Documents write failed, falling back to share:", e?.message || e);
-  }
-
-  // Fallback: write to the app's sandboxed cache (always permitted)
-  // and use the Capacitor Share plugin to let the user file it.
-  try {
-    const writeRes = await Filesystem.writeFile({
-      path: filename,
-      data: json,
-      directory: Directory.Cache,
-      encoding: Encoding.UTF8,
-      recursive: true,
-    });
-    const uri = writeRes?.uri;
-    if (!uri) throw new Error("Filesystem.writeFile returned no uri");
-    const { Share } = await import("@capacitor/share");
-    try {
-      await Share.share({
-        title: "Oceans Symphony backup",
-        url: uri,
-        dialogTitle: "Save backup file",
-      });
-      return "shared";
-    } catch (shareErr) {
-      if (shareErr?.message?.toLowerCase().includes("canceled") || shareErr?.message?.toLowerCase().includes("cancelled")) {
-        return "cancelled";
-      }
-      throw shareErr;
-    }
-  } catch (e) {
-    console.warn("[Auto-backup] cache + share fallback also failed:", e?.message || e);
-    return null;
-  }
-}
-
-async function deliverBackup(filename, json) {
-  const blob = new Blob([json], { type: "application/json" });
-  // Web Share API (Android Chrome / TWA): lets the user file it under
-  // any installed sharing target (Files, Drive, Dropbox, etc.). On
-  // Android the Files target writes to the Downloads folder.
-  if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
-    const file = new File([blob], filename, { type: "application/json" });
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file], title: "Oceans Symphony backup" });
-        return "shared";
-      } catch (e) {
-        if (e.name === "AbortError") return "cancelled";
-        // fall through to anchor download
-      }
-    }
-  }
-  // Standard browser download. On Android Chrome / TWA, anchor
-  // downloads go to the public Downloads folder by default.
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  return "downloaded";
-}
-
-// Run a backup right now. Returns the delivery result string.
-//
-// On native we always try the Filesystem path first — the "Back up now"
-// button in a Capacitor WebView has no working anchor-download or
-// reliable navigator.share, so calling the web path would just silently
-// fail. Web/TWA continues to use Web Share / anchor download.
+// Run a backup right now. Routes through src/lib/shareFile.js — which
+// has the native (cache + @capacitor/share) and web (navigator.share
+// → anchor download) paths in one place. Returns the result string
+// ("shared" | "downloaded" | "cancelled" | "failed").
 export async function runAutoBackupNow({ silent = false } = {}) {
   const payload = await buildFullBackupPayload();
   const json = JSON.stringify(payload);
   const date = new Date().toISOString().slice(0, 10);
   const filename = `oceans-symphony-backup-${date}.json`;
+  const blob = new Blob([json], { type: "application/json" });
 
-  let result = null;
-  let nativeError = null;
-  if (isNative()) {
-    try { result = await deliverBackupNative(filename, json); }
-    catch (e) { nativeError = e; }
-  }
-  if (!result) {
-    try { result = await deliverBackup(filename, json); }
-    catch (e) {
-      // Both paths failed. Tell the user explicitly so they can take
-      // their data elsewhere — silent failure on a backup feature is
-      // the worst possible outcome.
-      console.error("[Auto-backup] all delivery paths failed:", nativeError || e);
-      if (!silent) {
-        try {
-          const { toast } = await import("sonner");
-          toast.error("Backup failed to save. Check storage permissions or use the manual Export button.");
-        } catch { /* sonner unavailable */ }
-      }
-      throw nativeError || e;
-    }
-  }
+  const { result, error } = await shareFile({
+    blob,
+    filename,
+    title: "Oceans Symphony backup",
+    dialogTitle: "Save backup file",
+  });
 
-  if (result !== "cancelled") setAutoBackupLastAt(new Date().toISOString());
+  if (result === "shared" || result === "downloaded") {
+    setAutoBackupLastAt(new Date().toISOString());
+  }
   if (!silent) {
     try {
       const { toast } = await import("sonner");
-      if (result === "filesystem") toast.success("Backup saved to Documents");
-      else if (result === "shared") toast.success("Backup saved");
+      if (result === "shared") toast.success("Backup saved — pick a destination in the share sheet");
       else if (result === "downloaded") toast.success("Backup downloaded");
       else if (result === "cancelled") toast("Backup canceled");
-    } catch { /* sonner not available, ignore */ }
+      else toast.error(`Backup failed${error ? `: ${error}` : ""}`);
+    } catch { /* sonner not available */ }
+  }
+  if (result === "failed") {
+    const err = new Error(error || "backup_delivery_failed");
+    err.deliveryResult = result;
+    throw err;
   }
   return result;
 }
