@@ -366,7 +366,12 @@ const handleNotifClick = (mentionLog) => {
         }}
       >
         <HeaderWaveBlock />
-        <div className="flex items-center justify-between px-2 h-14 relative" style={{ zIndex: 1 }}>
+        {/* Landscape phones have ~360 CSS px of vertical space — shrink
+            the header row from 56px to 44px so the chrome doesn't eat
+            a sixth of the viewport. The 44px inner row still meets the
+            Apple/Google 44x44 minimum tap target for the icon buttons
+            inside. Portrait keeps the more spacious 56px. */}
+        <div className="flex items-center justify-between px-2 h-14 landscape:h-11 relative" style={{ zIndex: 1 }}>
           {/* Left: back button or menu icon */}
           {canGoBack ?
             <button

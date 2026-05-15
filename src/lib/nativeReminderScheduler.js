@@ -50,6 +50,13 @@ import {
   getCurrentMinutesInZone,
 } from "@/lib/timezoneHelpers";
 import { base44 } from "@/api/base44Client";
+import { checkAutoResolveClient } from "@/lib/remindersScheduler";
+import { snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
+
+// Action-type id we attach to every pre-scheduled notification so
+// Android renders the inline Snooze buttons in the tray. Registered
+// once in nativeBootstrap.js.
+export const REMINDER_ACTION_TYPE_ID = "REMINDER_ACTIONS";
 
 const LOG_KEY = "symphony_native_reminder_log_v1";
 
@@ -283,6 +290,7 @@ export async function reconcileNativeSchedule(reminders, settings) {
       title: c.reminder.title || "Reminder",
       body: c.reminder.body || "",
       channelId: REMINDERS_CHANNEL_ID,
+      actionTypeId: REMINDER_ACTION_TYPE_ID,
       schedule: { at: new Date(c.fireMs) },
       extra: {
         reminderId: c.reminder.id,
@@ -333,46 +341,140 @@ export async function cancelAllNativeScheduled() {
 // false-positive is a smaller harm than a silent no-show, since the
 // user can dismiss from the inbox.
 export async function backfillFiredWhileClosed() {
-  if (!isNative()) return { backfilled: 0 };
+  if (!isNative()) return { backfilled: 0, autoResolved: 0 };
   const log = readLog();
-  if (!log.length) return { backfilled: 0 };
+  if (!log.length) return { backfilled: 0, autoResolved: 0 };
 
   const nowMs = Date.now();
   const past = log.filter(e => new Date(e.scheduledFor).getTime() <= nowMs);
   const future = log.filter(e => new Date(e.scheduledFor).getTime() > nowMs);
-  if (!past.length) return { backfilled: 0 };
+  if (!past.length) {
+    // No-op trim — log unchanged but make sure future-only is persisted.
+    writeLog(future);
+    return { backfilled: 0, autoResolved: 0 };
+  }
+
+  // Pull supporting data once for auto-resolve evaluation + dedupe.
+  let recentInstances = [];
+  let reminders = [];
+  let cachedData = { emotionCheckIns: [], sessions: [], activities: [], symptomCheckIns: [] };
+  try {
+    const [insts, rems, emoCI, sess, acts, symCI] = await Promise.all([
+      base44.entities.ReminderInstance.list("-created_date", 200),
+      base44.entities.Reminder.list("-created_date", 500),
+      base44.entities.EmotionCheckIn.list("-created_date", 50),
+      base44.entities.FrontingSession.list("-start_time", 20),
+      base44.entities.Activity.list("-created_date", 50),
+      base44.entities.SymptomCheckIn.list("-created_date", 50),
+    ]);
+    recentInstances = insts || [];
+    reminders = rems || [];
+    cachedData = {
+      emotionCheckIns: emoCI || [],
+      sessions: sess || [],
+      activities: acts || [],
+      symptomCheckIns: symCI || [],
+    };
+  } catch { /* offline — skip dedupe + auto-resolve, accept potential noise */ }
+
+  const reminderById = Object.fromEntries(reminders.map(r => [r.id, r]));
 
   let created = 0;
-  // Pull recent instances once to dedupe against existing rows.
-  let recentInstances = [];
-  try {
-    recentInstances = await base44.entities.ReminderInstance.list("-created_date", 200);
-  } catch { /* offline — skip dedupe, accept potential dupes */ }
-
+  let autoResolved = 0;
   for (const entry of past) {
     const fireMs = new Date(entry.scheduledFor).getTime();
-    const dupe = (recentInstances || []).some(i =>
+    const dupe = recentInstances.some(i =>
       i.reminder_id === entry.reminderId &&
       Math.abs(new Date(i.scheduled_for || 0).getTime() - fireMs) < 90 * 1000
     );
     if (dupe) continue;
+    const reminder = reminderById[entry.reminderId];
+    // Evaluate auto-resolve as of the fire time — if the rule would
+    // have suppressed this fire (e.g. a check-in happened within the
+    // lookback), record an auto_resolved instance instead of a fired
+    // one so the inbox doesn't show stale alerts after the user
+    // already did the thing the reminder was nudging them toward.
+    const autoOk = reminder ? checkAutoResolveClient(reminder, cachedData, entry.scheduledFor) : false;
     try {
       await base44.entities.ReminderInstance.create({
         reminder_id: entry.reminderId,
         scheduled_for: entry.scheduledFor,
         fired_at: entry.scheduledFor,
-        status: "fired",
+        status: autoOk ? "auto_resolved" : "fired",
+        skipped_reason: autoOk ? "auto_resolved_rule" : undefined,
         delivery_attempted: ["push"],
       });
-      created++;
+      if (autoOk) autoResolved++; else created++;
     } catch {
       /* keep going — best-effort */
     }
   }
 
-  // Trim the log to entries still in the future.
   writeLog(future);
-  return { backfilled: created };
+  return { backfilled: created, autoResolved };
+}
+
+// Called from the action listener in nativeBootstrap.js when the user
+// taps a snooze button on a tray notification. opt is either a number
+// of minutes or the strings "tomorrow" / "next_week" (matching
+// snoozeHelpers).
+export async function snoozePrescheduledFire({ reminderId, scheduledFor, opt }) {
+  if (!isNative() || !reminderId) return false;
+  const untilISO = snoozeUntilDate(opt);
+  const untilMs = new Date(untilISO).getTime();
+  if (untilMs <= Date.now()) return false;
+
+  // Record the snooze in the inbox so the user can see what they did.
+  try {
+    await base44.entities.ReminderInstance.create({
+      reminder_id: reminderId,
+      scheduled_for: scheduledFor || new Date().toISOString(),
+      fired_at: new Date().toISOString(),
+      status: "snoozed",
+      snoozed_until: untilISO,
+      delivery_attempted: ["push"],
+    });
+  } catch { /* non-fatal */ }
+
+  // Schedule a fresh OS notification at the snooze time. Re-fetch the
+  // reminder for its title/body so the new tray entry is recognisable.
+  let reminder = null;
+  try {
+    const all = await base44.entities.Reminder.list("-created_date", 500);
+    reminder = (all || []).find(r => r.id === reminderId);
+  } catch { /* non-fatal */ }
+  if (!reminder) return true; // instance recorded; rescheduling can wait for next reconcile
+
+  try {
+    const { LocalNotifications } = await import("@capacitor/local-notifications");
+    await ensureRemindersChannel();
+    const nativeId = nativeIdFor(reminderId, untilISO);
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: nativeId,
+          title: reminder.title || "Reminder",
+          body: reminder.body || "",
+          channelId: REMINDERS_CHANNEL_ID,
+          actionTypeId: REMINDER_ACTION_TYPE_ID,
+          schedule: { at: new Date(untilMs) },
+          extra: { reminderId, scheduledFor: untilISO },
+        },
+      ],
+    });
+    // Append to the log so backfill knows about it next boot.
+    const log = readLog();
+    log.push({ nativeId, reminderId, scheduledFor: untilISO });
+    writeLog(log);
+  } catch { /* non-fatal */ }
+
+  // Drop the original entry from the log so backfill doesn't
+  // resurrect it as "fired" later.
+  if (scheduledFor) {
+    const log = readLog();
+    writeLog(log.filter(e => !(e.reminderId === reminderId && e.scheduledFor === scheduledFor)));
+  }
+  return true;
 }
 
 // React hook: re-run reconciliation whenever the reminder list or

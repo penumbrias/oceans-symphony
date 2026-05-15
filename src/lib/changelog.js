@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Native Android build: reminder notifications in the tray now show Snooze 10m and Snooze 1h buttons — tap one and the OS will re-fire the reminder at that time, without you needing to open the app. The snooze also writes a record into your inbox so you can see what's been deferred. For more detailed snooze options (tomorrow, next week, custom), tap the notification itself to open the in-app inbox.",
+      },
+      {
+        type: "improve",
+        text: "Native Android build: pre-scheduled reminders that the OS fires while the app is closed now honour each reminder's auto-resolve rule when they're back-filled into the inbox on reopen. Example: a 'check in if you haven't recently' reminder set to auto-resolve will no longer leave a stale 'fired' entry in your inbox if you actually had checked in just before it buzzed. The tray notification still appears (Android delivers it before we can evaluate), but the inbox stays clean.",
+      },
+      {
+        type: "fix",
+        text: "Landscape orientation: the mobile header was eating roughly a fifth of the viewport because it inherited the portrait 56px row height and the decorative wave block. The header row is now 44px in landscape (still meets the 44x44 tap target minimum) and the wave decoration is hidden in landscape — content area gets the breathing room back.",
+      },
+      {
         type: "feature",
         text: "Native Android build: reminders now fire even when the app is fully closed. We pre-schedule each upcoming `scheduled` (daily/weekly at HH:MM), `interval` (every N minutes), and `event` (calendar event) reminder with the OS up to 14 days in advance — Android's AlarmManager handles the wake-up, so a 9 AM 'morning check-in' will buzz your phone whether the app is open, backgrounded, or swiped away. On reopen, any reminders the OS fired while you were away are back-filled into the inbox so you don't lose track. Pure-context reminders (e.g. 'when no front update for 2h') still need the app open to evaluate — they keep the existing in-app polling. Pause-all and quiet-hours settings are honoured. Web and TWA users are unaffected.",
       },

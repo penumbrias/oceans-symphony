@@ -24,7 +24,7 @@ export default function HeaderWaveBlock() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden"
+      className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden landscape:hidden"
       style={{ zIndex: 0, height: "62%" }}
     >
       <svg

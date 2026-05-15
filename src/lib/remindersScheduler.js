@@ -212,7 +212,7 @@ function evaluateReminderDue(reminder, now, existingInstances, cachedData, userT
   return null;
 }
 
-function checkAutoResolveClient(reminder, cachedData, fireTime) {
+export function checkAutoResolveClient(reminder, cachedData, fireTime) {
   const rule = reminder.auto_resolve_rule;
   if (!rule) return false;
 

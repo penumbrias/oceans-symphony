@@ -8,7 +8,12 @@
 
 import { isNative } from '@/lib/platform';
 import { ensureRemindersChannel } from '@/lib/nativeNotifications';
-import { backfillFiredWhileClosed, recordPrescheduledFire } from '@/lib/nativeReminderScheduler';
+import {
+  backfillFiredWhileClosed,
+  recordPrescheduledFire,
+  snoozePrescheduledFire,
+  REMINDER_ACTION_TYPE_ID,
+} from '@/lib/nativeReminderScheduler';
 
 let started = false;
 
@@ -55,9 +60,31 @@ export async function initNativeShell() {
   // happened while the app was closed, so the inbox catches up.
   try { await backfillFiredWhileClosed(); } catch { /* non-fatal */ }
 
-  // Action listener: when the user taps a pre-scheduled OS notification,
-  // record the fire (so the inbox tracks it) and surface a pending-tap
-  // event to the React tree, which routes to /reminders.
+  // Register tray action buttons (Snooze 10m / 1h) so the user can
+  // snooze straight from the notification without opening the app. The
+  // OS will deliver the chosen actionId back to our listener below.
+  // Two buttons is the practical sweet spot — Android collapses extras
+  // behind a "More" menu and the most-used snooze values (per the
+  // app's own DEFAULT_SNOOZE_OPTIONS) are 10m and 1h.
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    await LocalNotifications.registerActionTypes({
+      types: [
+        {
+          id: REMINDER_ACTION_TYPE_ID,
+          actions: [
+            { id: 'snooze_10', title: 'Snooze 10m' },
+            { id: 'snooze_60', title: 'Snooze 1h' },
+          ],
+        },
+      ],
+    });
+  } catch { /* non-fatal — actions may not be supported on this Android */ }
+
+  // Action listener: handles both the default tap (no actionId in event
+  // body, or actionId === 'tap') AND the snooze buttons. Tap routes to
+  // the inbox; snooze re-schedules a fresh native notification at the
+  // chosen time and records a "snoozed" instance.
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
     LocalNotifications.addListener('localNotificationActionPerformed', async (event) => {
@@ -65,6 +92,18 @@ export async function initNativeShell() {
       const reminderId = extra.reminderId;
       const scheduledFor = extra.scheduledFor;
       if (!reminderId) return;
+
+      const actionId = event?.actionId || '';
+      if (actionId === 'snooze_10') {
+        try { await snoozePrescheduledFire({ reminderId, scheduledFor, opt: 10 }); } catch { /* non-fatal */ }
+        return; // do NOT navigate — user wants to dismiss the tray for now
+      }
+      if (actionId === 'snooze_60') {
+        try { await snoozePrescheduledFire({ reminderId, scheduledFor, opt: 60 }); } catch { /* non-fatal */ }
+        return;
+      }
+
+      // Default tap — record the fire and route to the inbox.
       try { await recordPrescheduledFire({ reminderId, scheduledFor }); } catch { /* non-fatal */ }
       pendingNativeTap.reminderId = reminderId;
       pendingNativeTap.scheduledFor = scheduledFor;
