@@ -186,7 +186,7 @@ additive** — every web-only code path stays untouched unless a runtime
 |--------|----------|-----------------|-------------------|
 | Web PWA | `npm run build` → Vercel | `oceans-symphony.vercel.app` | No |
 | Bubblewrap TWA | Existing Bubblewrap pipeline against the Vercel deploy | Existing Play Store listing | No |
-| Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | **Separate** Play Store listing under `app.oceans_symphony.nativeapp` | Yes (Phase 3+) |
+| Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | Shipped as an UPDATE to the existing TWA Play listing (`app.oceans_symphony.twa`) — see migration note below | Yes (Phase 3+) |
 
 Rules for keeping the targets healthy:
 
@@ -201,10 +201,25 @@ Rules for keeping the targets healthy:
   Capacitor build bundles web assets into the APK; pointing at the live
   Vercel URL would kill offline behaviour and skip the native-bridge JS
   injection.
-- **The native app's package id (`app.oceans_symphony.nativeapp`) is
-  distinct from the TWA's id(s) in `public/assetlinks.json`**, so the
-  two apps can co-exist on the Play Store and on user devices. Do not
-  change the TWA id; do not point the native app at a TWA id.
+- **The native app's package id is `app.oceans_symphony.twa`** — the
+  same id as the existing TWA Play listing (see
+  `public/assetlinks.json`). This was a deliberate change in 0.16.3
+  to ship the native build as an UPDATE to the existing internal-
+  testing Play listing rather than under a separate co-installable
+  listing. Implications:
+    1. The TWA Bubblewrap pipeline is effectively shelved going
+       forward — testers on Play will auto-update to the native
+       build the next time they get the Play Store.
+    2. TWA data lives in Chrome's IndexedDB scope for
+       `oceans-symphony.vercel.app`, NOT inside the TWA package.
+       The Play update does not touch Chrome's storage, so users
+       CAN still open the URL in Chrome browser to access their
+       old data and export a backup before importing into native.
+       The first-launch
+       `src/components/onboarding/TwaToNativeMigrationModal.jsx`
+       explains this path.
+    3. Signing key must match the TWA's existing key (Play rejects
+       uploads under a mismatched cert fingerprint).
 - **PWA / TWA non-regression is non-negotiable.** At every native phase,
   the `git diff` of web-only code paths must remain empty or very near
   empty.

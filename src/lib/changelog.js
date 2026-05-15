@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Native Android build now ships as an UPDATE to the existing TWA Play listing instead of a separate co-installable app. Your closed-internal testers will get the native build automatically the next time they get the Play Store. A first-launch modal explains that their old TWA data is still safe in Chrome (open oceans-symphony.vercel.app in Chrome → Download Backup → import into the new native app). Bumped versionCode to 100 so the upload supersedes any prior TWA build.",
+      },
+      {
         type: "fix",
         text: "Alter colour wasn't applying to the row treatment (icon background, left border, role chip) for any alter whose saved hex value wasn't a valid CSS hex — most commonly a stray 5-digit value like '#8b5c1' instead of a 6-digit one. The validation in the list / folder / grid renderers was a naive `length > 3` check that accepted invalid values, which CSS then refused to parse, leaving that one alter looking unstyled next to the others. Now validated as a proper CSS hex (3/4/6/8 digits with a leading #). Invalid colours fall back to the default purple in grid view and to a neutral 'no colour' treatment in the list rows — consistent with alters that genuinely have no colour set. If your alter is still missing their colour after this update, open Aspects → that alter → re-save the colour from the picker; the picker won't let you save anything other than a valid 6-digit hex.",
       },

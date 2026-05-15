@@ -12,7 +12,7 @@
 import { isNative } from "@/lib/platform";
 import { getLocalIdentity } from "@/lib/friendsApi";
 
-const RUNNER_LABEL = "app.oceans_symphony.nativeapp.friends";
+const RUNNER_LABEL = "app.oceans_symphony.twa.friends";
 
 async function dispatchRunnerEvent(event, details) {
   if (!isNative()) return false;

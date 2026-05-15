@@ -1,4 +1,4 @@
-package app.oceans_symphony.nativeapp;
+package app.oceans_symphony.twa;
 
 import android.content.Intent;
 import android.content.pm.ShortcutInfo;
@@ -42,7 +42,7 @@ import java.util.List;
 @CapacitorPlugin(name = "QuickActions")
 public class QuickActionsPlugin extends Plugin {
 
-    private static final String MAIN_ACTIVITY_CLASS = "app.oceans_symphony.nativeapp.MainActivity";
+    private static final String MAIN_ACTIVITY_CLASS = "app.oceans_symphony.twa.MainActivity";
 
     @PluginMethod
     public void setQuickActions(PluginCall call) {

@@ -1,4 +1,4 @@
-package app.oceans_symphony.nativeapp;
+package app.oceans_symphony.twa;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;

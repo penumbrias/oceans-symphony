@@ -33,7 +33,14 @@ import type { CapacitorConfig } from '@capacitor/cli';
 //   WebView at the live Vercel URL would kill offline behaviour and
 //   skip Capacitor's native-bridge JS injection.
 const config: CapacitorConfig = {
-  appId: 'app.oceans_symphony.nativeapp',
+  // NB: matches the existing TWA's Play Console listing
+  // (public/assetlinks.json). Shipping the native build under this id
+  // means it lands as an UPDATE to the same Play listing the testers
+  // already have, rather than a new co-installable app. The TWA's
+  // Chrome-storage-scoped data does NOT transfer — first-launch
+  // modal in src/components/onboarding/TwaToNativeMigrationModal.jsx
+  // warns the user to import a backup.
+  appId: 'app.oceans_symphony.twa',
   appName: 'Oceans Symphony',
   webDir: 'dist',
   server: {
@@ -64,7 +71,7 @@ const config: CapacitorConfig = {
     // aggressively under battery optimisation; nothing we can do
     // about that from JS.
     BackgroundRunner: {
-      label: 'app.oceans_symphony.nativeapp.friends',
+      label: 'app.oceans_symphony.twa.friends',
       src: 'runners/friends-poll.js',
       event: 'checkFriends',
       repeat: true,
