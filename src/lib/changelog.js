@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Native Android build: corrected the production domain references throughout the app. The TWA was wrapping oceans-symphony.app (the canonical domain), not oceans-symphony.vercel.app (a staging URL). Chrome's storage is keyed by origin, so the migration modal pointing TWA users at the vercel.app URL would have sent them to an empty database. Fixed: the migration modal copy, the native-app Friends API base URL, the background-runner's Friends poll URL, and the CLAUDE.md notes future agents read.",
+      },
+      {
         type: "improve",
         text: "Native Android build: auto-backup now saves to the public Downloads folder (under 'Downloads/Oceans Symphony/') via a new MediaStore plugin instead of the @capacitor/filesystem Documents path that scoped-storage Android 11+ silently refuses. Backups survive app uninstall AND don't trigger a share-sheet prompt — they just land in a place every Files app shows. On Android 9 and below the plugin falls back to a direct legacy-storage write to the same place. Share sheet is now only used as a last-resort if both paths fail; we explicitly do NOT silently drop into the app-scoped External folder because that gets wiped on uninstall and defeats the point of a backup.",
       },
@@ -25,7 +29,7 @@ export const CHANGELOG = [
       },
       {
         type: "feature",
-        text: "Native Android build now ships as an UPDATE to the existing TWA Play listing instead of a separate co-installable app. Your closed-internal testers will get the native build automatically the next time they get the Play Store. A first-launch modal explains that their old TWA data is still safe in Chrome (open oceans-symphony.vercel.app in Chrome → Download Backup → import into the new native app). Bumped versionCode to 100 so the upload supersedes any prior TWA build.",
+        text: "Native Android build now ships as an UPDATE to the existing TWA Play listing instead of a separate co-installable app. Your closed-internal testers will get the native build automatically the next time they get the Play Store. A first-launch modal explains that their old TWA data is still safe in Chrome (open oceans-symphony.app in Chrome → Download Backup → import into the new native app). Bumped versionCode to 100 so the upload supersedes any prior TWA build.",
       },
       {
         type: "fix",

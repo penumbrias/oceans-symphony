@@ -72,7 +72,7 @@ export default function TwaToNativeMigrationModal({ open, onClose, onImport }) {
             <strong>Your old data didn't carry over automatically.</strong> The previous build was a wrapper around the website — it stored everything in Chrome's storage for the app's origin. This new native build has its own separate storage sandbox, and Android can't share data between them.
           </p>
           <p>
-            <strong>The good news:</strong> your data is still safe in Chrome. To get it into the native app, open <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">oceans-symphony.vercel.app</code> in Chrome on this phone, go to Settings → Data &amp; Privacy → Download Backup, and save the file. Then come back here and tap "Import backup file" below.
+            <strong>The good news:</strong> your data is still safe in Chrome. To get it into the native app, open <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">oceans-symphony.app</code> in Chrome on this phone, go to Settings → Data &amp; Privacy → Download Backup, and save the file. Then come back here and tap "Import backup file" below.
           </p>
           <p className="text-muted-foreground text-xs">
             If you don't have any data to migrate, "Start fresh" is fine.

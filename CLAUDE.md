@@ -184,7 +184,7 @@ additive** — every web-only code path stays untouched unless a runtime
 
 | Target | Built by | Distributed via | Background tasks? |
 |--------|----------|-----------------|-------------------|
-| Web PWA | `npm run build` → Vercel | `oceans-symphony.vercel.app` | No |
+| Web PWA | `npm run build` → Vercel | `oceans-symphony.app` (canonical) / `oceans-symphony.vercel.app` (staging) | No |
 | Bubblewrap TWA | Existing Bubblewrap pipeline against the Vercel deploy | Existing Play Store listing | No |
 | Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | Shipped as an UPDATE to the existing TWA Play listing (`app.oceans_symphony.twa`) — see migration note below | Yes (Phase 3+) |
 
@@ -211,7 +211,10 @@ Rules for keeping the targets healthy:
        forward — testers on Play will auto-update to the native
        build the next time they get the Play Store.
     2. TWA data lives in Chrome's IndexedDB scope for
-       `oceans-symphony.vercel.app`, NOT inside the TWA package.
+       `oceans-symphony.app` (the canonical production domain — NOT
+       the .vercel.app staging URL; Chrome storage is keyed by origin,
+       so anything pointing users at .vercel.app sends them to an
+       empty database), NOT inside the TWA package.
        The Play update does not touch Chrome's storage, so users
        CAN still open the URL in Chrome browser to access their
        old data and export a backup before importing into native.

@@ -13,7 +13,11 @@ import { isNative } from "@/lib/platform";
 // On native we point at the production Vercel deployment explicitly.
 // Exported so other callers (Friends.jsx's save-push-sub fetch) can
 // use the same base without re-implementing the platform check.
-const NATIVE_API_HOST = "https://oceans-symphony.vercel.app";
+// Must be oceans-symphony.app (the canonical production domain),
+// NOT .vercel.app — Chrome storage / CORS / cookies are scoped by
+// origin and the TWA was wrapping the .app origin, so anything else
+// would land us in a different storage scope from web users.
+const NATIVE_API_HOST = "https://oceans-symphony.app";
 export const FRIENDS_API_BASE = isNative()
   ? `${NATIVE_API_HOST}/api/friends`
   : "/api/friends";

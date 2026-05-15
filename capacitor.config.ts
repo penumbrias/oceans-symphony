@@ -21,7 +21,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 //   identically to the web build.
 //
 // - `server.hostname` is a stable PRIVATE hostname, NOT the real
-//   `oceans-symphony.vercel.app`. Using a different hostname:
+//   `oceans-symphony.app` (the canonical production domain). Using a different hostname:
 //     (a) makes "I am running inside the native app" detectable from
 //         JS without sniffing user agents;
 //     (b) prevents any cookie or Service Worker scope collision with

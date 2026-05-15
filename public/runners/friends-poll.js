@@ -31,7 +31,7 @@
 const KEY_USER_ID = "friend_userId";
 const KEY_SECRET = "friend_secret";
 const KEY_LAST_STATE = "friend_last_state_v1";
-const API_BASE = "https://oceans-symphony.vercel.app/api/friends";
+const API_BASE = "https://oceans-symphony.app/api/friends";
 // Mirrors REMINDERS_CHANNEL_ID / SWITCH_CHANNEL_ID over in
 // src/lib/nativeNotifications.js — kept in sync manually because this
 // file can't import from there. If you rename a channel id in the
