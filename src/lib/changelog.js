@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "First-run setup now has an 'Import a backup file' button. Useful when you're installing on a new device — instead of starting empty and then finding the Import option in Settings, you can pull in an existing backup before you've even finished setup. Accepts all three file shapes the app supports: a standard backup, a raw plain on-device file, or a raw encrypted on-device file (you'll be prompted for the password the file was encrypted with). Imported data is loaded as plain on the new device; you can re-enable encryption from Settings afterwards if you want.",
+      },
+      {
         type: "improve",
         text: "Auto-backup settings now say upfront that backups only run when the app is opened. If you don't open the app for a stretch, the schedule pauses for that gap — open the app at least as often as your interval, or hit 'Back up now' before a long break. Browsers and installed PWAs can't reliably run scheduled tasks in the background, so we want to be clear about it rather than imply set-and-forget.",
       },

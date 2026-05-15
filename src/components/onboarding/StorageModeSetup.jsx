@@ -1,10 +1,17 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown } from "lucide-react";
+import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } from "lucide-react";
 import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
-import { initLocalDb, peekStoredData } from "@/lib/localDb";
+import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
+import {
+  parseImportText,
+  decryptRawEncrypted,
+  FORMAT_STANDARD,
+  FORMAT_RAW_PLAIN,
+  FORMAT_RAW_ENCRYPTED,
+} from "@/lib/backupFormat";
 
 function FirstRunSetup({ onComplete }) {
   const [step, setStep] = useState("choose");
@@ -14,9 +21,96 @@ function FirstRunSetup({ onComplete }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [pendingEncryptedImport, setPendingEncryptedImport] = useState(null);
+  const [importPassword, setImportPassword] = useState("");
+  const [importStatus, setImportStatus] = useState(null); // {type, text}
+  const fileInputRef = useRef(null);
 
   const handleChooseCloud = () => { setMode("cloud"); onComplete(); };
   const handleChooseLocal = () => { setStep("local_password"); };
+
+  // Brand-new install path: let the user pull in data from a backup file
+  // BEFORE they decide whether to set up encryption fresh. Reuses the
+  // existing import logic from src/lib/backupFormat.js so all three file
+  // shapes (standard backup, raw plain, raw encrypted) work — same as
+  // the Settings → Import flow.
+  //
+  // After a successful import we treat the user as a returning user and
+  // complete setup without offering encryption (their old data may
+  // already be encrypted and re-deriving keys here would be confusing).
+  // They can flip encryption on or off later from Settings.
+  const applyDumpAndComplete = async ({ data, localImages, localSettings }) => {
+    if (localImages) {
+      try {
+        const { restoreLocalImages } = await import("@/lib/localImageStorage");
+        await restoreLocalImages(localImages);
+      } catch (e) {
+        console.warn("[Setup import] failed to restore local images:", e);
+      }
+    }
+    if (localSettings) {
+      for (const [k, v] of Object.entries(localSettings)) {
+        try { localStorage.setItem(k, v); } catch { /* localStorage full / disabled */ }
+      }
+    }
+    setMode("local");
+    setEncryptionEnabled(false);
+    await initLocalDb(null);
+    await loadDbDump(data);
+    onComplete();
+  };
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setImporting(true);
+    setImportStatus(null);
+    setError("");
+    try {
+      // Refuse to import on top of existing data — same defence as
+      // handleLocalConfirm below.
+      const peek = await peekStoredData();
+      if (peek.exists) {
+        setError("Existing data was found on this device. Reload — you should be prompted to unlock or recover before importing.");
+        return;
+      }
+      const text = await file.text();
+      const parsed = parseImportText(text);
+      if (parsed.format === FORMAT_STANDARD) {
+        await applyDumpAndComplete({
+          data: parsed.data,
+          localImages: parsed.localImages,
+          localSettings: parsed.localSettings,
+        });
+      } else if (parsed.format === FORMAT_RAW_PLAIN) {
+        await applyDumpAndComplete({ data: parsed.data });
+      } else if (parsed.format === FORMAT_RAW_ENCRYPTED) {
+        setPendingEncryptedImport(parsed);
+      }
+    } catch (e) {
+      setImportStatus({ type: "error", text: `Import failed: ${e.message}` });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDecryptAndImport = async () => {
+    if (!pendingEncryptedImport || !importPassword) return;
+    setImporting(true);
+    setImportStatus(null);
+    try {
+      const data = await decryptRawEncrypted(pendingEncryptedImport, importPassword);
+      setPendingEncryptedImport(null);
+      setImportPassword("");
+      await applyDumpAndComplete({ data });
+    } catch (e) {
+      setImportStatus({ type: "error", text: `Decrypt failed: ${e.message}` });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleLocalConfirm = async () => {
     if (useEncryption && password !== confirmPassword) { setError("Passwords do not match."); return; }
@@ -109,11 +203,84 @@ function FirstRunSetup({ onComplete }) {
       )}
       <div className="flex gap-2 pt-2">
         <Button variant="outline" onClick={() => setStep("choose")} className="flex-1">Back</Button>
-        <Button onClick={handleLocalConfirm} disabled={loading} className="flex-1 bg-primary hover:bg-primary/90">
+        <Button onClick={handleLocalConfirm} disabled={loading || importing} className="flex-1 bg-primary hover:bg-primary/90">
           {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <HardDrive className="w-4 h-4 mr-2" />}
           {useEncryption ? "Set Up Encrypted Local" : "Use Local Storage"}
         </Button>
       </div>
+
+      <div className="border-t border-border/40 pt-4 mt-2 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Moved from another device, or installing the native app after using
+          the web version? Import an existing backup instead of starting empty.
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json,.txt"
+          onChange={handleImportFile}
+          className="hidden"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={loading || importing}
+          className="w-full justify-start"
+        >
+          {importing
+            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            : <Upload className="w-4 h-4 mr-2" />}
+          Import a backup file
+        </Button>
+        {importStatus && (
+          <p className={`text-xs ${importStatus.type === "error" ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+            {importStatus.text}
+          </p>
+        )}
+      </div>
+
+      {pendingEncryptedImport && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-5 shadow-2xl space-y-4">
+            <h3 className="font-semibold text-lg">Encrypted backup</h3>
+            <p className="text-sm text-muted-foreground">
+              This backup is encrypted. Enter the password it was created with
+              to decrypt and load it. Once imported, the data will be loaded
+              as plain — you can flip encryption back on later from Settings.
+            </p>
+            <Input
+              type="password"
+              value={importPassword}
+              onChange={e => setImportPassword(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && importPassword) handleDecryptAndImport(); }}
+              placeholder="Password used to encrypt the backup"
+              autoFocus
+            />
+            {importStatus && importStatus.type === "error" && (
+              <p className="text-xs text-destructive">{importStatus.text}</p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setPendingEncryptedImport(null); setImportPassword(""); setImportStatus(null); }}
+                disabled={importing}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleDecryptAndImport}
+                disabled={importing || !importPassword}
+              >
+                {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                Decrypt &amp; Import
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
