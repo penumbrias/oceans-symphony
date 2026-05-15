@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Auto-backup settings now say upfront that backups only run when the app is opened. If you don't open the app for a stretch, the schedule pauses for that gap — open the app at least as often as your interval, or hit 'Back up now' before a long break. Browsers and installed PWAs can't reliably run scheduled tasks in the background, so we want to be clear about it rather than imply set-and-forget.",
+      },
+      {
         type: "feature",
         text: "Raw on-device data files saved from the Recovery screen are now importable as backups. Settings → Data & Privacy → Import (and the Recovery screen's own Restore button) accept three formats now: a standard Symphony backup file, a raw on-device file (plain), and a raw on-device file (encrypted — you'll be prompted for the password the file was encrypted with). The Recovery screen also gains a new 'Save as standard backup file' button (alongside 'Save a copy of my raw data') so you can choose to download the on-device data wrapped in the standard backup envelope when it isn't encrypted — convenient for importing on another device without going through the raw-file path.",
       },
