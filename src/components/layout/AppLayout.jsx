@@ -436,6 +436,13 @@ const handleNotifClick = (mentionLog) => {
         </div>
       </header>
 
+      {/* Full-bleed banners — siblings of the header so their
+          background/border stretch to the screen edges. Cards that need
+          breathing room (like Base44MigrationBanner) stay inside
+          <main> where the px-4 gutter wraps them. */}
+      <PreviewModeBanner />
+      <AnnouncementBanner />
+
       {/* ── Desktop: sidebar + content / Mobile: content only ── */}
       <div className="flex flex-1 overflow-hidden">
 
@@ -537,14 +544,6 @@ const handleNotifClick = (mentionLog) => {
 
         {/* Main content */}
         <main className="app-content-main flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
-          {/* Banners live INSIDE main so they scroll with page content
-              instead of stacking above the sticky header. Previously
-              they sat in document flow above the header, which (since
-              the body became unscrollable in 0.16.7) meant they
-              permanently pushed the header down and stacked weirdly
-              with NotificationPopups at the top of the screen. */}
-          <PreviewModeBanner />
-          <AnnouncementBanner />
           <div className="pt-3 lg:pt-0 pb-2 lg:pb-4">
             <Base44MigrationBanner />
           </div>

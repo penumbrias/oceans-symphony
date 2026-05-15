@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Edge-to-edge follow-up: the Preview Mode banner and the Upcoming Plans 'You have X planned…' banner are now full-bleed — their amber/primary background stretches to the screen edges to match the header, instead of being inset 16px by the main content padding. The banners moved out of the scrolling content area to sit directly under the header bar (where the user expects them); the Base44 migration card stays inside the page padding because it's a rounded card that needs breathing room.",
+      },
+      {
         type: "improve",
         text: "Native Android build: app now renders edge-to-edge — the header background extends up under the system status bar and the bottom nav extends down to the screen edge, instead of the WebView being a boxed area below/above the system UI. Content (icons, text, tap targets) still respects the safe-area insets via env(safe-area-inset-*) paddings, so nothing ends up tucked under the clock or the gesture pill. Modern Android look.",
       },
