@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Native Android build: app icon and splash screen are now generated from the Oceans Symphony logo (the same one you see in the PWA / on the web), not the default Capacitor placeholder. Source PNGs live in assets/icon-only.png and assets/splash.png; running 'npx capacitor-assets generate --android' regenerates every mipmap and drawable density bucket from them.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: Play Console rejected the 0.16.7 build because @capacitor/background-runner declares ACCESS_BACKGROUND_LOCATION and several other sensitive permissions that we don't actually use (the runner could do geolocation, our task just polls a URL). Stripped the unused permission declarations from the merged manifest via tools:node='remove' so Play stops flagging them. Bumped versionCode to 101 for the resubmit.",
       },
