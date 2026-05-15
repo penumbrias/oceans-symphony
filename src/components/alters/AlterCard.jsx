@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { User, ChevronRight, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { isValidHexColor } from "@/lib/colorUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
@@ -149,7 +150,10 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
 }
 
 export default function AlterCard({ alter, index, activeSessions = [], anonymize = "off" }) {
-  const hasColor = alter.color && alter.color.length > 3;
+  // Validate the saved value as a real CSS hex. `length > 3` used to
+  // pass for invalid values like "#8b5c1" (5 hex digits — not a valid
+  // CSS hex), which made the row render with no colour at all.
+  const hasColor = isValidHexColor(alter.color);
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
   const navigate = useNavigate();

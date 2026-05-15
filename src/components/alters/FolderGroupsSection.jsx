@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Folder, ChevronRight, User, ArrowLeft, Plus, Users } from "lucide-react";
+import { isValidHexColor } from "@/lib/colorUtils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ function getContrastColor(hex) {
 }
 
 function MemberRow({ alter, onClick, activeSessions }) {
-  const hasColor = alter.color && alter.color.length > 3;
+  const hasColor = isValidHexColor(alter.color);
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
 
