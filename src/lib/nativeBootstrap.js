@@ -14,6 +14,11 @@ import {
   snoozePrescheduledFire,
   REMINDER_ACTION_TYPE_ID,
 } from '@/lib/nativeReminderScheduler';
+import {
+  reconcileNativeBackupReminder,
+  BACKUP_NOTIFICATION_EXTRA_KIND,
+} from '@/lib/nativeBackupScheduler';
+import { runAutoBackupNow, getAutoBackupMode, BACKUP_MODES } from '@/lib/autoBackup';
 
 let started = false;
 
@@ -60,6 +65,11 @@ export async function initNativeShell() {
   // happened while the app was closed, so the inbox catches up.
   try { await backfillFiredWhileClosed(); } catch { /* non-fatal */ }
 
+  // Re-arm the backup-reminder notification (if the user is in
+  // BACKUP_MODES.REMINDER). Idempotent — cancels any previous one
+  // before laying down the new schedule.
+  try { await reconcileNativeBackupReminder(); } catch { /* non-fatal */ }
+
   // Register tray action buttons (Snooze 10m / 1h) so the user can
   // snooze straight from the notification without opening the app. The
   // OS will deliver the chosen actionId back to our listener below.
@@ -89,6 +99,21 @@ export async function initNativeShell() {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
     LocalNotifications.addListener('localNotificationActionPerformed', async (event) => {
       const extra = event?.notification?.extra || {};
+
+      // Backup-reminder tap: run the backup immediately, write to
+      // Documents on native (no chooser), toast on completion.
+      if (extra.kind === BACKUP_NOTIFICATION_EXTRA_KIND) {
+        try {
+          if (getAutoBackupMode() === BACKUP_MODES.OFF) return; // user turned it off after the OS scheduled
+          await runAutoBackupNow({ silent: false, preferNative: true });
+        } catch { /* non-fatal */ }
+        // Re-arm for the next interval — `every: 'day'` covers the
+        // daily case at the OS level, but for weekly/biweekly/monthly
+        // we schedule one-shot and refresh on each tap.
+        try { await reconcileNativeBackupReminder(); } catch { /* non-fatal */ }
+        return;
+      }
+
       const reminderId = extra.reminderId;
       const scheduledFor = extra.scheduledFor;
       if (!reminderId) return;

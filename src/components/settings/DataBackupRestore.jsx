@@ -12,64 +12,16 @@ import {
   FORMAT_RAW_PLAIN,
   FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
+import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
 import pako from "pako";
 
-// CLAUDE.md NOTE: every localStorage key that holds user data or a
-// user-set preference must be listed here, otherwise it's silently
-// dropped from backups. Audit by searching `localStorage.(setItem|
-// getItem)` across the codebase and classifying each hit. Skip:
-// onboarding flags (tour_seen, terms_setup_done), UI dismissal state
-// (*_dismissed, *_hint_seen), runtime caches (preview_open,
-// friends_front_snapshots), and per-device encryption config (KEYS.*).
-const LS_SETTINGS_KEYS = [
-  "symphony_themeMode",
-  "symphony_selectedTheme",
-  "symphony_customColors",
-  "symphony_selectedFont",
-  "symphony_userCustomPresets",
-  "symphony_alterThemeLinks",
-  "symphony_a11y_fontSize",
-  "symphony_a11y_fontFamily",
-  "symphony_a11y_headingFont",
-  "symphony_a11y_reduceMotion",
-  "symphony_a11y_highContrast",
-  "symphony_a11y_largeTouch",
-  "symphony_a11y_navHeight",
-  "alter_hide_grouped",
-  "alter_grid_cols",
-  "alter_display_mode",
-  "nav_grid_layout",
-  "nav_grid_cols",
-  "nav_display_mode",
-  // Journal folder structure — user-created, definitely user data.
-  "os_journal_folders",
-  // Per-feature display / view-mode preferences.
-  "symphony_checkin_log_display",
-  "symphony_act_view_mode",
-  "symphony_polls_default_tally_mode",
-  "symphony_grounding_step_mode",
-  // Backup-system preference — losing this on restore silently resets
-  // the user's chosen schedule.
-  "symphony_autobackup_interval_days",
-  // Privacy preference for the grocery cover screen.
-  "grocery_lock_on_close_v1",
-];
-
-function exportLocalSettings() {
-  const out = {};
-  for (const key of LS_SETTINGS_KEYS) {
-    const val = localStorage.getItem(key);
-    if (val !== null) out[key] = val;
-  }
-  return out;
-}
-
-function importLocalSettings(settings) {
-  if (!settings || typeof settings !== "object") return;
-  for (const key of LS_SETTINGS_KEYS) {
-    if (settings[key] != null) localStorage.setItem(key, settings[key]);
-  }
-}
+// Single source of truth for the localStorage keys that belong in a
+// backup lives in src/lib/backupKeys.js — keep the rules and the list
+// there so the manual export, the auto-backup, and the recovery raw
+// snapshot can't drift apart again (see changelog 0.11.7 for the
+// 8-key regression that prompted the refactor).
+const exportLocalSettings = readBackupLocalSettings;
+const importLocalSettings = writeBackupLocalSettings;
 
 function compressBackup(data) {
   const json = JSON.stringify(data);

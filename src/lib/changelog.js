@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Scheduled backups got a proper mode picker in Settings → Data & Privacy → Auto-backup. Three choices: Off (no scheduled backups), Back up automatically (runs when you open the app and a backup is due — on native Android, writes straight to your device's Documents folder with no chooser; on web/TWA, the share sheet pops up like before), and Notify me to back up (NATIVE ANDROID ONLY — the OS sends you a tray notification at your chosen interval, tap it to run the backup). The reminder mode also schedules itself with the OS so it fires on the right day even if you haven't opened the app, and survives reboots. Web/PWA shows a 'Native only' explainer for the reminder mode so it's clear why it's unavailable.",
+      },
+      {
+        type: "improve",
+        text: "Backup keys list (the set of localStorage preferences that get bundled into every backup) is now a single source of truth in src/lib/backupKeys.js, used by the manual export, the auto-backup, and the recovery raw snapshot. Previously each had its own copy and they had silently drifted — the auto-backup had been missing the same 8 keys the manual export was missing prior to 0.11.7 (journal folders, auto-backup interval, etc.). Auto-backups now capture everything the manual export captures.",
+      },
+      {
         type: "improve",
         text: "Native Android build: reminder notifications in the tray now show Snooze 10m and Snooze 1h buttons — tap one and the OS will re-fire the reminder at that time, without you needing to open the app. The snooze also writes a record into your inbox so you can see what's been deferred. For more detailed snooze options (tomorrow, next week, custom), tap the notification itself to open the in-app inbox.",
       },

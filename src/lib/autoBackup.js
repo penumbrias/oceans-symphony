@@ -21,33 +21,27 @@
 
 import { getFullDbDump } from "@/lib/localDb";
 import { getAllLocalImages } from "@/lib/localImageStorage";
+import { readBackupLocalSettings } from "@/lib/backupKeys";
+import { isNative } from "@/lib/platform";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
-
-// LocalStorage keys to roll into the backup. Mirrors the manual export
-// in DataBackupRestore.jsx — if you add a new key there, add it here
-// too so the auto-backup payload stays equivalent to the manual one.
-const LS_BACKUP_KEYS = [
-  "symphony_themeMode",
-  "symphony_selectedTheme",
-  "symphony_customColors",
-  "symphony_selectedFont",
-  "symphony_userCustomPresets",
-  "symphony_alterThemeLinks",
-  "symphony_a11y_fontSize",
-  "symphony_a11y_fontFamily",
-  "symphony_a11y_reduceMotion",
-  "symphony_a11y_highContrast",
-  "symphony_a11y_largeTouch",
-  "symphony_a11y_navHeight",
-  "alter_hide_grouped",
-  "alter_grid_cols",
-  "alter_display_mode",
-  "nav_grid_layout",
-  "nav_grid_cols",
-  "nav_display_mode",
-];
+// Backup *mode* controls how the file is delivered.
+//   - "off":      no scheduled backups (only manual + on-recovery)
+//   - "auto":     runs silently on app open if interval has elapsed
+//                 (native → writes to Documents; web/TWA → Web Share /
+//                 anchor download as before)
+//   - "reminder": [native only] schedules a recurring OS notification
+//                 at the interval; tapping it opens the app and runs
+//                 the backup immediately. Falls back to "auto" on web.
+// Stored separately from the interval so flipping mode doesn't reset
+// the user's chosen frequency.
+const MODE_KEY = "symphony_autobackup_mode";
+export const BACKUP_MODES = {
+  OFF: "off",
+  AUTO: "auto",
+  REMINDER: "reminder",
+};
 
 // User-pickable backup intervals. 0 means off.
 export const AUTO_BACKUP_INTERVALS = [
@@ -81,13 +75,20 @@ function setAutoBackupLastAt(iso) {
   catch { /* non-fatal */ }
 }
 
-function exportLocalSettings() {
-  const out = {};
-  for (const key of LS_BACKUP_KEYS) {
-    const val = localStorage.getItem(key);
-    if (val !== null) out[key] = val;
-  }
-  return out;
+export function getAutoBackupMode() {
+  try {
+    const v = localStorage.getItem(MODE_KEY);
+    if (v === BACKUP_MODES.REMINDER || v === BACKUP_MODES.AUTO || v === BACKUP_MODES.OFF) return v;
+  } catch { /* non-fatal */ }
+  // Default: "auto" if the user had an interval set previously (preserves
+  // pre-mode behaviour), otherwise "off".
+  return getAutoBackupInterval() > 0 ? BACKUP_MODES.AUTO : BACKUP_MODES.OFF;
+}
+
+export function setAutoBackupMode(mode) {
+  if (![BACKUP_MODES.OFF, BACKUP_MODES.AUTO, BACKUP_MODES.REMINDER].includes(mode)) return;
+  try { localStorage.setItem(MODE_KEY, mode); }
+  catch { /* non-fatal */ }
 }
 
 async function buildFullBackupPayload() {
@@ -101,8 +102,35 @@ async function buildFullBackupPayload() {
     __auto: true,
     data: dump,
     __local_images: images,
-    __local_settings: exportLocalSettings(),
+    __local_settings: readBackupLocalSettings(),
   };
+}
+
+// Native delivery: write directly to a documents folder via the
+// Capacitor Filesystem plugin. Skips the Web Share UI entirely — no
+// tap, no chooser, no surprise. Returns "filesystem" on success, or
+// null if the plugin path fails so the caller can fall back to the
+// web-style share/download.
+async function deliverBackupNative(filename, json) {
+  if (!isNative()) return null;
+  try {
+    const { Filesystem, Directory, Encoding } = await import("@capacitor/filesystem");
+    // Use the app's Documents directory (Directory.Documents). On
+    // Android this maps to /storage/emulated/0/Documents/<app>/, which
+    // is public storage and survives "Clear app data" — the whole
+    // point of an auto-backup.
+    await Filesystem.writeFile({
+      path: filename,
+      data: json,
+      directory: Directory.Documents,
+      encoding: Encoding.UTF8,
+      recursive: true,
+    });
+    return "filesystem";
+  } catch (e) {
+    console.warn("[Auto-backup] native filesystem write failed:", e);
+    return null;
+  }
 }
 
 async function deliverBackup(filename, json) {
@@ -136,38 +164,63 @@ async function deliverBackup(filename, json) {
 }
 
 // Run a backup right now. Returns the delivery result string.
-export async function runAutoBackupNow({ silent = false } = {}) {
+//
+// preferNative: when true (the auto-backup path), try the silent
+// Filesystem write before falling back to Web Share. Manual "Back up
+// now" leaves this false so the user gets the standard share sheet —
+// they explicitly asked for it.
+export async function runAutoBackupNow({ silent = false, preferNative = false } = {}) {
   const payload = await buildFullBackupPayload();
   const json = JSON.stringify(payload);
   const date = new Date().toISOString().slice(0, 10);
   const filename = `oceans-symphony-backup-${date}.json`;
-  const result = await deliverBackup(filename, json);
+
+  let result = null;
+  if (preferNative && isNative()) {
+    result = await deliverBackupNative(filename, json);
+  }
+  if (!result) {
+    result = await deliverBackup(filename, json);
+  }
+
   if (result !== "cancelled") setAutoBackupLastAt(new Date().toISOString());
   if (!silent) {
     try {
       const { toast } = await import("sonner");
-      if (result === "shared") toast.success("Backup saved");
+      if (result === "filesystem") toast.success("Backup saved to Documents");
+      else if (result === "shared") toast.success("Backup saved");
       else if (result === "downloaded") toast.success("Backup downloaded");
     } catch { /* sonner not available, ignore */ }
   }
   return result;
 }
 
-// Called on app boot. Quietly runs a backup if the user has the
-// feature enabled AND enough time has passed since their last one.
-export async function runAutoBackupIfDue() {
+// True if the configured interval has elapsed since the last backup.
+// Shared between the on-boot check and the native reminder-notification
+// reconciler so they agree on "is a backup due right now".
+export function isAutoBackupDue() {
   const interval = getAutoBackupInterval();
-  if (interval <= 0) return false; // feature off
+  if (interval <= 0) return false;
   const last = getAutoBackupLastAt();
-  if (last) {
-    const lastMs = Date.parse(last);
-    if (Number.isFinite(lastMs)) {
-      const diffDays = (Date.now() - lastMs) / (1000 * 60 * 60 * 24);
-      if (diffDays < interval) return false;
-    }
-  }
+  if (!last) return true;
+  const lastMs = Date.parse(last);
+  if (!Number.isFinite(lastMs)) return true;
+  const diffDays = (Date.now() - lastMs) / (1000 * 60 * 60 * 24);
+  return diffDays >= interval;
+}
+
+// Called on app boot. Quietly runs a backup if the user has the
+// feature in "auto" mode AND enough time has passed since their last
+// one. "reminder" mode handles its own delivery via OS notification;
+// "off" does nothing here.
+export async function runAutoBackupIfDue() {
+  const mode = getAutoBackupMode();
+  if (mode !== BACKUP_MODES.AUTO) return false;
+  if (!isAutoBackupDue()) return false;
   try {
-    await runAutoBackupNow({ silent: true });
+    // Native: write straight to Documents (silent, no chooser). Web:
+    // existing Web Share / anchor download path.
+    await runAutoBackupNow({ silent: true, preferNative: true });
     return true;
   } catch (e) {
     console.warn("[Auto-backup] failed:", e);
