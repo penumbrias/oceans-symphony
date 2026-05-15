@@ -122,20 +122,22 @@ export async function shareFile({ blob, filename, title, dialogTitle }) {
   return shareWeb(blob, filename, title || filename);
 }
 
-// Native-only silent write to the public Documents folder. Used by
-// auto-backup when the user picked "Documents" as the destination,
-// so the backup file lands in a known place without popping a share
-// sheet every time.
+// Native-only silent write to the public Documents folder via the
+// Capacitor Filesystem plugin. Used as a secondary fallback after
+// the MediaStore-based saveBlobToPublicDownloads — Filesystem's
+// Directory.Documents path frequently fails on Android 11+ scoped
+// storage (it would need MANAGE_EXTERNAL_STORAGE, which Play Store
+// rarely approves), but on Android 9 and below the legacy storage
+// model lets this through, so it's worth trying as a fallback for
+// older devices in case MediaStore returned a confusing error.
 //
-// On Android 11+ with scoped storage, Capacitor's Filesystem plugin
-// scopes Directory.Documents under /storage/emulated/0/Android/data/
-// <pkg>/Documents/ — still browsable in Files app, just one level
-// deeper. We do NOT request MANAGE_EXTERNAL_STORAGE (Play Store
-// virtually never approves it) so the truly-global Documents path
-// is off the table.
+// Crucially: we do NOT fall back to Directory.External (app-scoped
+// external storage). External is uninstall-wiped, and the whole
+// point of an auto-backup is to survive uninstall. If both
+// MediaStore and Filesystem.Documents fail, the caller should
+// surface a share sheet so the user can pick a survival location.
 //
-// Returns { result, uri?, error? }.
-//   result: "filesystem" on success, "failed" on error.
+// Returns { result, uri?, location?, error? }
 export async function writeFileToDocumentsSilent({ blob, filename }) {
   if (!isNative()) {
     return { result: "failed", error: "silent_write_native_only" };
@@ -152,10 +154,10 @@ export async function writeFileToDocumentsSilent({ blob, filename }) {
       directory: Directory.Documents,
       recursive: true,
     });
-    console.log("[shareFile] silent write OK:", writeRes?.uri);
-    return { result: "filesystem", uri: writeRes?.uri };
+    console.log("[shareFile] silent write OK → Documents:", writeRes?.uri);
+    return { result: "filesystem", uri: writeRes?.uri, location: "Documents" };
   } catch (e) {
-    console.warn("[shareFile] silent write failed:", e?.message || e);
+    console.warn("[shareFile] Documents write failed:", e?.message || e);
     return { result: "failed", error: e?.message || "write_failed" };
   }
 }

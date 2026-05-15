@@ -221,8 +221,8 @@ export default function AutoBackupSettings() {
               id={BACKUP_DESTINATIONS.DOCUMENTS}
               active={destination === BACKUP_DESTINATIONS.DOCUMENTS}
               onClick={() => handleDestinationChange(BACKUP_DESTINATIONS.DOCUMENTS)}
-              title="Documents folder"
-              body={"Silent. Backups land directly in your Documents folder — visible in Files app under Internal storage → Documents. Best default: no share-sheet prompt every time auto-backup runs."}
+              title="Save to device"
+              body={"Silent — no share-sheet prompt. Backups land in your device's Documents folder when Android allows it (visible in Files app → Internal storage → Documents). On Android 11+ where scoped storage blocks the Documents write, falls back to the app's own external folder at Internal storage → Android → data → app.oceans_symphony.twa → files (still browsable, but wiped if you uninstall the app — keep an extra cloud copy if that matters)."}
             />
             <ModeCard
               id={BACKUP_DESTINATIONS.ASK}

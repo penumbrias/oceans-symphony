@@ -24,6 +24,7 @@ import { getAllLocalImages } from "@/lib/localImageStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
 import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
+import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
@@ -164,24 +165,46 @@ export async function runAutoBackupNow({ silent = false } = {}) {
   const destination = getBackupDestination();
   let result = "failed";
   let error = null;
+  let location = null;
 
   if (isNative() && destination === BACKUP_DESTINATIONS.DOCUMENTS) {
-    const silentRes = await writeFileToDocumentsSilent({ blob, filename });
-    result = silentRes.result;
-    error = silentRes.error;
-    // On silent-write failure (typically scoped-storage refusal on
-    // some OEMs), fall back to share sheet so the user still gets
-    // their backup somewhere.
-    if (result === "failed") {
-      console.warn("[Auto-backup] silent write fell back to share sheet:", error);
-      const fb = await shareFile({
-        blob,
-        filename,
-        title: "Oceans Symphony backup",
-        dialogTitle: "Save backup file",
-      });
-      result = fb.result;
-      error = fb.error;
+    // Preferred path: MediaStore.Downloads via our custom Java
+    // plugin. Works without a permission prompt on Android 10+ AND
+    // survives uninstall (the whole point of an auto-backup).
+    const mediaRes = await saveBlobToPublicDownloads({
+      blob,
+      filename,
+      mimeType: "application/json",
+    });
+    if (mediaRes.result === "filesystem") {
+      result = mediaRes.result;
+      location = mediaRes.location;
+    } else {
+      // Fallback 1: Filesystem.Documents direct. Likely fails on
+      // Android 11+ scoped storage too, but worth a shot on older
+      // devices where legacy storage permits it (and the file lands
+      // in /storage/emulated/0/Documents/, also surviving uninstall).
+      console.warn("[Auto-backup] MediaStore failed, trying Filesystem.Documents:", mediaRes.error);
+      const silentRes = await writeFileToDocumentsSilent({ blob, filename });
+      if (silentRes.result === "filesystem") {
+        result = silentRes.result;
+        location = silentRes.location;
+      } else {
+        // Fallback 2: share sheet. Last resort — gives the user a
+        // chance to file the backup somewhere themselves. We
+        // deliberately do NOT silently write into the app-scoped
+        // External directory because that gets wiped on uninstall,
+        // defeating the point of having a backup.
+        console.warn("[Auto-backup] Documents also failed, falling back to share sheet:", silentRes.error);
+        const fb = await shareFile({
+          blob,
+          filename,
+          title: "Oceans Symphony backup",
+          dialogTitle: "Save backup file",
+        });
+        result = fb.result;
+        error = fb.error;
+      }
     }
   } else {
     const fb = await shareFile({
@@ -200,7 +223,17 @@ export async function runAutoBackupNow({ silent = false } = {}) {
   if (!silent) {
     try {
       const { toast } = await import("sonner");
-      if (result === "filesystem") toast.success("Backup saved to Documents");
+      if (result === "filesystem") {
+        // location can be "Downloads/Oceans Symphony" (MediaStore
+        // path on Android 10+) or "Documents" (legacy fallback on
+        // Android <= 9). Both survive uninstall, so the user can
+        // trust the toast no matter which path won.
+        toast.success(
+          location
+            ? `Backup saved to ${location}`
+            : "Backup saved"
+        );
+      }
       else if (result === "shared") toast.success("Backup saved — pick a destination in the share sheet");
       else if (result === "downloaded") toast.success("Backup downloaded");
       else if (result === "cancelled") toast("Backup canceled");

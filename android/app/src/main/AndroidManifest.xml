@@ -43,4 +43,14 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Legacy storage write — only requested on Android 9 and below.
+         Android 10+ uses MediaStore.Downloads (handled by
+         MediaStoreSavePlugin) and doesn't require this permission.
+         maxSdkVersion="28" stops the request flow on modern Android
+         so users don't see a confusing storage-permission prompt
+         the app doesn't actually use. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 </manifest>

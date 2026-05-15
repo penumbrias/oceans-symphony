@@ -12,6 +12,7 @@ public class MainActivity extends BridgeActivity {
         // need explicit registerPlugin so they're picked up reliably
         // across Capacitor versions.
         registerPlugin(QuickActionsPlugin.class);
+        registerPlugin(MediaStoreSavePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
