@@ -272,9 +272,6 @@ const handleNotifClick = (mentionLog) => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      {/* ── Safe area top spacer (mobile only) ── */}
-      <div style={{ height: 'env(safe-area-inset-top, 0px)', background: 'var(--background)' }} className="sm:hidden" />
-
       {/* ── Preview Mode Banner ── */}
       <PreviewModeBanner />
 
@@ -284,8 +281,20 @@ const handleNotifClick = (mentionLog) => {
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the
-          right edge, instead of being centred inside a max-w-6xl block. */}
-      <header className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block border-b border-border/50">
+          right edge, instead of being centred inside a max-w-6xl block.
+          paddingTop/Left/Right pull in the OS safe-area insets so the
+          header sits below the status bar (and clear of the rounded
+          corners/notch in landscape) on the native Android build. On
+          web/TWA these envs evaluate to 0 and the header looks the
+          same as before. */}
+      <header
+        className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden sm:block border-b border-border/50"
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
+        }}
+      >
         <HeaderWaveBlock />
         <div className="w-full px-4 sm:px-6 h-16 flex items-center justify-between relative" style={{ zIndex: 1 }}>
           <Link to="/" className="flex items-center gap-2.5 select-none" aria-label="Oceans Symphony home">
@@ -348,7 +357,14 @@ const handleNotifClick = (mentionLog) => {
           button sits on the left and the bell+settings on the right.
           The wave's bottom edge crosses through the centre of the
           title and the icons, like a horizon line. */}
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col border-b border-border/50">
+      <header
+        className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl sm:hidden flex flex-col border-b border-border/50"
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
+        }}
+      >
         <HeaderWaveBlock />
         <div className="flex items-center justify-between px-2 h-14 relative" style={{ zIndex: 1 }}>
           {/* Left: back button or menu icon */}
@@ -519,7 +535,12 @@ const handleNotifClick = (mentionLog) => {
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
         className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
-        style={{ height: "var(--bottom-nav-height, 56px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        style={{
+          height: "var(--bottom-nav-height, 56px)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+          paddingRight: "env(safe-area-inset-right, 0px)",
+        }}
         aria-label="Tab bar navigation">
 
         <div className="flex items-center justify-around" style={{ height: "var(--bottom-nav-height, 56px)" }}>

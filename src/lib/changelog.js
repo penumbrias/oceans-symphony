@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Native Android build: the sticky page header no longer slides behind the system status bar when you scroll, and no longer collides with the system clock/signal/battery icons in landscape orientation. The previous fix only handled the at-rest position by reserving a separate spacer above the header — the safe-area inset is now baked into the header itself, so it stays clear of system UI in both portrait and landscape, scrolled or not. The bottom navigation bar and the in-app banners get the same treatment for the side and bottom insets. Web and TWA continue to render identically (the OS reports zero insets).",
+      },
+      {
+        type: "fix",
         text: "Backup export now includes eight previously-missed user preferences and one piece of real user data that was being silently dropped from every backup: your journal folder structure (os_journal_folders), your auto-backup interval, the heading-font accessibility setting, the grocery cover privacy lock, and four small view-mode/display preferences. If you've ever restored a backup and noticed your journal folders were gone or your backup schedule had reset, that was why. Existing backup files don't contain these keys; new backups taken after this update do.",
       },
       {
