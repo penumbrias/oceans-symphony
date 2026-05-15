@@ -58,8 +58,9 @@ const RESOURCES = {
         blurb: "The main professional body for clinicians who work with dissociative conditions. Their public Fact Sheets page is a good starting reference.",
       },
       {
-        title: "CTAD Clinic (search)",
-        blurb: "There are several clinics under variations of the 'Center for Trauma and Dissociation' name. We don't link directly because the right one depends on your country and context — search 'CTAD clinic' plus your region. Many also publish public educational content on YouTube.",
+        title: "CTAD Clinic (UK) — YouTube",
+        url: "https://www.youtube.com/@TheCTADClinic",
+        blurb: "The UK-based Centre for Trauma and Dissociation runs an accessible, plain-language YouTube channel on dissociation, parts work, and trauma — useful even if you're not in the UK. For treatment, note that several clinics use variations of the 'Center for Trauma and Dissociation' name, so search 'CTAD clinic' plus your region to find a local one.",
       },
       {
         title: "An Infinite Mind",

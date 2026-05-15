@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Native Android build: Friends profile setup was failing with 'Unexpected token < … is not valid JSON' because /api/friends requests resolved against the WebView's private hostname (app.local.oceans-symphony) and returned a 404 HTML page instead of the real API JSON. The Friends client now points at the production Vercel deployment when running natively. Web and TWA continue to use same-origin relative paths.",
+      },
+      {
+        type: "improve",
+        text: "Online resources: the CTAD Clinic entry now links directly to the UK CTAD Clinic's YouTube channel (still useful content even if you're not in the UK). The blurb still notes that several clinics use the CTAD name regionally, so 'search CTAD clinic plus your region' for local treatment remains the right path.",
+      },
+      {
         type: "feature",
         text: "Native Android build: long-pressing the app icon on your home screen now shows YOUR configured Quick Actions (the same ones you get from long-pressing the in-app Quick Check-In button), not a single generic 'Quick Actions' entry. Tapping a shortcut opens the app and runs that exact action — log a feeling, set a fronter, start a grounding exercise, whatever you've set up. Reorder or rename them in Settings → Quick Actions and the home-screen list updates automatically. Android caps the menu at 4 shortcuts per app, so the first four (by your saved order) get surfaced.",
       },

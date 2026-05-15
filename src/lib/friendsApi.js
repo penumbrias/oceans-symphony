@@ -2,8 +2,23 @@
 // Identity (userId, secret) lives in localEntities.FriendIdentity (IDB).
 import { localEntities } from "@/api/base44Client";
 import { getActivePushSubscription } from "@/lib/pushRegistration";
+import { isNative } from "@/lib/platform";
 
-const BASE = '/api/friends';
+// On web/TWA the Friends API lives at /api/friends on the same origin
+// the page was served from — relative paths work. On the Capacitor
+// native build the WebView is served from a private hostname
+// (app.local.oceans-symphony, see capacitor.config.ts) which doesn't
+// exist on the public internet, so relative /api/* requests return a
+// 404 HTML page → the JSON parser throws "Unexpected token '<', '<!doctype'…".
+// On native we point at the production Vercel deployment explicitly.
+// Exported so other callers (Friends.jsx's save-push-sub fetch) can
+// use the same base without re-implementing the platform check.
+const NATIVE_API_HOST = "https://oceans-symphony.vercel.app";
+export const FRIENDS_API_BASE = isNative()
+  ? `${NATIVE_API_HOST}/api/friends`
+  : "/api/friends";
+
+const BASE = FRIENDS_API_BASE;
 
 // ─── Identity ─────────────────────────────────────────────────────────────────
 
