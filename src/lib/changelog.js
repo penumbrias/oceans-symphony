@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Hotfix: clarified the Data Recovery screen copy. The previous wording said the saved raw file 'can be used to recover your data later, even if it's encrypted' — which was misleading, because the file is ciphertext and still needs your password to be decrypted. The new copy explains honestly that recovering encrypted data requires BOTH the saved file AND the password, so people don't reset under the false impression that the raw copy alone is enough.",
+      },
+      {
+        type: "fix",
         text: "Major data-safety overhaul to fix a rare but serious case where reopening the app — particularly on Android after the OS or a device-cleaner app cleared part of the WebView's storage overnight — could send the user back into the first-run setup screen against their existing data and effectively wipe it. The boot path now inspects IndexedDB directly before deciding whether you're a new user, and refuses to treat anything that has data on disk as 'first run'. If your data is encrypted but the encryption flag in localStorage was lost, the app now restores the flag from the encrypted file itself and shows the unlock screen as expected. The encryption salt is now stored alongside the encrypted data (not only in localStorage) so a localStorage wipe alone can no longer make encrypted data permanently undecryptable.",
       },
       {

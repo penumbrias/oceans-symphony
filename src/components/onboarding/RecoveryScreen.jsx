@@ -61,7 +61,7 @@ export default function RecoveryScreen({ reason, onResolved }) {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setStatus({
         type: "success",
-        text: "Raw data file saved. Keep this safe — it can be used to recover your data later, even if it's encrypted.",
+        text: "Raw data file saved. If your data is encrypted, you'll still need your password to decrypt it — but as long as you have this file AND the password, the data can be recovered.",
       });
     } catch (e) {
       setStatus({ type: "error", text: `Export failed: ${e?.message || e}` });
@@ -193,8 +193,9 @@ export default function RecoveryScreen({ reason, onResolved }) {
             Save a copy of my raw data
           </Button>
           <p className="text-xs text-muted-foreground px-1">
-            Downloads the raw on-device data file (encrypted ciphertext if you
-            had a password). Keep it safe — it can be recovered later.
+            Downloads the raw on-device data file. If your data is encrypted,
+            this file is ciphertext — it still needs your password to be
+            decrypted later. Without the password it cannot be read.
           </p>
 
           <Button
@@ -289,10 +290,10 @@ function describeReason(kind, error) {
     case "init_failed":
       return `Loading your data hit an error${error?.message ? ` (${error.message})` : ""}. Save a raw copy below before doing anything destructive.`;
     case "missing_salt":
-      return "The encryption salt this device used to scramble your data is missing, so no password can decrypt it from here. If you have a backup file, restore from it. Otherwise save the raw file and contact support.";
+      return "The encryption salt this device used to scramble your data is missing, so no password can decrypt it from here. If you have a previous backup file, restore from it. Otherwise, save the raw file (it's still encrypted; recovering it would require both the original salt and your password).";
     case "forgot_password":
     case "unlock_failed":
-      return "If you can't unlock your data, save a raw copy first — that file can be unlocked later if you remember the password or have it in a backup.";
+      return "If you can't unlock your data, save a raw copy of it first. The copy is encrypted ciphertext — it still needs your password to be read — but as long as you keep both this file and the password, the data is recoverable. Once you reset, the data is gone for good.";
     default:
       return "Something went wrong loading your data. Use the options below to save a copy or restore a backup before doing anything destructive.";
   }
