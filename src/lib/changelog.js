@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Header was STILL sliding off-screen on scroll despite removing the auto-hide hook in 0.16.4. Root cause: the app-shell root container was min-h-screen (could grow taller than viewport when content overflowed), which let the document body itself scroll and dragged the 'sticky' header up with it. Pinned the root to exactly h-screen with overflow-hidden — only inner <main> with overflow-auto can scroll now, and the header has nowhere to go.",
+      },
+      {
         type: "improve",
         text: "TWA-to-native migration prompt now appears on the first-run onboarding screen instead of as a modal that pops up on top of the Dashboard after setup is already complete. Users coming from the Play Store auto-update see the 'go grab a backup from oceans-symphony.app in Chrome' guidance before they make any storage-mode choices, so they don't accidentally start fresh and then get told mid-app that they should have imported something.",
       },

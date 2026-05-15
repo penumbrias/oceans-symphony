@@ -276,7 +276,16 @@ const handleNotifClick = (mentionLog) => {
   const { indicatorVisible, indicatorProgress } = useSwipeBack();
 
   return (
-    <div className="flex flex-col min-h-screen bg-background overflow-x-hidden">
+    // Root is pinned to EXACTLY viewport height (h-screen) and clips
+    // overflow. This forces the document body to be unscrollable —
+    // only the inner <main> with its own overflow-auto can scroll.
+    // The mobile sticky header therefore literally cannot scroll out
+    // of view because the only scroll context is below it (inside
+    // main). Previous min-h-screen lets root grow taller than the
+    // viewport when content overflows, which makes the body scroll
+    // and drags the "sticky" header up with it in some Capacitor
+    // WebView versions.
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* ── Preview Mode Banner ── */}
       <PreviewModeBanner />
 
