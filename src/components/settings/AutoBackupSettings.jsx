@@ -81,6 +81,19 @@ export default function AutoBackupSettings() {
         <p className="text-xs text-muted-foreground mt-0.5">
           Writes a full backup of your data to your device's Downloads folder on a schedule. The Downloads folder lives outside the app's sandbox, so a backup file there survives "Clear app data", device-cleaner apps, app reinstalls, and most storage-loss scenarios.
         </p>
+        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 flex items-start gap-2">
+          <ShieldAlert className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+          <p className="text-[0.6875rem] text-foreground leading-relaxed">
+            <strong>Auto-backup runs only when the app is opened.</strong> On
+            boot, if enough time has passed since the last backup (based on
+            your chosen schedule), the app writes a backup right then. If
+            you don't open the app for a while, no backups happen during
+            that gap — open the app at least as often as your schedule
+            (e.g. once a week if Weekly), or use "Back up now" before a
+            long break. Browsers and installed PWAs can't reliably run
+            background tasks on a real clock.
+          </p>
+        </div>
       </div>
 
       <div className="space-y-2">

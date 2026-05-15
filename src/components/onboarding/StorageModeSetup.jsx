@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown } from "lucide-react";
 import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
-import { initLocalDb } from "@/lib/localDb";
+import { initLocalDb, peekStoredData } from "@/lib/localDb";
 
 function FirstRunSetup({ onComplete }) {
   const [step, setStep] = useState("choose");
@@ -23,6 +23,19 @@ function FirstRunSetup({ onComplete }) {
     if (useEncryption && password.length < 6) { setError("Password must be at least 6 characters."); return; }
     setLoading(true);
     try {
+      // Last-ditch safety: if existing data is on disk, refuse to set up
+      // a fresh DB on top of it. App.jsx already routes returning users
+      // to unlock/recovery before reaching this screen, but a stale tab
+      // or a race could land here — treat that as an emergency rather
+      // than silently overwriting the user's data.
+      const peek = await peekStoredData();
+      if (peek.exists) {
+        setError(
+          "Existing data was found on this device. To protect it from being overwritten, the app cannot run setup again. Please reload — you should be prompted to unlock or recover your data."
+        );
+        setLoading(false);
+        return;
+      }
       setMode("local");
       if (useEncryption) {
         setEncryptionEnabled(true);

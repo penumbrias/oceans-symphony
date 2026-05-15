@@ -149,10 +149,29 @@ What always needs a changelog entry:
 
 ## User Data Preservation — Non-Negotiable
 
-**User data must never be silently lost or overwritten.** Specific rules:
+**User data must never be silently lost or overwritten. People should be able to keep their data always and forever — that is the contract this app makes.** Every implementation, refactor, and bug fix must protect this. Specific rules:
 
 - **Never replace/overwrite existing records** when the intent is to add new ones. If a feature is a "log" (statuses, locations, check-ins, etc.), always `create` new records — never `update` old ones.
 - **Never delete user data** as part of a migration or refactor. If old storage format is being replaced (e.g., localStorage → entity), keep reading the old format as a fallback; only stop writing to it.
 - **Schema changes**: When adding fields to existing entities, default existing records gracefully (optional fields, null defaults). Never make changes that would corrupt or lose existing records.
 - **Before removing a data source**: Confirm the new source is fully populated and the old source has no unique data the user hasn't already migrated.
 - When in doubt about a destructive operation — **ask the user first**.
+
+### Storage Layer Invariants (post v0.11.0 — do not regress)
+
+These rules came out of a critical bug where encrypted data became unreachable overnight after a localStorage wipe (Android device cleaners). They apply to everything that touches `localDb.js`, `storageMode.js`, `App.jsx`'s boot path, `StorageModeSetup.jsx`, `UnlockScreen.jsx`, `RecoveryScreen.jsx`:
+
+- **Never silently return `_db = {}` when stored data exists.** If data is on disk but unreadable (encrypted with no key, corrupted JSON, missing salt, IDB error), `initLocalDb` MUST throw a typed error (`EncryptedDataWithoutKeyError`, `CorruptedDataError`, `MissingSaltError`, `StorageReadError`). The boot path catches these and routes to `RecoveryScreen` — never to `firstrun` and never to a half-loaded dashboard.
+- **Never trust localStorage alone to decide "first run".** Use `peekStoredData()` from `localDb.js` — it checks IndexedDB directly. Android cleaners regularly wipe localStorage while leaving IndexedDB intact; routing those users back into setup destroyed their data.
+- **Never swallow init errors with `.catch(() => setSetupState(null))`.** Surface every init failure to the user via the recovery screen.
+- **Encryption metadata (flag + salt) MUST be persisted alongside the encrypted payload**, not only in localStorage. `saveDb()` embeds `__salt` inside the `__encrypted` envelope so a localStorage wipe alone can't make data permanently undecryptable. Never break that — the salt + ciphertext are an inseparable pair.
+- **`requestPersistentStorage()` runs FIRST on boot**, before any storage read. Don't move it later in the sequence.
+- **`StorageModeSetup` must check `peekStoredData()` before completing setup.** If data exists, refuse to overwrite and instruct the user to reload. App.jsx's boot path should never reach setup when data exists — the check is defence-in-depth.
+- **Recovery actions that destroy data (reset, fresh start) must always save a raw copy to Downloads first.** `RecoveryScreen.handleReset` writes the raw blob (including encrypted ciphertext) before `loadDbDump({})`. Don't add a "fast reset" path that skips the backup.
+- **`getDb()` throws if called before `initLocalDb` completes.** Don't reintroduce a synchronous `_db = {}` fallback — the previous one let early callers seed an empty in-memory DB that would overwrite real data on the next save.
+
+### When you change anything in this layer
+
+1. Verify the boot path against the seven scenarios: (a) brand-new user, (b) returning unencrypted user, (c) returning encrypted user with intact localStorage, (d) returning encrypted user with wiped localStorage, (e) returning user with corrupted IDB JSON, (f) returning user with missing salt, (g) returning user with IDB read error.
+2. None of those scenarios should ever land on `firstrun` if data exists, ever silently empty the DB, or ever overwrite the on-disk blob without explicit user confirmation.
+3. Add a changelog entry every time, even for a small refactor in this area — testers need to know.
