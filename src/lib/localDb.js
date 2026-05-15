@@ -4,7 +4,7 @@
 
 import { openDB } from 'idb';
 import { encryptData, decryptData, generateSalt, deriveKey } from './localEncryption';
-import { isEncryptionEnabled, getEncSalt, setEncSalt } from './storageMode';
+import { getEncSalt, setEncSalt, setEncryptionEnabled } from './storageMode';
 
 const IDB_NAME = 'oceans_symphony';
 const IDB_VERSION = 1;
@@ -15,7 +15,37 @@ const FAKE_USER_EMAIL = 'local@symphony.app';
 let _db = null;       // in-memory: { EntityName: { id: record } }
 let _previewDb = null; // in-memory only: when set, all reads/writes use this and skip persistence
 let _encKey = null;   // CryptoKey when encryption is active
+let _activeSalt = null; // salt currently in use; mirrored into the encrypted envelope on every save
 let _idbPromise = null;
+
+// Typed errors so the boot path can show a real recovery UI instead of
+// silently returning an empty DB (which the user would see as data loss).
+export class EncryptedDataWithoutKeyError extends Error {
+  constructor() {
+    super('Stored data is encrypted; password required to unlock.');
+    this.name = 'EncryptedDataWithoutKeyError';
+  }
+}
+export class StorageReadError extends Error {
+  constructor(cause) {
+    super('Could not read stored data from this device.');
+    this.name = 'StorageReadError';
+    this.cause = cause;
+  }
+}
+export class CorruptedDataError extends Error {
+  constructor(cause) {
+    super('Stored data is unreadable (corrupted or wrong format).');
+    this.name = 'CorruptedDataError';
+    this.cause = cause;
+  }
+}
+export class MissingSaltError extends Error {
+  constructor() {
+    super('Encryption salt is missing; data cannot be decrypted on this device.');
+    this.name = 'MissingSaltError';
+  }
+}
 
 function getIdb() {
   if (!_idbPromise) {
@@ -30,22 +60,36 @@ function getIdb() {
   return _idbPromise;
 }
 
+// Returns the raw stored string, or null if no data exists in either store.
+// Throws StorageReadError ONLY when IDB itself errored AND localStorage had
+// nothing to fall back on — in that case the caller must surface a recovery
+// UI instead of treating an empty DB as "user is new".
 async function loadFromStorage() {
+  let idbValue = undefined;
+  let idbError = null;
   try {
     const idb = await getIdb();
-    const value = await idb.get(IDB_STORE, STORAGE_KEY);
-    if (value !== undefined) return value;
-    // One-time migration from localStorage to IndexedDB
-    const legacy = localStorage.getItem(STORAGE_KEY);
-    if (legacy) {
-      await idb.put(IDB_STORE, legacy, STORAGE_KEY);
-      localStorage.removeItem(STORAGE_KEY);
-      return legacy;
-    }
-    return null;
-  } catch {
-    return localStorage.getItem(STORAGE_KEY);
+    idbValue = await idb.get(IDB_STORE, STORAGE_KEY);
+  } catch (e) {
+    idbError = e;
   }
+  if (idbValue !== undefined) return idbValue;
+
+  // One-time migration from localStorage to IndexedDB (if IDB is healthy).
+  const legacy = localStorage.getItem(STORAGE_KEY);
+  if (legacy) {
+    if (!idbError) {
+      try {
+        const idb = await getIdb();
+        await idb.put(IDB_STORE, legacy, STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+      } catch { /* migration best-effort; data already in the legacy slot */ }
+    }
+    return legacy;
+  }
+
+  if (idbError) throw new StorageReadError(idbError);
+  return null;
 }
 
 async function saveToStorage(value) {
@@ -57,6 +101,42 @@ async function saveToStorage(value) {
   }
 }
 
+// Read-only inspection of the stored blob without loading it into memory or
+// requiring a password. Used by App.jsx on boot to decide whether the user
+// is genuinely new vs. has existing data that needs unlock/recovery — even
+// when localStorage has been cleared and the encryption flag is gone.
+//
+// Returns one of:
+//   { exists: false }
+//   { exists: true, encrypted: false, raw }
+//   { exists: true, encrypted: true,  salt: <string|null>, raw }
+//   { exists: true, corrupted: true,  raw }   ← raw was non-empty but unparseable
+// Throws StorageReadError if the storage layer itself is unreadable.
+export async function peekStoredData() {
+  const raw = await loadFromStorage();
+  if (!raw) return { exists: false };
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch { return { exists: true, corrupted: true, raw }; }
+  if (parsed && typeof parsed === 'object' && parsed.__encrypted) {
+    return {
+      exists: true,
+      encrypted: true,
+      salt: parsed.__salt || null,
+      raw,
+    };
+  }
+  return { exists: true, encrypted: false, raw };
+}
+
+// Returns the raw on-disk blob (encrypted ciphertext or plain JSON) for
+// emergency export from the recovery screen. Lets users save a copy of
+// their unreadable data before resetting, so support / a future fix can
+// recover it.
+export async function exportRawStorageBlob() {
+  return await loadFromStorage();
+}
+
 function generateId() {
   if (crypto.randomUUID) return crypto.randomUUID();
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -65,17 +145,30 @@ function generateId() {
 function getDb() {
   if (_previewDb !== null) return _previewDb;
   if (_db !== null) return _db;
-  // Synchronous fallback (only safe after initLocalDb has run)
-  _db = {};
-  return _db;
+  // Hard error rather than silent empty: returning {} here previously
+  // let early callers seed an empty in-memory DB that would then
+  // overwrite the real one on the next save. See User Data Preservation
+  // notes in CLAUDE.md.
+  throw new Error('localDb accessed before initLocalDb completed');
 }
 
 async function saveDb() {
   // Preview-mode writes stay purely in memory and never reach IndexedDB.
   if (_previewDb !== null) return;
-  const json = _encKey
-    ? JSON.stringify({ __encrypted: await encryptData(_db, _encKey) })
-    : JSON.stringify(_db);
+  let json;
+  if (_encKey) {
+    // Embed the salt INSIDE the encrypted envelope so the data is still
+    // decryptable even if localStorage is wiped (Android device cleaners
+    // commonly clear localStorage but leave IndexedDB intact, which would
+    // otherwise lose the salt and make decryption impossible).
+    json = JSON.stringify({
+      __encrypted: await encryptData(_db, _encKey),
+      __salt: _activeSalt || getEncSalt(),
+      __format_version: 2,
+    });
+  } else {
+    json = JSON.stringify(_db);
+  }
   await saveToStorage(json);
 }
 
@@ -95,51 +188,98 @@ export function isPreviewDbActive() {
 }
 
 // Called on app start. Password required only when encryption is enabled.
+//
+// Safety contract:
+//   - NEVER silently set `_db = {}` when stored data exists. If we can't
+//     read or decrypt it, throw a typed error so the boot UI can route to
+//     the recovery screen instead of showing the user an empty app.
+//   - Recover the encryption flag and salt from the stored envelope when
+//     localStorage has been wiped (Android cleaners do this regularly).
 export async function initLocalDb(password) {
-  if (password && isEncryptionEnabled()) {
-    let salt = getEncSalt();
-    if (!salt) {
-      salt = await generateSalt();
-      setEncSalt(salt);
-    }
-    _encKey = await deriveKey(password, salt);
-    const raw = await loadFromStorage();
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.__encrypted) {
-        try {
-          _db = await decryptData(parsed.__encrypted, _encKey);
-        } catch {
-          _encKey = null;
-          throw new Error('Incorrect password');
-        }
-      } else {
-        _db = parsed;
-      }
+  // loadFromStorage throws StorageReadError only when both IDB and
+  // localStorage are unreachable AND empty.
+  const raw = await loadFromStorage();
+
+  // First-run path: no data anywhere.
+  if (!raw) {
+    _db = {};
+    if (password) {
+      // First-run user opted into encryption — set up the key now so
+      // their first save lands as encrypted ciphertext.
+      let salt = getEncSalt();
+      if (!salt) { salt = await generateSalt(); setEncSalt(salt); }
+      _activeSalt = salt;
+      _encKey = await deriveKey(password, salt);
+      setEncryptionEnabled(true);
     } else {
-      _db = {};
+      _activeSalt = null;
+      _encKey = null;
     }
-  } else {
-    _encKey = null;
-    const raw = await loadFromStorage();
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        _db = (parsed && parsed.__encrypted) ? {} : parsed;
-      } catch {
-        _db = {};
-      }
-    } else {
-      _db = {};
-    }
+    return;
   }
+
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch (e) {
+    // Stored blob is non-empty but unparseable. Refuse to clobber it.
+    _db = null;
+    _encKey = null;
+    throw new CorruptedDataError(e);
+  }
+
+  // Encrypted envelope.
+  if (parsed && typeof parsed === 'object' && parsed.__encrypted) {
+    if (!password) {
+      // CRITICAL: previously this path silently returned `_db = {}` which
+      // looked like total data loss to the user. Throw instead so the UI
+      // can prompt for the password or open the recovery screen.
+      _db = null;
+      _encKey = null;
+      throw new EncryptedDataWithoutKeyError();
+    }
+    // Prefer the salt embedded in the envelope — survives localStorage
+    // wipes. Fall back to the localStorage copy for legacy blobs that
+    // pre-date envelope versioning.
+    const salt = parsed.__salt || getEncSalt();
+    if (!salt) {
+      _db = null;
+      _encKey = null;
+      throw new MissingSaltError();
+    }
+    // Restore localStorage flags so the rest of the app sees a consistent
+    // state (Settings → encryption indicator, etc.).
+    setEncSalt(salt);
+    setEncryptionEnabled(true);
+    _activeSalt = salt;
+    const key = await deriveKey(password, salt);
+    let decrypted;
+    try {
+      decrypted = await decryptData(parsed.__encrypted, key);
+    } catch {
+      _encKey = null;
+      _db = null;
+      throw new Error('Incorrect password');
+    }
+    _encKey = key;
+    _db = decrypted;
+    return;
+  }
+
+  // Plain (unencrypted) data. Load it as-is. If the user supplied a
+  // password but the stored data isn't encrypted, ignore the password —
+  // they can flip encryption on later via Settings.
+  _encKey = null;
+  _activeSalt = null;
+  _db = parsed;
 }
 
 export async function enableEncryption(password) {
   const db = getDb();
   let salt = getEncSalt();
   if (!salt) { salt = await generateSalt(); setEncSalt(salt); }
+  _activeSalt = salt;
   _encKey = await deriveKey(password, salt);
+  setEncryptionEnabled(true);
   _db = db;
   await saveDb();
 }
@@ -147,11 +287,13 @@ export async function enableEncryption(password) {
 export async function disableEncryption(password) {
   await initLocalDb(password);
   _encKey = null;
+  _activeSalt = null;
+  setEncryptionEnabled(false);
   await saveDb();
 }
 
 export const isDbInitialized = () => _db !== null;
-export const clearSession = () => { _db = null; _encKey = null; };
+export const clearSession = () => { _db = null; _encKey = null; _activeSalt = null; };
 
 function getCollection(entityName) {
   const db = getDb();

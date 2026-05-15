@@ -13,6 +13,31 @@
 
 export const CHANGELOG = [
   {
+    date: "May 15, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Major data-safety overhaul to fix a rare but serious case where reopening the app — particularly on Android after the OS or a device-cleaner app cleared part of the WebView's storage overnight — could send the user back into the first-run setup screen against their existing data and effectively wipe it. The boot path now inspects IndexedDB directly before deciding whether you're a new user, and refuses to treat anything that has data on disk as 'first run'. If your data is encrypted but the encryption flag in localStorage was lost, the app now restores the flag from the encrypted file itself and shows the unlock screen as expected. The encryption salt is now stored alongside the encrypted data (not only in localStorage) so a localStorage wipe alone can no longer make encrypted data permanently undecryptable.",
+      },
+      {
+        type: "feature",
+        text: "New Data Recovery screen. If the app ever boots into a state where it can see stored data on this device but can't read it (corrupted file, missing encryption salt, IndexedDB error, repeatedly-wrong password, etc.), it now shows a recovery screen instead of either crashing, showing a blank app, or sending you into setup. From there you can save a raw copy of the on-device data file (encrypted ciphertext and all — keep it for support / future recovery), restore from a previous Oceans Symphony backup file, or — only as a last resort — reset the device, which always saves a raw copy to your Downloads folder first before wiping. Reaching this screen no longer destroys anything until you explicitly confirm.",
+      },
+      {
+        type: "improve",
+        text: "Persistent storage is now requested before any data is read on app boot, instead of only after the dashboard has rendered. On installed PWAs / TWAs (Android Chrome especially) this gives the storage layer the strongest possible guarantee the OS won't evict it under memory pressure between sessions.",
+      },
+      {
+        type: "improve",
+        text: "Unlock screen: after three failed password attempts the screen now shows a 'Can't unlock? Open recovery options' link, so you don't have to keep guessing if something has actually gone wrong with the data file (e.g. the salt was lost) — you can go straight to saving a raw copy and getting help.",
+      },
+      {
+        type: "fix",
+        text: "Setup screen will now refuse to complete if it detects existing data on the device. Previously, in the rare wipe scenario above, completing setup again would write a fresh empty database on top of the user's real data. The setup screen now blocks that path and tells you to reload so the unlock / recovery flow can run.",
+      },
+    ],
+  },
+  {
     date: "May 14, 2026",
     changes: [
       {

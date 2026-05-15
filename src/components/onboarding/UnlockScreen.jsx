@@ -1,14 +1,15 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
-import { initLocalDb } from "@/lib/localDb";
+import { Lock, Eye, EyeOff, Loader2, LifeBuoy } from "lucide-react";
+import { initLocalDb, MissingSaltError } from "@/lib/localDb";
 
-export default function UnlockScreen({ onUnlock }) {
+export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [attempts, setAttempts] = useState(0);
 
   const handleUnlock = async () => {
     if (!password) return;
@@ -17,7 +18,14 @@ export default function UnlockScreen({ onUnlock }) {
     try {
       await initLocalDb(password);
       onUnlock();
-    } catch {
+    } catch (e) {
+      if (e instanceof MissingSaltError) {
+        // Salt is gone — no password can ever decrypt. Send straight to
+        // recovery so the user can export the raw blob and reset.
+        onNeedRecovery?.({ kind: 'missing_salt', error: e });
+        return;
+      }
+      setAttempts(a => a + 1);
       setError("Incorrect password. Please try again.");
     } finally {
       setLoading(false);
@@ -67,6 +75,16 @@ export default function UnlockScreen({ onUnlock }) {
               : <Lock className="w-4 h-4 mr-2" />}
             Unlock
           </Button>
+          {attempts >= 3 && onNeedRecovery && (
+            <button
+              type="button"
+              onClick={() => onNeedRecovery({ kind: 'forgot_password' })}
+              className="w-full text-xs text-muted-foreground hover:text-foreground inline-flex items-center justify-center gap-1.5 pt-1"
+            >
+              <LifeBuoy className="w-3.5 h-3.5" />
+              Can't unlock? Open recovery options
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -37,13 +37,20 @@ import CheckInLog from '@/pages/CheckInLog';
 import SystemHistory from '@/pages/SystemHistory';
 import LocationHistory from '@/pages/LocationHistory';
 import FriendsPage from '@/pages/Friends';
-import { isEncryptionEnabled, isFirstRun } from '@/lib/storageMode';
+import { setEncryptionEnabled, setEncSalt } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import { initAccessibility } from '@/lib/useAccessibility';
 
 // Apply saved accessibility settings before first render
 initAccessibility();
-import { isDbInitialized, initLocalDb, migrateBase64AvatarsToLocal, migrateLocalImageUrlScheme } from '@/lib/localDb';
+import {
+  isDbInitialized,
+  initLocalDb,
+  migrateBase64AvatarsToLocal,
+  migrateLocalImageUrlScheme,
+  peekStoredData,
+  EncryptedDataWithoutKeyError,
+} from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
@@ -51,6 +58,7 @@ import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
 import { base44 } from '@/api/base44Client';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
+import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth } = useAuth();
@@ -123,28 +131,88 @@ function App() {
     );
   }
 
-  // 'firstrun' → storage/encryption setup, 'unlock' → password prompt, 'loading' → init DB, null → ready
-  const [setupState, setSetupState] = useState(() => {
-    if (isFirstRun()) return 'firstrun';
-    if (isEncryptionEnabled() && !isDbInitialized()) return 'unlock';
-    return 'loading';
-  });
+  // Boot states:
+  //   'booting'  → initial: peek storage, decide route
+  //   'firstrun' → no data anywhere; show setup
+  //   'unlock'   → encrypted data exists; prompt for password
+  //   'recovery' → data exists but unreadable (corrupted, IDB error,
+  //                missing salt, etc.) → show RecoveryScreen instead of
+  //                silently wiping or treating the user as new
+  //   null       → DB ready
+  const [setupState, setSetupState] = useState('booting');
+  const [recoveryReason, setRecoveryReason] = useState(null);
 
+  // Boot sequence: persist storage FIRST (so the browser stops marking us
+  // for eviction before any further work), then peek at IndexedDB to
+  // decide whether the user is new, needs unlock, needs recovery, or has
+  // plain data ready to load. NEVER trust localStorage alone to decide
+  // "first run" — Android cleaners can wipe it while IDB survives, and
+  // re-running setup against existing IDB data was the path that wiped
+  // user data overnight.
   useEffect(() => {
-    if (setupState === 'loading') {
-      initLocalDb(null)
-        .then(() => restorePreviewIfActive())
-        .then(() => setSetupState(null))
-        .then(() => {
-          // Only repair real data — skip when preview is active so we don't
-          // burn the one-shot flag against preview's in-memory snapshot.
-          if (!isPreviewActive()) {
-            cleanupBrokenSessionsOnce(base44.entities);
-            cleanupLegacyCardEntryOnce(base44.entities);
-          }
-        })
-        .catch(() => setSetupState(null));
-    }
+    if (setupState !== 'booting') return;
+    let cancelled = false;
+    (async () => {
+      // Best-effort, but call it before anything that depends on storage.
+      try { await requestPersistentStorage(); } catch { /* non-fatal */ }
+
+      let peek;
+      try {
+        peek = await peekStoredData();
+      } catch (e) {
+        if (cancelled) return;
+        setRecoveryReason({ kind: 'read_error', error: e });
+        setSetupState('recovery');
+        return;
+      }
+      if (cancelled) return;
+
+      if (!peek.exists) {
+        setSetupState('firstrun');
+        return;
+      }
+
+      if (peek.corrupted) {
+        setRecoveryReason({ kind: 'corrupted' });
+        setSetupState('recovery');
+        return;
+      }
+
+      if (peek.encrypted) {
+        // Restore localStorage flags so the rest of the app and the
+        // unlock screen behave consistently — these were the bits that
+        // Android cleaners had wiped, sending users into the firstrun
+        // wipe path.
+        setEncryptionEnabled(true);
+        if (peek.salt) setEncSalt(peek.salt);
+        setSetupState('unlock');
+        return;
+      }
+
+      // Plain data exists — load it.
+      try {
+        await initLocalDb(null);
+        await restorePreviewIfActive();
+        if (cancelled) return;
+        if (!isPreviewActive()) {
+          cleanupBrokenSessionsOnce(base44.entities);
+          cleanupLegacyCardEntryOnce(base44.entities);
+        }
+        setSetupState(null);
+      } catch (e) {
+        if (cancelled) return;
+        // Surface init failures instead of swallowing them and letting
+        // the app render against a half-initialised DB.
+        if (e instanceof EncryptedDataWithoutKeyError) {
+          setEncryptionEnabled(true);
+          setSetupState('unlock');
+        } else {
+          setRecoveryReason({ kind: 'init_failed', error: e });
+          setSetupState('recovery');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
   }, [setupState]);
 
   useEffect(() => {
@@ -152,10 +220,6 @@ function App() {
       migrateBase64AvatarsToLocal().catch(() => {});
       // Rewrite legacy local-image:// URLs to /local-image/ so the SW can serve them
       migrateLocalImageUrlScheme().catch(() => {});
-      // Ask the browser to keep our storage "persistent" so it isn't
-      // evicted by background cleanup. Android Chrome / TWAs grant this
-      // for installed PWAs; no-op on other platforms. Fire-and-forget.
-      requestPersistentStorage().catch(() => {});
       // Skip auto-backup while preview mode is active — preview's
       // in-memory snapshot is not the user's real data, exporting it
       // would overwrite their last real backup file with junk.
@@ -165,7 +229,7 @@ function App() {
     }
   }, [setupState]);
 
-  if (setupState === 'loading') {
+  if (setupState === 'booting') {
     return (
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
@@ -184,7 +248,27 @@ function App() {
   if (setupState === 'unlock') {
     return (
       <ThemeProvider>
-        <UnlockScreen onUnlock={() => setSetupState(null)} />
+        <UnlockScreen
+          onUnlock={() => setSetupState(null)}
+          onNeedRecovery={(reason) => {
+            setRecoveryReason(reason || { kind: 'unlock_failed' });
+            setSetupState('recovery');
+          }}
+        />
+      </ThemeProvider>
+    );
+  }
+
+  if (setupState === 'recovery') {
+    return (
+      <ThemeProvider>
+        <RecoveryScreen
+          reason={recoveryReason}
+          onResolved={() => {
+            setRecoveryReason(null);
+            setSetupState('booting');
+          }}
+        />
       </ThemeProvider>
     );
   }
