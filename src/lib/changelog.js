@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: Play Console rejected the 0.16.7 build because @capacitor/background-runner declares ACCESS_BACKGROUND_LOCATION and several other sensitive permissions that we don't actually use (the runner could do geolocation, our task just polls a URL). Stripped the unused permission declarations from the merged manifest via tools:node='remove' so Play stops flagging them. Bumped versionCode to 101 for the resubmit.",
+      },
+      {
         type: "fix",
         text: "Header was STILL sliding off-screen on scroll despite removing the auto-hide hook in 0.16.4. Root cause: the app-shell root container was min-h-screen (could grow taller than viewport when content overflowed), which let the document body itself scroll and dragged the 'sticky' header up with it. Pinned the root to exactly h-screen with overflow-hidden — only inner <main> with overflow-auto can scroll now, and the header has nowhere to go.",
       },
