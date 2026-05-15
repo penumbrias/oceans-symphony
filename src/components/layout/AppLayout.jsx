@@ -286,12 +286,6 @@ const handleNotifClick = (mentionLog) => {
     // and drags the "sticky" header up with it in some Capacitor
     // WebView versions.
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* ── Preview Mode Banner ── */}
-      <PreviewModeBanner />
-
-      {/* ── Announcement Banner ── */}
-      <AnnouncementBanner />
-
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the
@@ -543,6 +537,14 @@ const handleNotifClick = (mentionLog) => {
 
         {/* Main content */}
         <main className="app-content-main flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
+          {/* Banners live INSIDE main so they scroll with page content
+              instead of stacking above the sticky header. Previously
+              they sat in document flow above the header, which (since
+              the body became unscrollable in 0.16.7) meant they
+              permanently pushed the header down and stacked weirdly
+              with NotificationPopups at the top of the screen. */}
+          <PreviewModeBanner />
+          <AnnouncementBanner />
           <div className="pt-3 lg:pt-0 pb-2 lg:pb-4">
             <Base44MigrationBanner />
           </div>

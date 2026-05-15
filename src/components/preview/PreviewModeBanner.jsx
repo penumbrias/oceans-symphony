@@ -23,7 +23,6 @@ export default function PreviewModeBanner() {
       aria-live="polite"
       className="w-full bg-amber-500/15 border-b border-amber-500/40"
       style={{
-        paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
       }}
