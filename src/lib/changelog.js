@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "fix",
+        text: "PluralKit avatar imports now actually display. The PK API returns whatever avatar URL is set on each member — for migrated members that's pluralkit.me's CDN (works fine), but for older un-migrated members it's a Discord CDN URL, which expires under Discord's signed-URL policy and won't load from a browser. We now download each avatar at import time, save it to local image storage, and store a `local-image://` URL on the alter so it survives URL expiration AND works offline. Discord URLs are detected and skipped (the user is told to re-upload in PluralKit so it migrates to PK's CDN, then re-run import). Cached avatars are reported in the success toast.",
+      },
+      {
         type: "improve",
         text: "Auto-backup settings now say upfront that backups only run when the app is opened. If you don't open the app for a stretch, the schedule pauses for that gap — open the app at least as often as your interval, or hit 'Back up now' before a long break. Browsers and installed PWAs can't reliably run scheduled tasks in the background, so we want to be clear about it rather than imply set-and-forget.",
       },

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Loader2, CheckCircle2, Link2, Unlink, ArrowDownLeft, ArrowUpRight, AlertTriangle, ShieldAlert } from "lucide-react";
 import { base44, localEntities } from "@/api/base44Client";
 import { isEncryptionEnabled } from "@/lib/storageMode";
+import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import {
   getOwnSystem,
   getMembers,
@@ -16,6 +17,40 @@ import {
   mapPkMemberToAlter,
   exportAltersToPluralKit,
 } from "@/lib/pluralKit";
+
+// Download a remote image and return a data URL. Returns null on any
+// failure (CORS, 404, network, expired Discord signed URL, etc). We
+// deliberately don't pass credentials and we use mode:cors so the
+// browser fetches with the canonical CORS dance — pluralkit.me serves
+// the right Access-Control-Allow-Origin headers, Discord's CDN does not
+// (so we'll just keep the URL as a fallback for those).
+async function fetchImageAsDataUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  if (!url.startsWith("http")) return null;
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+function isDiscordCdnUrl(url) {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    return u.hostname.endsWith("discordapp.com") || u.hostname.endsWith("discord.com") || u.hostname.endsWith("discordapp.net");
+  } catch {
+    return false;
+  }
+}
 
 // PluralKit integration — connect, import members + switches, export
 // local alters back to PK.
@@ -121,8 +156,45 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       );
       let created = 0;
       let updated = 0;
-      for (const m of members) {
+      let avatarsCached = 0;
+      let avatarsSkippedDiscord = 0;
+      let avatarsFailed = 0;
+      for (let i = 0; i < members.length; i += 1) {
+        const m = members[i];
+        setProgress(`Upserting ${i + 1} of ${members.length}: ${m.name || "(unnamed)"}…`);
         const mapped = mapPkMemberToAlter(m, groupsByMemberId);
+
+        // Avatar handling: download the image into local image storage so
+        // it survives Discord CDN signed-URL expiration and works offline.
+        // - pluralkit.me URLs are CORS-friendly and download fine.
+        // - cdn.discordapp.com URLs are NOT CORS-friendly and also expire
+        //   under Discord's signed-URL policy — fetching them just fails.
+        //   Skip those explicitly and surface the count to the user so
+        //   they know to re-upload in PluralKit (which migrates them to
+        //   pluralkit.me CDN, which DOES work).
+        if (mapped.avatar_url && mapped.avatar_url.startsWith("http")) {
+          if (isDiscordCdnUrl(mapped.avatar_url)) {
+            // Don't even try — Discord blocks cross-origin fetch and the
+            // URL likely 403s anyway. Leave the remote URL in place as a
+            // breadcrumb but flag the count.
+            avatarsSkippedDiscord += 1;
+          } else {
+            const dataUrl = await fetchImageAsDataUrl(mapped.avatar_url);
+            if (dataUrl) {
+              const imageId = `pk-avatar-${m.id}`;
+              try {
+                await saveLocalImage(imageId, dataUrl);
+                mapped.avatar_url = createLocalImageUrl(imageId);
+                avatarsCached += 1;
+              } catch {
+                avatarsFailed += 1;
+              }
+            } else {
+              avatarsFailed += 1;
+            }
+          }
+        }
+
         const match = byPkId[m.id];
         if (match) {
           // Merge custom_fields: preserve local-only `_*` keys (profile-
@@ -142,7 +214,23 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       await base44.entities.SystemSettings.update(settings.id, { pk_last_sync: new Date().toISOString() });
       onSettingsChange?.();
       qc.invalidateQueries({ queryKey: ["alters"] });
-      toast.success(`Import complete · ${created} created · ${updated} updated`);
+      const summary = [
+        `${created} created`,
+        `${updated} updated`,
+        avatarsCached > 0 ? `${avatarsCached} avatars cached locally` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(`Import complete · ${summary}`);
+      if (avatarsSkippedDiscord > 0) {
+        toast.warning(
+          `${avatarsSkippedDiscord} ${avatarsSkippedDiscord === 1 ? "avatar is" : "avatars are"} still on Discord's CDN and won't display. Re-upload them in PluralKit (which migrates them to pluralkit.me) and run import again.`,
+          { duration: 12000 }
+        );
+      } else if (avatarsFailed > 0) {
+        toast.warning(
+          `${avatarsFailed} ${avatarsFailed === 1 ? "avatar" : "avatars"} couldn't be downloaded — kept the remote URL as a fallback.`,
+          { duration: 8000 }
+        );
+      }
     } catch (e) {
       toast.error(e.message || "Import failed.");
     } finally {
