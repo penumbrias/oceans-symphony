@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: Android build was failing on @capacitor/background-runner due to an outdated proguard-android.txt reference in the plugin's gradle config. Patched via patch-package so the fix applies automatically on every npm install.",
+      },
+      {
         type: "feature",
         text: "Native Android build: friends' front-change notifications now fire even when the app is fully closed — we wire @capacitor/background-runner up to Android's WorkManager, which wakes a tiny JS task every ~15 minutes to poll the Friends server and fire a local notification on any tracked change. Caveats kept honest: 15 minutes is WorkManager's floor (won't run more often even if we asked), and some OEM battery savers (Samsung One UI, Xiaomi MIUI) throttle background tasks aggressively — disabling battery-optimisation for Symphony in Android Settings fixes that. The in-app 30s polling still runs while the app is open, so foreground delivery stays snappy.",
       },
