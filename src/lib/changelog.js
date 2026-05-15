@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "fix",
+        text: "PluralKit avatar imports now actually display. The PK API returns whatever avatar URL is set on each member — for migrated members that's pluralkit.me's CDN (works fine), but for older un-migrated members it's a Discord CDN URL, which expires under Discord's signed-URL policy and won't load from a browser. We now download each avatar at import time, save it to local image storage, and store a `local-image://` URL on the alter so it survives URL expiration AND works offline. Discord URLs are detected and skipped (the user is told to re-upload in PluralKit so it migrates to PK's CDN, then re-run import). Cached avatars are reported in the success toast.",
+      },
+      {
         type: "improve",
         text: "Native Android build: app icon and splash screen are now generated from the Oceans Symphony logo (the same one you see in the PWA / on the web), not the default Capacitor placeholder. Source PNGs live in assets/icon-only.png and assets/splash.png; running 'npx capacitor-assets generate --android' regenerates every mipmap and drawable density bucket from them.",
       },
