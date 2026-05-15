@@ -1,4 +1,12 @@
 import { localEntities } from "@/api/base44Client";
+import { isNative } from "@/lib/platform";
+import {
+  requestNativePermission,
+  isNativeNotificationsEnabled,
+  sendNativeNotification,
+  showNativeTestNotification,
+  nativeNotificationDiagnostics,
+} from "@/lib/nativeNotifications";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
@@ -10,6 +18,16 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export async function registerPush() {
+  // On native (Capacitor Android), the WebView has no PushManager. Route
+  // through LocalNotifications instead — the OS handles tray display.
+  if (isNative()) {
+    const result = await requestNativePermission();
+    if (result.display !== 'granted') {
+      throw new Error('Notification permission denied. Open system Settings → Apps → Oceans Symphony → Notifications to allow.');
+    }
+    return result;
+  }
+
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     throw new Error('Push notifications are not supported in this browser.');
   }
@@ -64,6 +82,11 @@ export async function registerPush() {
 }
 
 export async function unregisterPush() {
+  // Native: there's no "subscription" to revoke — the user disables
+  // notifications through system Settings. The Enable/Disable toggle in
+  // our UI just flips the local "enabled" state visually.
+  if (isNative()) return;
+
   if (!('serviceWorker' in navigator)) return;
 
   const registration = await navigator.serviceWorker.getRegistration('/sw.js');
@@ -83,6 +106,7 @@ export async function unregisterPush() {
 }
 
 export async function isPushEnabled() {
+  if (isNative()) return isNativeNotificationsEnabled();
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
   if (Notification.permission !== 'granted') return false;
 
@@ -116,6 +140,10 @@ export async function getActivePushSubscription() {
 // Each check returns { ok, label, detail? }. Caller can render them as
 // a checklist and identify the first ok:false row.
 export async function pushDiagnostics() {
+  // On native the Web Push checks don't apply — show the user a native
+  // notification checklist instead.
+  if (isNative()) return nativeNotificationDiagnostics();
+
   const out = [];
 
   const sw = 'serviceWorker' in navigator;
@@ -279,6 +307,8 @@ export async function pushDeepDiagnostic() {
 // the problem is OS-side (notification channel for the browser disabled,
 // battery optimization throttling Chrome, Do Not Disturb, etc.).
 export async function showLocalTestNotification() {
+  if (isNative()) return showNativeTestNotification();
+
   if (!('serviceWorker' in navigator)) {
     return { ok: false, detail: 'Service workers not supported in this browser.' };
   }
@@ -306,6 +336,11 @@ export async function showLocalTestNotification() {
 // Call this whenever you want to deliver a notification via push.
 // payload: { title, body, reminderInstanceId?, inlineActions? }
 export async function sendPushNotification(payload) {
+  // Native: deliver via LocalNotifications. The scheduler still polls
+  // every 60s and decides when to fire — we just swap the delivery
+  // channel out from Web Push to the OS tray.
+  if (isNative()) return sendNativeNotification(payload);
+
   try {
     const subscription = await getActivePushSubscription();
     if (!subscription) return false;

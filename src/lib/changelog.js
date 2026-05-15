@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 15, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Native Android build: reminders now appear as real system-tray notifications instead of being silenced. Web Push doesn't work inside the native WebView, so on the native app reminders go through Android's local-notifications channel instead. Tap Enable in Settings → Reminders → Push notifications to grant the OS permission; the Web-Push-specific 'VAPID not configured' warning is hidden on native. The 'Test push notification' and 'Show local test notification' buttons both work on native — the Deep-push test is web-only and is hidden. Web and TWA users continue to use the existing Web Push pipeline unchanged.",
+      },
+      {
         type: "improve",
         text: "Native Android build: the WebView no longer overlaps the system status bar, so the app header sits below the clock and signal icons instead of underneath them. Web and TWA builds are unaffected.",
       },
