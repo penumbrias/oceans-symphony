@@ -15,6 +15,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
+import { useTerms } from "@/lib/useTerms";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -136,6 +137,7 @@ function contrastRatio(a, b) {
 
 export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [], saveRef }) {
   const queryClient = useQueryClient();
+  const t = useTerms();
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
@@ -610,9 +612,12 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         const birthdayYear = extractYear(form.birthday);
         const canSync = form.birthday && form.origin_year && birthdayYear && birthdayYear !== form.origin_year;
         return (
-          <>
+          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
+            <p className="text-xs font-medium text-foreground">When they first appeared</p>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">Birthday / first appeared</label>
+              <label className="text-xs text-muted-foreground font-medium">
+                Birthday <span className="font-normal">— shown on the profile (🎂 line)</span>
+              </label>
               <Input
                 type="text"
                 value={form.birthday || ""}
@@ -620,10 +625,13 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 placeholder="e.g. 2018-03-15, Age 7, around middle school"
                 className="text-sm"
               />
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Free-form — write whatever fits (exact date, age, era).</p>
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <label className="text-xs text-muted-foreground font-medium">Origin year</label>
+                <label className="text-xs text-muted-foreground font-medium">
+                  Origin year <span className="font-normal">— used in {t.Alter} History timeline</span>
+                </label>
                 {canSync && (
                   <button
                     type="button"
@@ -643,8 +651,9 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
                 className="text-sm"
               />
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Just the year — feeds the lineage/timeline view. Auto-filled from Birthday when blank.</p>
             </div>
-          </>
+          </div>
         );
       })()}
 

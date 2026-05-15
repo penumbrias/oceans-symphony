@@ -249,37 +249,45 @@ const handleAvatarUpload = async (e) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Birthday / first appeared</Label>
-            <Input
-              type="text"
-              value={form.birthday}
-              onChange={(e) => setBirthday(e.target.value)}
-              placeholder="e.g. 2018-03-15, Age 7, around middle school"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Origin Year</Label>
-              {canSyncYear && (
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, origin_year: birthdayYear }))}
-                  className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1"
-                >
-                  <Link2 className="w-3 h-3" /> Sync from birthday ({birthdayYear})
-                </button>
-              )}
+          {/* When-they-first-appeared block. Birthday and Origin Year
+              are two shapes of the same idea — the helper text under
+              each label spells out which surface uses which value so
+              they don't read as duplicates. */}
+          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
+            <p className="text-xs font-medium text-foreground">When they first appeared</p>
+            <div className="space-y-1">
+              <Label className="text-xs">Birthday <span className="text-muted-foreground font-normal">— shown on the profile (🎂 line)</span></Label>
+              <Input
+                type="text"
+                value={form.birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+                placeholder="e.g. 2018-03-15, Age 7, around middle school"
+              />
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Free-form — write whatever fits (exact date, age, era).</p>
             </div>
-            <Input
-              type="number"
-              min={1900}
-              max={new Date().getFullYear()}
-              value={form.origin_year}
-              onChange={(e) => setOriginYear(e.target.value)}
-              placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
-            />
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Origin year <span className="text-muted-foreground font-normal">— used in {t.Alter} History timeline</span></Label>
+                {canSyncYear && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, origin_year: birthdayYear }))}
+                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1"
+                  >
+                    <Link2 className="w-3 h-3" /> Sync from birthday ({birthdayYear})
+                  </button>
+                )}
+              </div>
+              <Input
+                type="number"
+                min={1900}
+                max={new Date().getFullYear()}
+                value={form.origin_year}
+                onChange={(e) => setOriginYear(e.target.value)}
+                placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
+              />
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Just the year — feeds the lineage/timeline view. Auto-filled from Birthday when blank.</p>
+            </div>
           </div>
 
           <div className="space-y-2">
