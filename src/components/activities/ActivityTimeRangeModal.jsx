@@ -373,6 +373,20 @@ const handleSave = async () => {
       // Handle fronting session update if alters selected — but skip
       // entirely for planned (future) activities, since the alter isn't
       // actually fronting yet.
+      //
+      // Both branches below use the per-alter FrontingSession model
+      // (`alter_id` + `is_primary`) rather than the legacy
+      // `primary_alter_id` + `co_fronter_ids` shape. The legacy shape
+      // implicitly elected `selectedAlters[0]` as primary, which silently
+      // promoted whichever alter happened to land first in the Set/array
+      // — a regression of the same class as the 0.16.9 "set as primary
+      // grabbed a random other one" bug.
+      //
+      // Identity decision here: we deliberately do NOT promote anyone to
+      // primary based on selection order. Activities logged in this modal
+      // are about which alters were present, not which one was steering.
+      // If there's no existing primary among the active sessions, the
+      // front simply has no primary until the user explicitly sets one.
       if (selectedAlters.length > 0 && timestamp.getTime() <= Date.now()) {
         const now = new Date();
         const diffMins = (now - timestamp) / 60000;
@@ -380,22 +394,42 @@ const handleSave = async () => {
         const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
 
         if (isCurrentTime && activeSessions.length > 0) {
-          const session = activeSessions[0];
-          const existing = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-          const merged = [...new Set([...existing, ...selectedAlters])];
-          await base44.entities.FrontingSession.update(session.id, {
-            primary_alter_id: merged[0],
-            co_fronter_ids: merged.slice(1),
-          });
+          // Adding alters to the current front. Build a set of which
+          // alters already have an active session (under either model)
+          // so we only create rows for the truly-new co-fronters.
+          const alreadyActive = new Set();
+          for (const s of activeSessions) {
+            if (s.alter_id) alreadyActive.add(s.alter_id);
+            if (s.primary_alter_id) alreadyActive.add(s.primary_alter_id);
+            for (const id of (s.co_fronter_ids || [])) alreadyActive.add(id);
+          }
+          for (const alterId of selectedAlters) {
+            if (alreadyActive.has(alterId)) continue;
+            // Newly added — join as a co-fronter. Never promote based on
+            // array order; primary status is preserved on whoever already
+            // holds it.
+            await base44.entities.FrontingSession.create({
+              alter_id: alterId,
+              is_primary: false,
+              start_time: timestamp.toISOString(),
+              is_active: true,
+            });
+          }
         } else {
+          // No current front (or back-dated activity). Create one session
+          // per selected alter. We don't try to guess a primary from
+          // selection order — leave them all as co-fronters and let the
+          // user promote one explicitly if they want to.
           const isStillActive = endDt ? endDt >= now : true;
-          await base44.entities.FrontingSession.create({
-            primary_alter_id: selectedAlters[0],
-            co_fronter_ids: selectedAlters.slice(1),
-            start_time: timestamp.toISOString(),
-            end_time: isStillActive ? null : endDt?.toISOString(),
-            is_active: isStillActive,
-          });
+          for (const alterId of selectedAlters) {
+            await base44.entities.FrontingSession.create({
+              alter_id: alterId,
+              is_primary: false,
+              start_time: timestamp.toISOString(),
+              end_time: isStillActive ? null : endDt?.toISOString(),
+              is_active: isStillActive,
+            });
+          }
         }
       }
 

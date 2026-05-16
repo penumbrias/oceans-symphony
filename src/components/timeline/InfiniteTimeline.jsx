@@ -1228,7 +1228,19 @@ export default function InfiniteTimeline({
         const [eh, em] = endTime.split(":").map(Number);
         endDate.setHours(eh, em, 0, 0);
       }
-      // New individual model
+      // New individual model. If this new session is being marked primary
+      // AND it would still be active (no end_time, i.e. it's the current
+      // front), demote every other active primary first so the DB never
+      // ends up with two `is_primary: true` rows. Refetch instead of
+      // trusting a cached snapshot — cf. useSwipeActions.togglePrimaryFor.
+      if (asPrimary && !endDate) {
+        try {
+          const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+          for (const s of fresh.filter(s => s.is_primary)) {
+            try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
+          }
+        } catch {}
+      }
       await base44.entities.FrontingSession.create({
         alter_id: alterId,
         is_primary: asPrimary,

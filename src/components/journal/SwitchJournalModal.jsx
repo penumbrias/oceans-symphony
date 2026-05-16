@@ -106,7 +106,8 @@ export default function SwitchJournalModal({ open, onClose, sessionId, authorAlt
         const patch = {};
         if (trigger) { patch.is_triggered_switch = true; patch.trigger_label = trigger; }
         const symptomEntries = SYMPTOMS.map(s => ({ id: s.key, label: s.label, value: symptoms[s.key], type: "slider" }));
-        patch.session_symptoms = symptomEntries;
+        // must be JSON-encoded string — perAlterSessionEntries.js JSON.parses on read
+        patch.session_symptoms = JSON.stringify(symptomEntries);
         try { await base44.entities.FrontingSession.update(sessionId, patch); } catch {}
       }
       toast.success(`${terms.Switch} journal saved!`);

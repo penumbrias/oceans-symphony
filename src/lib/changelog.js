@@ -19,6 +19,10 @@ export const CHANGELOG = [
         type: "feature",
         text: "Restored the **Copy/Paste Backup** workflow under Settings → Backup. Lets you export your data as text chunks (configurable number of parts) and re-import by pasting them back — useful when file downloads are blocked, e.g. when the app is opened from inside the Facebook or Instagram in-app browser.",
       },
+      {
+        type: "fix",
+        text: "Fixed several rare cases where switching/fronting actions could either leave two alters marked as primary, silently promote a co-fronter to primary, or lose symptoms attached to switch-journal entries.",
+      },
     ],
   },
   {
