@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 16, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed the Activities page becoming unusable after nesting too many sub-activities (or after a cyclic parent reference, e.g. an activity that somehow ended up nested under itself). The tree now safely handles cycles, caps how deeply it renders, and shows a recoverable error per-row instead of blanking the whole page. If you were already locked out, opening Activities now shows a recovery option to flatten the offending nesting without losing any of your activities or their logged history.",
+      },
+      {
         type: "improve",
         text: "Global search (the 'Search everything' input on the Dashboard) now covers every alter — including dormant and archived ones — and matches against pronouns, custom fields, bio, group memberships, tags, birthday, and any other profile field. It also indexes journal entries, tasks, status notes, locations, emotion check-ins, system-change events, alter notes, reminders, and more; you can search by name, content, or even a date string.",
       },
