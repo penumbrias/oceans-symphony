@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 16, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Restored the **Copy/Paste Backup** workflow under Settings → Backup. Lets you export your data as text chunks (configurable number of parts) and re-import by pasting them back — useful when file downloads are blocked, e.g. when the app is opened from inside the Facebook or Instagram in-app browser.",
+      },
+    ],
+  },
+  {
     date: "May 15, 2026",
     changes: [
       {
