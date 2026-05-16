@@ -1,4 +1,5 @@
-import { ChevronLeft, ExternalLink, BookOpen, Globe, Heart } from "lucide-react";
+import { ChevronLeft, ExternalLink, BookOpen, Globe, Heart, AlertTriangle } from "lucide-react";
+import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 
 // Resources page for the Learn module. Lists the source material the
 // curriculum draws from, plus a handful of well-known reads and online
@@ -80,6 +81,16 @@ export default function ResourcesView({ onBack }) {
       >
         <ChevronLeft className="w-4 h-4" /> Back to Learn
       </button>
+
+      <details className="rounded-xl border border-amber-500/30 bg-amber-500/5">
+        <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer text-sm font-medium text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="w-4 h-4" />
+          Disclaimer — Oceans Symphony is not a medical product
+        </summary>
+        <div className="px-3 pb-3 pt-1">
+          <MedicalDisclaimer compact />
+        </div>
+      </details>
 
       <div className="space-y-2">
         <h2 className="text-lg font-semibold text-foreground">Resources</h2>
