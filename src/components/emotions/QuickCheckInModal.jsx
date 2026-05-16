@@ -336,21 +336,40 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
         const newModelSessions = activeSessions.filter(s => s.alter_id);
 
-        // End sessions for removed alters or those whose primary status changed
-        for (const session of newModelSessions) {
-          const isStillPresent = session.alter_id in desiredMap;
-          const primaryChanged = isStillPresent && session.is_primary !== desiredMap[session.alter_id];
-          if (!isStillPresent || primaryChanged) {
-            await base44.entities.FrontingSession.update(session.id, { is_active: false, end_time: now });
+        // Group by alter_id — duplicates (>1 active session per alter) get
+        // fully cleared and a single clean session is re-created. Matches
+        // SetFrontModal so the two front-setting entry points agree.
+        const sessionsByAlterId = {};
+        for (const s of newModelSessions) {
+          if (!sessionsByAlterId[s.alter_id]) sessionsByAlterId[s.alter_id] = [];
+          sessionsByAlterId[s.alter_id].push(s);
+        }
+
+        // 1. End sessions for removed alters, status-changed alters, and ALL duplicates
+        for (const [alterId, sessions] of Object.entries(sessionsByAlterId)) {
+          const isStillPresent = alterId in desiredMap;
+          const hasDuplicates = sessions.length > 1;
+          if (hasDuplicates) {
+            for (const s of sessions) {
+              await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+            }
+          } else {
+            const primaryStatusChanged = isStillPresent && sessions[0].is_primary !== desiredMap[alterId];
+            if (!isStillPresent || primaryStatusChanged) {
+              await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
+            }
           }
         }
 
-        // Create sessions for new alters or those whose primary status changed
+        // 2. Create sessions for new alters, status-changed alters, or duplicates that were cleared
         let firstNewSessionId = null;
         for (const id of allSelectedIds) {
-          const existing = newModelSessions.find(s => s.alter_id === id);
-          const statusUnchanged = existing && existing.is_primary === desiredMap[id];
-          if (!statusUnchanged) {
+          const sessions = sessionsByAlterId[id] || [];
+          const hasDuplicates = sessions.length > 1;
+          const single = sessions.length === 1 ? sessions[0] : null;
+          const statusUnchanged = single && single.is_primary === desiredMap[id];
+
+          if (hasDuplicates || !statusUnchanged) {
             const triggerExtras = isTriggeredSwitch && triggerCategory
               ? { is_triggered_switch: true, trigger_category: triggerCategory, trigger_label: triggerLabel }
               : {};
