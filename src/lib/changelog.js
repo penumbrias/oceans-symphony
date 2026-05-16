@@ -31,6 +31,10 @@ export const CHANGELOG = [
         type: "fix",
         text: "More follow-up fixes to fronting/switching consistency: rapid-tap and dialog-race conditions could occasionally leave duplicate primaries or attach a switch journal to the wrong session. PluralKit and SimplyPlural imports no longer fabricate a 'primary' alter — they import everyone as a co-fronter, matching what those source systems actually track.",
       },
+      {
+        type: "fix",
+        text: "Fixed reminder cards stacking up on the Dashboard when you haven't addressed the previous one (no more 'Checking in on the system' x3). Also smoothed out the System History page so it opens cleanly instead of stuttering or freezing.",
+      },
     ],
   },
   {

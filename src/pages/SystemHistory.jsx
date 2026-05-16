@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { format, differenceInYears, differenceInMonths, differenceInDays } from "date-fns";
@@ -32,7 +32,7 @@ function AlterPill({ alter }) {
   );
 }
 
-function TimelineEvent({ event, altersById, onDelete, onToggleHidden, isLast }) {
+const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, onDelete, onToggleHidden, isLast }) {
   const meta = TYPE_META[event.type] || TYPE_META.fusion;
   const Icon = meta.icon;
 
@@ -106,7 +106,7 @@ function TimelineEvent({ event, altersById, onDelete, onToggleHidden, isLast }) 
       </div>
     </div>
   );
-}
+});
 
 function SystemBirthMarker({ date, onEdit, t }) {
   const age = differenceInYears(new Date(), date);
@@ -233,12 +233,24 @@ export default function SystemHistory() {
 
   const altersById = useMemo(() => Object.fromEntries(alters.map(a => [a.id, a])), [alters]);
 
-  // Determine system birth date from settings or oldest alter
+  // Determine system birth date from settings or oldest alter.
+  // Use Date.parse (numeric, no Date allocation per compare) and a
+  // single linear pass instead of `reduce` with two `new Date()`
+  // allocations per comparison — the old code thrashed GC on systems
+  // with many alters and re-ran every render that touched alters.
   const systemBirthDate = useMemo(() => {
     const settings = settingsArr[0];
     if (settings?.system_birth_date) return new Date(settings.system_birth_date);
     if (alters.length === 0) return null;
-    const oldest = alters.reduce((a, b) => new Date(a.created_date) < new Date(b.created_date) ? a : b);
+    let oldest = alters[0];
+    let oldestTs = Date.parse(oldest?.created_date) || Infinity;
+    for (let i = 1; i < alters.length; i++) {
+      const ts = Date.parse(alters[i]?.created_date);
+      if (Number.isFinite(ts) && ts < oldestTs) {
+        oldest = alters[i];
+        oldestTs = ts;
+      }
+    }
     return oldest?.created_date ? new Date(oldest.created_date) : null;
   }, [settingsArr, alters]);
 
@@ -248,18 +260,22 @@ export default function SystemHistory() {
     let base = events;
     if (!showHidden) base = base.filter(e => !e.hidden);
     if (typeFilter !== "all") base = base.filter(e => e.type === typeFilter);
-    return [...base].sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Date.parse returns a number directly; avoids allocating two
+    // Date objects per compare during sort. With many events the old
+    // `new Date(b.date) - new Date(a.date)` form caused noticeable
+    // jank when opening this page.
+    return [...base].sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0));
   }, [events, typeFilter, showHidden]);
 
-  async function handleDelete(eventId) {
+  const handleDelete = useCallback(async (eventId) => {
     await localEntities.SystemChangeEvent.delete(eventId);
     queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
-  }
+  }, [queryClient]);
 
-  async function handleToggleHidden(event) {
+  const handleToggleHidden = useCallback(async (event) => {
     await localEntities.SystemChangeEvent.update(event.id, { hidden: !event.hidden });
     queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
-  }
+  }, [queryClient]);
 
   return (
     <div className="max-w-xl mx-auto px-4 py-6 pb-24">
@@ -350,10 +366,10 @@ export default function SystemHistory() {
       {filteredEvents.length === 0 && typeFilter === "all" && (
         <div className="mt-4">
           {editingBirth
-            ? <BirthDateEditor currentDate={systemBirthDate} settings={settingsArr[0]} queryClient={queryClient} onClose={() => setEditingBirth(false)} />
+            ? <BirthDateEditor currentDate={systemBirthDate} settings={settingsArr[0]} queryClient={queryClient} onClose={() => setEditingBirth(false)} t={t} />
             : systemBirthDate
-              ? <SystemBirthMarker date={systemBirthDate} onEdit={() => setEditingBirth(true)} />
-              : <NoBirthMarker onEdit={() => setEditingBirth(true)} />
+              ? <SystemBirthMarker date={systemBirthDate} onEdit={() => setEditingBirth(true)} t={t} />
+              : <NoBirthMarker onEdit={() => setEditingBirth(true)} t={t} />
           }
         </div>
       )}
