@@ -23,6 +23,10 @@ export const CHANGELOG = [
         type: "fix",
         text: "Fixed several rare cases where switching/fronting actions could either leave two alters marked as primary, silently promote a co-fronter to primary, or lose symptoms attached to switch-journal entries.",
       },
+      {
+        type: "fix",
+        text: "More follow-up fixes to fronting/switching consistency: rapid-tap and dialog-race conditions could occasionally leave duplicate primaries or attach a switch journal to the wrong session. PluralKit and SimplyPlural imports no longer fabricate a 'primary' alter — they import everyone as a co-fronter, matching what those source systems actually track.",
+      },
     ],
   },
   {

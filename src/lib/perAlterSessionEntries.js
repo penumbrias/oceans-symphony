@@ -41,6 +41,10 @@ export function parseSessionSymptoms(raw) {
 export function extractPerAlterEntries(sessions, { alterId } = {}) {
   const out = [];
   for (const s of sessions || []) {
+    // Legacy: pre-per-alter-model rows can't distinguish per-alter attribution —
+    // keep attributing to primary only. Changing this would retroactively
+    // re-bucket old notes/emotions/symptoms onto co-fronters, which could
+    // surprise users who thought those entries belonged to the primary alone.
     const sessionAlter = s.alter_id || s.primary_alter_id;
     if (!sessionAlter) continue;
     if (alterId && sessionAlter !== alterId) continue;

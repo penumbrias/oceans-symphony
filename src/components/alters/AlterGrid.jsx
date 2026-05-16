@@ -13,7 +13,7 @@ import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { useTerms } from "@/lib/useTerms";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 
-export default function AlterGrid({ alters, currentSession = null }) {
+export default function AlterGrid({ alters }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const isDemo = alters.length === 0 && !!window.__tourActive;

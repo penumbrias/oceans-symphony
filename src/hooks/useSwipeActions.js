@@ -103,9 +103,14 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onLo
 
 /** Centralised primary/front action handlers for any swipe-driven alter UI.
  *  These match AlterGridView so behaviour is identical across views. */
-export async function toggleFrontFor(alter, activeSessions, base44, queryClient, toast) {
-  const mySession = activeSessions.find(s => s.alter_id === alter.id);
+export async function toggleFrontFor(alter, _staleSessions, base44, queryClient, toast) {
   try {
+    // Always refetch — never trust the closure-captured snapshot. A rapid
+    // second tap can fire after a previous tap's invalidation queued a
+    // refetch but before it landed, so the cached array may not yet show
+    // the primary that was just created. Match togglePrimaryFor below.
+    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+    const mySession = fresh.find(s => s.alter_id === alter.id);
     if (mySession) {
       await base44.entities.FrontingSession.update(mySession.id, {
         is_active: false,
@@ -113,7 +118,7 @@ export async function toggleFrontFor(alter, activeSessions, base44, queryClient,
       });
       toast.success(`${alter.name} removed from front`);
     } else {
-      const hasPrimary = activeSessions.some(s => s.is_primary);
+      const hasPrimary = fresh.some(s => s.is_primary);
       await base44.entities.FrontingSession.create({
         alter_id: alter.id,
         is_primary: !hasPrimary,

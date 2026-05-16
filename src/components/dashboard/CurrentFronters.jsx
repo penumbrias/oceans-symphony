@@ -403,6 +403,8 @@ export default function CurrentFronters({ alters }) {
   // Switch button below.
   const [showTriggerEdit, setShowTriggerEdit] = useState(false);
   const [showSwitchJournal, setShowSwitchJournal] = useState(false);
+  const [switchJournalSessionId, setSwitchJournalSessionId] = useState(null);
+  const [switchJournalAuthorAlterId, setSwitchJournalAuthorAlterId] = useState(null);
   const [holdMenuAlter, setHoldMenuAlter] = useState(null);
   const [expandedAlterId, setExpandedAlterId] = useState(null);
   const navigate = useNavigate();
@@ -451,7 +453,12 @@ export default function CurrentFronters({ alters }) {
   const altersById = isDemo
     ? { ...Object.fromEntries(alters.map((a) => [a.id, a])), ...demoAltersById }
     : Object.fromEntries(alters.map((a) => [a.id, a]));
-  const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : true);
+  // Prefer a real primary (new-model row with is_primary). For legacy rows,
+  // do NOT treat them as primary unconditionally — that would let a legacy
+  // session shadow a real primary in new-model rows whenever both shapes
+  // coexist briefly during a migration. Legacy rows fall through to the
+  // `|| activeSessions[0]` fallback below if no new-model primary exists.
+  const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : false);
   const active = primarySession || activeSessions[0] || null;
 
   const primaryAlterId = primarySession?.alter_id || active?.primary_alter_id || null;
@@ -494,15 +501,43 @@ export default function CurrentFronters({ alters }) {
 
   const handleRemoveFromFront = async (alter) => {
     try {
-      const targetSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
-      if (targetSession) {
-        await base44.entities.FrontingSession.update(targetSession.id, { is_active: false, end_time: new Date().toISOString() });
+      // Refetch — the closure-captured `activeSessions` snapshot may be
+      // stale, AND if duplicate active rows exist for this alter (e.g.
+      // after a botched sync) the old `.find()` would only end the first
+      // one and leave the rest active. End EVERY active row matching this
+      // alter so the alter is truly off front.
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const now = new Date().toISOString();
+      const targets = fresh.filter(s => (s.alter_id || s.primary_alter_id) === alter.id);
+      for (const s of targets) {
+        try { await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now }); } catch {}
       }
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       toast.success(`${alter.name} removed from front`);
     } catch { toast.error("Failed to remove"); }
     setHoldMenuAlter(null);
+  };
+
+  // Refetch active sessions at click-time, then open the switch-journal
+  // modal pointing at the CURRENT primary's id. The render-time
+  // `activeSessions` snapshot can be stale if a switch happened between
+  // last render and click — using it could attach journal entries to an
+  // ended/deleted session.
+  const handleOpenSwitchJournal = async () => {
+    try {
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const target = fresh.find(s => s.is_primary) || fresh[0];
+      setSwitchJournalSessionId(target?.id || null);
+      setSwitchJournalAuthorAlterId(target?.alter_id || target?.primary_alter_id || null);
+      setShowSwitchJournal(true);
+    } catch {
+      // Fall back to closure snapshot if refetch fails — better than nothing.
+      const target = activeSessions.find(s => s.is_primary) || activeSessions[0];
+      setSwitchJournalSessionId(target?.id || null);
+      setSwitchJournalAuthorAlterId(primaryAlterId);
+      setShowSwitchJournal(true);
+    }
   };
 
   const handleSaveStatus = async () => {
@@ -542,10 +577,17 @@ export default function CurrentFronters({ alters }) {
     const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
     const coSessions = activeSessions.filter(s => s.alter_id && !s.is_primary);
     primary = primarySess ? altersById[primarySess.alter_id] : null;
+    // Dedupe co-fronter sessions by alter_id (and exclude the primary's
+    // alter_id if there is one). Avoids the previous side-effect-in-filter
+    // anti-pattern that relied on `Set.add()` returning truthy.
     const seenIds = new Set(primarySess?.alter_id ? [primarySess.alter_id] : []);
-    coFronters = coSessions
-      .filter(s => !seenIds.has(s.alter_id) && seenIds.add(s.alter_id))
-      .map(s => altersById[s.alter_id]).filter(Boolean);
+    const dedupedCoSessions = [];
+    for (const s of coSessions) {
+      if (seenIds.has(s.alter_id)) continue;
+      seenIds.add(s.alter_id);
+      dedupedCoSessions.push(s);
+    }
+    coFronters = dedupedCoSessions.map(s => altersById[s.alter_id]).filter(Boolean);
   } else {
     primary = altersById[active.primary_alter_id];
     coFronters = (active.co_fronter_ids || []).map(id => altersById[id]).filter(Boolean);
@@ -589,7 +631,7 @@ export default function CurrentFronters({ alters }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowSwitchJournal(true)}
+                  onClick={handleOpenSwitchJournal}
                   aria-label={`Journal this ${terms.switch}`}
                   title={`Journal this ${terms.switch}`}
                   className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
@@ -607,10 +649,11 @@ export default function CurrentFronters({ alters }) {
         <div className="mb-2 grid grid-cols-2 gap-2">
           {all.map((alter, i) => {
             const alterSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
-            // Use the actual is_primary flag from the session (or the legacy
-            // primary_alter_id match) — never `i === 0`. The array-position
-            // shortcut lies whenever the DB has zero or multiple primaries.
-            const isPrimaryAlter = !!alterSession?.is_primary || alter.id === primary?.id;
+            // Trust the session's own `is_primary` flag. The previous
+            // `|| alter.id === primary?.id` fallback masked the case where
+            // the session disagreed with the elected primary — better to
+            // surface the disagreement than paper over it.
+            const isPrimaryAlter = !!alterSession?.is_primary;
             return (
               <FronterChip
                 key={alter.id}
@@ -692,8 +735,10 @@ export default function CurrentFronters({ alters }) {
         <SwitchJournalModal
           open={showSwitchJournal}
           onClose={() => setShowSwitchJournal(false)}
-          sessionId={(activeSessions.find(s => s.is_primary) || activeSessions[0])?.id}
-          authorAlterId={primaryAlterId}
+          // sessionId/authorAlterId captured by handleOpenSwitchJournal at
+          // click-time via a fresh DB read — never the stale render snapshot.
+          sessionId={switchJournalSessionId}
+          authorAlterId={switchJournalAuthorAlterId || primaryAlterId}
         />
       )}
 

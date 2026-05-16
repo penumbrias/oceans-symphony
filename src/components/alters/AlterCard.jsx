@@ -33,19 +33,27 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
     e.preventDefault();
     e.stopPropagation();
     try {
-      if (isFronting) {
+      // Refetch — never trust the render-time `activeSessions` snapshot. A
+      // rapid second tap can fire after a previous tap's invalidation queued
+      // a refetch but before it landed, so the closure can claim there's no
+      // primary when one was just created. Match the pattern used by
+      // useSwipeActions.togglePrimaryFor.
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const freshMySession = fresh.find(s => s.alter_id === alter.id);
+      if (freshMySession) {
         // Remove this alter from front
-        await base44.entities.FrontingSession.update(mySession.id, {
+        await base44.entities.FrontingSession.update(freshMySession.id, {
           is_active: false,
           end_time: new Date().toISOString(),
         });
         toast.success(`${alter.name} removed from front`);
       } else {
-        // Add alter to front (as co-fronter by default)
-        const hasPrimary = activeSessions.some(s => s.is_primary);
+        // Add alter to front (as co-fronter by default — promote to primary
+        // only if nobody else holds primary right now)
+        const hasPrimary = fresh.some(s => s.is_primary);
         await base44.entities.FrontingSession.create({
           alter_id: alter.id,
-          is_primary: !hasPrimary, // become primary if no one is
+          is_primary: !hasPrimary,
           start_time: new Date().toISOString(),
           is_active: true,
         });
