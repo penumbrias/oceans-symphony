@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { useTerms } from "@/lib/useTerms";
-import { needsHalo, haloColor, getSurfaceBackground } from "@/lib/contrast";
+import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -220,12 +220,12 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             // the chip so it stays visible — the colour itself is preserved.
             const surfaceBg = getSurfaceBackground();
             const halo = bgColor && needsHalo(bgColor, surfaceBg);
+            const fillColor = halo ? adjustForContrast(bgColor, surfaceBg) : bgColor;
             return (
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${anonymize !== "off" ? "blur-sm" : ""}`}
               style={{
-                backgroundColor: bgColor ? `${bgColor}20` : "hsl(var(--muted))",
+                backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "20"}` : "hsl(var(--muted))",
                 color: halo ? "hsl(var(--foreground))" : (bgColor || "hsl(var(--muted-foreground))"),
-                boxShadow: halo ? `0 0 0 1px ${haloColor(surfaceBg)}` : undefined,
               }}>
               {alter.role}
             </span>
