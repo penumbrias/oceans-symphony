@@ -47,6 +47,15 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const terms = useTerms();
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   const [hadFrontingOpen, setHadFrontingOpen] = useState(false);
+  // Brief touch-block on open so a stray finger doesn't tap something
+  // before the user's eyes have landed on the modal.
+  const [interactBlocked, setInteractBlocked] = useState(false);
+  useEffect(() => {
+    if (!isOpen) { setInteractBlocked(false); return; }
+    setInteractBlocked(true);
+    const t = setTimeout(() => setInteractBlocked(false), 200);
+    return () => clearTimeout(t);
+  }, [isOpen]);
 
   // Feeling
   const [selectedEmotions, setSelectedEmotions] = useState([]);
@@ -537,6 +546,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     )}
     <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
+        {interactBlocked && <div aria-hidden className="absolute inset-0 z-50" />}
 
         {/* Fixed header */}
         <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">

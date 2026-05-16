@@ -45,6 +45,15 @@ export default function GroceryListPanel() {
     try { return localStorage.getItem(LOCK_PREF_KEY) === "true"; }
     catch { return false; }
   });
+  // Touch-block right after open to prevent accidental check-offs when the
+  // panel pops up under a moving finger (triple-tap trigger especially).
+  const [interactBlocked, setInteractBlocked] = useState(false);
+  useEffect(() => {
+    if (!open) { setInteractBlocked(false); return; }
+    setInteractBlocked(true);
+    const t = setTimeout(() => setInteractBlocked(false), 300);
+    return () => clearTimeout(t);
+  }, [open]);
 
   const { data: items = [] } = useQuery({
     queryKey: ["groceryItems"],
@@ -197,6 +206,7 @@ export default function GroceryListPanel() {
         paddingBottom: keyboardInset > 0 ? 0 : "env(safe-area-inset-bottom)",
       }}
     >
+      {interactBlocked && <div aria-hidden className="absolute inset-0 z-[10000]" />}
       {/* Header — intentionally generic so the screen reads as a grocery app. */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
         <div className="flex items-center gap-2">
