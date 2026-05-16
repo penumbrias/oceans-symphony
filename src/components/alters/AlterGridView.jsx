@@ -98,7 +98,10 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           key={alter.id}
           alter={alter}
           fronting={isFronting(alter.id)}
-          isPrimary={activeSessions.find(s => s.alter_id === alter.id)?.is_primary ?? false}
+          // Match an explicit primary row — if duplicate active sessions
+          // exist for this alter, `.find()`'s first-match behaviour could
+          // return a non-primary row even when a primary one also exists.
+          isPrimary={activeSessions.some(s => s.alter_id === alter.id && s.is_primary)}
           compact={compact}
           onTap={() => navigate(`/alter/${alter.id}`)}
           onSwipeRight={() => toggleFront(alter)}
