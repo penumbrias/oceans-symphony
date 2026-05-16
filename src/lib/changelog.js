@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Added a subtle contrast halo behind alter/group/role chips when their colour is too close to the page background to read, and a soft outline behind role badges drawn over avatar photos. Your chosen colours don't change — only the visibility helper is added when needed.",
+      },
+      {
+        type: "fix",
         text: "Cleaned up the Quick Support / grounding-techniques menu — merged the overlapping Imagery and Visualization sections into a single Imagery category, and removed a pair of duplicate techniques (Peaceful place visualization was the same exercise as Safe place visualization, and Bilateral tapping was the same exercise as Butterfly hug). Existing custom techniques you saved under 'Visualization' still appear — they now show up under Imagery automatically.",
       },
       {
