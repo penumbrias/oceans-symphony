@@ -8,6 +8,8 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import ActivityTreeRow from "@/components/activities/ActivityTreeRow";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import { indexById, wouldCreateCycle } from "@/lib/categoryTreeUtils";
 
 export default function ActivityCustomizationMenu({ onClose }) {
   const [showRootColorPicker, setShowRootColorPicker] = useState(false);
@@ -26,8 +28,12 @@ export default function ActivityCustomizationMenu({ onClose }) {
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
+  // Show categories at the root level if their parent_category_id is
+  // missing (true root) OR points at a deleted record (orphan) — the
+  // latter would otherwise be invisible and unrecoverable through the UI.
+  const _byId = indexById(categories);
   const rootCategories = categories
-    .filter((c) => !c.parent_category_id)
+    .filter((c) => !c.parent_category_id || !_byId[c.parent_category_id])
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const toggleExpanded = (id) => {
@@ -42,9 +48,16 @@ export default function ActivityCustomizationMenu({ onClose }) {
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      // Recursively delete children
+      // Cycle-safe recursive delete. Tracks visited ids so a malformed
+      // parent_category_id chain can't send us into infinite recursion
+      // (and stack-overflow the JS engine) while deleting.
+      const visited = new Set();
       const deleteTree = async (catId) => {
-        const children = categories.filter((c) => c.parent_category_id === catId);
+        if (visited.has(catId)) return;
+        visited.add(catId);
+        const children = categories.filter(
+          (c) => c.parent_category_id === catId && c.id !== catId,
+        );
         for (const child of children) await deleteTree(child.id);
         await base44.entities.ActivityCategory.delete(catId);
       };
@@ -123,6 +136,14 @@ export default function ActivityCustomizationMenu({ onClose }) {
 
   const handleDrop = async (draggedCatId, targetCatId) => {
     if (draggedCatId === targetCatId) return;
+    // Refuse drops that would make a node an ancestor of itself —
+    // e.g. dragging "Self Care" onto "Self Care › Brushing teeth". A
+    // cycle here used to brick the Activities page on next render.
+    const byId = indexById(categories);
+    if (wouldCreateCycle(draggedCatId, targetCatId, byId)) {
+      toast.error("Can't nest an activity inside one of its own sub-activities.");
+      return;
+    }
     await base44.entities.ActivityCategory.update(draggedCatId, { parent_category_id: targetCatId });
     qc.invalidateQueries({ queryKey: ["activityCategories"] });
     setSelectedId(null);
@@ -148,29 +169,41 @@ export default function ActivityCustomizationMenu({ onClose }) {
             <p className="text-center py-6 text-muted-foreground text-sm">No activities yet. Create one below.</p>
           ) : (
             rootCategories.map((cat) => (
-              <ActivityTreeRow
+              // Per-row error boundary — a single bad row (malformed
+              // colour, missing name, etc.) can't blank the entire
+              // customization dialog any more.
+              <ErrorBoundary
                 key={cat.id}
-                category={cat}
-                allCategories={categories}
-                expandedIds={expandedIds}
-                onToggleExpanded={toggleExpanded}
-                selectedId={selectedId}
-                onSelect={handleSelect}
-                onDrop={handleDrop}
-                draggedId={draggedId}
-                setDraggedId={setDraggedId}
-                level={0}
-                creatingSubFor={creatingSubFor}
-                onCreateSub={(parentId) => {
-                  if (newSubName.trim()) createSubMutation.mutate({ parentId, name: newSubName.trim() });
-                }}
-                onStartCreateSub={(id) => { setCreatingSubFor(id); setNewSubName(""); setSelectedId(null); }}
-                onCancelCreateSub={() => setCreatingSubFor(null)}
-                newSubName={newSubName}
-                onSubNameChange={setNewSubName}
-                onDelete={(id) => deleteMutation.mutate(id)}
-                onUpdate={(id, data) => updateMutation.mutate({ id, data })}
-              />
+                fallback={(err, reset) => (
+                  <div className="text-xs text-destructive p-2 rounded border border-destructive/40 bg-destructive/5">
+                    Couldn't render "{cat.name || "(unnamed)"}".
+                    <button type="button" onClick={reset} className="ml-2 underline hover:no-underline">Retry</button>
+                  </div>
+                )}
+              >
+                <ActivityTreeRow
+                  category={cat}
+                  allCategories={categories}
+                  expandedIds={expandedIds}
+                  onToggleExpanded={toggleExpanded}
+                  selectedId={selectedId}
+                  onSelect={handleSelect}
+                  onDrop={handleDrop}
+                  draggedId={draggedId}
+                  setDraggedId={setDraggedId}
+                  level={0}
+                  creatingSubFor={creatingSubFor}
+                  onCreateSub={(parentId) => {
+                    if (newSubName.trim()) createSubMutation.mutate({ parentId, name: newSubName.trim() });
+                  }}
+                  onStartCreateSub={(id) => { setCreatingSubFor(id); setNewSubName(""); setSelectedId(null); }}
+                  onCancelCreateSub={() => setCreatingSubFor(null)}
+                  newSubName={newSubName}
+                  onSubNameChange={setNewSubName}
+                  onDelete={(id) => deleteMutation.mutate(id)}
+                  onUpdate={(id, data) => updateMutation.mutate({ id, data })}
+                />
+              </ErrorBoundary>
             ))
           )}
 

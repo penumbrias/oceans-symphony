@@ -60,11 +60,16 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
       const cat = catMap[id];
       if (!cat) return;
       allNames.add(cat.name);
-      // Walk up the hierarchy to add parent names
+      // Walk up the hierarchy to add parent names. Cycle-safe — track
+      // visited ids so a malformed parent_category_id chain can't lock
+      // the analytics page in an infinite while loop.
       let current = cat;
-      while (current.parent_category_id) {
+      const seenIds = new Set([cat.id]);
+      while (current.parent_category_id && current.parent_category_id !== current.id) {
+        if (seenIds.has(current.parent_category_id)) break;
         const parent = catMap[current.parent_category_id];
         if (!parent) break;
+        seenIds.add(parent.id);
         allNames.add(parent.name);
         current = parent;
       }

@@ -15,6 +15,8 @@ import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 import ActivityDayView from "@/components/activities/ActivityDayView";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import ActivityNestingRecovery from "@/components/activities/ActivityNestingRecovery";
 
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -213,6 +215,14 @@ export default function ActivityTracker() {
 
   return (
     <div className="min-h-screen bg-background p-4">
+      <ErrorBoundary
+        fallback={(err, reset) => (
+          <div className="max-w-2xl mx-auto">
+            <ActivityNestingRecovery error={err} onReset={reset} />
+          </div>
+        )}
+        resetKeys={[activities.length, tab, viewMode]}
+      >
       <div data-tour="activities-log" className="max-w-full mx-auto">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h1 className="text-2xl font-bold text-foreground">Activity Tracker</h1>
@@ -326,10 +336,34 @@ export default function ActivityTracker() {
             )}
 
             <div className="mt-6">
-              <ActivityGoalsPanel weekStart={weekStart} />
+              <ErrorBoundary
+                fallback={(err, reset) => (
+                  <div className="p-3 rounded-lg border border-destructive/40 bg-destructive/5 text-xs text-destructive">
+                    The activity goals panel hit an error.
+                    <button type="button" onClick={reset} className="ml-2 underline hover:no-underline">Retry</button>
+                  </div>
+                )}
+                resetKeys={[activities.length, alters.length]}
+              >
+                <ActivityGoalsPanel weekStart={weekStart} />
+              </ErrorBoundary>
             </div>
             <div className="mt-6">
-              <ActivityTallyTracker activities={activities} />
+              {/*
+                Tally is the riskiest subtree on this page — it walks the
+                full activity-category tree on every render. A single bad
+                parent_category_id edge used to crash the entire page with
+                no in-app recovery. The specialised fallback offers a
+                non-destructive flatten action so users can un-brick.
+              */}
+              <ErrorBoundary
+                fallback={(err, reset) => (
+                  <ActivityNestingRecovery error={err} onReset={reset} />
+                )}
+                resetKeys={[activities.length]}
+              >
+                <ActivityTallyTracker activities={activities} />
+              </ErrorBoundary>
             </div>
           </>
         ) : (
@@ -400,6 +434,7 @@ export default function ActivityTracker() {
           setPlanModalOpen(true);
         }}
       />
+      </ErrorBoundary>
     </div>
   );
 }
