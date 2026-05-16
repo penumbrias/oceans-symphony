@@ -209,23 +209,6 @@ export const DEFAULT_TECHNIQUES = [
     is_default: true,
     order: 12
   },
-  {
-    name: "Bilateral tapping",
-    description: "A gentle rhythmic technique to help regulate and settle the system.",
-    category: "body",
-    steps: [
-      "Sit comfortably and cross your arms over your chest, hands resting on your shoulders.",
-      "Begin to alternate — gently tap your left shoulder, then your right.",
-      "Left. Right. Left. Right. Find a slow, steady rhythm.",
-      "Focus on the rhythm and the sensation of each tap.",
-      "Continue at whatever pace feels calming to you.",
-      "You can close your eyes if that feels safe, or keep them soft and open."
-    ],
-    suggested_for: ["dissociation", "anxiety", "switching", "crisis"],
-    duration_seconds: 120,
-    is_default: true,
-    order: 13
-  },
 
   // --- IMAGERY ---
   {
@@ -243,25 +226,6 @@ export const DEFAULT_TECHNIQUES = [
     duration_seconds: 60,
     is_default: true,
     order: 14
-  },
-  {
-    name: "Peaceful place visualization",
-    description: "Build a vivid mental image of a place — real or imagined — where you feel calm and safe.",
-    category: "imagery",
-    steps: [
-      "Close your eyes if comfortable. Take a slow breath.",
-      "Think of a place that feels peaceful to you — anywhere real or imagined.",
-      "What do you see there? Notice the colors, the light, what's around you.",
-      "What sounds are there? Notice them in detail.",
-      "What does the air feel like? The temperature?",
-      "Are there any smells? What does this place feel like in your body?",
-      "Let yourself rest here for a few minutes. You are safe here.",
-      "When ready, slowly bring your attention back to the room."
-    ],
-    suggested_for: ["overwhelm", "crisis", "anxiety", "switching"],
-    duration_seconds: 300,
-    is_default: true,
-    order: 15
   },
   {
     name: "Split screen imagery",
@@ -352,11 +316,11 @@ export const DEFAULT_TECHNIQUES = [
     order: 20
   },
 
-  // --- VISUALIZATION (existing) ---
+  // --- IMAGERY (existing) ---
   {
     name: "Safe place visualization",
     description: "Visit a place — real or imagined — where you feel calm and protected.",
-    category: "visualization",
+    category: "imagery",
     steps: [
       "Close your eyes if that feels okay, or let your gaze go soft.",
       "Picture a place that feels safe and calm. It can be real, remembered, or completely made up.",
@@ -577,11 +541,11 @@ export const DEFAULT_TECHNIQUES = [
     order: 32
   },
 
-  // --- VISUALIZATION (additional) ---
+  // --- IMAGERY (additional) ---
   {
     name: "Tree rooting",
     description: "A grounding visualization that connects you to the earth and builds a sense of stability from the ground up.",
-    category: "visualization",
+    category: "imagery",
     steps: [
       "Sit or stand with both feet flat on the floor.",
       "Close your eyes if comfortable, or let your gaze soften.",
@@ -600,7 +564,7 @@ export const DEFAULT_TECHNIQUES = [
   {
     name: "Necklace of good moments",
     description: "A gentle imagery technique for accessing warmth and safety through positive memories.",
-    category: "visualization",
+    category: "imagery",
     steps: [
       "Take a slow breath and, if comfortable, close your eyes.",
       "Imagine a necklace with many small beads — each one holds a moment that was okay, or even good. It doesn't need to be a big memory.",
@@ -618,7 +582,7 @@ export const DEFAULT_TECHNIQUES = [
   {
     name: "Inner still point",
     description: "Finding a quiet, steady place inside yourself even when everything else feels chaotic.",
-    category: "visualization",
+    category: "imagery",
     steps: [
       "Take a slow breath and, if comfortable, close your eyes.",
       "Even in the middle of a storm, there's a still point at the center.",
@@ -815,7 +779,6 @@ export const CATEGORY_LABELS = {
   sensory: "Sensory & Physical",
   body: "Body",
   imagery: "Imagery",
-  visualization: "Visualization",
   movement: "Movement",
   affirmation: "Affirmations",
   custom: "Custom",
@@ -826,8 +789,20 @@ export const CATEGORY_EMOJIS = {
   sensory: "👁️",
   body: "🫧",
   imagery: "🌊",
-  visualization: "🌿",
   movement: "🤸",
   affirmation: "💬",
   custom: "✨",
 };
+
+// Existing user records may still hold the legacy "visualization"
+// category from before the Imagery/Visualization merge. Treat them as
+// "imagery" so they don't disappear from the UI; the seed helper only
+// adds NEW techniques by name, so we never rewrite the records on disk
+// (preserves any user edits / ratings / notes attached to them).
+export const CATEGORY_ALIASES = {
+  visualization: "imagery",
+};
+
+export function resolveCategory(category) {
+  return CATEGORY_ALIASES[category] || category;
+}

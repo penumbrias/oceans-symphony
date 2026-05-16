@@ -1,5 +1,5 @@
 import { Heart, Star, Clock, Sparkles } from "lucide-react";
-import { CATEGORY_EMOJIS, CATEGORY_LABELS } from "@/utils/groundingDefaults";
+import { CATEGORY_EMOJIS, CATEGORY_LABELS, resolveCategory } from "@/utils/groundingDefaults";
 
 function StarRating({ rating, onRate }) {
   return (
@@ -22,7 +22,7 @@ function formatDuration(seconds) {
 }
 
 export default function TechniqueCard({ technique, preference, onTap, onToggleFavorite, onRate }) {
-  const emoji = CATEGORY_EMOJIS[technique.category] || "✨";
+  const emoji = CATEGORY_EMOJIS[resolveCategory(technique.category)] || "✨";
   const isFav = preference?.is_favorited || false;
   const rating = preference?.rating || 0;
 

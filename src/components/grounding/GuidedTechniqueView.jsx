@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, ArrowRight, Star, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CATEGORY_EMOJIS } from "@/utils/groundingDefaults";
+import { CATEGORY_EMOJIS, resolveCategory } from "@/utils/groundingDefaults";
 
 const LS_STEP_MODE = "symphony_grounding_step_mode";
 
@@ -39,7 +39,7 @@ export default function GuidedTechniqueView({
   const timerRef = useRef(null);
 
   const steps = technique.steps || [];
-  const emoji = CATEGORY_EMOJIS[technique.category] || "✨";
+  const emoji = CATEGORY_EMOJIS[resolveCategory(technique.category)] || "✨";
 
   // Per-step timer: divide total duration evenly across steps
   const stepDuration = steps.length > 0 && technique.duration_seconds > 0

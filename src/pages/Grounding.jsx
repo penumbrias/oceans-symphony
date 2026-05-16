@@ -14,7 +14,7 @@ import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
 import LearnSection from "@/components/support/LearnSection";
 import {
   DEFAULT_TECHNIQUES, EMOTIONAL_STATES, CATEGORY_LABELS, CATEGORY_EMOJIS,
-  BREATHING_PATTERNS
+  BREATHING_PATTERNS, resolveCategory
 } from "@/utils/groundingDefaults";
 
 // ---- Seed helper — adds new defaults that don't exist yet by name ----
@@ -216,9 +216,12 @@ export default function Grounding({ initialPath = null }) {
 
   const byCategory = useMemo(() => {
     const map = {};
+    // Resolve legacy "visualization" records into the merged "imagery"
+    // bucket so old user records still display under the right heading.
     visibleTechniques.filter(t => t.category !== "breathing").forEach(t => {
-      if (!map[t.category]) map[t.category] = [];
-      map[t.category].push(t);
+      const cat = resolveCategory(t.category);
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(t);
     });
     return map;
   }, [visibleTechniques]);
