@@ -344,7 +344,21 @@ const handleSave = async () => {
     const newEnd = localDatetimeToISO(endVal) || session.end_time || null;
 
     if (session.alter_id) {
-      // New individual model — update this record directly (no note field)
+      // New individual model — update this record directly (no note field).
+      //
+      // If the user is promoting this session to primary, demote every other
+      // currently-active primary first. Without this we'd end up with two
+      // `is_primary: true` rows. Refetch instead of trusting any closure-
+      // captured array — the cached snapshot may be stale by the time the
+      // user hits Save (cf. useSwipeActions.togglePrimaryFor).
+      if (asPrimary && !session.is_primary) {
+        try {
+          const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+          for (const s of fresh.filter(s => s.is_primary && s.id !== session.id)) {
+            try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
+          }
+        } catch {}
+      }
       await base44.entities.FrontingSession.update(session.id, {
         is_primary: asPrimary,
         start_time: newStart,
