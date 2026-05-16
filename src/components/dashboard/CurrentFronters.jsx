@@ -494,9 +494,16 @@ export default function CurrentFronters({ alters }) {
 
   const handleRemoveFromFront = async (alter) => {
     try {
-      const targetSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
-      if (targetSession) {
-        await base44.entities.FrontingSession.update(targetSession.id, { is_active: false, end_time: new Date().toISOString() });
+      // Refetch — the closure-captured `activeSessions` snapshot may be
+      // stale, AND if duplicate active rows exist for this alter (e.g.
+      // after a botched sync) the old `.find()` would only end the first
+      // one and leave the rest active. End EVERY active row matching this
+      // alter so the alter is truly off front.
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const now = new Date().toISOString();
+      const targets = fresh.filter(s => (s.alter_id || s.primary_alter_id) === alter.id);
+      for (const s of targets) {
+        try { await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now }); } catch {}
       }
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
