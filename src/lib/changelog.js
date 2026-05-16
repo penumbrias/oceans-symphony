@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Cleaned up the Quick Support / grounding-techniques menu — merged the overlapping Imagery and Visualization sections into a single Imagery category, and removed a pair of duplicate techniques (Peaceful place visualization was the same exercise as Safe place visualization, and Bilateral tapping was the same exercise as Butterfly hug). Existing custom techniques you saved under 'Visualization' still appear — they now show up under Imagery automatically.",
+      },
+      {
+        type: "fix",
         text: "Added a brief touch-block when the Grocery list or Quick Check-In modal first opens, so a stray finger doesn't accidentally check off a list item or tap a feeling slider before you've even seen the screen.",
       },
       {
