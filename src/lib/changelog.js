@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "When a group or role chip's colour is too close to the page background, the chip now fills with a brighter version of your chosen hue (same colour family, lifted lightness) so the chip itself stands out — instead of just a thin outline around an empty-looking pill. Your saved colour is unchanged.",
+      },
+      {
+        type: "fix",
         text: "Group and role chips now also swap their text colour to a readable foreground when the user-picked chip colour is too close to the page background — previously the contrast halo added an outline but the text inside the chip stayed in the original colour and could still be unreadable.",
       },
       {

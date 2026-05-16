@@ -94,3 +94,62 @@ export function getPageBackground() {
 export function getSurfaceBackground() {
   return getCssVar("--color-surface", "#101820");
 }
+
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let h = 0, s = 0;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+  }
+  return [h, s, l];
+}
+
+function hslToRgb(h, s, l) {
+  if (s === 0) {
+    const v = Math.round(l * 255);
+    return [v, v, v];
+  }
+  const hueToRgb = (p, q, t) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  return [
+    Math.round(hueToRgb(p, q, h + 1 / 3) * 255),
+    Math.round(hueToRgb(p, q, h) * 255),
+    Math.round(hueToRgb(p, q, h - 1 / 3) * 255),
+  ];
+}
+
+function toHex(n) {
+  return Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0");
+}
+
+// Return a hue-preserving lightness-adjusted version of `input` so it
+// reads against `background`. Used as the chip fill when `needsHalo`
+// flags the user's chosen colour as too close to the surface — we keep
+// their hue and saturation, just shift L into a visible range. Dark
+// backgrounds get L raised toward 0.45; light backgrounds get L pulled
+// down toward 0.55. Returns the original colour if it can't be parsed.
+export function adjustForContrast(input, background, { darkTargetL = 0.45, lightTargetL = 0.55 } = {}) {
+  const rgb = parseColor(input);
+  const bgLum = relativeLuminance(background);
+  if (!rgb || bgLum == null) return input;
+  const [h, s, l] = rgbToHsl(rgb.r, rgb.g, rgb.b);
+  const targetL = bgLum < 0.5 ? Math.max(l, darkTargetL) : Math.min(l, lightTargetL);
+  if (targetL === l) return input;
+  const [r, g, b] = hslToRgb(h, s, targetL);
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}

@@ -16,7 +16,7 @@ import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
-import { needsHalo, haloColor, getPageBackground } from "@/lib/contrast";
+import { needsHalo, haloColor, getPageBackground, adjustForContrast } from "@/lib/contrast";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -498,13 +498,13 @@ useEffect(() => {
             <div className="flex flex-wrap gap-1.5">
               {alter.groups.map((g) => {
                 const halo = g.color && needsHalo(g.color, pageBg);
+                const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
                 return (
                 <span key={g.id} className="px-2.5 py-1 rounded-full text-xs font-medium border"
                   style={{
-                    backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
-                    borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
+                    backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "18"}` : "hsl(var(--muted))",
+                    borderColor: fillColor ? `${fillColor}${halo ? "" : "40"}` : "hsl(var(--border))",
                     color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
-                    boxShadow: halo ? `0 0 0 1px ${haloColor(pageBg)}` : undefined,
                   }}>
                   {g.name}
                 </span>
@@ -823,13 +823,13 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <div className="flex flex-wrap gap-1.5">
             {alter.groups.map((g) => {
               const halo = g.color && needsHalo(g.color, pageBg);
+              const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
               return (
               <span key={g.id} className="px-2 py-0.5 rounded-full text-xs font-medium border"
                 style={{
-                  backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
-                  borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
+                  backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "18"}` : "hsl(var(--muted))",
+                  borderColor: fillColor ? `${fillColor}${halo ? "" : "40"}` : "hsl(var(--border))",
                   color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
-                  boxShadow: halo ? `0 0 0 1px ${haloColor(pageBg)}` : undefined,
                 }}>
                 {g.name}
               </span>
