@@ -5,94 +5,63 @@ import { isLocalMode } from "@/lib/storageMode";
 import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useTerms } from "@/lib/useTerms";
+import { buildSearchIndex, searchIndex, groupResults } from "@/lib/globalSearch";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
 
+// Defensive list — some entities only exist in cloud mode, others
+// might be missing on older deployments. Wrap each in a try so a
+// single missing entity doesn't poison the whole search index.
+async function safeList(entity, ...args) {
+  try {
+    if (!entity || typeof entity.list !== "function") return [];
+    const result = await entity.list(...args);
+    return Array.isArray(result) ? result : [];
+  } catch {
+    return [];
+  }
+}
+
 const TYPE_ICONS = {
-  alter:       "👤",
-  journal:     "📓",
-  bulletin:    "📌",
-  activity:    "⚡",
-  task:        "☑️",
-  emotion:     "💜",
-  status:      "💬",
-  symptom:     "💊",
-  group:       "👥",
-  diarycard:   "📖",
-  checkin:     "✨",
-  location:    "📍",
-  syschange:   "🔀",
+  alter:     "👤",
+  journal:   "📓",
+  bulletin:  "📌",
+  activity:  "⚡",
+  task:      "☑️",
+  emotion:   "💜",
+  status:    "💬",
+  symptom:   "💊",
+  group:     "👥",
+  diarycard: "📖",
+  checkin:   "✨",
+  location:  "📍",
+  syschange: "🔀",
+  note:      "📝",
+  reminder:  "⏰",
+  grocery:   "🛒",
 };
 
-const TYPE_LABELS = {
-  alter:       "Alters",
-  journal:     "Journals",
-  bulletin:    "Bulletins",
-  activity:    "Activities",
-  task:        "Tasks",
-  emotion:     "Emotions",
-  status:      "Custom Statuses",
-  symptom:     "Symptoms",
-  group:       "Groups",
-  diarycard:   "Diary Cards",
-  checkin:     "System Check-Ins",
-  location:    "Locations",
-  syschange:   "System History",
-};
-
-const SYS_CHANGE_TYPE_LABELS = {
-  fusion:    "Fusion",
-  split:     "Split",
-  dormancy:  "Dormancy",
-  return:    "Return",
-  emergence: "Emergence",
-};
-
-function getDateFormats(dateInput) {
-  if (!dateInput) return [];
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return [];
-  const pad = (n) => String(n).padStart(2, "0");
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  const day = d.getDate();
-  const monthNames = ["january","february","march","april","may","june","july","august","september","october","november","december"];
-  const monthShort = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
-  const dayNames = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
-  return [
-    `${year}-${pad(month + 1)}-${pad(day)}`,
-    `${pad(month + 1)}/${pad(day)}/${year}`,
-    `${monthNames[month]} ${day} ${year}`,
-    `${monthShort[month]} ${day} ${year}`,
-    `${monthShort[month]} ${day}`,
-    `${monthNames[month]} ${day}`,
-    `${day}th`, `${day}st`, `${day}nd`, `${day}rd`,
-    `${dayNames[d.getDay()]} ${monthNames[month]} ${day}`,
-    `${dayNames[d.getDay()]} ${monthShort[month]} ${day}`,
-    monthNames[month],
-    monthShort[month],
-    `${year}-${pad(month + 1)}`,
-    `${pad(month + 1)}/${year}`,
-    String(year),
-  ];
-}
-
-function matchesDate(dateInput, q) {
-  return getDateFormats(dateInput).some((f) => f.includes(q));
-}
-
-function formatDateLabel(dateInput) {
-  if (!dateInput) return null;
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-}
-
-function isoDate(ts) {
-  if (!ts) return null;
-  const d = new Date(ts);
-  return isNaN(d.getTime()) ? null : d.toISOString().split("T")[0];
+function getTypeLabels(t) {
+  return {
+    alter:     t.Alters,
+    journal:   "Journals",
+    bulletin:  "Bulletins",
+    activity:  "Activities",
+    task:      "Tasks",
+    emotion:   "Emotions",
+    status:    "Custom Statuses",
+    symptom:   "Symptoms",
+    group:     "Groups",
+    diarycard: "Diary Cards",
+    checkin:   `${t.System} Check-Ins`,
+    location:  "Locations",
+    syschange: `${t.System} History`,
+    note:      `${t.Alter} Notes`,
+    reminder:  "Reminders",
+    grocery:   "Grocery List",
+  };
 }
 
 function highlightMatch(text, query) {
@@ -112,6 +81,8 @@ function highlightMatch(text, query) {
 
 export default function GlobalSearch() {
   const navigate = useNavigate();
+  const terms = useTerms();
+  const TYPE_LABELS = useMemo(() => getTypeLabels(terms), [terms]);
   const [query, setQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const containerRef = useRef(null);
@@ -119,305 +90,173 @@ export default function GlobalSearch() {
   const enabled = searchFocused;
   const stale = 5 * 60 * 1000;
 
+  // Alters always loaded (cheap, already cached by the rest of the app).
+  // No filter on is_archived / dormant — every alter should be findable.
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
-    queryFn: () => db.Alter.list(),
+    queryFn: () => safeList(db.Alter),
   });
 
+  // CustomField defs — used to surface the field label alongside its
+  // value in the search blob (so a user typing the field name can find
+  // alters that have it set).
+  const { data: customFieldDefs = [] } = useQuery({
+    queryKey: ["customFields"],
+    queryFn: () => safeList(db.CustomField, "order"),
+    staleTime: stale,
+  });
+
+  // Everything else is gated on focus so the dropdown only spins up its
+  // background queries when the user actually engages the input.
   const { data: journals = [] } = useQuery({
     queryKey: ["searchJournals"],
-    queryFn: () => base44.entities.JournalEntry.list("-created_date", 200),
+    queryFn: () => safeList(base44.entities.JournalEntry, "-created_date", 300),
     staleTime: stale, enabled,
   });
-
+  const { data: supportJournals = [] } = useQuery({
+    queryKey: ["searchSupportJournals"],
+    queryFn: () => safeList(base44.entities.SupportJournalEntry, "-created_date", 200),
+    staleTime: stale, enabled,
+  });
   const { data: bulletins = [] } = useQuery({
     queryKey: ["searchBulletins"],
-    queryFn: () => base44.entities.Bulletin.list("-created_date", 200),
+    queryFn: () => safeList(base44.entities.Bulletin, "-created_date", 200),
     staleTime: stale, enabled,
   });
-
-  const { data: activities = [] } = useQuery({
-    queryKey: ["searchActivities"],
-    queryFn: () => base44.entities.Activity.list("-created_date", 200),
-    staleTime: stale, enabled,
-  });
-
-  const { data: tasks = [] } = useQuery({
-    queryKey: ["searchTasks"],
-    queryFn: () => base44.entities.Task.list("-created_date", 200),
-    staleTime: stale, enabled,
-  });
-
-  const { data: emotionCheckIns = [] } = useQuery({
-    queryKey: ["searchEmotions"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-created_date", 200),
-    staleTime: stale, enabled,
-  });
-
-  const { data: symptoms = [] } = useQuery({
-    queryKey: ["searchSymptoms"],
-    queryFn: () => base44.entities.Symptom.list(),
-    staleTime: stale, enabled,
-  });
-
-  const { data: groups = [] } = useQuery({
-    queryKey: ["searchGroups"],
-    queryFn: () => base44.entities.Group.list(),
-    staleTime: stale, enabled,
-  });
-
-  const { data: diaryCards = [] } = useQuery({
-    queryKey: ["searchDiaryCards"],
-    queryFn: () => base44.entities.DiaryCard.list("-created_date", 200),
-    staleTime: stale, enabled,
-  });
-
-  const { data: systemCheckIns = [] } = useQuery({
-    queryKey: ["searchSystemCheckIns"],
-    queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 200),
-    staleTime: stale, enabled,
-  });
-
   const { data: bulletinComments = [] } = useQuery({
     queryKey: ["searchBulletinComments"],
-    queryFn: () => base44.entities.BulletinComment.list("-created_date", 200),
+    queryFn: () => safeList(base44.entities.BulletinComment, "-created_date", 200),
+    staleTime: stale, enabled,
+  });
+  const { data: polls = [] } = useQuery({
+    queryKey: ["searchPolls"],
+    queryFn: () => safeList(base44.entities.Poll, "-created_date", 200),
+    staleTime: stale, enabled,
+  });
+  const { data: activities = [] } = useQuery({
+    queryKey: ["searchActivities"],
+    queryFn: () => safeList(base44.entities.Activity, "-created_date", 300),
+    staleTime: stale, enabled,
+  });
+  const { data: sleep = [] } = useQuery({
+    queryKey: ["searchSleep"],
+    queryFn: () => safeList(base44.entities.Sleep, "-created_date", 200),
+    staleTime: stale, enabled,
+  });
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["searchTasks"],
+    queryFn: () => safeList(base44.entities.Task, "-created_date", 300),
+    staleTime: stale, enabled,
+  });
+  const { data: dailyTaskTemplates = [] } = useQuery({
+    queryKey: ["searchDailyTaskTemplates"],
+    queryFn: () => safeList(base44.entities.DailyTaskTemplate),
+    staleTime: stale, enabled,
+  });
+  const { data: emotionCheckIns = [] } = useQuery({
+    queryKey: ["searchEmotions"],
+    queryFn: () => safeList(base44.entities.EmotionCheckIn, "-created_date", 300),
+    staleTime: stale, enabled,
+  });
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["searchSymptoms"],
+    queryFn: () => safeList(base44.entities.Symptom),
+    staleTime: stale, enabled,
+  });
+  const { data: symptomCheckIns = [] } = useQuery({
+    queryKey: ["searchSymptomCheckIns"],
+    queryFn: () => safeList(base44.entities.SymptomCheckIn, "-created_date", 300),
+    staleTime: stale, enabled,
+  });
+  const { data: groups = [] } = useQuery({
+    queryKey: ["searchGroups"],
+    queryFn: () => safeList(base44.entities.Group),
+    staleTime: stale, enabled,
+  });
+  const { data: diaryCards = [] } = useQuery({
+    queryKey: ["searchDiaryCards"],
+    queryFn: () => safeList(base44.entities.DiaryCard, "-created_date", 200),
+    staleTime: stale, enabled,
+  });
+  const { data: systemCheckIns = [] } = useQuery({
+    queryKey: ["searchSystemCheckIns"],
+    queryFn: () => safeList(base44.entities.SystemCheckIn, "-created_date", 200),
+    staleTime: stale, enabled,
+  });
+  const { data: alterNotes = [] } = useQuery({
+    queryKey: ["searchAlterNotes"],
+    queryFn: () => safeList(base44.entities.AlterNote, "-created_date", 300),
+    staleTime: stale, enabled,
+  });
+  const { data: alterMessages = [] } = useQuery({
+    queryKey: ["searchAlterMessages"],
+    queryFn: () => safeList(base44.entities.AlterMessage, "-created_date", 300),
+    staleTime: stale, enabled,
+  });
+  const { data: reminders = [] } = useQuery({
+    queryKey: ["searchReminders"],
+    queryFn: () => safeList(base44.entities.Reminder),
     staleTime: stale, enabled,
   });
 
   // Local entities
   const { data: statusNotes = [] } = useQuery({
     queryKey: ["statusNotes"],
-    queryFn: () => localEntities.StatusNote.list(),
+    queryFn: () => safeList(localEntities.StatusNote),
     staleTime: stale, enabled,
   });
-
   const { data: locations = [] } = useQuery({
     queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
+    queryFn: () => safeList(localEntities.Location),
     staleTime: stale, enabled,
   });
-
   const { data: systemChangeEvents = [] } = useQuery({
     queryKey: ["systemChangeEvents"],
-    queryFn: () => localEntities.SystemChangeEvent.list(),
+    queryFn: () => safeList(localEntities.SystemChangeEvent),
+    staleTime: stale, enabled,
+  });
+  const { data: groceries = [] } = useQuery({
+    queryKey: ["searchGroceries"],
+    queryFn: () => safeList(localEntities.GroceryItem),
     staleTime: stale, enabled,
   });
 
-  const searchResults = useMemo(() => {
-    if (!query.trim() || query.length < 2) return [];
-    const q = query.toLowerCase();
-    const results = [];
-
-    // Alters — use description not bio
-    alters.forEach((a) => {
-      const textMatch = [a.name, a.alias, a.pronouns, a.role, a.description].filter(Boolean).some((f) => f.toLowerCase().includes(q));
-      const dateMatch = !textMatch && matchesDate(a.created_date, q);
-      if (textMatch || dateMatch) {
-        results.push({
-          type: "alter", id: a.id, title: a.name,
-          subtitle: dateMatch ? `📅 ${formatDateLabel(a.created_date)}` : (a.role || a.pronouns),
-          color: a.color, path: `/alter/${a.id}`, dateMatch,
-          isArchived: !!a.is_archived,
-        });
-      }
-    });
-
-    // Journals
-    journals.forEach((j) => {
-      const textMatch = [j.title, j.content].filter(Boolean).some((f) => f.toLowerCase().includes(q));
-      const dateMatch = !textMatch && matchesDate(j.created_date, q);
-      if (textMatch || dateMatch) {
-        results.push({
-          type: "journal", id: j.id, title: j.title || "Journal Entry",
-          subtitle: dateMatch ? `📅 ${formatDateLabel(j.created_date)}` : j.content?.slice(0, 80),
-          path: `/journals?id=${j.id}`, dateMatch,
-        });
-      }
-    });
-
-    // Bulletins
-    bulletins.forEach((b) => {
-      const textMatch = b.content?.toLowerCase().includes(q);
-      const dateMatch = !textMatch && matchesDate(b.created_date, q);
-      if (textMatch || dateMatch) {
-        results.push({
-          type: "bulletin", id: b.id, title: "Bulletin",
-          subtitle: dateMatch ? `📅 ${formatDateLabel(b.created_date)}` : b.content?.slice(0, 80),
-          path: `/bulletin/${b.id}`, dateMatch,
-        });
-      }
-    });
-
-    // Bulletin comments
-    bulletinComments.forEach((c) => {
-      const textMatch = c.content?.toLowerCase().includes(q);
-      const dateMatch = !textMatch && matchesDate(c.created_date, q);
-      if (textMatch || dateMatch) {
-        results.push({
-          type: "bulletin", id: c.id, title: "Bulletin Comment",
-          subtitle: dateMatch ? `📅 ${formatDateLabel(c.created_date)}` : c.content?.slice(0, 80),
-          path: `/bulletin/${c.bulletin_id}?commentId=${c.id}`, dateMatch,
-        });
-      }
-    });
-
-    // Activities
-    activities.forEach((a) => {
-      const textMatch = [a.activity_name, a.notes].filter(Boolean).some((f) => f.toLowerCase().includes(q));
-      const dateMatch = !textMatch && matchesDate(a.timestamp, q);
-      if (textMatch || dateMatch) {
-        const dateStr = isoDate(a.timestamp) || isoDate(new Date());
-        results.push({
-          type: "activity", id: a.id, title: a.activity_name,
-          subtitle: dateMatch ? `📅 ${formatDateLabel(a.timestamp)}` : a.notes?.slice(0, 80),
-          path: `/activities?date=${dateStr}&highlight=${a.id}`, dateMatch,
-        });
-      }
-    });
-
-    // Tasks
-    tasks.forEach((t) => {
-      const textMatch = [t.title, t.notes].filter(Boolean).some((f) => f.toLowerCase().includes(q));
-      const dateMatch = !textMatch && matchesDate(t.created_date, q);
-      if (textMatch || dateMatch) {
-        results.push({
-          type: "task", id: t.id, title: t.title,
-          subtitle: dateMatch ? `📅 ${formatDateLabel(t.created_date)}` : t.notes?.slice(0, 80),
-          path: `/tasks?id=${t.id}`, dateMatch,
-        });
-      }
-    });
-
-    // Custom Status Notes (localEntities.StatusNote)
-    statusNotes.forEach((s) => {
-      const textMatch = s.note?.toLowerCase().includes(q);
-      const dateMatch = !textMatch && matchesDate(s.timestamp, q);
-      if (textMatch || dateMatch) {
-        const dateStr = isoDate(s.timestamp);
-        results.push({
-          type: "status", id: s.id,
-          title: s.note?.length > 80 ? s.note.slice(0, 80) + "…" : s.note,
-          subtitle: `📅 ${formatDateLabel(s.timestamp)}`,
-          path: dateStr ? `/timeline?date=${dateStr}` : `/timeline`,
-          dateMatch,
-        });
-      }
-    });
-
-    // Emotion check-ins (with notes = legacy status-style; without = plain emotion)
-    emotionCheckIns.forEach((e) => {
-      const dateStr = isoDate(e.timestamp);
-      if (!dateStr) return;
-      const hasNote = !!(e.note?.trim());
-      const noteMatch = hasNote && e.note.toLowerCase().includes(q);
-      const emotionMatch = e.emotions?.some((em) => em.toLowerCase().includes(q));
-      const dateMatch = !noteMatch && !emotionMatch && matchesDate(e.timestamp, q);
-
-      if (hasNote && (noteMatch || dateMatch)) {
-        results.push({
-          type: "status", id: `ec-${e.id}`,
-          title: e.note.length > 80 ? e.note.slice(0, 80) + "…" : e.note,
-          subtitle: dateMatch ? `📅 ${formatDateLabel(e.timestamp)}` : `${formatDateLabel(e.timestamp)}${e.emotions?.length ? " · " + e.emotions.join(", ") : ""}`,
-          path: `/timeline?date=${dateStr}&highlightStatus=${e.id}`,
-          dateMatch,
-        });
-      } else if (!hasNote && (emotionMatch || dateMatch)) {
-        results.push({
-          type: "emotion", id: e.id, title: "Emotion Check-In",
-          subtitle: dateMatch ? `📅 ${formatDateLabel(e.timestamp)}` : e.emotions?.join(", "),
-          path: `/timeline?date=${dateStr}`,
-          dateMatch,
-        });
-      }
-    });
-
-    // Symptoms
-    symptoms.forEach((s) => {
-      if ([s.label, s.description].filter(Boolean).some((f) => f.toLowerCase().includes(q))) {
-        results.push({ type: "symptom", id: s.id, title: s.label, subtitle: s.description?.slice(0, 80) || "Symptom", path: `/checkin-log` });
-      }
-    });
-
-    // Groups
-    groups.forEach((g) => {
-      if ([g.name, g.description].filter(Boolean).some((f) => f.toLowerCase().includes(q))) {
-        results.push({ type: "group", id: g.id, title: g.name, subtitle: g.description?.slice(0, 80), path: `/groups` });
-      }
-    });
-
-    // Diary cards
-    diaryCards.forEach((d) => {
-      const allText = [d.name, d.notes?.what, d.notes?.judgments, d.notes?.optional].filter(Boolean).join(" ");
-      const textMatch = allText.toLowerCase().includes(q);
-      const dateMatch = !textMatch && (matchesDate(d.date, q) || matchesDate(d.created_date, q));
-      if (textMatch || dateMatch) {
-        results.push({
-          type: "diarycard", id: d.id, title: d.name || `Diary Card — ${d.date}`,
-          subtitle: dateMatch ? `📅 ${formatDateLabel(d.date || d.created_date)}` : d.notes?.what?.slice(0, 80),
-          path: `/checkin-log?id=${d.id}`, dateMatch,
-        });
-      }
-    });
-
-    // System check-ins
-    systemCheckIns.forEach((c) => {
-      const textMatch = [c.notes, c.content].filter(Boolean).some((f) => f.toLowerCase().includes(q));
-      const dateMatch = !textMatch && matchesDate(c.created_date, q);
-      if (textMatch || dateMatch) {
-        results.push({
-          type: "checkin", id: c.id, title: "System Meeting",
-          subtitle: dateMatch ? `📅 ${formatDateLabel(c.created_date)}` : (c.notes?.slice(0, 80) || c.content?.slice(0, 80)),
-          path: `/system-checkin?id=${c.id}`, dateMatch,
-        });
-      }
-    });
-
-    // Location records
-    locations.forEach((l) => {
-      const textMatch = [l.name, l.notes, l.category].filter(Boolean).some((f) => f.toLowerCase().includes(q));
-      const dateMatch = !textMatch && matchesDate(l.timestamp, q);
-      if (textMatch || dateMatch) {
-        const dateStr = isoDate(l.timestamp);
-        results.push({
-          type: "location", id: l.id, title: l.name || "Location",
-          subtitle: dateMatch ? `📅 ${formatDateLabel(l.timestamp)}` : [l.category, l.notes].filter(Boolean).join(" · ").slice(0, 80),
-          path: dateStr ? `/location-history` : `/location-history`,
-          dateMatch,
-        });
-      }
-    });
-
-    // System change events (fusions, splits, emergences, dormancy, returns)
-    systemChangeEvents.forEach((e) => {
-      const typeLabel = SYS_CHANGE_TYPE_LABELS[e.type] || e.type;
-      const textMatch = [e.cause, e.notes, typeLabel].filter(Boolean).some((f) => f.toLowerCase().includes(q));
-      const dateMatch = !textMatch && matchesDate(e.date, q);
-      if (textMatch || dateMatch) {
-        results.push({
-          type: "syschange", id: e.id,
-          title: typeLabel + (e.fusion_type === "absorption" ? " · Absorption" : e.fusion_type === "new_formation" ? " · New Formation" : ""),
-          subtitle: dateMatch ? `📅 ${formatDateLabel(e.date)}` : (e.cause || e.notes)?.slice(0, 80),
-          path: `/system-history`,
-          dateMatch,
-        });
-      }
-    });
-
-    return results.slice(0, 40);
-  }, [
-    query, alters, journals, bulletins, bulletinComments, activities, tasks,
-    emotionCheckIns, symptoms, groups, diaryCards, systemCheckIns,
-    statusNotes, locations, systemChangeEvents,
+  const index = useMemo(() => buildSearchIndex({
+    alters, customFieldDefs,
+    journals, supportJournals,
+    bulletins, bulletinComments, polls,
+    activities, sleep,
+    tasks, dailyTaskTemplates,
+    statusNotes, emotionCheckIns,
+    symptoms, symptomCheckIns,
+    groups,
+    diaryCards,
+    systemCheckIns,
+    locations,
+    systemChangeEvents,
+    alterNotes, alterMessages,
+    reminders,
+    groceries,
+  }), [
+    alters, customFieldDefs,
+    journals, supportJournals,
+    bulletins, bulletinComments, polls,
+    activities, sleep,
+    tasks, dailyTaskTemplates,
+    statusNotes, emotionCheckIns,
+    symptoms, symptomCheckIns,
+    groups,
+    diaryCards,
+    systemCheckIns,
+    locations,
+    systemChangeEvents,
+    alterNotes, alterMessages,
+    reminders,
+    groceries,
   ]);
 
-  const groupedResults = useMemo(() => {
-    const grouped = {};
-    searchResults.forEach((r) => {
-      if (!grouped[r.type]) grouped[r.type] = [];
-      grouped[r.type].push(r);
-    });
-    return grouped;
-  }, [searchResults]);
+  const searchResults = useMemo(() => searchIndex(index, query, 80), [index, query]);
+  const groupedResults = useMemo(() => groupResults(searchResults), [searchResults]);
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -443,7 +282,11 @@ export default function GlobalSearch() {
     setSearchFocused(false);
   };
 
-  const TYPE_ORDER = ["alter", "journal", "status", "emotion", "bulletin", "activity", "task", "checkin", "diarycard", "location", "syschange", "symptom", "group"];
+  const TYPE_ORDER = [
+    "alter", "journal", "status", "emotion", "bulletin", "note",
+    "activity", "task", "reminder", "checkin", "diarycard",
+    "location", "syschange", "symptom", "group", "grocery",
+  ];
 
   return (
     <div className="relative flex-1" ref={containerRef}>
@@ -480,7 +323,7 @@ export default function GlobalSearch() {
                   {TYPE_ICONS[type]} {TYPE_LABELS[type]}
                 </p>
                 {typeResults.map((result) => (
-                  <button key={result.id} onClick={() => handleResultClick(result.path)}
+                  <button key={`${result.type}-${result.id}`} onClick={() => handleResultClick(result.path)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 transition-colors text-left">
                     {result.type === "alter" ? (
                       <div
