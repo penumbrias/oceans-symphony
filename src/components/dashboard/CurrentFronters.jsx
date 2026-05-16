@@ -453,7 +453,12 @@ export default function CurrentFronters({ alters }) {
   const altersById = isDemo
     ? { ...Object.fromEntries(alters.map((a) => [a.id, a])), ...demoAltersById }
     : Object.fromEntries(alters.map((a) => [a.id, a]));
-  const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : true);
+  // Prefer a real primary (new-model row with is_primary). For legacy rows,
+  // do NOT treat them as primary unconditionally — that would let a legacy
+  // session shadow a real primary in new-model rows whenever both shapes
+  // coexist briefly during a migration. Legacy rows fall through to the
+  // `|| activeSessions[0]` fallback below if no new-model primary exists.
+  const primarySession = activeSessions.find(s => s.alter_id ? s.is_primary : false);
   const active = primarySession || activeSessions[0] || null;
 
   const primaryAlterId = primarySession?.alter_id || active?.primary_alter_id || null;
@@ -572,10 +577,17 @@ export default function CurrentFronters({ alters }) {
     const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
     const coSessions = activeSessions.filter(s => s.alter_id && !s.is_primary);
     primary = primarySess ? altersById[primarySess.alter_id] : null;
+    // Dedupe co-fronter sessions by alter_id (and exclude the primary's
+    // alter_id if there is one). Avoids the previous side-effect-in-filter
+    // anti-pattern that relied on `Set.add()` returning truthy.
     const seenIds = new Set(primarySess?.alter_id ? [primarySess.alter_id] : []);
-    coFronters = coSessions
-      .filter(s => !seenIds.has(s.alter_id) && seenIds.add(s.alter_id))
-      .map(s => altersById[s.alter_id]).filter(Boolean);
+    const dedupedCoSessions = [];
+    for (const s of coSessions) {
+      if (seenIds.has(s.alter_id)) continue;
+      seenIds.add(s.alter_id);
+      dedupedCoSessions.push(s);
+    }
+    coFronters = dedupedCoSessions.map(s => altersById[s.alter_id]).filter(Boolean);
   } else {
     primary = altersById[active.primary_alter_id];
     coFronters = (active.co_fronter_ids || []).map(id => altersById[id]).filter(Boolean);
@@ -637,10 +649,11 @@ export default function CurrentFronters({ alters }) {
         <div className="mb-2 grid grid-cols-2 gap-2">
           {all.map((alter, i) => {
             const alterSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
-            // Use the actual is_primary flag from the session (or the legacy
-            // primary_alter_id match) — never `i === 0`. The array-position
-            // shortcut lies whenever the DB has zero or multiple primaries.
-            const isPrimaryAlter = !!alterSession?.is_primary || alter.id === primary?.id;
+            // Trust the session's own `is_primary` flag. The previous
+            // `|| alter.id === primary?.id` fallback masked the case where
+            // the session disagreed with the elected primary — better to
+            // surface the disagreement than paper over it.
+            const isPrimaryAlter = !!alterSession?.is_primary;
             return (
               <FronterChip
                 key={alter.id}
