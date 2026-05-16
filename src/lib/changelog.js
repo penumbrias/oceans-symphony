@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Added a brief touch-block when the Grocery list or Quick Check-In modal first opens, so a stray finger doesn't accidentally check off a list item or tap a feeling slider before you've even seen the screen.",
+      },
+      {
+        type: "fix",
         text: "Fixed the bottom navigation bar being partially hidden behind Android's gesture pill / 3-button system bar on phones with on-screen nav — the tab buttons are now properly inset above the system controls.",
       },
       {
