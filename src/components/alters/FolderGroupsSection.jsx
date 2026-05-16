@@ -11,6 +11,7 @@ import SetFrontModal from "@/components/fronting/SetFrontModal";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
+import { needsHalo, haloColor, getSurfaceBackground } from "@/lib/contrast";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -53,12 +54,23 @@ function MemberRow({ alter, onClick, activeSessions }) {
             <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">{alter.name}</p>
             {alter.pronouns && <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>}
           </div>
-          {alter.role &&
-          <span className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-          style={{ backgroundColor: bgColor ? `${bgColor}20` : "hsl(var(--muted))", color: bgColor || "hsl(var(--muted-foreground))" }}>
+          {alter.role && (() => {
+            // Role chip sits on bg-card (surface) — add a thin halo when
+            // the alter colour is too close to the surface to read on its
+            // own. Preserves the user's chosen colour, only adds a ring.
+            const surfaceBg = getSurfaceBackground();
+            const halo = bgColor && needsHalo(bgColor, surfaceBg);
+            return (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
+            style={{
+              backgroundColor: bgColor ? `${bgColor}20` : "hsl(var(--muted))",
+              color: bgColor || "hsl(var(--muted-foreground))",
+              boxShadow: halo ? `0 0 0 1px ${haloColor(surfaceBg)}` : undefined,
+            }}>
               {alter.role}
             </span>
-          }
+            );
+          })()}
         </div>
       </motion.div>
       <FrontingToggleButton alter={alter} activeSessions={activeSessions} />

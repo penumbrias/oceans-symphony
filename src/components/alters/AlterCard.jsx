@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { useTerms } from "@/lib/useTerms";
+import { needsHalo, haloColor, getSurfaceBackground } from "@/lib/contrast";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -212,12 +213,24 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>{alter.name}</p>
             {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>{alter.pronouns}</p>}
           </div>
-          {alter.role && (
+          {alter.role && (() => {
+            // The role chip sits on bg-card (the surface colour). If the
+            // alter's chosen colour is so close to that surface that the
+            // soft tint + text disappear, drop a thin neutral ring around
+            // the chip so it stays visible — the colour itself is preserved.
+            const surfaceBg = getSurfaceBackground();
+            const halo = bgColor && needsHalo(bgColor, surfaceBg);
+            return (
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${anonymize !== "off" ? "blur-sm" : ""}`}
-              style={{ backgroundColor: bgColor ? `${bgColor}20` : "hsl(var(--muted))", color: bgColor || "hsl(var(--muted-foreground))" }}>
+              style={{
+                backgroundColor: bgColor ? `${bgColor}20` : "hsl(var(--muted))",
+                color: bgColor || "hsl(var(--muted-foreground))",
+                boxShadow: halo ? `0 0 0 1px ${haloColor(surfaceBg)}` : undefined,
+              }}>
               {alter.role}
             </span>
-          )}
+            );
+          })()}
         </div>
       </div>
       <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
