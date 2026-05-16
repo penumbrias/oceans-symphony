@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 16, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Global search (the 'Search everything' input on the Dashboard) now covers every alter — including dormant and archived ones — and matches against pronouns, custom fields, bio, group memberships, tags, birthday, and any other profile field. It also indexes journal entries, tasks, status notes, locations, emotion check-ins, system-change events, alter notes, reminders, and more; you can search by name, content, or even a date string.",
+      },
+      {
         type: "fix",
         text: "When a group or role chip's colour is too close to the page background, the chip now fills with a brighter version of your chosen hue (same colour family, lifted lightness) so the chip itself stands out — instead of just a thin outline around an empty-looking pill. Your saved colour is unchanged.",
       },
