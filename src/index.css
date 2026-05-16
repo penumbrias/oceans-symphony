@@ -93,7 +93,7 @@ body {
    Settings → Accessibility. */
 @media (max-width: 1023px) {
   .app-content-main {
-    padding-bottom: calc(var(--bottom-nav-height, 56px) + 16px) !important;
+    padding-bottom: calc(var(--bottom-nav-height, 56px) + 16px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
