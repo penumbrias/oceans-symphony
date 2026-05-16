@@ -85,6 +85,19 @@ function evaluateReminderDue(reminder, now, existingInstances, cachedData, userT
   if (trigger_type === "contextual") {
     const on = cfg?.on;
 
+    // Guard: if an existing instance for this reminder is still
+    // unaddressed (fired/snoozed/pending/dismissed), do not create
+    // another one. Only `acted` and `auto_resolved` are terminal
+    // states that should let the trigger fire again. This prevents
+    // contextual reminders ("Checking in on the system", etc.) from
+    // stacking multiple identical cards on the Dashboard when the
+    // user hasn't dealt with the previous one yet.
+    const hasUnaddressedInstance = existingInstances.some(i =>
+      i.reminder_id === reminder.id &&
+      !["acted", "auto_resolved"].includes(i.status)
+    );
+    if (hasUnaddressedInstance) return null;
+
     if (on === "no_front_update") {
       const threshold = (cfg?.threshold_minutes || 120) * 60 * 1000;
       const sessions = cachedData?.sessions || [];
