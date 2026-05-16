@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Fixed restored system name, bio, and avatar appearing blank after importing a backup in 'Add new' mode — the import was being shadowed by an empty default record created on first run. Existing users on restored data: re-open Settings → System and your imported values should now appear; if anything is still missing, re-import the backup in 'Add new' mode and it'll take this time.",
+      },
+      {
+        type: "fix",
         text: "The medical-scope disclaimer (Settings → Disclaimer) is now also reachable as a collapsed bar at the top of the Quick Support, Learn, and Resources screens — so anyone landing in those areas first sees that this app isn't a medical product without hunting through Settings.",
       },
       {

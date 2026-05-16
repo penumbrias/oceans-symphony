@@ -469,11 +469,58 @@ export async function loadDbDump(dump) {
 
 // Add-only merge: only inserts records whose IDs don't already exist locally.
 // Existing records are never overwritten.
+//
+// Special case: SystemSettings is a singleton entity (one record per
+// system). When the app first boots it auto-creates an empty default
+// record so the terms-setup flow has somewhere to write. If a user then
+// imports a backup in "Add new" mode, the imported SystemSettings row
+// would end up sitting alongside the empty local stub, and read-sites
+// that grab `list()[0]` may surface the empty stub — making restored
+// system name / bio / avatar appear blank. To prevent that we fold any
+// incoming SystemSettings into existing local stubs field-by-field:
+// only fields that are currently empty on the local record receive the
+// imported value, so nothing the user has actively set is ever
+// clobbered. The imported record itself is dropped (its data has been
+// absorbed into the local record), keeping the singleton invariant.
+function isEmptyValue(v) {
+  if (v === undefined || v === null) return true;
+  if (typeof v === "string") return v.trim() === "";
+  if (Array.isArray(v)) return v.length === 0;
+  if (typeof v === "object") return Object.keys(v).length === 0;
+  return false;
+}
+
 export async function mergeDbDump(dump) {
   if (!_db) _db = {};
   for (const [entityName, records] of Object.entries(dump)) {
     if (!records || typeof records !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
+
+    if (entityName === "SystemSettings") {
+      const localIds = Object.keys(_db[entityName]);
+      const incomingIds = Object.keys(records);
+      // If a local SystemSettings record already exists, fold the
+      // incoming row(s) into it field-by-field rather than adding a
+      // second record alongside.
+      if (localIds.length > 0 && incomingIds.length > 0) {
+        const targetId = localIds[0];
+        const target = { ..._db[entityName][targetId] };
+        for (const incomingId of incomingIds) {
+          const incoming = records[incomingId];
+          if (!incoming || typeof incoming !== "object") continue;
+          for (const [field, value] of Object.entries(incoming)) {
+            if (field === "id" || field === "created_date" || field === "updated_date") continue;
+            if (isEmptyValue(target[field]) && !isEmptyValue(value)) {
+              target[field] = value;
+            }
+          }
+        }
+        _db[entityName][targetId] = target;
+        continue;
+      }
+      // No local record yet — fall through to the regular add path.
+    }
+
     for (const [id, record] of Object.entries(records)) {
       if (!_db[entityName][id]) {
         _db[entityName][id] = record;
