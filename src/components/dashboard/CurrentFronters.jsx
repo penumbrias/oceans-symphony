@@ -403,6 +403,8 @@ export default function CurrentFronters({ alters }) {
   // Switch button below.
   const [showTriggerEdit, setShowTriggerEdit] = useState(false);
   const [showSwitchJournal, setShowSwitchJournal] = useState(false);
+  const [switchJournalSessionId, setSwitchJournalSessionId] = useState(null);
+  const [switchJournalAuthorAlterId, setSwitchJournalAuthorAlterId] = useState(null);
   const [holdMenuAlter, setHoldMenuAlter] = useState(null);
   const [expandedAlterId, setExpandedAlterId] = useState(null);
   const navigate = useNavigate();
@@ -512,6 +514,27 @@ export default function CurrentFronters({ alters }) {
     setHoldMenuAlter(null);
   };
 
+  // Refetch active sessions at click-time, then open the switch-journal
+  // modal pointing at the CURRENT primary's id. The render-time
+  // `activeSessions` snapshot can be stale if a switch happened between
+  // last render and click — using it could attach journal entries to an
+  // ended/deleted session.
+  const handleOpenSwitchJournal = async () => {
+    try {
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const target = fresh.find(s => s.is_primary) || fresh[0];
+      setSwitchJournalSessionId(target?.id || null);
+      setSwitchJournalAuthorAlterId(target?.alter_id || target?.primary_alter_id || null);
+      setShowSwitchJournal(true);
+    } catch {
+      // Fall back to closure snapshot if refetch fails — better than nothing.
+      const target = activeSessions.find(s => s.is_primary) || activeSessions[0];
+      setSwitchJournalSessionId(target?.id || null);
+      setSwitchJournalAuthorAlterId(primaryAlterId);
+      setShowSwitchJournal(true);
+    }
+  };
+
   const handleSaveStatus = async () => {
     const note = tempStatus.trim();
     if (!note) { setEditingStatus(false); return; }
@@ -596,7 +619,7 @@ export default function CurrentFronters({ alters }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowSwitchJournal(true)}
+                  onClick={handleOpenSwitchJournal}
                   aria-label={`Journal this ${terms.switch}`}
                   title={`Journal this ${terms.switch}`}
                   className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
@@ -699,8 +722,10 @@ export default function CurrentFronters({ alters }) {
         <SwitchJournalModal
           open={showSwitchJournal}
           onClose={() => setShowSwitchJournal(false)}
-          sessionId={(activeSessions.find(s => s.is_primary) || activeSessions[0])?.id}
-          authorAlterId={primaryAlterId}
+          // sessionId/authorAlterId captured by handleOpenSwitchJournal at
+          // click-time via a fresh DB read — never the stale render snapshot.
+          sessionId={switchJournalSessionId}
+          authorAlterId={switchJournalAuthorAlterId || primaryAlterId}
         />
       )}
 
