@@ -1151,11 +1151,13 @@ export default function InfiniteTimeline({
         } else if (action === "promote") {
           // End current session, create new with is_primary: true; demote any current primary
           await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-          // Find active sessions at split time to demote current primary
-          const allActive = sessions.filter(s => s.is_active && s.alter_id && s.id !== session.id);
-          const currentPrimary = allActive.find(s => s.is_primary);
-          if (currentPrimary) {
-            await base44.entities.FrontingSession.update(currentPrimary.id, { is_primary: false });
+          // Refetch — never trust the render-time `sessions` closure for a
+          // primary-demotion decision. Demote EVERY remaining active primary
+          // (not just the first match) so duplicate primaries that leaked in
+          // can't survive the split.
+          const freshActive = await base44.entities.FrontingSession.filter({ is_active: true });
+          for (const s of freshActive.filter(s => s.is_primary && s.alter_id && s.id !== session.id)) {
+            try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
           }
           await base44.entities.FrontingSession.create({
             alter_id: alter.id,
