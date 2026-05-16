@@ -147,7 +147,13 @@ Rules:
 
 ## Critical: Keep the Changelog and Version Up to Date
 
-**Whenever a feature, improvement, or notable fix ships, add an entry to `src/lib/changelog.js` AND bump `APP_VERSION` in `src/lib/appVersion.js`. Both are non-negotiable — do them in the same commit as the user-visible change, every time, no exceptions.**
+**Whenever a feature, improvement, or notable fix ships, three files move together in the SAME commit as the user-visible change — every time, no exceptions:**
+
+1. `src/lib/changelog.js` — add an entry under a new (or current) date block.
+2. `src/lib/appVersion.js` — bump `APP_VERSION`.
+3. `android/app/build.gradle` — bump `versionCode` (strictly greater than the last Play upload — Play rejects duplicates) AND set `versionName` to match the new `APP_VERSION` string.
+
+Skipping (3) means the next native build either gets rejected by Play (duplicate `versionCode`) or ships with a `versionName` that lies about which release it is — both happened during the early native rollout and cost real time. Treat the build.gradle bump as part of the release checklist, not a follow-up PR.
 
 Versioning rules:
 - Bump PATCH (`0.5.0 → 0.5.1`) for fixes, small improvements, and most changes — this is the default.
