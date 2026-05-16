@@ -6,7 +6,8 @@ import TopicView, { CURRICULUM } from "./TopicView";
 import MyReflections from "./MyReflections";
 import NeedsCheckIn from "./NeedsCheckIn";
 import ResourcesView from "./ResourcesView";
-import { FileText, Heart, BookOpen } from "lucide-react";
+import { FileText, Heart, BookOpen, AlertTriangle } from "lucide-react";
+import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 
 export default function LearnSection({ onTryTechnique }) {
   const [view, setView] = useState("overview"); // "overview" | "topic" | "reflections" | "needs" | "resources"
@@ -53,6 +54,16 @@ export default function LearnSection({ onTryTechnique }) {
 
   return (
     <div className="max-w-xl mx-auto p-4 space-y-6 pb-12">
+      <details className="rounded-xl border border-amber-500/30 bg-amber-500/5">
+        <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer text-sm font-medium text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="w-4 h-4" />
+          Disclaimer — Oceans Symphony is not a medical product
+        </summary>
+        <div className="px-3 pb-3 pt-1">
+          <MedicalDisclaimer compact />
+        </div>
+      </details>
+
       {/* Gentle intro */}
       <div className="space-y-2">
         <h2 className="text-lg font-semibold text-foreground">Learn at your own pace</h2>
