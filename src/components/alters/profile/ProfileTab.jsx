@@ -503,7 +503,7 @@ useEffect(() => {
                   style={{
                     backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
                     borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
-                    color: g.color || "hsl(var(--foreground))",
+                    color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
                     boxShadow: halo ? `0 0 0 1px ${haloColor(pageBg)}` : undefined,
                   }}>
                   {g.name}
@@ -828,7 +828,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 style={{
                   backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
                   borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
-                  color: g.color || "hsl(var(--foreground))",
+                  color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
                   boxShadow: halo ? `0 0 0 1px ${haloColor(pageBg)}` : undefined,
                 }}>
                 {g.name}

@@ -64,7 +64,7 @@ function MemberRow({ alter, onClick, activeSessions }) {
             <span className="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0"
             style={{
               backgroundColor: bgColor ? `${bgColor}20` : "hsl(var(--muted))",
-              color: bgColor || "hsl(var(--muted-foreground))",
+              color: halo ? "hsl(var(--foreground))" : (bgColor || "hsl(var(--muted-foreground))"),
               boxShadow: halo ? `0 0 0 1px ${haloColor(surfaceBg)}` : undefined,
             }}>
               {alter.role}

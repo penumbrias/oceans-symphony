@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Group and role chips now also swap their text colour to a readable foreground when the user-picked chip colour is too close to the page background — previously the contrast halo added an outline but the text inside the chip stayed in the original colour and could still be unreadable.",
+      },
+      {
+        type: "fix",
         text: "Fixed restored system name, bio, and avatar appearing blank after importing a backup in 'Add new' mode — the import was being shadowed by an empty default record created on first run. Existing users on restored data: re-open Settings → System and your imported values should now appear; if anything is still missing, re-import the backup in 'Add new' mode and it'll take this time.",
       },
       {
