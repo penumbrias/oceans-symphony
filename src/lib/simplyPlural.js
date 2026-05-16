@@ -284,7 +284,12 @@ export function mapFrontHistoryEntry(entry, alterIdBySpId) {
 
   return {
     alter_id: localAlterId,
-    is_primary: true, // SP has no primary concept; treat all imported sessions as primary
+    // SP has no primary concept — front entries are an unordered set, not a
+    // primary + co-fronters. Import everyone as a co-fronter so we don't
+    // fabricate a primary the source system never tracked. The defence-in-
+    // depth sweep that demoted duplicates still runs, but should now be
+    // dormant. The user can promote one alter to primary manually.
+    is_primary: false,
     start_time: startTime,
     end_time: endTime,
     is_active: !!c.live,
