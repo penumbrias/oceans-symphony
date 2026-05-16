@@ -282,7 +282,11 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
             start_time: start,
             end_time: end,
             is_active: end === null,
-            is_primary: j === 0,
+            // PluralKit has no documented "primary" concept — members in a
+            // switch are an unordered set, not a primary + co-fronters.
+            // Import everyone as a co-fronter; the user can promote one to
+            // primary manually if they want. Matches simplyPlural.js.
+            is_primary: false,
             source: "pluralkit",
           });
           existingKeys.add(key);
