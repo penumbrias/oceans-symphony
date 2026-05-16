@@ -16,6 +16,7 @@ import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
+import { needsHalo, haloColor, getPageBackground } from "@/lib/contrast";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -422,12 +423,21 @@ useEffect(() => {
                     pillColor &&
                     backdrop &&
                     contrastRatio(pillColor, backdrop) < 3;
+                  // When the header has a user-uploaded image behind it,
+                  // the role text sits directly on top of arbitrary pixels —
+                  // a dark-on-dark or light-on-light collision can hide it.
+                  // A soft outline is always worth it here regardless of
+                  // contrast maths, since we can't analyse the image.
+                  const textShadow = viewHeaderImage
+                    ? "0 0 4px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.85)"
+                    : undefined;
                   if (lowContrast) {
                     return (
                       <span className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-1"
                         style={{
                           backgroundColor: pillColor,
                           color: getContrastColor(pillColor),
+                          textShadow,
                         }}>
                         {alter.role}
                       </span>
@@ -438,6 +448,7 @@ useEffect(() => {
                       style={{
                         backgroundColor: viewHeaderText ? `${viewHeaderText}20` : (alter.color ? `${alter.color}20` : "hsl(var(--muted))"),
                         color: viewHeaderText || alter.color || "hsl(var(--muted-foreground))",
+                        textShadow,
                       }}>
                       {alter.role}
                     </span>
@@ -473,19 +484,36 @@ useEffect(() => {
           </div>
         )}
 
-        {alter.groups && alter.groups.length > 0 && (
+        {alter.groups && alter.groups.length > 0 && (() => {
+          // Group chips render against the page background here (bio area).
+          // When the group's user-picked colour is very close to the page
+          // bg (e.g. a dark group colour in dark mode), the tinted fill
+          // and border collapse into the surrounding wash and the chip
+          // becomes effectively invisible. Add a subtle contrast ring in
+          // that case — the colour itself is preserved untouched.
+          const pageBg = getPageBackground();
+          return (
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
             <div className="flex flex-wrap gap-1.5">
-              {alter.groups.map((g) => (
+              {alter.groups.map((g) => {
+                const halo = g.color && needsHalo(g.color, pageBg);
+                return (
                 <span key={g.id} className="px-2.5 py-1 rounded-full text-xs font-medium border"
-                  style={{ backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))", borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}>
+                  style={{
+                    backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
+                    borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
+                    color: g.color || "hsl(var(--foreground))",
+                    boxShadow: halo ? `0 0 0 1px ${haloColor(pageBg)}` : undefined,
+                  }}>
                   {g.name}
                 </span>
-              ))}
+                );
+              })}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {alter.tags && alter.tags.length > 0 && (
           <div>
@@ -789,16 +817,27 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <label className="text-xs font-medium text-primary flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups</label>
           <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit →</button>
         </div>
-        {alter.groups && alter.groups.length > 0 ? (
+        {alter.groups && alter.groups.length > 0 ? (() => {
+          const pageBg = getPageBackground();
+          return (
           <div className="flex flex-wrap gap-1.5">
-            {alter.groups.map((g) => (
+            {alter.groups.map((g) => {
+              const halo = g.color && needsHalo(g.color, pageBg);
+              return (
               <span key={g.id} className="px-2 py-0.5 rounded-full text-xs font-medium border"
-                style={{ backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))", borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}>
+                style={{
+                  backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))",
+                  borderColor: g.color ? `${g.color}40` : "hsl(var(--border))",
+                  color: g.color || "hsl(var(--foreground))",
+                  boxShadow: halo ? `0 0 0 1px ${haloColor(pageBg)}` : undefined,
+                }}>
                 {g.name}
               </span>
-            ))}
+              );
+            })}
           </div>
-        ) : <p className="text-xs text-muted-foreground">Not in any groups</p>}
+          );
+        })() : <p className="text-xs text-muted-foreground">Not in any groups</p>}
       </div>
 
       {alter.tags && alter.tags.length > 0 && (
