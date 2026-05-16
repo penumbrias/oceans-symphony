@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 16, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed the bottom navigation bar being partially hidden behind Android's gesture pill / 3-button system bar on phones with on-screen nav — the tab buttons are now properly inset above the system controls.",
+      },
+      {
         type: "feature",
         text: "Restored the **Copy/Paste Backup** workflow under Settings → Backup. Lets you export your data as text chunks (configurable number of parts) and re-import by pasting them back — useful when file downloads are blocked, e.g. when the app is opened from inside the Facebook or Instagram in-app browser.",
       },

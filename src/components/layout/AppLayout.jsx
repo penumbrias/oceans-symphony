@@ -556,7 +556,7 @@ const handleNotifClick = (mentionLog) => {
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
         style={{
-          height: "var(--bottom-nav-height, 56px)",
+          height: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
           paddingLeft: "env(safe-area-inset-left, 0px)",
           paddingRight: "env(safe-area-inset-right, 0px)",
