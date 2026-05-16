@@ -3,12 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  getChildren,
+  indexById,
+  MAX_RENDER_DEPTH,
+} from "@/lib/categoryTreeUtils";
 
-function ActivityPillNode({ category, allCategories, selectedActivities, onToggle, level = 0, expandedIds, onToggleExpanded }) {
-  const children = allCategories
-    .filter((c) => c.parent_category_id === category.id)
-    .sort((a, b) => (a.order || 0) - (b.order || 0));
+function ActivityPillNode({ category, allCategories, selectedActivities, onToggle, level = 0, expandedIds, onToggleExpanded, seen }) {
+  // Cycle guard — bail if this id already appears further up the
+  // render stack (a malformed parent_category_id chain).
+  if (seen && seen.has(category.id)) return null;
+  const children = getChildren(category.id, allCategories);
   const hasChildren = children.length > 0;
+  const atDepthLimit = level >= MAX_RENDER_DEPTH;
+  const nextSeen = seen ? new Set(seen) : new Set();
+  nextSeen.add(category.id);
   const isSelected = selectedActivities.includes(category.id);
   const isExpanded = expandedIds.has(category.id);
 
@@ -38,7 +47,7 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
           </span>
         </button>
       </div>
-      {hasChildren && isExpanded && (
+      {hasChildren && isExpanded && !atDepthLimit && (
         <div className="mt-1 space-y-1">
           {children.map((child) => (
             <ActivityPillNode
@@ -50,8 +59,14 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
               level={level + 1}
               expandedIds={expandedIds}
               onToggleExpanded={onToggleExpanded}
+              seen={nextSeen}
             />
           ))}
+        </div>
+      )}
+      {hasChildren && isExpanded && atDepthLimit && (
+        <div className="text-[11px] italic text-muted-foreground" style={{ paddingLeft: `${(level + 1) * 16}px` }}>
+          (deeper sub-activities hidden — flatten in Customize Activities)
         </div>
       )}
     </div>
@@ -60,13 +75,17 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
 
 // Build the path string for a nested category — e.g. "Self Care › Brushing
 // teeth". Used in search results so a leaf with the same name as a sibling
-// in another branch is still disambiguated.
+// in another branch is still disambiguated. Cycle-safe — a malformed
+// parent_category_id chain used to spin this in an infinite while loop.
 function buildCategoryPath(category, byId) {
   const parts = [category.name];
   let cur = category;
-  while (cur?.parent_category_id) {
+  const seen = new Set([category.id]);
+  while (cur?.parent_category_id && cur.parent_category_id !== cur.id) {
+    if (seen.has(cur.parent_category_id)) break;
     const parent = byId[cur.parent_category_id];
     if (!parent) break;
+    seen.add(parent.id);
     parts.unshift(parent.name);
     cur = parent;
   }
@@ -82,31 +101,44 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
+  const byIdAll = useMemo(() => indexById(categories), [categories]);
+
   const rootCategories = useMemo(
-    () => categories.filter((c) => !c.parent_category_id).sort((a, b) => (a.order || 0) - (b.order || 0)),
-    [categories]
+    () =>
+      categories
+        // Surface orphans (parent_category_id points at a deleted record)
+        // as roots so they remain pickable — otherwise they'd vanish from
+        // the UI when a parent was deleted.
+        .filter((c) => !c.parent_category_id || !byIdAll[c.parent_category_id])
+        .sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [categories, byIdAll],
   );
 
   // Flat search results across the entire tree. Matched by name OR by any
   // parent-category name (so searching "Self" finds the "Self Care" leaves
-  // even if the user wouldn't know the leaf's own name).
+  // even if the user wouldn't know the leaf's own name). Cycle-safe — we
+  // track visited ids while walking up the parent chain so a malformed
+  // edge can't lock the UI.
   const searchResults = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [];
-    const byId = Object.fromEntries(categories.map(c => [c.id, c]));
     const pathMatches = (cat) => {
       let cur = cat;
+      const seen = new Set();
       while (cur) {
+        if (seen.has(cur.id)) return false;
+        seen.add(cur.id);
         if ((cur.name || "").toLowerCase().includes(q)) return true;
-        cur = cur.parent_category_id ? byId[cur.parent_category_id] : null;
+        if (!cur.parent_category_id || cur.parent_category_id === cur.id) return false;
+        cur = byIdAll[cur.parent_category_id] || null;
       }
       return false;
     };
     return categories
       .filter(pathMatches)
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-      .map(c => ({ cat: c, path: buildCategoryPath(c, byId) }));
-  }, [categories, search]);
+      .map((c) => ({ cat: c, path: buildCategoryPath(c, byIdAll) }));
+  }, [categories, search, byIdAll]);
 
   const toggleActivity = (id) => {
     onActivityChange(

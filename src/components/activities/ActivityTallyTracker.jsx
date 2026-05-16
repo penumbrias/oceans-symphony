@@ -3,6 +3,12 @@ import { Card } from "@/components/ui/card";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import {
+  indexById,
+  getAncestorIds,
+  getChildren,
+  MAX_RENDER_DEPTH,
+} from "@/lib/categoryTreeUtils";
 
 function formatTime(minutes) {
   if (!minutes) return null;
@@ -12,13 +18,23 @@ function formatTime(minutes) {
   return `${Math.round((hours / 24) * 10) / 10}d`;
 }
 
-function TallyNode({ catId, catById, tally, level = 0, allCategories }) {
+function TallyNode({ catId, catById, tally, level = 0, allCategories, seen }) {
   const [expanded, setExpanded] = useState(level === 0);
   const cat = catById[catId];
   if (!cat) return null;
+  // Cycle guard: if this id already appears higher in the render stack
+  // we've hit a cycle in parent_category_id — refuse to recurse so we
+  // don't blow the render stack.
+  if (seen && seen.has(catId)) return null;
   const data = tally[catId] || { count: 0, totalMinutes: 0 };
-  const children = allCategories.filter(c => c.parent_category_id === catId).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const children = getChildren(catId, allCategories);
+  // Depth clamp — anything beyond MAX_RENDER_DEPTH gets rendered flat
+  // under the deepest allowed row so we never crash on accidental
+  // 30-level nesting, but no data is hidden from the user.
+  const atDepthLimit = level >= MAX_RENDER_DEPTH;
   const hasChildren = children.length > 0;
+  const nextSeen = seen ? new Set(seen) : new Set();
+  nextSeen.add(catId);
 
   return (
     <div>
@@ -49,7 +65,7 @@ function TallyNode({ catId, catById, tally, level = 0, allCategories }) {
           )}
         </div>
       </div>
-      {hasChildren && expanded && (
+      {hasChildren && expanded && !atDepthLimit && (
         <div>
           {children.map(child => (
             <TallyNode
@@ -59,8 +75,17 @@ function TallyNode({ catId, catById, tally, level = 0, allCategories }) {
               tally={tally}
               level={level + 1}
               allCategories={allCategories}
+              seen={nextSeen}
             />
           ))}
+        </div>
+      )}
+      {hasChildren && expanded && atDepthLimit && (
+        <div
+          className="text-[11px] italic text-muted-foreground"
+          style={{ paddingLeft: `${12 + (level + 1) * 20}px` }}
+        >
+          (deeper sub-activities hidden — open Customize Activities to flatten the nesting)
         </div>
       )}
     </div>
@@ -73,21 +98,7 @@ export default function ActivityTallyTracker({ activities = [] }) {
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
-  const catById = useMemo(() => {
-    const map = {};
-    categories.forEach((c) => { map[c.id] = c; });
-    return map;
-  }, [categories]);
-
-  const getAncestorIds = (catId) => {
-    const ancestors = [];
-    let current = catById[catId];
-    while (current?.parent_category_id) {
-      ancestors.push(current.parent_category_id);
-      current = catById[current.parent_category_id];
-    }
-    return ancestors;
-  };
+  const catById = useMemo(() => indexById(categories), [categories]);
 
   const tally = useMemo(() => {
     const t = {};
@@ -98,7 +109,10 @@ export default function ActivityTallyTracker({ activities = [] }) {
       if (catIds.length === 0) return;
 
       const allIds = new Set(catIds);
-      catIds.forEach((id) => getAncestorIds(id).forEach((aid) => allIds.add(aid)));
+      // Cycle-safe ancestor walk — bad parent_category_id data (cycle,
+      // self-parent, orphan) used to lock the tab in an infinite while
+      // loop here. getAncestorIds tracks visited ids and bails on revisit.
+      catIds.forEach((id) => getAncestorIds(id, catById).forEach((aid) => allIds.add(aid)));
 
       allIds.forEach((catId) => {
         if (!catById[catId]) return;
@@ -111,8 +125,13 @@ export default function ActivityTallyTracker({ activities = [] }) {
   }, [activities, catById]);
 
   const rootCategories = useMemo(
-    () => categories.filter(c => !c.parent_category_id && tally[c.id]?.count > 0).sort((a, b) => (b.count || 0) - (a.count || 0)),
-    [categories, tally]
+    () => categories
+      // Treat orphans (parent_category_id points at a deleted record) as
+      // roots so they still render — otherwise their counts would silently
+      // vanish from the tally if a parent was deleted.
+      .filter(c => (!c.parent_category_id || !catById[c.parent_category_id]) && tally[c.id]?.count > 0)
+      .sort((a, b) => (b.count || 0) - (a.count || 0)),
+    [categories, catById, tally]
   );
 
   if (rootCategories.length === 0) {

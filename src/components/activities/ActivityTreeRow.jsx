@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { getChildren, MAX_RENDER_DEPTH } from "@/lib/categoryTreeUtils";
 
 export default function ActivityTreeRow({
   category,
@@ -32,7 +33,15 @@ export default function ActivityTreeRow({
   onSubNameChange,
   onDelete,
   onUpdate,
+  seen,
 }) {
+  // Cycle guard — if a malformed parent_category_id chain made the same
+  // id appear higher in the render stack, refuse to recurse so we don't
+  // blow the JS stack.
+  if (seen && seen.has(category.id)) return null;
+  const atDepthLimit = level >= MAX_RENDER_DEPTH;
+  const nextSeen = seen ? new Set(seen) : new Set();
+  nextSeen.add(category.id);
   const [showEditColorPicker, setShowEditColorPicker] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -41,9 +50,9 @@ export default function ActivityTreeRow({
   const [editColor, setEditColor] = useState(category.color || "#8b5cf6");
   const autoExpandRef = useRef(null);
 
-  const children = allCategories
-    .filter((c) => c.parent_category_id === category.id)
-    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  // Cycle-safe child fetch — filters out self-parent rows so an A→A
+  // category can't appear as its own child and re-recurse.
+  const children = getChildren(category.id, allCategories);
 
   const hasChildren = children.length > 0;
   const isExpanded = expandedIds.has(category.id);
@@ -206,7 +215,7 @@ export default function ActivityTreeRow({
       )}
 
       {/* Children */}
-      {isExpanded && children.length > 0 && (
+      {isExpanded && children.length > 0 && !atDepthLimit && (
         <div>
           {children.map((child) => (
             <ActivityTreeRow
@@ -229,8 +238,17 @@ export default function ActivityTreeRow({
               onSubNameChange={onSubNameChange}
               onDelete={onDelete}
               onUpdate={onUpdate}
+              seen={nextSeen}
             />
           ))}
+        </div>
+      )}
+      {isExpanded && children.length > 0 && atDepthLimit && (
+        <div
+          className="text-[11px] italic text-muted-foreground py-1"
+          style={{ paddingLeft: `${(level + 1) * 20 + 8}px` }}
+        >
+          (deeper sub-activities hidden — drag a parent to the root level to access them)
         </div>
       )}
 
