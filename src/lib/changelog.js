@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed the Edit button in the journal entry viewer closing the modal without opening the editor — the close and re-open were racing on the same React tick and the editor's mount got swallowed by the closing modal's animation.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: expanded developer documentation in CLAUDE.md so future maintenance sessions can pick up the codebase without context loss.",
       },
