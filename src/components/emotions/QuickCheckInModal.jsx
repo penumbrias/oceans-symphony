@@ -41,7 +41,17 @@ const PILLS = [
 { id: "location", label: "Location", icon: MapPin }];
 
 
-export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null, retroTimestamp = null }) {
+export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null, retroTimestamp = null, editingEntry = null }) {
+  // Edit mode: when `editingEntry` is set we update that EmotionCheckIn
+  // record in place instead of creating a new one. Only fields on the
+  // EmotionCheckIn itself (emotions, fronting alters, note, timestamp)
+  // are editable — symptom check-ins, activities, locations, and diary
+  // cards saved alongside the original check-in are NOT mutated here,
+  // because they're separate records linked only by timestamp/check_in_id
+  // and silently rewriting them would risk data loss. The form sections
+  // for those still render so the user can ADD new related records, but
+  // existing ones aren't pre-populated or replaced.
+  const isEditing = !!editingEntry;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const terms = useTerms();
@@ -140,6 +150,28 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
   useEffect(() => {
     if (isOpen) {
+      // Edit mode: pre-fill from the EmotionCheckIn record and open the
+      // sections that actually have data so the user can see what
+      // they're editing without expanding anything.
+      if (editingEntry) {
+        setEntryTime(toDatetimeLocal(editingEntry.timestamp));
+        setSelectedEmotions(editingEntry.emotions || []);
+        setNote(editingEntry.note || "");
+        const fronterIds = editingEntry.fronting_alter_ids || [];
+        const pid = fronterIds[0] || "";
+        const co = fronterIds.slice(1);
+        setPrimaryId(pid);
+        setCoFronterIds(co);
+        initialFrontRef.current = { primaryId: pid, coFronterIds: co };
+        const initial = new Set();
+        if ((editingEntry.emotions || []).length > 0) initial.add("feeling");
+        if (fronterIds.length > 0) { initial.add("fronting"); setHadFrontingOpen(true); }
+        if ((editingEntry.note || "").trim()) initial.add("note");
+        if (initial.size === 0) initial.add("feeling");
+        setOpenSections(initial);
+        seedSymptomDefaults();
+        return;
+      }
       setEntryTime(toDatetimeLocal(retroTimestamp));
       const initial = new Set(["feeling"]);
       if (initialSection) initial.add(initialSection);
@@ -310,22 +342,46 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
 
   const handleSubmit = async () => {
     const symptomCheckIns = symptomGetterRef.current ? symptomGetterRef.current() : [];
-    const hasData =
-    selectedEmotions.length > 0 ||
-    selectedAlterIds.size > 0 ||
-    selectedActivityCategories.length > 0 ||
-    note.trim().length > 0 ||
-    symptomCheckIns.length > 0 ||
-    hasDiaryData(diaryData);
+    // In edit mode the only fields we persist are the EmotionCheckIn's
+    // own — so validate against those rather than the broader form.
+    const hasData = isEditing
+      ? (selectedEmotions.length > 0 || selectedAlterIds.size > 0 || note.trim().length > 0)
+      : (
+          selectedEmotions.length > 0 ||
+          selectedAlterIds.size > 0 ||
+          selectedActivityCategories.length > 0 ||
+          note.trim().length > 0 ||
+          symptomCheckIns.length > 0 ||
+          hasDiaryData(diaryData)
+        );
 
     if (!hasData) {
-      toast.error("Add at least one entry before saving");
+      toast.error(isEditing ? "Check-in can't be empty" : "Add at least one entry before saving");
       return;
     }
 
     setSaving(true);
     try {
       const now = entryTime ? new Date(entryTime).toISOString() : new Date().toISOString();
+
+      // Edit mode: update the existing EmotionCheckIn in place and exit
+      // early. We deliberately skip the activity/fronting-sync/diary/
+      // location create-paths because those would spawn fresh records
+      // each time the user opens an existing check-in to fix a typo,
+      // silently duplicating data. The original related records (e.g.
+      // the activity logged alongside the first save) stay untouched.
+      if (isEditing) {
+        await base44.entities.EmotionCheckIn.update(editingEntry.id, {
+          timestamp: now,
+          emotions: selectedEmotions,
+          fronting_alter_ids: selectedAlters,
+          note: note.trim() || null,
+        });
+        queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+        onClose();
+        return;
+      }
+
       // Pass `now` so retroactive check-ins stamp the activity at the
       // back-dated time, not the current wall clock.
       await handleSaveActivities(now);
@@ -545,15 +601,27 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       />
     )}
     <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
+      <DialogContent
+        className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0"
+        // Block accidental dismissal — testers were tapping off-canvas
+        // mid-entry and losing the whole check-in. The user has to use
+        // the X, Cancel, or Save button to close. Escape is blocked for
+        // the same reason (mobile virtual keyboards sometimes fire it).
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         {interactBlocked && <div aria-hidden className="absolute inset-0 z-50" />}
 
-        {/* Fixed header */}
-        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
+        {/* Fixed header — Save/Cancel live up here so they're reachable
+            without scrolling past the whole form (tap-fatigue from the
+            old bottom-footer placement was producing accidental early
+            saves). */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-border/50 space-y-3">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Heart className="w-5 h-5 text-destructive" />
-              Quick Check-In
+              {isEditing ? "Edit Check-In" : "Quick Check-In"}
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2 pt-1">
               <input
@@ -564,6 +632,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               />
             </DialogDescription>
           </DialogHeader>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button onClick={handleSubmit} disabled={saving} className="flex-1">
+              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {isEditing ? "Save Changes" : "Save Check-In"}
+            </Button>
+          </div>
         </div>
 
         {/* Scrollable body */}
@@ -817,16 +892,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           )}
         </div>
 
-        {/* Fixed footer */}
-        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={saving} className="flex-1">
-              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Save Check-In
-            </Button>
-          </div>
-        </div>
       </DialogContent>
     </Dialog>
     </>

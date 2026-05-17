@@ -8,9 +8,43 @@ import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import DiaryAnalyticsSummary from "@/components/diary/DiaryAnalyticsSummary";
+import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+
+// Long-press / double-click helper for re-opening a check-in in the
+// Quick Check-In modal so the user can fix mistakes after the fact.
+// Double-click is awkward on touch; touch users get a ~500ms hold
+// instead. Mouse users get the standard double-click. We move-cancel
+// to avoid hijacking scrolls.
+function useEditPress(onEdit) {
+  const timerRef = useRef(null);
+  const startRef = useRef({ x: 0, y: 0 });
+  const cancel = () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+  };
+  useEffect(() => cancel, []);
+  return {
+    onDoubleClick: (e) => { e.preventDefault(); onEdit(); },
+    onTouchStart: (e) => {
+      if (!e.touches || e.touches.length !== 1) return;
+      startRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        onEdit();
+      }, 500);
+    },
+    onTouchMove: (e) => {
+      if (!timerRef.current || !e.touches || e.touches.length === 0) return;
+      const dx = e.touches[0].clientX - startRef.current.x;
+      const dy = e.touches[0].clientY - startRef.current.y;
+      if (dx * dx + dy * dy > 100) cancel();
+    },
+    onTouchEnd: cancel,
+    onTouchCancel: cancel,
+  };
+}
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -166,7 +200,7 @@ function DiaryDataSection({ diaryCard }) {
   );
 }
 
-function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete, display = DEFAULT_DISPLAY }) {
+function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete, onEdit, display = DEFAULT_DISPLAY }) {
   const ts = parseISO(checkIn.timestamp);
   const timeStr = format(ts, "h:mm a");
   const emotions = checkIn.emotions || [];
@@ -213,22 +247,37 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
     }
   }, [highlighted]);
 
+  // Double-click (mouse) or long-press (touch) reopens this check-in in
+  // the Quick Check-In modal so the user can fix things post-hoc.
+  const editPress = useEditPress(() => onEdit?.(checkIn));
+
   return (
     <div
       ref={ref}
       id={`checkin-${checkIn.id}`}
-      className={`px-4 py-3 space-y-2.5 transition-all duration-500 ${highlighted ? "bg-primary/10 border-l-2 border-primary" : "hover:bg-muted/10"}`}
+      {...editPress}
+      title="Double-click or long-press to edit"
+      className={`px-4 py-3 space-y-2.5 transition-all duration-500 group/checkin ${highlighted ? "bg-primary/10 border-l-2 border-primary" : "hover:bg-muted/10"}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="w-3 h-3 flex-shrink-0" />
           <span>{timeStr}</span>
         </div>
-        <Button variant="ghost" size="icon"
-          className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          onClick={() => onDelete(checkIn.id)}>
-          <Trash2 className="w-3 h-3" />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover/checkin:opacity-100 transition-opacity"
+            onClick={(e) => { e.stopPropagation(); onEdit?.(checkIn); }}
+            aria-label="Edit check-in"
+            title="Edit check-in">
+            <Pencil className="w-3 h-3" />
+          </Button>
+          <Button variant="ghost" size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={(e) => { e.stopPropagation(); onDelete(checkIn.id); }}>
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
       </div>
 
       {emotions.length > 0 && (
@@ -793,7 +842,7 @@ function PerAlterEntry({ entry, altersById }) {
   );
 }
 
-function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, display = DEFAULT_DISPLAY }) {
+function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns, allActivities, allLocations, allStatusNotes, perAlterEntries, diaryCardsByDate, highlightId, defaultExpanded, onDelete, onEdit, display = DEFAULT_DISPLAY }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const dateObj = parseISO(date + "T12:00:00");
 
@@ -943,6 +992,7 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
                 diaryCard={matchedDiaryCard || null}
                 highlighted={ci.id === highlightId}
                 onDelete={onDelete}
+                onEdit={onEdit}
                 display={display}
               />
             );
@@ -971,6 +1021,7 @@ export default function CheckInLog() {
   const [searchParams] = useSearchParams();
   const [view, setView] = useState("list");
   const [display, setDisplay] = useDisplaySettings();
+  const [editingCheckIn, setEditingCheckIn] = useState(null);
   const highlightId = searchParams.get("id");
   const dateParam = searchParams.get("date");
 
@@ -1093,6 +1144,8 @@ export default function CheckInLog() {
     queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
   };
 
+  const handleEdit = (ci) => setEditingCheckIn(ci);
+
   if (view === "analytics") {
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
@@ -1199,11 +1252,21 @@ export default function CheckInLog() {
               highlightId={highlightId}
               defaultExpanded={date === highlightDate || (!highlightId && !dateParam && date === byDate[0]?.[0])}
               onDelete={handleDelete}
+              onEdit={handleEdit}
               display={display}
             />
           ))}
         </div>
       )}
+
+      {/* Reopen-for-edit modal: pre-fills the Quick Check-In form
+          with the selected entry. Saving calls UPDATE (no duplicate). */}
+      <QuickCheckInModal
+        isOpen={!!editingCheckIn}
+        onClose={() => setEditingCheckIn(null)}
+        alters={alters}
+        editingEntry={editingCheckIn}
+      />
     </motion.div>
   );
 }
