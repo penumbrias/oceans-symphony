@@ -89,12 +89,31 @@ export const DEFAULT_TASK_TEMPLATES = [
 
 /**
  * AUTO_TRIGGER_LABELS — human-readable labels for each auto trigger key.
- * Used in the task manager UI.
+ * Used in the task manager UI. The picker passes these through `applyTerms`
+ * so `{{System}}` / `{{Switch}}` / etc. resolve to user terminology.
+ *
+ * Legacy trigger ids (`check_in`, `journal_entry`, `parts_checkin`) are kept
+ * as-is so already-seeded templates and existing user data keep working.
+ * New trigger ids use kebab-case for clarity. The detection engine in
+ * `buildAutoCompletedTriggers` checks for both.
  */
 export const AUTO_TRIGGER_LABELS = {
   check_in: "App opened (daily check-in)",
   journal_entry: "Journal entry created",
   parts_checkin: "{{System}} meeting completed",
+  todo_completed: "Complete a to-do item",
+  activity_logged: "Activity logged (any)",
+  plan_completed: "A planned activity is completed",
+  emotion_checkin_saved: "Emotion check-in saved",
+  quick_checkin_saved: "Quick Check-In saved",
+  status_note_saved: "Status note saved",
+  location_logged: "Location logged",
+  sleep_logged: "Sleep logged",
+  switch_logged: "{{Switch}} logged",
+  symptom_checkin_saved: "Symptom check-in saved",
+  reminder_acknowledged: "Reminder acknowledged",
+  backup_exported: "Backup exported",
+  goal_met: "Weekly goal met",
 };
 
 export const AUTO_TRIGGER_OPTIONS = Object.entries(AUTO_TRIGGER_LABELS).map(([value, label]) => ({
@@ -104,12 +123,56 @@ export const AUTO_TRIGGER_OPTIONS = Object.entries(AUTO_TRIGGER_LABELS).map(([va
 
 /**
  * Build a set of completed AUTO trigger keys from today's app data.
+ *
+ * This is a pure derivation function — there's no separate "fire" pipeline.
+ * Pass in today's relevant entity collections and we return the set of
+ * trigger keys that have been satisfied. The DailyTasks page calls this on
+ * every render with fresh query data, so triggers naturally re-evaluate as
+ * the user does things during the day.
+ *
+ * Idempotency falls out for free: a trigger either matches today or it
+ * doesn't — re-firing the same event later in the day doesn't change the
+ * answer. The DailyProgress write path likewise merges, never overwrites,
+ * so a template that's already been marked done stays done.
  */
-export function buildAutoCompletedTriggers({ hasJournal, hasPartsCheckIn }) {
+export function buildAutoCompletedTriggers(input = {}) {
+  const {
+    // Legacy boolean flags (still supported for back-compat)
+    hasJournal,
+    hasPartsCheckIn,
+    // New flags — pass anything truthy to mark the trigger as fired today
+    hasTodoCompleted,
+    hasActivityLogged,
+    hasPlanCompleted,
+    hasEmotionCheckIn,
+    hasQuickCheckIn,
+    hasStatusNote,
+    hasLocation,
+    hasSleep,
+    hasSwitch,
+    hasSymptomCheckIn,
+    hasReminderAcknowledged,
+    hasBackupExported,
+    hasGoalMet,
+  } = input;
+
   const s = new Set();
   s.add("check_in"); // always true when viewing the app
   if (hasJournal) s.add("journal_entry");
   if (hasPartsCheckIn) s.add("parts_checkin");
+  if (hasTodoCompleted) s.add("todo_completed");
+  if (hasActivityLogged) s.add("activity_logged");
+  if (hasPlanCompleted) s.add("plan_completed");
+  if (hasEmotionCheckIn) s.add("emotion_checkin_saved");
+  if (hasQuickCheckIn) s.add("quick_checkin_saved");
+  if (hasStatusNote) s.add("status_note_saved");
+  if (hasLocation) s.add("location_logged");
+  if (hasSleep) s.add("sleep_logged");
+  if (hasSwitch) s.add("switch_logged");
+  if (hasSymptomCheckIn) s.add("symptom_checkin_saved");
+  if (hasReminderAcknowledged) s.add("reminder_acknowledged");
+  if (hasBackupExported) s.add("backup_exported");
+  if (hasGoalMet) s.add("goal_met");
   return s;
 }
 
@@ -249,5 +312,31 @@ export function applyTerms(text, terms) {
     .replace(/\{\{alter\}\}/g, terms.alter)
     .replace(/\{\{Alter\}\}/g, terms.Alter)
     .replace(/\{\{front\}\}/g, terms.front)
-    .replace(/\{\{Front\}\}/g, terms.Front);
+    .replace(/\{\{Front\}\}/g, terms.Front)
+    .replace(/\{\{switch\}\}/g, terms.switch)
+    .replace(/\{\{Switch\}\}/g, terms.Switch);
+}
+
+// localStorage marker keys for triggers that don't leave an entity behind.
+// Setting these is best-effort — failure to write a marker just means the
+// trigger won't auto-fire today, which is no worse than not having the
+// trigger at all.
+const BACKUP_EXPORTED_KEY = "symphony_dailytask_backup_exported_v1";
+
+export function markBackupExportedToday() {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(BACKUP_EXPORTED_KEY, getTodayString());
+  } catch {
+    // best-effort
+  }
+}
+
+export function hasBackupExportedToday() {
+  try {
+    if (typeof localStorage === "undefined") return false;
+    return localStorage.getItem(BACKUP_EXPORTED_KEY) === getTodayString();
+  } catch {
+    return false;
+  }
 }

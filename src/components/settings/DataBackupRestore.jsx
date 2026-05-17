@@ -13,6 +13,7 @@ import {
   FORMAT_RAW_ENCRYPTED,
 } from "@/lib/backupFormat";
 import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
+import { markBackupExportedToday } from "@/lib/dailyTaskSystem";
 import { shareFile } from "@/lib/shareFile";
 import pako from "pako";
 
@@ -285,6 +286,13 @@ export default function DataBackupRestore() {
         // User dismissed the share sheet — no toast, no surprise.
       } else {
         showStatus("success", res?.result === "shared" ? "Backup ready — pick a destination" : "Backup exported!");
+        // Mark today as "backup exported" so a daily task wired to the
+        // backup_exported auto-trigger can complete itself.
+        try {
+          markBackupExportedToday();
+        } catch {
+          // best-effort — daily task plumbing is non-critical
+        }
       }
     } catch (e) {
       showStatus("error", `Export failed: ${e.message}`);
@@ -452,6 +460,14 @@ export default function DataBackupRestore() {
         next.add(idx);
         return next;
       });
+      // For in-app browsers (FB/IG) the copy-paste workflow is the
+      // user's actual export path, so a successful copy counts as a
+      // backup export for daily-task purposes.
+      try {
+        markBackupExportedToday();
+      } catch {
+        // best-effort
+      }
     } catch (e) {
       showStatus("error", `Copy failed: ${e.message}. Long-press the text and copy manually.`);
     }
