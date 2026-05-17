@@ -18,6 +18,14 @@ const STEPS = (t) => [
     tip: null,
   },
   {
+    title: `This app is your home`,
+    subtitle: `There's no "right" way to use it`,
+    body: `This is your space — use it however feels right for your ${t.system}. There aren't any rules to follow and nothing is being submitted anywhere; everything you log stays on your device as your own private record.\n\nThat goes especially for ${t.fronting}. Set an ${t.alter} as ${t.fronting} whenever it feels true: if they come to mind, if they're influencing your thoughts or mood, if they're co-conscious alongside someone else, or if they've taken full executive control. All of those count. Whatever ${t.fronting} looks like for your ${t.system}, that's what ${t.fronting} means here.\n\nExperiment with what you track. Skip what doesn't help. Come back to features later if they don't click yet. The app is meant to fit around your ${t.system} — not the other way around.`,
+    icon: '🏡',
+    color: 'from-amber-500/20 to-rose-500/20',
+    tip: `Custom terminology lives in Settings → Profile → Terminology. Every word the app uses — "${t.system}", "${t.alter}", "${t.fronting}", "${t.switch}" — can be changed to match how your ${t.system} talks about itself.`,
+  },
+  {
     title: `Your ${t.Alters}`,
     subtitle: `Every part of the ${t.system}, all in one place`,
     body: `Create profiles for each ${t.alter} with their own name, pronouns, color, avatar, role, and bio. ${t.Alters} can have custom fields, notes from other ${t.alters}, and their own journal entries.`,
@@ -213,7 +221,7 @@ export default function TourModal({ open, onClose }) {
 
           {/* Content */}
           <div className='px-6 py-4 space-y-4'>
-            <p className='text-sm text-muted-foreground leading-relaxed'>{current.body}</p>
+            <p className='text-sm text-muted-foreground leading-relaxed whitespace-pre-line'>{current.body}</p>
 
             {/* Feature list */}
             {current.features && (
