@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: expanded developer documentation in CLAUDE.md so future maintenance sessions can pick up the codebase without context loss.",
+      },
+      {
         type: "improve",
         text: "Quick Check-In rework: Save and Cancel now sit at the top of the modal so they're reachable without scrolling. Tapping outside the modal no longer dismisses it (use X / Save / Cancel) — that should kill the 'I tapped off and lost everything' frustration. Check-In Log entries are now editable: long-press (touch) or double-click (mouse) on a row to reopen it in the Quick Check-In modal, adjust anything, and save to update — no more duplicate entries.",
       },
