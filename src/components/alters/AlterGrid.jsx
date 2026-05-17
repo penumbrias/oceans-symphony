@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp, FolderMinus, Camera } from "lucide-react";
@@ -20,7 +20,13 @@ export default function AlterGrid({ alters }) {
   const effectiveAlters = isDemo ? TOUR_DEMO_ALTERS : alters;
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
-  const [showFolders, setShowFolders] = useState(true);
+  const [showFolders, setShowFolders] = useState(() => {
+    const saved = localStorage.getItem("alter_show_folders");
+    return saved == null ? true : saved === "true";
+  });
+  useEffect(() => {
+    try { localStorage.setItem("alter_show_folders", String(showFolders)); } catch {}
+  }, [showFolders]);
   // displayMode cycles: "list" | "2" | "3" | "4" | "5"
   const [displayMode, setDisplayMode] = useState(() => {
     const saved = localStorage.getItem("alter_display_mode");
