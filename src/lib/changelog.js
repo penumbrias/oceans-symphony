@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Compacted the Activity Tracker header: the three primary buttons (New Plan, Log Activity, Manage Activities) now share a single row, and Week/Month/Year sits in the top-right. Also fixed Android edge-to-edge overlap on the top (header was sliding under the status bar) and on the Planned-tab list (last items were sliding under the bottom nav).",
+      },
+      {
         type: "feature",
         text: "Activity Planner Phase 3: a new Plan completion tracker surfaces how often plans get completed, cancelled, or skipped — broken down by category, time of day, and day of week, with plain-text insights underneath. Plan stats now appear in Therapy Reports automatically. Optional native reminders fire before upcoming plans (configurable 15 min / 30 min / 1 hour / 1 day, off by default). A few stragglers from Phase 1 — the Check-in Log and pinned critical plans — now respect the new lifecycle states properly.",
       },

@@ -5,7 +5,6 @@ import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 
 const LS_ROW_H      = "symphony_act_row_h";
 const LS_COL_W      = "symphony_act_col_w";
@@ -89,7 +88,6 @@ export default function ActivityWeeklyGrid({
 
   const [showAlters,     setShowAlters]     = useState(false);
   const [showEmotions,   setShowEmotions]   = useState(false);
-  const [showCustomMenu, setShowCustomMenu] = useState(false);
   const [showSettings,   setShowSettings]   = useState(false);
   const [pendingStart,   setPendingStart]   = useState(null);
   const [hoveredCell,    setHoveredCell]    = useState(null);
@@ -291,11 +289,21 @@ if (isSameCell) {
 
   return (
     <div className="space-y-2">
-      {/* Controls */}
+      {/* Display-filter controls — Emotions / Alters / Display only.
+          The "+ Add" range-select toggle and "Manage Activities" button
+          were promoted to the page header in 0.17.3 (primary actions live
+          one row up, with New Plan / Log Activity / Manage Activities).
+          Visual range-selection on the grid still works: double-tap an
+          empty cell to arm pendingStart, then tap another cell to
+          finish the range — see handleCellTap below. The trailing
+          "Cancel selection" pill renders when addMode is on, so users
+          can exit that flow without entering it from this row. */}
       <div className="flex flex-wrap gap-1.5 justify-end items-center">
-        <Button variant={addMode ? "default" : "outline"} size="sm" onClick={handleToggleAddMode} className="gap-1.5 h-7 px-2 text-xs">
-          {addMode ? <><X className="w-3 h-3" />Cancel</> : <><Plus className="w-3 h-3" />Add</>}
-        </Button>
+        {addMode && (
+          <Button variant="default" size="sm" onClick={handleToggleAddMode} className="gap-1.5 h-7 px-2 text-xs">
+            <X className="w-3 h-3" />Cancel selection
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={() => setShowEmotions(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
           {showEmotions ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />} Emotions
         </Button>
@@ -304,9 +312,6 @@ if (isSameCell) {
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowSettings(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
           <Settings className="w-3 h-3" /> Display
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setShowCustomMenu(true)} className="h-7 px-2 text-xs">
-          Manage Activities
         </Button>
       </div>
 
@@ -398,8 +403,6 @@ if (isSameCell) {
             : "Tap start cell, then end cell"}
         </div>
       )}
-
-      {showCustomMenu && <ActivityCustomizationMenu onClose={() => setShowCustomMenu(false)} />}
 
       {/* Floating tooltip */}
       {hoveredCell && (() => {

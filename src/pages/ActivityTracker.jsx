@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarPlus, Plus, Settings as SettingsIcon } from "lucide-react";
 import { format, startOfWeek, addDays, addMonths, addYears, startOfMonth, startOfYear } from "date-fns";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
@@ -18,6 +18,7 @@ import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 import ActivityDayView from "@/components/activities/ActivityDayView";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
 import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
+import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import ActivityNestingRecovery from "@/components/activities/ActivityNestingRecovery";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -63,6 +64,10 @@ export default function ActivityTracker() {
   // Pivot activity awaiting a recurrence-branch choice. While set, the
   // Recurrence chooser is open and the Plan modal stays closed.
   const [pendingEditPivot, setPendingEditPivot] = useState(null);
+  // Manage Activities modal — promoted to a primary header action in
+  // 0.17.3 so it's reachable from every tab (Logged / Planned / Plan
+  // tracker), not just from inside the week grid.
+  const [showCustomMenu, setShowCustomMenu] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem("symphony_act_view_mode", JSON.stringify(viewMode)); } catch {}
@@ -225,8 +230,43 @@ export default function ActivityTracker() {
     qc.invalidateQueries({ queryKey: ["activities"] });
   };
 
+  // Clear any leftover range from a previous grid selection. Used by the
+  // primary "Log Activity" and "New Plan" buttons so their modals open
+  // fresh (defaults to current time / tomorrow noon respectively) instead
+  // of inheriting a stale range from a prior grid drag.
+  const clearSelectedRange = () => {
+    setSelectedDate(null);
+    setSelectedEndDate(null);
+    setSelectedStartHour(undefined);
+    setSelectedEndHour(undefined);
+    setSelectedStartMinute(0);
+    setSelectedEndMinute(0);
+  };
+
   return (
-    <div className="min-h-screen bg-background p-4">
+    // Edge-to-edge safe-area top inset — AppLayout's sticky header
+    // already applies safe-area-inset-top for the chrome itself, but on
+    // Android with edge-to-edge (targetSdk 36) some WebView paint paths
+    // let the page content's first row visually crowd the status pills
+    // when the user has scrolled to the absolute top. Reserving the
+    // inset here keeps the page header below the status bar even in
+    // that corner case, and is a no-op on web/TWA where the env
+    // evaluates to 0.
+    <div
+      className="min-h-screen bg-background p-4"
+      style={{
+        paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))",
+        // Belt-and-braces bottom padding so the last item on any tab
+        // (especially the Planned list, which can grow long with
+        // recurring plans) clears the fixed bottom-nav and the Android
+        // gesture pill even when scrolled to the very end. AppLayout's
+        // <main> already reserves the same inset via .app-content-main,
+        // but a few testers reported the final row sliding under the
+        // nav on edge-to-edge Android — adding it at the page wrapper
+        // too is cheap and removes the edge case.
+        paddingBottom: "calc(1rem + var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
+      }}
+    >
       <ErrorBoundary
         fallback={(err, reset) => (
           <div className="max-w-2xl mx-auto">
@@ -236,51 +276,58 @@ export default function ActivityTracker() {
         resetKeys={[activities.length, tab, viewMode]}
       >
       <div data-tour="activities-log" className="max-w-full mx-auto">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        {/* Title row: page title on the left, Week/Month/Year view-mode
+            switcher tucked into the top-right (Logged tab only — Month
+            and Year don't apply to Planned or the Plan tracker). The
+            view-mode pills are intentionally small here; they're a
+            view chooser, not a primary action. */}
+        <div className="flex items-center justify-between mb-2 gap-2">
           <h1 className="text-2xl font-bold text-foreground">Activity Tracker</h1>
           {tab === "logged" && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => {
-                if (viewMode === "year") setCurrentDate(addYears(currentDate, -1));
-                else if (viewMode === "month") setCurrentDate(addMonths(currentDate, -1));
-                else setCurrentDate(addDays(currentDate, -7));
-              }}>
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="text-sm font-medium min-w-fit">
-                {viewMode === "year" && format(currentDate, "yyyy")}
-                {viewMode === "month" && format(currentDate, "MMMM yyyy")}
-                {viewMode === "week" && `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d, yyyy")}`}
-              </span>
-              <Button variant="outline" size="icon" onClick={() => {
-                if (viewMode === "year") setCurrentDate(addYears(currentDate, 1));
-                else if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
-                else setCurrentDate(addDays(currentDate, 7));
-              }}>
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+            <div className="flex gap-0.5 p-0.5 bg-muted/30 rounded-lg">
+              {[{ id: "week", label: "Week" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }].map(v => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setViewMode(v.id)}
+                  className={`px-2 py-0.5 rounded-md text-[0.6875rem] font-medium transition-colors ${
+                    viewMode === v.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >{v.label}</button>
+              ))}
             </div>
           )}
         </div>
 
-        {/* View mode toggle */}
+        {/* Date range nav — kept on its own row so the chevrons stay
+            big enough to tap comfortably on a phone. */}
         {tab === "logged" && (
-          <div className="flex gap-1 p-1 mb-3 bg-muted/30 rounded-xl w-fit">
-            {[{ id: "week", label: "Week" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }].map(v => (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => setViewMode(v.id)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  viewMode === v.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >{v.label}</button>
-            ))}
+          <div className="flex items-center gap-2 mb-3">
+            <Button variant="outline" size="icon" onClick={() => {
+              if (viewMode === "year") setCurrentDate(addYears(currentDate, -1));
+              else if (viewMode === "month") setCurrentDate(addMonths(currentDate, -1));
+              else setCurrentDate(addDays(currentDate, -7));
+            }}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-fit">
+              {viewMode === "year" && format(currentDate, "yyyy")}
+              {viewMode === "month" && format(currentDate, "MMMM yyyy")}
+              {viewMode === "week" && `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d, yyyy")}`}
+            </span>
+            <Button variant="outline" size="icon" onClick={() => {
+              if (viewMode === "year") setCurrentDate(addYears(currentDate, 1));
+              else if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
+              else setCurrentDate(addDays(currentDate, 7));
+            }}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         )}
 
-        {/* Tab switcher + Plan Activity button */}
-        <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+        {/* Logged / Planned / Plan tracker tabs — the page's primary
+            structure, kept right where users expect it. */}
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <div className="flex gap-1 p-1 bg-muted/30 rounded-xl w-fit" data-tour="activities-tabs">
             {[
               { id: "logged", label: "Logged" },
@@ -299,18 +346,29 @@ export default function ActivityTracker() {
               >{t.label}</button>
             ))}
           </div>
+        </div>
+
+        {/* Primary actions — New Plan / Log Activity / Manage Activities
+            collapsed onto a single row. Previously these were spread
+            across three separate rows (Plan Activity on its own row, the
+            grid's Add button two rows below, Manage Activities on yet
+            another row), which ate roughly half the screen before the
+            grid even rendered. */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
           <Button size="sm" variant="outline" onClick={() => {
-            // Clear any leftover range from a previous grid selection so the
-            // Plan modal opens fresh (defaults to tomorrow noon).
-            setSelectedDate(null);
-            setSelectedEndDate(null);
-            setSelectedStartHour(undefined);
-            setSelectedEndHour(undefined);
-            setSelectedStartMinute(0);
-            setSelectedEndMinute(0);
+            clearSelectedRange();
             setPlanModalOpen(true);
           }} className="gap-1.5 h-8">
-            <CalendarPlus className="w-3.5 h-3.5" /> Plan Activity
+            <CalendarPlus className="w-3.5 h-3.5" /> New Plan
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => {
+            clearSelectedRange();
+            setIsModalOpen(true);
+          }} className="gap-1.5 h-8">
+            <Plus className="w-3.5 h-3.5" /> Log Activity
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowCustomMenu(true)} className="gap-1.5 h-8">
+            <SettingsIcon className="w-3.5 h-3.5" /> Manage Activities
           </Button>
         </div>
 
@@ -402,6 +460,8 @@ export default function ActivityTracker() {
           />
         )}
       </div>
+
+      {showCustomMenu && <ActivityCustomizationMenu onClose={() => setShowCustomMenu(false)} />}
 
       <ActivityLogModal
         isOpen={isModalOpen}
