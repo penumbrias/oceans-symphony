@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Trimmed the bundled fonts to Latin + Latin Ext subsets only, cutting the app's download size by roughly 60%. Users typing in Cyrillic, Arabic, or other non-Latin scripts will see their chosen custom font fall back to the system default — full subset support will come back as an opt-in download in a future update.",
+      },
+      {
         type: "fix",
         text: "Fixed the Edit button in the journal entry viewer closing the modal without opening the editor — the close and re-open were racing on the same React tick and the editor's mount got swallowed by the closing modal's animation.",
       },
