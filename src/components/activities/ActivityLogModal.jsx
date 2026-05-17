@@ -50,10 +50,9 @@ export default function ActivityLogModal({
   onSave,
 }) {
   const terms = useTerms();
-  const startDate = startDateProp || null;
-  const endDate = endDateProp || startDateProp || null;
-  const isCrossDay = startDate && endDate && format(startDate, "yyyy-MM-dd") !== format(endDate, "yyyy-MM-dd");
 
+  const [selectedDateStr, setSelectedDateStr] = useState("");
+  const [endDateStr, setEndDateStr] = useState("");
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -61,20 +60,37 @@ export default function ActivityLogModal({
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const startDate = selectedDateStr ? new Date(`${selectedDateStr}T00:00:00`) : null;
+  const endDate = endDateStr ? new Date(`${endDateStr}T00:00:00`) : startDate;
+  const isCrossDay = selectedDateStr && endDateStr && selectedDateStr !== endDateStr;
+
   // Reset per open. Mirrors the mega-modal's useEffect approach — never
   // call setState during render, never key off Date objects directly.
   useEffect(() => {
     if (!isOpen) return;
-    if (startDate && startHour !== undefined) {
-      setStartTime(toTimeString(startDate, startHour, startMinute));
+    const seedDate = startDateProp || new Date();
+    setSelectedDateStr(format(seedDate, "yyyy-MM-dd"));
+    setEndDateStr(format(endDateProp || seedDate, "yyyy-MM-dd"));
+    if (startHour !== undefined) {
+      const s = toTimeString(seedDate, startHour, startMinute);
+      setStartTime(s);
       if (endHour != null) {
-        setEndTime(toTimeString(endDate || startDate, endHour, endMinute));
+        setEndTime(toTimeString(endDateProp || seedDate, endHour, endMinute));
       } else {
-        setEndTime("");
+        // Default to start + 30 min so the End-time field is always usable.
+        const endH = (startHour + Math.floor((startMinute + 30) / 60)) % 24;
+        const endM = (startMinute + 30) % 60;
+        setEndTime(toTimeString(seedDate, endH, endM));
       }
     } else {
-      setStartTime("");
-      setEndTime("");
+      // No seed hour — default to a 30-minute slot starting "now" rounded down.
+      const now = new Date();
+      const startH = now.getHours();
+      const startM = Math.floor(now.getMinutes() / 5) * 5;
+      setStartTime(toTimeString(now, startH, startM));
+      const endH = (startH + Math.floor((startM + 30) / 60)) % 24;
+      const endM = (startM + 30) % 60;
+      setEndTime(toTimeString(now, endH, endM));
     }
     setSelectedActivityCategories([]);
     setNotes("");
@@ -228,7 +244,22 @@ export default function ActivityLogModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Start / end time */}
+          {/* Date */}
+          <div>
+            <label className="text-sm font-medium block mb-1">Date</label>
+            <input
+              type="date"
+              value={selectedDateStr}
+              onChange={(e) => {
+                setSelectedDateStr(e.target.value);
+                // Keep end date in sync unless the user has already split it.
+                if (!isCrossDay) setEndDateStr(e.target.value);
+              }}
+              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+            />
+          </div>
+
+          {/* Start / end time + duration */}
           <div className="flex gap-3 items-end">
             <div className="flex-1">
               <label className="text-sm font-medium block mb-1">Time</label>
@@ -239,22 +270,20 @@ export default function ActivityLogModal({
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
               />
             </div>
-            {endHour != null && (
-              <div className="flex-1">
-                <label className="text-sm font-medium block mb-1">
-                  End time
-                  {isCrossDay && endDate && (
-                    <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
-                  )}
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-                />
-              </div>
-            )}
+            <div className="flex-1">
+              <label className="text-sm font-medium block mb-1">
+                End time
+                {isCrossDay && endDate && (
+                  <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
+                )}
+              </label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+              />
+            </div>
             {durationMinutes > 0 && (
               <div className="text-xs text-muted-foreground pb-2 whitespace-nowrap">
                 {durationMinutes >= 60
