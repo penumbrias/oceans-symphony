@@ -172,3 +172,35 @@ export function detectCorruption(categories) {
   }
   return { cycleCount, orphanCount, selfParentCount, total: (categories || []).length };
 }
+
+/**
+ * Return the categories that should render at the top level of the
+ * tree. A category is a "root" if any of:
+ *   - parent_category_id is null/empty (true root)
+ *   - parent_category_id points at a deleted record (orphan)
+ *   - parent_category_id points at itself (self-parent — a corruption
+ *     mode caused by botched drag-drop on older builds; surfaced here
+ *     so the category remains visible until recovery can clean it up)
+ * Without this, self-parented rows are invisible everywhere because
+ * the orphan check (`!byId[parent]`) succeeds for them but the parent
+ * IS in the index — so they're filtered out as "child of an existing
+ * parent" while `getChildren` simultaneously refuses to descend into
+ * them (self-recursion guard). Net: nowhere to render.
+ */
+export function getRootCategories(categories) {
+  if (!Array.isArray(categories)) return [];
+  const byId = indexById(categories);
+  return categories
+    .filter((c) => {
+      if (!c) return false;
+      if (!c.parent_category_id) return true;
+      if (c.parent_category_id === c.id) return true;
+      return !byId[c.parent_category_id];
+    })
+    .sort((a, b) => {
+      const ao = a.order ?? 0;
+      const bo = b.order ?? 0;
+      if (ao !== bo) return ao - bo;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+}

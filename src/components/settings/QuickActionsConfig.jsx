@@ -11,6 +11,7 @@ import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { DEFAULT_GROUPS } from "@/components/diary/DiarySection";
 import { applyTerms } from "@/lib/dailyTaskSystem";
+import { getRootCategories } from "@/lib/categoryTreeUtils";
 
 const CHECKIN_SECTIONS = [
   { id: "feeling", label: "Feeling / Emotions" },
@@ -42,10 +43,7 @@ function blankForm() {
 // ── Activity category picker ──────────────────────────────────────────────────
 function ActivityCategoryPicker({ categories, selectedId, onChange }) {
   const [expandedId, setExpandedId] = useState(null);
-  const roots = useMemo(
-    () => [...categories.filter(c => !c.parent_category_id)].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-    [categories]
-  );
+  const roots = useMemo(() => getRootCategories(categories), [categories]);
   const childrenOf = useMemo(() => {
     const map = {};
     categories.forEach(c => {

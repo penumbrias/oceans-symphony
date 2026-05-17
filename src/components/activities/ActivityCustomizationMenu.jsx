@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import ActivityTreeRow from "@/components/activities/ActivityTreeRow";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
-import { indexById, wouldCreateCycle } from "@/lib/categoryTreeUtils";
+import { indexById, wouldCreateCycle, getRootCategories } from "@/lib/categoryTreeUtils";
 
 export default function ActivityCustomizationMenu({ onClose }) {
   const [showRootColorPicker, setShowRootColorPicker] = useState(false);
@@ -35,12 +35,11 @@ export default function ActivityCustomizationMenu({ onClose }) {
   });
 
   // Show categories at the root level if their parent_category_id is
-  // missing (true root) OR points at a deleted record (orphan) — the
-  // latter would otherwise be invisible and unrecoverable through the UI.
+  // missing (true root), points at a deleted record (orphan), OR is
+  // self-parented (corruption from older drag-drop) — any of which would
+  // otherwise be invisible and unrecoverable through the UI.
   const _byId = indexById(categories);
-  const rootCategories = categories
-    .filter((c) => !c.parent_category_id || !_byId[c.parent_category_id])
-    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  const rootCategories = getRootCategories(categories);
 
   // Existing-category match — real-time, case-insensitive. Drives the
   // "this name already exists" warning that replaces the prior silent

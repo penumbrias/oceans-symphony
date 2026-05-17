@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Some activity categories were invisible after the recent nesting recovery — a category that ended up pointing at itself as its own parent (a corruption mode produced by older drag-drop) was excluded from both the customize view and the Quick Check-In picker. Activity-category root resolution now surfaces self-parented rows the same way it already handles orphans, so missing categories reappear without any data change.",
+      },
+      {
+        type: "fix",
         text: "Several Activity Tracker follow-ups: the Day view's header now respects Android edge-to-edge so the date/Add row no longer slides under the status bar; the SCHEDULED status chip on activity cards no longer overlaps the activity name (it sits inline above the title now); and the Log Activity dialog has a proper date picker plus an always-visible End time + duration field (the date used to be locked to whatever cell you tapped and the End time was hidden when there was no preselected range).",
       },
       {

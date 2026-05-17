@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { startOfDay, endOfDay, differenceInMinutes, getHours } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { getRootCategories } from "@/lib/categoryTreeUtils";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ function expandActivitiesPerCategory(activities, catMap) {
 }
 
 function buildCategoryTree(categories) {
-  const roots = categories.filter(c => !c.parent_category_id);
+  const roots = getRootCategories(categories);
   const children = {};
   categories.forEach(c => {
     if (c.parent_category_id) {

@@ -4,6 +4,7 @@ import { startOfDay, endOfDay } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { getRootCategories } from "@/lib/categoryTreeUtils";
 
 export default function AlterActivityMatrix({ activities = [], categories = [], alters = [], from, to }) {
   const terms = useTerms();
@@ -15,9 +16,10 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
     return m;
   }, [categories]);
 
-  // Build parent→children hierarchy
+  // Build parent→children hierarchy. Use the shared helper so orphans
+  // and self-parents surface at the root instead of vanishing.
   const rootCategories = useMemo(
-    () => categories.filter(c => !c.parent_category_id).sort((a, b) => (a.order || 0) - (b.order || 0)),
+    () => getRootCategories(categories),
     [categories]
   );
   const childrenOf = useMemo(() => {
