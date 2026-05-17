@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The 'Fronter view' button in Journals now actually filters entries to journals authored by currently-fronting alters. Tap the small chevron next to it to fine-tune the alter selection.",
+      },
+      {
         type: "feature",
         text: "Added permission-giving messaging across the app: there's no \"right\" way to use Oceans Symphony — it's your home. The Tour, Guide page, and a first-time hint near the Set Front button now explicitly invite you to use fronting however it shows up for your system, whether that's full executive control, co-consciousness, or just an alter coming to mind.",
       },
