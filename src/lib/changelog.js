@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Moved the 'Top of Dashboard' and 'Bottom of Dashboard' upcoming-plans surfaces to actually render on the Dashboard (they were still rendering on the Alters page despite their labels saying Dashboard). 'Top of Dashboard' now sits above Currently Fronting; 'Bottom of Dashboard' sits below the bulletin board. Your toggle states carry over unchanged.",
+      },
+      {
         type: "feature",
         text: "You can now control how many upcoming plans show on the Dashboard — either pick a count ('next 5 plans') or a time window ('next 2 weeks', 'this month', etc.). Setting lives under Settings → Upcoming Plans Visibility.",
       },

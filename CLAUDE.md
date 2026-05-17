@@ -52,12 +52,15 @@ to be worth the risk this late, so internalise the mapping:
 
 Implications:
 - `SURFACE_HOME_TOP` and `SURFACE_HOME_BOTTOM` in
-  `src/lib/upcomingPlansSurfaces.js` refer to the **Dashboard** in the
-  user's mental model, despite the `home_*` ids. Their Settings labels
-  should say "Dashboard", not "Home" — fix any hint text that still
-  says otherwise.
-- If you find Dashboard-style features being rendered on `Home.jsx`,
-  that's a regression worth fixing — move them to `Dashboard.jsx`.
+  `src/lib/upcomingPlansSurfaces.js` keep their `home_*` ids for
+  back-compat with user settings, but they actually render on the
+  **Dashboard** (`/`) — their Settings labels say "Top of Dashboard" /
+  "Bottom of Dashboard" and their mount sites are in `Dashboard.jsx`.
+  If you find any other "Dashboard-style" features being rendered on
+  `Home.jsx` (the alters directory), that's a regression worth fixing
+  — move them to `Dashboard.jsx`. `Home.jsx`'s own header comment
+  notes it is the alters directory and shouldn't double-surface
+  Dashboard items.
 - Don't propose renaming `/Home` → `/alters` to the user — they've
   considered it and explicitly rejected it as too disruptive given how
   many references point at the route id.
@@ -308,7 +311,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 
 **Gotchas.**
 - `/Home` is the alters directory, not the dashboard (see Routing Gotcha at top).
-- `SURFACE_HOME_TOP` / `SURFACE_HOME_BOTTOM` in `upcomingPlansSurfaces.js` actually refer to the Dashboard; hint copy should say "Dashboard".
+- `SURFACE_HOME_TOP` / `SURFACE_HOME_BOTTOM` in `upcomingPlansSurfaces.js` keep their `home_*` ids for back-compat but render on the Dashboard (mount sites are in `Dashboard.jsx`, labels say "Dashboard").
 - PRs #99 and #100 fixed Android edge-to-edge safe-area overlaps on the Activity Tracker header and day view — don't re-introduce `pt-[env(safe-area-inset-top)]` on pages where `AppLayout` already reserves it.
 - Bottom nav height is user-configurable (`AccessibilitySettings`) — every fixed-position bottom surface (FloatingGroundingButton, etc.) must read the CSS variable, not hardcode `64px`.
 
