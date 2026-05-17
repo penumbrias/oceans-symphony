@@ -9,7 +9,9 @@ import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
 import ActivityYearView from "@/components/activities/ActivityYearView";
-import ActivityTimeRangeModal from "@/components/activities/ActivityTimeRangeModal";
+import ActivityLogModal from "@/components/activities/ActivityLogModal";
+import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
+import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
@@ -51,6 +53,14 @@ export default function ActivityTracker() {
   // When set, the Plan Activity modal opens pre-filled to edit this
   // existing plan instead of creating a new one. Cleared on close.
   const [editingPlan, setEditingPlan] = useState(null);
+  // Branch resolution for editing a recurring plan. Set by the
+  // RecurrenceBranchDialog before the Plan modal opens. The Plan modal
+  // honours it on save (this-only splits the pivot off, the others
+  // sweep the relevant slice of the series).
+  const [editBranch, setEditBranch] = useState(null);
+  // Pivot activity awaiting a recurrence-branch choice. While set, the
+  // Recurrence chooser is open and the Plan modal stays closed.
+  const [pendingEditPivot, setPendingEditPivot] = useState(null);
 
   useEffect(() => {
     try { localStorage.setItem("symphony_act_view_mode", JSON.stringify(viewMode)); } catch {}
@@ -375,7 +385,7 @@ export default function ActivityTracker() {
         )}
       </div>
 
-      <ActivityTimeRangeModal
+      <ActivityLogModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         startDate={selectedDate}
@@ -384,16 +394,16 @@ export default function ActivityTracker() {
         endHour={selectedEndHour}
         startMinute={selectedStartMinute}
         endMinute={selectedEndMinute}
-        allActivities={activities}
         alters={alters}
         frontingHistory={frontingHistory}
         onSave={() => { handleCloseModal(); handleActivitySave(); }}
       />
-      <ActivityTimeRangeModal
+      <ActivityPlanModal
         isOpen={planModalOpen}
-        onClose={() => { setPlanModalOpen(false); setEditingPlan(null); handleCloseModal(); }}
-        planMode
+        onClose={() => { setPlanModalOpen(false); setEditingPlan(null); setEditBranch(null); handleCloseModal(); }}
         editingPlan={editingPlan}
+        editBranch={editBranch}
+        allActivities={activities}
         startDate={selectedDate}
         endDate={selectedEndDate}
         startHour={selectedStartHour}
@@ -402,7 +412,21 @@ export default function ActivityTracker() {
         endMinute={selectedEndMinute}
         alters={alters}
         frontingHistory={frontingHistory}
-        onSave={() => { setPlanModalOpen(false); setEditingPlan(null); handleCloseModal(); handleActivitySave(); setTab("planned"); }}
+        onSave={() => { setPlanModalOpen(false); setEditingPlan(null); setEditBranch(null); handleCloseModal(); handleActivitySave(); setTab("planned"); }}
+      />
+      <RecurrenceBranchDialog
+        isOpen={!!pendingEditPivot}
+        actionLabel="edit"
+        subject={pendingEditPivot?.activity_name || null}
+        onClose={() => setPendingEditPivot(null)}
+        onChoose={(branch) => {
+          // Resolve the pivot + chosen branch into the Plan modal opening.
+          const pivot = pendingEditPivot;
+          setPendingEditPivot(null);
+          setEditingPlan(pivot);
+          setEditBranch(branch);
+          setPlanModalOpen(true);
+        }}
       />
       {zoomedDate && (
         <ActivityDayView
@@ -425,12 +449,19 @@ export default function ActivityTracker() {
         alters={alters}
         onSave={handleActivitySave}
         onEditPlan={(act) => {
-          // Close Details, hand the plan off to the full Plan modal so
-          // location / critical lead-step / assigned alters etc. are all
-          // editable in one place.
+          // Close Details, hand the plan off to the Plan modal. For
+          // recurring plans, route through the recurrence-branch
+          // chooser first so the user picks which slice of the series
+          // their edit applies to. Non-recurring plans skip straight
+          // to the editor.
           setIsDetailsOpen(false);
           setSelectedActivity(null);
+          if (act?.recurrence_group_id) {
+            setPendingEditPivot(act);
+            return;
+          }
           setEditingPlan(act);
+          setEditBranch(null);
           setPlanModalOpen(true);
         }}
       />
