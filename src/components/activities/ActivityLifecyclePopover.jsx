@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,13 @@ import {
   statusFor,
   appendRescheduleEntry,
 } from "@/lib/activityStatus";
+import {
+  RECURRENCE_BRANCHES,
+  membersForBranch,
+  applyEditToSeries,
+  BRANCH_LABELS,
+} from "@/lib/recurrenceUtils";
+import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 
 // Lifecycle popover for a single Activity. Opens from:
 //   • Long-press on a scheduled chip in the week grid
@@ -36,6 +44,17 @@ export default function ActivityLifecyclePopover({
     catch { return ""; }
   });
   const [saving, setSaving] = useState(false);
+  // When set, the recurrence-branch chooser is open. Holds the patch
+  // (and success message) we'll apply once the user picks a branch.
+  // Shape: { patch, successMsg, actionLabel }
+  const [pendingBranchAction, setPendingBranchAction] = useState(null);
+
+  // Pull the full activity list so we can resolve series members when
+  // the user picks "this and future" / "all". Cheap — already cached.
+  const { data: allActivities = [] } = useQuery({
+    queryKey: ["activities"],
+    queryFn: () => base44.entities.Activity.list(),
+  });
 
   const status = useMemo(() => statusFor(activity), [activity]);
   const isResolvedState = useMemo(() => {
@@ -62,6 +81,9 @@ export default function ActivityLifecyclePopover({
     onClose?.();
   };
 
+  // Single-instance write. Used directly when the plan isn't part of a
+  // recurrence series, and indirectly by the branch chooser after the
+  // user picks "this only".
   const writeStatus = async (patch, successMsg) => {
     setSaving(true);
     try {
@@ -76,14 +98,51 @@ export default function ActivityLifecyclePopover({
     }
   };
 
-  const markDone = () => writeStatus(
+  // Series-aware lifecycle write. For recurring plans, opens the
+  // branch chooser. Non-recurring plans drop straight into writeStatus.
+  // The reschedule path bypasses this — rescheduling an entire series
+  // doesn't make sense (would corrupt the audit trail).
+  const writeStatusMaybeBranched = (patch, successMsg, actionLabel = "mark") => {
+    if (isRecurring) {
+      setPendingBranchAction({ patch, successMsg, actionLabel });
+      return;
+    }
+    return writeStatus(patch, successMsg);
+  };
+
+  const applyBranchChoice = async (branch) => {
+    if (!pendingBranchAction) return;
+    const { patch, successMsg } = pendingBranchAction;
+    setPendingBranchAction(null);
+    setSaving(true);
+    try {
+      if (branch === RECURRENCE_BRANCHES.THIS_ONLY) {
+        await base44.entities.Activity.update(activity.id, patch);
+        toast.success(successMsg);
+      } else {
+        const members = membersForBranch(allActivities, activity, branch);
+        const count = await applyEditToSeries(members, patch);
+        toast.success(`${successMsg} — ${count} ${count === 1 ? "instance" : "instances"} updated`);
+      }
+      onChanged?.();
+      closeAll();
+    } catch (err) {
+      toast.error(err?.message || "Couldn't update plan");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const markDone = () => writeStatusMaybeBranched(
     { status: ACTIVITY_STATUSES.DONE },
-    "Marked done"
+    "Marked done",
+    "mark done"
   );
 
-  const markPartialFlag = () => writeStatus(
+  const markPartialFlag = () => writeStatusMaybeBranched(
     { status: ACTIVITY_STATUSES.PARTIAL, actual_duration_minutes: null },
-    "Marked partial"
+    "Marked partial",
+    "mark partial"
   );
 
   const markPartialWithTime = () => {
@@ -92,9 +151,10 @@ export default function ActivityLifecyclePopover({
       toast.error("Enter a positive number of minutes");
       return;
     }
-    return writeStatus(
+    return writeStatusMaybeBranched(
       { status: ACTIVITY_STATUSES.PARTIAL, actual_duration_minutes: n },
-      `Marked partial (${n}m)`
+      `Marked partial (${n}m)`,
+      "mark partial"
     );
   };
 
@@ -104,9 +164,10 @@ export default function ActivityLifecyclePopover({
     const merged = trimmed
       ? (baseNote ? `${baseNote}\n\n[Skipped] ${trimmed}` : `[Skipped] ${trimmed}`)
       : baseNote;
-    return writeStatus(
+    return writeStatusMaybeBranched(
       { status: ACTIVITY_STATUSES.SKIPPED, notes: merged || null },
-      "Marked skipped"
+      "Marked skipped",
+      "mark skipped"
     );
   };
 
@@ -116,18 +177,20 @@ export default function ActivityLifecyclePopover({
     const merged = trimmed
       ? (baseNote ? `${baseNote}\n\n[Cancelled] ${trimmed}` : `[Cancelled] ${trimmed}`)
       : baseNote;
-    return writeStatus(
+    return writeStatusMaybeBranched(
       { status: ACTIVITY_STATUSES.CANCELLED, notes: merged || null },
-      "Cancelled"
+      "Cancelled",
+      "cancel"
     );
   };
 
-  const undo = () => writeStatus(
+  const undo = () => writeStatusMaybeBranched(
     {
       status: ACTIVITY_STATUSES.SCHEDULED,
       actual_duration_minutes: null,
     },
-    "Restored to scheduled"
+    "Restored to scheduled",
+    "restore"
   );
 
   const reschedule = async () => {
@@ -180,8 +243,8 @@ export default function ActivityLifecyclePopover({
         </DialogHeader>
 
         {isRecurring && (
-          <div className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md px-2 py-1.5">
-            Recurring plan — this action only affects this instance. (Editing all instances coming soon.)
+          <div className="text-[11px] text-primary bg-primary/10 border border-primary/30 rounded-md px-2 py-1.5">
+            Recurring plan — you'll choose whether to apply this to just this instance, this and future, or every occurrence. Rescheduling only ever applies to this instance.
           </div>
         )}
 
@@ -304,6 +367,13 @@ export default function ActivityLifecyclePopover({
           </div>
         )}
       </DialogContent>
+      <RecurrenceBranchDialog
+        isOpen={!!pendingBranchAction}
+        actionLabel={pendingBranchAction?.actionLabel || "mark"}
+        subject={activity?.activity_name || null}
+        onClose={() => setPendingBranchAction(null)}
+        onChoose={applyBranchChoice}
+      />
     </Dialog>
   );
 }
