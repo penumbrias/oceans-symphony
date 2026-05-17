@@ -601,7 +601,16 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       />
     )}
     <Dialog open={isOpen && !showJournalModal} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
+      <DialogContent
+        className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0"
+        // Block accidental dismissal — testers were tapping off-canvas
+        // mid-entry and losing the whole check-in. The user has to use
+        // the X, Cancel, or Save button to close. Escape is blocked for
+        // the same reason (mobile virtual keyboards sometimes fire it).
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         {interactBlocked && <div aria-hidden className="absolute inset-0 z-50" />}
 
         {/* Fixed header — Save/Cancel live up here so they're reachable
