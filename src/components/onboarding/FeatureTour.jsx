@@ -41,7 +41,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "🔄",
       title: `Set & Switch ${t.Front}`,
-      body: `The "Switch" button (or "Set ${t.Front}" when nobody is ${t.fronting}) is how you log a ${t.switch}. Tap it to open the ${t.Front} modal where you'll select ${t.alters}, designate a primary, and save. The previous session automatically ends when you save a new one.`,
+      body: `The "Switch" button (or "Set ${t.Front}" when nobody is ${t.fronting}) is how you log a ${t.switch}. Tap it to open the ${t.Front} modal where you'll select ${t.alters}, designate a primary, and save. The previous session automatically ends when you save a new one. And there's no "right" way to use this — it's your home. Set an ${t.alter} as ${t.fronting} whenever it feels right: if they come to mind, if they're influencing your thoughts, if they're co-conscious, or if they've taken full executive control. Whatever ${t.fronting} looks like for your ${t.system}, that's what ${t.fronting} means here.`,
       route: "/", target: "set-front",
       look: `the highlighted Switch / "Set ${t.Front}" button in the ${t.fronting} widget`, action: null,
     },

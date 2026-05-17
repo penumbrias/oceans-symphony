@@ -257,6 +257,18 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const [showJournalModal, setShowJournalModal] = useState(false);
   const [newSessionId, setNewSessionId] = useState(null);
   const [isUnsure, setIsUnsure] = useState(false);
+  // First-time flexibility hint — gently invites the user to use this
+  // modal however feels right for their system, not just for "took full
+  // executive control" switches. Dismissal flag follows the same `*_v1`
+  // convention as activity_unresolved_nag_v1.
+  const [showFlexibilityHint, setShowFlexibilityHint] = useState(() => {
+    try { return !localStorage.getItem("fronting_flexibility_hint_dismissed_v1"); }
+    catch { return false; }
+  });
+  const dismissFlexibilityHint = () => {
+    try { localStorage.setItem("fronting_flexibility_hint_dismissed_v1", "1"); } catch { /* non-fatal */ }
+    setShowFlexibilityHint(false);
+  };
   const [viewMode, setViewMode] = useState("list");
   const [sortBy, setSortBy] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [triggeredSwitch, setTriggeredSwitch] = useState(false);
@@ -593,6 +605,25 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           <DialogHeader>
             <DialogTitle>Set {terms.Front}ers</DialogTitle>
           </DialogHeader>
+
+          {/* First-time permission-giving hint. Dismissible, never shown
+              again once dismissed. Same amber tint as MedicalDisclaimer's
+              compact bar, but warmer copy — this isn't a clinical notice,
+              it's an invitation to use the modal however feels right. */}
+          {showFlexibilityHint && (
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 mb-2">
+              <p className="flex-1 text-xs text-foreground leading-relaxed">
+                There's no "right" way to set {terms.front} — if an {terms.alter} comes to mind, that counts. Your {terms.system} can use this however feels right.
+              </p>
+              <button
+                onClick={dismissFlexibilityHint}
+                aria-label="Dismiss"
+                className="text-muted-foreground hover:text-foreground p-0.5 flex-shrink-0 -mt-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Selected chips */}
           {(selectedIds.size > 0 || isUnsure) &&

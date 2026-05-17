@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Added permission-giving messaging across the app: there's no \"right\" way to use Oceans Symphony — it's your home. The Tour, Guide page, and a first-time hint near the Set Front button now explicitly invite you to use fronting however it shows up for your system, whether that's full executive control, co-consciousness, or just an alter coming to mind.",
+      },
+      {
         type: "improve",
         text: "Trimmed the bundled fonts to Latin + Latin Ext subsets only, cutting the app's download size by roughly 60%. Users typing in Cyrillic, Arabic, or other non-Latin scripts will see their chosen custom font fall back to the system default — full subset support will come back as an opt-in download in a future update.",
       },
