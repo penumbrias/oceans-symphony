@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: the show/hide groups toggle on the Alters page now remembers its state across reloads.",
+      },
+      {
         type: "fix",
         text: "The 'Fronter view' button in Journals now actually filters entries to journals authored by currently-fronting alters. Tap the small chevron next to it to fine-tune the alter selection.",
       },
