@@ -7,25 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign } from "lucide-react";
 import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
+import { parseAndStripSignposts } from "@/lib/signpostAuthors";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
 
 function parseSignposts(content, alters) {
-  const pattern = /-(\w+)/g;
-  const authorIds = [];
-  let cleanContent = content;
-  const matches = [...content.matchAll(pattern)];
-  for (const match of matches) {
-    const term = match[1].toLowerCase();
-    const alter = alters.find(a =>
-      a.name.toLowerCase() === term || (a.alias && a.alias.toLowerCase() === term)
-    );
-    if (alter && !authorIds.includes(alter.id)) {
-      authorIds.push(alter.id);
-      cleanContent = cleanContent.replace(match[0], "");
-    }
-  }
-  return { authorIds, cleanContent: cleanContent.trim() };
+  const { authors, cleanText } = parseAndStripSignposts(content, alters);
+  return { authorIds: authors.map((a) => a.id), cleanContent: cleanText };
 }
 
 export default function BulletinComposer({ alters, authorAlterId, frontingAlterIds = [], onClose, initialContent = "" }) {

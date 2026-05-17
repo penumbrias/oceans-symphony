@@ -7,25 +7,13 @@ import { Link } from "react-router-dom";
 import AuthorsRow from "./AuthorsRow";
 import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
 import { useTerms } from "@/lib/useTerms";
+import { parseAndStripSignposts } from "@/lib/signpostAuthors";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
 function parseSignposts(content, alters) {
-  const pattern = /-(\w+)/g;
-  const authorIds = [];
-  let cleanContent = content;
-  const matches = [...content.matchAll(pattern)];
-  for (const match of matches) {
-    const term = match[1].toLowerCase();
-    const alter = alters.find(a =>
-      a.name.toLowerCase() === term || (a.alias && a.alias.toLowerCase() === term)
-    );
-    if (alter && !authorIds.includes(alter.id)) {
-      authorIds.push(alter.id);
-      cleanContent = cleanContent.replace(match[0], "");
-    }
-  }
-  return { authorIds, cleanContent: cleanContent.trim() };
+  const { authors, cleanText } = parseAndStripSignposts(content, alters);
+  return { authorIds: authors.map((a) => a.id), cleanContent: cleanText };
 }
 
 function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, onRefresh }) {

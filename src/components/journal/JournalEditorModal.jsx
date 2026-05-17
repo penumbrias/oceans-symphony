@@ -20,19 +20,9 @@ const getSavedFolders = () => {
   catch { return []; }
 };
 
-// Parse -name / -alias patterns to identify signing alters (same as bulletin board)
-function parseSignpostAuthors(text, alters) {
-  const pattern = /-(\w+)/g;
-  const found = [];
-  for (const match of [...text.matchAll(pattern)]) {
-    const term = match[1].toLowerCase();
-    const alter = (alters || []).find(a =>
-      a.name.toLowerCase() === term || (a.alias && a.alias.toLowerCase() === term)
-    );
-    if (alter && !found.find(f => f.id === alter.id)) found.push(alter);
-  }
-  return found;
-}
+// Signpost parser lives in src/lib/signpostAuthors.js so it stays in
+// sync with the same logic used by BulletinComposer + BulletinCommentThread.
+import { parseSignpostAuthors } from "@/lib/signpostAuthors";
 
 
 export default function JournalEditorModal({
