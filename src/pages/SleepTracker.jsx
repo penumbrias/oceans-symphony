@@ -44,6 +44,10 @@ export default function SleepTracker() {
     try {
       // Cascade-delete the linked "Sleep" Activity so the tracker's week
       // grid doesn't keep an orphaned bar after the underlying record is gone.
+      // Per user-data-preservation rules, the linked dream JournalEntry is
+      // NOT auto-deleted — journal content is user-edited and outlives the
+      // originating sleep record. We surface a notice so the user knows
+      // where to find it.
       const sleep = sleepRecords.find(s => s.id === sleepId);
       await base44.entities.Sleep.delete(sleepId);
       if (sleep?.linked_activity_id) {
@@ -51,7 +55,11 @@ export default function SleepTracker() {
         queryClient.invalidateQueries({ queryKey: ["activities"] });
       }
       queryClient.invalidateQueries({ queryKey: ["sleep"] });
-      toast.success("🗑 Sleep record deleted");
+      if (sleep?.journal_entry_id) {
+        toast.success("🗑 Sleep record deleted. The linked dream journal entry remains in your Journals — delete it there if you also want to remove it.");
+      } else {
+        toast.success("🗑 Sleep record deleted");
+      }
     } catch (err) {
       toast.error(err.message || "Failed to delete sleep record");
     }

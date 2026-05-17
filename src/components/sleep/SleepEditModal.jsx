@@ -111,6 +111,11 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
     setHadNightmare(!!sleep.had_nightmare);
     setInterruptionCount(sleep.interruption_count || 0);
     setInterruptionTimes(sleep.interruption_times || []);
+    // Reflect the existing dream-journal linkage in the toggle so the user
+    // sees "Saving to Dream Journal" lit up when this sleep is already tied
+    // to a JournalEntry. Editing the toggle off here doesn't unlink — it
+    // just prevents legacy-path journal creation below.
+    setSaveAsDream(!!sleep.journal_entry_id);
   }, [sleep]);
 
   const handleNightmareToggle = (val) => {
@@ -173,20 +178,58 @@ export default function SleepEditModal({ sleep, onClose, onSave }) {
         } catch {}
       }
 
-      if (saveAsDream && notes.trim()) {
-        const DREAM_FOLDER = "Dreams";
+      // Two-way sync to the linked dream JournalEntry. Three paths:
+      //   1. Sleep already has journal_entry_id → update that entry's content.
+      //   2. Sleep has no link but user is adding/editing dream content for
+      //      the first time during this edit → create a fresh JournalEntry
+      //      and link it (mirrors the create-modal path).
+      //   3. No link, no dream content → nothing to do. Legacy sleep records
+      //      from before this fix stay unlinked unless the user explicitly
+      //      opts in here.
+      const DREAM_FOLDER = "Dreams";
+      const ensureDreamFolder = () => {
         const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
         if (!saved.includes(DREAM_FOLDER)) {
           localStorage.setItem("os_journal_folders", JSON.stringify([...saved, DREAM_FOLDER]));
         }
-        const title = `Dream — ${format(new Date(sleepDate), "MMMM d, yyyy")}`;
-        await base44.entities.JournalEntry.create({
-          title,
-          content: notes.trim(),
-          folder: DREAM_FOLDER,
-          tags: [hadNightmare ? "nightmare" : "dream"],
-          entry_type: "dream",
-        });
+      };
+      const dreamTitle = `Dream — ${format(new Date(sleepDate), "MMMM d, yyyy")}`;
+      const dreamTags = [hadNightmare ? "nightmare" : "dream"];
+
+      if (sleep.journal_entry_id) {
+        // Path 1: propagate edits to the existing journal entry. Never
+        // delete the entry from this side — journal content is user-edited
+        // and outlives the sleep record (user-data-preservation rule).
+        try {
+          await base44.entities.JournalEntry.update(sleep.journal_entry_id, {
+            title: dreamTitle,
+            content: (notes || "").trim(),
+            folder: DREAM_FOLDER,
+            tags: dreamTags,
+          });
+        } catch (err) {
+          console.warn("Failed to sync linked dream journal entry", err);
+          toast.error("Sleep saved, but the linked dream journal couldn't be updated");
+        }
+      } else if (saveAsDream && notes.trim()) {
+        // Path 2: legacy unlinked sleep where the user is now adding dream
+        // content. Create + link.
+        ensureDreamFolder();
+        try {
+          const journal = await base44.entities.JournalEntry.create({
+            title: dreamTitle,
+            content: notes.trim(),
+            folder: DREAM_FOLDER,
+            tags: dreamTags,
+            entry_type: "dream",
+          });
+          if (journal?.id) {
+            await base44.entities.Sleep.update(sleep.id, { journal_entry_id: journal.id });
+          }
+        } catch (err) {
+          console.warn("Failed to create linked dream journal entry", err);
+          toast.error("Sleep saved, but the dream journal entry couldn't be created");
+        }
       }
 
       toast.success("Sleep record updated!");

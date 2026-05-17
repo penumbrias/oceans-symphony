@@ -164,6 +164,36 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         sleepCat = await base44.entities.ActivityCategory.create({ name: "sleep", color: "#6366f1" });
       }
 
+      // Create the dream JournalEntry FIRST (if applicable) so we can capture
+      // its id and store it on the Sleep record. Two-way linkage means later
+      // edits to the sleep notes can propagate to the journal entry.
+      // If the journal create fails for any reason, we still create the Sleep
+      // record — the journal is a side-effect, not a precondition.
+      let journalEntryId = null;
+      if (saveAsDream && notes.trim()) {
+        const DREAM_FOLDER = "Dreams";
+        const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
+        if (!saved.includes(DREAM_FOLDER)) {
+          localStorage.setItem("os_journal_folders", JSON.stringify([...saved, DREAM_FOLDER]));
+        }
+        const title = `Dream — ${format(new Date(dateStr), "MMMM d, yyyy")}`;
+        try {
+          const journal = await base44.entities.JournalEntry.create({
+            title,
+            content: notes.trim(),
+            folder: DREAM_FOLDER,
+            tags: [hadNightmare ? "nightmare" : "dream"],
+            entry_type: "dream",
+          });
+          journalEntryId = journal?.id || null;
+        } catch (journalErr) {
+          // Don't block the sleep record on a journal-create failure —
+          // surface a non-fatal warning and continue.
+          console.warn("Failed to create linked dream journal entry", journalErr);
+          toast.error("Sleep saved, but the dream journal entry couldn't be created");
+        }
+      }
+
       const newSleep = await base44.entities.Sleep.create({
         date: dateStr,
         bedtime: bedtimeISO,
@@ -175,23 +205,8 @@ export default function SleepLogModal({ isOpen, onClose, onSave, selectedDate })
         interruption_times: isInterrupted && interruptionTimes.length > 0 ? interruptionTimes : null,
         dreamed,
         had_nightmare: hadNightmare,
+        journal_entry_id: journalEntryId,
       });
-
-      if (saveAsDream && notes.trim()) {
-        const DREAM_FOLDER = "Dreams";
-        const saved = JSON.parse(localStorage.getItem("os_journal_folders") || "[]");
-        if (!saved.includes(DREAM_FOLDER)) {
-          localStorage.setItem("os_journal_folders", JSON.stringify([...saved, DREAM_FOLDER]));
-        }
-        const title = `Dream — ${format(new Date(dateStr), "MMMM d, yyyy")}`;
-        await base44.entities.JournalEntry.create({
-          title,
-          content: notes.trim(),
-          folder: DREAM_FOLDER,
-          tags: [hadNightmare ? "nightmare" : "dream"],
-          entry_type: "dream",
-        });
-      }
 
       const newAct = await base44.entities.Activity.create({
         timestamp: bedtimeISO,
