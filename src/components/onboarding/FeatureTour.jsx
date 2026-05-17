@@ -457,9 +457,17 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "activities", sectionLabel: "Activities",
       emoji: "⏱️",
       title: "Logging vs Planning",
-      body: `Past-time slots open the lean Log form: just category, time/duration, who was ${t.fronting}, and notes. Future-time slots open the richer Plan form: title, location, critical flag with lead-step reminders, optional to-do link, and recurrence settings. Use the "Plan Activity" button to schedule from anywhere — it always opens the planning form.`,
+      body: `Past-time slots open the lean Log form: just category, time/duration, who was ${t.fronting}, and notes. Future-time slots open the richer Plan form: title, location, critical flag with lead-step reminders, optional to-do link, recurrence settings, and an optional reminder lead-time (15 min / 30 min / 1 hour / 1 day before — set the default in Settings → Reminders). Use the "Plan Activity" button to schedule from anywhere — it always opens the planning form.`,
       route: "/activities", target: "activities-log",
       look: `tap a past-time slot for the log form, or a future-time slot (or the Plan Activity button) for the planning form`, action: null,
+    },
+    {
+      section: "activities", sectionLabel: "Activities",
+      emoji: "📈",
+      title: "Plan Completion Tracker",
+      body: `The "Plan tracker" tab on the Activities page shows how often your scheduled plans actually happen — broken down by category, time of day, and day of week. Pick a window (this week / month / last 3 months / all time) and you'll get a top-line completion percentage, an "avg reschedules" tile, a per-category list sorted by completion rate ascending so pain points come first, and a plain-text insight whenever there's a notable contrast (e.g. "you complete 92% of morning plans but only 41% of evening plans"). The same numbers appear in Therapy Reports under the Plan Completion section.`,
+      route: "/activities", target: "activities-tabs",
+      look: `the highlighted tab row — tap "Plan tracker" to see the analytics surface`, action: null,
     },
 
     // ─── POLLS ──────────────────────────────────────────────────────────────
