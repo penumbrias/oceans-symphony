@@ -489,7 +489,7 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 
 **Cross-feature interactions.** `Task → Activity` synthetic linking; `QuickAction` items can be tasks; tasks appear in `buildTasksSummarySection` of reports.
 
-**Auto-trigger events.** `DailyTaskTemplate.auto_trigger` can be set to one of the keys in `AUTO_TRIGGER_LABELS` (`src/lib/dailyTaskSystem.js`). The system is **derivation-based**, not firing-based — `buildAutoCompletedTriggers` queries today's data and returns the set of triggers currently satisfied, so re-evaluation is automatic and idempotent. To add a new trigger, expand the catalogue in `dailyTaskSystem.js`, query the relevant entity in `DailyTasks.jsx`, derive today's boolean flag, and pass it into `buildAutoCompletedTriggers`. Full catalogue (v0.17.17):
+**Auto-trigger events.** `DailyTaskTemplate.auto_trigger` can be set to one of the keys in `AUTO_TRIGGER_LABELS` (`src/lib/dailyTaskSystem.js`). The system is **derivation-based**, not firing-based — `buildAutoCompletedTriggers` queries today's data and returns the set of triggers currently satisfied, so re-evaluation is automatic and idempotent. To add a new trigger, expand the catalogue in `dailyTaskSystem.js`, query the relevant entity in `DailyTasks.jsx`, derive today's boolean flag, and pass it into `buildAutoCompletedTriggers`. Full catalogue (v0.17.18):
 
 - `check_in` — App opened (daily check-in), always true
 - `journal_entry` — JournalEntry created today
@@ -507,8 +507,27 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 - `reminder_acknowledged` — any `ReminderInstance.status === "acted"` with `scheduled_for` today
 - `backup_exported` — derived from a localStorage marker (`symphony_dailytask_backup_exported_v1`) set by `markBackupExportedToday` from `DataBackupRestore.jsx` on successful file export / clipboard copy
 - `goal_met` — any `ActivityGoal` for the current ISO week whose total `actual_duration_minutes` (or `duration_minutes`) across logged/done/partial activities meets `weekly_minutes`
+- `alter_added` — any `Alter` with `created_date` today
+- `note_added_to_alter` — any `AlterNote` with `created_date` today
+- `bulletin_posted` — any `Bulletin` with `created_date` today
+- `bulletin_comment_made` — any `BulletinComment` with `created_date` today
+- `poll_voted` — localStorage marker `symphony_dailytask_poll_voted_v1` set by `markPollVotedToday` from the Polls.jsx vote handler, BulletinCard.jsx (inline + linked poll vote), PinnedPollCard.jsx
+- `task_created` — any `Task` with `created_date` today
+- `goal_created` — any `ActivityGoal` with `created_date` today
+- `group_created` — any `Group` with `created_date` today
+- `system_change_event_logged` — any `SystemChangeEvent` with `created_date` today
+- `mention_acknowledged` — localStorage marker `symphony_dailytask_mention_acknowledged_v1` set from `NotificationPopups.jsx` (dismiss) and `NotificationHistoryModal.jsx` (handleDismiss)
+- `friend_added` — localStorage marker `symphony_dailytask_friend_added_v1` set from `friendsApi.js`'s `sendFriendRequest` (outgoing) and `respondToRequest` when `action === 'accept'` (incoming)
+- `quick_action_used` — localStorage marker `symphony_dailytask_quick_action_used_v1` set at the top of Dashboard.jsx's `executeQuickAction`
+- `theme_changed` — localStorage marker `symphony_dailytask_theme_changed_v1` set on save in `ThemeColorSettings.jsx`
+- `terms_customized` — localStorage marker `symphony_dailytask_terms_customized_v1` set on save in `TermsSettings.jsx`
+- `tour_completed` — localStorage marker `symphony_dailytask_tour_completed_v1` set when the user clicks "Done 💜" on the final tour step in `FeatureTour.jsx` (not on X / skip — only on completion)
+- `reflection_saved` — any `SupportJournalEntry` with `created_date` today (saved from the Learn module's reflection prompts)
+- `grounding_technique_used` — localStorage marker `symphony_dailytask_grounding_used_v1` set when `GuidedTechniqueView.jsx` flips its internal `done` state (timer ends, "I'm done" tap, last step advance)
+- `daily_task_completed` — meta trigger: localStorage marker `symphony_dailytask_daily_task_completed_v1` set from `toggleManual` in `DailyTasks.jsx` when any daily-tab MANUAL task is checked off (guarded with `if (task.auto_trigger === "daily_task_completed") skip` to prevent self-firing)
+- `streak_milestone_hit` — localStorage marker `symphony_dailytask_streak_milestone_v1` (stores `{date, milestone}` JSON so a streak that stays at 7 across days doesn't double-credit) set from a `useEffect` watching the streak value; fires when `streak > 0 && streak % 7 === 0`
 
-Labels in `AUTO_TRIGGER_LABELS` use `{{System}}` / `{{Switch}}` placeholders — the picker UI in `TaskTemplateManager.jsx` resolves these via `applyTerms`, so any new trigger involving system/alter/fronting/switch words should use the same placeholder pattern.
+Labels in `AUTO_TRIGGER_LABELS` use `{{System}}` / `{{Switch}}` / `{{Alter}}` placeholders — the picker UI in `TaskTemplateManager.jsx` resolves these via `applyTerms`, so any new trigger involving system/alter/fronting/switch words should use the same placeholder pattern.
 
 **Gotchas.** Daily tasks materialise per day on first view — don't pre-create rows for years out. Completing a synthetic-Activity-linked task creates a new `Activity` record (don't update an existing one — user-data invariant).
 

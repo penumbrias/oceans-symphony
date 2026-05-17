@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Even more Daily Task auto-triggers (now ~35 events) — alter added, bulletin posted, poll voted, theme changed, grounding technique used, streak milestone hit, and more. The pts label on the leveling bar also now scales with the selected period: 'today / this week / this month / this year'.",
+      },
+      {
+        type: "feature",
         text: "Daily Tasks now supports a much wider catalogue of auto-trigger events — set a task to auto-complete when you log an activity, complete a to-do, check in emotionally, record a switch, log a location, finish a planned activity, hit a weekly goal, and more. The full list is in the trigger dropdown when you edit a daily task template.",
       },
       {
