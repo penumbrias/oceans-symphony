@@ -812,7 +812,7 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 | ReminderInstance | base44 | Materialised reminder firings | `reminder_id`, `fire_time`, `is_acknowledged` | RemindersInbox |
 | ReportExport | base44 / local | Append-only audit log of generated therapy reports | `date_from`, `date_to`, `mode`, `sections_included` | TherapyReport (write-only on generate) |
 | ReportTemplate | base44 / local | Saved therapy-report builder presets | `name`, `period_type`, `mode`, `sections_config`, `noteworthy_thresholds`, `include_alter_info`, `show_cover_page`, `cover_note`, `system_name`, `therapist_name`, `confidentiality_notice`, `journal_detail`, `section_options` | ReportBuilder Templates panel |
-| Sleep | base44 | Sleep records | `start_time`, `end_time`, `quality`, `notes` | SleepTracker |
+| Sleep | base44 | Sleep records | `start_time`, `end_time`, `quality`, `notes`, `linked_activity_id` (FK to mirror Sleep Activity), `journal_entry_id` (FK to dream JournalEntry when "Save to Dream Journal" was used) | SleepTracker, SleepLogModal, SleepEditModal |
 | StatusNote | local | System-wide custom status notes (immutable log) | `timestamp`, `note` | Dashboard, Timeline, DailyTallyPanel |
 | SupportJournalEntry | base44 | Reflections from Learn prompts | `topic_id`, `responses`, `timestamp` | MyReflections, LearnSection |
 | Symptom | base44 | Symptom record (legacy) | `name`, `intensity`, `timestamp`, `alter_id` | SystemCheckIn |
