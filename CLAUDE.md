@@ -578,7 +578,7 @@ See "Critical: Data Backup / Restore Coverage" at top for the ENTITY_NAMES + EXP
 
 **Purpose.** Generate a date-bounded summary report for a therapist, with per-section opt-in/out.
 
-**Key entities.** `ReportTemplate`, `ReportExport` (registered in backup categories but the active reports flow currently rebuilds from raw entities each time).
+**Key entities.** `ReportTemplate` (saved builder presets — name, mode, sections_config, thresholds, cover-page/system/therapist fields, section_options; created/listed/deleted from the Templates panel in `ReportBuilder`) and `ReportExport` (append-only audit log — `date_from`, `date_to`, `mode`, `sections_included`, written on every successful generate in `TherapyReport.jsx`). The report body itself is still rebuilt from raw entities each generate — these two entities only persist the builder config and the export log, not the rendered output.
 
 **Primary surfaces.**
 - `src/pages/TherapyReport.jsx`.
@@ -770,6 +770,8 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 | RelationshipType | base44 | Catalogue of relationship labels | `name`, `inverse_name`, `is_symmetric` | RelationshipTypesManager |
 | Reminder | base44 | User-defined reminders | `title`, `trigger_config`, `cadence`, `is_enabled` | RemindersManage, nativeReminderScheduler |
 | ReminderInstance | base44 | Materialised reminder firings | `reminder_id`, `fire_time`, `is_acknowledged` | RemindersInbox |
+| ReportExport | base44 / local | Append-only audit log of generated therapy reports | `date_from`, `date_to`, `mode`, `sections_included` | TherapyReport (write-only on generate) |
+| ReportTemplate | base44 / local | Saved therapy-report builder presets | `name`, `period_type`, `mode`, `sections_config`, `noteworthy_thresholds`, `include_alter_info`, `show_cover_page`, `cover_note`, `system_name`, `therapist_name`, `confidentiality_notice`, `journal_detail`, `section_options` | ReportBuilder Templates panel |
 | Sleep | base44 | Sleep records | `start_time`, `end_time`, `quality`, `notes` | SleepTracker |
 | StatusNote | local | System-wide custom status notes (immutable log) | `timestamp`, `note` | Dashboard, Timeline, DailyTallyPanel |
 | SupportJournalEntry | base44 | Reflections from Learn prompts | `topic_id`, `responses`, `timestamp` | MyReflections, LearnSection |
@@ -782,8 +784,6 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 | SystemSettings | base44 / local | Singleton settings record | `terms`, `theme`, `nav_layout`, `accessibility`, `quick_actions_config` | useTerms, useAccessibility, every settings page |
 | Task | base44 | Ad-hoc to-do | `title`, `due_date`, `is_complete`, `activity_link` | ToDoList, TaskWidget |
 | TriggerType | base44 | Switch trigger catalogue | `name`, `category` | TriggerEditModal |
-
-(`ReportTemplate` and `ReportExport` are registered in the backup category list but the active reports flow currently regenerates from raw entities.)
 
 ---
 
