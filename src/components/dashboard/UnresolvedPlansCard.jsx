@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -26,6 +26,21 @@ import {
 const DISPLAY_INLINE_LIMIT = 5;
 const DISPLAY_COLLAPSE_LIMIT = 3;
 
+// Settings toggle key. Default is ON — the nag is the whole point of the
+// surface. When the user turns it off in Settings → Reminders, this key
+// flips to "0" and the card renders nothing.
+export const UNRESOLVED_NAG_KEY = "activity_unresolved_nag_v1";
+
+export function isUnresolvedNagEnabled() {
+  try {
+    const v = localStorage.getItem(UNRESOLVED_NAG_KEY);
+    if (v === null) return true; // default ON
+    return v !== "0";
+  } catch {
+    return true;
+  }
+}
+
 export default function UnresolvedPlansCard() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -34,6 +49,20 @@ export default function UnresolvedPlansCard() {
     queryKey: ["activities"],
     queryFn: () => base44.entities.Activity.list(),
   });
+
+  // Refresh when the toggle changes elsewhere in the app. We re-read on
+  // every render — cheap, and the Settings toggle dispatches a custom
+  // event so this card hides immediately when toggled off.
+  const [nagEnabled, setNagEnabled] = useState(isUnresolvedNagEnabled);
+  useEffect(() => {
+    const handler = () => setNagEnabled(isUnresolvedNagEnabled());
+    window.addEventListener("activity-unresolved-nag-changed", handler);
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener("activity-unresolved-nag-changed", handler);
+      window.removeEventListener("storage", handler);
+    };
+  }, []);
 
   const unresolved = useMemo(
     () => activities
@@ -44,6 +73,7 @@ export default function UnresolvedPlansCard() {
 
   const [busyId, setBusyId] = useState(null);
 
+  if (!nagEnabled) return null;
   if (unresolved.length === 0) return null;
 
   const resolve = async (act, status, extra = {}) => {
