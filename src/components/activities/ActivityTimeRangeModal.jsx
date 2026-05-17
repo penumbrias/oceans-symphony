@@ -13,6 +13,7 @@ import { Plus, MapPin, Zap, Repeat } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import { useTerms } from "@/lib/useTerms";
+import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 function toTimeString(date, hour, minute = 0) {
   const d = new Date(date);
@@ -260,6 +261,29 @@ const handleSave = async () => {
       const firstCatId = selectedActivityCategories[0];
       const firstCat = firstCatId ? catById[firstCatId] : null;
       const fallbackName = trimmedTitle || linkedTask?.title || firstCat?.name || editingPlan.activity_name || "";
+      // Editing a plan from the Plan Activity modal: keep the lifecycle
+      // status "scheduled" when the new timestamp is in the future, and
+      // append to reschedule_history if the time actually moved. We
+      // never overwrite resolved statuses (done/partial/skipped/
+      // cancelled) here — those flow through the lifecycle popover.
+      const prevTs = editingPlan.timestamp;
+      const prevStatus = editingPlan.status;
+      let nextStatus = prevStatus;
+      if (!prevStatus) {
+        nextStatus = isPlanned ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED;
+      } else if (prevStatus === ACTIVITY_STATUSES.SCHEDULED && !isPlanned) {
+        // User edited a scheduled plan into the past — leave it scheduled
+        // and let the past-time review surface handle it; flipping to
+        // "logged" silently would erase the lifecycle intent.
+        nextStatus = ACTIVITY_STATUSES.SCHEDULED;
+      }
+      const rescheduled = prevTs && new Date(prevTs).getTime() !== timestamp.getTime();
+      const nextHistory = rescheduled
+        ? [
+            ...(editingPlan.reschedule_history || []),
+            { from: prevTs, to: timestamp.toISOString(), rescheduled_at: new Date().toISOString() },
+          ]
+        : (editingPlan.reschedule_history || []);
       await base44.entities.Activity.update(editingPlan.id, {
         timestamp: timestamp.toISOString(),
         activity_name: fallbackName,
@@ -274,6 +298,8 @@ const handleSave = async () => {
         is_critical: !!isCritical,
         critical_lead_steps: isCritical ? leadSteps : null,
         assigned_alter_ids: isPlanned ? selectedAlters : [],
+        status: nextStatus,
+        reschedule_history: nextHistory,
       });
       // Keep the linked to-do's due_date in sync.
       if (linkedTask) {
@@ -352,6 +378,13 @@ const handleSave = async () => {
           // For planned activities, treat selectedAlters as the assignees too
           // so the per-alter "Plans for me" surface picks them up.
           assigned_alter_ids: occurrenceIsPlanned ? selectedAlters : [],
+          // Lifecycle fields — future-dated rows start "scheduled" and
+          // past-dated rows start "logged". The lifecycle popover takes
+          // over from here. actual_duration_minutes stays null until the
+          // user explicitly marks a plan partial with a measured time.
+          status: occurrenceIsPlanned ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED,
+          actual_duration_minutes: null,
+          reschedule_history: [],
         });
       }
     }

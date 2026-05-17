@@ -36,6 +36,8 @@ const HEADER_H = 56;
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 import { emotionColor, getActivityColor as _getActivityColor, getActivitiesForSlot as _getActivitiesForSlot, getAlterIdsForSlot as _getAlterIdsForSlot, getEmotionsForSlot as _getEmotionsForSlot } from "./activityHelpers";
+import { statusFor, visualForStatus, isPastTimeScheduled } from "@/lib/activityStatus";
+import ActivityLifecyclePopover from "./ActivityLifecyclePopover";
 function truncate(str, max) {
   if (!str) return "";
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
@@ -93,6 +95,13 @@ export default function ActivityWeeklyGrid({
   const [hoveredCell,    setHoveredCell]    = useState(null);
   const lastTapRef     = useRef({ key: "", time: 0 });
   const tooltipTimerRef = useRef(null);
+  // Long-press detection for opening the lifecycle popover. We track the
+  // press target separately from the cell-tap state — a real "long press"
+  // is anchored to a single activity chip, not the slot the chip happens
+  // to live in.
+  const longPressTimerRef = useRef(null);
+  const longPressFiredRef = useRef(false);
+  const [lifecycleActivity, setLifecycleActivity] = useState(null);
 
   useEffect(() => { lsSet(LS_ROW_H,      rowH);         }, [rowH]);
   useEffect(() => { lsSet(LS_COL_W,      colW);         }, [colW]);
@@ -252,6 +261,32 @@ if (isSameCell) {
   const handleCellTouchEnd = useCallback(() => {
     if (tooltipTimerRef.current) { clearTimeout(tooltipTimerRef.current); tooltipTimerRef.current = null; }
     setHoveredCell(null);
+  }, []);
+
+  // Long-press to open the lifecycle popover. We only arm it when the
+  // cell actually has an activity to act on. If a long-press fires, we
+  // also set `longPressFiredRef` so the trailing click doesn't double-
+  // fire as a normal cell tap.
+  const startLongPress = useCallback((date, hour, minute) => {
+    const { timed, logged } = getActivitiesForSlot(date, hour, minute);
+    const real = [...timed, ...logged].filter(a => !a._isTask);
+    if (real.length === 0) return;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressFiredRef.current = true;
+      // Open on the first activity (most common: one chip per cell).
+      // Multi-activity cells still keep tap-to-open-details available.
+      if (navigator.vibrate) try { navigator.vibrate(20); } catch {}
+      setLifecycleActivity(real[0]);
+    }, 500);
+  }, [getActivitiesForSlot]);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
   }, []);
 
   return (
@@ -557,12 +592,22 @@ if (isSameCell) {
                   return (
                     <button
                       key={key}
-                      onClick={() => handleCellTap(date, hour, minute)}
+                      onClick={() => {
+                        if (longPressFiredRef.current) {
+                          longPressFiredRef.current = false;
+                          return;
+                        }
+                        handleCellTap(date, hour, minute);
+                      }}
                       onMouseEnter={(e) => handleCellMouseEnter(e, date, hour, minute)}
                       onMouseLeave={handleCellMouseLeave}
+                      onPointerDown={() => startLongPress(date, hour, minute)}
+                      onPointerUp={cancelLongPress}
+                      onPointerLeave={cancelLongPress}
+                      onPointerCancel={cancelLongPress}
                       onTouchStart={(e) => handleCellTouchStart(e, date, hour, minute)}
-                      onTouchEnd={handleCellTouchEnd}
-                      onTouchMove={handleCellTouchEnd}
+                      onTouchEnd={(e) => { handleCellTouchEnd(); cancelLongPress(); }}
+                      onTouchMove={(e) => { handleCellTouchEnd(); cancelLongPress(); }}
                         className={`border-r border-border/40 relative flex flex-col items-start justify-start overflow-visible cursor-pointer transition-colors group
                         ${timedContinues ? "" : "border-b border-border/40"}
                         ${!hasContent && addMode ? "hover:bg-primary/10" : ""}
@@ -580,9 +625,44 @@ if (isSameCell) {
 
                       {timed.length > 0 && (
                         <div className="absolute inset-0 flex">
-                          {timed.map(a => (
-                            <div key={a.id} className="flex-1 h-full" style={{ backgroundColor: getActivityColor(a) }} />
-                          ))}
+                          {timed.map(a => {
+                            const st = statusFor(a);
+                            const v = visualForStatus(st);
+                            const needsReview = isPastTimeScheduled(a);
+                            const color = getActivityColor(a);
+                            return (
+                              <div
+                                key={a.id}
+                                className="flex-1 h-full relative"
+                                style={{
+                                  backgroundColor: v.dashed ? "transparent" : color,
+                                  opacity: v.fillOpacity,
+                                  border: v.dashed ? `1px dashed ${color}` : undefined,
+                                  boxSizing: "border-box",
+                                }}
+                              >
+                                {v.showXCenter && (
+                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <X className="w-3 h-3 text-white drop-shadow" />
+                                  </div>
+                                )}
+                                {v.corner && (
+                                  <span
+                                    className="absolute top-0 right-0.5 text-white font-bold leading-none pointer-events-none drop-shadow"
+                                    style={{ fontSize: Math.max(8, rowH * 0.3) }}
+                                  >
+                                    {v.corner}
+                                  </span>
+                                )}
+                                {needsReview && (
+                                  <span
+                                    className="absolute top-0.5 left-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-amber-700/40 pointer-events-none"
+                                    title="Past-time plan — needs review"
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -672,16 +752,33 @@ if (isSameCell) {
                                   <div className="flex flex-row items-center gap-0.5 flex-wrap px-0.5 h-full">
                                     {loggedToShow.map(pill => {
                                       const color = getActivityColor(pill);
+                                      const st = statusFor(pill);
+                                      const v = visualForStatus(st);
+                                      const needsReview = isPastTimeScheduled(pill);
                                       const size = Math.max(6, Math.min(rowH - 2, Math.floor((colW - 8) / count) - 2));
                                       const chars = Math.floor(size / 5.5);
                                       const label = chars >= 2 ? pill.activity_name?.slice(0, chars) : "";
                                       return (
                                         <div key={pill.id}
-                                          className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden"
-                                          style={{ backgroundColor: color, height: size, minWidth: size, fontSize: Math.max(5, size * 0.5), paddingLeft: label ? 2 : 0, paddingRight: label ? 2 : 0 }}
+                                          className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden relative"
+                                          style={{
+                                            backgroundColor: v.dashed ? "transparent" : color,
+                                            border: v.dashed ? `1px dashed ${color}` : undefined,
+                                            opacity: v.fillOpacity,
+                                            height: size,
+                                            minWidth: size,
+                                            fontSize: Math.max(5, size * 0.5),
+                                            paddingLeft: label ? 2 : 0,
+                                            paddingRight: label ? 2 : 0,
+                                            boxSizing: "border-box",
+                                            textDecoration: v.strike ? "line-through" : undefined,
+                                          }}
                                           title={pill.activity_name}>
                                           {label}
                                           {pill.notes && <span style={{ fontSize: Math.max(4, size * 0.4), marginLeft: 1, opacity: 0.85 }}>💭</span>}
+                                          {needsReview && (
+                                            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-amber-700/40" />
+                                          )}
                                         </div>
                                       );
                                     })}
@@ -690,15 +787,34 @@ if (isSameCell) {
                               }
                               return loggedToShow.map(pill => {
                                 const color = getActivityColor(pill);
+                                const st = statusFor(pill);
+                                const v = visualForStatus(st);
+                                const needsReview = isPastTimeScheduled(pill);
                                 const pillAlters = (pill.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
                                 const pillEmotions = pill.emotions || [];
                                 const h = isExpanded ? undefined : Math.min(Math.max(10, pillH), 18);
                                 const fs = isExpanded ? 9 : Math.max(7, Math.min(9, pillH * 0.6));
                                 return (
                                   <div key={pill.id}
-                                    className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden w-full"
-                                    style={{ backgroundColor: color, fontSize: fs, height: h, maxWidth: "100%", marginTop: 0 }}
+                                    className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden w-full relative"
+                                    style={{
+                                      backgroundColor: v.dashed ? "transparent" : color,
+                                      border: v.dashed ? `1px dashed ${color}` : undefined,
+                                      opacity: v.fillOpacity,
+                                      fontSize: fs,
+                                      height: h,
+                                      maxWidth: "100%",
+                                      marginTop: 0,
+                                      boxSizing: "border-box",
+                                      textDecoration: v.strike ? "line-through" : undefined,
+                                    }}
                                     title={pill.activity_name}>
+                                    {v.corner && (
+                                      <span className="font-bold mr-0.5" style={{ fontSize: Math.max(7, fs) }}>{v.corner}</span>
+                                    )}
+                                    {needsReview && (
+                                      <span className="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-amber-700/40" />
+                                    )}
                                     <span className={isExpanded ? "" : "truncate"}>
                                       {isExpanded ? pill.activity_name : truncate(pill.activity_name, colW / 7)}
                                     </span>
@@ -738,6 +854,17 @@ if (isSameCell) {
           </div>
         </div>
       </div>
+
+      <ActivityLifecyclePopover
+        isOpen={!!lifecycleActivity}
+        activity={lifecycleActivity}
+        onClose={() => setLifecycleActivity(null)}
+        onChanged={() => {
+          // The Activity subscribe handler in ActivityTracker will
+          // invalidate the activities query; the grid re-renders
+          // automatically once the patched record lands.
+        }}
+      />
     </div>
   );
 }

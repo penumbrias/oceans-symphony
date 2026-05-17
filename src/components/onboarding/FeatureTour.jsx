@@ -439,6 +439,14 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "activities", sectionLabel: "Activities",
+      emoji: "🗓️",
+      title: "Plans Have a Lifecycle",
+      body: `Future activities are plans — they render with a dashed outline so you can tell them apart from solid, logged activity blocks. Long-press any scheduled plan to mark it Done, Partial (with optional actual time), Skipped, Cancelled, or to reschedule it. Past-time plans you haven't reviewed surface on the Dashboard as "Plans needing review" with one-tap resolution. Done/partial count toward your activity tally; skipped and cancelled never do.`,
+      route: "/activities", target: "activities-log",
+      look: `the highlighted weekly grid — long-press any plan chip to open its lifecycle menu`, action: null,
+    },
+    {
+      section: "activities", sectionLabel: "Activities",
       emoji: "⏱️",
       title: "Activity Type, Duration & Notes",
       body: `When logging an activity, give it a name, an optional activity type (from your configured list or create new), an optional duration in minutes, and optional notes. Duration and activity type unlock the Activities analytics charts — the more you fill in, the richer the analysis.`,

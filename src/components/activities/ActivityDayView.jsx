@@ -15,6 +15,7 @@ import {
   getEmotionsForSlot,
   getLocationsForSlot,
 } from "./activityHelpers";
+import { statusFor, visualForStatus, isPastTimeScheduled, countableMinutes, ACTIVITY_STATUSES, STATUS_LABELS } from "@/lib/activityStatus";
 
 function EmotionPills({ emotions }) {
   if (!emotions || emotions.length === 0) return null;
@@ -125,12 +126,34 @@ function AlterAvatar({ alterId, alters }) {
 // Tall color block for timed activities
 function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptomsMap }) {
   const color = getColor(activity);
+  const status = statusFor(activity);
+  const v = visualForStatus(status);
+  const needsReview = isPastTimeScheduled(activity);
   const allEmotions = [...new Set([...(activity.emotions || []), ...emotions])];
   return (
     <div
       className="rounded-lg overflow-hidden relative w-full"
-      style={{ backgroundColor: color, minHeight: 72 }}
+      style={{
+        backgroundColor: v.dashed ? "transparent" : color,
+        border: v.dashed ? `1px dashed ${color}` : undefined,
+        opacity: v.fillOpacity,
+        minHeight: 72,
+        boxSizing: "border-box",
+      }}
     >
+      {status !== ACTIVITY_STATUSES.LOGGED && (
+        <span className="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-black/30 text-white font-semibold uppercase tracking-wide z-10">
+          {STATUS_LABELS[status]}
+        </span>
+      )}
+      {needsReview && (
+        <span className="absolute top-1.5 left-1.5 ml-16 w-2 h-2 rounded-full bg-amber-400 ring-1 ring-amber-700/40 z-10" title="Needs review" />
+      )}
+      {v.showXCenter && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+          <span className="text-white/80 text-3xl">×</span>
+        </div>
+      )}
       {alterIds.length > 0 && (
         <div className="absolute top-2 right-2 flex -space-x-1 z-10">
           {alterIds.slice(0, 4).map(id => <AlterAvatar key={id} alterId={id} alters={alters} />)}
@@ -162,15 +185,35 @@ function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptom
 // Small colored pill for logged (no-duration) activities
 function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAlterIds = [], symptomsMap = {} }) {
   const color = getColor(activity);
+  const status = statusFor(activity);
+  const v = visualForStatus(status);
+  const needsReview = isPastTimeScheduled(activity);
   const emotions = [...new Set([...(activity.emotions || []), ...slotEmotions])];
   const alterIds = [...new Set([...(activity.fronting_alter_ids || []), ...slotAlterIds])];
   return (
     <div className="flex flex-col gap-1">
       <div
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full self-start"
-        style={{ backgroundColor: color }}
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full self-start relative"
+        style={{
+          backgroundColor: v.dashed ? "transparent" : color,
+          border: v.dashed ? `1px dashed ${color}` : undefined,
+          opacity: v.fillOpacity,
+          boxSizing: "border-box",
+          textDecoration: v.strike ? "line-through" : undefined,
+        }}
       >
+        {v.corner && (
+          <span className="text-white font-bold">{v.corner}</span>
+        )}
         <span className="font-semibold text-white text-sm break-words">{activity.activity_name}</span>
+        {status !== ACTIVITY_STATUSES.LOGGED && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/30 text-white font-semibold uppercase tracking-wide">
+            {STATUS_LABELS[status]}
+          </span>
+        )}
+        {needsReview && (
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 ring-1 ring-amber-700/40" title="Needs review" />
+        )}
         {alterIds.length > 0 && (
           <div className="flex -space-x-1">
             {alterIds.slice(0, 3).map(id => <AlterAvatar key={id} alterId={id} alters={alters} />)}
@@ -252,13 +295,16 @@ export default function ActivityDayView({
     const dayStart = parseDate(dateStr);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
     return dayActivities.reduce((s, a) => {
-      if (!a.duration_minutes) return s;
+      // Status-aware: only logged/done/partial contribute time; we use
+      // countableMinutes as the budget and clip it to the day's bounds.
+      // Scheduled/skipped/cancelled return 0 from countableMinutes.
+      const budget = countableMinutes(a);
+      if (!budget) return s;
       const actStart = parseDate(a.timestamp);
-      const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
-      // Clip to the current day's bounds
+      const actEnd = new Date(actStart.getTime() + budget * 60 * 1000);
       const clippedStart = actStart < dayStart ? dayStart : actStart;
       const clippedEnd = actEnd > dayEnd ? dayEnd : actEnd;
-      return s + Math.round((clippedEnd - clippedStart) / 60000);
+      return s + Math.max(0, Math.round((clippedEnd - clippedStart) / 60000));
     }, 0);
   }, [dayActivities, dateStr]);
 
