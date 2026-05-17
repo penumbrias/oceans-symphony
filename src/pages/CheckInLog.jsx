@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import DiaryAnalyticsSummary from "@/components/diary/DiaryAnalyticsSummary";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -1001,13 +1002,17 @@ export default function CheckInLog() {
     queryKey: ["activities"],
     queryFn: () => base44.entities.Activity.list("-timestamp", 500),
   });
-  // Hide future plans from the Check-In Log — they're scheduled events, not
-  // logged history. Once a plan's timestamp is in the past we let it through
-  // so the log reflects whatever actually happened (or was supposed to).
+  // Hide STILL-SCHEDULED future plans from the Check-In Log — they're
+  // upcoming events, not logged history. Plans that have been resolved
+  // (done / partial / skipped / cancelled) belong here because they
+  // reflect what actually happened. Plans still flagged as "scheduled"
+  // whose time has already passed (unresolved) also show — they're
+  // exactly what the log is for.
   const activities = useMemo(() => {
     const now = Date.now();
     return rawActivities.filter(a => {
-      if (!a.is_planned) return true;
+      const status = statusFor(a);
+      if (status !== ACTIVITY_STATUSES.SCHEDULED) return true;
       try { return new Date(a.timestamp).getTime() <= now; }
       catch { return true; }
     });

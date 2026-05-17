@@ -17,8 +17,10 @@ import ActivityTallyTracker from "@/components/activities/ActivityTallyTracker";
 import ActivityGoalsPanel from "@/components/activities/ActivityGoalsPanel";
 import ActivityDayView from "@/components/activities/ActivityDayView";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
+import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import ActivityNestingRecovery from "@/components/activities/ActivityNestingRecovery";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -47,7 +49,7 @@ export default function ActivityTracker() {
   const [selectedStartMinute, setSelectedStartMinute] = useState(0);
   const [selectedEndMinute, setSelectedEndMinute] = useState(0);
   const [selectedEndDate, setSelectedEndDate] = useState(null);
-  const [tab, setTab] = useState("logged"); // "logged" | "planned"
+  const [tab, setTab] = useState("logged"); // "logged" | "planned" | "insights"
   const [viewMode, setViewMode] = useState(() => lsGet("symphony_act_view_mode", "week")); // "week" | "month" | "year"
   const [planModalOpen, setPlanModalOpen] = useState(false);
   // When set, the Plan Activity modal opens pre-filled to edit this
@@ -279,8 +281,12 @@ export default function ActivityTracker() {
 
         {/* Tab switcher + Plan Activity button */}
         <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-          <div className="flex gap-1 p-1 bg-muted/30 rounded-xl w-fit">
-            {[{ id: "logged", label: "Logged" }, { id: "planned", label: "Planned" }].map(t => (
+          <div className="flex gap-1 p-1 bg-muted/30 rounded-xl w-fit" data-tour="activities-tabs">
+            {[
+              { id: "logged", label: "Logged" },
+              { id: "planned", label: "Planned" },
+              { id: "insights", label: "Plan tracker" },
+            ].map(t => (
               <button
                 key={t.id}
                 type="button"
@@ -308,7 +314,19 @@ export default function ActivityTracker() {
           </Button>
         </div>
 
-        {tab === "logged" ? (
+        {tab === "insights" ? (
+          <ErrorBoundary
+            fallback={(err, reset) => (
+              <div className="p-3 rounded-lg border border-destructive/40 bg-destructive/5 text-xs text-destructive">
+                The plan tracker hit an error.
+                <button type="button" onClick={reset} className="ml-2 underline hover:no-underline">Retry</button>
+              </div>
+            )}
+            resetKeys={[activities.length]}
+          >
+            <PlanCompletionTracker />
+          </ErrorBoundary>
+        ) : tab === "logged" ? (
           <>
             {viewMode === "week" && (
               <ActivityWeeklyGrid
