@@ -78,6 +78,11 @@ export default function TherapyReportPage() {
     queryFn: () => db.Task.list(),
   });
 
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => db.ActivityCategory.list(),
+  });
+
   const { data: dailyProgress = [] } = useQuery({
     queryKey: ["dailyProgress"],
     queryFn: () => db.DailyProgress.list(),
@@ -166,6 +171,13 @@ export default function TherapyReportPage() {
         dateTo: config.dateTo,
         activities,
         excludedActivityNames: new Set(sectionOptions.excludedActivityNames || []),
+      });
+
+      const plansData = reportSections.buildPlansSection({
+        dateFrom: config.dateFrom,
+        dateTo: config.dateTo,
+        activities,
+        categories: activityCategories,
       });
 
       const journals = reportSections.buildJournalsSection({
@@ -287,6 +299,7 @@ export default function TherapyReportPage() {
         statusNotes: statusNotesSection,
         symptoms: symptomsData,
         activities: activitiesData,
+        plans: plansData,
         journals,
         diary,
         locations: locationsData,

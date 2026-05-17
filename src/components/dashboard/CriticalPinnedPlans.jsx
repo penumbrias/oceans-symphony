@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { format, formatDistanceToNow } from "date-fns";
 import { MapPin, X, Zap } from "lucide-react";
 import { shouldShowPin, writeDismissal } from "@/lib/criticalPins";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 // Top-of-Dashboard pinned cards for plans the user marked critical /
 // urgent. A card appears whenever any of the plan's selected lead-step
@@ -33,7 +34,12 @@ export default function CriticalPinnedPlans() {
   const visible = useMemo(() => {
     const now = Date.now();
     return activities
-      .filter(a => a.is_critical && a.is_planned)
+      // Phase 3: also require the plan to still be SCHEDULED. The
+      // moment a critical plan is marked done / skipped / cancelled (or
+      // edited into a partial outcome), the pinned card dismisses
+      // immediately — it would be jarring for a "Cancelled" plan to
+      // keep nagging from the top of the dashboard.
+      .filter(a => a.is_critical && statusFor(a) === ACTIVITY_STATUSES.SCHEDULED)
       .filter(a => {
         const start = new Date(a.timestamp).getTime();
         const end = start + ((a.duration_minutes || 0) * 60_000);

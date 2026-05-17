@@ -9,10 +9,16 @@ import { Input } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { Plus, MapPin, Zap, Repeat } from "lucide-react";
+import { Plus, MapPin, Zap, Repeat, Bell } from "lucide-react";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import {
+  PLAN_REMINDER_OFFSETS,
+  readPlanRemindersEnabled,
+  readPlanRemindersDefaultOffset,
+  schedulePlanReminder,
+} from "@/lib/planReminderScheduler";
 import {
   RECURRENCE_BRANCHES,
   membersForBranch,
@@ -108,6 +114,15 @@ export default function ActivityPlanModal({
   const [newActivityName, setNewActivityName] = useState("");
   const [showNewActivity, setShowNewActivity] = useState(false);
 
+  // Per-plan reminder override. `null` = use the global default
+  // (from Settings → Reminders). Saved to Activity.reminder_offset_minutes.
+  // The picker only opens once the user has switched the global toggle
+  // on — otherwise scheduling a per-plan override would silently
+  // produce no notifications.
+  const [reminderOffset, setReminderOffset] = useState(null);
+  const planRemindersEnabledGlobal = readPlanRemindersEnabled();
+  const planRemindersDefault = readPlanRemindersDefaultOffset();
+
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
@@ -142,6 +157,7 @@ export default function ActivityPlanModal({
       setIsCritical(!!editingPlan.is_critical);
       setLeadSteps(editingPlan.critical_lead_steps || DEFAULT_LEAD_STEPS);
       setSelectedTaskId(editingPlan.task_id || null);
+      setReminderOffset(editingPlan.reminder_offset_minutes ?? null);
       // Recurrence interval is metadata on existing records; we don't
       // let the user change the cadence from the edit dialog. Reset
       // local controls so they aren't visible during edit.
@@ -180,6 +196,7 @@ export default function ActivityPlanModal({
     setSelectedTaskId(null);
     setRecurrenceInterval("none");
     setRecurrenceCount(8);
+    setReminderOffset(null);
   }, [isOpen, editingPlan, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute]);
 
   // Auto-populate alters from fronting history when picking a slot for
@@ -289,6 +306,7 @@ export default function ActivityPlanModal({
           is_critical: !!isCritical,
           critical_lead_steps: isCritical ? leadSteps : null,
           assigned_alter_ids: isPlanned ? selectedAlters : [],
+          reminder_offset_minutes: reminderOffset,
         };
 
         const groupId = editingPlan.recurrence_group_id;
@@ -405,6 +423,7 @@ export default function ActivityPlanModal({
             status: occurrenceIsPlanned ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED,
             actual_duration_minutes: null,
             reschedule_history: [],
+            reminder_offset_minutes: reminderOffset,
           });
         }
       }
@@ -627,6 +646,47 @@ export default function ActivityPlanModal({
               )}
             </div>
           )}
+
+          {/* Reminder */}
+          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-sm font-medium">
+              <Bell className={`w-4 h-4 ${reminderOffset != null ? "text-primary" : "text-muted-foreground"}`} />
+              <span>Reminder</span>
+            </div>
+            {planRemindersEnabledGlobal ? (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Default for this plan is {planRemindersDefault < 60
+                    ? `${planRemindersDefault} minutes`
+                    : planRemindersDefault < 1440
+                      ? `${Math.round(planRemindersDefault / 60)} hour${planRemindersDefault >= 120 ? "s" : ""}`
+                      : "1 day"} before. Override here if you want a different lead time for this one.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setReminderOffset(null)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${reminderOffset == null ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/50"}`}
+                  >Use default</button>
+                  {PLAN_REMINDER_OFFSETS.map((opt) => {
+                    const active = reminderOffset === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setReminderOffset(opt.value)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-all ${active ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/50"}`}
+                      >{opt.label}</button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Plan reminders are off globally. Turn them on in Settings → Reminders to get a notification before this plan starts.
+              </p>
+            )}
+          </div>
 
           {/* Critical + lead-steps */}
           <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">

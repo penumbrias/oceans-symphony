@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { format, isToday, isThisWeek, isThisMonth, isThisYear, formatDistanceToNow } from "date-fns";
 import { Calendar, Clock, Users, MapPin, Zap } from "lucide-react";
 import { parseDate } from "@/lib/dateUtils";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 /**
  * Future-planned activities, grouped by horizon. Used on the Activity
@@ -32,6 +33,14 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
         if (!a) return false;
         const ts = parseDate(a.timestamp);
         if (!ts || isNaN(ts)) return false;
+        // Phase 3: use the lifecycle status rather than the bare "ts > now"
+        // check. A plan only belongs on the Planned tab while it's still
+        // SCHEDULED — once it's done / partial / skipped / cancelled it
+        // belongs in the Logged grid. Future-dated plans whose status is
+        // still resolved are also excluded (the user explicitly closed
+        // them out).
+        const status = statusFor(a);
+        if (status !== ACTIVITY_STATUSES.SCHEDULED) return false;
         return ts.getTime() > now;
       })
       .sort((a, b) => parseDate(a.timestamp) - parseDate(b.timestamp));

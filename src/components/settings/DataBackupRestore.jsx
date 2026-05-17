@@ -75,6 +75,15 @@ function recommendedNumParts(textLength) {
 // list. Device-specific entities (FriendIdentity, PushSubscription) are
 // intentionally NOT included — they tie a record to one browser/device
 // and restoring them onto a different device causes collisions.
+//
+// Same rule applies to device-bound state stored OUTSIDE the entity
+// system, e.g. localStorage keys like `symphony_native_reminder_log_v1`
+// (user-reminder native notification ids) and
+// `symphony_plan_reminder_log_v1` (plan-reminder native notification
+// ids). Those are not exported — the OS notification ids reference the
+// scheduler on a specific Android install, so carrying them across
+// devices would be meaningless at best and could let a different
+// install cancel notifications it didn't schedule.
 const ENTITY_NAMES = [
   "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
   "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",

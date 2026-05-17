@@ -382,6 +382,50 @@ function addActivitiesSection(doc, activitiesData, y) {
   return y + 8;
 }
 
+// ── PLAN COMPLETION ───────────────────────────────────────────────────────────
+// Plan-completion roll-up. Sits right after Activities so therapists see
+// "what was actually done" beside "what was planned but didn't happen".
+
+function addPlansSection(doc, plansData, y) {
+  if (!plansData) return y;
+  y = checkPageBreak(doc, y, 30);
+  y = sectionHeader(doc, "Plan Completion", y);
+  doc.setFontSize(9);
+  doc.setTextColor(30, 30, 30);
+  y = wrappedText(doc, plansData.summarySentence, MARGIN + 2, y, CONTENT_W - 4, 5);
+  y += 2;
+  if (plansData.mostCancelledLine) {
+    doc.setTextColor(...MUTED);
+    doc.setFontSize(8.5);
+    y = wrappedText(doc, plansData.mostCancelledLine, MARGIN + 2, y, CONTENT_W - 4, 4.5);
+    y += 2;
+  }
+  if (plansData.patternLine) {
+    doc.setTextColor(...MUTED);
+    doc.setFontSize(8.5);
+    y = wrappedText(doc, plansData.patternLine, MARGIN + 2, y, CONTENT_W - 4, 4.5);
+    y += 2;
+  }
+  if (plansData.recurringRows && plansData.recurringRows.length > 0) {
+    y = checkPageBreak(doc, y, 20);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text("Recurring plans", MARGIN + 2, y);
+    doc.setFont("helvetica", "normal");
+    y += 5;
+    y = drawTable(doc, ["Plan", "Instances", "Completed", "%"],
+      plansData.recurringRows.slice(0, 10).map(r => [
+        r.label,
+        String(r.total),
+        String(r.completed),
+        `${r.completedPct}%`,
+      ]), y,
+      [CONTENT_W * 0.5, CONTENT_W * 0.16, CONTENT_W * 0.18, CONTENT_W * 0.16]);
+  }
+  return y + 6;
+}
+
 // ── JOURNALS ──────────────────────────────────────────────────────────────────
 
 function addJournalsSection(doc, journalData, journalDetail, y) {
@@ -792,6 +836,28 @@ function formatAsPlainText({
     text += "\n";
   }
 
+  // Plan Completion
+  if (enabledSections.has("plans") && sections.plans) {
+    text += `PLAN COMPLETION\n${"--------".padEnd(60, "-")}\n`;
+    text += `${sections.plans.summarySentence}\n`;
+    if (sections.plans.mostCancelledLine) text += `${sections.plans.mostCancelledLine}\n`;
+    if (sections.plans.patternLine) text += `${sections.plans.patternLine}\n`;
+    if (sections.plans.recurringRows && sections.plans.recurringRows.length > 0) {
+      text += `\nRecurring plans:\n`;
+      sections.plans.recurringRows.slice(0, 10).forEach(r => {
+        text += `  • ${r.label}: ${r.completed}/${r.total} completed (${r.completedPct}%)`;
+        if (r.cancelled > 0 || r.skipped > 0) {
+          const extras = [];
+          if (r.cancelled > 0) extras.push(`${r.cancelled} cancelled`);
+          if (r.skipped > 0) extras.push(`${r.skipped} skipped`);
+          text += `, ${extras.join(", ")}`;
+        }
+        text += "\n";
+      });
+    }
+    text += "\n";
+  }
+
   // Journals
   if (enabledSections.has("journals") && sections.journals) {
     text += `JOURNAL ENTRIES\n${"--------".padEnd(60, "-")}\n`;
@@ -982,6 +1048,9 @@ export async function generateTherapyReport({
   }
   if (enabledSections.has("activities") && sections.activities) {
     y = addActivitiesSection(doc, sections.activities, y);
+  }
+  if (enabledSections.has("plans") && sections.plans) {
+    y = addPlansSection(doc, sections.plans, y);
   }
   if (enabledSections.has("journals") && sections.journals) {
     y = addJournalsSection(doc, sections.journals, config.journalDetail || "summaries", y);

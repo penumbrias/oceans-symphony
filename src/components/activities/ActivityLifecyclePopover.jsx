@@ -20,6 +20,10 @@ import {
   BRANCH_LABELS,
 } from "@/lib/recurrenceUtils";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
+import {
+  cancelPlanReminder,
+  schedulePlanReminder,
+} from "@/lib/planReminderScheduler";
 
 // Lifecycle popover for a single Activity. Opens from:
 //   • Long-press on a scheduled chip in the week grid
@@ -88,6 +92,16 @@ export default function ActivityLifecyclePopover({
     setSaving(true);
     try {
       await base44.entities.Activity.update(activity.id, patch);
+      // Reminder hygiene: resolving a plan cancels its pending OS
+      // notification; restoring it to SCHEDULED re-schedules one.
+      // Rescheduling is handled separately in the reschedule path.
+      if (patch.status && patch.status !== ACTIVITY_STATUSES.SCHEDULED) {
+        try { await cancelPlanReminder(activity.id); } catch { /* non-fatal */ }
+      } else if (patch.status === ACTIVITY_STATUSES.SCHEDULED) {
+        try {
+          await schedulePlanReminder({ ...activity, ...patch });
+        } catch { /* non-fatal */ }
+      }
       toast.success(successMsg);
       onChanged?.();
       closeAll();
@@ -116,13 +130,27 @@ export default function ActivityLifecyclePopover({
     setPendingBranchAction(null);
     setSaving(true);
     try {
+      let affected = [activity];
       if (branch === RECURRENCE_BRANCHES.THIS_ONLY) {
         await base44.entities.Activity.update(activity.id, patch);
         toast.success(successMsg);
       } else {
         const members = membersForBranch(allActivities, activity, branch);
+        affected = members;
         const count = await applyEditToSeries(members, patch);
         toast.success(`${successMsg} — ${count} ${count === 1 ? "instance" : "instances"} updated`);
+      }
+      // Mirror the reminder hygiene from writeStatus across every
+      // affected instance — series resolution should clean up all the
+      // pending OS notifications it implicates, not just the pivot.
+      if (patch.status && patch.status !== ACTIVITY_STATUSES.SCHEDULED) {
+        for (const a of affected) {
+          try { await cancelPlanReminder(a.id); } catch { /* non-fatal */ }
+        }
+      } else if (patch.status === ACTIVITY_STATUSES.SCHEDULED) {
+        for (const a of affected) {
+          try { await schedulePlanReminder({ ...a, ...patch }); } catch { /* non-fatal */ }
+        }
       }
       onChanged?.();
       closeAll();

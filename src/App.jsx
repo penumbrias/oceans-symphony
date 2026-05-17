@@ -54,6 +54,7 @@ import {
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
+import { usePlanReminderSync } from '@/lib/planReminderScheduler';
 import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
 import { useNavigate } from 'react-router-dom';
@@ -71,6 +72,11 @@ const AuthenticatedApp = () => {
   // Re-syncs the native pre-scheduled reminder queue whenever reminders
   // or settings change. No-op on web/TWA.
   useNativeReminderSync();
+  // Mirrors upcoming Activity plans onto the OS notification queue
+  // (native) or a best-effort setTimeout queue (web) so the user gets
+  // an alert before each plan starts. Guarded by the user-facing
+  // "Remind me before upcoming plans" toggle in Settings → Reminders.
+  usePlanReminderSync();
   // Mirrors the user's QuickAction list onto the OS launcher's
   // long-press shortcut menu via ShortcutManager. No-op on web/TWA.
   useNativeQuickActionsSync();

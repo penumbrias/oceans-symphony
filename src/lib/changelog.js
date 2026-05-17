@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Activity Planner Phase 3: a new Plan completion tracker surfaces how often plans get completed, cancelled, or skipped — broken down by category, time of day, and day of week, with plain-text insights underneath. Plan stats now appear in Therapy Reports automatically. Optional native reminders fire before upcoming plans (configurable 15 min / 30 min / 1 hour / 1 day, off by default). A few stragglers from Phase 1 — the Check-in Log and pinned critical plans — now respect the new lifecycle states properly.",
+      },
+      {
         type: "improve",
         text: "Activity Planner Phase 2: log and plan now have separate, focused dialogs instead of one mega-modal. Editing a recurring plan asks whether you mean this instance, this and future, or the whole series. Creating a new category warns you when the name matches an existing category instead of silently linking past activities. Setting added under Notifications to turn off the unresolved-plan reminder card.",
       },

@@ -5,6 +5,7 @@ import { Calendar, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurfaces";
+import { readPlanRemindersDefaultOffset } from "@/lib/planReminderScheduler";
 
 const ACK_KEY = "symphony_upcoming_plan_acks";
 
@@ -44,12 +45,13 @@ export default function AnnouncementBanner() {
   // Find the soonest upcoming activity that is within its reminder window
   // and hasn't been acknowledged.
   const acks = getAcks();
+  const defaultOffset = readPlanRemindersDefaultOffset();
   const dueSoon = activities
     .filter(a => {
       if (!a?.timestamp) return false;
       const ts = new Date(a.timestamp).getTime();
       if (isNaN(ts) || ts <= now) return false;
-      const offsetMs = (a.reminder_offset_minutes ?? 60) * 60_000;
+      const offsetMs = (a.reminder_offset_minutes ?? defaultOffset) * 60_000;
       const windowOpens = ts - offsetMs;
       return now >= windowOpens && !acks[a.id];
     })
