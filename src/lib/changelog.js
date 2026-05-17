@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed a bug where edits to a sleep record's dream notes didn't propagate to the linked dream Journal entry. New sleep records now link both ways; edits stay in sync going forward. Existing dream journals from before this fix remain — new edits to the underlying sleep will start linking them after the next edit.",
+      },
+      {
+        type: "improve",
+        text: "Picking an author for a journal entry now auto-fills the signpost field with that alter's name so you can sign the entry without retyping. Type your own signpost any time to override.",
+      },
+      {
         type: "feature",
         text: "Even more Daily Task auto-triggers (now ~35 events) — alter added, bulletin posted, poll voted, theme changed, grounding technique used, streak milestone hit, and more. The pts label on the leveling bar also now scales with the selected period: 'today / this week / this month / this year'.",
       },

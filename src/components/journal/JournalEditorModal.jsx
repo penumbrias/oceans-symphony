@@ -60,6 +60,11 @@ export default function JournalEditorModal({
   const [showAuthorPicker, setShowAuthorPicker] = useState(false);
   const [authorSearch, setAuthorSearch] = useState("");
   const [signpostText, setSignpostText] = useState("");
+  // Tracks whether the user has manually typed in the signpost field this
+  // open. When false, picking an author from the dropdown auto-populates the
+  // signpost with `-<alter-name>`. The first user keystroke flips it true so
+  // we never clobber what they typed. Resets on modal open.
+  const [signpostTouchedByUser, setSignpostTouchedByUser] = useState(false);
 
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, content, setContent);
@@ -116,7 +121,32 @@ useEffect(() => {
     setShowAuthorPicker(false);
     setAuthorSearch("");
     setSignpostText("");
+    // Each open starts as "untouched" so the dropdown can auto-fill the
+    // signpost. The auto-fill effect below will populate from the loaded
+    // author once alters resolve.
+    setSignpostTouchedByUser(false);
   }, [editingEntryFinal?.id, isOpenFinal]);
+
+  // Auto-fill the signpost field from the dropdown author when the user
+  // hasn't manually typed in it. Picking an alter from "Written by" should
+  // surface the same -name marker so the signpost-overrides-dropdown
+  // precedence still ends up at the same alter (and the user sees a
+  // consistent indicator). When the user types over it, the touched flag
+  // flips and this effect bows out.
+  useEffect(() => {
+    if (!isOpenFinal) return;
+    if (signpostTouchedByUser) return;
+    if (!authorAlterId) {
+      // No author selected → clear any prior auto-fill so we don't leak
+      // stale text between selections.
+      if (signpostText) setSignpostText("");
+      return;
+    }
+    const author = altersById[authorAlterId];
+    if (!author) return;
+    const marker = `-${(author.alias || author.name || "").trim()}`;
+    if (marker !== signpostText) setSignpostText(marker);
+  }, [authorAlterId, altersById, isOpenFinal, signpostTouchedByUser]);
 
   // Backfill author when fronting data arrives after the modal is already open
   useEffect(() => {
@@ -252,7 +282,12 @@ useEffect(() => {
 
               <input
                 value={signpostText}
-                onChange={e => setSignpostText(e.target.value)}
+                onChange={e => {
+                  // Mark as user-touched so the author-dropdown auto-fill
+                  // effect stops clobbering what they're typing.
+                  if (!signpostTouchedByUser) setSignpostTouchedByUser(true);
+                  setSignpostText(e.target.value);
+                }}
                 placeholder="-name or -alias to sign"
                 className="flex-1 min-w-[140px] text-xs font-mono bg-transparent border border-border/40 rounded-lg px-2.5 py-1 focus:border-primary/50 outline-none placeholder:text-muted-foreground/40"
               />
