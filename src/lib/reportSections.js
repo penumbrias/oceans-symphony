@@ -8,6 +8,14 @@ import {
   computeEarlyWarningStatus,
   generateWeeklyNarrative,
 } from "./analyticsEngine";
+import {
+  summarisePlans,
+  byCategory as plansByCategory,
+  findContrastingPattern as plansFindContrastingPattern,
+  recurringPlanRollup,
+  TIME_OF_DAY_LABELS,
+  DAY_OF_WEEK_LABELS,
+} from "./planAnalytics";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -351,6 +359,91 @@ export function buildDiarySection({ dateFrom, dateTo, diaryCards, alters, includ
       flags,
     };
   });
+}
+
+// ── SECTION: PLAN COMPLETION ─────────────────────────────────────────────────
+// Activity-planner lifecycle summary. Derives from the same pure helpers
+// as the in-app Plan Tracker so the numbers match what the user sees.
+// Therapists tend to care about regular commitments (weekly therapy,
+// daily meds) so this section surfaces the recurring-plan rollup
+// alongside the overall counts.
+
+export function buildPlansSection({ dateFrom, dateTo, activities = [], categories = [] }) {
+  const from = new Date(dateFrom);
+  const to = new Date(`${dateTo}T23:59:59`);
+  const summary = summarisePlans(activities, { from, to });
+  if (summary.scheduled === 0) return null;
+
+  const categoryRows = plansByCategory(activities, categories, { from, to });
+  const mostCancelled = categoryRows
+    .filter((r) => r.cancelled > 0)
+    .sort((a, b) => b.cancelled - a.cancelled)[0] || null;
+
+  const pattern = plansFindContrastingPattern(activities, { from, to });
+  const recurring = recurringPlanRollup(activities, { from, to });
+
+  // Build the lead sentence.
+  const range = `${fmtDate(from.toISOString())} – ${fmtDate(to.toISOString())}`;
+  const sentenceParts = [
+    `Between ${range}, ${summary.scheduled} plans were scheduled.`,
+  ];
+  if (summary.resolved > 0) {
+    sentenceParts.push(
+      `${summary.completed} were completed (${summary.completedPct}%), ${summary.cancelled} cancelled, ${summary.skipped} skipped.`,
+    );
+  } else {
+    sentenceParts.push("None have been resolved yet.");
+  }
+  if (summary.unresolvedPast > 0) {
+    sentenceParts.push(
+      `${summary.unresolvedPast} past-time plans are still unresolved.`,
+    );
+  }
+  if (summary.avgRescheduleCount > 0) {
+    sentenceParts.push(
+      `Plans were rescheduled an average of ${summary.avgRescheduleCount.toFixed(1)} times each among the ${summary.rescheduleSamples} plans with reschedule history.`,
+    );
+  }
+
+  let mostCancelledLine = null;
+  if (mostCancelled && mostCancelled.cancelled > 0) {
+    mostCancelledLine =
+      `${mostCancelled.label} had the most cancellations (${mostCancelled.cancelled} of ${mostCancelled.total} plans, ${mostCancelled.cancelledPct}% of resolved).`;
+  }
+
+  let patternLine = null;
+  if (pattern) {
+    const labels = pattern.kind === "timeOfDay" ? TIME_OF_DAY_LABELS : DAY_OF_WEEK_LABELS;
+    const lowLabel = (labels[pattern.low.key] || pattern.low.key).split(" ")[0].toLowerCase();
+    const highLabel = (labels[pattern.high.key] || pattern.high.key).split(" ")[0].toLowerCase();
+    patternLine =
+      `Plans scheduled in the ${highLabel} were completed ${pattern.high.completedPct}% of the time, versus ${pattern.low.completedPct}% in the ${lowLabel}.`;
+  }
+
+  const recurringRows = recurring.map((r) => ({
+    label: r.label,
+    total: r.total,
+    completed: r.done + r.partial,
+    skipped: r.skipped,
+    cancelled: r.cancelled,
+    completedPct: r.completedPct,
+  }));
+
+  return {
+    summarySentence: sentenceParts.join(" "),
+    mostCancelledLine,
+    patternLine,
+    recurringRows,
+    counts: {
+      scheduled: summary.scheduled,
+      completed: summary.completed,
+      cancelled: summary.cancelled,
+      skipped: summary.skipped,
+      unresolvedPast: summary.unresolvedPast,
+      resolved: summary.resolved,
+      completedPct: summary.completedPct,
+    },
+  };
 }
 
 // ── SECTION: CUSTOM STATUS NOTES ─────────────────────────────────────────────

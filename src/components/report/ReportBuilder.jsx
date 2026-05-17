@@ -108,6 +108,11 @@ const buildSectionDefs = (t) => [
     desc: "Logged activities and total durations",
   },
   {
+    id: "plans",
+    label: "Plan Completion",
+    desc: "How often planned activities were completed, cancelled, or skipped — with recurring-plan follow-through rates",
+  },
+  {
     id: "journals",
     label: "Journal Entries",
     desc: "Personal journal entries",
@@ -201,7 +206,7 @@ const buildSectionDefs = (t) => [
 ];
 
 const DEFAULT_SELECTED = new Set([
-  "fronting", "emotions", "statusNotes", "symptoms", "activities",
+  "fronting", "emotions", "statusNotes", "symptoms", "activities", "plans",
   "journals", "diary", "locations", "sleep", "bulletins",
   "systemCheckIns", "supportJournals", "tasks", "patterns", "alterAppendix",
 ]);
