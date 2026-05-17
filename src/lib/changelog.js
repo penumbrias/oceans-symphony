@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "hotfix",
+        text: "Hotfix: documented the parallel-agent friction pattern in CLAUDE.md so future maintenance sessions know when to queue agents serially versus in parallel.",
+      },
+      {
+        type: "hotfix",
         text: "Hotfix: the show/hide groups toggle on the Alters page now remembers its state across reloads.",
       },
       {
