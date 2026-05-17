@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "feature",
+        text: "You can now control how many upcoming plans show on the Dashboard — either pick a count ('next 5 plans') or a time window ('next 2 weeks', 'this month', etc.). Setting lives under Settings → Upcoming Plans Visibility.",
+      },
+      {
+        type: "fix",
+        text: "Settings → Upcoming Plans Visibility now correctly labels the two main surfaces as 'Top of Dashboard' and 'Bottom of Dashboard' (they were labelled 'Top of Home' / 'Bottom of Home', which was confusing because /Home is actually the Alters directory).",
+      },
+      {
         type: "fix",
         text: "Signposting now picks up multiple alters in one entry. Two new behaviours: type `-kyo/hex` to credit both kyo and hex with one tag (slash-separated), and short prefixes like `-hex` resolve to a longer alter name (e.g. hexandroga) when that prefix uniquely identifies one alter. Works the same way in Journals, Bulletin posts, and Bulletin comments — they all share one parser now.",
       },
