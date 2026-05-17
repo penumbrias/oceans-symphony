@@ -801,6 +801,10 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 - **New entity → backup wiring in the same commit.** Add to `ENTITY_NAMES` AND `EXPORT_CATEGORIES` in `DataBackupRestore.jsx`. If it's device-bound, document the exclusion instead.
 - **New feature surface → tour step in the same commit.** Add the `data-tour="…"` anchor and the matching `buildSteps()` entry.
 
+### Alter selection menus
+
+When building a UI that lets the user pick one or more alters, follow the existing pattern in `SetFrontModal.jsx` (the cleanest current implementation — look there first before building from scratch). Specifically: refetch the current-fronters list when the menu opens (`base44.entities.FrontingSession.filter({ is_active: true })` — don't trust a closure-captured prop or the stale `["activeFront"]` query), pre-select current fronters when the menu is for "filter by who's fronting"-style flows, render the alter rows with the same chip/list shape so the UI feels consistent across features, and route every "alter" / "fronter" / "fronting" label through `useTerms()`. The Fronter-view filter dropdown in `Journals.jsx` is another reference implementation (lighter weight — just a popover, no full-screen dialog).
+
 ---
 
 ## Architectural Why-Explanations
