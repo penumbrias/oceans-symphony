@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft, UserRound, ChevronDown, X } from "lucide-react";
+import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft, UserRound, ChevronDown, X, Check } from "lucide-react";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,15 @@ export default function Journals() {
   const [showAuthorFilter, setShowAuthorFilter] = useState(false);
   const [authorFilterSearch, setAuthorFilterSearch] = useState("");
   const [fronterOnly, setFronterOnly] = useState(false);
+  // Fronter-view refinement menu. `fronterFilterIds === null` means
+  // "auto-track currently-fronting alters"; a Set means the user has
+  // explicitly refined the selection via the dropdown. Persists for the
+  // page lifetime only (intentional — not stored across reloads).
+  const [fronterMenuOpen, setFronterMenuOpen] = useState(false);
+  const [fronterMenuSearch, setFronterMenuSearch] = useState("");
+  const [fronterFilterIds, setFronterFilterIds] = useState(null);
+  const fronterPressTimerRef = useRef(null);
+  const fronterLongPressedRef = useRef(false);
   const [editEntry, setEditEntry] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -144,13 +153,23 @@ export default function Journals() {
         const isCoAuthor = (e.co_author_alter_ids || []).includes(selectedAuthorId);
         if (!isAuthor && !isCoAuthor) return false;
       }
-      if (fronterOnly && currentAlterIds.length > 0) {
-        const allowed = e.allowed_alter_ids || [];
-        if (allowed.length > 0 && !allowed.some((id) => currentAlterIds.includes(id))) return false;
+      if (fronterOnly) {
+        // Use the explicit refinement set if the user opened the menu and
+        // adjusted it; otherwise auto-track the currently-fronting alters.
+        const activeFilterIds = fronterFilterIds
+          ? [...fronterFilterIds]
+          : currentAlterIds;
+        if (activeFilterIds.length === 0) return false;
+        const author = e.author_alter_id;
+        const coAuthors = e.co_author_alter_ids || [];
+        const matches =
+          (author && activeFilterIds.includes(author)) ||
+          coAuthors.some((id) => activeFilterIds.includes(id));
+        if (!matches) return false;
       }
       return true;
     });
-  }, [entries, tab, search, selectedTag, viewingFolder, selectedAuthorId, fronterOnly, currentAlterIds]);
+  }, [entries, tab, search, selectedTag, viewingFolder, selectedAuthorId, fronterOnly, fronterFilterIds, currentAlterIds]);
 
   const openNew = (folder = null) => { setEditEntry(null); setNewEntryFolder(folder); setShowEditor(true); };
   const openEntry = (entry) => { setViewingEntry(entry); };
@@ -189,6 +208,81 @@ export default function Journals() {
     persistFolders(updated);
     setSavedFoldersState(updated);
   };
+
+  // Refetch active fronters at the moment the menu opens (don't trust the
+  // cached `activeSessions` query — it may be stale). Mirrors the
+  // SetFrontModal / useSwipeActions "refetch before write" pattern from
+  // CLAUDE.md — closure-captured fronter lists go stale fast.
+  const openFronterMenu = async () => {
+    let preselect = currentAlterIds;
+    try {
+      const active = await base44.entities.FrontingSession.filter({ is_active: true });
+      const ids = active
+        .map((s) => s.alter_id || s.primary_alter_id)
+        .filter(Boolean);
+      const co = active.flatMap((s) => s.co_fronter_ids || []).filter(Boolean);
+      preselect = Array.from(new Set([...ids, ...co]));
+    } catch {
+      // Fall back to the cached currentAlterIds preselect
+    }
+    if (!fronterFilterIds) {
+      setFronterFilterIds(new Set(preselect));
+    }
+    setFronterMenuOpen(true);
+    setFronterMenuSearch("");
+  };
+
+  const toggleFronterFilterAlter = (id) => {
+    setFronterFilterIds((prev) => {
+      const next = new Set(prev || currentAlterIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleFronterButtonTap = () => {
+    if (fronterLongPressedRef.current) {
+      // The long-press handler already opened the menu; suppress the tap
+      fronterLongPressedRef.current = false;
+      return;
+    }
+    if (fronterOnly) {
+      // Off: also drop any custom refinement so next toggle starts fresh
+      setFronterOnly(false);
+      setFronterFilterIds(null);
+    } else {
+      setFronterOnly(true);
+      setFronterFilterIds(null); // reset to "track current fronters"
+    }
+  };
+
+  const startFronterPress = () => {
+    fronterLongPressedRef.current = false;
+    fronterPressTimerRef.current = setTimeout(() => {
+      fronterLongPressedRef.current = true;
+      setFronterOnly(true);
+      openFronterMenu();
+    }, 500);
+  };
+
+  const cancelFronterPress = () => {
+    if (fronterPressTimerRef.current) {
+      clearTimeout(fronterPressTimerRef.current);
+      fronterPressTimerRef.current = null;
+    }
+  };
+
+  // Badge: how many alters are being filtered on, and whether it diverges
+  // from the current fronters (so we only show the count when meaningful).
+  const fronterFilterCount = fronterFilterIds ? fronterFilterIds.size : currentAlterIds.length;
+  const fronterFilterIsCustom = useMemo(() => {
+    if (!fronterFilterIds) return false;
+    const cur = new Set(currentAlterIds);
+    if (fronterFilterIds.size !== cur.size) return true;
+    for (const id of fronterFilterIds) if (!cur.has(id)) return true;
+    return false;
+  }, [fronterFilterIds, currentAlterIds]);
 
   // Breadcrumb path segments
   const breadcrumbs = viewingFolder ? viewingFolder.split("/") : [];
@@ -339,12 +433,104 @@ export default function Journals() {
         )}
 
         {currentAlterIds.length > 0 && (
-          <Button variant={fronterOnly ? "default" : "outline"} size="sm"
-            onClick={() => setFronterOnly(!fronterOnly)}
-            className={`gap-1.5 ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}>
-            <Eye className="w-3.5 h-3.5" />
-            Fronter view
-          </Button>
+          <div className="relative inline-flex">
+            <Button
+              variant={fronterOnly ? "default" : "outline"}
+              size="sm"
+              onClick={handleFronterButtonTap}
+              onPointerDown={startFronterPress}
+              onPointerUp={cancelFronterPress}
+              onPointerLeave={cancelFronterPress}
+              onPointerCancel={cancelFronterPress}
+              onContextMenu={(e) => { e.preventDefault(); setFronterOnly(true); openFronterMenu(); }}
+              title={`Show entries by currently-${terms.fronting} ${terms.alters} (hold or tap chevron to refine)`}
+              className={`gap-1.5 rounded-r-none ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              {terms.Fronter} view
+              {fronterOnly && fronterFilterIsCustom && (
+                <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full text-[0.625rem] font-semibold bg-primary-foreground/20 text-primary-foreground">
+                  {fronterFilterCount}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant={fronterOnly ? "default" : "outline"}
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); openFronterMenu(); }}
+              aria-label={`Refine ${terms.fronter}-view filter`}
+              className={`px-1.5 rounded-l-none border-l-0 ${fronterOnly ? "bg-primary hover:bg-primary/90" : ""}`}
+            >
+              <ChevronDown className="w-3 h-3 opacity-70" />
+            </Button>
+
+            {fronterMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setFronterMenuOpen(false)} />
+                <div className="absolute top-full right-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 max-w-[calc(100vw-2rem)] overflow-hidden">
+                  <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Filter by {terms.alter}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setFronterFilterIds(new Set(currentAlterIds))}
+                      className="text-[0.625rem] font-medium text-primary hover:underline"
+                      title={`Reset to currently-${terms.fronting} ${terms.alters}`}
+                    >
+                      Current {terms.fronters}
+                    </button>
+                  </div>
+                  <div className="px-3 py-2 border-b border-border/50">
+                    <input
+                      autoFocus
+                      value={fronterMenuSearch}
+                      onChange={(e) => setFronterMenuSearch(e.target.value)}
+                      placeholder={`Search ${terms.alters}...`}
+                      className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {alters
+                      .filter((a) => !a.is_archived)
+                      .filter((a) => !fronterMenuSearch || a.name?.toLowerCase().includes(fronterMenuSearch.toLowerCase()))
+                      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+                      .map((a) => {
+                        const selected = (fronterFilterIds || new Set(currentAlterIds)).has(a.id);
+                        const isCurrent = currentAlterIds.includes(a.id);
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => toggleFronterFilterAlter(a.id)}
+                            className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${selected ? "bg-primary/5" : ""}`}
+                          >
+                            <div className="w-4 h-4 rounded border flex items-center justify-center flex-shrink-0"
+                              style={{ backgroundColor: selected ? (a.color || "#94a3b8") : "transparent", borderColor: selected ? (a.color || "#94a3b8") : "hsl(var(--border))" }}>
+                              {selected && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                            <span className={`flex-1 truncate ${selected ? "text-foreground font-medium" : "text-muted-foreground"}`}>{a.name}</span>
+                            {isCurrent && (
+                              <span className="text-[0.5625rem] uppercase tracking-wide text-primary/80 font-semibold">{terms.Front}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                  </div>
+                  <div className="px-3 py-2 border-t border-border/50 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setFronterMenuOpen(false)}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -376,14 +562,24 @@ export default function Journals() {
         <div className="flex flex-col items-center justify-center py-20 text-center px-4">
           <div className="text-4xl mb-3">📓</div>
           <p className="text-sm font-medium text-foreground mb-1">
-            {viewingFolder ? "This folder is empty" : "No journal entries yet"}
+            {fronterOnly
+              ? `No entries from currently-${terms.fronting} ${terms.alters}`
+              : viewingFolder ? "This folder is empty" : "No journal entries yet"}
           </p>
           <p className="text-xs text-muted-foreground mb-4">
-            {viewingFolder ? "Add your first entry to this folder." : "Start writing to capture your thoughts and experiences."}
+            {fronterOnly
+              ? `Tap "${terms.Fronter} view" again to clear the filter and see every entry.`
+              : viewingFolder ? "Add your first entry to this folder." : "Start writing to capture your thoughts and experiences."}
           </p>
-          <Button variant="outline" size="sm" onClick={() => openNew(viewingFolder)}>
-            {viewingFolder ? "Add entry here" : "Write your first entry"}
-          </Button>
+          {fronterOnly ? (
+            <Button variant="outline" size="sm" onClick={() => { setFronterOnly(false); setFronterFilterIds(null); }}>
+              Clear {terms.fronter} view
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => openNew(viewingFolder)}>
+              {viewingFolder ? "Add entry here" : "Write your first entry"}
+            </Button>
+          )}
         </div>
       ) : filtered.length > 0 ? (
         <>
