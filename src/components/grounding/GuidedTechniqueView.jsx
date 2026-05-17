@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, ArrowRight, Star, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_EMOJIS, resolveCategory } from "@/utils/groundingDefaults";
+import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
 
 const LS_STEP_MODE = "symphony_grounding_step_mode";
 
@@ -31,7 +32,11 @@ export default function GuidedTechniqueView({
   const [stepIdx, setStepIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState(technique.duration_seconds || 0);
   const [timerRunning, setTimerRunning] = useState(true);
-  const [done, setDone] = useState(false);
+  const [done, setDoneRaw] = useState(false);
+  const setDone = (v) => {
+    setDoneRaw(v);
+    if (v) markGroundingTechniqueUsedToday();
+  };
   const [ratingHover, setRatingHover] = useState(0);
   const [note, setNote] = useState(preference?.notes || "");
   const [noteSaved, setNoteSaved] = useState(false);

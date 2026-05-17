@@ -3,6 +3,7 @@ import { Bell, X } from "lucide-react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
+import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
 
 export default function NotificationPopups({ mentionLogs = [], alters = [], frontingAlterIds = [], onNotifClick }) {
   const queryClient = useQueryClient();
@@ -23,6 +24,7 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
     await base44.entities.MentionLog.update(m.id, {
       dismissed_by_alter_ids: [...dismissedBy, m.mentioned_alter_id],
     });
+    markMentionAcknowledgedToday();
     queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
   };
 

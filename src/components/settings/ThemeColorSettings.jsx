@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Palette, Save, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
+import { markThemeChangedToday } from "@/lib/dailyTaskSystem";
 
 const THEME_PRESETS = [
   { name: "Purple", hue: "265" },
@@ -31,6 +32,7 @@ export default function ThemeColorSettings({ settings }) {
       }
       // Update CSS variable
       document.documentElement.style.setProperty("--primary", `${customColor} 60% 55%`);
+      markThemeChangedToday();
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch (e) {
       console.error(e);
