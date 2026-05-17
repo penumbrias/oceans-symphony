@@ -284,6 +284,23 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
               </button>
             </div>
 
+            {/* New-task form renders inline under the section header that was
+                clicked, not at the bottom of the page. Previously the form
+                was rendered once outside this map after every section, which
+                meant tapping the + on the Daily header opened a form way
+                below the Monthly section — testers reported "the button does
+                nothing" because the form was off-screen. */}
+            {showAddForm && addFrequency === freq && (
+              <div className="mb-3">
+                <TaskForm
+                  initial={{ ...EMPTY_FORM, frequency: freq }}
+                  onSave={handleAdd}
+                  onCancel={() => setShowAddForm(false)}
+                  isNew={true}
+                />
+              </div>
+            )}
+
             {section.length === 0 ? (
               <p className="text-xs text-muted-foreground/50 italic px-1 pb-1">No {freq} tasks yet</p>
             ) : (
@@ -314,14 +331,10 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         );
       })}
 
-      {showAddForm ? (
-        <TaskForm
-          initial={{ ...EMPTY_FORM, frequency: addFrequency }}
-          onSave={handleAdd}
-          onCancel={() => setShowAddForm(false)}
-          isNew={true}
-        />
-      ) : (
+      {/* Bottom action row — only show when no per-section form is open.
+          When the user pressed a section + the inline form above takes over,
+          so this row collapses to avoid two forms on screen. */}
+      {!showAddForm && (
         <div className="flex gap-2 pt-1">
           <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { setAddFrequency("daily"); setShowAddForm(true); }}>
             <Plus className="w-3.5 h-3.5" /> Add Task
