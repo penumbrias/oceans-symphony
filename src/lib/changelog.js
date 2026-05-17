@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Daily Tasks now supports a much wider catalogue of auto-trigger events — set a task to auto-complete when you log an activity, complete a to-do, check in emotionally, record a switch, log a location, finish a planned activity, hit a weekly goal, and more. The full list is in the trigger dropdown when you edit a daily task template.",
+      },
+      {
         type: "fix",
         text: "Fixed the new-task form on Manage Tasks appearing far below the visible area when you tapped the + on a frequency section. The form now opens inline directly under whichever section header you tapped, so you can see what you're filling in without scrolling.",
       },

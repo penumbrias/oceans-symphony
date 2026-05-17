@@ -489,6 +489,27 @@ The old base44 SDK has been removed — `src/api/base44Client.js` now exposes `b
 
 **Cross-feature interactions.** `Task → Activity` synthetic linking; `QuickAction` items can be tasks; tasks appear in `buildTasksSummarySection` of reports.
 
+**Auto-trigger events.** `DailyTaskTemplate.auto_trigger` can be set to one of the keys in `AUTO_TRIGGER_LABELS` (`src/lib/dailyTaskSystem.js`). The system is **derivation-based**, not firing-based — `buildAutoCompletedTriggers` queries today's data and returns the set of triggers currently satisfied, so re-evaluation is automatic and idempotent. To add a new trigger, expand the catalogue in `dailyTaskSystem.js`, query the relevant entity in `DailyTasks.jsx`, derive today's boolean flag, and pass it into `buildAutoCompletedTriggers`. Full catalogue (v0.17.17):
+
+- `check_in` — App opened (daily check-in), always true
+- `journal_entry` — JournalEntry created today
+- `parts_checkin` — SystemCheckIn with `date: TODAY`
+- `todo_completed` — any `Task.completed === true` with `completed_date` today
+- `activity_logged` — any `Activity` timestamped today with status `logged` or `done`
+- `plan_completed` — any `Activity` timestamped today with status `done` (excludes partial/skipped/cancelled)
+- `emotion_checkin_saved` — any `EmotionCheckIn` timestamped today
+- `quick_checkin_saved` — currently aliased to `emotion_checkin_saved` (Quick Check-In always creates an EmotionCheckIn row today; they're kept as separate ids so they can diverge later)
+- `status_note_saved` — any `StatusNote` timestamped today
+- `location_logged` — any `Location` timestamped today
+- `sleep_logged` — any `Sleep` row with `end_time` today (in-progress sleeps don't fire)
+- `switch_logged` — any `FrontingSession` with `start_time` today
+- `symptom_checkin_saved` — any `SymptomCheckIn` timestamped today
+- `reminder_acknowledged` — any `ReminderInstance.status === "acted"` with `scheduled_for` today
+- `backup_exported` — derived from a localStorage marker (`symphony_dailytask_backup_exported_v1`) set by `markBackupExportedToday` from `DataBackupRestore.jsx` on successful file export / clipboard copy
+- `goal_met` — any `ActivityGoal` for the current ISO week whose total `actual_duration_minutes` (or `duration_minutes`) across logged/done/partial activities meets `weekly_minutes`
+
+Labels in `AUTO_TRIGGER_LABELS` use `{{System}}` / `{{Switch}}` placeholders — the picker UI in `TaskTemplateManager.jsx` resolves these via `applyTerms`, so any new trigger involving system/alter/fronting/switch words should use the same placeholder pattern.
+
 **Gotchas.** Daily tasks materialise per day on first view — don't pre-create rows for years out. Completing a synthetic-Activity-linked task creates a new `Activity` record (don't update an existing one — user-data invariant).
 
 ---
@@ -748,7 +769,7 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 | CustomEmotion | base44 | User-defined emotions for the wheel | `name`, `color`, `category` | EmotionWheelPicker, CustomEmotionsManager |
 | CustomField | base44 / local | System-wide custom-field definitions | `name`, `type` | CustomFieldsManager, AlterEditModal |
 | DailyProgress | base44 | Per-day daily-task completion record | `date`, `completed_template_ids` | DailyTasks, dailyTaskSystem |
-| DailyTaskTemplate | base44 | Recurring task definitions | `title`, `cadence`, `time` | DailyTasks, TaskTemplateManager |
+| DailyTaskTemplate | base44 | Recurring task definitions | `title`, `description`, `points`, `frequency` (daily/weekly/monthly/yearly), `mode` (`AUTO`/`MANUAL`), `auto_trigger` (key from `AUTO_TRIGGER_LABELS` when AUTO), `nav_path` (when MANUAL), `is_active`, `sort_order` | DailyTasks, TaskTemplateManager |
 | DiaryCard | base44 | Daily diary card entries | `date`, `fields`, `alter_id` | DiaryCards |
 | DiaryTemplate | base44 | User-defined diary card templates | `name`, `fields` | DiaryTemplateManager |
 | EmotionCheckIn | base44 | Point-in-time emotion log | `timestamp`, `emotions`, `intensity`, `note`, `alter_id`, `is_distress` | QuickCheckInModal, CheckInLog, Timeline |

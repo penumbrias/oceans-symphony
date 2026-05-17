@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS } from "@/lib/dailyTaskSystem";
+import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS, applyTerms } from "@/lib/dailyTaskSystem";
+import { useTerms } from "@/lib/useTerms";
 import { Plus, GripVertical, Pencil, Trash2, RotateCcw, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ const EMPTY_FORM = {
 
 function TaskForm({ initial, onSave, onCancel, isNew }) {
   const [form, setForm] = useState(initial || EMPTY_FORM);
+  const terms = useTerms();
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   return (
     <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-3">
@@ -73,7 +75,7 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
             <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               value={form.auto_trigger || ""} onChange={(e) => set("auto_trigger", e.target.value)}>
               <option value="">— Select trigger —</option>
-              {AUTO_TRIGGER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {AUTO_TRIGGER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{applyTerms(o.label, terms)}</option>)}
             </select>
           </div>
         )}
