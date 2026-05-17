@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Activity Planner Phase 2: log and plan now have separate, focused dialogs instead of one mega-modal. Editing a recurring plan asks whether you mean this instance, this and future, or the whole series. Creating a new category warns you when the name matches an existing category instead of silently linking past activities. Setting added under Notifications to turn off the unresolved-plan reminder card.",
+      },
+      {
         type: "feature",
         text: "Plans are now first-class. Every scheduled plan (recurring or one-off) has a lifecycle — long-press a plan chip on the week grid (or use Manage Plan in details) to mark it Done, Partial (with optional actual time), Skipped, Cancelled, or to Reschedule. The week grid now distinguishes scheduled plans (dashed outline, 50% fill) from logged activities (solid fill); a plan visually fills in when you mark it done. Unresolved past-time plans surface on the Dashboard with one-tap resolution so nothing silently drifts into the tally. Done/partial count toward your activity tally — skipped, cancelled, and still-scheduled plans don't. Recurrence-instance editing, settings toggles, and analytics around completion rates are coming in the next phase.",
       },
