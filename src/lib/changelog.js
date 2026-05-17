@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed the new-task form on Manage Tasks appearing far below the visible area when you tapped the + on a frequency section. The form now opens inline directly under whichever section header you tapped, so you can see what you're filling in without scrolling.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: documented the parallel-agent friction pattern in CLAUDE.md so future maintenance sessions know when to queue agents serially versus in parallel.",
       },
