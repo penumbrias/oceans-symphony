@@ -805,6 +805,19 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 
 When building a UI that lets the user pick one or more alters, follow the existing pattern in `SetFrontModal.jsx` (the cleanest current implementation — look there first before building from scratch). Specifically: refetch the current-fronters list when the menu opens (`base44.entities.FrontingSession.filter({ is_active: true })` — don't trust a closure-captured prop or the stale `["activeFront"]` query), pre-select current fronters when the menu is for "filter by who's fronting"-style flows, render the alter rows with the same chip/list shape so the UI feels consistent across features, and route every "alter" / "fronter" / "fronting" label through `useTerms()`. The Fronter-view filter dropdown in `Journals.jsx` is another reference implementation (lighter weight — just a popover, no full-screen dialog).
 
+### Running multiple agents in parallel (Claude Code on the web specifically)
+
+Cloud Claude Code sessions share a single working tree between the main agent and any sub-agents dispatched with `run_in_background: true`. When two or more agents touch files that are near each other in the tree (or any agent races with inline `Edit`/`Write` calls from the main agent), the working tree gets yanked between sibling branches mid-edit and unstaged changes silently disappear. This bit several agents in the May 17 burst — see PR #108's environment note.
+
+Mitigations, in order of preference:
+
+1. **Queue agents serially** when their scopes touch overlapping files. Wait for the merge webhook of agent N before dispatching N+1. Slower wall-clock, zero friction.
+2. **Dispatch in parallel only when scopes are clearly disjoint** (different feature folders, no shared release-checklist files in flight at the same time). Even then, each agent must `git add` + `git commit` IMMEDIATELY after each `Write`/`Edit` — don't leave unstaged changes lying around for another agent to step on. Spec this explicitly in the prompt.
+3. **The main agent should NOT do inline Edits while sub-agents are in flight** unless you're certain the file is outside every active agent's working set. If you need to fix something while agents are running, either wait, or dispatch a fresh agent for it. (Trying to weave inline edits through active agent branches is the exact pattern that produced the most friction.)
+4. **When a release-checklist file collision happens anyway**, each agent's "conflict handling" block in its prompt should instruct it to pick the next-available `APP_VERSION` slot above main's current value, mirror `versionCode` + `versionName`, and keep ALL changelog entries during rebase.
+
+If you're dispatching three or more agents and any of them touch shared/release files, default to serial. The wall-clock savings of parallel aren't worth the cleanup time when they collide.
+
 ---
 
 ## Architectural Why-Explanations
