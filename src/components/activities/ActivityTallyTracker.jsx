@@ -9,6 +9,7 @@ import {
   getChildren,
   MAX_RENDER_DEPTH,
 } from "@/lib/categoryTreeUtils";
+import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 function formatTime(minutes) {
   if (!minutes) return null;
@@ -104,7 +105,16 @@ export default function ActivityTallyTracker({ activities = [] }) {
     const t = {};
     activities.forEach((activity) => {
       const catIds = activity.activity_category_ids || [];
-      const mins = activity.duration_minutes || 0;
+      // Status-aware: scheduled/skipped/cancelled contribute zero
+      // minutes; partial uses the user's actual_duration_minutes when
+      // recorded, otherwise a half-of-planned fallback. The COUNT still
+      // increments for everything except skipped/cancelled so the tally
+      // surface stays informative ("you did this twice this week, half-
+      // completed once") rather than dropping resolved-partial plans
+      // entirely.
+      const status = statusFor(activity);
+      if (status === ACTIVITY_STATUSES.SKIPPED || status === ACTIVITY_STATUSES.CANCELLED) return;
+      const mins = countableMinutes(activity);
 
       if (catIds.length === 0) return;
 
@@ -117,7 +127,10 @@ export default function ActivityTallyTracker({ activities = [] }) {
       allIds.forEach((catId) => {
         if (!catById[catId]) return;
         if (!t[catId]) t[catId] = { count: 0, totalMinutes: 0 };
-        t[catId].count++;
+        // Scheduled plans don't count toward "actual" minutes but still
+        // increment the count so the user sees them in the panel as
+        // upcoming work.
+        if (status !== ACTIVITY_STATUSES.SCHEDULED) t[catId].count++;
         t[catId].totalMinutes += mins;
       });
     });

@@ -3,6 +3,7 @@ import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   format, isSameMonth, isToday, isSameDay,
 } from "date-fns";
+import { countableMinutes, statusFor, visualForStatus, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 /**
  * Calendar-grid view of a single month. Each day cell shows colored bars or
@@ -41,7 +42,7 @@ export default function ActivityMonthView({
     let max = 0;
     for (const d of days) {
       const list = byDay[format(d, "yyyy-MM-dd")] || [];
-      const total = list.reduce((s, a) => s + (a.duration_minutes || 0), 0);
+      const total = list.reduce((s, a) => s + countableMinutes(a), 0);
       if (total > max) max = total;
     }
     return max;
@@ -61,7 +62,7 @@ export default function ActivityMonthView({
         {days.map(d => {
           const key = format(d, "yyyy-MM-dd");
           const list = byDay[key] || [];
-          const totalMin = list.reduce((s, a) => s + (a.duration_minutes || 0), 0);
+          const totalMin = list.reduce((s, a) => s + countableMinutes(a), 0);
           const intensity = maxMinutes > 0 ? Math.min(1, totalMin / maxMinutes) : 0;
           const inMonth = isSameMonth(d, monthStart);
           const today = isToday(d);
@@ -85,15 +86,23 @@ export default function ActivityMonthView({
                 )}
               </div>
               <div className="flex flex-wrap gap-0.5">
-                {list.slice(0, 6).map(a => (
-                  <span
-                    key={a.id}
-                    onClick={(e) => { e.stopPropagation(); onActivityClick?.(a); }}
-                    className="inline-block w-1.5 h-1.5 rounded-full cursor-pointer"
-                    style={{ backgroundColor: a.color || "hsl(var(--primary))" }}
-                    title={a.activity_name}
-                  />
-                ))}
+                {list.slice(0, 6).map(a => {
+                  const v = visualForStatus(statusFor(a));
+                  const baseColor = a.color || "hsl(var(--primary))";
+                  return (
+                    <span
+                      key={a.id}
+                      onClick={(e) => { e.stopPropagation(); onActivityClick?.(a); }}
+                      className="inline-block w-1.5 h-1.5 rounded-full cursor-pointer"
+                      style={{
+                        backgroundColor: v.dashed ? "transparent" : baseColor,
+                        border: v.dashed ? `1px dashed ${baseColor}` : undefined,
+                        opacity: v.fillOpacity,
+                      }}
+                      title={a.activity_name}
+                    />
+                  );
+                })}
                 {list.length > 6 && (
                   <span className="text-[0.5rem] text-muted-foreground leading-none">+{list.length - 6}</span>
                 )}

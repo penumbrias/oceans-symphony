@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { startOfDay, endOfDay } from "date-fns";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 export default function AlterActivityMatrix({ activities = [], categories = [], alters = [], from, to }) {
   const terms = useTerms();
@@ -42,7 +43,14 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
 
     const filtered = activities.filter(a => {
       const t = new Date(a.timestamp).getTime();
-      return t >= fromMs && t <= toMs;
+      if (t < fromMs || t > toMs) return false;
+      // Skipped/cancelled never count toward the matrix — they didn't
+      // happen. Scheduled drops out too: the matrix is about what
+      // actually happened, not what's upcoming.
+      const status = statusFor(a);
+      return status !== ACTIVITY_STATUSES.SKIPPED
+        && status !== ACTIVITY_STATUSES.CANCELLED
+        && status !== ACTIVITY_STATUSES.SCHEDULED;
     });
 
     // alterMap: alterId → { alter, countsByKey: {catName→count}, total, totalDuration }
@@ -85,7 +93,7 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
     });
     // Only increment total once per activity not once per category
     alterMap[alterId].total += 1;
-    alterMap[alterId].totalDuration += act.duration_minutes || 0;
+    alterMap[alterId].totalDuration += countableMinutes(act);
   });
 });
 

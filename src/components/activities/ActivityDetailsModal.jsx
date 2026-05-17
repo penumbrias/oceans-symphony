@@ -12,6 +12,8 @@ import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import AlterAvatar from "@/components/shared/AlterAvatar";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
+import ActivityLifecyclePopover from "@/components/activities/ActivityLifecyclePopover";
+import { statusFor, STATUS_LABELS, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -127,6 +129,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
   // keyed by act.id so each activity has independent edit state
   const [editDataMap, setEditDataMap] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [lifecycleAct, setLifecycleAct] = useState(null);
   const editData = editDataMap[editingId] || {};
 
   const activities = useMemo(() => {
@@ -325,9 +328,18 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                 const color = getActivityColor(act);
                 return (
                   <div key={act.id} className="border border-border rounded-lg p-4 space-y-3">
-                    <div className="rounded-lg p-3 text-center font-semibold text-lg"
+                    <div className="rounded-lg p-3 text-center font-semibold text-lg relative"
                       style={{ backgroundColor: color, color: getContrastColor(color) }}>
                       {act.activity_name}
+                      {(() => {
+                        const st = statusFor(act);
+                        if (st === ACTIVITY_STATUSES.LOGGED) return null;
+                        return (
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-black/25 align-middle">
+                            {STATUS_LABELS[st]}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-sm bg-muted/30 rounded-lg p-3">
                       <div><p className="text-muted-foreground text-xs font-semibold mb-1">Start</p><p className="font-medium">{format(startTime, "HH:mm")}</p></div>
@@ -399,7 +411,16 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                         <p className="text-sm bg-muted/30 rounded-lg p-3">{act.notes}</p>
                       </div>
                     )}
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex gap-2 pt-2 flex-wrap">
+                      {statusFor(act) !== ACTIVITY_STATUSES.LOGGED && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setLifecycleAct(act)}
+                          className="flex-1 min-w-[120px]"
+                        >
+                          Manage Plan
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -414,7 +435,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                           }
                           handleEdit(act);
                         }}
-                        className="flex-1"
+                        className="flex-1 min-w-[80px]"
                       >
                         Edit
                       </Button>
@@ -429,6 +450,12 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
           )}
         </div>
       </DialogContent>
+      <ActivityLifecyclePopover
+        isOpen={!!lifecycleAct}
+        activity={lifecycleAct}
+        onClose={() => setLifecycleAct(null)}
+        onChanged={() => { onSave?.(); setLifecycleAct(null); }}
+      />
     </Dialog>
   );
 }

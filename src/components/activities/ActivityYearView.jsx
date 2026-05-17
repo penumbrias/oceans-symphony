@@ -3,6 +3,7 @@ import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   format, isSameMonth, isToday,
 } from "date-fns";
+import { countableMinutes } from "@/lib/activityStatus";
 
 function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, onDayClick }) {
   const monthStart = startOfMonth(monthDate);
@@ -31,7 +32,7 @@ function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, o
         {days.map(d => {
           const key = format(d, "yyyy-MM-dd");
           const list = byDay[key] || [];
-          const totalMin = list.reduce((s, a) => s + (a.duration_minutes || 0), 0);
+          const totalMin = list.reduce((s, a) => s + countableMinutes(a), 0);
           const intensity = maxMinutes > 0 ? Math.min(1, totalMin / maxMinutes) : 0;
           const inMonth = isSameMonth(d, monthStart);
           const today = isToday(d);
@@ -87,7 +88,7 @@ export default function ActivityYearView({
   const maxMinutes = useMemo(() => {
     let max = 0;
     for (const list of Object.values(byDay)) {
-      const total = list.reduce((s, a) => s + (a.duration_minutes || 0), 0);
+      const total = list.reduce((s, a) => s + countableMinutes(a), 0);
       if (total > max) max = total;
     }
     return max;
