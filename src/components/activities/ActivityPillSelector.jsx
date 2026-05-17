@@ -7,6 +7,7 @@ import {
   getChildren,
   indexById,
   MAX_RENDER_DEPTH,
+  getRootCategories,
 } from "@/lib/categoryTreeUtils";
 
 function ActivityPillNode({ category, allCategories, selectedActivities, onToggle, level = 0, expandedIds, onToggleExpanded, seen }) {
@@ -104,14 +105,8 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
   const byIdAll = useMemo(() => indexById(categories), [categories]);
 
   const rootCategories = useMemo(
-    () =>
-      categories
-        // Surface orphans (parent_category_id points at a deleted record)
-        // as roots so they remain pickable — otherwise they'd vanish from
-        // the UI when a parent was deleted.
-        .filter((c) => !c.parent_category_id || !byIdAll[c.parent_category_id])
-        .sort((a, b) => (a.order || 0) - (b.order || 0)),
-    [categories, byIdAll],
+    () => getRootCategories(categories),
+    [categories],
   );
 
   // Flat search results across the entire tree. Matched by name OR by any

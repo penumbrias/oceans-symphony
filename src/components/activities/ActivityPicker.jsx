@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X, ChevronRight } from "lucide-react";
+import { getRootCategories } from "@/lib/categoryTreeUtils";
 
 const DEFAULT_CATEGORIES = [
   { name: "Work", color: "#3B82F6", parent: null },
@@ -72,9 +73,7 @@ export default function ActivityPicker({ selectedActivities = [], onActivityChan
     },
   });
 
-  const mainCategories = useMemo(() => {
-    return categories.filter(c => !c.parent_category_id);
-  }, [categories]);
+  const mainCategories = useMemo(() => getRootCategories(categories), [categories]);
 
   const subCategoriesByParent = useMemo(() => {
     const map = {};
