@@ -7,7 +7,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
-import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
@@ -107,14 +106,13 @@ export default function Home() {
       <div className="mb-4">
         <CurrentFronters alters={activeAlters} />
       </div>
-      {/* Pinned bulletins/tasks + critical plan banners live only on the
-          Dashboard (/) now. The Home page is the alters directory and
-          doesn't need to double-surface them — keeps the list tidy. */}
-      <UpcomingPlans placement="home_top" />
+      {/* This page (/Home) is the alters directory. Upcoming-plans
+          surfaces with placement="home_top" / "home_bottom" now render
+          on the Dashboard (/) instead — that's what their Settings
+          labels say and where users expect them. */}
       <div data-tour="alters-grid">
         <AlterGrid alters={activeAlters} />
       </div>
-      <UpcomingPlans placement="home_bottom" />
 
       <AlterEditModal
         open={showAddAlter}

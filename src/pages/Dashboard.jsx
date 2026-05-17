@@ -9,6 +9,7 @@ import { Heart, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
 import DashboardPins from "@/components/dashboard/DashboardPins";
@@ -547,6 +548,9 @@ export default function Dashboard() {
       <BetaTesterBanner />
       <CriticalPinnedPlans />
       <UnresolvedPlansCard />
+      {/* "Top of Dashboard" surface — above Currently Fronting per
+          Settings → Upcoming Plans Visibility. */}
+      <UpcomingPlans placement="home_top" />
       <CurrentFronters alters={alters} />
       <DashboardPins />
       <CurrentSymptoms onOpenCheckIn={(section) => { setEmotionModalInitialSection(section); setShowEmotionModal(true); }} />
@@ -594,6 +598,9 @@ export default function Dashboard() {
       <NewFeaturesBar />
       <QuickNavMenu />
       <BulletinBoard alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlightBulletinId={highlightBulletinId} />
+      {/* "Bottom of Dashboard" surface — below the bulletin board per
+          Settings → Upcoming Plans Visibility. */}
+      <UpcomingPlans placement="home_bottom" />
 
       {/* Legal/scope disclaimer — gates everything else on first run.
           TermsSetup waits until the disclaimer is acknowledged. */}
