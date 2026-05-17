@@ -200,6 +200,16 @@ export async function initNativeShell() {
     LocalNotifications.addListener('localNotificationActionPerformed', async (event) => {
       const extra = event?.notification?.extra || {};
 
+      // Plan reminder tap: deep-link straight into the Activity
+      // Tracker with the plan id pre-loaded — same convention as the
+      // Dashboard's critical-plan card. Doesn't record a
+      // ReminderInstance (plans don't share the Reminder entity).
+      if (extra.kind === "plan_reminder" && extra.activityId) {
+        pendingNativeRoute.target = `/activities?activityId=${encodeURIComponent(extra.activityId)}`;
+        notifyRoute();
+        return;
+      }
+
       // Backup-reminder tap: run the backup immediately, write to
       // Documents on native (no chooser), toast on completion.
       if (extra.kind === BACKUP_NOTIFICATION_EXTRA_KIND) {

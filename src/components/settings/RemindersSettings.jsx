@@ -15,6 +15,13 @@ import {
   UNRESOLVED_NAG_KEY,
   isUnresolvedNagEnabled,
 } from "@/components/dashboard/UnresolvedPlansCard";
+import {
+  PLAN_REMINDER_OFFSETS,
+  readPlanRemindersEnabled,
+  writePlanRemindersEnabled,
+  readPlanRemindersDefaultOffset,
+  writePlanRemindersDefaultOffset,
+} from "@/lib/planReminderScheduler";
 
 const NATIVE_MODE = isNative();
 
@@ -44,6 +51,12 @@ export default function RemindersSettings() {
   // reads localStorage directly (no React Query round-trip on every
   // render). Default ON — see UnresolvedPlansCard.
   const [unresolvedNagOn, setUnresolvedNagOn] = useState(isUnresolvedNagEnabled);
+  // Upcoming-plan reminders. Stored in localStorage (device-specific —
+  // intentionally not in SystemSettings, like the unresolved nag
+  // above). Writes dispatch a custom event so usePlanReminderSync
+  // notices and re-reconciles immediately.
+  const [planRemindersOn, setPlanRemindersOn] = useState(readPlanRemindersEnabled);
+  const [planRemindersOffset, setPlanRemindersOffset] = useState(readPlanRemindersDefaultOffset);
 
   useEffect(() => {
     isPushEnabled().then(setPushEnabled).catch(() => {});
@@ -223,6 +236,49 @@ export default function RemindersSettings() {
             toast(v ? "Unresolved-plan reminder enabled" : "Unresolved-plan reminder disabled");
           }}
         />
+      </div>
+
+      {/* Upcoming-plan reminders — fires before a scheduled plan starts. */}
+      <div className="space-y-3 p-3 bg-muted/20 rounded-xl border border-border/40">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-semibold text-sm">Remind me before upcoming plans</p>
+            <p className="text-xs text-muted-foreground">
+              {NATIVE_MODE
+                ? "Fires an OS notification a few minutes before each scheduled plan. Works even when the app is closed."
+                : "Best-effort browser notification while the app is open. For reliable background alerts, install the native build."}
+            </p>
+          </div>
+          <Switch
+            checked={planRemindersOn}
+            onCheckedChange={(v) => {
+              setPlanRemindersOn(v);
+              writePlanRemindersEnabled(v);
+              toast(v ? "Plan reminders enabled" : "Plan reminders disabled");
+            }}
+          />
+        </div>
+        {planRemindersOn && (
+          <div>
+            <p className="text-xs text-muted-foreground mb-1.5">Default lead time (each plan can override):</p>
+            <div className="flex flex-wrap gap-1.5">
+              {PLAN_REMINDER_OFFSETS.map((opt) => {
+                const active = planRemindersOffset === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setPlanRemindersOffset(opt.value);
+                      writePlanRemindersDefaultOffset(opt.value);
+                    }}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${active ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/50"}`}
+                  >{opt.label}</button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quiet hours */}

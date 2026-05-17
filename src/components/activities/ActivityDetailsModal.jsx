@@ -269,6 +269,13 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     setIsLoading(true);
     try {
       await base44.entities.Activity.delete(actId);
+      // Cancel any pending OS notification for this plan — leaving one
+      // alive after delete would notify the user about a plan that no
+      // longer exists.
+      try {
+        const { cancelPlanReminder } = await import("@/lib/planReminderScheduler");
+        await cancelPlanReminder(actId);
+      } catch { /* non-fatal */ }
       // Cascade-delete the linked Sleep record so the Sleep page doesn't
       // keep an orphaned entry after the user removes its activity.
       if (target?.source_sleep_id) {
@@ -288,14 +295,26 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     if (!target) return;
     setIsLoading(true);
     try {
+      let deletedIds = [];
       if (branch === RECURRENCE_BRANCHES.THIS_ONLY) {
         await base44.entities.Activity.delete(target.id);
+        deletedIds = [target.id];
         toast.success("Deleted this instance");
       } else {
         const members = membersForBranch(allActivities, target, branch);
+        deletedIds = members.map(m => m.id);
         const count = await deleteSeries(members);
         toast.success(`Deleted ${BRANCH_LABELS[branch]} (${count})`);
       }
+      // Cancel any pending OS notifications for the deleted plans so
+      // the user doesn't get a "starts in 30 minutes" alert for a plan
+      // that no longer exists.
+      try {
+        const { cancelPlanReminder } = await import("@/lib/planReminderScheduler");
+        for (const id of deletedIds) {
+          await cancelPlanReminder(id);
+        }
+      } catch { /* non-fatal */ }
       onSave?.();
       if (activities.length === 1) onClose();
     } catch (err) {
