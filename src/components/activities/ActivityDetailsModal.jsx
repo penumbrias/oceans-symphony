@@ -13,7 +13,14 @@ import AlterAvatar from "@/components/shared/AlterAvatar";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import ActivityLifecyclePopover from "@/components/activities/ActivityLifecyclePopover";
+import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import { statusFor, STATUS_LABELS, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import {
+  RECURRENCE_BRANCHES,
+  membersForBranch,
+  deleteSeries,
+  BRANCH_LABELS,
+} from "@/lib/recurrenceUtils";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -130,7 +137,17 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
   const [editDataMap, setEditDataMap] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [lifecycleAct, setLifecycleAct] = useState(null);
+  // When set, the recurrence-branch chooser is open over the details
+  // modal. Holds the activity the user is trying to delete from a
+  // series; the actual deletion happens after they pick a branch.
+  const [pendingDeleteRecurring, setPendingDeleteRecurring] = useState(null);
   const editData = editDataMap[editingId] || {};
+
+  // Full activity list for series resolution. Cached query — cheap.
+  const { data: allActivities = [] } = useQuery({
+    queryKey: ["activities"],
+    queryFn: () => base44.entities.Activity.list(),
+  });
 
   const activities = useMemo(() => {
     if (!activity) return [];
@@ -239,10 +256,18 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
   };
 
   const handleDelete = async (actId) => {
+    const target = activities.find(a => a.id === actId);
+    if (!target) return;
+    // Recurring plans go through the branch chooser. The actual delete
+    // happens in handleConfirmRecurringDelete after the user picks a
+    // scope.
+    if (target.recurrence_group_id) {
+      setPendingDeleteRecurring(target);
+      return;
+    }
     if (!window.confirm("Delete this activity?")) return;
     setIsLoading(true);
     try {
-      const target = activities.find(a => a.id === actId);
       await base44.entities.Activity.delete(actId);
       // Cascade-delete the linked Sleep record so the Sleep page doesn't
       // keep an orphaned entry after the user removes its activity.
@@ -252,6 +277,29 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       toast.success("Activity deleted");
       onSave?.();
       if (activities.length === 1) onClose();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmRecurringDelete = async (branch) => {
+    const target = pendingDeleteRecurring;
+    setPendingDeleteRecurring(null);
+    if (!target) return;
+    setIsLoading(true);
+    try {
+      if (branch === RECURRENCE_BRANCHES.THIS_ONLY) {
+        await base44.entities.Activity.delete(target.id);
+        toast.success("Deleted this instance");
+      } else {
+        const members = membersForBranch(allActivities, target, branch);
+        const count = await deleteSeries(members);
+        toast.success(`Deleted ${BRANCH_LABELS[branch]} (${count})`);
+      }
+      onSave?.();
+      if (activities.length === 1) onClose();
+    } catch (err) {
+      toast.error(err?.message || "Couldn't delete plan");
     } finally {
       setIsLoading(false);
     }
@@ -455,6 +503,13 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         activity={lifecycleAct}
         onClose={() => setLifecycleAct(null)}
         onChanged={() => { onSave?.(); setLifecycleAct(null); }}
+      />
+      <RecurrenceBranchDialog
+        isOpen={!!pendingDeleteRecurring}
+        actionLabel="delete"
+        subject={pendingDeleteRecurring?.activity_name || null}
+        onClose={() => setPendingDeleteRecurring(null)}
+        onChoose={handleConfirmRecurringDelete}
       />
     </Dialog>
   );

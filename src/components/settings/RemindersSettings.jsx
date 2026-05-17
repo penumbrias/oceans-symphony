@@ -11,6 +11,10 @@ import { registerPush, unregisterPush, isPushEnabled, pushDiagnostics, showLocal
 import { isNative } from "@/lib/platform";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "@/components/reminders/snoozeHelpers";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
+import {
+  UNRESOLVED_NAG_KEY,
+  isUnresolvedNagEnabled,
+} from "@/components/dashboard/UnresolvedPlansCard";
 
 const NATIVE_MODE = isNative();
 
@@ -35,6 +39,11 @@ export default function RemindersSettings() {
   const [pushLoading, setPushLoading] = useState(false);
   const [pushDiag, setPushDiag] = useState(null);
   const [diagLoading, setDiagLoading] = useState(false);
+  // Dashboard "unresolved plans" reminder card toggle. Stored in
+  // localStorage rather than SystemSettings because the card itself
+  // reads localStorage directly (no React Query round-trip on every
+  // render). Default ON — see UnresolvedPlansCard.
+  const [unresolvedNagOn, setUnresolvedNagOn] = useState(isUnresolvedNagEnabled);
 
   useEffect(() => {
     isPushEnabled().then(setPushEnabled).catch(() => {});
@@ -194,6 +203,26 @@ export default function RemindersSettings() {
           <p className="text-xs text-muted-foreground">Temporarily silence every reminder</p>
         </div>
         <Switch checked={paused} onCheckedChange={v => { setPaused(v); toast(v ? "All reminders paused" : "Reminders resumed"); }} />
+      </div>
+
+      {/* Activity reminders — Dashboard nag for past-time plans that
+          haven't been resolved yet. Stored in localStorage; the card
+          listens for the custom event so it hides / reappears
+          immediately. */}
+      <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
+        <div>
+          <p className="font-semibold text-sm">Remind me about unresolved plans</p>
+          <p className="text-xs text-muted-foreground">Show the "Plans needing review" card on the Dashboard when past-time plans are still scheduled.</p>
+        </div>
+        <Switch
+          checked={unresolvedNagOn}
+          onCheckedChange={(v) => {
+            setUnresolvedNagOn(v);
+            try { localStorage.setItem(UNRESOLVED_NAG_KEY, v ? "1" : "0"); } catch {}
+            try { window.dispatchEvent(new Event("activity-unresolved-nag-changed")); } catch {}
+            toast(v ? "Unresolved-plan reminder enabled" : "Unresolved-plan reminder disabled");
+          }}
+        />
       </div>
 
       {/* Quiet hours */}
