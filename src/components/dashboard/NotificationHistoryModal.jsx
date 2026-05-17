@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
 import { Bell, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -52,6 +53,7 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
     if (!m.mentioned_alter_id) {
       // Legacy format — mark via is_read field
       await base44.entities.MentionLog.update(m.id, { is_read: true });
+      markMentionAcknowledgedToday();
       queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
       return;
     }
@@ -60,6 +62,7 @@ export default function NotificationHistoryModal({ open, onClose, alters = [], o
     await base44.entities.MentionLog.update(m.id, {
       dismissed_by_alter_ids: [...dismissedBy, m.mentioned_alter_id],
     });
+    markMentionAcknowledgedToday();
     queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
   };
 

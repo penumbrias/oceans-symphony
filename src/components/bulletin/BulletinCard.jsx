@@ -8,6 +8,7 @@ import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
 import BulletinActionMenu from "./BulletinActionMenu";
 import { useTerms } from "@/lib/useTerms";
+import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
@@ -102,6 +103,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
     Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, poll } : b) : old
     );
     await base44.entities.Bulletin.update(bulletin.id, { poll });
+    markPollVotedToday();
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
@@ -127,6 +129,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
       Array.isArray(old) ? old.map((p) => p.id === linkedPoll.id ? { ...p, votes: newVotes } : p) : old
     );
     await base44.entities.Poll.update(linkedPoll.id, { votes: newVotes });
+    markPollVotedToday();
     qc.invalidateQueries({ queryKey: ["polls"] });
   };
 

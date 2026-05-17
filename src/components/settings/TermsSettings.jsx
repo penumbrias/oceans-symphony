@@ -14,6 +14,7 @@ import { pluralize, gerund, agent } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
+import { markTermsCustomizedToday } from "@/lib/dailyTaskSystem";
 
 export default function TermsSettings() {
   const qc = useQueryClient();
@@ -73,6 +74,7 @@ export default function TermsSettings() {
     } else {
       await base44.entities.SystemSettings.create(data);
     }
+    markTermsCustomizedToday();
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
     setSaving(false);
   };

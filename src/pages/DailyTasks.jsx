@@ -13,6 +13,18 @@ import {
   applyTerms,
   FREQUENCY_LABELS,
   hasBackupExportedToday,
+  hasPollVotedToday,
+  hasMentionAcknowledgedToday,
+  hasFriendAddedToday,
+  hasQuickActionUsedToday,
+  hasThemeChangedToday,
+  hasTermsCustomizedToday,
+  hasTourCompletedToday,
+  hasGroundingTechniqueUsedToday,
+  hasDailyTaskCompletedToday,
+  markDailyTaskCompletedToday,
+  hasStreakMilestoneHitToday,
+  markStreakMilestoneHitToday,
 } from "@/lib/dailyTaskSystem";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { startOfWeek, format } from "date-fns";
@@ -140,6 +152,54 @@ export default function DailyTasks() {
     queryFn: () => base44.entities.ActivityGoal.list(),
     staleTime: 0,
   });
+  // Phase-2 trigger queries (v0.17.18). All of these check `created_date`
+  // against TODAY — we don't need the actual content, so we sort by
+  // created_date desc and only pull the recent N rows.
+  const { data: altersForTriggers = [] } = useQuery({
+    queryKey: ["altersForDailyTriggers"],
+    queryFn: () => base44.entities.Alter.list("-created_date", 100),
+    staleTime: 0,
+  });
+  const { data: alterNotesForTriggers = [] } = useQuery({
+    queryKey: ["alterNotesForDailyTriggers"],
+    queryFn: () => base44.entities.AlterNote.list("-created_date", 100),
+    staleTime: 0,
+  });
+  const { data: bulletinsForTriggers = [] } = useQuery({
+    queryKey: ["bulletinsForDailyTriggers"],
+    queryFn: () => base44.entities.Bulletin.list("-created_date", 100),
+    staleTime: 0,
+  });
+  const { data: bulletinCommentsForTriggers = [] } = useQuery({
+    queryKey: ["bulletinCommentsForDailyTriggers"],
+    queryFn: () => base44.entities.BulletinComment.list("-created_date", 100),
+    staleTime: 0,
+  });
+  const { data: tasksCreatedForTriggers = [] } = useQuery({
+    queryKey: ["tasksCreatedForDailyTriggers"],
+    queryFn: () => base44.entities.Task.list("-created_date", 100),
+    staleTime: 0,
+  });
+  const { data: goalsCreatedForTriggers = [] } = useQuery({
+    queryKey: ["activityGoalsCreatedForDailyTriggers"],
+    queryFn: () => base44.entities.ActivityGoal.list("-created_date", 100),
+    staleTime: 0,
+  });
+  const { data: groupsForTriggers = [] } = useQuery({
+    queryKey: ["groupsForDailyTriggers"],
+    queryFn: () => base44.entities.Group.list("-created_date", 100),
+    staleTime: 0,
+  });
+  const { data: systemChangeEventsForTriggers = [] } = useQuery({
+    queryKey: ["systemChangeEventsForDailyTriggers"],
+    queryFn: () => base44.entities.SystemChangeEvent.list("-created_date", 100),
+    staleTime: 0,
+  });
+  const { data: supportJournalsForTriggers = [] } = useQuery({
+    queryKey: ["supportJournalsForDailyTriggers"],
+    queryFn: () => base44.entities.SupportJournalEntry.list("-created_date", 100),
+    staleTime: 0,
+  });
 
   // Helper: turn an ISO timestamp into the user-local "YYYY-MM-DD" string
   // we compare against TODAY. Anything missing / malformed → null (won't
@@ -203,6 +263,30 @@ export default function DailyTasks() {
 
   const hasBackupExported = hasBackupExportedToday();
 
+  // Phase-2 derivations (v0.17.18). Entity-driven triggers check
+  // `created_date === TODAY`; marker-driven triggers read a localStorage
+  // day-stamp set at the firing site.
+  const hasAlterAddedToday = altersForTriggers.some((a) => localDateKey(a.created_date) === TODAY);
+  const hasNoteAddedToAlterToday = alterNotesForTriggers.some((n) => localDateKey(n.created_date) === TODAY);
+  const hasBulletinPostedToday = bulletinsForTriggers.some((b) => localDateKey(b.created_date) === TODAY);
+  const hasBulletinCommentMadeToday = bulletinCommentsForTriggers.some((c) => localDateKey(c.created_date) === TODAY);
+  const hasTaskCreatedToday = tasksCreatedForTriggers.some((t) => localDateKey(t.created_date) === TODAY);
+  const hasGoalCreatedToday = goalsCreatedForTriggers.some((g) => localDateKey(g.created_date) === TODAY);
+  const hasGroupCreatedToday = groupsForTriggers.some((g) => localDateKey(g.created_date) === TODAY);
+  const hasSystemChangeEventLoggedToday = systemChangeEventsForTriggers.some((e) => localDateKey(e.created_date) === TODAY);
+  const hasReflectionSavedToday = supportJournalsForTriggers.some((r) => localDateKey(r.created_date) === TODAY);
+
+  const hasPollVoted = hasPollVotedToday();
+  const hasMentionAck = hasMentionAcknowledgedToday();
+  const hasFriendAdded = hasFriendAddedToday();
+  const hasQuickActionUsed = hasQuickActionUsedToday();
+  const hasThemeChanged = hasThemeChangedToday();
+  const hasTermsCustomized = hasTermsCustomizedToday();
+  const hasTourCompleted = hasTourCompletedToday();
+  const hasGroundingUsed = hasGroundingTechniqueUsedToday();
+  const hasDailyTaskCompleted = hasDailyTaskCompletedToday();
+  const hasStreakMilestone = hasStreakMilestoneHitToday();
+
   // goal_met: any ActivityGoal whose actual minutes for the current week
   // are >= target. Because this is pure derivation, "first time per week"
   // is automatic — once met, the trigger stays satisfied for the rest of
@@ -244,6 +328,25 @@ export default function DailyTasks() {
       hasReminderAcknowledged: hasReminderAckToday,
       hasBackupExported,
       hasGoalMet: hasGoalMetThisWeek,
+      hasAlterAdded: hasAlterAddedToday,
+      hasNoteAddedToAlter: hasNoteAddedToAlterToday,
+      hasBulletinPosted: hasBulletinPostedToday,
+      hasBulletinCommentMade: hasBulletinCommentMadeToday,
+      hasPollVoted,
+      hasTaskCreated: hasTaskCreatedToday,
+      hasGoalCreated: hasGoalCreatedToday,
+      hasGroupCreated: hasGroupCreatedToday,
+      hasSystemChangeEventLogged: hasSystemChangeEventLoggedToday,
+      hasMentionAcknowledged: hasMentionAck,
+      hasFriendAdded,
+      hasQuickActionUsed,
+      hasThemeChanged,
+      hasTermsCustomized,
+      hasTourCompleted,
+      hasReflectionSaved: hasReflectionSavedToday,
+      hasGroundingTechniqueUsed: hasGroundingUsed,
+      hasDailyTaskCompleted,
+      hasStreakMilestoneHit: hasStreakMilestone,
     }),
     [
       hasJournalToday,
@@ -261,6 +364,25 @@ export default function DailyTasks() {
       hasReminderAckToday,
       hasBackupExported,
       hasGoalMetThisWeek,
+      hasAlterAddedToday,
+      hasNoteAddedToAlterToday,
+      hasBulletinPostedToday,
+      hasBulletinCommentMadeToday,
+      hasPollVoted,
+      hasTaskCreatedToday,
+      hasGoalCreatedToday,
+      hasGroupCreatedToday,
+      hasSystemChangeEventLoggedToday,
+      hasMentionAck,
+      hasFriendAdded,
+      hasQuickActionUsed,
+      hasThemeChanged,
+      hasTermsCustomized,
+      hasTourCompleted,
+      hasReflectionSavedToday,
+      hasGroundingUsed,
+      hasDailyTaskCompleted,
+      hasStreakMilestone,
     ]
   );
 
@@ -307,6 +429,110 @@ export default function DailyTasks() {
     [allProgress]
   );
 
+  // ──────────────────────────────────────────────────────────────────────
+  // Period-aware leveling-label (v0.17.18).
+  //
+  // The Level-bar chip used to always read "N/M pts today" regardless of
+  // which frequency tab the user is viewing. We now scale both the
+  // earned and possible numbers to the selected window, AND swap the
+  // suffix ("today" / "this week" / "this month" / "this year").
+  //
+  // Calculation strategy per window:
+  //   daily   → today only
+  //   weekly  → Monday-start week containing today
+  //   monthly → current calendar month
+  //   yearly  → current calendar year
+  //
+  // Earned XP sums DailyProgress.xp_earned across every record whose
+  // `date` (always a YYYY-MM-DD string at write-time) falls inside the
+  // window — this naturally includes daily/weekly/monthly/yearly tabs'
+  // XP together, since each tab writes its own DailyProgress row.
+  //
+  // Possible XP is the same total-per-day daily-pool projected across
+  // the window plus the higher-frequency templates' point totals (a
+  // weekly template can be completed once per week, monthly once per
+  // month, yearly once per year), so the denominator matches what
+  // could theoretically be earned in this window.
+  // ──────────────────────────────────────────────────────────────────────
+
+  const periodBounds = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const d = now.getDate();
+    if (activeFreq === "daily") {
+      const ymd = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      return { from: ymd, to: ymd, daysInWindow: 1 };
+    }
+    if (activeFreq === "weekly") {
+      const start = startOfWeek(now, { weekStartsOn: 1 });
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      return {
+        from: format(start, "yyyy-MM-dd"),
+        to: format(end, "yyyy-MM-dd"),
+        daysInWindow: 7,
+      };
+    }
+    if (activeFreq === "monthly") {
+      const start = new Date(y, m, 1);
+      const end = new Date(y, m + 1, 0);
+      return {
+        from: format(start, "yyyy-MM-dd"),
+        to: format(end, "yyyy-MM-dd"),
+        daysInWindow: end.getDate(),
+      };
+    }
+    // yearly
+    const start = new Date(y, 0, 1);
+    const end = new Date(y, 11, 31);
+    const isLeap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    return {
+      from: format(start, "yyyy-MM-dd"),
+      to: format(end, "yyyy-MM-dd"),
+      daysInWindow: isLeap ? 366 : 365,
+    };
+  }, [activeFreq]);
+
+  const periodEarnedXP = useMemo(() => {
+    return allProgress.reduce((sum, p) => {
+      const d = p.date;
+      if (!d) return sum;
+      if (d >= periodBounds.from && d <= periodBounds.to) {
+        return sum + (p.xp_earned || 0);
+      }
+      return sum;
+    }, 0);
+  }, [allProgress, periodBounds]);
+
+  const periodPossibleXP = useMemo(() => {
+    const sumFor = (freq) => templates
+      .filter((t) => t.is_active && (t.frequency || "daily") === freq)
+      .reduce((s, t) => s + (t.points || 0), 0);
+    const daily = sumFor("daily");
+    const weekly = sumFor("weekly");
+    const monthly = sumFor("monthly");
+    const yearly = sumFor("yearly");
+    const days = periodBounds.daysInWindow;
+    if (activeFreq === "daily") return daily;
+    if (activeFreq === "weekly") return daily * 7 + weekly;
+    if (activeFreq === "monthly") {
+      // Roughly one weekly slot per 7 days within this month, plus the
+      // monthly template pool itself.
+      const weeklySlots = Math.ceil(days / 7);
+      return daily * days + weekly * weeklySlots + monthly;
+    }
+    // yearly
+    return daily * days + weekly * 52 + monthly * 12 + yearly;
+  }, [templates, periodBounds, activeFreq]);
+
+  const periodLabel = {
+    daily: "today",
+    weekly: "this week",
+    monthly: "this month",
+    yearly: "this year",
+  }[activeFreq] || "today";
+
   // Streak (daily only)
   const { streak, bestStreak } = useMemo(() => {
     const dailyProgress = allProgress.filter(p => !p.frequency || p.frequency === "daily");
@@ -335,6 +561,16 @@ export default function DailyTasks() {
     }
     return { streak, bestStreak: Math.max(best, streak) };
   }, [allProgress, todayXP, TODAY, activeFreq]);
+
+  // Streak milestone trigger — fires once per day when the streak crosses
+  // (or sits on) a multiple of 7. The localStorage marker stores both the
+  // date and the milestone number so a streak that's still 7 across two
+  // calendar days won't double-credit if today's flag is re-derived.
+  useEffect(() => {
+    if (streak <= 0 || streak % 7 !== 0) return;
+    if (hasStreakMilestoneHitToday()) return;
+    markStreakMilestoneHitToday(streak);
+  }, [streak]);
 
   const toggleHistoryTask = async (taskId, periodKey, currentDone) => {
     const record = allProgress.find(p =>
@@ -400,7 +636,18 @@ export default function DailyTasks() {
         : [...old, { id: "__optimistic__", ...optimistic }];
     });
 
-    if (nowCompleted) toast.success(`+${task.points} XP — ${applyTerms(task.title, terms)} done! 🎉`);
+    if (nowCompleted) {
+      toast.success(`+${task.points} XP — ${applyTerms(task.title, terms)} done! 🎉`);
+      // Meta trigger: any daily task completion marks the day. The
+      // derivation pipeline guards re-entrancy implicitly — even though
+      // setting the marker would re-fire the autoTriggers recompute, the
+      // `daily_task_completed` template won't trigger a second
+      // toggleManual call (only manual taps come through this path),
+      // and the marker is just a date string, idempotent within a day.
+      if (activeFreq === "daily" && task.auto_trigger !== "daily_task_completed") {
+        markDailyTaskCompletedToday();
+      }
+    }
 
     if (currentRecord) {
       await base44.entities.DailyProgress.update(currentRecord.id, {
@@ -494,12 +741,15 @@ export default function DailyTasks() {
         )}
       </AnimatePresence>
 
-      {/* Level bar (always daily XP) */}
+      {/* Level bar — chip text and numerator/denominator scale with the
+          selected frequency tab. Level/XP-to-next-level remain driven by
+          lifetime totalXP (not period-scoped). */}
       <div data-tour="tasks-level-bar">
         <LevelBar
           totalXP={totalXP}
-          todayXP={activeFreq === "daily" ? todayXP : undefined}
-          todayPossibleXP={activeFreq === "daily" ? possibleXP : undefined}
+          periodXP={periodEarnedXP}
+          periodPossibleXP={periodPossibleXP}
+          periodLabel={periodLabel}
           streak={streak}
           bestStreak={bestStreak}
         />

@@ -18,6 +18,7 @@ import NotificationHistoryModal from "@/components/dashboard/NotificationHistory
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import BetaTesterBanner from "@/components/dashboard/BetaTesterBanner";
+import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import TourModal from "@/components/onboarding/TourModal";
@@ -263,6 +264,7 @@ export default function Dashboard() {
   const executeQuickAction = async (action, extraData = {}) => {
     showQuickActionsRef.current = false;
     setShowQuickActions(false);
+    markQuickActionUsedToday();
     const now = new Date().toISOString();
 
     if (action.type === "open_checkin_section") {

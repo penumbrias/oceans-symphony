@@ -3,6 +3,7 @@
 import { localEntities } from "@/api/base44Client";
 import { getActivePushSubscription } from "@/lib/pushRegistration";
 import { isNative } from "@/lib/platform";
+import { markFriendAddedToday } from "@/lib/dailyTaskSystem";
 
 // On web/TWA the Friends API lives at /api/friends on the same origin
 // the page was served from — relative paths work. On the Capacitor
@@ -144,6 +145,10 @@ export async function sendFriendRequest(code) {
 
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed.');
+  // Mark the daily-task trigger — a friend request going out counts as
+  // "adding a friend" for the user-facing trigger. Accepting an incoming
+  // request also fires it (see respondToRequest below).
+  markFriendAddedToday();
   return data;
 }
 
@@ -164,6 +169,7 @@ export async function respondToRequest(fromUserId, action) {
 
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed.');
+  if (action === 'accept') markFriendAddedToday();
 }
 
 export async function removeFriend(friendUserId) {

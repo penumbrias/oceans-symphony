@@ -114,6 +114,25 @@ export const AUTO_TRIGGER_LABELS = {
   reminder_acknowledged: "Reminder acknowledged",
   backup_exported: "Backup exported",
   goal_met: "Weekly goal met",
+  alter_added: "New {{Alter}} added",
+  note_added_to_alter: "Note added to an {{alter}}",
+  bulletin_posted: "Bulletin posted",
+  bulletin_comment_made: "Comment posted on a bulletin",
+  poll_voted: "Voted on a poll",
+  task_created: "To-do created",
+  goal_created: "Activity goal created",
+  group_created: "{{Alter}} group created",
+  system_change_event_logged: "{{System}} change event logged (fusion/split/etc.)",
+  mention_acknowledged: "@mention acknowledged",
+  friend_added: "Friend added",
+  quick_action_used: "Quick action used",
+  theme_changed: "Theme color changed",
+  terms_customized: "Custom terms edited",
+  tour_completed: "Feature tour completed",
+  reflection_saved: "Learn-module reflection saved",
+  grounding_technique_used: "Grounding technique used",
+  daily_task_completed: "Any daily task completed (meta)",
+  streak_milestone_hit: "Streak milestone reached (every 7 days)",
 };
 
 export const AUTO_TRIGGER_OPTIONS = Object.entries(AUTO_TRIGGER_LABELS).map(([value, label]) => ({
@@ -154,6 +173,26 @@ export function buildAutoCompletedTriggers(input = {}) {
     hasReminderAcknowledged,
     hasBackupExported,
     hasGoalMet,
+    // Phase-2 expansion (v0.17.18)
+    hasAlterAdded,
+    hasNoteAddedToAlter,
+    hasBulletinPosted,
+    hasBulletinCommentMade,
+    hasPollVoted,
+    hasTaskCreated,
+    hasGoalCreated,
+    hasGroupCreated,
+    hasSystemChangeEventLogged,
+    hasMentionAcknowledged,
+    hasFriendAdded,
+    hasQuickActionUsed,
+    hasThemeChanged,
+    hasTermsCustomized,
+    hasTourCompleted,
+    hasReflectionSaved,
+    hasGroundingTechniqueUsed,
+    hasDailyTaskCompleted,
+    hasStreakMilestoneHit,
   } = input;
 
   const s = new Set();
@@ -173,6 +212,25 @@ export function buildAutoCompletedTriggers(input = {}) {
   if (hasReminderAcknowledged) s.add("reminder_acknowledged");
   if (hasBackupExported) s.add("backup_exported");
   if (hasGoalMet) s.add("goal_met");
+  if (hasAlterAdded) s.add("alter_added");
+  if (hasNoteAddedToAlter) s.add("note_added_to_alter");
+  if (hasBulletinPosted) s.add("bulletin_posted");
+  if (hasBulletinCommentMade) s.add("bulletin_comment_made");
+  if (hasPollVoted) s.add("poll_voted");
+  if (hasTaskCreated) s.add("task_created");
+  if (hasGoalCreated) s.add("goal_created");
+  if (hasGroupCreated) s.add("group_created");
+  if (hasSystemChangeEventLogged) s.add("system_change_event_logged");
+  if (hasMentionAcknowledged) s.add("mention_acknowledged");
+  if (hasFriendAdded) s.add("friend_added");
+  if (hasQuickActionUsed) s.add("quick_action_used");
+  if (hasThemeChanged) s.add("theme_changed");
+  if (hasTermsCustomized) s.add("terms_customized");
+  if (hasTourCompleted) s.add("tour_completed");
+  if (hasReflectionSaved) s.add("reflection_saved");
+  if (hasGroundingTechniqueUsed) s.add("grounding_technique_used");
+  if (hasDailyTaskCompleted) s.add("daily_task_completed");
+  if (hasStreakMilestoneHit) s.add("streak_milestone_hit");
   return s;
 }
 
@@ -339,4 +397,87 @@ export function hasBackupExportedToday() {
   } catch {
     return false;
   }
+}
+
+// Generic helpers for the rest of the marker-driven triggers (v0.17.18).
+// Each follows the same daily-string-equality pattern: write today's date
+// when the event fires, compare to today's date when deriving the trigger.
+function makeTodayMarker(key) {
+  return {
+    mark() {
+      try {
+        if (typeof localStorage === "undefined") return;
+        localStorage.setItem(key, getTodayString());
+      } catch { /* best-effort */ }
+    },
+    has() {
+      try {
+        if (typeof localStorage === "undefined") return false;
+        return localStorage.getItem(key) === getTodayString();
+      } catch { return false; }
+    },
+  };
+}
+
+const POLL_VOTED_MARKER = makeTodayMarker("symphony_dailytask_poll_voted_v1");
+export const markPollVotedToday = POLL_VOTED_MARKER.mark;
+export const hasPollVotedToday = POLL_VOTED_MARKER.has;
+
+const MENTION_ACK_MARKER = makeTodayMarker("symphony_dailytask_mention_acknowledged_v1");
+export const markMentionAcknowledgedToday = MENTION_ACK_MARKER.mark;
+export const hasMentionAcknowledgedToday = MENTION_ACK_MARKER.has;
+
+const FRIEND_ADDED_MARKER = makeTodayMarker("symphony_dailytask_friend_added_v1");
+export const markFriendAddedToday = FRIEND_ADDED_MARKER.mark;
+export const hasFriendAddedToday = FRIEND_ADDED_MARKER.has;
+
+const QUICK_ACTION_MARKER = makeTodayMarker("symphony_dailytask_quick_action_used_v1");
+export const markQuickActionUsedToday = QUICK_ACTION_MARKER.mark;
+export const hasQuickActionUsedToday = QUICK_ACTION_MARKER.has;
+
+const THEME_CHANGED_MARKER = makeTodayMarker("symphony_dailytask_theme_changed_v1");
+export const markThemeChangedToday = THEME_CHANGED_MARKER.mark;
+export const hasThemeChangedToday = THEME_CHANGED_MARKER.has;
+
+const TERMS_CUSTOMIZED_MARKER = makeTodayMarker("symphony_dailytask_terms_customized_v1");
+export const markTermsCustomizedToday = TERMS_CUSTOMIZED_MARKER.mark;
+export const hasTermsCustomizedToday = TERMS_CUSTOMIZED_MARKER.has;
+
+const TOUR_COMPLETED_MARKER = makeTodayMarker("symphony_dailytask_tour_completed_v1");
+export const markTourCompletedToday = TOUR_COMPLETED_MARKER.mark;
+export const hasTourCompletedToday = TOUR_COMPLETED_MARKER.has;
+
+const GROUNDING_USED_MARKER = makeTodayMarker("symphony_dailytask_grounding_used_v1");
+export const markGroundingTechniqueUsedToday = GROUNDING_USED_MARKER.mark;
+export const hasGroundingTechniqueUsedToday = GROUNDING_USED_MARKER.has;
+
+const DAILY_TASK_COMPLETED_MARKER = makeTodayMarker("symphony_dailytask_daily_task_completed_v1");
+export const markDailyTaskCompletedToday = DAILY_TASK_COMPLETED_MARKER.mark;
+export const hasDailyTaskCompletedToday = DAILY_TASK_COMPLETED_MARKER.has;
+
+// Streak milestone uses a richer marker — we store the milestone value
+// the user has been credited with for today, so flipping back below the
+// milestone (e.g. by editing an old DailyProgress row) and then re-hitting
+// it the same day doesn't double-fire. The trigger is satisfied today iff
+// the stored value matches the current milestone value.
+const STREAK_MILESTONE_KEY = "symphony_dailytask_streak_milestone_v1";
+
+export function markStreakMilestoneHitToday(milestone) {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(
+      STREAK_MILESTONE_KEY,
+      JSON.stringify({ date: getTodayString(), milestone }),
+    );
+  } catch { /* best-effort */ }
+}
+
+export function hasStreakMilestoneHitToday() {
+  try {
+    if (typeof localStorage === "undefined") return false;
+    const raw = localStorage.getItem(STREAK_MILESTONE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return parsed?.date === getTodayString();
+  } catch { return false; }
 }

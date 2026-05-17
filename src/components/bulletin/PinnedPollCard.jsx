@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Pin, ExternalLink, Lock, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 
 /**
  * A standalone votable poll card rendered in the Bulletin Board's
@@ -44,6 +45,7 @@ export default function PinnedPollCard({ poll, currentAlterId }) {
         : old
     );
     await base44.entities.Poll.update(poll.id, { votes: newVotes });
+    markPollVotedToday();
     qc.invalidateQueries({ queryKey: ["polls"] });
   };
 

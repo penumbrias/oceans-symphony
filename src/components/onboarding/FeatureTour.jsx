@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, ChevronLeft, ChevronRight, MapPin, ChevronsRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
+import { markTourCompletedToday } from "@/lib/dailyTaskSystem";
 
 // alterId — ID of the alter whose profile to navigate to during profile steps.
 // tourAlterWasCreated — true if we created a temporary demo alter.
@@ -1052,7 +1053,14 @@ export default function FeatureTour({ onClose }) {
                 <ChevronLeft className="w-3 h-3" /> Back
               </button>
               <button
-                onClick={() => isLast ? handleClose() : goTo(step + 1)}
+                onClick={() => {
+                  if (isLast) {
+                    markTourCompletedToday();
+                    handleClose();
+                  } else {
+                    goTo(step + 1);
+                  }
+                }}
                 className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
               >
                 {isLast ? "Done 💜" : (<>Next <ChevronRight className="w-3 h-3" /></>)}

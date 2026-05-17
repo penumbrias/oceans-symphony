@@ -13,6 +13,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
+import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 
 // Per-user default for what voting mode a NEW poll should start in.
@@ -665,6 +666,7 @@ function PollDetailView({ poll, alters, onBack, onClose: onPollsClose, currentFr
       }
 
       await base44.entities.Poll.update(poll.id, { votes: newVotes });
+      markPollVotedToday();
       queryClient.invalidateQueries({ queryKey: ["polls"] });
     } catch (e) {
       toast.error("Failed to vote");
