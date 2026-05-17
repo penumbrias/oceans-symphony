@@ -115,7 +115,16 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
                 })}
               </div>
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0" onClick={() => { handleClose(); onEdit(entry); }}>
+            <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0" onClick={() => {
+              // Close this view modal first, then open the editor on the
+              // next paint. Without the defer, Radix Dialog batches the
+              // close-animation of this modal against the mount-with-open
+              // of the editor and swallows the editor's open transition,
+              // leaving the user with both modals closed.
+              const target = entry;
+              handleClose();
+              requestAnimationFrame(() => onEdit(target));
+            }}>
               <Edit2 className="w-3.5 h-3.5" />
               Edit
             </Button>
