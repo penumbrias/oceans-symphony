@@ -548,8 +548,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0">
         {interactBlocked && <div aria-hidden className="absolute inset-0 z-50" />}
 
-        {/* Fixed header */}
-        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border/50">
+        {/* Fixed header — Save/Cancel live up here so they're reachable
+            without scrolling past the whole form (tap-fatigue from the
+            old bottom-footer placement was producing accidental early
+            saves). */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-border/50 space-y-3">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Heart className="w-5 h-5 text-destructive" />
@@ -564,6 +567,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
               />
             </DialogDescription>
           </DialogHeader>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button onClick={handleSubmit} disabled={saving} className="flex-1">
+              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Save Check-In
+            </Button>
+          </div>
         </div>
 
         {/* Scrollable body */}
@@ -817,16 +827,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           )}
         </div>
 
-        {/* Fixed footer */}
-        <div className="flex-shrink-0 px-6 py-4 border-t border-border/50">
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-            <Button onClick={handleSubmit} disabled={saving} className="flex-1">
-              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Save Check-In
-            </Button>
-          </div>
-        </div>
       </DialogContent>
     </Dialog>
     </>
