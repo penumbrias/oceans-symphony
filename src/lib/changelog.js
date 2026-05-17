@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Signposting now picks up multiple alters in one entry. Two new behaviours: type `-kyo/hex` to credit both kyo and hex with one tag (slash-separated), and short prefixes like `-hex` resolve to a longer alter name (e.g. hexandroga) when that prefix uniquely identifies one alter. Works the same way in Journals, Bulletin posts, and Bulletin comments — they all share one parser now.",
+      },
+      {
+        type: "fix",
         text: "Fixed a bug where edits to a sleep record's dream notes didn't propagate to the linked dream Journal entry. New sleep records now link both ways; edits stay in sync going forward. Existing dream journals from before this fix remain — new edits to the underlying sleep will start linking them after the next edit.",
       },
       {
