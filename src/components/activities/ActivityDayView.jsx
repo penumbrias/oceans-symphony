@@ -141,13 +141,8 @@ function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptom
         boxSizing: "border-box",
       }}
     >
-      {status !== ACTIVITY_STATUSES.LOGGED && (
-        <span className="absolute top-1.5 left-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-black/30 text-white font-semibold uppercase tracking-wide z-10">
-          {STATUS_LABELS[status]}
-        </span>
-      )}
       {needsReview && (
-        <span className="absolute top-1.5 left-1.5 ml-16 w-2 h-2 rounded-full bg-amber-400 ring-1 ring-amber-700/40 z-10" title="Needs review" />
+        <span className="absolute top-1.5 left-1.5 w-2 h-2 rounded-full bg-amber-400 ring-1 ring-amber-700/40 z-10" title="Needs review" />
       )}
       {v.showXCenter && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
@@ -160,6 +155,11 @@ function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptom
         </div>
       )}
       <div className="p-3 pr-12">
+        {status !== ACTIVITY_STATUSES.LOGGED && (
+          <span className="inline-block mb-1 text-[10px] px-1.5 py-0.5 rounded-full bg-black/30 text-white font-semibold uppercase tracking-wide">
+            {STATUS_LABELS[status]}
+          </span>
+        )}
         <p className="font-bold text-white text-base leading-snug break-words max-w-full">{activity.activity_name}</p>
         {activity.duration_minutes > 0 && (
           <p className="text-white/75 text-xs mt-0.5">{activity.duration_minutes}m</p>
@@ -377,7 +377,10 @@ export default function ActivityDayView({
       onTouchEnd={handleTouchEnd}
     >
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center gap-3 flex-shrink-0">
+      <div
+        className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center gap-3 flex-shrink-0"
+        style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
+      >
         <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </Button>

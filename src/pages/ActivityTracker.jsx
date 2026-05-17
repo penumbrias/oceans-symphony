@@ -255,15 +255,11 @@ export default function ActivityTracker() {
     <div
       className="min-h-screen bg-background p-4"
       style={{
-        paddingTop: "calc(1rem + env(safe-area-inset-top, 0px))",
-        // Belt-and-braces bottom padding so the last item on any tab
-        // (especially the Planned list, which can grow long with
-        // recurring plans) clears the fixed bottom-nav and the Android
-        // gesture pill even when scrolled to the very end. AppLayout's
-        // <main> already reserves the same inset via .app-content-main,
-        // but a few testers reported the final row sliding under the
-        // nav on edge-to-edge Android — adding it at the page wrapper
-        // too is cheap and removes the edge case.
+        // AppLayout's header + <main> already reserve safe-area-inset-top;
+        // adding it again here stacked a redundant gap below the page
+        // header on devices where the inset is non-zero. Only the bottom
+        // inset is repeated as defence-in-depth so the Planned list's
+        // tail rows clear the bottom-nav.
         paddingBottom: "calc(1rem + var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
       }}
     >

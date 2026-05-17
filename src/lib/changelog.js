@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Several Activity Tracker follow-ups: the Day view's header now respects Android edge-to-edge so the date/Add row no longer slides under the status bar; the SCHEDULED status chip on activity cards no longer overlaps the activity name (it sits inline above the title now); and the Log Activity dialog has a proper date picker plus an always-visible End time + duration field (the date used to be locked to whatever cell you tapped and the End time was hidden when there was no preselected range).",
+      },
+      {
+        type: "fix",
+        text: "Removed a redundant top-padding that was leaving a giant empty gap below the page header on the Activity Tracker — the layout wrapper was double-reserving safe-area-inset-top that AppLayout was already handling.",
+      },
+      {
         type: "improve",
         text: "Compacted the Activity Tracker header: the three primary buttons (New Plan, Log Activity, Manage Activities) now share a single row, and Week/Month/Year sits in the top-right. Also fixed Android edge-to-edge overlap on the top (header was sliding under the status bar) and on the Planned-tab list (last items were sliding under the bottom nav).",
       },
