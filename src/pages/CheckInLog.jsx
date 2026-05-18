@@ -949,6 +949,23 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
         </div>
       </button>
 
+      {/* Day Total summary — always visible (even when the day is collapsed)
+          so users can scan chips/aggregates without having to expand every
+          row. The per-entry list below is what stays gated by `expanded`. */}
+      <DayTotals
+        checkIns={visibleCheckIns}
+        altersById={altersById}
+        symptomCheckIns={daySymptomCheckIns}
+        symptomsById={symptomsById}
+        activities={dayActivities}
+        locations={dayLocations}
+        statusNotes={visibleStatusNotes}
+        diaryCards={visibleDiaryCards}
+        perAlterEntries={visiblePerAlter}
+        totalEntryCount={totalVisibleEntries + visibleDiaryCards.length}
+        display={display}
+      />
+
       {expanded && (
         <div className="border-t border-border/30 divide-y divide-border/20">
           {[
@@ -997,19 +1014,6 @@ function DayGroup({ date, checkIns, altersById, symptomsById, allSymptomCheckIns
               />
             );
           })}
-          <DayTotals
-            checkIns={visibleCheckIns}
-            altersById={altersById}
-            symptomCheckIns={daySymptomCheckIns}
-            symptomsById={symptomsById}
-            activities={dayActivities}
-            locations={dayLocations}
-            statusNotes={visibleStatusNotes}
-            diaryCards={visibleDiaryCards}
-            perAlterEntries={visiblePerAlter}
-            totalEntryCount={totalVisibleEntries + visibleDiaryCards.length}
-            display={display}
-          />
         </div>
       )}
     </div>
