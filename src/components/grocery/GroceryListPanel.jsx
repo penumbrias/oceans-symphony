@@ -4,7 +4,7 @@ import { localEntities } from "@/api/base44Client";
 import { Trash2, Plus, X, Check, Lock, Unlock, Star } from "lucide-react";
 import { toast } from "sonner";
 import { isEncryptionEnabled } from "@/lib/storageMode";
-import { clearSession } from "@/lib/localDb";
+import { clearSession, verifyPassword } from "@/lib/localDb";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
 
 const LOCK_PREF_KEY = "grocery_lock_on_close_v1";
@@ -45,6 +45,14 @@ export default function GroceryListPanel() {
     try { return localStorage.getItem(LOCK_PREF_KEY) === "true"; }
     catch { return false; }
   });
+  // Password challenge for disabling lock-on-close. Without this, anyone
+  // with brief access to the unlocked device could simply tap the lock
+  // icon off and walk away with the privacy cover defused — defeating
+  // the whole point of the toggle.
+  const [unlockPromptOpen, setUnlockPromptOpen] = useState(false);
+  const [unlockPwd, setUnlockPwd] = useState("");
+  const [unlockBusy, setUnlockBusy] = useState(false);
+  const [unlockError, setUnlockError] = useState("");
   // Touch-block right after open to prevent accidental check-offs when the
   // panel pops up under a moving finger (triple-tap trigger especially).
   const [interactBlocked, setInteractBlocked] = useState(false);
@@ -126,13 +134,41 @@ export default function GroceryListPanel() {
     setOpen(false);
   };
 
-  const toggleLockOnClose = () => {
-    const next = !lockOnClose;
+  const applyLockOnClose = (next) => {
     setLockOnClose(next);
     try { localStorage.setItem(LOCK_PREF_KEY, next ? "true" : "false"); } catch { /* ignore */ }
     toast.success(next
       ? "Lock-on-close enabled — closing this list will require your password."
       : "Lock-on-close disabled.");
+  };
+
+  const toggleLockOnClose = () => {
+    // Enabling: no challenge — only ratchets security upward.
+    // Disabling while encryption is on: prove the user knows the password
+    // before letting them defuse the privacy cover.
+    if (!lockOnClose) { applyLockOnClose(true); return; }
+    if (!encryptionOn) { applyLockOnClose(false); return; }
+    setUnlockPwd("");
+    setUnlockError("");
+    setUnlockPromptOpen(true);
+  };
+
+  const confirmDisableLockOnClose = async () => {
+    if (!unlockPwd || unlockBusy) return;
+    setUnlockBusy(true);
+    setUnlockError("");
+    try {
+      const ok = await verifyPassword(unlockPwd);
+      if (!ok) {
+        setUnlockError("Incorrect password.");
+        return;
+      }
+      setUnlockPromptOpen(false);
+      setUnlockPwd("");
+      applyLockOnClose(false);
+    } finally {
+      setUnlockBusy(false);
+    }
   };
 
   const addItem = async (rawName) => {
@@ -354,6 +390,49 @@ export default function GroceryListPanel() {
           </button>
         </div>
       </div>
+
+      {/* Password challenge for disabling lock-on-close. Disguised as a
+          generic "confirm change" prompt so a glance at the screen still
+          reads as a grocery app. */}
+      {unlockPromptOpen && (
+        <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3">
+            <div className="space-y-1">
+              <h2 className="text-base font-semibold">Confirm change</h2>
+              <p className="text-xs text-neutral-500">
+                Enter your password to turn off lock-on-close.
+              </p>
+            </div>
+            <input
+              type="password"
+              value={unlockPwd}
+              onChange={(e) => { setUnlockPwd(e.target.value); setUnlockError(""); }}
+              onKeyDown={(e) => { if (e.key === "Enter") confirmDisableLockOnClose(); }}
+              placeholder="Password"
+              autoFocus
+              className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+            {unlockError && (
+              <p className="text-xs text-red-500">{unlockError}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => { setUnlockPromptOpen(false); setUnlockPwd(""); setUnlockError(""); }}
+                className="px-3 py-1.5 text-sm rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDisableLockOnClose}
+                disabled={!unlockPwd || unlockBusy}
+                className="px-3 py-1.5 text-sm rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
+              >
+                {unlockBusy ? "Checking…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

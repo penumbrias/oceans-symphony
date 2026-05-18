@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 18, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Grocery privacy cover: turning OFF the lock-on-close toggle now requires your encryption password. Turning it ON is still free (only adds security), but defusing the panic-hide gesture is no longer something anyone with momentary access to your unlocked device can do without proving they're you.",
+      },
+      {
         type: "fix",
         text: "Log Analytics 'Symptom & Habit Frequency' was only counting symptoms that had been filled into the diary card's symptoms grid — so anyone logging symptoms through Quick Check-In saw 'No symptom data in this range' even though their data was there. It now reads from both the diary checklist and the SymptomCheckIn entity, so Quick Check-In entries finally show up.",
       },
