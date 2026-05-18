@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 18, 2026",
     changes: [
       {
+        type: "fix",
+        text: "CRITICAL: backup/export was completely broken — both 'Download Backup' and 'View as Text' failed with 'filter is not a function' for every user. The recent default-grounding-techniques filter assumed the entity dump was an array, but the in-memory database stores entities as objects keyed by id. Walking the entries correctly now, so exports work again.",
+      },
+      {
         type: "improve",
         text: "Grocery privacy cover: turning OFF the lock-on-close toggle now requires your encryption password. Turning it ON is still free (only adds security), but defusing the panic-hide gesture is no longer something anyone with momentary access to your unlocked device can do without proving they're you.",
       },
