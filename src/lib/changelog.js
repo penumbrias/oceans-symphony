@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Fixed grounding techniques duplicating after a backup restore. Default techniques (Box breathing, Gentle movement, etc.) are no longer included in backups — they get re-seeded automatically on every device. Backups now only carry over the techniques you've created or customised yourself. Existing duplicates from older restores are cleaned up automatically the next time you open the Grounding page — your favourites, ratings, and custom techniques aren't touched.",
+      },
+      {
+        type: "fix",
         text: "Moved the 'Top of Dashboard' and 'Bottom of Dashboard' upcoming-plans surfaces to actually render on the Dashboard (they were still rendering on the Alters page despite their labels saying Dashboard). 'Top of Dashboard' now sits above Currently Fronting; 'Bottom of Dashboard' sits below the bulletin board. Your toggle states carry over unchanged.",
       },
       {

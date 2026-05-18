@@ -256,7 +256,18 @@ export default function DataBackupRestore() {
     for (const cat of EXPORT_CATEGORIES) {
       if (!cat.isImages && activeCats.has(cat.id)) {
         for (const e of cat.entities) {
-          if (dump[e] !== undefined) filteredDump[e] = dump[e];
+          if (dump[e] === undefined) continue;
+          // GroundingTechnique default templates are re-seeded on every
+          // fresh device boot from src/utils/groundingDefaults.js, so
+          // including them in backups produces duplicates when the user
+          // imports onto a device that has already seeded its defaults.
+          // Only user-authored / user-edited entries (is_default !== true)
+          // are exported.
+          if (e === "GroundingTechnique") {
+            filteredDump[e] = (dump[e] || []).filter((t) => !t.is_default);
+          } else {
+            filteredDump[e] = dump[e];
+          }
         }
       }
     }
