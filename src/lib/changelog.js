@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Fixed a phantom header band that appeared above the real app header on every screen of the Android build in 0.17.24–0.17.27. The system splash screen wasn't being dismissed cleanly after the edge-to-edge change, so the splash artwork (yellow/blue gradient + system-rendered app label) showed through the safe-area inset above the real header on every page. Splash now dismisses properly on first content draw.",
+      },
+      {
+        type: "fix",
+        text: "Fixed the Fronter view dropdown in Journals causing the page to scroll horizontally when opened — the popover now positions itself relative to the viewport (preferring whichever side has room) instead of pushing the document past the screen edge.",
+      },
+      {
+        type: "fix",
         text: "Hardened journal/block rich-text rendering to strip any unsafe HTML (event handlers, scripts, etc.) before display — important when a backup is shared between users or content lands via copy-paste from external sources. Also guarded a top-level JSON.parse so a corrupted localStorage value can't blank the entire app.",
       },
       {

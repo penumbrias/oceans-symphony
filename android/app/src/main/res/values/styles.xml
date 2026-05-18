@@ -20,7 +20,24 @@
     </style>
 
 
+    <!-- The launch theme: an androidx.core.splashscreen splash that
+         draws the splash drawable across the window background.
+         CRITICAL: postSplashScreenTheme tells the splash library which
+         theme to swap to once the splash dismisses. Without it (and
+         without an installSplashScreen() call in MainActivity), the
+         splash drawable + the system-rendered splash branding stay on
+         screen behind the WebView. When EdgeToEdge.enable() was added
+         in 0.17.24 the WebView no longer covers the area between the
+         status bar and the content, so the persistent splash icon /
+         label became visible as a phantom band above the AppLayout
+         header on every page — see PR fixing the duplicate-header bug.
+         windowActionBar / windowNoTitle are belt-and-braces in case
+         Theme.SplashScreen's parent ever changes to one that keeps the
+         action bar around. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
         <item name="android:background">@drawable/splash</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>

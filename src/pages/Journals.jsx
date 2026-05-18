@@ -58,6 +58,12 @@ export default function Journals() {
   const [fronterFilterIds, setFronterFilterIds] = useState(null);
   const fronterPressTimerRef = useRef(null);
   const fronterLongPressedRef = useRef(false);
+  // Smart-positioned popover: anchored via getBoundingClientRect() and
+  // rendered with position:fixed so it can't push the document past the
+  // viewport width and cause horizontal scroll. See computeFronterMenuPos
+  // below for the alignment heuristic.
+  const fronterMenuTriggerRef = useRef(null);
+  const [fronterMenuPos, setFronterMenuPos] = useState({ top: 0, left: 0, maxWidth: 240 });
   const [editEntry, setEditEntry] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
@@ -272,6 +278,55 @@ export default function Journals() {
     }
     queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
   };
+
+  // Measure the trigger button group and decide where the popover should
+  // sit. The trigger lives on the right side of the filter row, so a
+  // naive `left-0` anchor (which we previously used) pushed the popover
+  // off the right edge of the viewport and caused horizontal page scroll.
+  // Strategy:
+  //   - Prefer left-align (popover extends rightward) when there's room.
+  //   - Else right-align (popover extends leftward).
+  //   - Else clamp to viewport with a small margin.
+  const POPOVER_WIDTH = 240; // matches Tailwind w-60 (15rem at default font size)
+  const VIEWPORT_MARGIN = 8;
+  const computeFronterMenuPos = () => {
+    const node = fronterMenuTriggerRef.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+    const top = rect.bottom + 4;
+    let left;
+    if (rect.left + POPOVER_WIDTH <= vw - VIEWPORT_MARGIN) {
+      // Room to extend right: left-align to trigger
+      left = rect.left;
+    } else if (rect.right - POPOVER_WIDTH >= VIEWPORT_MARGIN) {
+      // Room to extend left: right-align to trigger
+      left = rect.right - POPOVER_WIDTH;
+    } else {
+      // Doesn't fit either way — clamp to viewport
+      left = VIEWPORT_MARGIN;
+    }
+    // Final safety clamp so the popover never touches viewport edges
+    const maxLeft = vw - POPOVER_WIDTH - VIEWPORT_MARGIN;
+    if (maxLeft >= VIEWPORT_MARGIN) {
+      left = Math.min(Math.max(left, VIEWPORT_MARGIN), maxLeft);
+    }
+    setFronterMenuPos({ top, left, maxWidth: POPOVER_WIDTH });
+  };
+
+  // Recompute on window resize / orientation change while the menu is open.
+  useEffect(() => {
+    if (!fronterMenuOpen) return undefined;
+    computeFronterMenuPos();
+    const onResize = () => computeFronterMenuPos();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fronterMenuOpen]);
 
   // Refetch active fronters at the moment the menu opens (don't trust the
   // cached `activeSessions` query — it may be stale). Mirrors the
@@ -497,7 +552,7 @@ export default function Journals() {
         )}
 
         {currentAlterIds.length > 0 && (
-          <div className="relative inline-flex">
+          <div ref={fronterMenuTriggerRef} className="relative inline-flex">
             <Button
               variant={fronterOnly ? "default" : "outline"}
               size="sm"
@@ -531,7 +586,16 @@ export default function Journals() {
             {fronterMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setFronterMenuOpen(false)} />
-                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 max-w-[calc(100vw-2rem)] overflow-hidden">
+                <div
+                  className="z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
+                  style={{
+                    position: "fixed",
+                    top: fronterMenuPos.top,
+                    left: fronterMenuPos.left,
+                    width: fronterMenuPos.maxWidth,
+                    maxWidth: `calc(100vw - ${VIEWPORT_MARGIN * 2}px)`,
+                  }}
+                >
                   <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
                     <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
                       Filter by {terms.alter}
