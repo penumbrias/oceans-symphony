@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "hotfix",
+        text: "Hotfix: renamed the 'Browser push' delivery-channel checkbox in the New Reminder dialog to 'Push notification' since on the native Android build the channel uses OS notifications, not browser push.",
+      },
+      {
+        type: "hotfix",
         text: "Hotfix: silenced two Android 15 deprecation warnings the Play Console flags on every upload by switching to the modern EdgeToEdge.enable API and removing the deprecated statusBarColor / navigationBarColor theme attributes. No user-facing change — system bars still render the same way; this is purely a forward-compat housekeeping change.",
       },
       {
