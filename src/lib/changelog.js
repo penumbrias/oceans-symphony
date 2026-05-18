@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 18, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Check-In Log: collapsed day rows now show the Day Total summary inline (emotion chips, fronters, symptom counts, location/activity pills) instead of just the date and entry count. You can scan recent days at a glance without expanding each one.",
+      },
+      {
         type: "fix",
         text: "Quick Check-In modal: the touch-block overlay was being added by a useEffect, which meant the very first painted frame of the open modal had no overlay — so an Android ghost-click from the opening tap could still land on whatever button (usually Cancel) sat where you tapped. The overlay is now mounted synchronously on the first paint, so the 400ms touch-block actually starts at frame zero.",
       },
