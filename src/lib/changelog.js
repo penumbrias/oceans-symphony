@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 17, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: silenced two Android 15 deprecation warnings the Play Console flags on every upload by switching to the modern EdgeToEdge.enable API and removing the deprecated statusBarColor / navigationBarColor theme attributes. No user-facing change — system bars still render the same way; this is purely a forward-compat housekeeping change.",
+      },
+      {
         type: "fix",
         text: "Fixed grounding techniques duplicating after a backup restore. Default techniques (Box breathing, Gentle movement, etc.) are no longer included in backups — they get re-seeded automatically on every device. Backups now only carry over the techniques you've created or customised yourself. Existing duplicates from older restores are cleaned up automatically the next time you open the Grounding page — your favourites, ratings, and custom techniques aren't touched.",
       },
