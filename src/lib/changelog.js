@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Bumped the touch-block on the Quick Check-In modal from 200ms to 400ms and tightened the overlay so the touch from the finger that opened the modal can't accidentally tap a button (especially Save / Cancel at the top of the modal). Testers were reporting auto-selecting whatever button overlapped with the Quick Check-In trigger location.",
+      },
+      {
+        type: "fix",
         text: "Fixed a phantom header band that appeared above the real app header on every screen of the Android build in 0.17.24–0.17.27. The system splash screen wasn't being dismissed cleanly after the edge-to-edge change, so the splash artwork (yellow/blue gradient + system-rendered app label) showed through the safe-area inset above the real header on every page. Splash now dismisses properly on first content draw.",
       },
       {

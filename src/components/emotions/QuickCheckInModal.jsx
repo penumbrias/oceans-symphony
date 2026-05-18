@@ -57,13 +57,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   const terms = useTerms();
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   const [hadFrontingOpen, setHadFrontingOpen] = useState(false);
-  // Brief touch-block on open so a stray finger doesn't tap something
-  // before the user's eyes have landed on the modal.
+  // Touch-block on open. The original 200ms (PR #87) wasn't always
+  // enough on Android — testers reported the modal would mount and the
+  // touchend from the finger that opened it would land on whatever
+  // button is now at that screen position (Save / Cancel sit at the top
+  // of the new modal, right where the user just tapped). Bumped to
+  // 400ms which covers the Android touchend race + the legacy 300ms
+  // synthetic-click delay on older WebViews.
   const [interactBlocked, setInteractBlocked] = useState(false);
   useEffect(() => {
     if (!isOpen) { setInteractBlocked(false); return; }
     setInteractBlocked(true);
-    const t = setTimeout(() => setInteractBlocked(false), 200);
+    const t = setTimeout(() => setInteractBlocked(false), 400);
     return () => clearTimeout(t);
   }, [isOpen]);
 
@@ -611,7 +616,19 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        {interactBlocked && <div aria-hidden className="absolute inset-0 z-50" />}
+        {interactBlocked && (
+          <div
+            aria-hidden
+            // Explicit pointer-events: auto + onClick stopPropagation
+            // belt-and-braces — without them, some Android WebViews
+            // pass the synthetic ghost-click through to the element
+            // underneath the overlay.
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+            style={{ pointerEvents: "auto" }}
+            className="absolute inset-0 z-[60]"
+          />
+        )}
 
         {/* Fixed header — Save/Cancel live up here so they're reachable
             without scrolling past the whole form (tap-fatigue from the
