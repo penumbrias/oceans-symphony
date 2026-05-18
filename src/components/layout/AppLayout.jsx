@@ -75,7 +75,15 @@ export default function AppLayout() {
         const data = await fetchFriendsList().catch(() => null);
         if (!data?.friends?.length) return;
 
-        const snapshots = JSON.parse(localStorage.getItem("friends_front_snapshots") || "{}");
+        let snapshots = {};
+        try {
+          snapshots = JSON.parse(localStorage.getItem("friends_front_snapshots") || "{}") || {};
+        } catch {
+          // Corrupted value — treat as empty. Don't log: this useEffect runs on
+          // every layout mount and we don't want to spam the console until the
+          // user does something that overwrites the value.
+          snapshots = {};
+        }
         const newSnapshots = { ...snapshots };
 
         for (const friend of data.friends) {
