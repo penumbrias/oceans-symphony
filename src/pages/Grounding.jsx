@@ -18,11 +18,44 @@ import {
   BREATHING_PATTERNS, resolveCategory
 } from "@/utils/groundingDefaults";
 
-// ---- Seed helper — adds new defaults that don't exist yet by name ----
+// ---- Seed helper — adds new defaults that don't exist yet by name,
+// and (post-restore cleanup) collapses any duplicate is_default rows
+// that share a known-default name. Backups made before 0.17.23
+// exported defaults, so a user who restored more than once accumulated
+// 2-5x copies of every preset. This runs on every Grounding-page mount
+// and is bounded to records matching DEFAULT_TECHNIQUES.name with
+// is_default: true — user customs are never touched.
 async function seedDefaultTechniques() {
   const existing = await base44.entities.GroundingTechnique.list();
-  const existingNames = new Set(existing.map(t => t.name));
-  const toAdd = DEFAULT_TECHNIQUES.filter(t => !existingNames.has(t.name));
+
+  // Collapse duplicates: group is_default rows by name (where the name
+  // is a known default), keep the first by created_date, delete the
+  // rest. Wrapped in try/catch per delete so one failure doesn't abort
+  // seeding.
+  const defaultNames = new Set(DEFAULT_TECHNIQUES.map((t) => t.name));
+  const groups = new Map();
+  for (const t of existing) {
+    if (!t || !defaultNames.has(t.name) || !t.is_default) continue;
+    if (!groups.has(t.name)) groups.set(t.name, []);
+    groups.get(t.name).push(t);
+  }
+  for (const group of groups.values()) {
+    if (group.length <= 1) continue;
+    group.sort((a, b) => {
+      const ta = a.created_date ? new Date(a.created_date).getTime() : 0;
+      const tb = b.created_date ? new Date(b.created_date).getTime() : 0;
+      return ta - tb;
+    });
+    for (const dup of group.slice(1)) {
+      try { await base44.entities.GroundingTechnique.delete(dup.id); } catch {}
+    }
+  }
+
+  // Original seed-missing-defaults path. Re-read existing to reflect
+  // the dedupe above.
+  const fresh = await base44.entities.GroundingTechnique.list();
+  const existingNames = new Set(fresh.map((t) => t.name));
+  const toAdd = DEFAULT_TECHNIQUES.filter((t) => !existingNames.has(t.name));
   if (toAdd.length > 0) {
     await base44.entities.GroundingTechnique.bulkCreate(toAdd);
   }
