@@ -555,7 +555,7 @@ export default function ReminderEditorModal({ isOpen, onClose, existing, onSaved
           <div>
             <Label className="text-xs font-medium text-muted-foreground">Delivery channels</Label>
             <div className="flex gap-4 mt-2">
-              {[{ id: "in_app", label: "In-app banner" }, { id: "push", label: "Browser push" }].map(ch => (
+              {[{ id: "in_app", label: "In-app banner" }, { id: "push", label: "Push notification" }].map(ch => (
                 <label key={ch.id} className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={(form.delivery_channels || []).includes(ch.id)}
                     onChange={() => toggleChannel(ch.id)} className="rounded" />
