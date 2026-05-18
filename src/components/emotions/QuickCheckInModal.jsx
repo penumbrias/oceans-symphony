@@ -62,12 +62,25 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   // touchend from the finger that opened it would land on whatever
   // button is now at that screen position (Save / Cancel sit at the top
   // of the new modal, right where the user just tapped). Bumped to
-  // 400ms which covers the Android touchend race + the legacy 300ms
-  // synthetic-click delay on older WebViews.
-  const [interactBlocked, setInteractBlocked] = useState(false);
+  // 400ms.
+  //
+  // Critical: we set this synchronously when `isOpen` flips to true
+  // (using React's "adjusting state on prop change" pattern, NOT a
+  // useEffect) so the overlay is guaranteed to be in the DOM on the
+  // very FIRST paint after open. If we leave it to a useEffect, the
+  // first painted frame has the modal open with no overlay, and the
+  // Android ghost-click queued from the opening tap lands on Cancel
+  // before React commits the overlay. That's the bug PR #124 thought
+  // it fixed but didn't — the 400ms timer was right, the timing of
+  // when the overlay first rendered was the actual issue.
+  const [interactBlocked, setInteractBlocked] = useState(isOpen);
+  const [lastIsOpen, setLastIsOpen] = useState(isOpen);
+  if (isOpen !== lastIsOpen) {
+    setLastIsOpen(isOpen);
+    setInteractBlocked(isOpen);
+  }
   useEffect(() => {
-    if (!isOpen) { setInteractBlocked(false); return; }
-    setInteractBlocked(true);
+    if (!isOpen) return;
     const t = setTimeout(() => setInteractBlocked(false), 400);
     return () => clearTimeout(t);
   }, [isOpen]);

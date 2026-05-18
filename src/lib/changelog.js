@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Quick Check-In modal: the touch-block overlay was being added by a useEffect, which meant the very first painted frame of the open modal had no overlay — so an Android ghost-click from the opening tap could still land on whatever button (usually Cancel) sat where you tapped. The overlay is now mounted synchronously on the first paint, so the 400ms touch-block actually starts at frame zero.",
+      },
+      {
+        type: "fix",
         text: "Journal editor was losing co-authors on re-edit. Saving a multi-author entry worked and displayed correctly, but reopening Edit only showed the primary author and emptied the signpost field — clicking Save again would have stripped the co-authors. The editor now rehydrates the signpost field with every author marker on load (e.g. `-kyo -hex -kane`), so the second-edit round-trips cleanly.",
       },
       {
