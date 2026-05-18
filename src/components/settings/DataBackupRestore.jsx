@@ -264,7 +264,22 @@ export default function DataBackupRestore() {
           // Only user-authored / user-edited entries (is_default !== true)
           // are exported.
           if (e === "GroundingTechnique") {
-            filteredDump[e] = (dump[e] || []).filter((t) => !t.is_default);
+            // dump[e] is an object keyed by id ({ id1: rec1, ... }), NOT
+            // an array — calling .filter on it threw "filter is not a
+            // function" and broke every export path. Walk the entries and
+            // rebuild the same object shape.
+            const src = dump[e];
+            if (Array.isArray(src)) {
+              filteredDump[e] = src.filter((t) => t && !t.is_default);
+            } else if (src && typeof src === "object") {
+              const out = {};
+              for (const [id, rec] of Object.entries(src)) {
+                if (rec && !rec.is_default) out[id] = rec;
+              }
+              filteredDump[e] = out;
+            } else {
+              filteredDump[e] = src;
+            }
           } else {
             filteredDump[e] = dump[e];
           }
