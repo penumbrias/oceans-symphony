@@ -202,11 +202,75 @@ export default function Journals() {
     setViewingFolder(fullPath);
   };
 
-  const handleDeleteFolder = (path) => {
-    // Remove folder and all its descendants
-    const updated = savedFolders.filter(f => f !== path && !f.startsWith(`${path}/`));
+  const handleDeleteFolder = async (path) => {
+    // Move any entries inside this folder (and its descendants) up to the
+    // deleted folder's parent — entries themselves are never deleted, per
+    // CLAUDE.md user-data-preservation. Top-level folder deletes land
+    // entries at root (folder=null); subfolder deletes land them at the
+    // parent path.
+    const parent = getParent(path); // null for top-level
+    const isInside = (folder) => folder === path || (folder && folder.startsWith(`${path}/`));
+    const affected = entries.filter((e) => isInside(e.folder));
+    await Promise.all(
+      affected.map((e) => {
+        // For descendants, remove the deleted prefix; for direct children,
+        // collapse to the parent (or root).
+        let nextFolder = parent;
+        if (e.folder && e.folder.startsWith(`${path}/`)) {
+          const remainder = e.folder.slice(path.length + 1);
+          nextFolder = parent ? `${parent}/${remainder}` : remainder;
+        }
+        return base44.entities.JournalEntry.update(e.id, { folder: nextFolder });
+      })
+    );
+    const updated = savedFolders.filter((f) => f !== path && !f.startsWith(`${path}/`));
     persistFolders(updated);
     setSavedFoldersState(updated);
+    if (viewingFolder === path || (viewingFolder && viewingFolder.startsWith(`${path}/`))) {
+      setViewingFolder(parent);
+    }
+    queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
+  };
+
+  const handleRenameFolder = async (oldPath, newName) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldPath.split("/").pop()) return;
+    if (trimmed.includes("/")) {
+      window.alert("Folder names cannot contain '/'.");
+      return;
+    }
+    const parent = getParent(oldPath);
+    const newPath = parent ? `${parent}/${trimmed}` : trimmed;
+    if (oldPath === newPath) return;
+    if (savedFolders.includes(newPath) || allFolderPaths.includes(newPath)) {
+      window.alert(`A folder named "${trimmed}" already exists here.`);
+      return;
+    }
+    // Update saved folder list: rename this path + all descendants
+    const updated = savedFolders.map((f) => {
+      if (f === oldPath) return newPath;
+      if (f.startsWith(`${oldPath}/`)) return newPath + f.slice(oldPath.length);
+      return f;
+    });
+    persistFolders(updated);
+    setSavedFoldersState(updated);
+    // Update any entry whose folder is the renamed path or a descendant
+    const affected = entries.filter(
+      (e) => e.folder === oldPath || (e.folder && e.folder.startsWith(`${oldPath}/`))
+    );
+    await Promise.all(
+      affected.map((e) => {
+        const nextFolder = e.folder === oldPath
+          ? newPath
+          : newPath + e.folder.slice(oldPath.length);
+        return base44.entities.JournalEntry.update(e.id, { folder: nextFolder });
+      })
+    );
+    if (viewingFolder === oldPath) setViewingFolder(newPath);
+    else if (viewingFolder && viewingFolder.startsWith(`${oldPath}/`)) {
+      setViewingFolder(newPath + viewingFolder.slice(oldPath.length));
+    }
+    queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
   };
 
   // Refetch active fronters at the moment the menu opens (don't trust the
@@ -467,7 +531,7 @@ export default function Journals() {
             {fronterMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setFronterMenuOpen(false)} />
-                <div className="absolute top-full right-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 max-w-[calc(100vw-2rem)] overflow-hidden">
+                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 max-w-[calc(100vw-2rem)] overflow-hidden">
                   <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
                     <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
                       Filter by {terms.alter}
@@ -553,6 +617,7 @@ export default function Journals() {
         <FolderGrid
           folders={visibleFolders}
           onSelect={(path) => setViewingFolder(path)}
+          onRename={handleRenameFolder}
           onDelete={handleDeleteFolder}
         />
       )}

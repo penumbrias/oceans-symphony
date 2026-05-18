@@ -294,7 +294,11 @@ export default function CustomEmotionsManager() {
                       <EmotionRow
                         key={e.id}
                         emotion={e}
-                        onDelete={(id) => deleteMutation.mutate(id)}
+                        onDelete={(id) => {
+                          if (window.confirm(`Delete the custom emotion "${e.label}"? Past check-ins that recorded this emotion keep the label, but it will no longer appear in the picker. This cannot be undone.`)) {
+                            deleteMutation.mutate(id);
+                          }
+                        }}
                         onUpdate={(id, data) => updateMutation.mutate({ id, data })}
                       />
                     ))}

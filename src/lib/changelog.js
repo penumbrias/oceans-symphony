@@ -19,6 +19,18 @@ export const CHANGELOG = [
         type: "fix",
         text: "Hardened journal/block rich-text rendering to strip any unsafe HTML (event handlers, scripts, etc.) before display — important when a backup is shared between users or content lands via copy-paste from external sources. Also guarded a top-level JSON.parse so a corrupted localStorage value can't blank the entire app.",
       },
+      {
+        type: "fix",
+        text: "Fixed the Fronter view dropdown in Journals being cut off on the left edge of the screen (labels like 'MEMBER' were clipped to 'EMBER'). It now anchors to the button's left edge and extends rightward, matching the Author dropdown next to it.",
+      },
+      {
+        type: "feature",
+        text: "You can now rename and delete custom journal folders and subfolders. Long-press (or right-click) any folder card for a small menu with Rename and Delete. Deleting moves any entries inside to the parent folder (or to the root for top-level folders) — entries themselves are never deleted, and subfolder hierarchy is preserved.",
+      },
+      {
+        type: "improve",
+        text: "Added missing edit/delete options to a handful of create-only places: Custom Fields can now be renamed and have their type changed (previously only the name on the alter card was editable); weekly Activity Goals can now have their target minutes edited; and several existing Delete buttons (Custom Emotions, Trigger Types, Quick Actions, Custom Fields, Activity Goals) now ask for confirmation first.",
+      },
     ],
   },
   {

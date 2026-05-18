@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, GripVertical, Hash, Type, ToggleLeft, MoreVertical, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2, Hash, Type, ToggleLeft, MoreVertical, ChevronUp, ChevronDown, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -25,6 +25,9 @@ export default function CustomFieldsManager() {
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("text");
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editType, setEditType] = useState("text");
 
   const { data: fields = [] } = useQuery({
     queryKey: ["customFields"],
@@ -58,9 +61,32 @@ export default function CustomFieldsManager() {
     setSaving(false);
   };
 
-  const deleteField = async (id) => {
-    await base44.entities.CustomField.delete(id);
+  const deleteField = async (field) => {
+    if (!window.confirm(`Delete custom field "${field.name}"? Per-alter values for this field will also be removed. This cannot be undone.`)) return;
+    await base44.entities.CustomField.delete(field.id);
     queryClient.invalidateQueries({ queryKey: ["customFields"] });
+  };
+
+  const startEdit = (field) => {
+    setEditingId(field.id);
+    setEditName(field.name);
+    setEditType(field.field_type);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+    setEditType("text");
+  };
+
+  const saveEdit = async () => {
+    if (!editName.trim()) return;
+    await base44.entities.CustomField.update(editingId, {
+      name: editName.trim(),
+      field_type: editType,
+    });
+    queryClient.invalidateQueries({ queryKey: ["customFields"] });
+    cancelEdit();
   };
 
   return (
@@ -94,6 +120,37 @@ export default function CustomFieldsManager() {
         >
         {fields.map((field, index) => {
           const Icon = TYPE_ICONS[field.field_type] || Type;
+          if (editingId === field.id) {
+            return (
+              <div key={field.id} className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
+                <Input
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") cancelEdit(); }}
+                  autoFocus
+                  placeholder="Field name..."
+                />
+                <div className="flex gap-2 flex-wrap">
+                  {Object.entries(TYPE_LABELS).map(([key, label]) => {
+                    const TypeIcon = TYPE_ICONS[key];
+                    const selected = editType === key;
+                    return (
+                      <button key={key} type="button" onClick={() => setEditType(key)}
+                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${selected ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"}`}>
+                        <TypeIcon className="w-3 h-3" /> {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                  <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={saveEdit} disabled={!editName.trim()}>
+                    <Check className="w-3.5 h-3.5 mr-1" /> Save
+                  </Button>
+                </div>
+              </div>
+            );
+          }
           return (
             <div key={field.id} className="flex items-center gap-3 px-3 py-3 rounded-xl border border-border/50 bg-muted/10">
               <div className="flex flex-col gap-0.5 flex-shrink-0">
@@ -122,7 +179,10 @@ export default function CustomFieldsManager() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => deleteField(field.id)} className="text-destructive">
+                  <DropdownMenuItem onClick={() => startEdit(field)}>
+                    <Pencil className="w-4 h-4 mr-2" /> Rename / Change type
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => deleteField(field)} className="text-destructive">
                     <Trash2 className="w-4 h-4 mr-2" /> Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>

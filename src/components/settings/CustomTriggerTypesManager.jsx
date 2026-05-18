@@ -113,6 +113,9 @@ export default function CustomTriggerTypesManager() {
   };
 
   const handleDelete = async (id) => {
+    const target = triggerTypes.find(t => t.id === id);
+    const label = target?.label || "this trigger";
+    if (!window.confirm(`Delete the trigger type "${label}"? Past sessions that recorded this trigger keep the label, but it will no longer appear in the picker.`)) return;
     try {
       await base44.entities.TriggerType.delete(id);
       queryClient.invalidateQueries({ queryKey: ["customTriggerTypes"] });

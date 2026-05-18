@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, Pencil } from "lucide-react";
 import CircularProgressBar from "@/components/activities/CircularProgressBar";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { format, startOfWeek } from "date-fns";
@@ -15,6 +15,8 @@ export default function ActivityGoalsPanel({ weekStart }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [targetMinutes, setTargetMinutes] = useState("");
+  const [editingGoal, setEditingGoal] = useState(null);
+  const [editTargetMinutes, setEditTargetMinutes] = useState("");
 
   const weekDate = format(startOfWeek(weekStart), "yyyy-MM-dd");
 
@@ -85,6 +87,34 @@ export default function ActivityGoalsPanel({ weekStart }) {
     },
   });
 
+  // Update goal target mutation
+  const updateGoalMutation = useMutation({
+    mutationFn: async ({ goalId, weeklyMinutes }) => {
+      await base44.entities.ActivityGoal.update(goalId, { weekly_minutes: weeklyMinutes });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["activityGoals", weekDate] });
+      setEditingGoal(null);
+      setEditTargetMinutes("");
+    },
+  });
+
+  const handleDeleteGoal = (goal) => {
+    if (!window.confirm(`Delete the weekly goal for "${goal.category_name}"? Your activity history will not be affected.`)) return;
+    deleteGoalMutation.mutate(goal.id);
+  };
+
+  const handleEditGoal = (goal) => {
+    setEditingGoal(goal);
+    setEditTargetMinutes(String(goal.weekly_minutes || ""));
+  };
+
+  const handleSaveEdit = () => {
+    const value = parseInt(editTargetMinutes, 10);
+    if (!editingGoal || !value || value <= 0) return;
+    updateGoalMutation.mutate({ goalId: editingGoal.id, weeklyMinutes: value });
+  };
+
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -116,17 +146,27 @@ export default function ActivityGoalsPanel({ weekStart }) {
                 color={data.color}
                 size="md"
               />
-              <button
-                onClick={() => deleteGoalMutation.mutate(data.id)}
-                disabled={deleteGoalMutation.isPending}
-                className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-destructive/20 hover:bg-destructive/30 text-destructive"
-              >
-                {deleteGoalMutation.isPending ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Trash2 className="w-3 h-3" />
-                )}
-              </button>
+              <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => handleEditGoal(data)}
+                  className="p-1 rounded bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                  aria-label="Edit goal target"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => handleDeleteGoal(data)}
+                  disabled={deleteGoalMutation.isPending}
+                  className="p-1 rounded bg-destructive/20 hover:bg-destructive/30 text-destructive"
+                  aria-label="Delete goal"
+                >
+                  {deleteGoalMutation.isPending ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -184,6 +224,40 @@ export default function ActivityGoalsPanel({ weekStart }) {
             >
               {createGoalMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Goal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Goal Dialog */}
+      <Dialog open={!!editingGoal} onOpenChange={(open) => { if (!open) { setEditingGoal(null); setEditTargetMinutes(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Weekly Goal{editingGoal ? ` — ${editingGoal.category_name}` : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Target (minutes per week)</label>
+              <Input
+                type="number"
+                value={editTargetMinutes}
+                onChange={(e) => setEditTargetMinutes(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveEdit(); }}
+                min="1"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditingGoal(null); setEditTargetMinutes(""); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={!editTargetMinutes || parseInt(editTargetMinutes, 10) <= 0 || updateGoalMutation.isPending}
+            >
+              {updateGoalMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
