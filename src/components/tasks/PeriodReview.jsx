@@ -5,7 +5,7 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useTerms } from "@/lib/useTerms";
 
 const REVIEW_COUNTS = { daily: 14, weekly: 12, monthly: 12, yearly: 5 };
-const HOLD_MS = 2000;
+const HOLD_MS = 1000;
 
 export default function PeriodReview({ frequency, templates, allProgress, onToggleTask }) {
   const terms = useTerms();
@@ -104,7 +104,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
       {/* Hint shown when no tapInfo */}
       {!tapInfo && (
         <p className="text-[0.6875rem] text-muted-foreground px-1">
-          Tap ✓ to see {frequency === "daily" ? "completion time" : "completion date"} · Hold 2s to change
+          Tap ✓ to see {frequency === "daily" ? "completion time" : "completion date"} · Hold 1s to change
         </p>
       )}
 

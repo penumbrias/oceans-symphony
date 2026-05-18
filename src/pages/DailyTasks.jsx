@@ -573,7 +573,14 @@ export default function DailyTasks() {
   }, [streak]);
 
   const toggleHistoryTask = async (taskId, periodKey, currentDone) => {
-    const record = allProgress.find(p =>
+    // Refetch DailyProgress fresh before deciding update vs create.
+    // The hold-to-change has a 1-second hold window during which the
+    // query cache may have refetched. Using the render-captured
+    // `allProgress` would let a stale snapshot drive the update — landing
+    // on an old record id or duplicating a freshly-created row. Matches
+    // the canonical refetch-before-write pattern from CLAUDE.md.
+    const fresh = await base44.entities.DailyProgress.list();
+    const record = fresh.find(p =>
       (p.frequency === activeFreq || (!p.frequency && activeFreq === "daily")) &&
       (p.period_key === periodKey || (activeFreq === "daily" && p.date === periodKey))
     );
