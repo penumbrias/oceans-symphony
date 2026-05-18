@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { format, parseISO, subDays } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   BarChart, Bar, Cell,
@@ -24,12 +26,36 @@ function truncate(str, n = 12) {
 export default function DiaryAnalyticsSummary({ cards }) {
   const [rangeDays, setRangeDays] = useState(14);
 
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+  });
+
+  const { data: symptomCheckIns = [] } = useQuery({
+    queryKey: ["symptomCheckIns"],
+    queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 1000),
+  });
+
+  const symptomById = useMemo(
+    () => Object.fromEntries(symptoms.map(s => [s.id, s])),
+    [symptoms]
+  );
+
   const filtered = useMemo(() => {
     const cutoff = subDays(new Date(), rangeDays).getTime();
     return cards
       .filter(c => c.date && new Date(c.date).getTime() >= cutoff)
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [cards, rangeDays]);
+
+  const filteredSymptomCheckIns = useMemo(() => {
+    const cutoff = subDays(new Date(), rangeDays).getTime();
+    return symptomCheckIns.filter(sc => {
+      if (!sc.timestamp) return false;
+      const t = new Date(sc.timestamp).getTime();
+      return Number.isFinite(t) && t >= cutoff;
+    });
+  }, [symptomCheckIns, rangeDays]);
 
   // Mood trend: emotional_misery and joy over time
   const moodTrend = useMemo(() => {
@@ -52,29 +78,46 @@ export default function DiaryAnalyticsSummary({ cards }) {
       .map(([label, count]) => ({ label, count }));
   }, [filtered]);
 
-  // Symptom frequency table
+  // Symptom frequency table — merges DiaryCard.checklist data with the
+  // standalone SymptomCheckIn entity (Quick Check-In writes to the latter,
+  // not into the diary checklist, so omitting it makes the chart look empty
+  // for users who never fill out the diary's symptoms grid).
   const symptomFreq = useMemo(() => {
     const freq = {};
+    const bump = (key, val) => {
+      if (val === undefined || val === null || val === false) return;
+      if (!freq[key]) freq[key] = { count: 0, total: 0, entries: 0 };
+      freq[key].entries++;
+      if (typeof val === "number") { freq[key].total += val; freq[key].count++; }
+      else if (val === true) freq[key].count++;
+    };
+
     filtered.forEach(c => {
       const syms = { ...(c.checklist?.symptoms || {}), ...(c.checklist?.habits || {}) };
-      Object.entries(syms).forEach(([key, val]) => {
-        if (val === undefined || val === null || val === false) return;
-        if (!freq[key]) freq[key] = { count: 0, total: 0, entries: 0 };
-        freq[key].entries++;
-        if (typeof val === "number") { freq[key].total += val; freq[key].count++; }
-        else if (val === true) freq[key].count++;
-      });
+      Object.entries(syms).forEach(([key, val]) => bump(key, val));
     });
+
+    filteredSymptomCheckIns.forEach(sc => {
+      if (!sc.symptom_id) return;
+      const sym = symptomById[sc.symptom_id];
+      const label = sym?.label || sc.symptom_id;
+      const val = sc.severity !== null && sc.severity !== undefined
+        ? Number(sc.severity)
+        : true;
+      bump(label, val);
+    });
+
+    const denom = filtered.length + filteredSymptomCheckIns.length;
     return Object.entries(freq)
       .map(([key, v]) => ({
         label: key.replace(/_/g, " "),
         count: v.count,
-        avg: v.entries > 0 ? (v.total / v.entries).toFixed(1) : null,
-        pct: Math.round((v.count / (filtered.length || 1)) * 100),
+        avg: v.entries > 0 && v.total > 0 ? (v.total / v.entries).toFixed(1) : null,
+        pct: Math.round((v.count / (denom || 1)) * 100),
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 12);
-  }, [filtered]);
+  }, [filtered, filteredSymptomCheckIns, symptomById]);
 
   if (cards.length === 0) {
     return (

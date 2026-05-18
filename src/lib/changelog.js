@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Log Analytics 'Symptom & Habit Frequency' was only counting symptoms that had been filled into the diary card's symptoms grid — so anyone logging symptoms through Quick Check-In saw 'No symptom data in this range' even though their data was there. It now reads from both the diary checklist and the SymptomCheckIn entity, so Quick Check-In entries finally show up.",
+      },
+      {
+        type: "fix",
         text: "Daily Tasks 'hold to change' on past days: dropped the hold time from 2s to 1s, and fixed an issue where rapid edits could land on a stale snapshot and either skip the save or hit the wrong day. The toggle now refetches the latest progress right before saving.",
       },
       {
