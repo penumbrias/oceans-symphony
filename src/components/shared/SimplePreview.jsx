@@ -1,7 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import DOMPurify from "dompurify";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+
+// The placeholder HTML is a hardcoded constant — sanitizing the dynamic content
+// only. The placeholder string is repeated verbatim and contains only safe
+// inline-styled <span>.
+const PLACEHOLDER_HTML = '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Tap a field to edit…</span>';
+
+function sanitizeBlockHtml(html) {
+  // Allow data-* attributes so internal-link / data-edit hooks keep working.
+  return DOMPurify.sanitize(html || "", { ADD_ATTR: ["target"] });
+}
 
 export default function SimplePreview({ blocks, onBlockChange, readOnly = false }) {
   const navigate = useNavigate();
@@ -92,7 +103,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
               <div key={block.id}
                 onClick={(e) => handleClick(e, block, "content")}
                 className="px-2 py-1 rounded-lg min-h-[24px]"
-                dangerouslySetInnerHTML={{ __html: block.content || (!readOnly ? '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Tap a field to edit…</span>' : '') }}
+                dangerouslySetInnerHTML={{ __html: block.content ? sanitizeBlockHtml(block.content) : (!readOnly ? PLACEHOLDER_HTML : '') }}
               />
             );
           }
@@ -110,7 +121,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
                 )}
                 <div onClick={(e) => handleClick(e, block, "text")}
                   className="flex-1 px-2 py-1 rounded-lg min-h-[40px]"
-                  dangerouslySetInnerHTML={{ __html: block.text || (!readOnly ? '<span style="opacity:0.4;font-size:0.875rem;font-style:italic;">Tap a field to edit…</span>' : '') }} />
+                  dangerouslySetInnerHTML={{ __html: block.text ? sanitizeBlockHtml(block.text) : (!readOnly ? PLACEHOLDER_HTML : '') }} />
               </div>
             );
           }
@@ -154,7 +165,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
             <div key={block.id}
               onClick={(e) => !readOnly && handleClick(e, block, "content")}
               style={{ width: "100%" }}
-              dangerouslySetInnerHTML={{ __html: html }} />
+              dangerouslySetInnerHTML={{ __html: sanitizeBlockHtml(html) }} />
           );
         })}
         {blocks.length === 0 && !readOnly && (

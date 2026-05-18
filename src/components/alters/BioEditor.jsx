@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code } from "lucide-react";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
@@ -138,7 +139,7 @@ function HTMLPreviewModal({ html, onClose }) {
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           {tab === "preview"
-            ? <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
+            ? <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
             : <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>}
         </div>
       </div>
