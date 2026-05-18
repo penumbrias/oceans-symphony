@@ -579,6 +579,20 @@ if (isSameCell) {
                     pendingStart.hour === hour && pendingStart.minute === minute;
 
                   const timedContinues = timed.some(a => !isLastSlotForActivity(a, date, hour, minute));
+                  // Compute how many slots the longest activity starting in
+                  // this cell spans — used to (a) stop drawing a corner
+                  // badge / X overlay / needs-review dot inside every slot
+                  // (the redundant cross-cell duplication), and (b) extend
+                  // the label box so the activity name can wrap across the
+                  // full activity duration instead of being clamped to one
+                  // row's width.
+                  const labelSpanCells = (() => {
+                    const starters = timed.filter(a => isFirstSlotForActivity(a, date, hour, minute));
+                    if (starters.length === 0) return 1;
+                    return Math.max(1, ...starters.map(a =>
+                      Math.ceil(Math.max(gridInterval, a.duration_minutes || gridInterval) / gridInterval)
+                    ));
+                  })();
                   const loggedToShow = logged.filter(pill => {
                     const pillCats = new Set(pill.activity_category_ids || []);
                     return !timed.some(t => (t.activity_category_ids || []).some(c => pillCats.has(c)));
@@ -633,6 +647,12 @@ if (isSameCell) {
                             const v = visualForStatus(st);
                             const needsReview = isPastTimeScheduled(a);
                             const color = getActivityColor(a);
+                            // Only the activity's first slot renders the
+                            // status decorations (corner badge, "cancelled"
+                            // X, needs-review dot). Continuation slots get
+                            // the colored background only, so a 8-hour plan
+                            // doesn't paint 16 redundant ✓s down the column.
+                            const isHeadSlot = isFirstSlotForActivity(a, date, hour, minute);
                             return (
                               <div
                                 key={a.id}
@@ -644,12 +664,12 @@ if (isSameCell) {
                                   boxSizing: "border-box",
                                 }}
                               >
-                                {v.showXCenter && (
+                                {v.showXCenter && isHeadSlot && (
                                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                     <X className="w-3 h-3 text-white drop-shadow" />
                                   </div>
                                 )}
-                                {v.corner && (
+                                {v.corner && isHeadSlot && (
                                   <span
                                     className="absolute top-0 right-0.5 text-white font-bold leading-none pointer-events-none drop-shadow"
                                     style={{ fontSize: Math.max(8, rowH * 0.3) }}
@@ -657,7 +677,7 @@ if (isSameCell) {
                                     {v.corner}
                                   </span>
                                 )}
-                                {needsReview && (
+                                {needsReview && isHeadSlot && (
                                   <span
                                     className="absolute top-0.5 left-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-amber-700/40 pointer-events-none"
                                     title="Past-time plan — needs review"
@@ -672,10 +692,16 @@ if (isSameCell) {
                       <div className="relative z-10 w-full h-full flex flex-col">
                         {timed.length > 0 && showLabel && (
                           <div className={`px-1 pt-0.5 w-full ${isExpanded ? "" : "overflow-hidden"}`}
-                            style={{ maxHeight: isExpanded ? "none" : rowH - 2 }}>
-<div className="font-semibold text-white drop-shadow leading-tight flex items-center gap-0.5"
-  style={{ fontSize: Math.max(9, Math.min(11, rowH / 4)) }}>
-  {truncate(timed.map(a => a.activity_name).join(" + "), colW / 7)}
+                            style={{
+                              // Extend the label box to the full activity
+                              // duration so a long-running activity can
+                              // wrap its name across multiple slots instead
+                              // of being clipped to one row.
+                              maxHeight: isExpanded ? "none" : Math.max(rowH - 2, labelSpanCells * rowH - 2),
+                            }}>
+<div className="font-semibold text-white drop-shadow leading-tight flex items-start gap-0.5 flex-wrap"
+  style={{ fontSize: Math.max(9, Math.min(11, rowH / 4)), wordBreak: "break-word" }}>
+  <span className="break-words">{timed.map(a => a.activity_name).join(" + ")}</span>
   {timed.some(a => a.notes) && (
     <span style={{ fontSize: Math.max(7, rowH * 0.22), opacity: 0.85, lineHeight: 1 }}>💭</span>
   )}
