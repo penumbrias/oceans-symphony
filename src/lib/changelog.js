@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Activity Planner weekly grid: long activities used to paint a checkmark (or X / needs-review dot) inside every 30-minute cell they spanned, and the activity name was truncated to fit a single cell width. Now the status decorations only render in the activity's first slot, and the name box extends across the full duration so the label can wrap and fill the activity's visible block.",
+      },
+      {
+        type: "improve",
         text: "Check-In Log: collapsed day rows now show the Day Total summary inline (emotion chips, fronters, symptom counts, location/activity pills) instead of just the date and entry count. You can scan recent days at a glance without expanding each one.",
       },
       {
