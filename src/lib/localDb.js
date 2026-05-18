@@ -137,6 +137,33 @@ export async function exportRawStorageBlob() {
   return await loadFromStorage();
 }
 
+// Non-destructive password check. Reads the stored blob, derives a key
+// from the supplied password against the persisted salt, and attempts
+// to decrypt — returning true on success, false on failure. Does NOT
+// mutate `_db` / `_encKey` / `_activeSalt`, so it's safe to call while
+// the user is already unlocked. Used by surfaces that gate a sensitive
+// toggle behind "prove you're the owner" (e.g. disabling the grocery
+// privacy-cover lock). Returns false (rather than throwing) when there
+// is no encrypted data or no salt to verify against.
+export async function verifyPassword(password) {
+  if (!password) return false;
+  const raw = await loadFromStorage();
+  if (!raw) return false;
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch { return false; }
+  if (!parsed || typeof parsed !== 'object' || !parsed.__encrypted) return false;
+  const salt = parsed.__salt || getEncSalt();
+  if (!salt) return false;
+  try {
+    const key = await deriveKey(password, salt);
+    await decryptData(parsed.__encrypted, key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function generateId() {
   if (crypto.randomUUID) return crypto.randomUUID();
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
