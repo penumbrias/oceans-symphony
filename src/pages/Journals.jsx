@@ -467,7 +467,7 @@ export default function Journals() {
             {fronterMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setFronterMenuOpen(false)} />
-                <div className="absolute top-full right-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 max-w-[calc(100vw-2rem)] overflow-hidden">
+                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 max-w-[calc(100vw-2rem)] overflow-hidden">
                   <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
                     <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
                       Filter by {terms.alter}
