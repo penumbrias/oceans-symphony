@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Daily Tasks 'hold to change' on past days: dropped the hold time from 2s to 1s, and fixed an issue where rapid edits could land on a stale snapshot and either skip the save or hit the wrong day. The toggle now refetches the latest progress right before saving.",
+      },
+      {
+        type: "fix",
         text: "Bumped the touch-block on the Quick Check-In modal from 200ms to 400ms and tightened the overlay so the touch from the finger that opened the modal can't accidentally tap a button (especially Save / Cancel at the top of the modal). Testers were reporting auto-selecting whatever button overlapped with the Quick Check-In trigger location.",
       },
       {
