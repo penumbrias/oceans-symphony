@@ -55,6 +55,12 @@ export default function JournalEditorModal({
   // signpost with `-<alter-name>`. The first user keystroke flips it true so
   // we never clobber what they typed. Resets on modal open.
   const [signpostTouchedByUser, setSignpostTouchedByUser] = useState(false);
+  // @-mention-style autocomplete for the signpost field. When the user is
+  // mid-token (just typed a "-" or chars after one) we surface a popover
+  // of matching alters they can click to insert.
+  const [signpostMenuOpen, setSignpostMenuOpen] = useState(false);
+  const [signpostQuery, setSignpostQuery] = useState("");
+  const signpostInputRef = useRef(null);
 
   const taRef = useRef(null);
   const insert = useTextareaInsert(taRef, content, setContent);
@@ -111,32 +117,38 @@ useEffect(() => {
     setShowAuthorPicker(false);
     setAuthorSearch("");
     setSignpostText("");
+    setSignpostMenuOpen(false);
+    setSignpostQuery("");
     // Each open starts as "untouched" so the dropdown can auto-fill the
     // signpost. The auto-fill effect below will populate from the loaded
     // author once alters resolve.
     setSignpostTouchedByUser(false);
   }, [editingEntryFinal?.id, isOpenFinal]);
 
-  // Auto-fill the signpost field from the dropdown author when the user
-  // hasn't manually typed in it. Picking an alter from "Written by" should
-  // surface the same -name marker so the signpost-overrides-dropdown
+  // Auto-fill the signpost field from the dropdown author + co-authors when
+  // the user hasn't manually typed in it. Picking an alter from "Written by"
+  // should surface the same -name marker so the signpost-overrides-dropdown
   // precedence still ends up at the same alter (and the user sees a
   // consistent indicator). When the user types over it, the touched flag
-  // flips and this effect bows out.
+  // flips and this effect bows out. When loading an existing multi-author
+  // entry, ALL author markers must appear here — surfacing only the primary
+  // dropped co-authors on re-save and caused the "edit shows previous
+  // version" bug.
   useEffect(() => {
     if (!isOpenFinal) return;
     if (signpostTouchedByUser) return;
-    if (!authorAlterId) {
-      // No author selected → clear any prior auto-fill so we don't leak
-      // stale text between selections.
+    const allIds = [authorAlterId, ...(coAuthorIds || [])].filter(Boolean);
+    if (allIds.length === 0) {
       if (signpostText) setSignpostText("");
       return;
     }
-    const author = altersById[authorAlterId];
-    if (!author) return;
-    const marker = `-${(author.alias || author.name || "").trim()}`;
-    if (marker !== signpostText) setSignpostText(marker);
-  }, [authorAlterId, altersById, isOpenFinal, signpostTouchedByUser]);
+    const markers = allIds
+      .map(id => altersById[id])
+      .filter(Boolean)
+      .map(a => `-${(a.alias || a.name || "").trim()}`);
+    const marker = markers.join(" ");
+    if (marker && marker !== signpostText) setSignpostText(marker);
+  }, [authorAlterId, coAuthorIds, altersById, isOpenFinal, signpostTouchedByUser]);
 
   // Backfill author when fronting data arrives after the modal is already open
   useEffect(() => {
@@ -207,6 +219,56 @@ useEffect(() => {
     [alters, authorSearch]
   );
 
+  // Alters that match the current signpost autocomplete query, filtered to
+  // active ones — archived alters shouldn't show up as suggestions even if
+  // they're still in the alters array (consistent with BulletinComposer).
+  const signpostSuggestions = useMemo(() => {
+    const q = (signpostQuery || "").toLowerCase();
+    return (alters || [])
+      .filter(a => !a.is_archived)
+      .filter(a =>
+        !q ||
+        a.name?.toLowerCase().includes(q) ||
+        (a.alias && a.alias.toLowerCase().includes(q))
+      )
+      .slice(0, 8);
+  }, [alters, signpostQuery]);
+
+  const handleSignpostChange = (e) => {
+    const val = e.target.value;
+    if (!signpostTouchedByUser) setSignpostTouchedByUser(true);
+    setSignpostText(val);
+    // Detect a `-<chars>` token sitting at the caret. If the user is mid-
+    // word (no space yet), surface the autocomplete; otherwise hide it.
+    const cursor = e.target.selectionStart ?? val.length;
+    const before = val.slice(0, cursor);
+    const m = before.match(/-([\w/]*)$/);
+    if (m) {
+      setSignpostQuery(m[1]);
+      setSignpostMenuOpen(true);
+    } else {
+      setSignpostMenuOpen(false);
+    }
+  };
+
+  const insertSignpostFromMenu = (alter) => {
+    const input = signpostInputRef.current;
+    const cursor = input?.selectionStart ?? signpostText.length;
+    const before = signpostText.slice(0, cursor);
+    const after = signpostText.slice(cursor);
+    const replaced = before.replace(/-([\w/]*)$/, `-${alter.alias || alter.name} `);
+    const next = replaced + after;
+    if (!signpostTouchedByUser) setSignpostTouchedByUser(true);
+    setSignpostText(next);
+    setSignpostMenuOpen(false);
+    setSignpostQuery("");
+    requestAnimationFrame(() => {
+      input?.focus();
+      const pos = replaced.length;
+      try { input?.setSelectionRange(pos, pos); } catch { /* ignore */ }
+    });
+  };
+
   return (
     <Dialog open={isOpenFinal} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
@@ -270,17 +332,36 @@ useEffect(() => {
                 )}
               </div>
 
-              <input
-                value={signpostText}
-                onChange={e => {
-                  // Mark as user-touched so the author-dropdown auto-fill
-                  // effect stops clobbering what they're typing.
-                  if (!signpostTouchedByUser) setSignpostTouchedByUser(true);
-                  setSignpostText(e.target.value);
-                }}
-                placeholder="-name or -alias to sign"
-                className="flex-1 min-w-[140px] text-xs font-mono bg-transparent border border-border/40 rounded-lg px-2.5 py-1 focus:border-primary/50 outline-none placeholder:text-muted-foreground/40"
-              />
+              <div className="relative flex-1 min-w-[140px]">
+                <input
+                  ref={signpostInputRef}
+                  value={signpostText}
+                  onChange={handleSignpostChange}
+                  onBlur={() => { setTimeout(() => setSignpostMenuOpen(false), 150); }}
+                  placeholder="-name or -alias to sign"
+                  className="w-full text-xs font-mono bg-transparent border border-border/40 rounded-lg px-2.5 py-1 focus:border-primary/50 outline-none placeholder:text-muted-foreground/40"
+                />
+                {signpostMenuOpen && signpostSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 bg-popover border border-border rounded-xl shadow-xl mt-1 max-h-52 overflow-y-auto">
+                    <div className="px-3 py-1.5 text-[0.625rem] uppercase tracking-wide text-muted-foreground font-medium border-b border-border/50">
+                      Sign as {terms.alter}…
+                    </div>
+                    {signpostSuggestions.map(a => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => insertSignpostFromMenu(a)}
+                        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-xs"
+                      >
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                        <span className="flex-1 truncate">{a.name}</span>
+                        {a.alias && <span className="text-muted-foreground text-[0.625rem]">({a.alias})</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {signpostAuthors.length > 0 && (
