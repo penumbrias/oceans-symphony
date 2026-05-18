@@ -7,6 +7,7 @@ import { parseDate } from "@/lib/dateUtils";
 import { decryptContent } from "@/lib/encryption";
 import { Edit2, Lock, AlertCircle, Loader2, BookOpen } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import DOMPurify from "dompurify";
 
 function processSignposts(html, altersById) {
   if (!html || !altersById) return html;
@@ -161,7 +162,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
             <div className="prose prose-sm dark:prose-invert max-w-none py-2">
               {displayContent
                 ? (/<[a-z][\s\S]*>/i.test(displayContent)
-                    ? <div dangerouslySetInnerHTML={{ __html: displayContent }} />
+                    ? <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(displayContent) }} />
                     : <ReactMarkdown>{displayContent}</ReactMarkdown>)
                 : <p className="text-muted-foreground italic text-sm">No content.</p>
               }

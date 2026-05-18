@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 18, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Hardened journal/block rich-text rendering to strip any unsafe HTML (event handlers, scripts, etc.) before display — important when a backup is shared between users or content lands via copy-paste from external sources. Also guarded a top-level JSON.parse so a corrupted localStorage value can't blank the entire app.",
+      },
+    ],
+  },
+  {
     date: "May 17, 2026",
     changes: [
       {
