@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Journal editor was losing co-authors on re-edit. Saving a multi-author entry worked and displayed correctly, but reopening Edit only showed the primary author and emptied the signpost field — clicking Save again would have stripped the co-authors. The editor now rehydrates the signpost field with every author marker on load (e.g. `-kyo -hex -kane`), so the second-edit round-trips cleanly.",
+      },
+      {
+        type: "feature",
+        text: "Journal editor signpost field now autocompletes alters as you type, matching how the bulletin composer's @-mentions work. Type `-h` and a dropdown of alters whose name or alias starts with `h` appears — tap one to insert. Picks up where you are in the line, so you can chain multiple authors (`-kyo -hex -kane`) and get a suggestion list for each.",
+      },
+      {
+        type: "fix",
         text: "CRITICAL: backup/export was completely broken — both 'Download Backup' and 'View as Text' failed with 'filter is not a function' for every user. The recent default-grounding-techniques filter assumed the entity dump was an array, but the in-memory database stores entities as objects keyed by id. Walking the entries correctly now, so exports work again.",
       },
       {
