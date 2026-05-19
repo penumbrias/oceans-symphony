@@ -30,6 +30,7 @@ import Grounding from '@/pages/Grounding';
 import SafetyPlan from '@/pages/SafetyPlan';
 import BulletinPage from '@/pages/BulletinPage';
 import BulletinsPage from '@/pages/BulletinsPage';
+import HelpMeUnblend from '@/pages/HelpMeUnblend';
 import ManageCheckIn from '@/pages/ManageCheckIn';
 import TherapyReport from '@/pages/TherapyReport';
 import Reminders from '@/pages/Reminders';
@@ -154,6 +155,7 @@ const AuthenticatedApp = () => {
         <Route path="/system-map" element={<SystemMapPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/bulletins" element={<BulletinsPage />} />
+        <Route path="/unblend" element={<HelpMeUnblend />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
         <Route path="/grounding" element={<Grounding />} />
         <Route path="/safety-plan" element={<SafetyPlan />} />
