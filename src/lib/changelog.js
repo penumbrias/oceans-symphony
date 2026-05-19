@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Active Symptoms popup: the earlier safe-area fix actually shrank the bottom buffer on devices where `env(safe-area-inset-bottom)` reports 0 (it replaced the outer wrapper's bottom padding with an inner padding that was no bigger). Moved the safe-area inset to the outer wrapper itself so the panel now always has at least 1rem (or the device's bottom inset, whichever is larger) of clear space below it. The panel is also capped at 80vh with internal scroll so it can never extend past the visible area.",
+      },
+      {
         type: "feature",
         text: "Daily-task auto triggers can now combine multiple triggers. Pick more than one from the dropdown (each one shows as a removable pill) and a new 'Count complete when:' toggle chooses Any (or) — fires as soon as one trigger happens — vs All (and) — every trigger must happen. Legacy single-trigger templates keep working unchanged.",
       },
