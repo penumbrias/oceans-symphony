@@ -86,6 +86,15 @@ function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bull
             </span>
           </div>
         )}
+        {entry.id === "current_fronters" && (
+          <p className="text-[0.6875rem] text-muted-foreground/90 mt-2 leading-snug border-l-2 border-primary/40 pl-2">
+            You can hide this if you don't track fronting — every other
+            feature should still work, and anything you log lands on the
+            system as a whole. If you find a screen that gets stuck
+            without a fronter set, please send a bug report via Settings →
+            Report a Bug.
+          </p>
+        )}
       </div>
       {locked ? (
         <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide flex-shrink-0">

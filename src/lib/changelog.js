@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Settings → Appearance → Dashboard layout: the 'Currently fronting' toggle now shows a small note reassuring users that the rest of the app should work without setting a fronter (anything they log just attaches to the system as a whole), plus a Report a Bug prompt in case any screen gets stuck without one.",
+      },
+      {
         type: "fix",
         text: "Active Symptoms popup (press-and-hold on a symptom pill on the dashboard): the bottom sheet now respects the device's bottom safe-area inset, so the Cancel button is no longer cut off below the screen edge on Android.",
       },
