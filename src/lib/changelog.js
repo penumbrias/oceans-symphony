@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Therapy Report: new 'Preview & Customize → PDF' flow. After building a report you now land on a preview pane that lists every individual journal entry, bulletin, status note, support reflection, and system check-in inside the report — each with an × button to keep it out of the final PDF. A granular final-edit pass for redacting anything private before handing the report to a therapist. The original 'Download PDF (skip preview)' and 'Copy as Text' actions are still available for users who don't want the extra step.",
+      },
+      {
+        type: "feature",
         text: "Analytics now have a 'System-wide / all data combined' view alongside the per-alter views. In the Co-Fronting Analytics page, the alter list opens with a System tile that shows every co-fronting pair ranked by frequency — useful for users who don't track fronting per-alter but still want to see who tends to be present together. In the Alter × Symptom Correlation panel, a System tile sits next to the alter cards and surfaces the baseline symptom averages across every check-in regardless of who was fronting. The existing per-alter views stay exactly as they were.",
       },
       {

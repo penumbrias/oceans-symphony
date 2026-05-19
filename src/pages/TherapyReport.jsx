@@ -5,6 +5,7 @@ import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import ReportBuilder from "@/components/report/ReportBuilder";
 import ExportModal from "@/components/report/ExportModal";
+import ReportCustomizePreview from "@/components/report/ReportCustomizePreview";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "sonner";
 import * as reportSections from "@/lib/reportSections";
@@ -17,6 +18,12 @@ export default function TherapyReportPage() {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [exportModal, setExportModal] = useState(null);
+  // Preview & Customize flow: when the user picks "Preview & Customize"
+  // in the builder, we run the same section-building pipeline but
+  // park the result here instead of going straight to PDF. The preview
+  // modal then lets them prune individual entries before the final
+  // export. Shape: { sections, enabledSections, config }.
+  const [pendingPreview, setPendingPreview] = useState(null);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -312,6 +319,17 @@ export default function TherapyReportPage() {
         alterAppendix,
       };
 
+      // Preview & Customize: park the built sections in state and
+      // open the granular preview modal instead of going straight to
+      // PDF. The modal's "Generate PDF" button calls runFinalExport
+      // below with whatever the user has pruned out.
+      if (config.previewBeforeExport) {
+        setPendingPreview({ sections, enabledSections, config });
+        // No export log yet — only written after the user actually
+        // generates the final PDF from the preview modal.
+        return;
+      }
+
       // Handle text export
       if (config.exportAsText) {
         const textContent = formatTherapyReportAsText({
@@ -343,6 +361,38 @@ export default function TherapyReportPage() {
         sections_included: Array.from(config.selectedSections),
       });
 
+    } catch (error) {
+      toast.error(`Error: ${error.message}`);
+      console.error("Report generation error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Called from ReportCustomizePreview after the user prunes per-item
+  // entries and confirms. Builds the PDF from the now-filtered sections
+  // and routes the result through the existing ExportModal.
+  const runFinalExportFromPreview = async (filteredSections) => {
+    if (!pendingPreview) return;
+    const { enabledSections, config } = pendingPreview;
+    try {
+      setLoading(true);
+      const sectionOptions = config.config.sectionOptions || {};
+      const { blob, filename } = await generateTherapyReport({
+        config: config.config,
+        sections: filteredSections,
+        enabledSections,
+        sectionOptions,
+      });
+      await db.ReportExport.create({
+        date_from: config.dateFrom,
+        date_to: config.dateTo,
+        mode: config.mode,
+        sections_included: Array.from(config.selectedSections),
+      });
+      setPendingPreview(null);
+      setExportModal({ filename, format: "pdf", blob });
+      toast.success("PDF ready — tap Save / Share below");
     } catch (error) {
       toast.error(`Error: ${error.message}`);
       console.error("Report generation error:", error);
@@ -391,6 +441,15 @@ export default function TherapyReportPage() {
         symptoms={symptoms}
         activities={activities}
         alters={alters}
+      />
+
+      <ReportCustomizePreview
+        isOpen={!!pendingPreview}
+        onClose={() => setPendingPreview(null)}
+        sections={pendingPreview?.sections}
+        enabledSections={pendingPreview?.enabledSections}
+        onGenerate={runFinalExportFromPreview}
+        loading={loading}
       />
 
       <ExportModal

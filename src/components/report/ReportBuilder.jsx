@@ -301,7 +301,7 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
     }
   };
 
-  const buildConfig = (exportAsText = false) => ({
+  const buildConfig = (exportAsText = false, previewBeforeExport = false) => ({
     dateFrom,
     dateTo,
     mode: "smart",
@@ -321,6 +321,7 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
       sectionOptions,
     },
     exportAsText,
+    previewBeforeExport,
     saveAsTemplate: null,
   });
 
@@ -567,22 +568,36 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
       </section>
 
       {/* Generate */}
-      <div className="flex gap-3">
+      <div className="space-y-2">
         <Button
-          onClick={() => onGenerate(buildConfig(false))}
+          onClick={() => onGenerate(buildConfig(false, true))}
           disabled={loading || selectedSections.size === 0}
-          className="flex-1 py-6 text-base"
+          className="w-full py-6 text-base"
         >
-          {loading ? "Generating…" : "Download PDF"}
+          {loading ? "Generating…" : "Preview & Customize → PDF"}
         </Button>
-        <Button
-          onClick={() => onGenerate(buildConfig(true))}
-          disabled={loading || selectedSections.size === 0}
-          variant="outline"
-          className="flex-1 py-6 text-base"
-        >
-          {loading ? "…" : "Copy as Text"}
-        </Button>
+        <p className="text-xs text-muted-foreground text-center px-2">
+          Recommended — preview the full report and tap × on any entry
+          you want to keep private before the final PDF.
+        </p>
+        <div className="flex gap-3 pt-1">
+          <Button
+            onClick={() => onGenerate(buildConfig(false, false))}
+            disabled={loading || selectedSections.size === 0}
+            variant="outline"
+            className="flex-1 py-6 text-base"
+          >
+            {loading ? "Generating…" : "Download PDF (skip preview)"}
+          </Button>
+          <Button
+            onClick={() => onGenerate(buildConfig(true, false))}
+            disabled={loading || selectedSections.size === 0}
+            variant="outline"
+            className="flex-1 py-6 text-base"
+          >
+            {loading ? "…" : "Copy as Text"}
+          </Button>
+        </div>
       </div>
     </div>
   );
