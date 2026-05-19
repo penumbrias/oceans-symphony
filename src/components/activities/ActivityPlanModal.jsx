@@ -99,6 +99,11 @@ export default function ActivityPlanModal({
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [startTime, setStartTime] = useState(() => toTimeString(defaultedStart, 12, 0));
   const [endTime, setEndTime] = useState(() => toTimeString(defaultedStart, 13, 0));
+  // Quick plan: a date-only plan with no specific time. Renders as a
+  // pill at the top of the day column on the grid instead of in a
+  // time cell. Toggle hides the time inputs entirely; on save, the
+  // timestamp is midnight of the picked date and is_quick_plan: true.
+  const [isQuickPlan, setIsQuickPlan] = useState(() => !!editingPlan?.is_quick_plan);
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -261,12 +266,24 @@ export default function ActivityPlanModal({
       toast.error("Add a title, pick an activity, or link a to-do");
       return;
     }
-    if (!startTime) { toast.error("Set start time"); return; }
-    if (endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
+    if (!isQuickPlan && !startTime) { toast.error("Set start time"); return; }
+    if (!isQuickPlan && endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
 
     setIsLoading(true);
-    const timestamp = parseTimeToDate(startDate, startTime);
-    const endDt = endTime ? parseTimeToDate(endDate || startDate, endTime) : null;
+    // Quick plans drop the time entirely. We store the timestamp as
+    // end-of-day so the plan stays "in the future" (and therefore
+    // visible in Upcoming Plans) until the day fully passes, and so
+    // sorting by timestamp places it after timed plans on the same
+    // day. The grid uses the is_quick_plan flag to render quick
+    // plans as overlay pills rather than placing them in an hour
+    // row, so the actual time-of-day on the timestamp is never
+    // displayed.
+    const timestamp = isQuickPlan
+      ? new Date(`${format(startDate, "yyyy-MM-dd")}T23:59:00`)
+      : parseTimeToDate(startDate, startTime);
+    const endDt = isQuickPlan
+      ? null
+      : (endTime ? parseTimeToDate(endDate || startDate, endTime) : null);
 
     try {
       const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
@@ -298,11 +315,12 @@ export default function ActivityPlanModal({
           activity_category_ids: selectedActivityCategories,
           ...(firstCat?.color ? { color: firstCat.color } : {}),
           task_id: linkedTask?.id || null,
-          duration_minutes: durationMinutes > 0 ? durationMinutes : null,
+          duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
           fronting_alter_ids: selectedAlters,
           notes: notes || null,
           location: location.trim() || null,
           is_planned: isPlanned,
+          is_quick_plan: isQuickPlan,
           is_critical: !!isCritical,
           critical_lead_steps: isCritical ? leadSteps : null,
           assigned_alter_ids: isPlanned ? selectedAlters : [],
@@ -410,11 +428,12 @@ export default function ActivityPlanModal({
             activity_category_ids: r.activity_category_ids,
             ...(r.color ? { color: r.color } : {}),
             task_id: linkedTask?.id || null,
-            duration_minutes: durationMinutes > 0 ? durationMinutes : null,
+            duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
             fronting_alter_ids: selectedAlters,
             notes: notes || null,
             location: location.trim() || null,
             is_planned: occurrenceIsPlanned,
+            is_quick_plan: isQuickPlan,
             is_critical: isCritical ? true : false,
             critical_lead_steps: isCritical ? leadSteps : null,
             recurrence_group_id: recurrenceGroupId,
@@ -509,7 +528,22 @@ export default function ActivityPlanModal({
             </div>
           </div>
 
-          {/* Start / end time */}
+          {/* Quick plan toggle — when on, hides the time inputs.
+              Quick plans render as pills above the day column on the
+              grid instead of in a specific time row. Useful for
+              "I want to do X today but don't care when". */}
+          <label className="flex items-center gap-2 cursor-pointer select-none rounded-lg border border-border/40 px-3 py-2 hover:bg-muted/20 transition-colors">
+            <input
+              type="checkbox"
+              checked={isQuickPlan}
+              onChange={(e) => setIsQuickPlan(e.target.checked)}
+              className="accent-primary"
+            />
+            <span className="text-sm font-medium">Quick plan (date only, no specific time)</span>
+          </label>
+
+          {/* Start / end time — hidden for quick plans */}
+          {!isQuickPlan && (
           <div className="flex gap-3 items-end">
             <div className="flex-1">
               <label className="text-sm font-medium block mb-1">Time</label>
@@ -542,6 +576,7 @@ export default function ActivityPlanModal({
               </div>
             )}
           </div>
+          )}
 
           {/* Title */}
           <div>

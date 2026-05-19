@@ -35,7 +35,8 @@ const HEADER_H = 56;
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 import { emotionColor, getActivityColor as _getActivityColor, getActivitiesForSlot as _getActivitiesForSlot, getAlterIdsForSlot as _getAlterIdsForSlot, getEmotionsForSlot as _getEmotionsForSlot } from "./activityHelpers";
-import { statusFor, visualForStatus, isPastTimeScheduled } from "@/lib/activityStatus";
+import { statusFor, visualForStatus, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { useNavigate } from "react-router-dom";
 import ActivityLifecyclePopover from "./ActivityLifecyclePopover";
 function truncate(str, max) {
   if (!str) return "";
@@ -80,6 +81,7 @@ export default function ActivityWeeklyGrid({
   const [timeFmt,      setTimeFmt]      = useState(() => lsGet(LS_TIME_FMT,   "24"));
   const [tickMode,     setTickMode]     = useState(() => lsGet(LS_TICK_MODE,  "auto"));
 
+  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -89,6 +91,10 @@ export default function ActivityWeeklyGrid({
   const [showAlters,     setShowAlters]     = useState(false);
   const [showEmotions,   setShowEmotions]   = useState(false);
   const [showSettings,   setShowSettings]   = useState(false);
+  // Quick plans (date-only plans) overlay as pills. Persist the
+  // visibility toggle so the user's preference survives reloads.
+  const [showQuickPlans, setShowQuickPlans] = useState(() => lsGet("symphony_act_quick_plans", true));
+  useEffect(() => { lsSet("symphony_act_quick_plans", showQuickPlans); }, [showQuickPlans]);
   const [pendingStart,   setPendingStart]   = useState(null);
   const [hoveredCell,    setHoveredCell]    = useState(null);
   const lastTapRef     = useRef({ key: "", time: 0 });
@@ -309,6 +315,9 @@ if (isSameCell) {
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowAlters(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
           {showAlters ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />} Alters
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setShowQuickPlans(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
+          {showQuickPlans ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />} Quick plans
         </Button>
         <Button variant="outline" size="sm" onClick={() => setShowSettings(v => !v)} className="gap-1.5 h-7 px-2 text-xs">
           <Settings className="w-3 h-3" /> Display
@@ -532,6 +541,95 @@ if (isSameCell) {
                   style={{ top: nowTop }}>
                   <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 -ml-1" />
                   <div className="flex-1 h-0.5 bg-primary opacity-80" />
+                </div>
+              );
+            })()}
+
+            {/* Current-day column highlight — vertical tint that
+                spans the full grid height so today's column stands
+                out from the other six. pointer-events-none so it
+                doesn't intercept taps on the cells underneath. */}
+            {(() => {
+              const todayIdx = weekDays.findIndex(d => format(d, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd"));
+              if (todayIdx === -1) return null;
+              const totalGridHeight = slots.length * rowH;
+              return (
+                <div
+                  className="absolute bg-primary/5 pointer-events-none"
+                  style={{
+                    top: HEADER_H,
+                    left: todayIdx * colW,
+                    width: colW,
+                    height: totalGridHeight,
+                    zIndex: 1,
+                  }}
+                />
+              );
+            })()}
+
+            {/* Quick-plan overlay — one stack of pills per day
+                column. For today, the stack starts just below the
+                now-line and rides down with it; for every other
+                day, the stack sits at the top of the column. The
+                whole layer is pointer-events-none except the pills
+                themselves, so it never obscures activity labels or
+                blocks taps on the cells underneath. */}
+            {showQuickPlans && (() => {
+              const totalGridHeight = slots.length * rowH;
+              const nowTop = HEADER_H + ((currentTime.getHours() * 60 + currentTime.getMinutes()) / (24 * 60)) * totalGridHeight;
+              const todayStr = format(currentTime, "yyyy-MM-dd");
+              const quickByDay = new Map();
+              for (const a of activities) {
+                if (!a.is_quick_plan) continue;
+                const st = statusFor(a);
+                if (st === ACTIVITY_STATUSES.CANCELLED || st === ACTIVITY_STATUSES.SKIPPED) continue;
+                const dayKey = format(parseDate(a.timestamp), "yyyy-MM-dd");
+                if (!quickByDay.has(dayKey)) quickByDay.set(dayKey, []);
+                quickByDay.get(dayKey).push(a);
+              }
+              return (
+                <div className="absolute inset-0 pointer-events-none z-30">
+                  {weekDays.map((date, dayIdx) => {
+                    const dayKey = format(date, "yyyy-MM-dd");
+                    const list = quickByDay.get(dayKey) || [];
+                    if (list.length === 0) return null;
+                    const isTodayCol = dayKey === todayStr;
+                    const top = isTodayCol ? Math.max(nowTop + 4, HEADER_H + 4) : HEADER_H + 4;
+                    return (
+                      <div
+                        key={dayKey}
+                        className="absolute flex flex-col gap-1 p-1 pointer-events-auto"
+                        style={{ top, left: dayIdx * colW, width: colW }}
+                      >
+                        {list.map((a) => {
+                          const color = getActivityColor(a) || "hsl(var(--primary))";
+                          const st = statusFor(a);
+                          const v = visualForStatus(st);
+                          return (
+                            <button
+                              key={a.id}
+                              type="button"
+                              title={a.activity_name || "Quick plan"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/activities?date=${dayKey}&highlight=${a.id}`);
+                              }}
+                              className="text-[0.625rem] leading-tight font-semibold text-white rounded-full px-2 py-0.5 truncate shadow-sm"
+                              style={{
+                                backgroundColor: v.dashed ? "transparent" : color,
+                                border: v.dashed ? `1px dashed ${color}` : `1px solid ${color}`,
+                                opacity: v.fillOpacity ?? 0.95,
+                                textDecoration: v.strike ? "line-through" : undefined,
+                                maxWidth: colW - 4,
+                              }}
+                            >
+                              {v.corner ? `${v.corner} ` : ""}{a.activity_name || "Plan"}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}

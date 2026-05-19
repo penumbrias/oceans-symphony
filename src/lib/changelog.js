@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New 'Quick plan' type — a date-only plan with no specific time, for when you know you want to do something today (or some other day) but don't care exactly when. Toggle 'Quick plan (date only, no specific time)' in the Plan Activity modal to hide the time fields. Quick plans render as pills on the Activity Tracker weekly grid: today's pills sit just under the current-time bar and get pushed down as the day goes on; other days' pills sit at the top of their column. The whole pill layer is non-blocking so it never obscures the cells underneath. Hide them with the new 'Quick plans' button in the tracker toolbar (defaults on, preference saved). They appear in Upcoming Plans like any other plan, and can be marked done / skipped / rescheduled the same way.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker weekly grid: the current day's column now has a soft tint so it stands out from the other six days at a glance.",
+      },
+      {
         type: "improve",
         text: "Symptom sessions on the Timeline now have an 'Edit session' button in the detail popup — same as alter fronting sessions. Tap to view, then Edit to adjust start/end times, log a new severity, or delete the session. The edit popup also gained a Delete option to match the alter session editor.",
       },
