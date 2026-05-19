@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Switch Log: moving a symptom slider after typing in the trigger / before / after fields would leave the keyboard up, pushing the viewport so the sliders were hidden behind it. The slider now dismisses the keyboard on touch so you can rate symptoms without the IME getting in the way.",
+      },
+      {
+        type: "fix",
         text: "Swipe-back chevron could get stuck on the left side of the screen until the next edge-swipe. The root cause was a multi-finger race: a second touch landing outside the 40px edge zone would null out the in-progress gesture, and the matching touchend would early-return without scheduling the indicator's fade-out. The hook now ignores additional touches while a gesture is mid-flight and always schedules the fade-out on touchend regardless.",
       },
       {
