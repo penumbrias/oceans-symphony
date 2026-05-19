@@ -22,7 +22,7 @@ const getSavedFolders = () => {
 
 // Signpost parser lives in src/lib/signpostAuthors.js so it stays in
 // sync with the same logic used by BulletinComposer + BulletinCommentThread.
-import { parseSignpostAuthors } from "@/lib/signpostAuthors";
+import { parseSignpostAuthors, isSystemSignpost } from "@/lib/signpostAuthors";
 
 
 export default function JournalEditorModal({
@@ -74,17 +74,31 @@ export default function JournalEditorModal({
     return map;
   }, [alters]);
 
-  // Parse -name/-alias patterns from the signpost field
+  // Parse -name/-alias patterns from the signpost field. We also pass
+  // the user's customized term for "system" as a recognised keyword so
+  // `-system` (or `-collective`, `-we`, whatever they set) resolves to
+  // the system-level sentinel — used to attribute an entry to the
+  // whole system rather than any specific alter, just like writing
+  // with no fronter set.
   const signpostAuthors = useMemo(
-    () => parseSignpostAuthors(signpostText, alters),
-    [signpostText, alters]
+    () => parseSignpostAuthors(signpostText, alters, [terms.system]),
+    [signpostText, alters, terms.system]
   );
 
-  // If signpost field has results those override the dropdown; else fall back to manual selection
-  const effectiveAuthorId = signpostAuthors[0]?.id ?? authorAlterId;
-  const effectiveCoAuthorIds = signpostAuthors.length > 0
-    ? signpostAuthors.slice(1).map(a => a.id)
-    : coAuthorIds;
+  // If signpost field has results those override the dropdown; else fall
+  // back to manual selection. When the first signpost is the system
+  // sentinel, treat the entry as unattributed (author_alter_id: null)
+  // and ignore co-authors — "system" represents the absence of a
+  // specific author.
+  const signpostHeadIsSystem = isSystemSignpost(signpostAuthors[0]);
+  const effectiveAuthorId = signpostHeadIsSystem
+    ? null
+    : (signpostAuthors[0]?.id ?? authorAlterId);
+  const effectiveCoAuthorIds = signpostHeadIsSystem
+    ? []
+    : (signpostAuthors.length > 0
+        ? signpostAuthors.slice(1).filter(a => !isSystemSignpost(a)).map(a => a.id)
+        : coAuthorIds);
 
 useEffect(() => {
     if (editingEntryFinal) {
@@ -224,15 +238,25 @@ useEffect(() => {
   // they're still in the alters array (consistent with BulletinComposer).
   const signpostSuggestions = useMemo(() => {
     const q = (signpostQuery || "").toLowerCase();
-    return (alters || [])
+    // The system-level sentinel is always a candidate. It matches when
+    // the query is empty, when it's a prefix of "system", OR when it's
+    // a prefix of the user's customized system term (so a user who
+    // renamed "system" to "collective" sees `-collective` show up too).
+    const sysName = (terms.system || "system").toLowerCase();
+    const systemMatches = !q || "system".startsWith(q) || sysName.startsWith(q);
+    const alterMatches = (alters || [])
       .filter(a => !a.is_archived)
       .filter(a =>
         !q ||
         a.name?.toLowerCase().includes(q) ||
         (a.alias && a.alias.toLowerCase().includes(q))
-      )
-      .slice(0, 8);
-  }, [alters, signpostQuery]);
+      );
+    const list = [];
+    if (systemMatches) {
+      list.push({ id: "__system__", isSystem: true, name: terms.System });
+    }
+    return list.concat(alterMatches).slice(0, 8);
+  }, [alters, signpostQuery, terms.system, terms.System]);
 
   const handleSignpostChange = (e) => {
     const val = e.target.value;
@@ -256,7 +280,12 @@ useEffect(() => {
     const cursor = input?.selectionStart ?? signpostText.length;
     const before = signpostText.slice(0, cursor);
     const after = signpostText.slice(cursor);
-    const replaced = before.replace(/-([\w/]*)$/, `-${alter.alias || alter.name} `);
+    // For the system sentinel we always insert the literal word
+    // "system" so the parser recognises it without depending on the
+    // user's term casing. (The system keyword is term-aware on the
+    // parsing side too, so either form round-trips.)
+    const token = alter.isSystem ? "system" : (alter.alias || alter.name);
+    const replaced = before.replace(/-([\w/]*)$/, `-${token} `);
     const next = replaced + after;
     if (!signpostTouchedByUser) setSignpostTouchedByUser(true);
     setSignpostText(next);
@@ -294,6 +323,14 @@ useEffect(() => {
                   className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-border/60 hover:border-border bg-background transition-colors"
                 >
                   {(() => {
+                    if (signpostHeadIsSystem) {
+                      return (
+                        <>
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-foreground/40" />
+                          <span className="max-w-[120px] truncate">{terms.System}</span>
+                        </>
+                      );
+                    }
                     const a = altersById[effectiveAuthorId];
                     return a ? (
                       <>
@@ -344,7 +381,7 @@ useEffect(() => {
                 {signpostMenuOpen && signpostSuggestions.length > 0 && (
                   <div className="absolute top-full left-0 right-0 z-50 bg-popover border border-border rounded-xl shadow-xl mt-1 max-h-52 overflow-y-auto">
                     <div className="px-3 py-1.5 text-[0.625rem] uppercase tracking-wide text-muted-foreground font-medium border-b border-border/50">
-                      Sign as {terms.alter}…
+                      Sign as…
                     </div>
                     {signpostSuggestions.map(a => (
                       <button
@@ -354,9 +391,14 @@ useEffect(() => {
                         onClick={() => insertSignpostFromMenu(a)}
                         className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-xs"
                       >
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
-                        <span className="flex-1 truncate">{a.name}</span>
-                        {a.alias && <span className="text-muted-foreground text-[0.625rem]">({a.alias})</span>}
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${a.isSystem ? "bg-foreground/40" : ""}`}
+                          style={a.isSystem ? undefined : { backgroundColor: a.color || "#94a3b8" }}
+                        />
+                        <span className="flex-1 truncate">{a.isSystem ? terms.System : a.name}</span>
+                        {a.isSystem
+                          ? <span className="text-muted-foreground text-[0.625rem]">(no specific {terms.alter})</span>
+                          : (a.alias && <span className="text-muted-foreground text-[0.625rem]">({a.alias})</span>)}
                       </button>
                     ))}
                   </div>
@@ -369,8 +411,11 @@ useEffect(() => {
                 <span>Signing as:</span>
                 {signpostAuthors.map((a, i) => (
                   <span key={a.id} className="flex items-center gap-1">
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
-                    {a.name}
+                    <div
+                      className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isSystemSignpost(a) ? "bg-foreground/40" : ""}`}
+                      style={isSystemSignpost(a) ? undefined : { backgroundColor: a.color || "#94a3b8" }}
+                    />
+                    {isSystemSignpost(a) ? terms.System : a.name}
                     {i === 0 && signpostAuthors.length > 1 && <span className="opacity-50">(primary)</span>}
                   </span>
                 ))}

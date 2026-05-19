@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 18, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Journal signposting now supports a system-level marker: typing `-system` (or the customised term, e.g. `-collective`) attributes the entry to the whole system rather than any specific alter — the same shape as having no fronter set. The autocomplete dropdown surfaces it alongside alters, the 'Signing as' indicator shows the system name, and saved entries display 'by [system name]' on their cards.",
+      },
+      {
         type: "fix",
         text: "Switch Log: moving a symptom slider after typing in the trigger / before / after fields would leave the keyboard up, pushing the viewport so the sliders were hidden behind it. The slider now dismisses the keyboard on touch so you can rate symptoms without the IME getting in the way.",
       },
