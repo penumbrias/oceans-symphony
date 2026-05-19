@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { X, Sparkles, ChevronDown } from "lucide-react";
+import { X, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { CHANGELOG } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/appVersion";
 
@@ -36,6 +36,10 @@ export default function NewFeaturesBar() {
   // resolves the user's dismissal state.
   const [dismissed, setDismissed] = useState(true);
   const [block, setBlock] = useState(null);
+  // The bar opens as a slim banner that just says "What's new in
+  // vX.Y.Z" plus the entry count — the user expands it to read.
+  // Keeps the dashboard quiet for users who don't care.
+  const [expanded, setExpanded] = useState(false);
   // Number of OLDER date blocks the user has chosen to reveal in
   // addition to the headline (most-recent) block. Reset every mount.
   const [extraBlocks, setExtraBlocks] = useState(0);
@@ -85,19 +89,51 @@ export default function NewFeaturesBar() {
   // is the headline rendered separately above.
   const olderBlocks = filteredChangelog.slice(1, 1 + extraBlocks);
   const hasMoreOlder = extraBlocks + 1 < filteredChangelog.length;
+  const changeCount = block.changes.length;
 
   return (
     <div
       role="region"
       aria-label="What's new"
-      className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 p-4"
+      className="mb-4 rounded-2xl border border-primary/30 bg-primary/5 overflow-hidden"
     >
-      <div className="flex items-start gap-3">
-        <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" aria-hidden="true" />
-        <div className="flex-1 min-w-0 space-y-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold text-primary">What's new in v{APP_VERSION}</p>
-            <p className="text-[0.625rem] text-muted-foreground flex-shrink-0">{block.date}</p>
+      {/* Banner — always rendered. Tap to toggle expand/collapse;
+          X dismisses entirely. Keeps the dashboard quiet by default
+          but the visual cue ("What's new") still reads from across
+          the page. */}
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          aria-label={expanded ? "Collapse What's new" : "Expand What's new"}
+          className="flex-1 flex items-center gap-2 text-left min-w-0"
+        >
+          <Sparkles className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
+          <p className="text-sm font-semibold text-primary truncate">
+            What's new in v{APP_VERSION}
+          </p>
+          <span className="text-[0.6875rem] text-muted-foreground flex-shrink-0">
+            · {changeCount} {changeCount === 1 ? "change" : "changes"}
+          </span>
+          {expanded
+            ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0 ml-auto" />
+            : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 ml-auto" />}
+        </button>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Dismiss What's new"
+          className="text-muted-foreground hover:text-foreground p-1 -m-1 rounded-md flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="px-4 pb-4 pt-1 space-y-3 border-t border-primary/20">
+          <div className="flex items-baseline justify-end pt-2">
+            <p className="text-[0.625rem] text-muted-foreground">{block.date}</p>
           </div>
           <ul className="space-y-1.5">
             {block.changes.map((c, i) => (
@@ -151,15 +187,7 @@ export default function NewFeaturesBar() {
             </Link>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          aria-label="Dismiss What's new"
-          className="text-muted-foreground hover:text-foreground p-1 -m-1 rounded-md flex-shrink-0"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+      )}
     </div>
   );
 }
