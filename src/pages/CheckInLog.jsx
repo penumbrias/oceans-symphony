@@ -818,25 +818,36 @@ function PerAlterEntry({ entry, altersById }) {
     );
   }
   if (entry.kind === "emotion") {
+    const labels = Array.isArray(entry.payload?.labels) && entry.payload.labels.length > 0
+      ? entry.payload.labels
+      : (entry.payload?.label ? [entry.payload.label] : []);
     return (
       <StandaloneEntry timestamp={entry.ts}>
         <div className="flex items-center gap-2 flex-wrap">
           <AlterChip />
-          <EmotionPill em={entry.payload.label} />
+          {labels.map((em, i) => <EmotionPill key={`${em}-${i}`} em={em} />)}
         </div>
       </StandaloneEntry>
     );
   }
-  // symptom
-  const sym = entry.payload || {};
+  // symptom — same grouping pattern: render every symptom in the
+  // session as a pill in one row, rather than a row per symptom.
+  const items = Array.isArray(entry.payload?.items) && entry.payload.items.length > 0
+    ? entry.payload.items
+    : [entry.payload].filter(Boolean);
   return (
     <StandaloneEntry timestamp={entry.ts}>
       <div className="flex items-center gap-2 flex-wrap">
         <AlterChip />
-        <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
-          style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
-          {sym.label}{sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}
-        </span>
+        {items.map((sym, i) => (
+          <span
+            key={`${sym.label || sym.id || i}`}
+            className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
+            style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}
+          >
+            {sym.label}{sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}
+          </span>
+        ))}
       </div>
     </StandaloneEntry>
   );

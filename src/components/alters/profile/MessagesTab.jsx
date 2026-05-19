@@ -136,10 +136,16 @@ export default function MessagesTab({ alterId, alters }) {
   // Session entries surfaced as feed items. Read-only — sourced from the
   // session record, no separate AlterMessage / MentionLog is created.
   const sessionFeedItems = sessionEntries.map(e => {
+    const labels = Array.isArray(e.payload?.labels) ? e.payload.labels : (e.payload?.label ? [e.payload.label] : []);
+    const items = Array.isArray(e.payload?.items) && e.payload.items.length > 0
+      ? e.payload.items
+      : (e.payload?.label ? [e.payload] : []);
     const previews = {
-      note: e.payload.text,
-      emotion: `Felt ${e.payload.label}`,
-      symptom: `${e.payload.label}${e.payload.value !== undefined && e.payload.value !== null && e.payload.value !== true ? ` · ${e.payload.value}` : ""}`,
+      note: e.payload?.text,
+      emotion: labels.length > 0 ? `Felt ${labels.join(", ")}` : "",
+      symptom: items
+        .map((sym) => `${sym.label}${sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}`)
+        .join(", "),
     };
     return {
       id: `session-${e.id}`,

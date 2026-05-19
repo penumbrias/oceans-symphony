@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Check-In Log no longer splits a single Quick Check-In's emotions into one row per emotion. All emotions from a session render together as pills on one row.",
+      },
+      {
         type: "improve",
         text: "What's New bar opens as a slim banner by default — tap to expand. Existing entries trimmed to 1-sentence summaries.",
       },
