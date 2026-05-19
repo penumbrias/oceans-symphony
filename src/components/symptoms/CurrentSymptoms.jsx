@@ -54,15 +54,19 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs p-4 space-y-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4 sm:p-4 pb-0 sm:pb-4" onClick={onClose}>
+      <div
+        className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs p-4 space-y-4"
+        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between">
           <p className="font-semibold text-sm">{symptom.label}</p>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
-        
+
         {currentSeverity > 0 && <p className="text-xs text-muted-foreground">Current severity: {currentSeverity}/5</p>}
-        
+
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground">Set Severity</p>
           <div className="flex gap-2">
@@ -71,10 +75,10 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
                 key={i}
                 onClick={() => handleSetSeverity(i)}
                 disabled={saving}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
                   currentSeverity === i
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-muted text-foreground border-border hover:bg-muted/70"
                 } disabled:opacity-50`}
               >
                 {i}
