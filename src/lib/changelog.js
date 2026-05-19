@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Activity Tracker quick-plan pills: double-tap opens a popup listing every quick plan for that day with full names. Tap a plan to manage/edit it.",
+      },
+      {
+        type: "fix",
+        text: "Plan Activity modal: turning on the Quick plan toggle now defaults the date to today instead of tomorrow.",
+      },
+      {
+        type: "feature",
         text: "Groups Manager: new 'All groups (flat)' view + automatic rescue banner for groups that got buried under a broken parent chain. One tap moves them back to root.",
       },
       {
