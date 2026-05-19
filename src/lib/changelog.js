@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "feature",
+        text: "The 'What's new' bar on the dashboard is now actually a feature, not just a toggle pointing at a stub component. It shows the latest changelog entries for the current version with a 'See full changelog' link, and dismisses to localStorage so it only reappears when the app updates to a new version. Visibility is governed by the Dashboard layout toggle as before.",
+      },
+      {
         type: "fix",
         text: "Active Symptoms popup: the earlier safe-area fix actually shrank the bottom buffer on devices where `env(safe-area-inset-bottom)` reports 0 (it replaced the outer wrapper's bottom padding with an inner padding that was no bigger). Moved the safe-area inset to the outer wrapper itself so the panel now always has at least 1rem (or the device's bottom inset, whichever is larger) of clear space below it. The panel is also capped at 80vh with internal scroll so it can never extend past the visible area.",
       },
