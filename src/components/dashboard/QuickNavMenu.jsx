@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, X as XIcon, Plus as PlusIcon, Pencil, Check } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +72,7 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "settings",        label: "Settings",               icon: Settings,      path: "/settings",         color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
     { id: "home",            label: "Home",                   icon: CheckSquare,   path: "/",                 color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
     { id: "friends",         label: "Friends",                icon: UserRound,     path: "/friends",          color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
+    { id: "bulletins",       label: "Bulletin Board",         icon: Pin,           path: "/bulletins",        color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
   ];
 }
 

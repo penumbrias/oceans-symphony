@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Bulletin Board now has a standalone full-screen page (/bulletins) that auto-loads more bulletins as you scroll, defaults to showing the search bar, and supports posting / search just like the dashboard widget. Add the 'Bulletin Board' tile from the Dashboard grid editor to put a shortcut on your home screen — it's off by default since the dashboard already has the recent-activity strip.",
+      },
+      {
+        type: "feature",
+        text: "Dashboard Bulletin Board: configurable batch size. Set 'Show N at a time' from Settings → Appearance → Dashboard layout (when Bulletin Board is enabled). Load more reveals that same N each tap, so users who want a short dashboard preview can keep it short and browse the rest on /bulletins.",
+      },
+      {
+        type: "improve",
+        text: "Dashboard layout settings now use real drag-and-drop (matching the Dashboard grid editor) instead of up/down arrows — grab the grip handle on any pill to reorder.",
+      },
+      {
+        type: "feature",
         text: "New 'Dashboard layout' settings under Appearance. Every dashboard block (Currently Fronting, Custom Status, Pinned items, Current Symptoms, Quick Check-In, What's New bar, Bulletin Board, Upcoming Plans top/bottom) is now individually toggleable and reorderable with up/down arrows. The Quick-Nav grid + search is always on but can be repositioned. The Custom Status field has been extracted into its own block so it stays available even if you hide Currently Fronting — useful for systems that don't track fronting but still want a 'what's happening right now' field. Defaults preserve the previous layout, and a Reset button restores them anytime. Coming in follow-up PRs: a standalone Bulletin Board page, configurable load-more batch size, and search/filter on the page.",
       },
     ],
