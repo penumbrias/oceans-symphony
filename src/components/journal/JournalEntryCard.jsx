@@ -2,11 +2,17 @@ import React from "react";
 import { format } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { BookOpen, Shuffle, Folder, Lock } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
 
 export default function JournalEntryCard({ entry, altersById, onClick, highlight }) {
+  const terms = useTerms();
   const isSwitch = entry.entry_type === "switch_log";
   const isRestricted = entry.allowed_alter_ids?.length > 0;
   const author = altersById?.[entry.author_alter_id];
+  // No specific author + no co-authors → attribute to the system as a
+  // whole. Either the user picked "No attribution" / `-system` in the
+  // editor, or the entry was saved with no one fronting.
+  const isSystemAttributed = !author && (entry.co_author_alter_ids?.length ?? 0) === 0;
 
   return (
     <div
@@ -41,6 +47,9 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
       <p className="text-xs text-muted-foreground mb-2 flex items-center flex-wrap gap-1">
         {format(parseDate(entry.created_date), "MMM d, yyyy · h:mm a")}
         {author && <span className="ml-1.5">· by {author.name}</span>}
+        {!author && isSystemAttributed && (
+          <span className="ml-1.5">· by {terms.System}</span>
+        )}
         {entry.co_author_alter_ids?.length > 0 && (
           <span className="flex items-center gap-0.5 ml-0.5">
             {entry.co_author_alter_ids.slice(0, 4).map(id => {
