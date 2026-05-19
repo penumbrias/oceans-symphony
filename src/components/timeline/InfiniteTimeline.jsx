@@ -462,13 +462,42 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
   const sz = 26;
   const tap = useDoubleTap(onTap, onDoubleTap);
   const touchFiredRef = useRef(false);
-  const handleTouchEnd = (e) => { touchFiredRef.current = true; onTap?.(); };
+  // Track touch start + movement so a vertical scroll over an
+  // activity bar doesn't trigger the detail popover on touch release.
+  // Without this guard, every scroll that ended with a finger over an
+  // activity icon was opening the "1:00am sleep" / "1:00pm West
+  // seattle" popovers spuriously.
+  const pressStart = useRef({ x: 0, y: 0, moved: false });
+  const handleTouchStart = (e) => {
+    touchFiredRef.current = false;
+    if (e.touches && e.touches.length > 1) return;
+    const clientX = e.touches?.[0]?.clientX ?? 0;
+    const clientY = e.touches?.[0]?.clientY ?? 0;
+    pressStart.current = { x: clientX, y: clientY, moved: false };
+  };
+  const handleTouchMove = (e) => {
+    const clientX = e.touches?.[0]?.clientX ?? 0;
+    const clientY = e.touches?.[0]?.clientY ?? 0;
+    const dx = clientX - pressStart.current.x;
+    const dy = clientY - pressStart.current.y;
+    // 10px slop matches the standard touch-vs-scroll threshold used
+    // elsewhere in the app (AlterBar). Squared comparison avoids the
+    // sqrt.
+    if (dx * dx + dy * dy > 100) pressStart.current.moved = true;
+  };
+  const handleTouchEnd = (e) => {
+    if (pressStart.current.moved) return; // scroll, not a tap
+    touchFiredRef.current = true;
+    onTap?.();
+  };
   return (
     <div className="absolute flex flex-col items-center cursor-pointer"
       role="button"
       tabIndex={0}
       aria-label={`${activityName || "Activity"} — tap to view details`}
       style={{ top: topPx, left: 0, right: 0, userSelect: "none" }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}>
