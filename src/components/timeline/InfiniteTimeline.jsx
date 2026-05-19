@@ -1717,6 +1717,18 @@ export default function InfiniteTimeline({
           session={symptomDetailModal.session}
           tiedAlters={symptomDetailModal.tiedAlters || []}
           onClose={() => setSymptomDetailModal(null)}
+          onEdit={() => {
+            // Hand off from the read-only detail to the edit popup
+            // (start/end times, severity, end/delete session) — same
+            // affordance the alter session popover exposes.
+            const target = symptomDetailModal;
+            setSymptomDetailModal(null);
+            setSymptomSessionPopover({
+              session: target.session,
+              symptom: target.symptom,
+              splitMins: null,
+            });
+          }}
         />
       )}
 

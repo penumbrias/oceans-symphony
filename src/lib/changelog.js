@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Symptom sessions on the Timeline now have an 'Edit session' button in the detail popup — same as alter fronting sessions. Tap to view, then Edit to adjust start/end times, log a new severity, or delete the session. The edit popup also gained a Delete option to match the alter session editor.",
+      },
+      {
         type: "feature",
         text: "Bulletin Board now has a standalone full-screen page (/bulletins) that auto-loads more bulletins as you scroll, defaults to showing the search bar, and supports posting / search just like the dashboard widget. Add the 'Bulletin Board' tile from the Dashboard grid editor to put a shortcut on your home screen — it's off by default since the dashboard already has the recent-activity strip.",
       },
