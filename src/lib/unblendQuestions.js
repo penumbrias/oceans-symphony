@@ -97,22 +97,13 @@ export const PRESET_QUESTIONS = [
     ],
     score: (alter, ans) => matchTags(alter, ans?.tags),
   },
-  {
-    id: "dominant_feel",
-    prompt: "What's the dominant feeling?",
-    kind: "choice",
-    options: [
-      { id: "safe",     label: "Safe",     tags: ["safe", "regulated"] },
-      { id: "unsafe",   label: "Unsafe / on guard", tags: ["protector", "hypervigilant", "scared"] },
-      { id: "sad",      label: "Sad",      tags: ["sad", "grief", "depressed"] },
-      { id: "angry",    label: "Angry",    tags: ["angry", "protector"] },
-      { id: "playful",  label: "Playful",  tags: ["playful", "child"] },
-      { id: "tired",    label: "Tired",    tags: ["tired", "shut-down"] },
-      { id: "curious",  label: "Curious",  tags: ["curious"] },
-      { id: "numb",     label: "Numb",     tags: ["numb", "shut-down", "dissociated"] },
-    ],
-    score: (alter, ans) => matchTags(alter, ans?.tags),
-  },
+  // NOTE: The dominant-feeling question used to live here as a
+  // static curated list. It's now generated dynamically from the
+  // user's actual EmotionCheckIn history via
+  // buildDominantFeelingQuestion(emotionCheckIns, alters) so the
+  // options reflect emotions they've really logged and the score
+  // comes from per-alter frequency. See HelpMeUnblend.jsx for the
+  // call site.
   {
     id: "role_lean",
     prompt: "Does this feel like… a younger part, a protector, a caretaker, an everyday part, or something else?",
@@ -180,6 +171,75 @@ function uniqueStringValues(values) {
     if (!seen.has(key)) seen.set(key, trimmed); // preserve original casing
   }
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Build the "What's the dominant feeling?" question from the user's
+ * actual EmotionCheckIn history. Options are the top N most-frequently
+ * logged emotions (preserving original casing). Scoring rewards the
+ * alter who's logged that emotion most often: a perfect match gets
+ * ANSWER_DELTA, scaled proportionally for other alters; a never-felt
+ * emotion gives a mild negative signal.
+ *
+ * Returns null when the user has no emotion data yet — the question
+ * has no signal to provide, so it's omitted from the queue entirely
+ * rather than asked as a placeholder.
+ */
+export function buildDominantFeelingQuestion(emotionCheckIns, { topN = 16 } = {}) {
+  if (!Array.isArray(emotionCheckIns) || emotionCheckIns.length === 0) return null;
+
+  const totals = new Map();              // lowercase key → count
+  const labelByKey = new Map();          // lowercase key → preserved-casing label
+  const byEmotionByAlter = new Map();    // lowercase key → Map<alterId, count>
+
+  for (const ci of emotionCheckIns) {
+    const list = Array.isArray(ci?.emotions) ? ci.emotions : [];
+    const alterId = ci?.alter_id || null;
+    for (const raw of list) {
+      if (!raw || typeof raw !== "string") continue;
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      totals.set(key, (totals.get(key) || 0) + 1);
+      if (!labelByKey.has(key)) labelByKey.set(key, trimmed);
+      if (alterId) {
+        if (!byEmotionByAlter.has(key)) byEmotionByAlter.set(key, new Map());
+        const m = byEmotionByAlter.get(key);
+        m.set(alterId, (m.get(alterId) || 0) + 1);
+      }
+    }
+  }
+
+  if (totals.size === 0) return null;
+
+  const top = [...totals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, topN)
+    .map(([key]) => key);
+
+  return {
+    id: "dyn_dominant_feeling",
+    prompt: "What's the dominant feeling?",
+    kind: "choice",
+    options: top.map((key) => ({
+      id: key,
+      label: labelByKey.get(key) || key,
+      value: key,
+    })),
+    score: (alter, ans) => {
+      if (!ans?.value) return 0;
+      const perAlter = byEmotionByAlter.get(ans.value);
+      // No-one's ever logged this emotion against any alter → no
+      // signal (e.g. the user logs emotions without picking a
+      // fronter). Returning 0 keeps the question useful for the
+      // baseline ranking instead of penalising everyone.
+      if (!perAlter || perAlter.size === 0) return 0;
+      const count = perAlter.get(alter.id) || 0;
+      const max = Math.max(...perAlter.values());
+      if (count === 0) return ANSWER_PENALTY * 0.3;
+      return (count / Math.max(1, max)) * ANSWER_DELTA;
+    },
+  };
 }
 
 export function buildDynamicQuestions(alters) {

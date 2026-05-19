@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
-import { PRESET_QUESTIONS, buildDynamicQuestions } from "@/lib/unblendQuestions";
+import { PRESET_QUESTIONS, buildDynamicQuestions, buildDominantFeelingQuestion } from "@/lib/unblendQuestions";
 import {
   timeOfDayBaseline,
   applyAnswer,
@@ -49,6 +49,15 @@ export default function HelpMeUnblend() {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
   });
 
+  // EmotionCheckIn history powers the "dominant feeling" question.
+  // We pull the user's most-frequently-logged emotions as the
+  // options and score by per-alter frequency, so picking "anxious"
+  // rewards alters who've logged "anxious" most often.
+  const { data: emotionCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns"],
+    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
+  });
+
   // Currently-fronting alters — pinned to the top of the likely
   // list like the Alters grid does, regardless of question score.
   // Refetched live so a switch the user does mid-session immediately
@@ -72,12 +81,16 @@ export default function HelpMeUnblend() {
   // the grounding nudge.
   const [scores, setScores] = useState({});
   const [questionIdx, setQuestionIdx] = useState(0);
-  // Question pool = presets + dynamic questions derived from the
-  // actual alter data (pronouns, role, every custom field with
-  // 2+ distinct values set). Recomputed when alters change.
+  // Question pool = presets + dynamic alter-data questions
+  // (pronouns, role, custom fields) + dynamic emotion question
+  // (top logged emotions). Recomputed when the underlying data
+  // changes so the user always gets the latest options.
   const allQuestions = useMemo(() => {
-    return [...PRESET_QUESTIONS, ...buildDynamicQuestions(alters)];
-  }, [alters]);
+    const out = [...PRESET_QUESTIONS, ...buildDynamicQuestions(alters)];
+    const feelQ = buildDominantFeelingQuestion(emotionCheckIns);
+    if (feelQ) out.push(feelQ);
+    return out;
+  }, [alters, emotionCheckIns]);
   const [questionOrder, setQuestionOrder] = useState(() => PRESET_QUESTIONS.map((q) => q.id));
   // Keep questionOrder in sync once alters resolve — append dynamic
   // ids the user hasn't seen yet to the end of the queue so the
