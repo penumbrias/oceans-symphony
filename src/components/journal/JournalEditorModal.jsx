@@ -23,6 +23,8 @@ const getSavedFolders = () => {
 // Signpost parser lives in src/lib/signpostAuthors.js so it stays in
 // sync with the same logic used by BulletinComposer + BulletinCommentThread.
 import { parseSignpostAuthors, isSystemSignpost } from "@/lib/signpostAuthors";
+import { useSystemIdentity } from "@/lib/useSystemIdentity";
+import SystemAvatar from "@/components/shared/SystemAvatar";
 
 
 export default function JournalEditorModal({
@@ -30,6 +32,23 @@ export default function JournalEditorModal({
   defaultFolder, currentAlterId,
 }) {
   const terms = useTerms();
+  const systemIdentity = useSystemIdentity();
+  // Keywords that resolve `-foo` to the system-level sentinel. Always
+  // includes the user's term for "system" and every individual word
+  // (>=3 chars) of their system name, so `-system`, `-collective`, or
+  // `-penumbrial` (for "Penumbrial Ecosystem") all work.
+  const systemKeywords = useMemo(() => {
+    const out = [];
+    if (terms.system) out.push(terms.system);
+    if (systemIdentity.name) {
+      systemIdentity.name
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length >= 3)
+        .forEach((w) => out.push(w));
+    }
+    return out;
+  }, [terms.system, systemIdentity.name]);
   const isOpenFinal = isOpen ?? open;
   const editingEntryFinal = editingEntry ?? entry;
   const queryClient = useQueryClient();
@@ -81,8 +100,8 @@ export default function JournalEditorModal({
   // whole system rather than any specific alter, just like writing
   // with no fronter set.
   const signpostAuthors = useMemo(
-    () => parseSignpostAuthors(signpostText, alters, [terms.system]),
-    [signpostText, alters, terms.system]
+    () => parseSignpostAuthors(signpostText, alters, systemKeywords),
+    [signpostText, alters, systemKeywords]
   );
 
   // If signpost field has results those override the dropdown; else fall
@@ -238,12 +257,19 @@ useEffect(() => {
   // they're still in the alters array (consistent with BulletinComposer).
   const signpostSuggestions = useMemo(() => {
     const q = (signpostQuery || "").toLowerCase();
-    // The system-level sentinel is always a candidate. It matches when
-    // the query is empty, when it's a prefix of "system", OR when it's
-    // a prefix of the user's customized system term (so a user who
-    // renamed "system" to "collective" sees `-collective` show up too).
-    const sysName = (terms.system || "system").toLowerCase();
-    const systemMatches = !q || "system".startsWith(q) || sysName.startsWith(q);
+    // System sentinel matches when query is empty, or a prefix of any
+    // recognised system keyword: the literal "system", the user's
+    // customised term, or any word in their system name.
+    const systemMatches = (() => {
+      if (!q) return true;
+      if ("system".startsWith(q)) return true;
+      if (terms.system && terms.system.toLowerCase().startsWith(q)) return true;
+      if (systemIdentity.name) {
+        const tokens = systemIdentity.name.toLowerCase().split(/\s+/);
+        if (tokens.some((t) => t.startsWith(q))) return true;
+      }
+      return false;
+    })();
     const alterMatches = (alters || [])
       .filter(a => !a.is_archived)
       .filter(a =>
@@ -253,10 +279,10 @@ useEffect(() => {
       );
     const list = [];
     if (systemMatches) {
-      list.push({ id: "__system__", isSystem: true, name: terms.System });
+      list.push({ id: "__system__", isSystem: true, name: systemIdentity.name });
     }
     return list.concat(alterMatches).slice(0, 8);
-  }, [alters, signpostQuery, terms.system, terms.System]);
+  }, [alters, signpostQuery, terms.system, systemIdentity.name]);
 
   const handleSignpostChange = (e) => {
     const val = e.target.value;
@@ -326,8 +352,8 @@ useEffect(() => {
                     if (signpostHeadIsSystem) {
                       return (
                         <>
-                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-foreground/40" />
-                          <span className="max-w-[120px] truncate">{terms.System}</span>
+                          <SystemAvatar size="sm" />
+                          <span className="max-w-[120px] truncate">{systemIdentity.name}</span>
                         </>
                       );
                     }
@@ -391,11 +417,12 @@ useEffect(() => {
                         onClick={() => insertSignpostFromMenu(a)}
                         className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-xs"
                       >
-                        <div
-                          className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${a.isSystem ? "bg-foreground/40" : ""}`}
-                          style={a.isSystem ? undefined : { backgroundColor: a.color || "#94a3b8" }}
-                        />
-                        <span className="flex-1 truncate">{a.isSystem ? terms.System : a.name}</span>
+                        {a.isSystem ? (
+                          <SystemAvatar size="sm" />
+                        ) : (
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                        )}
+                        <span className="flex-1 truncate">{a.isSystem ? systemIdentity.name : a.name}</span>
                         {a.isSystem
                           ? <span className="text-muted-foreground text-[0.625rem]">(no specific {terms.alter})</span>
                           : (a.alias && <span className="text-muted-foreground text-[0.625rem]">({a.alias})</span>)}
@@ -411,11 +438,12 @@ useEffect(() => {
                 <span>Signing as:</span>
                 {signpostAuthors.map((a, i) => (
                   <span key={a.id} className="flex items-center gap-1">
-                    <div
-                      className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isSystemSignpost(a) ? "bg-foreground/40" : ""}`}
-                      style={isSystemSignpost(a) ? undefined : { backgroundColor: a.color || "#94a3b8" }}
-                    />
-                    {isSystemSignpost(a) ? terms.System : a.name}
+                    {isSystemSignpost(a) ? (
+                      <SystemAvatar size="sm" />
+                    ) : (
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                    )}
+                    {isSystemSignpost(a) ? systemIdentity.name : a.name}
                     {i === 0 && signpostAuthors.length > 1 && <span className="opacity-50">(primary)</span>}
                   </span>
                 ))}

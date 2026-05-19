@@ -2,10 +2,10 @@ import React from "react";
 import { format } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { BookOpen, Shuffle, Folder, Lock } from "lucide-react";
-import { useTerms } from "@/lib/useTerms";
+import { useSystemIdentity } from "@/lib/useSystemIdentity";
 
 export default function JournalEntryCard({ entry, altersById, onClick, highlight }) {
-  const terms = useTerms();
+  const systemIdentity = useSystemIdentity();
   const isSwitch = entry.entry_type === "switch_log";
   const isRestricted = entry.allowed_alter_ids?.length > 0;
   const author = altersById?.[entry.author_alter_id];
@@ -48,7 +48,7 @@ export default function JournalEntryCard({ entry, altersById, onClick, highlight
         {format(parseDate(entry.created_date), "MMM d, yyyy · h:mm a")}
         {author && <span className="ml-1.5">· by {author.name}</span>}
         {!author && isSystemAttributed && (
-          <span className="ml-1.5">· by {terms.System}</span>
+          <span className="ml-1.5">· by {systemIdentity.name}</span>
         )}
         {entry.co_author_alter_ids?.length > 0 && (
           <span className="flex items-center gap-0.5 ml-0.5">

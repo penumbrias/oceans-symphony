@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "System-level signposting now works in bulletins and bulletin comments too, not just journals. The autocomplete dropdown shows your system as another author option (with your system picture + name from Settings), and you can sign with `-system`, your custom system term (`-collective`, etc.), or any word from your system name (`-penumbrial` for 'Penumbrial Ecosystem'). Posts signed this way are attributed to the system as a whole — even if someone is currently fronting — and the existing `-system` journal flow now uses the system avatar/name everywhere too.",
+      },
+      {
+        type: "feature",
         text: "Journal signposting now supports a system-level marker: typing `-system` (or the customised term, e.g. `-collective`) attributes the entry to the whole system rather than any specific alter — the same shape as having no fronter set. The autocomplete dropdown surfaces it alongside alters, the 'Signing as' indicator shows the system name, and saved entries display 'by [system name]' on their cards.",
       },
       {
