@@ -207,7 +207,7 @@ export function SymptomBar({ symptom, session, topPx, heightPx, rowH, expanded, 
   );
 }
 
-function SymptomDetailModal({ symptom, session, onClose, tiedAlters = [] }) {
+function SymptomDetailModal({ symptom, session, onClose, tiedAlters = [], onEdit }) {
   const color = symptom?.color || "#8b5cf6";
   const snapshots = session?.severity_snapshots || [];
   const startStr = session?.start_time ? format(new Date(session.start_time), "h:mm aaa") : null;
@@ -316,12 +316,22 @@ function SymptomDetailModal({ symptom, session, onClose, tiedAlters = [] }) {
           </p>
         )}
 
-        <button
-          onClick={onClose}
-          className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
-        >
-          Close
-        </button>
+        <div className="flex gap-2 pt-1">
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="flex-1 inline-flex items-center justify-center text-xs font-medium border border-input rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
+            >
+              Edit session
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="flex-1 inline-flex items-center justify-center text-xs font-medium border border-input rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
