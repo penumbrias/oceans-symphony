@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 19, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "New 'Dashboard layout' settings under Appearance. Every dashboard block (Currently Fronting, Custom Status, Pinned items, Current Symptoms, Quick Check-In, What's New bar, Bulletin Board, Upcoming Plans top/bottom) is now individually toggleable and reorderable with up/down arrows. The Quick-Nav grid + search is always on but can be repositioned. The Custom Status field has been extracted into its own block so it stays available even if you hide Currently Fronting — useful for systems that don't track fronting but still want a 'what's happening right now' field. Defaults preserve the previous layout, and a Reset button restores them anytime. Coming in follow-up PRs: a standalone Bulletin Board page, configurable load-more batch size, and search/filter on the page.",
+      },
+    ],
+  },
+  {
     date: "May 18, 2026",
     changes: [
       {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
@@ -26,6 +26,8 @@ import TourModal from "@/components/onboarding/TourModal";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
 import DisclaimerModal, { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
 import { useTerms } from "@/lib/useTerms";
+import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
+import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -122,6 +124,22 @@ export default function Dashboard() {
   });
   const terms = useTerms();
   const systemName = settings[0]?.system_name || `Your ${terms.system}`;
+
+  // Resolved dashboard element ordering + per-element toggles. The
+  // settings panel writes these to SystemSettings.dashboard_layout and
+  // dispatches a `dashboard-layout-changed` event; we just re-derive
+  // from the react-query cache each render, so the layout updates
+  // immediately when the user changes it in Settings without needing
+  // a manual page reload.
+  const dashboardLayout = useMemo(
+    () => resolveLayout(settings[0]?.dashboard_layout),
+    [settings]
+  );
+  const layoutEnabled = useMemo(() => {
+    const map = {};
+    for (const e of dashboardLayout) map[e.id] = isElementEnabled(dashboardLayout, e.id);
+    return map;
+  }, [dashboardLayout]);
 
   const { data: mentionLogs = [] } = useQuery({
     queryKey: ["mentionLogs"],
@@ -548,59 +566,101 @@ export default function Dashboard() {
       <BetaTesterBanner />
       <CriticalPinnedPlans />
       <UnresolvedPlansCard />
-      {/* "Top of Dashboard" surface — above Currently Fronting per
-          Settings → Upcoming Plans Visibility. */}
-      <UpcomingPlans placement="home_top" />
-      <CurrentFronters alters={alters} />
-      <DashboardPins />
-      <CurrentSymptoms onOpenCheckIn={(section) => { setEmotionModalInitialSection(section); setShowEmotionModal(true); }} />
       <NotificationHistoryModal
-  open={showNotifHistory}
-  onClose={() => setShowNotifHistory(false)}
-  alters={alters}
-  frontingAlterIds={frontingAlterIds}
-  onNotifClick={handleNotifClick} />
-      
-      <div className="relative inline-flex mb-2">
-        <button
-          data-tour="quick-checkin"
-          onPointerDown={startHold}
-          onPointerMove={moveHold}
-          onPointerUp={endHold}
-          onPointerLeave={endHold}
-          onPointerCancel={endHold}
-          onContextMenu={(e) => e.preventDefault()}
-          style={{ userSelect: "none", WebkitUserSelect: "none", touchAction: "manipulation" }}
-          aria-label="Quick emotional check-in"
-          className={`bg-destructive/10 text-destructive px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors relative overflow-hidden${showQuickActions ? " ring-2 ring-destructive/30" : ""}`}
-        >
-          <Heart className="w-4 h-4 relative z-10" />
-          <span className="relative z-10">Quick Check-In</span>
-          {holdProgress > 0 && (
-            <span
-              aria-hidden="true"
-              className="absolute inset-y-0 left-0 bg-destructive/20 pointer-events-none"
-              style={{ width: `${holdProgress}%` }}
-            />
-          )}
-        </button>
-        <AnimatePresence>
-          {showQuickActions && (
-            <QuickActionsMenu
-              actions={sortedQuickActions}
-              onAction={executeQuickAction}
-              onClose={() => { showQuickActionsRef.current = false; setShowQuickActions(false); }}
-            />
-          )}
-        </AnimatePresence>
-      </div>
+        open={showNotifHistory}
+        onClose={() => setShowNotifHistory(false)}
+        alters={alters}
+        frontingAlterIds={frontingAlterIds}
+        onNotifClick={handleNotifClick}
+      />
 
-      <NewFeaturesBar />
-      <QuickNavMenu />
-      <BulletinBoard alters={alters} currentAlterId={currentAlterId} frontingAlterIds={frontingAlterIds} highlightBulletinId={highlightBulletinId} />
-      {/* "Bottom of Dashboard" surface — below the bulletin board per
-          Settings → Upcoming Plans Visibility. */}
-      <UpcomingPlans placement="home_bottom" />
+      {/* Layout-driven element rendering. Order + enabled state come
+          from SystemSettings.dashboard_layout via the Appearance
+          settings panel. New elements that ship later get backfilled
+          at their default position by resolveLayout. */}
+      {dashboardLayout.map((entry) => {
+        if (!layoutEnabled[entry.id]) return null;
+        switch (entry.id) {
+          case "upcoming_top":
+            return <UpcomingPlans key="upcoming_top" placement="home_top" />;
+          case "current_fronters":
+            return (
+              <CurrentFronters
+                key="current_fronters"
+                alters={alters}
+                hideStatusNote={layoutEnabled.status_note}
+              />
+            );
+          case "status_note":
+            return <StatusNoteCard key="status_note" />;
+          case "dashboard_pins":
+            return <DashboardPins key="dashboard_pins" />;
+          case "current_symptoms":
+            return (
+              <CurrentSymptoms
+                key="current_symptoms"
+                onOpenCheckIn={(section) => {
+                  setEmotionModalInitialSection(section);
+                  setShowEmotionModal(true);
+                }}
+              />
+            );
+          case "quick_checkin":
+            return (
+              <div key="quick_checkin" className="relative inline-flex mb-2">
+                <button
+                  data-tour="quick-checkin"
+                  onPointerDown={startHold}
+                  onPointerMove={moveHold}
+                  onPointerUp={endHold}
+                  onPointerLeave={endHold}
+                  onPointerCancel={endHold}
+                  onContextMenu={(e) => e.preventDefault()}
+                  style={{ userSelect: "none", WebkitUserSelect: "none", touchAction: "manipulation" }}
+                  aria-label="Quick emotional check-in"
+                  className={`bg-destructive/10 text-destructive px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors relative overflow-hidden${showQuickActions ? " ring-2 ring-destructive/30" : ""}`}
+                >
+                  <Heart className="w-4 h-4 relative z-10" />
+                  <span className="relative z-10">Quick Check-In</span>
+                  {holdProgress > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-0 left-0 bg-destructive/20 pointer-events-none"
+                      style={{ width: `${holdProgress}%` }}
+                    />
+                  )}
+                </button>
+                <AnimatePresence>
+                  {showQuickActions && (
+                    <QuickActionsMenu
+                      actions={sortedQuickActions}
+                      onAction={executeQuickAction}
+                      onClose={() => { showQuickActionsRef.current = false; setShowQuickActions(false); }}
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          case "new_features_bar":
+            return <NewFeaturesBar key="new_features_bar" />;
+          case "quick_nav_menu":
+            return <QuickNavMenu key="quick_nav_menu" />;
+          case "bulletin_board":
+            return (
+              <BulletinBoard
+                key="bulletin_board"
+                alters={alters}
+                currentAlterId={currentAlterId}
+                frontingAlterIds={frontingAlterIds}
+                highlightBulletinId={highlightBulletinId}
+              />
+            );
+          case "upcoming_bottom":
+            return <UpcomingPlans key="upcoming_bottom" placement="home_bottom" />;
+          default:
+            return null;
+        }
+      })}
 
       {/* Legal/scope disclaimer — gates everything else on first run.
           TermsSetup waits until the disclaimer is acknowledged. */}
