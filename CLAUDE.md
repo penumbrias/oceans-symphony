@@ -168,7 +168,9 @@ Rules:
 - Add a new date block at the top of the `CHANGELOG` array when starting a new session's work.
 - Use `type: "feature"` for new capabilities, `"improve"` for enhancements, `"fix"` for user-visible bug fixes, `"hotfix"` for minor/internal fixes (brief text only).
 - For hotfixes, write "Hotfix: [brief description]" — no need for detail.
-- For larger features, write 1–2 sentences describing what the user can now do.
+- **Keep every entry to 1–2 short sentences. Maximum.** The changelog renders inline on the dashboard "What's new" bar and in Settings → Recent Updates — long paragraphs are unreadable on a phone. Skip implementation details, internal naming, version numbers, root-cause analysis — that all belongs in the PR description. The entry just needs to tell a user what they'll notice.
+  - Bad: "The bottom sheet now respects the device's bottom safe-area inset, so the Cancel button is no longer cut off below the screen edge on Android."
+  - Good: "Active Symptoms popup no longer gets cut off at the bottom."
 - Do not add entries for refactors, renames, or changes that have no user-visible effect.
 - The changelog is shown in Settings → Recent Updates — keep it user-facing, not technical jargon.
 - **Every single commit that changes behaviour visible to the user must include a changelog entry. No batching. No "I'll add it later". If you forgot, add it now before the next task.**

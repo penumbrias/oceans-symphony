@@ -17,59 +17,63 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "The 'What's new' bar can now lazy-load older changes — a 'Show older changes' button reveals 3 more previous date blocks each tap, filtered down to user-relevant entries (features / improvements / notable fixes). Internal hotfix-only blocks are skipped so the bar stays a meaningful summary, not the firehose.",
+        text: "What's New bar opens as a slim banner by default — tap to expand. Existing entries trimmed to 1-sentence summaries.",
+      },
+      {
+        type: "improve",
+        text: "What's New bar is now collapsed by default — tap to expand and read the entries.",
+      },
+      {
+        type: "improve",
+        text: "What's New bar lazy-loads older changes via a 'Show older' button. Hotfixes are filtered out.",
       },
       {
         type: "feature",
-        text: "The 'What's new' bar on the dashboard is now actually a feature, not just a toggle pointing at a stub component. It shows the latest changelog entries for the current version with a 'See full changelog' link, and dismisses to localStorage so it only reappears when the app updates to a new version. Visibility is governed by the Dashboard layout toggle as before.",
+        text: "Dashboard 'What's New' bar now actually shows the latest changelog entries, dismissible per version.",
       },
       {
         type: "fix",
-        text: "Active Symptoms popup: the earlier safe-area fix actually shrank the bottom buffer on devices where `env(safe-area-inset-bottom)` reports 0 (it replaced the outer wrapper's bottom padding with an inner padding that was no bigger). Moved the safe-area inset to the outer wrapper itself so the panel now always has at least 1rem (or the device's bottom inset, whichever is larger) of clear space below it. The panel is also capped at 80vh with internal scroll so it can never extend past the visible area.",
+        text: "Active Symptoms popup is no longer cut off at the bottom — safe-area inset moved to the right place + 80vh cap.",
       },
       {
         type: "feature",
-        text: "Daily-task auto triggers can now combine multiple triggers. Pick more than one from the dropdown (each one shows as a removable pill) and a new 'Count complete when:' toggle chooses Any (or) — fires as soon as one trigger happens — vs All (and) — every trigger must happen. Legacy single-trigger templates keep working unchanged.",
+        text: "Daily-task AUTO templates can combine multiple triggers with Any (or) / All (and) mode.",
       },
       {
         type: "improve",
-        text: "Settings → Appearance → Dashboard layout: the 'Currently fronting' toggle now shows a small note reassuring users that the rest of the app should work without setting a fronter (anything they log just attaches to the system as a whole), plus a Report a Bug prompt in case any screen gets stuck without one.",
+        text: "Currently Fronting toggle in dashboard layout now has a note that the app works without a fronter.",
       },
       {
         type: "fix",
-        text: "Active Symptoms popup (press-and-hold on a symptom pill on the dashboard): the bottom sheet now respects the device's bottom safe-area inset, so the Cancel button is no longer cut off below the screen edge on Android.",
-      },
-      {
-        type: "fix",
-        text: "Dashboard: the pencil 'rearrange tiles' button next to the search bar looked cramped against the column-count toggle. It now uses the same icon-button styling as the toggle so the two read as a matched pair instead of a misaligned cluster.",
+        text: "Dashboard 'rearrange tiles' pencil button now matches the column-count toggle styling next to it.",
       },
       {
         type: "feature",
-        text: "New 'Quick plan' type — a date-only plan with no specific time, for when you know you want to do something today (or some other day) but don't care exactly when. Toggle 'Quick plan (date only, no specific time)' in the Plan Activity modal to hide the time fields. Quick plans render as pills on the Activity Tracker weekly grid: today's pills sit just under the current-time bar and get pushed down as the day goes on; other days' pills sit at the top of their column. The whole pill layer is non-blocking so it never obscures the cells underneath. Hide them with the new 'Quick plans' button in the tracker toolbar (defaults on, preference saved). They appear in Upcoming Plans like any other plan, and can be marked done / skipped / rescheduled the same way.",
+        text: "New 'Quick plan' type — date-only plans, render as pills on the weekly grid, toggleable visibility.",
       },
       {
         type: "improve",
-        text: "Activity Tracker weekly grid: the current day's column now has a soft tint so it stands out from the other six days at a glance.",
+        text: "Activity Tracker: today's column now has a soft tint to stand out.",
       },
       {
         type: "improve",
-        text: "Symptom sessions on the Timeline now have an 'Edit session' button in the detail popup — same as alter fronting sessions. Tap to view, then Edit to adjust start/end times, log a new severity, or delete the session. The edit popup also gained a Delete option to match the alter session editor.",
+        text: "Timeline symptom sessions now have an 'Edit session' button in their detail popup, matching alters.",
       },
       {
         type: "feature",
-        text: "Bulletin Board now has a standalone full-screen page (/bulletins) that auto-loads more bulletins as you scroll, defaults to showing the search bar, and supports posting / search just like the dashboard widget. Add the 'Bulletin Board' tile from the Dashboard grid editor to put a shortcut on your home screen — it's off by default since the dashboard already has the recent-activity strip.",
+        text: "New /bulletins page with infinite scroll, search, and composer.",
       },
       {
         type: "feature",
-        text: "Dashboard Bulletin Board: configurable batch size. Set 'Show N at a time' from Settings → Appearance → Dashboard layout (when Bulletin Board is enabled). Load more reveals that same N each tap, so users who want a short dashboard preview can keep it short and browse the rest on /bulletins.",
+        text: "Dashboard Bulletin Board batch size is now configurable from Dashboard layout settings.",
       },
       {
         type: "improve",
-        text: "Dashboard layout settings now use real drag-and-drop (matching the Dashboard grid editor) instead of up/down arrows — grab the grip handle on any pill to reorder.",
+        text: "Dashboard layout settings now use real drag-and-drop instead of up/down arrows.",
       },
       {
         type: "feature",
-        text: "New 'Dashboard layout' settings under Appearance. Every dashboard block (Currently Fronting, Custom Status, Pinned items, Current Symptoms, Quick Check-In, What's New bar, Bulletin Board, Upcoming Plans top/bottom) is now individually toggleable and reorderable with up/down arrows. The Quick-Nav grid + search is always on but can be repositioned. The Custom Status field has been extracted into its own block so it stays available even if you hide Currently Fronting — useful for systems that don't track fronting but still want a 'what's happening right now' field. Defaults preserve the previous layout, and a Reset button restores them anytime. Coming in follow-up PRs: a standalone Bulletin Board page, configurable load-more batch size, and search/filter on the page.",
+        text: "New Dashboard layout settings under Appearance — toggle and reorder every dashboard block. Custom Status now stands alone, usable without Currently Fronting.",
       },
     ],
   },
@@ -78,87 +82,87 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Timeline: scrolling over an activity icon (West Seattle, Sleep, etc.) used to pop the detail card open as soon as the finger lifted, even if the touch was clearly a scroll. The activity bar now tracks how far the touch moved between touchstart and touchend — if it moved beyond the standard 10px slop the tap is treated as a scroll and ignored. Only an actual press-on-icon opens the popover now.",
+        text: "Timeline: scrolling over an activity icon no longer triggers its detail popup when the finger lifts. Only stationary taps open it.",
       },
       {
         type: "feature",
-        text: "Therapy Report: new 'Preview & Customize → PDF' flow. After building a report you now land on a preview pane that lists every individual journal entry, bulletin, status note, support reflection, and system check-in inside the report — each with an × button to keep it out of the final PDF. A granular final-edit pass for redacting anything private before handing the report to a therapist. The original 'Download PDF (skip preview)' and 'Copy as Text' actions are still available for users who don't want the extra step.",
+        text: "Therapy Report: new 'Preview & Customize → PDF' flow lets you exclude individual entries before final export.",
       },
       {
         type: "feature",
-        text: "Analytics now have a 'System-wide / all data combined' view alongside the per-alter views. In the Co-Fronting Analytics page, the alter list opens with a System tile that shows every co-fronting pair ranked by frequency — useful for users who don't track fronting per-alter but still want to see who tends to be present together. In the Alter × Symptom Correlation panel, a System tile sits next to the alter cards and surfaces the baseline symptom averages across every check-in regardless of who was fronting. The existing per-alter views stay exactly as they were.",
+        text: "Analytics: new System-wide view alongside per-alter views in Co-Fronting Analytics and Alter × Symptom Correlation.",
       },
       {
         type: "feature",
-        text: "System-level signposting now works in bulletins and bulletin comments too, not just journals. The autocomplete dropdown shows your system as another author option (with your system picture + name from Settings), and you can sign with `-system`, your custom system term (`-collective`, etc.), or any word from your system name (`-penumbrial` for 'Penumbrial Ecosystem'). Posts signed this way are attributed to the system as a whole — even if someone is currently fronting — and the existing `-system` journal flow now uses the system avatar/name everywhere too.",
+        text: "Bulletins + bulletin comments now support `-system` signposting, with the system's avatar + name in the autocomplete.",
       },
       {
         type: "feature",
-        text: "Journal signposting now supports a system-level marker: typing `-system` (or the customised term, e.g. `-collective`) attributes the entry to the whole system rather than any specific alter — the same shape as having no fronter set. The autocomplete dropdown surfaces it alongside alters, the 'Signing as' indicator shows the system name, and saved entries display 'by [system name]' on their cards.",
+        text: "Journal entries now support `-system` (and your custom term) as a signpost — attributes to the whole system, no specific alter.",
       },
       {
         type: "fix",
-        text: "Switch Log: moving a symptom slider after typing in the trigger / before / after fields would leave the keyboard up, pushing the viewport so the sliders were hidden behind it. The slider now dismisses the keyboard on touch so you can rate symptoms without the IME getting in the way.",
+        text: "Switch Log: tapping a symptom slider now dismisses the keyboard so the sliders aren't hidden behind it.",
       },
       {
         type: "fix",
-        text: "Swipe-back chevron could get stuck on the left side of the screen until the next edge-swipe. The root cause was a multi-finger race: a second touch landing outside the 40px edge zone would null out the in-progress gesture, and the matching touchend would early-return without scheduling the indicator's fade-out. The hook now ignores additional touches while a gesture is mid-flight and always schedules the fade-out on touchend regardless.",
+        text: "Swipe-back chevron no longer gets stuck on screen after a multi-finger gesture.",
       },
       {
         type: "improve",
-        text: "Activity Planner weekly grid: long activities used to paint a checkmark (or X / needs-review dot) inside every 30-minute cell they spanned, and the activity name was truncated to fit a single cell width. Now the status decorations only render in the activity's first slot, and the name box extends across the full duration so the label can wrap and fill the activity's visible block.",
+        text: "Activity Planner: long activities now show one status badge at their head and let their name wrap across the full duration.",
       },
       {
         type: "improve",
-        text: "Check-In Log: collapsed day rows now show the Day Total summary inline (emotion chips, fronters, symptom counts, location/activity pills) instead of just the date and entry count. You can scan recent days at a glance without expanding each one.",
+        text: "Check-In Log: collapsed day rows now show the Day Total summary inline so you can scan recent days without expanding each one.",
       },
       {
         type: "fix",
-        text: "Quick Check-In modal: the touch-block overlay was being added by a useEffect, which meant the very first painted frame of the open modal had no overlay — so an Android ghost-click from the opening tap could still land on whatever button (usually Cancel) sat where you tapped. The overlay is now mounted synchronously on the first paint, so the 400ms touch-block actually starts at frame zero.",
+        text: "Quick Check-In modal: opening tap can no longer accidentally hit a button — touch-block overlay is now mounted on the first paint.",
       },
       {
         type: "fix",
-        text: "Journal editor was losing co-authors on re-edit. Saving a multi-author entry worked and displayed correctly, but reopening Edit only showed the primary author and emptied the signpost field — clicking Save again would have stripped the co-authors. The editor now rehydrates the signpost field with every author marker on load (e.g. `-kyo -hex -kane`), so the second-edit round-trips cleanly.",
+        text: "Journal editor no longer loses co-authors on re-edit. All author markers rehydrate into the signpost field on load.",
       },
       {
         type: "feature",
-        text: "Journal editor signpost field now autocompletes alters as you type, matching how the bulletin composer's @-mentions work. Type `-h` and a dropdown of alters whose name or alias starts with `h` appears — tap one to insert. Picks up where you are in the line, so you can chain multiple authors (`-kyo -hex -kane`) and get a suggestion list for each.",
+        text: "Journal signpost field now autocompletes alters as you type (`-h` → dropdown of matching alters), matching the bulletin composer.",
       },
       {
         type: "fix",
-        text: "CRITICAL: backup/export was completely broken — both 'Download Backup' and 'View as Text' failed with 'filter is not a function' for every user. The recent default-grounding-techniques filter assumed the entity dump was an array, but the in-memory database stores entities as objects keyed by id. Walking the entries correctly now, so exports work again.",
+        text: "CRITICAL: backup/export was failing with 'filter is not a function' for every user. Exports work again.",
       },
       {
         type: "improve",
-        text: "Grocery privacy cover: turning OFF the lock-on-close toggle now requires your encryption password. Turning it ON is still free (only adds security), but defusing the panic-hide gesture is no longer something anyone with momentary access to your unlocked device can do without proving they're you.",
+        text: "Grocery privacy cover: turning OFF the lock-on-close toggle now requires your encryption password.",
       },
       {
         type: "fix",
-        text: "Log Analytics 'Symptom & Habit Frequency' was only counting symptoms that had been filled into the diary card's symptoms grid — so anyone logging symptoms through Quick Check-In saw 'No symptom data in this range' even though their data was there. It now reads from both the diary checklist and the SymptomCheckIn entity, so Quick Check-In entries finally show up.",
+        text: "Log Analytics 'Symptom & Habit Frequency' now includes symptoms logged via Quick Check-In, not just diary card entries.",
       },
       {
         type: "fix",
-        text: "Daily Tasks 'hold to change' on past days: dropped the hold time from 2s to 1s, and fixed an issue where rapid edits could land on a stale snapshot and either skip the save or hit the wrong day. The toggle now refetches the latest progress right before saving.",
+        text: "Daily Tasks 'hold to change' shortened from 2s to 1s, and now refetches latest progress before saving.",
       },
       {
         type: "fix",
-        text: "Bumped the touch-block on the Quick Check-In modal from 200ms to 400ms and tightened the overlay so the touch from the finger that opened the modal can't accidentally tap a button (especially Save / Cancel at the top of the modal). Testers were reporting auto-selecting whatever button overlapped with the Quick Check-In trigger location.",
+        text: "Quick Check-In modal touch-block bumped from 200ms to 400ms so the opening tap can't auto-select Save/Cancel.",
       },
       {
         type: "fix",
-        text: "Fixed a phantom header band that appeared above the real app header on every screen of the Android build in 0.17.24–0.17.27. The system splash screen wasn't being dismissed cleanly after the edge-to-edge change, so the splash artwork (yellow/blue gradient + system-rendered app label) showed through the safe-area inset above the real header on every page. Splash now dismisses properly on first content draw.",
+        text: "Fixed a phantom header band that appeared above the real app header on Android in 0.17.24–0.17.27.",
       },
       {
         type: "fix",
-        text: "Fixed the Fronter view dropdown in Journals causing the page to scroll horizontally when opened — the popover now positions itself relative to the viewport (preferring whichever side has room) instead of pushing the document past the screen edge.",
+        text: "Journals: Fronter view dropdown no longer scrolls the page horizontally when opened.",
       },
       {
         type: "fix",
-        text: "Hardened journal/block rich-text rendering to strip any unsafe HTML (event handlers, scripts, etc.) before display — important when a backup is shared between users or content lands via copy-paste from external sources. Also guarded a top-level JSON.parse so a corrupted localStorage value can't blank the entire app.",
+        text: "Journal/block rich-text rendering now strips unsafe HTML before display.",
       },
       {
         type: "fix",
-        text: "Fixed the Fronter view dropdown in Journals being cut off on the left edge of the screen (labels like 'MEMBER' were clipped to 'EMBER'). It now anchors to the button's left edge and extends rightward, matching the Author dropdown next to it.",
+        text: "Journals: Fronter view dropdown labels no longer get clipped on the left edge.",
       },
       {
         type: "feature",
