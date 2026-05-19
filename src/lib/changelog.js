@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Groups Manager: new 'All groups (flat)' view + automatic rescue banner for groups that got buried under a broken parent chain. One tap moves them back to root.",
+      },
+      {
+        type: "fix",
+        text: "Groups Manager: drag-and-drop now refuses to move a group into one of its own descendants (which used to bury entire subtrees out of reach). Group rendering is also clamped to depth 8 and ignores self-parents.",
+      },
+      {
         type: "fix",
         text: "Check-In Log no longer splits a single Quick Check-In's emotions into one row per emotion. All emotions from a session render together as pills on one row.",
       },
