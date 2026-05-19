@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { computeAlterSymptomCorrelation } from "@/lib/analyticsEngine";
+import { useSystemIdentity } from "@/lib/useSystemIdentity";
+import SystemAvatar from "@/components/shared/SystemAvatar";
+
+const SYSTEM_VIEW_ID = "__system__";
 
 function deltaChip(delta) {
   if (delta === null) return null;
@@ -18,6 +22,7 @@ export default function AlterSymptomCorrelation({ frontingSessions, alters, symp
     () => computeAlterSymptomCorrelation(frontingSessions, alters, symptomCheckIns, baseline),
     [frontingSessions, alters, symptomCheckIns, baseline]
   );
+  const systemIdentity = useSystemIdentity();
 
   const [selectedAlterId, setSelectedAlterId] = useState(null);
 
@@ -42,12 +47,31 @@ export default function AlterSymptomCorrelation({ frontingSessions, alters, symp
     );
   }
 
-  const selectedAlter = selectedAlterId
+  const isSystemView = selectedAlterId === SYSTEM_VIEW_ID;
+  const selectedAlter = selectedAlterId && !isSystemView
     ? alters.find(a => a.id === selectedAlterId)
     : null;
 
-  const activeAlter = selectedAlter || altersWithData[0];
-  const activeData = correlation[activeAlter?.id] || {};
+  const activeAlter = isSystemView ? null : (selectedAlter || altersWithData[0]);
+  const activeData = isSystemView ? {} : (correlation[activeAlter?.id] || {});
+
+  // Build system-wide rows: for each rating symptom, surface the
+  // baseline mean (averaged across all check-ins regardless of who
+  // was fronting), so the same chart structure still reads as "data
+  // as a whole" rather than per-{terms.alter}.
+  const systemRows = useMemo(() => {
+    if (!isSystemView) return [];
+    return ratingSymptoms
+      .map(s => {
+        // Pull the baseline value off any alter's row — they all share
+        // the same `baselineMean` per symptom (it's computed system-wide).
+        const sample = Object.values(correlation).find(d => d?.[s.id]?.baselineMean !== undefined);
+        const baselineMean = sample?.[s.id]?.baselineMean;
+        if (baselineMean === undefined || baselineMean === null) return null;
+        return { symptom: s, mean: baselineMean };
+      })
+      .filter(Boolean);
+  }, [isSystemView, ratingSymptoms, correlation]);
 
   // Compute a stress/calm score for each alter: average delta across all tracked symptoms
   const alterScores = altersWithData.map(a => {
@@ -66,12 +90,30 @@ export default function AlterSymptomCorrelation({ frontingSessions, alters, symp
 
       {/* Alter overview cards */}
       <div className="grid grid-cols-2 gap-2">
+        {/* System-wide card — selecting it hides the per-{terms.alter}
+            delta view and surfaces just the baseline means across all
+            check-ins. Lets users who don't track fronting still get
+            value out of this chart. */}
+        <button
+          onClick={() => setSelectedAlterId(isSystemView ? null : SYSTEM_VIEW_ID)}
+          className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${
+            isSystemView
+              ? "border-primary/50 bg-primary/5"
+              : "border-border/50 bg-card hover:bg-muted/30"
+          }`}
+        >
+          <SystemAvatar size="md" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold truncate">{systemIdentity.name}</p>
+            <p className="text-xs text-muted-foreground">All data combined</p>
+          </div>
+        </button>
         {alterScores.map(({ alter, avgDelta }) => (
           <button
             key={alter.id}
             onClick={() => setSelectedAlterId(alter.id === activeAlter?.id ? null : alter.id)}
             className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${
-              alter.id === activeAlter?.id
+              !isSystemView && alter.id === activeAlter?.id
                 ? "border-primary/50 bg-primary/5"
                 : "border-border/50 bg-card hover:bg-muted/30"
             }`}
@@ -96,8 +138,47 @@ export default function AlterSymptomCorrelation({ frontingSessions, alters, symp
         ))}
       </div>
 
+      {/* System-wide detail view: baseline means across all check-ins. */}
+      {isSystemView && systemRows.length > 0 && (
+        <div className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <SystemAvatar size="md" />
+            <h3 className="text-sm font-semibold">{systemIdentity.name} — symptom averages across all check-ins</h3>
+          </div>
+          <div className="space-y-2">
+            {systemRows.map(({ symptom: s, mean }) => {
+              const pct = Math.round((mean / 5) * 100);
+              return (
+                <div key={s.id} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      {s.color && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />}
+                      <span className="text-xs font-medium">{s.label}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{mean.toFixed(1)}/5</span>
+                  </div>
+                  <div className="relative h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, pct)}%`,
+                        backgroundColor: s.color || "hsl(var(--primary))",
+                        opacity: 0.7,
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Average values across every check-in, regardless of who was fronting at the time.
+          </p>
+        </div>
+      )}
+
       {/* Detail for selected alter */}
-      {activeAlter && Object.keys(activeData).length > 0 && (
+      {!isSystemView && activeAlter && Object.keys(activeData).length > 0 && (
         <div className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2">
             {activeAlter.avatar_url ? (
