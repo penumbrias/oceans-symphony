@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "improve",
+        text: "The 'What's new' bar can now lazy-load older changes — a 'Show older changes' button reveals 3 more previous date blocks each tap, filtered down to user-relevant entries (features / improvements / notable fixes). Internal hotfix-only blocks are skipped so the bar stays a meaningful summary, not the firehose.",
+      },
+      {
         type: "feature",
         text: "The 'What's new' bar on the dashboard is now actually a feature, not just a toggle pointing at a stub component. It shows the latest changelog entries for the current version with a 'See full changelog' link, and dismisses to localStorage so it only reappears when the app updates to a new version. Visibility is governed by the Dashboard layout toggle as before.",
       },

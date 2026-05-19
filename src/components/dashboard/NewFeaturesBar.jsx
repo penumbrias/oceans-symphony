@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { X, Sparkles } from "lucide-react";
+import { X, Sparkles, ChevronDown } from "lucide-react";
 import { CHANGELOG } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/appVersion";
 
@@ -10,17 +10,25 @@ import { APP_VERSION } from "@/lib/appVersion";
 // localStorage — the bar reappears only when APP_VERSION advances
 // past the stored value (i.e. the next release).
 //
+// "Show older changes" progressively reveals older date blocks. The
+// changelog is filtered down to user-relevant entry types (feature
+// / improve / fix); hotfixes are excluded since they're internal /
+// "keep text brief" by spec. Blocks that filter down to nothing are
+// skipped entirely, so the user can't end up clicking "show older"
+// and getting a card with zero rows.
+//
 // Visibility is also governed by the Dashboard layout setting
 // `new_features_bar` (the dashboard's layout-driven render skips
 // this component entirely when that toggle is off). Inside this
 // component we own the per-version dismissal.
 const STORAGE_KEY = "symphony_whats_new_seen_version";
 
+const VISIBLE_TYPES = new Set(["feature", "improve", "fix"]);
+
 const TYPE_ICON = {
   feature: "✨",
   improve: "↑",
   fix:     "🔧",
-  hotfix:  "•",
 };
 
 export default function NewFeaturesBar() {
@@ -28,6 +36,20 @@ export default function NewFeaturesBar() {
   // resolves the user's dismissal state.
   const [dismissed, setDismissed] = useState(true);
   const [block, setBlock] = useState(null);
+  // Number of OLDER date blocks the user has chosen to reveal in
+  // addition to the headline (most-recent) block. Reset every mount.
+  const [extraBlocks, setExtraBlocks] = useState(0);
+
+  // Pre-filter the whole changelog once: drop hotfixes, drop empty
+  // blocks. The order is preserved (newest first).
+  const filteredChangelog = useMemo(() => {
+    return (CHANGELOG || [])
+      .map((entry) => ({
+        ...entry,
+        changes: (entry.changes || []).filter((c) => VISIBLE_TYPES.has(c.type)),
+      }))
+      .filter((entry) => entry.changes.length > 0);
+  }, []);
 
   useEffect(() => {
     try {
@@ -36,8 +58,8 @@ export default function NewFeaturesBar() {
         setDismissed(true);
         return;
       }
-      const top = CHANGELOG[0];
-      if (!top || !Array.isArray(top.changes) || top.changes.length === 0) {
+      const top = filteredChangelog[0];
+      if (!top) {
         setDismissed(true);
         return;
       }
@@ -48,7 +70,7 @@ export default function NewFeaturesBar() {
       // bar rather than spamming the dashboard every load.
       setDismissed(true);
     }
-  }, []);
+  }, [filteredChangelog]);
 
   const handleDismiss = () => {
     setDismissed(true);
@@ -57,6 +79,12 @@ export default function NewFeaturesBar() {
   };
 
   if (dismissed || !block) return null;
+
+  // Older blocks revealed via "Show older changes". Slice picks up
+  // starting at index 1 (the second-most-recent block) since index 0
+  // is the headline rendered separately above.
+  const olderBlocks = filteredChangelog.slice(1, 1 + extraBlocks);
+  const hasMoreOlder = extraBlocks + 1 < filteredChangelog.length;
 
   return (
     <div
@@ -81,12 +109,47 @@ export default function NewFeaturesBar() {
               </li>
             ))}
           </ul>
-          <Link
-            to="/settings#recent-updates"
-            className="inline-block text-[0.6875rem] font-medium text-primary hover:underline"
-          >
-            See full changelog →
-          </Link>
+
+          {olderBlocks.length > 0 && (
+            <div className="space-y-3 pt-2 border-t border-primary/20">
+              {olderBlocks.map((older, idx) => (
+                <div key={`${older.date}-${idx}`} className="space-y-1.5">
+                  <p className="text-[0.6875rem] font-semibold text-muted-foreground">{older.date}</p>
+                  <ul className="space-y-1.5">
+                    {older.changes.map((c, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-foreground/90 leading-relaxed">
+                        <span className="text-[0.6875rem] flex-shrink-0 mt-px" aria-hidden="true">
+                          {TYPE_ICON[c.type] || "•"}
+                        </span>
+                        <span>{c.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+            {hasMoreOlder ? (
+              <button
+                type="button"
+                onClick={() => setExtraBlocks((n) => n + 3)}
+                className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-primary hover:underline"
+              >
+                <ChevronDown className="w-3 h-3" />
+                Show older changes
+              </button>
+            ) : (
+              <span className="text-[0.6875rem] text-muted-foreground">No earlier user-visible changes.</span>
+            )}
+            <Link
+              to="/settings#recent-updates"
+              className="text-[0.6875rem] font-medium text-primary hover:underline"
+            >
+              See full changelog →
+            </Link>
+          </div>
         </div>
         <button
           type="button"
