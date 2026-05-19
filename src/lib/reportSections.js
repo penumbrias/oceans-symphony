@@ -314,7 +314,7 @@ export function buildJournalsSection({ dateFrom, dateTo, journalEntries, journal
     .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
 
   return entries.map(j => {
-    const base = { date: fmtDate(j.created_date), title: j.title || "Untitled" };
+    const base = { id: j.id, date: fmtDate(j.created_date), title: j.title || "Untitled" };
     const clean = stripHtml(j.content || "");
     if (journalDetail === "full") return { ...base, content: clean };
     if (journalDetail === "excerpts") return { ...base, excerpt: clean.slice(0, 400) };
@@ -456,6 +456,7 @@ export function buildStatusNotesSection({ dateFrom, dateTo, statusNotes = [] }) 
     .filter(n => n.note?.trim() && inRange(n.timestamp, dateFrom, dateTo))
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
     .map(n => ({
+      id: n.id,
       date: fmtDateTime(n.timestamp),
       note: n.note.trim(),
     }));
@@ -532,6 +533,7 @@ export function buildBulletinsSection({ dateFrom, dateTo, bulletins, alters, inc
     .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
 
   return items.map(b => ({
+    id: b.id,
     date: fmtDateTime(b.created_date),
     title: b.title || "Bulletin",
     content: bulletinDetail === "content" ? stripHtml(b.content || "").slice(0, 500) : "",
@@ -613,6 +615,7 @@ export function buildSupportJournalsSection({ dateFrom, dateTo, supportEntries =
 
   return items.map(e => {
     const base = {
+      id: e.id,
       date: fmtDate(e.created_date),
       title: e.exercise_title || e.exercise_id || "Exercise",
     };
@@ -641,6 +644,7 @@ export function buildSystemCheckInsSection({ dateFrom, dateTo, systemCheckIns, a
       .slice(0, 5)
       .map(([k, v]) => `${k.replace(/_/g, " ")}: ${stripHtml(String(v))}`);
     return {
+      id: c.id,
       date: fmtDateTime(c.created_date),
       title: c.title || "System Meeting",
       summary: summaryParts.join(" · ") || null,
