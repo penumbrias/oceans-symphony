@@ -5,6 +5,7 @@ import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const LS_ROW_H      = "symphony_act_row_h";
 const LS_COL_W      = "symphony_act_col_w";
@@ -106,6 +107,13 @@ export default function ActivityWeeklyGrid({
   const longPressTimerRef = useRef(null);
   const longPressFiredRef = useRef(false);
   const [lifecycleActivity, setLifecycleActivity] = useState(null);
+  // Popup that lists every quick plan for a single day, with full
+  // (un-truncated) names. Triggered by double-tap on a quick-plan
+  // pill — a single tap still navigates to the day view, double-tap
+  // is the "view in full" affordance. From the popup, tapping a row
+  // opens the same ActivityLifecyclePopover that timed plans use.
+  const [quickPlanDayPopup, setQuickPlanDayPopup] = useState(null);
+  const quickPlanTapRef = useRef({ id: null, time: 0 });
 
   useEffect(() => { lsSet(LS_ROW_H,      rowH);         }, [rowH]);
   useEffect(() => { lsSet(LS_COL_W,      colW);         }, [colW]);
@@ -612,7 +620,27 @@ if (isSameCell) {
                               title={a.activity_name || "Quick plan"}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/activities?date=${dayKey}&highlight=${a.id}`);
+                                // Double-tap on any quick-plan pill in
+                                // a day's stack opens the full-list
+                                // popup. The tracked id is the pill's
+                                // own id so taps on two different
+                                // pills don't accidentally count as a
+                                // double-tap.
+                                const now = Date.now();
+                                const last = quickPlanTapRef.current;
+                                if (last.id === a.id && now - last.time < 280) {
+                                  quickPlanTapRef.current = { id: null, time: 0 };
+                                  setQuickPlanDayPopup({ date: dayKey, plans: list });
+                                  return;
+                                }
+                                quickPlanTapRef.current = { id: a.id, time: now };
+                                setTimeout(() => {
+                                  const cur = quickPlanTapRef.current;
+                                  if (cur.id === a.id && now - cur.time >= 0 && cur.time === now) {
+                                    quickPlanTapRef.current = { id: null, time: 0 };
+                                    navigate(`/activities?date=${dayKey}&highlight=${a.id}`);
+                                  }
+                                }, 280);
                               }}
                               className="text-[0.625rem] leading-tight font-semibold text-white rounded-full px-2 py-0.5 truncate shadow-sm"
                               style={{
@@ -981,6 +1009,60 @@ if (isSameCell) {
           </div>
         </div>
       </div>
+
+      {/* Quick plan day popup — opens on double-tap of any quick
+          plan pill. Lists every quick plan for that day with the
+          full (un-truncated) name and current status. Tapping a row
+          opens the same lifecycle popover used everywhere else. */}
+      <Dialog open={!!quickPlanDayPopup} onOpenChange={(open) => { if (!open) setQuickPlanDayPopup(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Quick plans · {quickPlanDayPopup ? format(parseDate(`${quickPlanDayPopup.date}T00:00:00`), "EEEE, MMM d") : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            {quickPlanDayPopup?.plans?.length ? quickPlanDayPopup.plans.map((a) => {
+              const color = getActivityColor(a) || "hsl(var(--primary))";
+              const st = statusFor(a);
+              const v = visualForStatus(st);
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => {
+                    setQuickPlanDayPopup(null);
+                    setLifecycleActivity(a);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-card hover:bg-muted/40 text-left transition-colors"
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{
+                      backgroundColor: v.dashed ? "transparent" : color,
+                      border: v.dashed ? `1px dashed ${color}` : undefined,
+                    }}
+                  />
+                  <span
+                    className="flex-1 text-sm break-words"
+                    style={{ textDecoration: v.strike ? "line-through" : undefined }}
+                  >
+                    {a.activity_name || "Quick plan"}
+                  </span>
+                  {v.corner && (
+                    <span className="text-xs font-bold flex-shrink-0" style={{ color }}>{v.corner}</span>
+                  )}
+                </button>
+              );
+            }) : (
+              <p className="text-xs text-muted-foreground text-center py-4">No quick plans for this day.</p>
+            )}
+          </div>
+          <p className="text-[0.6875rem] text-muted-foreground pt-1">
+            Tap a plan to open its manage / edit menu (mark done, skip, reschedule, delete).
+          </p>
+        </DialogContent>
+      </Dialog>
 
       <ActivityLifecyclePopover
         isOpen={!!lifecycleActivity}
