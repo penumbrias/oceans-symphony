@@ -342,14 +342,16 @@ export default function QuickNavMenu() {
               Done
             </button>
           ) : (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleEnterEdit}
-              className="flex-shrink-0 p-1.5 rounded-lg text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+              className="flex-shrink-0"
               title="Rearrange tiles"
               aria-label="Edit grid"
             >
               <Pencil className="w-4 h-4" />
-            </button>
+            </Button>
           )
         )}
         <Button

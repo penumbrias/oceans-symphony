@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Dashboard: the pencil 'rearrange tiles' button next to the search bar looked cramped against the column-count toggle. It now uses the same icon-button styling as the toggle so the two read as a matched pair instead of a misaligned cluster.",
+      },
+      {
         type: "feature",
         text: "New 'Quick plan' type — a date-only plan with no specific time, for when you know you want to do something today (or some other day) but don't care exactly when. Toggle 'Quick plan (date only, no specific time)' in the Plan Activity modal to hide the time fields. Quick plans render as pills on the Activity Tracker weekly grid: today's pills sit just under the current-time bar and get pushed down as the day goes on; other days' pills sit at the top of their column. The whole pill layer is non-blocking so it never obscures the cells underneath. Hide them with the new 'Quick plans' button in the tracker toolbar (defaults on, preference saved). They appear in Upcoming Plans like any other plan, and can be marked done / skipped / rescheduled the same way.",
       },
