@@ -21,6 +21,21 @@ function SymptomSlider({ label, value, onChange }) {
   const color =
     value <= 3 ? "bg-green-400" : value <= 6 ? "bg-yellow-400" : "bg-red-400";
 
+  // When a textarea above the slider has focus, touching the slider on
+  // Android doesn't blur the text input — so the IME stays up and slides
+  // the whole viewport over the sliders. Blurring the active element on
+  // the slider's pointerdown dismisses the keyboard before the user
+  // starts dragging.
+  const dismissKeyboard = () => {
+    const el = document.activeElement;
+    if (el && el !== document.body && typeof el.blur === "function") {
+      const tag = el.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable) {
+        el.blur();
+      }
+    }
+  };
+
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
@@ -35,6 +50,8 @@ function SymptomSlider({ label, value, onChange }) {
         max={10}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        onPointerDown={dismissKeyboard}
+        onTouchStart={dismissKeyboard}
         className="w-full accent-primary h-2 cursor-pointer"
       />
       <div className="flex justify-between text-xs text-muted-foreground">
