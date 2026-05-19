@@ -24,6 +24,7 @@ export const ALL_PAGES = [
   { id: "location-history", label: "Location History", path: "/location-history", icon: MapPin },
   { id: "friends", label: "Friends", path: "/friends", icon: UserRound },
   { id: "bulletins", label: "Bulletin Board", path: "/bulletins", icon: Pin },
+  { id: "unblend", label: "Help me unblend", path: "/unblend", icon: Heart },
 ];
 
 export const DEFAULT_CONFIG = {
@@ -45,6 +46,7 @@ export const DEFAULT_CONFIG = {
     "tasks",
     "todo",
     "checkin-log",
+    "unblend",
     "activities",
     "sleep",
     "location-history",

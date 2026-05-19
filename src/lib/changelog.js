@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "New 'Help me unblend' page — a gentle question flow that helps figure out which alter is fronting. Time-of-day baseline + color/energy/age questions narrow a 'Likely fronters' list. Tap 'I don't know' a few times and it offers a grounding break.",
+      },
+      {
+        type: "feature",
         text: "Activity Tracker quick-plan pills: double-tap opens a popup listing every quick plan for that day with full names. Tap a plan to manage/edit it.",
       },
       {
