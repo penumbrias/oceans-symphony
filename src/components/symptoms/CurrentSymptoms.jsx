@@ -54,10 +54,13 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4 sm:p-4 pb-0 sm:pb-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
+      style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      onClick={onClose}
+    >
       <div
-        className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs p-4 space-y-4"
-        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        className="bg-card border border-border rounded-2xl w-full sm:max-w-xs p-4 space-y-4 max-h-[80vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
