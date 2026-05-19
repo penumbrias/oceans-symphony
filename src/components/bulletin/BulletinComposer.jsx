@@ -7,17 +7,42 @@ import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign } from "lucide-react";
 import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
-import { parseAndStripSignposts } from "@/lib/signpostAuthors";
+import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
+import { useTerms } from "@/lib/useTerms";
+import { useSystemIdentity } from "@/lib/useSystemIdentity";
+import SystemAvatar from "@/components/shared/SystemAvatar";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
 
-function parseSignposts(content, alters) {
-  const { authors, cleanText } = parseAndStripSignposts(content, alters);
-  return { authorIds: authors.map((a) => a.id), cleanContent: cleanText };
+// `-system` (or the user's custom term, or the first word of their
+// system name) resolves to the system-level sentinel — bulletin gets
+// attributed to the system as a whole, no specific alter.
+function parseSignposts(content, alters, systemKeywords) {
+  const { authors, cleanText } = parseAndStripSignposts(content, alters, systemKeywords);
+  return { authors, cleanContent: cleanText };
 }
 
 export default function BulletinComposer({ alters, authorAlterId, frontingAlterIds = [], onClose, initialContent = "" }) {
   const qc = useQueryClient();
+  const terms = useTerms();
+  const systemIdentity = useSystemIdentity();
+  // Build the recognised system keywords from the user's preferences:
+  // their term for "system" (e.g. "collective"), plus the first token
+  // of their system name (e.g. "penumbrial" for "Penumbrial Ecosystem")
+  // so `-penumbrial` works as a signpost. We also keep the literal
+  // word "system" as a fallback via the parser's own default.
+  const systemKeywords = React.useMemo(() => {
+    const out = [];
+    if (terms.system) out.push(terms.system);
+    if (systemIdentity.name) {
+      systemIdentity.name
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length >= 3)
+        .forEach((w) => out.push(w));
+    }
+    return out;
+  }, [terms.system, systemIdentity.name]);
   const [content, setContent] = useState(initialContent);
   const [pinned, setPinned] = useState(false);
   const [showPoll, setShowPoll] = useState(false);
@@ -61,6 +86,23 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     (a.alias && a.alias.toLowerCase().includes(signpostQuery.toLowerCase()))
   );
 
+  // System-level signpost suggestion. Surfaces in the dropdown just
+  // like an alter would, with the user's system name + system avatar
+  // so it reads as another author option. Matches the query against
+  // the canonical "system" word, the user's term, and any word in the
+  // system name.
+  const systemSignpostMatches = (() => {
+    const q = (signpostQuery || "").toLowerCase();
+    if (!q) return true;
+    if ("system".startsWith(q)) return true;
+    if (terms.system && terms.system.toLowerCase().startsWith(q)) return true;
+    if (systemIdentity.name) {
+      const tokens = systemIdentity.name.toLowerCase().split(/\s+/);
+      if (tokens.some((t) => t.startsWith(q))) return true;
+    }
+    return false;
+  })();
+
   const insertMention = (alter) => {
     const lastAt = content.lastIndexOf("@");
     const beforeAt = lastAt !== -1 ? content.slice(0, lastAt) : content;
@@ -73,7 +115,8 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const insertSignpost = (alter) => {
     const lastDash = content.lastIndexOf("-");
     const before = lastDash !== -1 ? content.slice(0, lastDash) : content;
-    setContent(before + `-${alter.alias || alter.name} `);
+    const token = alter.isSystem ? "system" : (alter.alias || alter.name);
+    setContent(before + `-${token} `);
     setShowSignpostMenu(false);
     setSignpostQuery("");
     textareaRef.current?.focus();
@@ -116,32 +159,49 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const handlePost = async () => {
     if (!content.trim()) return;
     setSaving(true);
-    const { authorIds: signpostedIds, cleanContent } = parseSignposts(content, alters);
-    let finalAuthorIds = signpostedIds.length > 0 ? signpostedIds : frontingAlterIds;
-    // Defensive live-fetch when the prop-passed front is empty — covers
-    // first-render hydration windows where the parent query hasn't
-    // returned yet, so a post made right after page load doesn't fall
-    // through to a "System"-attributed bulletin while someone is
-    // clearly fronting.
-    if (finalAuthorIds.length === 0) {
-      try {
-        const active = await base44.entities.FrontingSession.filter({ is_active: true });
-        const liveIds = active
-          .map(s => s.alter_id || s.primary_alter_id)
-          .filter(Boolean);
-        if (liveIds.length > 0) finalAuthorIds = liveIds;
-      } catch { /* fall through */ }
+    const { authors: signpostedAuthors, cleanContent } = parseSignposts(content, alters, systemKeywords);
+    // An explicit `-system` signpost short-circuits the whole
+    // fronter-fallback path: the user has chosen to attribute this
+    // bulletin to the system as a whole, even if someone is currently
+    // fronting. Everything goes through as "no specific author".
+    const signpostHeadIsSystem = isSystemSignpost(signpostedAuthors[0]);
+    const signpostedIds = signpostedAuthors
+      .filter((a) => !isSystemSignpost(a))
+      .map((a) => a.id);
+    let finalAuthorIds;
+    if (signpostHeadIsSystem) {
+      finalAuthorIds = [];
+    } else if (signpostedIds.length > 0) {
+      finalAuthorIds = signpostedIds;
+    } else {
+      finalAuthorIds = frontingAlterIds;
+      // Defensive live-fetch when the prop-passed front is empty —
+      // covers first-render hydration windows where the parent query
+      // hasn't returned yet, so a post made right after page load
+      // doesn't fall through to a "System"-attributed bulletin while
+      // someone is clearly fronting.
+      if (finalAuthorIds.length === 0) {
+        try {
+          const active = await base44.entities.FrontingSession.filter({ is_active: true });
+          const liveIds = active
+            .map(s => s.alter_id || s.primary_alter_id)
+            .filter(Boolean);
+          if (liveIds.length > 0) finalAuthorIds = liveIds;
+        } catch { /* fall through */ }
+      }
     }
     const mentionedIds = extractMentionedIds(cleanContent);
 
     const data = {
-      author_alter_id: finalAuthorIds[0] || authorAlterId || null,
+      author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || authorAlterId || null),
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
       mentioned_alter_ids: mentionedIds,
       is_pinned: pinned,
       reactions: {},
-      read_by_alter_ids: finalAuthorIds.length > 0 ? finalAuthorIds : (authorAlterId ? [authorAlterId] : []),
+      read_by_alter_ids: signpostHeadIsSystem
+        ? []
+        : (finalAuthorIds.length > 0 ? finalAuthorIds : (authorAlterId ? [authorAlterId] : [])),
     };
 
     if (showPoll && pollQuestion.trim()) {
@@ -255,9 +315,20 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
             ))}
           </div>
         )}
-        {showSignpostMenu && filteredSignposts.length > 0 && (
+        {showSignpostMenu && (filteredSignposts.length > 0 || systemSignpostMatches) && (
           <div className="absolute z-50 left-0 right-0 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto">
             <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Sign as author…</div>
+            {systemSignpostMatches && (
+              <button
+                key={SYSTEM_SENTINEL_ID}
+                onClick={() => insertSignpost({ id: SYSTEM_SENTINEL_ID, isSystem: true, name: systemIdentity.name })}
+                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
+              >
+                <SystemAvatar size="sm" />
+                <span>{systemIdentity.name}</span>
+                <span className="text-muted-foreground text-xs ml-1">(no specific {terms.alter})</span>
+              </button>
+            )}
             {filteredSignposts.slice(0, 8).map(a => (
               <button key={a.id} onClick={() => insertSignpost(a)}
                 className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm">

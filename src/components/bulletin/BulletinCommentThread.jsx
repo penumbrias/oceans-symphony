@@ -7,17 +7,20 @@ import { Link } from "react-router-dom";
 import AuthorsRow from "./AuthorsRow";
 import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
 import { useTerms } from "@/lib/useTerms";
-import { parseAndStripSignposts } from "@/lib/signpostAuthors";
+import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
+import { useSystemIdentity } from "@/lib/useSystemIdentity";
+import SystemAvatar from "@/components/shared/SystemAvatar";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
-function parseSignposts(content, alters) {
-  const { authors, cleanText } = parseAndStripSignposts(content, alters);
-  return { authorIds: authors.map((a) => a.id), cleanContent: cleanText };
+function parseSignposts(content, alters, systemKeywords) {
+  const { authors, cleanText } = parseAndStripSignposts(content, alters, systemKeywords);
+  return { authors, cleanContent: cleanText };
 }
 
 function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, onRefresh }) {
   const terms = useTerms();
+  const systemIdentity = useSystemIdentity();
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -25,11 +28,37 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const [menuMode, setMenuMode] = useState("signpost");
   const [query, setQuery] = useState("");
 
+  const systemKeywords = React.useMemo(() => {
+    const out = [];
+    if (terms.system) out.push(terms.system);
+    if (systemIdentity.name) {
+      systemIdentity.name
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length >= 3)
+        .forEach((w) => out.push(w));
+    }
+    return out;
+  }, [terms.system, systemIdentity.name]);
+
   const filteredAlters = alters.filter(a =>
     !a.is_archived &&
     (a.name.toLowerCase().includes(query.toLowerCase()) ||
      (a.alias && a.alias.toLowerCase().includes(query.toLowerCase())))
   );
+
+  const systemSignpostMatches = (() => {
+    if (menuMode !== "signpost") return false;
+    const q = (query || "").toLowerCase();
+    if (!q) return true;
+    if ("system".startsWith(q)) return true;
+    if (terms.system && terms.system.toLowerCase().startsWith(q)) return true;
+    if (systemIdentity.name) {
+      const tokens = systemIdentity.name.toLowerCase().split(/\s+/);
+      if (tokens.some((t) => t.startsWith(q))) return true;
+    }
+    return false;
+  })();
 
   const handleChange = (e) => {
     const val = e.target.value;
@@ -64,7 +93,8 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const insertSignpost = (alter) => {
     const lastDash = text.lastIndexOf("-");
     const before = lastDash !== -1 ? text.slice(0, lastDash) : text;
-    setText(before + `-${alter.alias || alter.name} `);
+    const token = alter.isSystem ? "system" : (alter.alias || alter.name);
+    setText(before + `-${token} `);
     setShowMenu(false);
   };
 
@@ -76,25 +106,37 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const handleSubmit = async () => {
     if (!text.trim()) return;
     setSaving(true);
-    const { authorIds, cleanContent } = parseSignposts(text, alters);
-    let finalAuthorIds = authorIds.length > 0 ? authorIds : frontingAlterIds;
-    // Defensive: if no @ signposts and the prop-passed frontingAlterIds is
-    // empty (the parent query might still be hydrating, or a session was
-    // just created and not yet propagated), refetch live so the comment
-    // isn't attributed to "System" while there's clearly a fronter set.
-    if (finalAuthorIds.length === 0) {
-      try {
-        const active = await base44.entities.FrontingSession.filter({ is_active: true });
-        const liveIds = active
-          .map(s => s.alter_id || s.primary_alter_id)
-          .filter(Boolean);
-        if (liveIds.length > 0) finalAuthorIds = liveIds;
-      } catch { /* fall through with the system-attributed save */ }
+    const { authors: signpostedAuthors, cleanContent } = parseSignposts(text, alters, systemKeywords);
+    const signpostHeadIsSystem = isSystemSignpost(signpostedAuthors[0]);
+    const authorIds = signpostedAuthors
+      .filter((a) => !isSystemSignpost(a))
+      .map((a) => a.id);
+    let finalAuthorIds;
+    if (signpostHeadIsSystem) {
+      finalAuthorIds = [];
+    } else if (authorIds.length > 0) {
+      finalAuthorIds = authorIds;
+    } else {
+      finalAuthorIds = frontingAlterIds;
+      // Defensive: if no @ signposts and the prop-passed
+      // frontingAlterIds is empty (the parent query might still be
+      // hydrating, or a session was just created and not yet
+      // propagated), refetch live so the comment isn't attributed to
+      // "System" while there's clearly a fronter set.
+      if (finalAuthorIds.length === 0) {
+        try {
+          const active = await base44.entities.FrontingSession.filter({ is_active: true });
+          const liveIds = active
+            .map(s => s.alter_id || s.primary_alter_id)
+            .filter(Boolean);
+          if (liveIds.length > 0) finalAuthorIds = liveIds;
+        } catch { /* fall through with the system-attributed save */ }
+      }
     }
     const comment = await base44.entities.BulletinComment.create({
       bulletin_id: bulletinId,
       parent_comment_id: parentCommentId || null,
-      author_alter_id: finalAuthorIds[0] || null,
+      author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || null),
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
       reactions: {},
@@ -155,11 +197,22 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
           {saving ? "..." : parentCommentId ? "Reply" : "Post"}
         </button>
       </div>
-      {showMenu && filteredAlters.length > 0 && (
+      {showMenu && (filteredAlters.length > 0 || systemSignpostMatches) && (
         <div className="absolute z-50 left-0 right-16 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto">
           <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">
             {menuMode === "mention" ? `Mention ${terms.alter}…` : "Sign as author…"}
           </div>
+          {systemSignpostMatches && (
+            <button
+              key={SYSTEM_SENTINEL_ID}
+              onClick={() => handleSelect({ id: SYSTEM_SENTINEL_ID, isSystem: true, name: systemIdentity.name })}
+              className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-muted/50 text-left text-xs"
+            >
+              <SystemAvatar size="sm" />
+              <span>{systemIdentity.name}</span>
+              <span className="text-muted-foreground">(no specific {terms.alter})</span>
+            </button>
+          )}
           {filteredAlters.slice(0, 6).map(a => (
             <button key={a.id} onClick={() => handleSelect(a)}
               className="flex items-center gap-2 w-full px-3 py-1.5 hover:bg-muted/50 text-left text-xs">
