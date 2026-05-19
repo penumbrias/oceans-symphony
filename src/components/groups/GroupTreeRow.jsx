@@ -43,10 +43,22 @@ export default function GroupTreeRow({
   const autoExpandTimeoutRef = useRef(null);
   const isCreatingSubgroup = creatingSubgroupFor === group.id;
 
-  // Find children by matching parent to this group's ID or sp_id
-  const childGroups = allGroups
-    .filter((g) => g.parent && (g.parent === group.id || g.parent === group.sp_id))
-    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  // Find children by matching parent to this group's ID or sp_id.
+  // Exclude self so a self-parented row doesn't recurse forever.
+  // Clamp recursion depth defensively at MAX_GROUP_DEPTH so a
+  // pathological data shape can never blow the call stack — at
+  // depth limit we just stop rendering further children.
+  const MAX_GROUP_DEPTH = 8;
+  const atDepthLimit = level >= MAX_GROUP_DEPTH;
+  const childGroups = atDepthLimit
+    ? []
+    : allGroups
+        .filter((g) =>
+          g.parent &&
+          g.id !== group.id &&
+          (g.parent === group.id || g.parent === group.sp_id)
+        )
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
 
   const hasChildren = childGroups.length > 0;
   const isExpanded = expandedGroups.has(group.id);
