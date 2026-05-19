@@ -26,6 +26,11 @@ export function getActivitiesForSlot(date, hour, minute, intervalMinutes, activi
   const slotEnd = new Date(slotStart.getTime() + intervalMinutes * 60 * 1000);
   const timed = [], logged = [];
   activities.forEach(a => {
+    // Quick plans are date-only; they render as overlay pills via a
+    // separate layer in the grid (not in time slots), so skip them
+    // entirely here — without this, a quick plan's midnight
+    // timestamp would surface in the 00:00 cell.
+    if (a.is_quick_plan) return;
     const actStart = parseDate(a.timestamp);
     if (a.duration_minutes) {
       const actEnd = new Date(actStart.getTime() + a.duration_minutes * 60 * 1000);
