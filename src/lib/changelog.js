@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Analytics now have a 'System-wide / all data combined' view alongside the per-alter views. In the Co-Fronting Analytics page, the alter list opens with a System tile that shows every co-fronting pair ranked by frequency — useful for users who don't track fronting per-alter but still want to see who tends to be present together. In the Alter × Symptom Correlation panel, a System tile sits next to the alter cards and surfaces the baseline symptom averages across every check-in regardless of who was fronting. The existing per-alter views stay exactly as they were.",
+      },
+      {
+        type: "feature",
         text: "System-level signposting now works in bulletins and bulletin comments too, not just journals. The autocomplete dropdown shows your system as another author option (with your system picture + name from Settings), and you can sign with `-system`, your custom system term (`-collective`, etc.), or any word from your system name (`-penumbrial` for 'Penumbrial Ecosystem'). Posts signed this way are attributed to the system as a whole — even if someone is currently fronting — and the existing `-system` journal flow now uses the system avatar/name everywhere too.",
       },
       {
