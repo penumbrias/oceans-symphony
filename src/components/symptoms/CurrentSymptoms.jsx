@@ -75,10 +75,10 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
                 key={i}
                 onClick={() => handleSetSeverity(i)}
                 disabled={saving}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
                   currentSeverity === i
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-muted text-foreground border-border hover:bg-muted/70"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
                 } disabled:opacity-50`}
               >
                 {i}
