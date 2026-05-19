@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Active Symptoms popup (press-and-hold on a symptom pill on the dashboard): the bottom sheet now respects the device's bottom safe-area inset, so the Cancel button is no longer cut off below the screen edge on Android.",
+      },
+      {
+        type: "fix",
         text: "Dashboard: the pencil 'rearrange tiles' button next to the search bar looked cramped against the column-count toggle. It now uses the same icon-button styling as the toggle so the two read as a matched pair instead of a misaligned cluster.",
       },
       {
