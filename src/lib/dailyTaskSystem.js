@@ -256,11 +256,43 @@ export async function cleanupLegacyCardEntryOnce(db) {
 }
 
 /**
+ * Resolve a template's auto-trigger list to a `{ ids, mode }` pair.
+ * Templates may store either:
+ *   - the new `auto_triggers: string[]` + `auto_trigger_mode: "any"|"all"`
+ *     pair (multi-trigger), or
+ *   - the legacy `auto_trigger: string` single field
+ * This helper normalises both shapes so callers don't have to branch.
+ */
+export function resolveAutoTriggers(template) {
+  const arr = Array.isArray(template?.auto_triggers)
+    ? template.auto_triggers.filter((t) => typeof t === "string" && t)
+    : [];
+  if (arr.length > 0) {
+    const mode = template?.auto_trigger_mode === "all" ? "all" : "any";
+    return { ids: arr, mode };
+  }
+  if (template?.auto_trigger) return { ids: [template.auto_trigger], mode: "any" };
+  return { ids: [], mode: "any" };
+}
+
+/**
+ * True iff a template's auto-triggers fire for today, honouring
+ * any/all mode. Empty trigger list returns false (no triggers ≠
+ * completed).
+ */
+export function isAutoTriggered(template, autoTriggers) {
+  const { ids, mode } = resolveAutoTriggers(template);
+  if (ids.length === 0) return false;
+  if (mode === "all") return ids.every((id) => autoTriggers.has(id));
+  return ids.some((id) => autoTriggers.has(id));
+}
+
+/**
  * Determine if a template task is completed for today.
  */
 export function isTaskCompleted(template, manualCompletedIds, autoTriggers) {
   if (template.mode === "AUTO") {
-    return autoTriggers.has(template.auto_trigger);
+    return isAutoTriggered(template, autoTriggers);
   }
   return manualCompletedIds.has(template.id);
 }

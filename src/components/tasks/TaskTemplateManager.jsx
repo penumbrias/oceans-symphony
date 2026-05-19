@@ -27,8 +27,21 @@ const SECTION_STYLE = {
 
 const EMPTY_FORM = {
   title: "", description: "", points: 3, frequency: "daily",
-  mode: "MANUAL", is_active: true, sort_order: 0, auto_trigger: "", nav_path: "",
+  mode: "MANUAL", is_active: true, sort_order: 0,
+  auto_trigger: "",                  // legacy single-trigger field, kept for back-compat
+  auto_triggers: [],                 // new: ordered list of trigger ids
+  auto_trigger_mode: "any",          // "any" (OR) | "all" (AND) — only matters when 2+
+  nav_path: "",
 };
+
+// Pull the trigger list off a template, falling back to the legacy
+// single field so editing an old template surfaces what's already set.
+function readTriggers(form) {
+  if (Array.isArray(form?.auto_triggers) && form.auto_triggers.length > 0) {
+    return form.auto_triggers.filter(Boolean);
+  }
+  return form?.auto_trigger ? [form.auto_trigger] : [];
+}
 
 function TaskForm({ initial, onSave, onCancel, isNew }) {
   const [form, setForm] = useState(initial || EMPTY_FORM);
@@ -69,16 +82,100 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
             <option value="AUTO">AUTO</option>
           </select>
         </div>
-        {form.mode === "AUTO" && (
-          <div className="col-span-2">
-            <label className="text-xs font-medium text-muted-foreground">Auto trigger</label>
-            <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              value={form.auto_trigger || ""} onChange={(e) => set("auto_trigger", e.target.value)}>
-              <option value="">— Select trigger —</option>
-              {AUTO_TRIGGER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{applyTerms(o.label, terms)}</option>)}
-            </select>
-          </div>
-        )}
+        {form.mode === "AUTO" && (() => {
+          const triggers = readTriggers(form);
+          const triggerLabel = (id) => {
+            const opt = AUTO_TRIGGER_OPTIONS.find((o) => o.value === id);
+            return opt ? applyTerms(opt.label, terms) : id;
+          };
+          const updateTriggers = (next) => {
+            // Keep the legacy `auto_trigger` field aligned with the
+            // first entry so older readers still see something sensible.
+            setForm((p) => ({
+              ...p,
+              auto_triggers: next,
+              auto_trigger: next[0] || "",
+            }));
+          };
+          const addTrigger = (id) => {
+            if (!id || triggers.includes(id)) return;
+            updateTriggers([...triggers, id]);
+          };
+          const removeTrigger = (id) => {
+            updateTriggers(triggers.filter((t) => t !== id));
+          };
+          const mode = form.auto_trigger_mode === "all" ? "all" : "any";
+          return (
+            <div className="col-span-2 space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Auto triggers</label>
+
+              {triggers.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {triggers.map((id, i) => (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/30"
+                    >
+                      {triggerLabel(id)}
+                      <button
+                        type="button"
+                        onClick={() => removeTrigger(id)}
+                        aria-label={`Remove ${triggerLabel(id)}`}
+                        className="hover:bg-primary/20 rounded-full p-0.5"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value=""
+                onChange={(e) => { addTrigger(e.target.value); e.target.value = ""; }}
+              >
+                <option value="">{triggers.length === 0 ? "— Select trigger —" : "+ Add another trigger"}</option>
+                {AUTO_TRIGGER_OPTIONS
+                  .filter((o) => !triggers.includes(o.value))
+                  .map((o) => (
+                    <option key={o.value} value={o.value}>{applyTerms(o.label, terms)}</option>
+                  ))}
+              </select>
+
+              {triggers.length >= 2 && (
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-xs text-muted-foreground">Count complete when:</span>
+                  <div className="inline-flex rounded-md border border-border overflow-hidden text-xs">
+                    <button
+                      type="button"
+                      onClick={() => set("auto_trigger_mode", "any")}
+                      className={`px-2.5 py-1 transition-colors ${
+                        mode === "any" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"
+                      }`}
+                    >
+                      Any (or)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => set("auto_trigger_mode", "all")}
+                      className={`px-2.5 py-1 border-l border-border transition-colors ${
+                        mode === "all" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"
+                      }`}
+                    >
+                      All (and)
+                    </button>
+                  </div>
+                  <span className="text-[0.6875rem] text-muted-foreground">
+                    {mode === "any"
+                      ? "fires as soon as one trigger happens"
+                      : "every trigger must happen"}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {form.mode === "MANUAL" && (
           <div className="col-span-2">
             <label className="text-xs font-medium text-muted-foreground">Navigation path (optional)</label>
@@ -211,10 +308,15 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
   };
 
   const handleSave = async (id, form) => {
+    const triggers = readTriggers(form);
     await base44.entities.DailyTaskTemplate.update(id, {
       title: form.title, description: form.description, points: form.points,
       frequency: form.frequency || "daily", mode: form.mode, is_active: form.is_active,
-      auto_trigger: form.mode === "AUTO" ? form.auto_trigger : null,
+      auto_trigger: form.mode === "AUTO" ? (triggers[0] || null) : null,
+      auto_triggers: form.mode === "AUTO" ? triggers : [],
+      auto_trigger_mode: form.mode === "AUTO" && triggers.length >= 2
+        ? (form.auto_trigger_mode === "all" ? "all" : "any")
+        : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
     });
     setEditingId(null);
@@ -224,9 +326,14 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
 
   const handleAdd = async (form) => {
     const sectionLen = grouped[form.frequency || "daily"]?.length ?? 0;
+    const triggers = readTriggers(form);
     await base44.entities.DailyTaskTemplate.create({
       ...form, frequency: form.frequency || "daily", sort_order: sectionLen,
-      auto_trigger: form.mode === "AUTO" ? form.auto_trigger : null,
+      auto_trigger: form.mode === "AUTO" ? (triggers[0] || null) : null,
+      auto_triggers: form.mode === "AUTO" ? triggers : [],
+      auto_trigger_mode: form.mode === "AUTO" && triggers.length >= 2
+        ? (form.auto_trigger_mode === "all" ? "all" : "any")
+        : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
     });
     setShowAddForm(false);
