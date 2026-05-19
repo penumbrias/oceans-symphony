@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Help me unblend: color picker is now the full hex picker (not just swatches), and questions auto-generate from your alter data — pronouns, role, and every custom field with at least two distinct values becomes its own question.",
+      },
+      {
+        type: "improve",
+        text: "Help me unblend: 'Likely fronters' is now a full scrollable list of every alter sorted by likeliness, with the currently-fronting alters pinned to the top.",
+      },
+      {
         type: "feature",
         text: "New 'Help me unblend' page — a gentle question flow that helps figure out which alter is fronting. Time-of-day baseline + color/energy/age questions narrow a 'Likely fronters' list. Tap 'I don't know' a few times and it offers a grounding break.",
       },
