@@ -394,7 +394,7 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
   );
 }
 
-export default function CurrentFronters({ alters }) {
+export default function CurrentFronters({ alters, hideStatusNote = false }) {
   const [showModal, setShowModal] = useState(false);
   // Post-hoc switch metadata: open the same Trigger picker and Switch
   // journal flows that the SetFront modal offers, even when the user
@@ -693,8 +693,11 @@ export default function CurrentFronters({ alters }) {
 
         <PrivateMessagesIndicator activeFronters={all} />
 
-        {/* Custom status — each save is a new timestamped record, old ones never change */}
-        {editingStatus ? (
+        {/* Custom status — each save is a new timestamped record, old
+            ones never change. When the dashboard layout enables the
+            standalone <StatusNoteCard /> separately, we hide the inline
+            copy here so the input doesn't render twice. */}
+        {hideStatusNote ? null : editingStatus ? (
           <div className="flex gap-2 items-center">
             <Input
               value={tempStatus}

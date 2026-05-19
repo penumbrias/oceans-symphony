@@ -23,6 +23,7 @@ import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import UpcomingPlansSurfacesSection from "@/components/settings/UpcomingPlansSurfacesSection";
 import NavigationSettings from "@/components/settings/NavigationSettings";
+import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
@@ -350,6 +351,7 @@ export default function Settings() {
         {/* ── APPEARANCE ── */}
         <Section id="appearance" icon="🎨" label="Appearance">
           <AdvancedAppearance />
+          <DashboardLayoutSettings />
           <div className="border-t border-border/30 pt-4">
             <UpcomingPlansSurfacesSection />
           </div>
