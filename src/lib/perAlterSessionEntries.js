@@ -36,8 +36,12 @@ export function parseSessionSymptoms(raw) {
 //   { id, kind, ts (ISO), sessionId, alterId, payload }
 // kinds: 'note' | 'emotion' | 'symptom'
 //
-// Notes use their own per-entry timestamp; emotions/symptoms share the
-// session's start_time since they're stored as a set, not a log.
+// Notes use their own per-entry timestamp.
+// Emotions + symptoms are grouped per-session: one entry per session
+// whose payload is the full array. Previously this function exploded
+// them into one entry PER emotion / PER symptom, which made a
+// 22-emotion Quick Check-In render as 22 separate rows on the
+// Check-In Log — definitely not the intent.
 export function extractPerAlterEntries(sessions, { alterId } = {}) {
   const out = [];
   for (const s of sessions || []) {
@@ -62,25 +66,32 @@ export function extractPerAlterEntries(sessions, { alterId } = {}) {
       });
     }
 
-    for (const [i, em] of parseSessionEmotions(s.session_emotions).entries()) {
+    const emotions = parseSessionEmotions(s.session_emotions);
+    if (emotions.length > 0) {
       out.push({
-        id: `pa-emo-${s.id}-${i}`,
+        id: `pa-emo-${s.id}`,
         kind: "emotion",
         ts: sessionTs,
         sessionId: s.id,
         alterId: sessionAlter,
-        payload: { label: em },
+        // Always plural; consumers iterate. Keeping `label` for the
+        // first item too is a compat shim for older render code.
+        payload: { labels: emotions, label: emotions[0] },
       });
     }
 
-    for (const [i, sym] of parseSessionSymptoms(s.session_symptoms).entries()) {
+    const symptoms = parseSessionSymptoms(s.session_symptoms);
+    if (symptoms.length > 0) {
       out.push({
-        id: `pa-sym-${s.id}-${i}`,
+        id: `pa-sym-${s.id}`,
         kind: "symptom",
         ts: sessionTs,
         sessionId: s.id,
         alterId: sessionAlter,
-        payload: sym,
+        // Keep the first-symptom fields at the root as a compat
+        // shim so render code that hasn't been updated still has
+        // something to show.
+        payload: { items: symptoms, ...(symptoms[0] || {}) },
       });
     }
   }
