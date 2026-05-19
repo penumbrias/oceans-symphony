@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 18, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Swipe-back chevron could get stuck on the left side of the screen until the next edge-swipe. The root cause was a multi-finger race: a second touch landing outside the 40px edge zone would null out the in-progress gesture, and the matching touchend would early-return without scheduling the indicator's fade-out. The hook now ignores additional touches while a gesture is mid-flight and always schedules the fade-out on touchend regardless.",
+      },
+      {
         type: "improve",
         text: "Activity Planner weekly grid: long activities used to paint a checkmark (or X / needs-review dot) inside every 30-minute cell they spanned, and the activity name was truncated to fit a single cell width. Now the status decorations only render in the activity's first slot, and the name box extends across the full duration so the label can wrap and fill the activity's visible block.",
       },

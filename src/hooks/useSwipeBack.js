@@ -37,17 +37,26 @@ export default function useSwipeBack() {
   const fadeTimer = useRef(null);
 
   useEffect(() => {
+    const hideIndicatorSoon = () => {
+      clearTimeout(fadeTimer.current);
+      fadeTimer.current = setTimeout(() => {
+        setIndicatorVisible(false);
+        setIndicatorProgress(0);
+      }, INDICATOR_FADE_MS);
+    };
+
     const onTouchStart = (e) => {
+      // If a gesture is already in progress, ignore additional touches.
+      // Without this guard, a second finger landing anywhere outside the
+      // 40px edge zone would null out touchStart.current — and then the
+      // matching touchend would early-return, never scheduling the
+      // fade-out. The result was a back-chevron stuck on screen until
+      // the user happened to start another edge-swipe.
+      if (touchStart.current) return;
       const touch = e.touches[0];
       // Only track touches starting in the left edge zone
-      if (touch.clientX > EDGE_THRESHOLD) {
-        touchStart.current = null;
-        return;
-      }
-      if (shouldIgnoreTarget(e.target)) {
-        touchStart.current = null;
-        return;
-      }
+      if (touch.clientX > EDGE_THRESHOLD) return;
+      if (shouldIgnoreTarget(e.target)) return;
       touchStart.current = { x: touch.clientX, y: touch.clientY };
       setIndicatorVisible(false);
       setIndicatorProgress(0);
@@ -66,18 +75,17 @@ export default function useSwipeBack() {
     };
 
     const onTouchEnd = (e) => {
+      // Always schedule the fade-out, even when touchStart.current is
+      // null. If the indicator somehow became visible without us holding
+      // an active gesture (e.g. mid-flight state got cleared by another
+      // listener), this guarantees it still disappears.
+      hideIndicatorSoon();
+
       if (!touchStart.current) return;
       const touch = e.changedTouches[0];
       const dx = touch.clientX - touchStart.current.x;
       const dy = Math.abs(touch.clientY - touchStart.current.y);
       touchStart.current = null;
-
-      // Fade out indicator
-      clearTimeout(fadeTimer.current);
-      fadeTimer.current = setTimeout(() => {
-        setIndicatorVisible(false);
-        setIndicatorProgress(0);
-      }, INDICATOR_FADE_MS);
 
       // Check all gesture conditions
       if (dx < MIN_SWIPE_X) return;
@@ -90,7 +98,6 @@ export default function useSwipeBack() {
     // system swipe, app switcher, etc.) touchend never fires. Without this,
     // the indicator stays painted on screen until the next touchstart.
     const onTouchCancel = () => {
-      if (!touchStart.current) return;
       touchStart.current = null;
       clearTimeout(fadeTimer.current);
       setIndicatorVisible(false);
