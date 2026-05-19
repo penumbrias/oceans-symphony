@@ -1,21 +1,107 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { ArrowUp, ArrowDown, Lock, LayoutGrid } from "lucide-react";
+import { GripVertical, Lock, LayoutGrid } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { DASHBOARD_ELEMENTS, DEFAULT_LAYOUT, resolveLayout } from "@/lib/dashboardLayout";
+import {
+  getBulletinBatchSize,
+  setBulletinBatchSize,
+  BATCH_MIN,
+  BATCH_MAX,
+} from "@/lib/bulletinLimit";
 import { toast } from "sonner";
 
-// Lets the user reorder + toggle each element on the dashboard. The
-// reorder UI is currently up/down arrows — same pattern the rest of
-// Settings → Appearance uses (NavigationSettings / QuickActionsConfig).
-// True touch-drag could come later; arrows are reliable on every
-// browser + WebView and don't fight scroll gestures.
-//
-// Layout writes broadcast a window event so the live Dashboard
-// re-renders without needing a full page reload (matches the
-// UpcomingPlansSurfacesSection pattern).
+// Drag/drop pill row. Whole row is the drag handle when grabbed from
+// the GripVertical icon — using a dedicated handle keeps the toggle
+// switch tappable without accidentally starting a drag.
+function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bulletinBatchSize }) {
+  const meta = DASHBOARD_ELEMENTS[entry.id];
+  const locked = !!meta?.locked;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: entry.id });
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : "auto",
+  };
+  if (!meta) return null;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors ${
+        entry.enabled ? "bg-card border-border/50" : "bg-muted/20 border-border/30 opacity-70"
+      } ${isDragging ? "shadow-lg ring-2 ring-primary/40" : ""}`}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder"
+        className="touch-none cursor-grab active:cursor-grabbing w-7 h-9 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium truncate">{meta.label}</p>
+          {locked && (
+            <Lock className="w-3 h-3 text-muted-foreground flex-shrink-0" aria-label="Always shown" />
+          )}
+        </div>
+        {meta.description && (
+          <p className="text-[0.6875rem] text-muted-foreground mt-0.5 leading-snug">{meta.description}</p>
+        )}
+        {entry.id === "bulletin_board" && entry.enabled && (
+          <div className="flex items-center gap-2 mt-2">
+            <label className="text-[0.6875rem] text-muted-foreground">Show</label>
+            <input
+              type="number"
+              min={BATCH_MIN}
+              max={BATCH_MAX}
+              value={bulletinBatchSize}
+              onChange={(e) => onBulletinBatchChange(e.target.value)}
+              className="w-14 h-7 px-2 text-xs rounded-md border border-border/50 bg-background text-foreground"
+            />
+            <span className="text-[0.6875rem] text-muted-foreground">
+              at a time (then "Load more" reveals {bulletinBatchSize} more each tap)
+            </span>
+          </div>
+        )}
+      </div>
+      {locked ? (
+        <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide flex-shrink-0">
+          Always on
+        </span>
+      ) : (
+        <Switch
+          checked={entry.enabled}
+          onCheckedChange={(v) => onToggle(entry.id, v)}
+          aria-label={`Toggle ${meta.label}`}
+        />
+      )}
+    </div>
+  );
+}
+
 export default function DashboardLayoutSettings() {
   const queryClient = useQueryClient();
   const { data: settings = [] } = useQuery({
@@ -29,6 +115,28 @@ export default function DashboardLayoutSettings() {
     [record?.dashboard_layout]
   );
 
+  // Local mirror so drag movements feel instant. We commit the new
+  // order to SystemSettings on drag-end (not on every frame) — the
+  // user sees the pill snap into place and the dashboard re-renders
+  // a beat later.
+  const [draftLayout, setDraftLayout] = useState(layout);
+  useEffect(() => { setDraftLayout(layout); }, [layout]);
+
+  // Bulletin batch size lives in localStorage (per-device), not on
+  // SystemSettings. Mirrored here in state so the input is reactive
+  // without a full re-query, plus a "storage" listener for the rare
+  // case of multi-tab editing.
+  const [batchSize, setBatchSizeLocal] = useState(() => getBulletinBatchSize());
+  useEffect(() => {
+    const sync = () => setBatchSizeLocal(getBulletinBatchSize());
+    window.addEventListener("bulletin-batch-size-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("bulletin-batch-size-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
   const persist = async (nextLayout) => {
     if (record?.id) {
       await base44.entities.SystemSettings.update(record.id, { dashboard_layout: nextLayout });
@@ -36,27 +144,46 @@ export default function DashboardLayoutSettings() {
       await base44.entities.SystemSettings.create({ dashboard_layout: nextLayout });
     }
     queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-    try {
-      window.dispatchEvent(new CustomEvent("dashboard-layout-changed"));
-    } catch { /* ignore */ }
-  };
-
-  const swap = (idx, delta) => {
-    const target = idx + delta;
-    if (target < 0 || target >= layout.length) return;
-    const next = layout.slice();
-    [next[idx], next[target]] = [next[target], next[idx]];
-    persist(next);
+    try { window.dispatchEvent(new CustomEvent("dashboard-layout-changed")); }
+    catch { /* ignore */ }
   };
 
   const toggle = (id, enabled) => {
-    const next = layout.map((e) => (e.id === id ? { ...e, enabled } : e));
+    const next = draftLayout.map((e) => (e.id === id ? { ...e, enabled } : e));
+    setDraftLayout(next);
     persist(next);
   };
 
   const resetToDefault = async () => {
-    await persist(DEFAULT_LAYOUT.map((e) => ({ ...e })));
+    const next = DEFAULT_LAYOUT.map((e) => ({ ...e }));
+    setDraftLayout(next);
+    await persist(next);
     toast.success("Dashboard layout reset to default");
+  };
+
+  // DnD sensors — same config as QuickNavMenu so the touch behaviour
+  // is consistent (200ms hold to grab on mobile, 8px pointer threshold
+  // on mouse).
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  const handleDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const oldIndex = draftLayout.findIndex((e) => e.id === active.id);
+    const newIndex = draftLayout.findIndex((e) => e.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const next = arrayMove(draftLayout, oldIndex, newIndex);
+    setDraftLayout(next);
+    persist(next);
+  };
+
+  const handleBatchChange = (raw) => {
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n)) return;
+    setBatchSize(n);
+    setBatchSizeLocal(Math.max(BATCH_MIN, Math.min(BATCH_MAX, n)));
   };
 
   return (
@@ -68,9 +195,9 @@ export default function DashboardLayoutSettings() {
             Dashboard layout
           </h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Reorder the elements on the dashboard with the arrows, and
-            switch any block off if you don't want it. The Quick-Nav
-            grid + search are always on but can be moved.
+            Drag the grip handle to reorder, and switch any block off if
+            you don't want it. The Quick-Nav grid + search is always
+            on but can be moved.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={resetToDefault} className="text-xs flex-shrink-0">
@@ -78,64 +205,30 @@ export default function DashboardLayoutSettings() {
         </Button>
       </div>
 
-      <div className="space-y-1.5">
-        {layout.map((entry, idx) => {
-          const meta = DASHBOARD_ELEMENTS[entry.id];
-          if (!meta) return null;
-          const locked = !!meta.locked;
-          return (
-            <div
-              key={entry.id}
-              className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors ${
-                entry.enabled ? "bg-card border-border/50" : "bg-muted/20 border-border/30 opacity-70"
-              }`}
-            >
-              <div className="flex flex-col">
-                <button
-                  type="button"
-                  onClick={() => swap(idx, -1)}
-                  disabled={idx === 0}
-                  aria-label="Move up"
-                  className="w-7 h-6 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ArrowUp className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => swap(idx, 1)}
-                  disabled={idx === layout.length - 1}
-                  aria-label="Move down"
-                  className="w-7 h-6 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ArrowDown className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-medium truncate">{meta.label}</p>
-                  {locked && (
-                    <Lock className="w-3 h-3 text-muted-foreground flex-shrink-0" aria-label="Always shown" />
-                  )}
-                </div>
-                {meta.description && (
-                  <p className="text-[0.6875rem] text-muted-foreground mt-0.5 leading-snug">{meta.description}</p>
-                )}
-              </div>
-              {locked ? (
-                <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide flex-shrink-0">
-                  Always on
-                </span>
-              ) : (
-                <Switch
-                  checked={entry.enabled}
-                  onCheckedChange={(v) => toggle(entry.id, v)}
-                  aria-label={`Toggle ${meta.label}`}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={draftLayout.map((e) => e.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-1.5">
+            {draftLayout.map((entry, idx) => (
+              <SortablePill
+                key={entry.id}
+                entry={entry}
+                idx={idx}
+                total={draftLayout.length}
+                onToggle={toggle}
+                onBulletinBatchChange={handleBatchChange}
+                bulletinBatchSize={batchSize}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </section>
   );
 }

@@ -10,6 +10,7 @@ import MentionAlertBanner from "./MentionAlertBanner";
 import PinnedPollCard from "./PinnedPollCard";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { toast } from "sonner";
+import { getBulletinBatchSize } from "@/lib/bulletinLimit";
 
 function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
   const [text, setText] = useState("");
@@ -59,24 +60,72 @@ function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
   );
 }
 
-export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds = [], highlightBulletinId: highlightBulletinIdProp }) {
+export default function BulletinBoard({
+  alters,
+  currentAlterId,
+  frontingAlterIds = [],
+  highlightBulletinId: highlightBulletinIdProp,
+  // pageMode = true: standalone /bulletins page variant. Uses a
+  // larger default batch + IntersectionObserver auto-load-more on
+  // scroll. Default (false) is the dashboard widget.
+  pageMode = false,
+}) {
   const [composing, setComposing] = useState(false);
   const [composeInitial, setComposeInitial] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(pageMode);
   const [searchQuery, setSearchQuery] = useState("");
   // Local highlight overrides the prop when the user taps the mention banner —
   // mirrors the notification-click flow without needing to round-trip through
   // location state since we're already on the dashboard.
   const [localHighlightId, setLocalHighlightId] = useState(null);
   const highlightBulletinId = localHighlightId || highlightBulletinIdProp;
-  const [visibleCount, setVisibleCount] = useState(10);
+  // Initial visible count + load-more batch. Dashboard widget reads
+  // the user's configured batch size; the standalone page uses a
+  // larger default (25) so it feels like a real list, not a
+  // dashboard preview strip.
+  const [batchSize, setBatchSize] = useState(() => pageMode ? 25 : getBulletinBatchSize());
+  useEffect(() => {
+    if (pageMode) return; // page mode is fixed
+    const sync = () => setBatchSize(getBulletinBatchSize());
+    window.addEventListener("bulletin-batch-size-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("bulletin-batch-size-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [pageMode]);
+  const [visibleCount, setVisibleCount] = useState(() => pageMode ? 25 : getBulletinBatchSize());
   const [sortByActivity, setSortByActivity] = useState(false);
   const bulletinRefs = useRef({});
   const observerTarget = useRef(null);
 
+  // Auto-load-more in page mode using IntersectionObserver on the
+  // sentinel at the end of the list. Threshold is wide so users get
+  // the next batch as the sentinel approaches the viewport rather
+  // than waiting until it's fully visible.
+  useEffect(() => {
+    if (!pageMode) return;
+    const el = observerTarget.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((v) => v + 25);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+    // re-attach when filtered list size changes so a new sentinel is observed
+  }, [pageMode, visibleCount, searchQuery, sortByActivity]);
+
+  // Page mode browses every bulletin (with IntersectionObserver
+  // lazy-load), so we widen the query cap. Dashboard mode keeps the
+  // 100-row cap since the widget only ever shows the latest few.
   const { data: bulletins = [] } = useQuery({
-    queryKey: ["bulletins"],
-    queryFn: () => base44.entities.Bulletin.list("-created_date", 100)
+    queryKey: ["bulletins", pageMode ? "all" : "recent"],
+    queryFn: () => base44.entities.Bulletin.list("-created_date", pageMode ? 2000 : 100)
   });
 
   // Polls flagged `pinned_to_dashboard` from the Polls page surface in
@@ -168,7 +217,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
             autoFocus
             placeholder="Search bulletins..."
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(10); }}
+            onChange={(e) => { setSearchQuery(e.target.value); setVisibleCount(batchSize); }}
             className="h-8 text-sm"
           />
         </div>
@@ -255,7 +304,7 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
               <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Recent</p>
             }
             <button
-              onClick={() => { setSortByActivity(p => !p); setVisibleCount(10); }}
+              onClick={() => { setSortByActivity(p => !p); setVisibleCount(batchSize); }}
               className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors ml-auto ${
                 sortByActivity
                   ? "border-primary/50 bg-primary/10 text-primary"
@@ -286,7 +335,16 @@ export default function BulletinBoard({ alters, currentAlterId, frontingAlterIds
 
           {visibleCount < sortedRecent.length &&
             <div ref={observerTarget} className="py-4 text-center">
-              <button onClick={() => setVisibleCount((v) => v + 10)} className="text-xs text-muted-foreground hover:text-foreground">Load more</button>
+              {pageMode ? (
+                <span className="text-xs text-muted-foreground">Loading more…</span>
+              ) : (
+                <button
+                  onClick={() => setVisibleCount((v) => v + batchSize)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Load more
+                </button>
+              )}
             </div>
           }
         </div>

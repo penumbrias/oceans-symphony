@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin } from "lucide-react";
 
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
@@ -23,6 +23,7 @@ export const ALL_PAGES = [
   { id: "system-history", label: "System History", path: "/system-history", icon: GitMerge },
   { id: "location-history", label: "Location History", path: "/location-history", icon: MapPin },
   { id: "friends", label: "Friends", path: "/friends", icon: UserRound },
+  { id: "bulletins", label: "Bulletin Board", path: "/bulletins", icon: Pin },
 ];
 
 export const DEFAULT_CONFIG = {
@@ -59,5 +60,12 @@ export const DEFAULT_CONFIG = {
     "friends",
     "settings",
   ],
-  dashboardGridRemoved: [], // pages explicitly removed by the user — never auto-re-added
+  // `bulletins` defaults to removed because the dashboard's own
+  // bulletin block (DashboardLayoutSettings → "Bulletin board") is
+  // enabled by default, and surfacing the same content via a grid
+  // tile would just duplicate it. Users who hide the dashboard
+  // bulletin block can re-add the tile from Settings → Appearance →
+  // Navigation (or wherever NavigationSettings exposes the removed
+  // list).
+  dashboardGridRemoved: ["bulletins"], // pages explicitly removed by the user — never auto-re-added
 };
