@@ -1,11 +1,12 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { HexColorPicker } from "react-colorful";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart } from "lucide-react";
+import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
-import { PRESET_QUESTIONS } from "@/lib/unblendQuestions";
+import { PRESET_QUESTIONS, buildDynamicQuestions } from "@/lib/unblendQuestions";
 import {
   timeOfDayBaseline,
   applyAnswer,
@@ -33,13 +34,6 @@ import {
 // is structured so adding both later is a small change.
 const IDK_THRESHOLD_FOR_GROUNDING = 3;
 
-const COLOR_SWATCHES = [
-  "#ef4444", "#f97316", "#f59e0b", "#eab308",
-  "#84cc16", "#22c55e", "#10b981", "#14b8a6",
-  "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1",
-  "#8b5cf6", "#a855f7", "#d946ef", "#ec4899",
-  "#f43f5e", "#78716c", "#a8a29e", "#fafaf9",
-];
 
 export default function HelpMeUnblend() {
   const navigate = useNavigate();
@@ -55,14 +49,54 @@ export default function HelpMeUnblend() {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
   });
 
+  // Currently-fronting alters — pinned to the top of the likely
+  // list like the Alters grid does, regardless of question score.
+  // Refetched live so a switch the user does mid-session immediately
+  // reorders the list.
+  const { data: activeFront = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const activeFronterIds = useMemo(() => {
+    const set = new Set();
+    for (const s of activeFront) {
+      const id = s.alter_id || s.primary_alter_id;
+      if (id) set.add(id);
+      for (const co of s.co_fronter_ids || []) set.add(co);
+    }
+    return set;
+  }, [activeFront]);
+
   // Tracks the current question, the order/queue of remaining
   // questions, accumulated scores, and a tally of "idk" answers for
   // the grounding nudge.
   const [scores, setScores] = useState({});
   const [questionIdx, setQuestionIdx] = useState(0);
+  // Question pool = presets + dynamic questions derived from the
+  // actual alter data (pronouns, role, every custom field with
+  // 2+ distinct values set). Recomputed when alters change.
+  const allQuestions = useMemo(() => {
+    return [...PRESET_QUESTIONS, ...buildDynamicQuestions(alters)];
+  }, [alters]);
   const [questionOrder, setQuestionOrder] = useState(() => PRESET_QUESTIONS.map((q) => q.id));
+  // Keep questionOrder in sync once alters resolve — append dynamic
+  // ids the user hasn't seen yet to the end of the queue so the
+  // existing presets still front-load.
+  useEffect(() => {
+    setQuestionOrder((prev) => {
+      const known = new Set(prev);
+      const additions = allQuestions.map((q) => q.id).filter((id) => !known.has(id));
+      if (additions.length === 0) return prev;
+      return [...prev, ...additions];
+    });
+  }, [allQuestions]);
   const [idkCount, setIdkCount] = useState(0);
   const [groundingNudgeShown, setGroundingNudgeShown] = useState(false);
+  // Working color value for the color-question. The user can drag
+  // around the picker before committing — only "Use this colour"
+  // submits the answer. Reset to a neutral default when the
+  // question is re-shown so a previous selection doesn't leak.
+  const [colorDraft, setColorDraft] = useState("#8b5cf6");
 
   // Seed the baseline once alters + sessions resolve.
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
@@ -76,11 +110,24 @@ export default function HelpMeUnblend() {
   }, [alters.length, sessions.length]);
 
   const currentQuestion = useMemo(() => {
-    const id = questionOrder[questionIdx % questionOrder.length];
-    return PRESET_QUESTIONS.find((q) => q.id === id) || PRESET_QUESTIONS[0];
-  }, [questionOrder, questionIdx]);
+    const id = questionOrder[questionIdx % Math.max(1, questionOrder.length)];
+    return allQuestions.find((q) => q.id === id) || allQuestions[0];
+  }, [questionOrder, questionIdx, allQuestions]);
 
-  const ranked = useMemo(() => rankAlters(scores, activeAlters), [scores, activeAlters]);
+  // Final ranking: current fronters pinned to the top (just like the
+  // Alters grid does), then everyone else by score descending. Ties
+  // resolved alphabetically so the list is deterministic.
+  const ranked = useMemo(() => {
+    const scored = rankAlters(scores, activeAlters);
+    const isActive = (a) => activeFronterIds.has(a.id);
+    return scored.sort((a, b) => {
+      const aActive = isActive(a.alter);
+      const bActive = isActive(b.alter);
+      if (aActive !== bActive) return aActive ? -1 : 1;
+      if (b.score !== a.score) return b.score - a.score;
+      return (a.alter.name || "").localeCompare(b.alter.name || "");
+    });
+  }, [scores, activeAlters, activeFronterIds]);
 
   const recordAnswer = (deltasByAlter) => {
     setScores((prev) => applyAnswer(prev, deltasByAlter));
@@ -131,7 +178,7 @@ export default function HelpMeUnblend() {
     setQuestionIdx(0);
     setIdkCount(0);
     setGroundingNudgeShown(false);
-    setQuestionOrder(PRESET_QUESTIONS.map((q) => q.id));
+    setQuestionOrder(allQuestions.map((q) => q.id));
     if (activeAlters.length > 0) {
       setScores(timeOfDayBaseline(sessions, activeAlters, new Date()));
     } else {
@@ -140,7 +187,7 @@ export default function HelpMeUnblend() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4 sm:p-6 pb-32 space-y-5">
+    <div className="max-w-2xl mx-auto p-4 sm:p-6 space-y-5">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
           <ChevronLeft className="w-4 h-4" /> Back
@@ -204,17 +251,44 @@ export default function HelpMeUnblend() {
         </div>
 
         {currentQuestion.kind === "color" && (
-          <div className="grid grid-cols-10 gap-1.5">
-            {COLOR_SWATCHES.map((hex) => (
-              <button
-                key={hex}
-                type="button"
-                onClick={() => handleColorPick(hex)}
-                aria-label={`Pick color ${hex}`}
-                className="aspect-square rounded-full border border-border/40 hover:scale-110 transition-transform"
-                style={{ backgroundColor: hex }}
-              />
-            ))}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+              <div className="w-full sm:w-auto">
+                <HexColorPicker
+                  color={colorDraft}
+                  onChange={setColorDraft}
+                  style={{ width: "100%", maxWidth: 280, height: 200 }}
+                />
+              </div>
+              <div className="flex-1 w-full space-y-2">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-12 h-12 rounded-xl border border-border/60 flex-shrink-0 shadow-sm"
+                    style={{ backgroundColor: colorDraft }}
+                  />
+                  <input
+                    type="text"
+                    value={colorDraft}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColorDraft(v);
+                    }}
+                    className="flex-1 h-10 px-3 rounded-md border border-border bg-background text-sm font-mono"
+                    maxLength={7}
+                  />
+                </div>
+                <Button
+                  onClick={() => handleColorPick(colorDraft)}
+                  disabled={!/^#[0-9a-fA-F]{6}$/.test(colorDraft)}
+                  className="w-full"
+                >
+                  Use this colour
+                </Button>
+                <p className="text-[0.6875rem] text-muted-foreground text-center">
+                  Drag the picker or type a hex value — the list re-ranks toward {terms.alters || "alters"} with similar colours.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -243,41 +317,77 @@ export default function HelpMeUnblend() {
         </div>
       </section>
 
-      {/* Likely fronters strip — always visible. Sticks to the
-          bottom on mobile so the user can keep eyes on the
-          narrowing list while answering. */}
-      <div className="fixed left-0 right-0 bottom-0 z-30 bg-background/95 backdrop-blur border-t border-border/50 p-3 sm:relative sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:p-0 sm:mt-6">
-        <div className="max-w-2xl mx-auto">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 px-1">
+      {/* Likely fronters — full scrollable list of every active
+          alter, sorted by likeliness. Current fronters are pinned to
+          the top (just like the Alters grid). Below them, alters
+          ranked by question-score (which already includes the
+          time-of-day baseline). Inline on the page so the bottom
+          nav bar can't obscure it. */}
+      <section className="rounded-2xl border border-border/50 bg-card p-4 space-y-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-sm font-semibold text-foreground">
             Likely {terms.fronters || "fronters"} right now
           </p>
-          {activeAlters.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic px-1">
-              No {terms.alters || "alters"} yet — add some to start using this.
-            </p>
-          ) : (
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {ranked.slice(0, 8).map(({ alter, score }) => (
+          <p className="text-[0.6875rem] text-muted-foreground">
+            {activeFronterIds.size > 0
+              ? `${activeFronterIds.size} ${terms.fronting || "fronting"} · ${ranked.length} total`
+              : `${ranked.length} ${terms.alters || "alters"}`}
+          </p>
+        </div>
+        {activeAlters.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">
+            No {terms.alters || "alters"} yet — add some to start using this.
+          </p>
+        ) : (
+          <div className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
+            {ranked.map(({ alter, score }) => {
+              const isActive = activeFronterIds.has(alter.id);
+              const scoreLabel = score > 0 ? `+${score.toFixed(1)}` : score.toFixed(1);
+              return (
                 <button
                   key={alter.id}
                   type="button"
                   onClick={() => navigate(`/alter/${alter.id}`)}
-                  className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/40 bg-card hover:bg-muted/40 transition-colors"
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border text-left transition-colors ${
+                    isActive
+                      ? "border-amber-500/40 bg-amber-500/5"
+                      : "border-border/40 bg-card hover:bg-muted/40"
+                  }`}
                 >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: alter.color || "#94a3b8" }}
-                  />
-                  <span className="text-sm">{alter.name}</span>
-                  <span className="text-[0.6875rem] text-muted-foreground">
-                    {score > 0 ? `+${score.toFixed(1)}` : score.toFixed(1)}
+                  <div
+                    className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
+                    style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}
+                  >
+                    {alter.avatar_url ? (
+                      <img src={alter.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-white">
+                        {(alter.name || "?").charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">{alter.name}</p>
+                      {isActive && (
+                        <span className="inline-flex items-center gap-0.5 text-[0.625rem] font-semibold text-amber-600 dark:text-amber-400">
+                          <Zap className="w-2.5 h-2.5 fill-current" /> {terms.fronting || "fronting"}
+                        </span>
+                      )}
+                    </div>
+                    {alter.role && (
+                      <p className="text-[0.6875rem] text-muted-foreground truncate">{alter.role}</p>
+                    )}
+                  </div>
+                  <span className="text-[0.6875rem] text-muted-foreground flex-shrink-0 tabular-nums">
+                    {scoreLabel}
                   </span>
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

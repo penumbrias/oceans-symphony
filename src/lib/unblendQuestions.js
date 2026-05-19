@@ -134,6 +134,140 @@ export const PRESET_QUESTIONS = [
 ];
 
 // ───────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────
+// Builds extra questions from the actual data the user has filled in
+// about their alters. Anything we can compare exactly (pronouns,
+// gender, body, vibe, role-tag custom fields, …) becomes a quick
+// multi-choice question whose options are the unique values across
+// the alter set. We only emit a question when at least two alters
+// have the field set AND at least two distinct values exist —
+// otherwise the answer has zero discrimination power.
+//
+// Field-name → human-readable prompt mapping. Anything not in this
+// map falls back to "What's the [fieldname]?".
+const PROMPT_OVERRIDES = {
+  pronouns: "What pronouns feel right?",
+  gender:   "What gender feels closest?",
+  age:      "How old does this feel?",
+  vibe:     "What vibe is this?",
+  energy:   "What energy is this?",
+  role:     "What role does this feel like?",
+};
+
+const PROMPT_PREFIX_OVERRIDES = {
+  favorite: "What's the favourite",
+  favourite: "What's the favourite",
+};
+
+function humanisePrompt(fieldName) {
+  const lower = String(fieldName || "").trim().toLowerCase();
+  if (!lower) return "What is this?";
+  if (PROMPT_OVERRIDES[lower]) return PROMPT_OVERRIDES[lower];
+  // Heuristic for "favourite food" / "favourite colour" style fields.
+  for (const [prefix, prompt] of Object.entries(PROMPT_PREFIX_OVERRIDES)) {
+    if (lower.startsWith(prefix)) return `${prompt} ${lower.slice(prefix.length).trim()}?`;
+  }
+  return `What's the ${lower}?`;
+}
+
+function uniqueStringValues(values) {
+  const seen = new Map();
+  for (const v of values) {
+    if (typeof v !== "string") continue;
+    const trimmed = v.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (!seen.has(key)) seen.set(key, trimmed); // preserve original casing
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
+export function buildDynamicQuestions(alters) {
+  if (!Array.isArray(alters) || alters.length === 0) return [];
+  const active = alters.filter((a) => a && !a.is_archived);
+  const questions = [];
+
+  // 1) Pronouns — first-class field on Alter.
+  const pronounSet = new Map();
+  for (const a of active) {
+    if (typeof a.pronouns === "string" && a.pronouns.trim()) {
+      pronounSet.set(a.id, a.pronouns.trim());
+    }
+  }
+  const pronounOptions = uniqueStringValues([...pronounSet.values()]);
+  if (pronounSet.size >= 2 && pronounOptions.length >= 2) {
+    questions.push({
+      id: "dyn_pronouns",
+      prompt: "What pronouns feel right?",
+      kind: "choice",
+      options: pronounOptions.map((p) => ({ id: p, label: p, value: p })),
+      score: (alter, ans) => {
+        if (!ans || typeof alter?.pronouns !== "string") return 0;
+        return alter.pronouns.trim().toLowerCase() === ans.value.toLowerCase()
+          ? ANSWER_DELTA
+          : 0;
+      },
+    });
+  }
+
+  // 2) Role (already a free-text Alter field). If at least 2 alters
+  // have it set with at least 2 distinct values, offer it.
+  const roleSet = new Map();
+  for (const a of active) {
+    if (typeof a.role === "string" && a.role.trim()) roleSet.set(a.id, a.role.trim());
+  }
+  const roleOptions = uniqueStringValues([...roleSet.values()]);
+  if (roleSet.size >= 2 && roleOptions.length >= 2 && roleOptions.length <= 12) {
+    questions.push({
+      id: "dyn_role",
+      prompt: "Which role feels closest right now?",
+      kind: "choice",
+      options: roleOptions.map((r) => ({ id: r, label: r, value: r })),
+      score: (alter, ans) => {
+        if (!ans || typeof alter?.role !== "string") return 0;
+        return alter.role.trim().toLowerCase() === ans.value.toLowerCase()
+          ? ANSWER_DELTA
+          : 0;
+      },
+    });
+  }
+
+  // 3) Custom fields. Each field becomes a question if 2+ alters have
+  // it set with 2+ distinct values (and at most 12, so the option
+  // list stays scannable).
+  const customFieldValues = {};
+  for (const a of active) {
+    const map = a.alter_custom_fields;
+    if (!map || typeof map !== "object") continue;
+    for (const [k, v] of Object.entries(map)) {
+      const value = typeof v === "string" ? v.trim() : "";
+      if (!value) continue;
+      if (!customFieldValues[k]) customFieldValues[k] = new Map();
+      customFieldValues[k].set(a.id, value);
+    }
+  }
+  for (const [field, valuesByAlter] of Object.entries(customFieldValues)) {
+    const options = uniqueStringValues([...valuesByAlter.values()]);
+    if (valuesByAlter.size < 2 || options.length < 2 || options.length > 12) continue;
+    questions.push({
+      id: `dyn_field_${field}`,
+      prompt: humanisePrompt(field),
+      kind: "choice",
+      options: options.map((v) => ({ id: v, label: v, value: v })),
+      score: (alter, ans) => {
+        if (!ans) return 0;
+        const v = readCustom(alter, field);
+        if (typeof v !== "string" || !v.trim()) return 0;
+        return v.trim().toLowerCase() === ans.value.toLowerCase()
+          ? ANSWER_DELTA
+          : 0;
+      },
+    });
+  }
+
+  return questions;
+}
+
 // Generic matchers. Each returns a number in roughly the range
 // [ANSWER_PENALTY * 0.5, ANSWER_DELTA].
 function matchTags(alter, wantedTags) {
