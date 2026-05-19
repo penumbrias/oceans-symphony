@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 19, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Daily-task auto triggers can now combine multiple triggers. Pick more than one from the dropdown (each one shows as a removable pill) and a new 'Count complete when:' toggle chooses Any (or) — fires as soon as one trigger happens — vs All (and) — every trigger must happen. Legacy single-trigger templates keep working unchanged.",
+      },
+      {
         type: "improve",
         text: "Settings → Appearance → Dashboard layout: the 'Currently fronting' toggle now shows a small note reassuring users that the rest of the app should work without setting a fronter (anything they log just attaches to the system as a whole), plus a Report a Bug prompt in case any screen gets stuck without one.",
       },

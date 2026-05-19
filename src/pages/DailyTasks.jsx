@@ -25,6 +25,7 @@ import {
   markDailyTaskCompletedToday,
   hasStreakMilestoneHitToday,
   markStreakMilestoneHitToday,
+  isAutoTriggered,
 } from "@/lib/dailyTaskSystem";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { startOfWeek, format } from "date-fns";
@@ -399,7 +400,7 @@ export default function DailyTasks() {
 
   // IDs of AUTO tasks that are currently triggered today (must come after activeTasks)
   const autoCompletedIds = useMemo(
-    () => activeTasks.filter(t => t.mode === "AUTO" && autoTriggers.has(t.auto_trigger)).map(t => t.id),
+    () => activeTasks.filter(t => t.mode === "AUTO" && isAutoTriggered(t, autoTriggers)).map(t => t.id),
     [activeTasks, autoTriggers]
   );
 
@@ -616,7 +617,7 @@ export default function DailyTasks() {
 
     const newXP = activeTasks.reduce((sum, t) => {
       const done = t.mode === "AUTO" && activeFreq === "daily"
-        ? autoTriggers.has(t.auto_trigger)
+        ? isAutoTriggered(t, autoTriggers)
         : newCompleted.has(t.id);
       return done ? sum + (t.points || 0) : sum;
     }, 0);
@@ -651,7 +652,14 @@ export default function DailyTasks() {
       // `daily_task_completed` template won't trigger a second
       // toggleManual call (only manual taps come through this path),
       // and the marker is just a date string, idempotent within a day.
-      if (activeFreq === "daily" && task.auto_trigger !== "daily_task_completed") {
+      // Guard the self-firing case: a task whose own trigger is
+      // `daily_task_completed` shouldn't bump the marker that
+      // triggers itself. Multi-trigger templates need the same
+      // guard — skip if the trigger list contains it.
+      const tplTriggers = Array.isArray(task.auto_triggers) && task.auto_triggers.length > 0
+        ? task.auto_triggers
+        : (task.auto_trigger ? [task.auto_trigger] : []);
+      if (activeFreq === "daily" && !tplTriggers.includes("daily_task_completed")) {
         markDailyTaskCompletedToday();
       }
     }
