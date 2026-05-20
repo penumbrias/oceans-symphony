@@ -13,6 +13,15 @@ import { useTerms } from "@/lib/useTerms";
 import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
 import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { adjustForContrast, getPageBackground } from "@/lib/contrast";
+
+// Brighten / darken alter colours that are too close to the page
+// background so the name text stays legible. Memoise the page bg
+// resolution so each render doesn't re-read CSS variables.
+function useReadableColor(color) {
+  const bg = useMemo(() => getPageBackground(), []);
+  return useMemo(() => (color ? adjustForContrast(color, bg) : color), [color, bg]);
+}
 
 // System Chat — Discord-style multi-channel chat for the system.
 //
@@ -507,7 +516,8 @@ function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEd
 
   const isDeleted = !!msg.deleted_at;
   const authorNames = authors.map((a) => a.name).join(", ");
-  const primaryColor = authors[0]?.color || undefined;
+  const primaryColor = useReadableColor(authors[0]?.color);
+  const parentColor = useReadableColor(parentAuthors[0]?.color);
 
   return (
     <div className="group flex gap-2 px-1 py-1 rounded-md hover:bg-muted/30">
@@ -524,7 +534,7 @@ function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEd
         {parent && (
           <div className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground mb-1 pl-2 border-l-2 border-border/60 max-w-full truncate">
             <Reply className="w-3 h-3 flex-shrink-0" />
-            <span className="font-medium truncate" style={{ color: parentAuthors[0]?.color || undefined }}>
+            <span className="font-medium truncate" style={{ color: parentColor }}>
               {parentAuthors.map((a) => a.name).join(", ") || "Unknown"}
             </span>
             <span className="truncate">{parent.deleted_at ? "[deleted]" : (parent.content || "").slice(0, 80)}</span>
@@ -597,23 +607,29 @@ function renderWithMentions(content, alters) {
     }
     if (matched) {
       out.push(
-        <span
-          key={key++}
-          className="inline px-1 rounded text-xs font-semibold"
-          style={{ backgroundColor: `${matched.color || "#9333ea"}33`, color: matched.color || undefined }}
-        >
-          {matched.raw}
-        </span>
+        <MentionPill key={key++} label={matched.raw} color={matched.color} />
       );
       i += matched.raw.length;
-    } else {
-      let next = content.indexOf("@", i + 1);
-      if (next === -1) next = content.length;
-      out.push(<React.Fragment key={key++}>{content.slice(i, next)}</React.Fragment>);
-      i = next;
+      continue;
     }
+    let next = content.indexOf("@", i + 1);
+    if (next === -1) next = content.length;
+    out.push(<React.Fragment key={key++}>{content.slice(i, next)}</React.Fragment>);
+    i = next;
   }
   return out;
+}
+
+function MentionPill({ label, color }) {
+  const fg = useReadableColor(color);
+  return (
+    <span
+      className="inline px-1 rounded text-xs font-semibold"
+      style={{ backgroundColor: `${color || "#9333ea"}33`, color: fg || undefined }}
+    >
+      {label}
+    </span>
+  );
 }
 
 function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, onSend, terms }) {
@@ -628,6 +644,85 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
   const [text, setText] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
+
+  // Inline-autocomplete state, ported from BulletinComposer.
+  const textareaRef = useRef(null);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [showSignpostMenu, setShowSignpostMenu] = useState(false);
+  const [signpostQuery, setSignpostQuery] = useState("");
+
+  const handleTextChange = (e) => {
+    const val = e.target.value;
+    setText(val);
+
+    // @ mention detection — open menu when a "@" starts a token at
+    // the end of the typed string (no space follows the @ yet).
+    const lastAt = val.lastIndexOf("@");
+    if (lastAt !== -1 && !val.slice(lastAt + 1).includes(" ")) {
+      setShowMentions(true);
+      setMentionQuery(val.slice(lastAt + 1));
+      setShowSignpostMenu(false);
+      return;
+    }
+    setShowMentions(false);
+
+    // - signpost detection — same logic, just for "-author" tokens.
+    const lastDash = val.lastIndexOf("-");
+    if (lastDash !== -1 && !val.slice(lastDash + 1).includes(" ")) {
+      setShowSignpostMenu(true);
+      setSignpostQuery(val.slice(lastDash + 1));
+    } else if (!val.endsWith("-")) {
+      setShowSignpostMenu(false);
+    }
+  };
+
+  const filteredMentions = useMemo(
+    () => alters
+      .filter((a) => !a.is_archived)
+      .filter((a) =>
+        a.name?.toLowerCase().includes(mentionQuery.toLowerCase()) ||
+        (a.alias && a.alias.toLowerCase().includes(mentionQuery.toLowerCase()))
+      )
+      .slice(0, 8),
+    [alters, mentionQuery]
+  );
+  const filteredSignposts = useMemo(
+    () => alters
+      .filter((a) => !a.is_archived)
+      .filter((a) =>
+        a.name?.toLowerCase().includes(signpostQuery.toLowerCase()) ||
+        (a.alias && a.alias.toLowerCase().includes(signpostQuery.toLowerCase()))
+      )
+      .slice(0, 8),
+    [alters, signpostQuery]
+  );
+  const systemSignpostMatches = useMemo(() => {
+    const q = (signpostQuery || "").toLowerCase();
+    if (!q) return true;
+    return "system".startsWith(q) || (terms.system || "").toLowerCase().startsWith(q);
+  }, [signpostQuery, terms.system]);
+
+  const insertMention = (alter) => {
+    const lastAt = text.lastIndexOf("@");
+    const before = lastAt !== -1 ? text.slice(0, lastAt) : text;
+    setText(before + `@${alter.alias || alter.name} `);
+    setShowMentions(false);
+    setMentionQuery("");
+    textareaRef.current?.focus();
+  };
+
+  const insertSignpost = (alter) => {
+    const lastDash = text.lastIndexOf("-");
+    const before = lastDash !== -1 ? text.slice(0, lastDash) : text;
+    const token = alter?.isSystem || alter?.id === SYSTEM_AUTHOR.id
+      ? (terms.system || "system")
+      : (alter.alias || alter.name);
+    setText(before + `-${token} `);
+    setShowSignpostMenu(false);
+    setSignpostQuery("");
+    textareaRef.current?.focus();
+  };
 
   const selectedSet = useMemo(() => new Set(speakerIds), [speakerIds]);
   const toggleSpeaker = (id) => {
@@ -650,15 +745,25 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
   };
 
   // Render the picker's compact button: stacked avatars + names.
-  // System sentinel → one "—system" pill.
+  // If the typed text contains inline signposts (-system / -aliasname),
+  // those override what the picker is showing — so the chip always
+  // reflects what the message will *actually* be attributed to when
+  // sent, not just what's checked in the picker. Falls back to the
+  // picker selection (or -system) when no signposts are present.
   const selectedAuthors = useMemo(() => {
+    const { authors: signposted } = parseAndStripSignposts(text, alters, [terms.system]);
+    if (signposted.length > 0) {
+      const sysOnly = signposted.every((a) => a.id === SYSTEM_AUTHOR.id);
+      if (sysOnly) return [SYSTEM_AUTHOR];
+      return signposted.filter((a) => a.id !== SYSTEM_AUTHOR.id).map((a) => authorFor(a.id, alters));
+    }
     if (speakerIds.length === 0 || (speakerIds.length === 1 && speakerIds[0] === SYSTEM_AUTHOR.id)) {
       return [SYSTEM_AUTHOR];
     }
     return speakerIds
       .filter((id) => id !== SYSTEM_AUTHOR.id)
       .map((id) => authorFor(id, alters));
-  }, [speakerIds, alters]);
+  }, [speakerIds, alters, text, terms.system]);
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
@@ -666,14 +771,18 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
     setText("");
   };
 
+  const replyAuthors = replyTo ? authorsFor(replyTo, alters) : [];
+  const replyColor = useReadableColor(replyAuthors[0]?.color);
+  const speakerChipColor = useReadableColor(selectedAuthors[0]?.color);
+
   return (
     <div className="border-t border-border/50 p-2 flex-shrink-0 bg-background">
       {replyTo && (
         <div className="flex items-center gap-2 px-2 py-1 mb-1 text-xs bg-muted/40 rounded-md">
           <Reply className="w-3 h-3" />
           <span className="text-muted-foreground">Replying to</span>
-          <span className="font-medium truncate" style={{ color: authorsFor(replyTo, alters)[0]?.color || undefined }}>
-            {authorsFor(replyTo, alters).map((a) => a.name).join(", ")}
+          <span className="font-medium truncate" style={{ color: replyColor }}>
+            {replyAuthors.map((a) => a.name).join(", ")}
           </span>
           <span className="text-muted-foreground truncate flex-1">{(replyTo.content || "").slice(0, 60)}</span>
           <button onClick={onCancelReply} aria-label="Cancel reply" className="p-0.5 text-muted-foreground hover:text-foreground">
@@ -693,16 +802,86 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           onSearchChange={setPickerSearch}
           terms={terms}
         />
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
-          }}
-          placeholder={`Message #${channel.name}…  (type -${terms.system || "system"} or -aliasname to signpost)`}
-          rows={1}
-          className="flex-1 resize-none text-sm min-h-[40px] max-h-32"
-        />
+        <div className="flex-1 relative">
+          <Textarea
+            ref={textareaRef}
+            value={text}
+            onChange={handleTextChange}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setShowMentions(false);
+                setShowSignpostMenu(false);
+                return;
+              }
+              if (e.key === "Enter" && !e.shiftKey) {
+                if (showMentions || showSignpostMenu) {
+                  // Let the autocomplete swallow Enter when a menu is
+                  // open — pressing Enter with the menu visible should
+                  // pick the first option rather than send.
+                  e.preventDefault();
+                  if (showMentions && filteredMentions[0]) insertMention(filteredMentions[0]);
+                  else if (showSignpostMenu && systemSignpostMatches && !filteredSignposts[0]) insertSignpost({ id: SYSTEM_AUTHOR.id, isSystem: true });
+                  else if (showSignpostMenu && filteredSignposts[0]) insertSignpost(filteredSignposts[0]);
+                  return;
+                }
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+            placeholder={`Message #${channel.name}…  (type @ to mention, - to signpost)`}
+            rows={1}
+            className="resize-none text-sm min-h-[40px] max-h-32"
+          />
+
+          {showMentions && filteredMentions.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 bottom-full mb-1 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+              <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Mention…</div>
+              {filteredMentions.map((a) => (
+                <button
+                  type="button"
+                  key={a.id}
+                  onClick={() => insertMention(a)}
+                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
+                >
+                  <AlterAvatar alter={a} size={22} />
+                  <span>{a.name}</span>
+                  {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {showSignpostMenu && (filteredSignposts.length > 0 || systemSignpostMatches) && (
+            <div className="absolute z-50 left-0 right-0 bottom-full mb-1 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+              <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Sign as author…</div>
+              {systemSignpostMatches && (
+                <button
+                  type="button"
+                  key={SYSTEM_AUTHOR.id}
+                  onClick={() => insertSignpost({ id: SYSTEM_AUTHOR.id, isSystem: true })}
+                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
+                >
+                  <AlterAvatar alter={SYSTEM_AUTHOR} size={22} />
+                  <span>—{terms.system || "system"}</span>
+                  <span className="text-muted-foreground text-xs ml-1">(no specific {terms.alter || "alter"})</span>
+                </button>
+              )}
+              {filteredSignposts.map((a) => (
+                <button
+                  type="button"
+                  key={a.id}
+                  onClick={() => insertSignpost(a)}
+                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
+                >
+                  <AlterAvatar alter={a} size={22} />
+                  <span>{a.name}</span>
+                  {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <Button onClick={handleSubmit} disabled={!text.trim()} className="h-10 px-3">
           <Send className="w-4 h-4" />
         </Button>
@@ -718,6 +897,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
 function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, search, onSearchChange, terms }) {
   const triggerRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
+  const chipColor = useReadableColor(selectedAuthors[0]?.color);
 
   useEffect(() => {
     if (!open) return;
@@ -749,7 +929,7 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
         aria-expanded={open}
       >
         <AuthorAvatars authors={selectedAuthors} size={22} />
-        <span className="text-[0.6875rem] truncate" style={{ color: selectedAuthors[0]?.color || undefined }}>
+        <span className="text-[0.6875rem] truncate" style={{ color: chipColor }}>
           {selectedAuthors.map((a) => a.name).join(", ")}
         </span>
         <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />

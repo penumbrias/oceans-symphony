@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "System Chat: alter names whose colour was too close to the page background were unreadable. Author labels, reply previews, the speaker chip, and @mention pills now run through the same contrast adjuster used elsewhere in the app — your chosen colour stays the same, the displayed text just shifts toward lighter/darker until it's legible.",
+      },
+      {
+        type: "improve",
+        text: "System Chat composer: typing @ in a message opens the same Mention popup as bulletins; typing - opens a Sign as author popup, with —system at the top. Pick from either to autocomplete. The speaker chip on the composer auto-updates to whatever the message will actually be attributed to, so what you see is what posts.",
+      },
+      {
         type: "improve",
         text: "System Chat composer: tap the speaker chip to open a popover that matches the Journals filter-by-alter UI — multi-select with avatars, search, \"—system\" pinned at the top. Pick one or more speakers for the next message.",
       },
