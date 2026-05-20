@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Grocery list now remembers when you bought things. Checking an item off groups it under the date you purchased it. Tap a green check again to mark the item as ran out (red X) — it stays under the purchase date but moves below the in-stock items so you can see when the broccoli in the fridge actually came from. Ran-out rows get Restore (back to the shopping list) and Remove buttons; bulk \"Clear all ran-out items\" leaves the in-stock history alone.",
+      },
+      {
+        type: "feature",
         text: "Plan Activity modal: \"Create a new to-do from this plan\" toggle inline with the existing \"Link to a to-do\" picker. Saving the plan creates a fresh to-do with the plan's title, notes, and due date, then links it automatically. Mutually exclusive with picking an existing to-do — you'd only ever want one linked.",
       },
       {

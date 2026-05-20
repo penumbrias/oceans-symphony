@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
-import { Trash2, Plus, X, Check, Lock, Unlock, Star } from "lucide-react";
+import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2 } from "lucide-react";
+import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
 import { isEncryptionEnabled } from "@/lib/storageMode";
 import { clearSession, verifyPassword } from "@/lib/localDb";
@@ -190,8 +191,35 @@ export default function GroceryListPanel() {
     refresh();
   };
 
+  // Three-state lifecycle:
+  //   to_buy   — !checked
+  //   in_stock — checked + purchased_at set + !ran_out_at
+  //   ran_out  — checked + purchased_at set + ran_out_at set
+  // Backwards compat: legacy rows with checked=true and no
+  // purchased_at are treated as in_stock and grouped under
+  // created_date so a user's history of already-bought items
+  // doesn't vanish when this feature ships.
+  const getState = (item) => {
+    if (!item.checked) return "to_buy";
+    if (item.ran_out_at) return "ran_out";
+    return "in_stock";
+  };
+
   const toggle = async (item) => {
-    await localEntities.GroceryItem.update(item.id, { checked: !item.checked });
+    const state = getState(item);
+    const nowISO = new Date().toISOString();
+    if (state === "to_buy") {
+      await localEntities.GroceryItem.update(item.id, {
+        checked: true,
+        purchased_at: nowISO,
+        ran_out_at: null,
+      });
+    } else if (state === "in_stock") {
+      await localEntities.GroceryItem.update(item.id, { ran_out_at: nowISO });
+    } else {
+      // ran_out → in_stock (undo ran-out via tapping the red X)
+      await localEntities.GroceryItem.update(item.id, { ran_out_at: null });
+    }
     refresh();
   };
 
@@ -200,29 +228,69 @@ export default function GroceryListPanel() {
     refresh();
   };
 
-  // Two-tap confirm so an accidental tap on this button doesn't wipe the
-  // list. First tap arms it for 4s; second tap actually deletes. Items
-  // never disappear unless the user has explicitly done both taps.
+  // Restore a ran-out item back to the To buy list — clears the
+  // lifecycle timestamps so it shows up fresh at the top, ready to
+  // be re-purchased.
+  const restoreToBuy = async (item) => {
+    await localEntities.GroceryItem.update(item.id, {
+      checked: false,
+      purchased_at: null,
+      ran_out_at: null,
+    });
+    refresh();
+  };
+
+  // Bulk-clear: only nukes ran-out items so the in-stock history
+  // stays intact. Two-tap confirm so an accidental tap doesn't wipe
+  // the pile.
   const [clearArmed, setClearArmed] = useState(false);
-  const clearChecked = async () => {
+  const clearRanOut = async () => {
     if (!clearArmed) {
       setClearArmed(true);
       setTimeout(() => setClearArmed(false), 4000);
       return;
     }
     setClearArmed(false);
-    const checked = items.filter((i) => i.checked);
-    for (const i of checked) await localEntities.GroceryItem.delete(i.id);
+    const toClear = items.filter((i) => i.ran_out_at);
+    for (const i of toClear) await localEntities.GroceryItem.delete(i.id);
     refresh();
   };
 
   if (!open) return null;
 
-  // Sort: unchecked on top (oldest first), then checked at the bottom.
-  const sorted = [
-    ...items.filter((i) => !i.checked),
-    ...items.filter((i) => i.checked),
-  ];
+  // Build the rendered structure: a flat "To buy" list, then date
+  // groups (newest first) each containing in-stock rows followed by
+  // ran-out rows.
+  const toBuyItems = items.filter((i) => getState(i) === "to_buy");
+  const purchasedItems = items.filter((i) => getState(i) !== "to_buy");
+  const dateGroupsMap = new Map();
+  for (const item of purchasedItems) {
+    const ref = item.purchased_at || item.created_date || new Date().toISOString();
+    let d;
+    try { d = new Date(ref); } catch { d = new Date(); }
+    if (Number.isNaN(d.getTime())) d = new Date();
+    const key = format(d, "yyyy-MM-dd");
+    if (!dateGroupsMap.has(key)) dateGroupsMap.set(key, { key, date: d, items: [] });
+    dateGroupsMap.get(key).items.push(item);
+  }
+  const dateGroups = [...dateGroupsMap.values()]
+    .sort((a, b) => b.date - a.date)
+    .map((g) => ({
+      ...g,
+      items: [
+        ...g.items.filter((i) => getState(i) === "in_stock"),
+        ...g.items.filter((i) => getState(i) === "ran_out"),
+      ],
+    }));
+
+  const headerLabel = (d) => {
+    if (isToday(d)) return "Today";
+    if (isYesterday(d)) return "Yesterday";
+    return format(d, "EEE, MMM d");
+  };
+
+  const isEmpty = toBuyItems.length === 0 && dateGroups.length === 0;
+  const hasRanOut = items.some((i) => i.ran_out_at);
 
   // Quick-add chips: favorites not currently on the active (unchecked) list.
   const activeNames = new Set(items.filter((i) => !i.checked).map((i) => norm(i.name)));
@@ -297,75 +365,63 @@ export default function GroceryListPanel() {
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        {sorted.length === 0 ? (
+        {isEmpty ? (
           <p className="text-sm text-neutral-500 italic mt-12 text-center">
             Nothing on the list yet. Add an item below.
           </p>
         ) : (
-          <ul className="space-y-1">
-            {sorted.map((item) => {
-              const fav = isFavorite(item.name);
-              return (
-                <li
-                  key={item.id}
-                  className="flex items-center gap-3 py-2 px-1 group"
-                >
-                  <button
-                    onClick={() => toggle(item)}
-                    aria-label={item.checked ? "Uncheck" : "Check"}
-                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                      item.checked
-                        ? "bg-emerald-500 border-emerald-500"
-                        : "border-neutral-300 dark:border-neutral-700 hover:border-emerald-500"
-                    }`}
-                  >
-                    {item.checked && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
-                  </button>
-                  <span
-                    onClick={() => toggle(item)}
-                    className={`flex-1 text-base cursor-pointer ${
-                      item.checked
-                        ? "line-through text-neutral-400 dark:text-neutral-500"
-                        : "text-neutral-900 dark:text-neutral-100"
-                    }`}
-                  >
-                    {item.name}
-                  </span>
-                  <button
-                    onClick={() => toggleFavorite(item.name)}
-                    aria-label={fav ? "Remove from frequent items" : "Save as a frequent item"}
-                    title={fav ? "Frequent item — tap to forget" : "Save as a frequent item to re-add later"}
-                    className={`p-1 transition-colors ${
-                      fav
-                        ? "text-amber-500 hover:text-amber-600"
-                        : "text-neutral-400 hover:text-amber-500 opacity-0 group-hover:opacity-100"
-                    }`}
-                  >
-                    <Star className={`w-4 h-4 ${fav ? "fill-current" : ""}`} />
-                  </button>
-                  <button
-                    onClick={() => remove(item.id)}
-                    aria-label="Remove"
-                    className="p-1 text-neutral-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            {toBuyItems.length > 0 && (
+              <ul className="space-y-1">
+                {toBuyItems.map((item) => (
+                  <GroceryRow
+                    key={item.id}
+                    item={item}
+                    state={getState(item)}
+                    isFavorite={isFavorite(item.name)}
+                    onToggle={() => toggle(item)}
+                    onToggleFavorite={() => toggleFavorite(item.name)}
+                    onRemove={() => remove(item.id)}
+                    onRestore={() => restoreToBuy(item)}
+                  />
+                ))}
+              </ul>
+            )}
+
+            {dateGroups.map((group) => (
+              <section key={group.key} className="mt-4 first:mt-0">
+                <h2 className="text-[11px] uppercase tracking-wide text-neutral-500 px-1 mb-1">
+                  {headerLabel(group.date)} · purchased
+                </h2>
+                <ul className="space-y-1">
+                  {group.items.map((item) => (
+                    <GroceryRow
+                      key={item.id}
+                      item={item}
+                      state={getState(item)}
+                      isFavorite={isFavorite(item.name)}
+                      onToggle={() => toggle(item)}
+                      onToggleFavorite={() => toggleFavorite(item.name)}
+                      onRemove={() => remove(item.id)}
+                      onRestore={() => restoreToBuy(item)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </>
         )}
 
-        {items.some((i) => i.checked) && (
+        {hasRanOut && (
           <button
-            onClick={clearChecked}
+            onClick={clearRanOut}
             className={`mt-4 mx-auto block text-xs underline underline-offset-2 transition-colors ${
               clearArmed
                 ? "text-red-500 font-semibold"
                 : "text-neutral-500 hover:text-red-500"
             }`}
           >
-            {clearArmed ? "Tap again to clear" : "Clear checked items"}
+            {clearArmed ? "Tap again to clear" : "Clear all ran-out items"}
           </button>
         )}
       </div>
@@ -434,5 +490,94 @@ export default function GroceryListPanel() {
         </div>
       )}
     </div>
+  );
+}
+
+// Row in any of the three lifecycle states. The checkbox cycles
+// to_buy → in_stock → ran_out (and ran_out → in_stock to undo via
+// the same control). Ran-out rows surface persistent Restore /
+// Remove buttons since hover-gating is invisible on touch and the
+// user explicitly asked for an always-visible affordance to either
+// re-add the item to the shopping list or clear it.
+function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRemove, onRestore }) {
+  const inStock = state === "in_stock";
+  const ranOut = state === "ran_out";
+  const toBuy = state === "to_buy";
+  return (
+    <li className="flex items-center gap-3 py-2 px-1 group">
+      <button
+        onClick={onToggle}
+        aria-label={
+          toBuy ? "Mark as purchased"
+            : inStock ? "Mark as ran out"
+              : "Undo ran out"
+        }
+        className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+          inStock
+            ? "bg-emerald-500 border-emerald-500"
+            : ranOut
+              ? "bg-red-500 border-red-500"
+              : "border-neutral-300 dark:border-neutral-700 hover:border-emerald-500"
+        }`}
+      >
+        {inStock && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+        {ranOut && <X className="w-4 h-4 text-white" strokeWidth={3} />}
+      </button>
+      <span
+        onClick={onToggle}
+        className={`flex-1 text-base cursor-pointer ${
+          ranOut
+            ? "line-through text-neutral-500 dark:text-neutral-400"
+            : inStock
+              ? "line-through text-neutral-400 dark:text-neutral-500"
+              : "text-neutral-900 dark:text-neutral-100"
+        }`}
+      >
+        {item.name}
+      </span>
+      {ranOut && (
+        <>
+          <button
+            onClick={onRestore}
+            aria-label="Restore to shopping list"
+            title="Restore to shopping list"
+            className="p-1 text-neutral-400 hover:text-emerald-500"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onRemove}
+            aria-label="Remove permanently"
+            title="Remove permanently"
+            className="p-1 text-neutral-400 hover:text-red-500"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </>
+      )}
+      {!ranOut && (
+        <>
+          <button
+            onClick={onToggleFavorite}
+            aria-label={isFavorite ? "Remove from frequent items" : "Save as a frequent item"}
+            title={isFavorite ? "Frequent item — tap to forget" : "Save as a frequent item to re-add later"}
+            className={`p-1 transition-colors ${
+              isFavorite
+                ? "text-amber-500 hover:text-amber-600"
+                : "text-neutral-400 hover:text-amber-500 opacity-0 group-hover:opacity-100"
+            }`}
+          >
+            <Star className={`w-4 h-4 ${isFavorite ? "fill-current" : ""}`} />
+          </button>
+          <button
+            onClick={onRemove}
+            aria-label="Remove"
+            className="p-1 text-neutral-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </>
+      )}
+    </li>
   );
 }
