@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { Check, ChevronDown, Users, Globe, Search } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 
@@ -23,8 +23,6 @@ import { useTerms } from "@/lib/useTerms";
 //   triggerLabel   — optional override for the trigger's prefix text
 //   placeholder    — text when nothing is selected
 //   defaultIds     — for multi: array of ids used by "Reset"
-const POPOVER_WIDTH = 260;
-const VIEWPORT_MARGIN = 8;
 
 export default function AlterDropdownPicker({
   alters,
@@ -40,37 +38,9 @@ export default function AlterDropdownPicker({
   const triggerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [pos, setPos] = useState({ top: 0, left: 0, width: POPOVER_WIDTH });
 
   const isMulti = mode === "multi";
   const multiValue = useMemo(() => (Array.isArray(value) ? value : []), [value]);
-
-  const computePos = () => {
-    const node = triggerRef.current;
-    if (!node) return;
-    const rect = node.getBoundingClientRect();
-    const vw = typeof window !== "undefined" ? window.innerWidth : 0;
-    const top = rect.bottom + 4;
-    let left;
-    if (rect.left + POPOVER_WIDTH <= vw - VIEWPORT_MARGIN) left = rect.left;
-    else if (rect.right - POPOVER_WIDTH >= VIEWPORT_MARGIN) left = rect.right - POPOVER_WIDTH;
-    else left = VIEWPORT_MARGIN;
-    const maxLeft = vw - POPOVER_WIDTH - VIEWPORT_MARGIN;
-    if (maxLeft >= VIEWPORT_MARGIN) left = Math.min(Math.max(left, VIEWPORT_MARGIN), maxLeft);
-    setPos({ top, left, width: POPOVER_WIDTH });
-  };
-
-  useEffect(() => {
-    if (!open) return undefined;
-    computePos();
-    const onResize = () => computePos();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("scroll", onResize, true);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onResize, true);
-    };
-  }, [open]);
 
   const activeAlters = useMemo(
     () => (alters || []).filter((a) => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || "")),
@@ -110,7 +80,7 @@ export default function AlterDropdownPicker({
   const isSelected = (id) => (isMulti ? multiValue.includes(id) : value === id);
 
   return (
-    <>
+    <div className="relative">
       <button
         ref={triggerRef}
         type="button"
@@ -128,16 +98,8 @@ export default function AlterDropdownPicker({
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
-            className="z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
-            style={{
-              position: "fixed",
-              top: pos.top,
-              left: pos.left,
-              width: pos.width,
-              maxWidth: `calc(100vw - ${VIEWPORT_MARGIN * 2}px)`,
-            }}
+            className="mt-1 bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
             role="listbox"
           >
             <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
@@ -225,6 +187,6 @@ export default function AlterDropdownPicker({
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }

@@ -402,6 +402,39 @@ export default function UnblendQuestionsManager() {
           customFieldSlots.filter((s) => !s.isHidden).length + " / " + customFieldSlots.length,
           `Every custom field becomes a Help me unblend question by default. Toggle visibility per field — hidden ones won't appear in the queue until you switch them back on.`
         )}
+        {customFieldSlots.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                for (const slot of customFieldSlots.filter((s) => !s.isHidden)) {
+                  await localEntities.HiddenUnblendQuestion.create({ originalId: slot.id, hiddenAt: new Date().toISOString() });
+                }
+                queryClient.invalidateQueries({ queryKey: ["hiddenUnblendQuestions"] });
+              }}
+              disabled={customFieldSlots.every((s) => s.isHidden)}
+              className="text-xs"
+            >
+              Hide all
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                for (const slot of customFieldSlots.filter((s) => s.isHidden)) {
+                  const rec = hiddenRecords.find((r) => r.originalId === slot.id);
+                  if (rec) await localEntities.HiddenUnblendQuestion.delete(rec.id);
+                }
+                queryClient.invalidateQueries({ queryKey: ["hiddenUnblendQuestions"] });
+              }}
+              disabled={customFieldSlots.every((s) => !s.isHidden)}
+              className="text-xs"
+            >
+              Show all
+            </Button>
+          </div>
+        )}
         {customFieldSlots.length === 0 ? (
           <p className="text-xs text-muted-foreground italic px-1">
             No custom fields defined yet. Add some in Settings → {terms.Alters || "Alters"} & Fields.
