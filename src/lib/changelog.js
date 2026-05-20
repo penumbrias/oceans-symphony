@@ -17,11 +17,15 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
-        text: "Help me unblend now lets you add your own questions. Pick a response type (custom field, multiple choice, color, pronouns, role, or age) and the engine wires up scoring for you.",
+        text: "New 'List' custom field type alongside Text / Number / Yes-No. Type items comma-separated; each gets stored + matched individually, and displays as pills on the alter page.",
       },
       {
         type: "improve",
-        text: "Custom-field values that look like lists ('music, drawing, painting') now split into individual items when scoring — so unblend questions match per-item without needing a new field type.",
+        text: "Help me unblend list-type matching is now opt-in via the new field type — pre-existing text fields stay opaque, only fields you mark as List split per item.",
+      },
+      {
+        type: "feature",
+        text: "Help me unblend now lets you add your own questions. Pick a response type (custom field, multiple choice, color, pronouns, role, or age) and the engine wires up scoring for you.",
       },
     ],
   },

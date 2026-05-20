@@ -260,10 +260,18 @@ export function buildDominantFeelingQuestion(emotionCheckIns, { topN = 16 } = {}
   };
 }
 
-export function buildDynamicQuestions(alters) {
+export function buildDynamicQuestions(alters, customFields = []) {
   if (!Array.isArray(alters) || alters.length === 0) return [];
   const active = alters.filter((a) => a && !a.is_archived);
   const questions = [];
+  // Map of field-id → field record so we can opt into list-splitting
+  // only for fields the user explicitly typed as "list". Plain text /
+  // number / yes-no fields keep their value intact even if it happens
+  // to contain a comma.
+  const fieldById = new Map();
+  for (const f of customFields || []) {
+    if (f?.id) fieldById.set(f.id, f);
+  }
 
   // 1) Pronouns — first-class field on Alter.
   const pronounSet = new Map();
@@ -312,20 +320,24 @@ export function buildDynamicQuestions(alters) {
 
   // 3) Custom fields. Each field becomes a question if 2+ alters
   // have it set with 2+ distinct values (and at most 12, so the
-  // option list stays scannable). Comma-separated entries on a
-  // single alter ("music, drawing, painting") split into independent
-  // values — so a user can list interests on one alter without
-  // creating a wide bespoke schema, and the matching still works
-  // per-item.
-  const customFieldValues = {};        // field → Map<alterId, originalString>
-  const customFieldItemsByAlter = {};  // field → Map<alterId, Set<lowercaseItems>>
+  // option list stays scannable). Only list-type fields split
+  // comma-separated entries into independent values — text-type
+  // fields are treated as a single opaque string per alter so a
+  // free-text answer like "blue with sparkles" doesn't get
+  // accidentally tokenised.
+  const customFieldValues = {};        // field-id → Map<alterId, originalString>
+  const customFieldItemsByAlter = {};  // field-id → Map<alterId, Set<lowercaseItems>>
   for (const a of active) {
     const map = a.alter_custom_fields;
     if (!map || typeof map !== "object") continue;
     for (const [k, v] of Object.entries(map)) {
       const value = typeof v === "string" ? v.trim() : "";
       if (!value) continue;
-      const items = splitCustomFieldValue(value);
+      const fieldDef = fieldById.get(k);
+      const isListType = fieldDef?.field_type === "list";
+      const items = isListType
+        ? splitCustomFieldValue(value)
+        : [value.toLowerCase()];
       if (items.length === 0) continue;
       if (!customFieldValues[k]) customFieldValues[k] = new Map();
       if (!customFieldItemsByAlter[k]) customFieldItemsByAlter[k] = new Map();
@@ -334,11 +346,18 @@ export function buildDynamicQuestions(alters) {
     }
   }
   for (const [field, valuesByAlter] of Object.entries(customFieldValues)) {
-    // Flatten every alter's items into the option pool. Preserve the
-    // first occurrence's original casing.
+    const fieldDef = fieldById.get(field);
+    const isListType = fieldDef?.field_type === "list";
+    // Build the option pool. List-type fields split each alter's
+    // value into items; everything else treats the whole value as
+    // one option per alter. Preserve the first occurrence's
+    // original casing.
     const labelByLowered = new Map();
     for (const [, raw] of valuesByAlter.entries()) {
-      for (const item of String(raw).split(/[,;|]/)) {
+      const pieces = isListType
+        ? String(raw).split(/[,;|]/)
+        : [String(raw)];
+      for (const item of pieces) {
         const trimmed = item.trim();
         if (!trimmed) continue;
         const key = trimmed.toLowerCase();
@@ -373,7 +392,7 @@ export function buildDynamicQuestions(alters) {
 // kinds we don't yet support (activity / symptom / diary / range /
 // poll) return null so the page silently skips them rather than
 // rendering a broken question.
-export function instantiateUserQuestion(userQ, { alters }) {
+export function instantiateUserQuestion(userQ, { alters, customFields = [] } = {}) {
   if (!userQ || !userQ.prompt || !userQ.kind) return null;
   switch (userQ.kind) {
     case "color":
@@ -396,7 +415,7 @@ export function instantiateUserQuestion(userQ, { alters }) {
     case "age": {
       // Re-derive a fresh dynamic question over the live alter set
       // using the matching prompt the user typed.
-      const dyn = buildDynamicQuestions(alters || []).find((q) => q.id === `dyn_${userQ.kind}`);
+      const dyn = buildDynamicQuestions(alters || [], customFields).find((q) => q.id === `dyn_${userQ.kind}`);
       if (!dyn) return null;
       return { ...dyn, id: `user_${userQ.id}`, prompt: userQ.prompt, userId: userQ.id };
     }
@@ -404,7 +423,7 @@ export function instantiateUserQuestion(userQ, { alters }) {
     case "custom_field": {
       const field = userQ.field;
       if (!field) return null;
-      const dyn = buildDynamicQuestions(alters || []).find((q) => q.id === `dyn_field_${field}`);
+      const dyn = buildDynamicQuestions(alters || [], customFields).find((q) => q.id === `dyn_field_${field}`);
       if (!dyn) return null;
       return { ...dyn, id: `user_${userQ.id}`, prompt: userQ.prompt, userId: userQ.id };
     }

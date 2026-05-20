@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Hash, Type, ToggleLeft, MoreVertical, ChevronUp, ChevronDown, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, MoreVertical, ChevronUp, ChevronDown, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,12 +11,14 @@ const TYPE_ICONS = {
   text: Type,
   number: Hash,
   boolean: ToggleLeft,
+  list: Tags,
 };
 
 const TYPE_LABELS = {
   text: "Text",
   number: "Number",
   boolean: "Yes/No",
+  list: "List",
 };
 
 export default function CustomFieldsManager() {
@@ -203,7 +205,7 @@ export default function CustomFieldsManager() {
               className="text-sm"
             />
             <div className="flex gap-2">
-              {["text", "number", "boolean"].map((t) => {
+              {["text", "number", "boolean", "list"].map((t) => {
                 const Icon = TYPE_ICONS[t];
                 return (
                   <button key={t} onClick={() => setNewType(t)}

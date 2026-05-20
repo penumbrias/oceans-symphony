@@ -177,6 +177,19 @@ export default function InfoTab({ alter, systemFields }) {
                     {field.field_type === "text" ? (
                       <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)}
                         className="flex-1 text-sm min-h-[60px]" autoFocus />
+                    ) : field.field_type === "list" ? (
+                      <div className="flex-1 flex flex-col gap-1">
+                        <Textarea
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          placeholder="item, item, item"
+                          className="text-sm min-h-[44px]"
+                          autoFocus
+                        />
+                        <p className="text-[0.625rem] text-muted-foreground leading-snug">
+                          Separate items with commas — each one's stored and matched individually.
+                        </p>
+                      </div>
                     ) : field.field_type === "boolean" ? (
                       <select value={editValue} onChange={(e) => setEditValue(e.target.value)}
                         className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm" autoFocus>
@@ -199,11 +212,34 @@ export default function InfoTab({ alter, systemFields }) {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-foreground min-h-[1.25rem] whitespace-pre-wrap break-words">
-                    {field.field_type === "boolean" && customFieldValues[field.id]
-                      ? (customFieldValues[field.id] === "true" || customFieldValues[field.id] === true ? "Yes" : "No")
-                      : (customFieldValues[field.id] || <span className="text-muted-foreground/50 italic">Not filled</span>)}
-                  </p>
+                  <div className="text-sm text-foreground min-h-[1.25rem]">
+                    {(() => {
+                      const value = customFieldValues[field.id];
+                      if (!value && value !== false) {
+                        return <span className="text-muted-foreground/50 italic">Not filled</span>;
+                      }
+                      if (field.field_type === "boolean") {
+                        return (value === "true" || value === true) ? "Yes" : "No";
+                      }
+                      if (field.field_type === "list" && typeof value === "string") {
+                        const items = value.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+                        if (items.length === 0) return <span className="text-muted-foreground/50 italic">Not filled</span>;
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {items.map((item, i) => (
+                              <span
+                                key={`${item}-${i}`}
+                                className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
+                              >
+                                {item}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return <span className="whitespace-pre-wrap break-words">{value}</span>;
+                    })()}
+                  </div>
                 )}
               </div>
             );
