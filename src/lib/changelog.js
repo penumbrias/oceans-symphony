@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Check-In Log analytics now actually counts your check-ins. The Top Emotions chart was only reading diary cards, so users with lots of Quick Check-In entries saw a near-empty chart. Emotion check-ins are now included in the tally, and a new \"Check-In Intensity\" trend line shows average intensity per day from your check-ins (alongside the existing diary-card mood trend).",
+      },
+      {
+        type: "fix",
         text: "Rescheduling a quick plan now asks for a new date only — no time picker — since quick plans are tied to days, not specific times. The end-of-day sentinel timestamp is reapplied automatically.",
       },
       {

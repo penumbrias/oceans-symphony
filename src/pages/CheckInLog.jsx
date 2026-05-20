@@ -1445,7 +1445,7 @@ export default function CheckInLog() {
             <p className="text-muted-foreground text-xs">Track patterns over time</p>
           </div>
         </div>
-        <DiaryAnalyticsSummary cards={diaryCards} />
+        <DiaryAnalyticsSummary cards={diaryCards} checkIns={checkIns} />
       </motion.div>
     );
   }
