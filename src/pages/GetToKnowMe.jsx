@@ -549,11 +549,19 @@ export default function GetToKnowMe() {
                 })}
               </div>
               <Button
-                onClick={() => submitChoiceAnswers(choiceDraft)}
-                disabled={choiceDraft.length === 0 || saving || selectedAlterIds.length === 0}
+                onClick={() => {
+                  if (choiceDraft.length === 0) {
+                    handleShuffle();
+                  } else {
+                    submitChoiceAnswers(choiceDraft);
+                  }
+                }}
+                disabled={saving || (choiceDraft.length > 0 && selectedAlterIds.length === 0)}
                 className="w-full"
               >
-                Save &amp; next{choiceDraft.length > 1 ? ` (${choiceDraft.length})` : ""}
+                {choiceDraft.length === 0
+                  ? "Skip & next"
+                  : `Save & next${choiceDraft.length > 1 ? ` (${choiceDraft.length})` : ""}`}
               </Button>
             </div>
           )}
