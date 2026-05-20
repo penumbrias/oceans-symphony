@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "New 'Get to know me' page — answer unblend questions to build up data over time. Pick which alters the answer applies to, with a 'Sync to current front' toggle that ties selection to fronting state.",
+      },
+      {
+        type: "feature",
+        text: "New 'Manage unblend questions' page — see every question (preset, auto-generated, your own) in one place, add or delete your own.",
+      },
+      {
+        type: "feature",
         text: "New 'List' custom field type alongside Text / Number / Yes-No. Type items comma-separated; each gets stored + matched individually, and displays as pills on the alter page.",
       },
       {

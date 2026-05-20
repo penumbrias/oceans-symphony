@@ -74,6 +74,7 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "friends",         label: "Friends",                icon: UserRound,     path: "/friends",          color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
     { id: "bulletins",       label: "Bulletin Board",         icon: Pin,           path: "/bulletins",        color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
     { id: "unblend",         label: "Help me unblend",        icon: Heart,         path: "/unblend",          color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
+    { id: "get-to-know-me",  label: "Get to know me",         icon: Sparkles,      path: "/get-to-know-me",   color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
   ];
 }
 
