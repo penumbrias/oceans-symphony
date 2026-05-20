@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Emotion analytics revamp: readable bar lists, common emotions per alter (same dataset Help me unblend pulls), emotions over time, co-occurring emotion pairs, and emotion↔activity / emotion↔symptom correlations. Now pulls per-alter session emotions alongside check-ins so nothing's missed.",
+      },
+      {
         type: "improve",
         text: "Editing a per-alter check-in entry now opens the same Note/Emotions/Symptoms/Trigger editor the dashboard uses — pre-filled with whatever was set, replacing on save instead of an awkward inline editor.",
       },
