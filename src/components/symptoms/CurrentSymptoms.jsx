@@ -1,8 +1,15 @@
 import React, { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { formatDistanceToNow } from "date-fns";
-import { X } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
+import { X, Clock } from "lucide-react";
+
+function toLocalDatetimeValue(iso) {
+  if (!iso) return "";
+  try {
+    return format(new Date(iso), "yyyy-MM-dd'T'HH:mm");
+  } catch { return ""; }
+}
 
 function SeverityDots({ severity }) {
   return (
@@ -19,8 +26,23 @@ function SeverityDots({ severity }) {
 function SymptomActionMenu({ sess, symptom, onClose }) {
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
+  const [editingStart, setEditingStart] = useState(false);
+  const [startDraft, setStartDraft] = useState(() => toLocalDatetimeValue(sess.start_time));
   const lastSnapshot = sess.severity_snapshots?.[sess.severity_snapshots.length - 1];
   const currentSeverity = lastSnapshot?.severity || 0;
+
+  const handleSaveStart = async () => {
+    if (!startDraft) return;
+    setSaving(true);
+    try {
+      const iso = new Date(startDraft).toISOString();
+      await base44.entities.SymptomSession.update(sess.id, { start_time: iso });
+      queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+      queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      queryClient.invalidateQueries({ queryKey: ["timeline"] });
+      setEditingStart(false);
+    } finally { setSaving(false); }
+  };
 
   const handleSetSeverity = async (severity) => {
     setSaving(true);
@@ -55,17 +77,16 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
-      style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border rounded-2xl w-full sm:max-w-xs p-4 space-y-4 max-h-[80vh] overflow-y-auto"
+        className="bg-card border border-border rounded-2xl w-full sm:max-w-xs p-4 space-y-4 max-h-[85vh] overflow-y-auto my-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
           <p className="font-semibold text-sm">{symptom.label}</p>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
 
         {currentSeverity > 0 && <p className="text-xs text-muted-foreground">Current severity: {currentSeverity}/5</p>}
@@ -75,6 +96,7 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map(i => (
               <button
+                type="button"
                 key={i}
                 onClick={() => handleSetSeverity(i)}
                 disabled={saving}
@@ -92,7 +114,47 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
 
         <div className="border-t border-border" />
 
+        {editingStart ? (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Edit start time</p>
+            <input
+              type="datetime-local"
+              value={startDraft}
+              onChange={(e) => setStartDraft(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleSaveStart}
+                disabled={saving || !startDraft}
+                className="flex-1 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStartDraft(toLocalDatetimeValue(sess.start_time)); setEditingStart(false); }}
+                className="flex-1 py-2 rounded-lg text-sm font-medium bg-muted/50 text-muted-foreground hover:bg-muted"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingStart(true)}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium bg-muted/50 text-foreground hover:bg-muted transition-colors"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            Edit start time
+            <span className="text-xs text-muted-foreground">({format(new Date(sess.start_time), "MMM d, h:mm a")})</span>
+          </button>
+        )}
+
         <button
+          type="button"
           onClick={handleEndSession}
           disabled={saving}
           className="w-full py-2 rounded-lg text-sm font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 disabled:opacity-50 transition-colors"
@@ -100,6 +162,7 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
           End Session
         </button>
         <button
+          type="button"
           onClick={onClose}
           className="w-full py-2 rounded-lg text-sm font-medium bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
         >

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Active Symptoms popup now opens centered (no longer cut off behind the bottom nav) and has an Edit start time button so you can correct when a symptom session actually began.",
+      },
+      {
         type: "fix",
         text: "Task creation: assigning an activity / expanding a sub-activity no longer kicks you back to the prior page. The picker's buttons were defaulting to type=submit inside the task form.",
       },
