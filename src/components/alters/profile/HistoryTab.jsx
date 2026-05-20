@@ -1,8 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { format } from "date-fns";
 import { Clock, GitMerge, Split } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useTerms } from "@/lib/useTerms";
+
+const inheritStorageKey = (alterId) => `symphony_alter_inherit_history_v1_${alterId}`;
 
 function formatDuration(start, end) {
   if (!end) return "Active now";
@@ -20,6 +24,28 @@ function formatDuration(start, end) {
 }
 
 export default function HistoryTab({ alterId }) {
+  const terms = useTerms();
+
+  // Per-alter "merge inherited history" toggle. Default OFF — users who log
+  // a fusion/split event don't want the source alter's entire history
+  // silently grafted onto the result alter's profile.
+  const [mergeInherited, setMergeInherited] = useState(false);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(inheritStorageKey(alterId));
+      setMergeInherited(v === "1");
+    } catch {
+      setMergeInherited(false);
+    }
+  }, [alterId]);
+
+  const handleToggleMerge = (next) => {
+    setMergeInherited(next);
+    try {
+      localStorage.setItem(inheritStorageKey(alterId), next ? "1" : "0");
+    } catch {}
+  };
+
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["frontHistory"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 20000),
@@ -99,15 +125,25 @@ export default function HistoryTab({ alterId }) {
     return results;
   }, [sessions, inheritedAlterIds]);
 
-  // Merge and deduplicate (prefer own session if same id appears in both)
+  // Merge and deduplicate (prefer own session if same id appears in both).
+  // Only fold inherited sessions in when the user has opted in via the toggle.
   const allSessions = useMemo(() => {
+    if (!mergeInherited) {
+      return [...ownSessions].sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+    }
     const ownIds = new Set(ownSessions.map(s => s.id));
     const merged = [
       ...ownSessions,
       ...inheritedSessions.filter(s => !ownIds.has(s.id)),
     ];
     return merged.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-  }, [ownSessions, inheritedSessions]);
+  }, [ownSessions, inheritedSessions, mergeInherited]);
+
+  const hasInheritance = inheritedAlterIds.length > 0;
+  const inheritedNames = useMemo(
+    () => inheritedAlterIds.map(id => altersById[id]?.name || "Unknown"),
+    [inheritedAlterIds, altersById]
+  );
 
   if (isLoading) return (
     <div className="flex justify-center py-16">
@@ -115,30 +151,51 @@ export default function HistoryTab({ alterId }) {
     </div>
   );
 
+  const inheritToggle = hasInheritance ? (
+    <div className="flex items-start justify-between gap-3 p-3 rounded-xl border border-border/50 bg-muted/10 mb-2">
+      <div className="flex-1 min-w-0 text-xs">
+        <div className="font-medium text-foreground">
+          Include {terms.fronting} history from{" "}
+          <span className="font-semibold">{inheritedNames.join(", ")}</span>
+        </div>
+        <div className="text-muted-foreground mt-0.5">
+          Off by default. Turn on to fold {inheritedNames.length > 1 ? `those ${terms.alters}'` : `that ${terms.alter}'s`} past sessions in here because of a fusion / split event you logged in System History.
+        </div>
+      </div>
+      <Switch
+        checked={mergeInherited}
+        onCheckedChange={handleToggleMerge}
+        aria-label={`Include ${terms.fronting} history from source ${terms.alters}`}
+      />
+    </div>
+  ) : null;
+
   if (allSessions.length === 0) return (
-    <div className="text-center py-16 text-muted-foreground text-sm">
-      <Clock className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-      No fronting history for this alter yet.
+    <div>
+      {inheritToggle}
+      <div className="text-center py-16 text-muted-foreground text-sm">
+        <Clock className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
+        No {terms.fronting} history for this {terms.alter} yet.
+      </div>
     </div>
   );
 
   return (
     <div className="space-y-2">
-      {inheritedAlterIds.length > 0 && (
+      {inheritToggle}
+      {mergeInherited && hasInheritance && (
         <div className="flex items-start gap-2 p-3 rounded-xl border text-xs mb-2"
           style={{ backgroundColor: "hsl(var(--primary)/0.05)", borderColor: "hsl(var(--primary)/0.2)", color: "hsl(var(--primary))" }}>
           <GitMerge className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <div>
-              Includes inherited history from{" "}
-              <span className="font-semibold">
-                {inheritedAlterIds.map(id => altersById[id]?.name || "Unknown").join(", ")}
-              </span>
-              {" "}— these sessions originally belonged to the source {inheritedAlterIds.length > 1 ? "alters" : "alter"} but
+              Showing inherited sessions from{" "}
+              <span className="font-semibold">{inheritedNames.join(", ")}</span>
+              {" "}— these originally belonged to the source {inheritedAlterIds.length > 1 ? terms.alters : terms.alter} but
               {" "}surface here because of a fusion / split event you logged in System History.
             </div>
             <div className="text-[0.6875rem] opacity-80">
-              To stop seeing them, edit or delete the matching event in Settings → System History.
+              Turn the toggle above off to hide them, or edit / delete the matching event in Settings → System History.
             </div>
           </div>
         </div>
