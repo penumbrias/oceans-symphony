@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Day Total PER-ALTER section now renders each alter's emotions / symptoms / notes as individual coloured pills grouped under the alter's name. Main day-total chips no longer double-count per-alter session entries.",
+      },
+      {
+        type: "improve",
         text: "Emotion analytics: new day-of-week, month-of-year, and season breakdowns, plus a chronological list of every emotion logged in the selected range.",
       },
       {

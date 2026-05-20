@@ -400,26 +400,16 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   // Emotions and fronters are surfaced from EmotionCheckIn records — both
   // get hidden when the user has the "Check-ins" toggle off, since that's
   // their parent entry type.
-  // Aggregate emotions from BOTH check-ins and per-alter session
-  // entries — per-alter emotions (logged inside a FrontingSession's
-  // session_emotions array) used to be invisible in the day total,
-  // even though they show in the PER-ALTER strip below.
+  // Day total emotions come from EmotionCheckIn only — per-alter
+  // session emotions live in the PER-ALTER strip below where they're
+  // attributed to the specific alter, so we don't double-count them
+  // in the main day-total chips.
   const allEmotions = useMemo(() => {
     if (!display.checkIns) return [];
     const tally = {};
     checkIns.forEach(ci => (ci.emotions || []).forEach(em => { tally[em] = (tally[em] || 0) + 1; }));
-    for (const entry of perAlterEntries) {
-      if (entry.kind !== "emotion") continue;
-      const labels = Array.isArray(entry.payload?.labels) && entry.payload.labels.length > 0
-        ? entry.payload.labels
-        : (entry.payload?.label ? [entry.payload.label] : []);
-      for (const em of labels) {
-        if (typeof em !== "string" || !em.trim()) continue;
-        tally[em] = (tally[em] || 0) + 1;
-      }
-    }
     return Object.entries(tally).sort((a, b) => b[1] - a[1]);
-  }, [checkIns, perAlterEntries, display.checkIns]);
+  }, [checkIns, display.checkIns]);
 
   const allFronterIds = useMemo(() =>
     display.checkIns ? [...new Set(checkIns.flatMap(ci => ci.fronting_alter_ids || []))] : [],
@@ -432,6 +422,9 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   // embedded in FrontingSession's session_symptoms JSON — otherwise
   // alter-specific symptoms vanish from the day total even though
   // they ARE part of the day.
+  // Day total symptoms come from SymptomCheckIn only — per-alter
+  // session_symptoms appear in the PER-ALTER strip below, attributed
+  // to the alter that logged them.
   const allSymptoms = useMemo(() => {
     if (!display.symptoms) return [];
     const seen = {};
@@ -439,23 +432,8 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
       const prev = seen[sc.symptom_id];
       if (!prev || (sc.severity ?? -1) > (prev.severity ?? -1)) seen[sc.symptom_id] = sc;
     });
-    // Pull symptom payloads out of every per-alter "symptom" entry
-    // for the day. Treat each unique label as its own bucket since
-    // session_symptoms don't share ids with the Symptom catalogue.
-    for (const entry of perAlterEntries) {
-      if (entry.kind !== "symptom") continue;
-      const items = Array.isArray(entry.payload?.items) ? entry.payload.items : [];
-      for (const it of items) {
-        const key = `pa:${(it.label || it.id || "?").toLowerCase()}`;
-        const sev = typeof it.value === "number" ? it.value : null;
-        const prev = seen[key];
-        if (!prev || (sev ?? -1) > (prev.severity ?? -1)) {
-          seen[key] = { symptom_id: key, severity: sev, _perAlterLabel: it.label || "Symptom" };
-        }
-      }
-    }
     return Object.values(seen);
-  }, [symptomCheckIns, perAlterEntries, display.symptoms]);
+  }, [symptomCheckIns, display.symptoms]);
 
   const allActivities = display.activities ? [...new Set(activities.map(a => a.activity_name))] : [];
 
@@ -543,7 +521,7 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
         <div className="flex flex-wrap gap-1">
           {allSymptoms.map((sc, i) => {
             const symptom = symptomsById[sc.symptom_id];
-            const label = symptom?.label || sc._perAlterLabel || "?";
+            const label = symptom?.label || "?";
             const color = symptom?.color || "#8b5cf6";
             return (
               <span key={i} className="text-xs px-1.5 py-0.5 rounded-full border text-foreground"
@@ -568,14 +546,11 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
       {visiblePerAlterEntries.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground font-semibold">Per-alter</p>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {(() => {
-              // Bucket every per-alter entry by alterId so each alter
-              // gets ONE row that lists every emotion / symptom / note
-              // they logged that day. Previously the symptom shim only
-              // printed the first item in a group, so e.g. Koda's row
-              // showed "Anxiety/worry · 5" but hid Emotional reactivity,
-              // Dissociation, etc.
+              // Bucket entries by alter so each alter shows once with
+              // the name as a label and every emotion / symptom / note
+              // they logged rendered as its own colored pill.
               const byAlter = new Map();
               for (const e of visiblePerAlterEntries) {
                 if (!byAlter.has(e.alterId)) byAlter.set(e.alterId, []);
@@ -585,32 +560,52 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
                 const alter = altersById[alterId];
                 const color = alter?.color || "#8b5cf6";
                 const name = alter?.alias || alter?.name || "?";
-                const items = [];
+                const pills = [];
                 for (const e of entries) {
                   if (e.kind === "note") {
-                    items.push(`💬 ${e.payload.text}`);
+                    pills.push({ kind: "note", key: `n-${e.id}`, text: `💬 ${e.payload.text}` });
                   } else if (e.kind === "emotion") {
                     const labels = Array.isArray(e.payload?.labels) && e.payload.labels.length > 0
                       ? e.payload.labels
                       : (e.payload?.label ? [e.payload.label] : []);
-                    items.push(...labels.map((l) => `Felt ${l}`));
+                    labels.forEach((l, i) => pills.push({ kind: "emotion", key: `e-${e.id}-${i}`, text: l, em: l }));
                   } else if (e.kind === "symptom") {
                     const syms = Array.isArray(e.payload?.items) && e.payload.items.length > 0
                       ? e.payload.items
                       : [e.payload].filter(Boolean);
-                    for (const s of syms) {
-                      items.push(`${s.label}${s.value !== undefined && s.value !== null && s.value !== true ? ` · ${s.value}` : ""}`);
-                    }
+                    syms.forEach((s, i) => pills.push({
+                      kind: "symptom",
+                      key: `s-${e.id}-${i}`,
+                      text: `${s.label}${s.value !== undefined && s.value !== null && s.value !== true ? ` · ${s.value}` : ""}`,
+                    }));
                   }
                 }
                 return (
-                  <div
-                    key={alterId}
-                    className="text-xs px-2 py-1 rounded-lg border text-foreground"
-                    style={{ backgroundColor: `${color}22`, borderColor: `${color}80` }}
-                  >
-                    <span className="font-semibold" style={{ color }}>{name}:</span>{" "}
-                    <span>{items.join(", ")}</span>
+                  <div key={alterId} className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-[0.75rem] font-semibold" style={{ color }}>{name}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {pills.map((p) => {
+                        if (p.kind === "emotion") {
+                          return (
+                            <span key={p.key} className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium" style={{ backgroundColor: emotionColor(p.em) }}>
+                              {p.text}
+                            </span>
+                          );
+                        }
+                        return (
+                          <span
+                            key={p.key}
+                            className="text-xs px-1.5 py-0.5 rounded-full border text-foreground"
+                            style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}
+                          >
+                            {p.text}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               });
