@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Help me unblend now surfaces a custom-field / pronouns / role / colour question as soon as any one alter has data for it — previously the queue dried up after a couple of questions because the threshold was 2+ alters with 2+ distinct values.",
+      },
+      {
         type: "fix",
         text: "Get to know me preset choice questions (energy / body / role / dominant feeling) now actually save — they merge into each alter's tags (and set role for role lean when the alter has none) so Help me unblend's matcher picks them up next time.",
       },
