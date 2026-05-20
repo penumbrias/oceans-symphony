@@ -23,7 +23,7 @@ function truncate(str, n = 12) {
   return str && str.length > n ? str.slice(0, n) + "…" : str;
 }
 
-export default function DiaryAnalyticsSummary({ cards }) {
+export default function DiaryAnalyticsSummary({ cards, checkIns = [] }) {
   const [rangeDays, setRangeDays] = useState(14);
 
   const { data: symptoms = [] } = useQuery({
@@ -48,6 +48,21 @@ export default function DiaryAnalyticsSummary({ cards }) {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [cards, rangeDays]);
 
+  // EmotionCheckIn records (Quick Check-In + Check-In Log entries)
+  // also live on this page, so the analytics surface needs to count
+  // their emotions and treat them as "entries" for range / empty-
+  // state purposes. Previously only DiaryCard rows fed the tally,
+  // which made the chart look empty for users who never filled out
+  // a diary card.
+  const filteredCheckIns = useMemo(() => {
+    const cutoff = subDays(new Date(), rangeDays).getTime();
+    return (checkIns || []).filter(ci => {
+      if (!ci.timestamp) return false;
+      const t = new Date(ci.timestamp).getTime();
+      return Number.isFinite(t) && t >= cutoff;
+    });
+  }, [checkIns, rangeDays]);
+
   const filteredSymptomCheckIns = useMemo(() => {
     const cutoff = subDays(new Date(), rangeDays).getTime();
     return symptomCheckIns.filter(sc => {
@@ -68,15 +83,37 @@ export default function DiaryAnalyticsSummary({ cards }) {
       }));
   }, [filtered]);
 
-  // Top emotions frequency
+  // Top emotions frequency — counts emotions across BOTH diary
+  // cards and emotion check-ins (the latter are what most users
+  // actually log on the Check-In Log page).
   const topEmotions = useMemo(() => {
     const freq = {};
     filtered.forEach(c => (c.emotions || []).forEach(e => { freq[e] = (freq[e] || 0) + 1; }));
+    filteredCheckIns.forEach(ci => (ci.emotions || []).forEach(e => { freq[e] = (freq[e] || 0) + 1; }));
     return Object.entries(freq)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([label, count]) => ({ label, count }));
-  }, [filtered]);
+  }, [filtered, filteredCheckIns]);
+
+  // Intensity trend — average EmotionCheckIn.intensity per day. Lets
+  // users with no diary cards still see a mood-ish line. Diary cards
+  // don't carry an intensity field, so this is check-in-only.
+  const intensityTrend = useMemo(() => {
+    if (filteredCheckIns.length < 2) return [];
+    const byDay = new Map();
+    for (const ci of filteredCheckIns) {
+      if (ci.intensity == null) continue;
+      const day = format(new Date(ci.timestamp), "MMM d");
+      const bucket = byDay.get(day) || { day, total: 0, count: 0 };
+      bucket.total += Number(ci.intensity) || 0;
+      bucket.count += 1;
+      byDay.set(day, bucket);
+    }
+    return [...byDay.values()]
+      .filter(b => b.count > 0)
+      .map(b => ({ date: b.day, intensity: Number((b.total / b.count).toFixed(2)) }));
+  }, [filteredCheckIns]);
 
   // Symptom frequency table — merges DiaryCard.checklist data with the
   // standalone SymptomCheckIn entity (Quick Check-In writes to the latter,
@@ -119,13 +156,15 @@ export default function DiaryAnalyticsSummary({ cards }) {
       .slice(0, 12);
   }, [filtered, filteredSymptomCheckIns, symptomById]);
 
-  if (cards.length === 0) {
+  if (cards.length === 0 && (checkIns || []).length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="text-muted-foreground text-sm">No diary cards yet — fill out a few daily cards to see analytics here.</p>
+        <p className="text-muted-foreground text-sm">No check-ins or diary cards yet — log a few entries to see analytics here.</p>
       </div>
     );
   }
+
+  const totalEntries = filtered.length + filteredCheckIns.length;
 
   return (
     <div className="space-y-5">
@@ -140,17 +179,20 @@ export default function DiaryAnalyticsSummary({ cards }) {
             </button>
           ))}
         </div>
-        <span className="text-xs text-muted-foreground ml-auto">{filtered.length} entries</span>
+        <span className="text-xs text-muted-foreground ml-auto">{totalEntries} entries</span>
       </div>
 
-      {/* Mood Trend Line Chart */}
+      {/* Mood Trend Line Chart — diary cards only (they're the
+          source of the misery/joy axes). For users who don't fill
+          out diary cards, the Intensity Trend block below picks up
+          their EmotionCheckIn data instead. */}
       <div className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
         <div>
           <p className="text-sm font-semibold">Mood Trend</p>
-          <p className="text-xs text-muted-foreground">Emotional misery vs. joy over time</p>
+          <p className="text-xs text-muted-foreground">Emotional misery vs. joy from diary cards</p>
         </div>
         {moodTrend.length < 2 ? (
-          <p className="text-xs text-muted-foreground text-center py-6">Need at least 2 rated entries to show trend.</p>
+          <p className="text-xs text-muted-foreground text-center py-6">Need at least 2 rated diary entries to show trend.</p>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={moodTrend}>
@@ -166,6 +208,33 @@ export default function DiaryAnalyticsSummary({ cards }) {
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* Check-In Intensity Trend — average EmotionCheckIn intensity
+          per day. Surfaces a mood-ish line for users whose primary
+          input is the Quick Check-In rather than the diary card. */}
+      {(checkIns || []).length > 0 && (
+        <div className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
+          <div>
+            <p className="text-sm font-semibold">Check-In Intensity</p>
+            <p className="text-xs text-muted-foreground">Average emotion intensity per day, from check-ins</p>
+          </div>
+          {intensityTrend.length < 2 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">Need at least 2 rated check-ins to show trend.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={intensityTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => truncate(v, 6)} />
+                <YAxis domain={[0, 5]} tick={{ fontSize: 11 }} width={24} />
+                <Tooltip
+                  contentStyle={{ background: "var(--color-surface)", border: "1px solid var(--color-muted)", borderRadius: 8, fontSize: 12 }}
+                />
+                <Line type="monotone" dataKey="intensity" name="Intensity" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      )}
 
       {/* Top Emotions Bar Chart */}
       <div className="bg-card border border-border/50 rounded-xl p-4 space-y-3">

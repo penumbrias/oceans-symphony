@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card } from "@/components/ui/card";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 const COLORS = [
   "#8b5cf6", "#3b82f6", "#06b6d4", "#10b981", "#f59e0b",
@@ -19,8 +20,11 @@ export default function ActivityFrequencyChart({ activities = [], categories = [
 
     activities.forEach(activity => {
       const actTime = new Date(activity.timestamp).getTime();
-      if (actTime >= fromMs && actTime <= toMs) {
-        // Each category ID on an activity is counted independently
+      if (actTime < fromMs || actTime > toMs) return;
+      const st = statusFor(activity);
+      if (st !== ACTIVITY_STATUSES.LOGGED && st !== ACTIVITY_STATUSES.DONE && st !== ACTIVITY_STATUSES.PARTIAL) return;
+      // Each category ID on an activity is counted independently
+      {
         const catIds = activity.activity_category_ids || [];
         const entries = catIds.length > 0
           ? catIds.map(id => ({ name: categoryMap[id]?.name, color: categoryMap[id]?.color, id }))

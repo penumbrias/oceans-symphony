@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { motion } from "framer-motion";
 import { subDays, startOfDay, endOfDay } from "date-fns";
-import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer, ChevronLeft, Star, Users } from "lucide-react";
+import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer, ChevronLeft, Star, Users, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
 import AlterStatRow from "@/components/analytics/AlterStatRow";
@@ -28,9 +28,17 @@ import SwitchLogAnalytics from "@/components/analytics/SwitchLogAnalytics";
 import CheckInAnalytics from "@/components/analytics/CheckInAnalytics";
 import PatternInsights from "@/components/analytics/PatternInsights";
 import LocationAnalytics from "@/components/analytics/LocationAnalytics";
+import InsightsHub from "@/components/analytics/InsightsHub";
+import {
+  normalizeSessions,
+  sessionsInRange,
+  sliceByOverlap,
+  staleOpenSessions,
+} from "@/lib/sessionNormalizer";
 
 const MODES = [
   { id: "total",      label: "Total",    icon: Clock },
+  { id: "solo",       label: "Solo",     icon: Clock },
   { id: "primary",    label: "Primary",  icon: Star },
   { id: "cofronting", label: "Co-front", icon: Users },
   { id: "average",    label: "Average",  icon: Timer },
@@ -39,55 +47,91 @@ const MODES = [
   { id: "count",      label: "Count",    icon: Hash },
 ];
 
+// Per-alter totals computed via a sweep-line over normalised
+// sessions (see /src/lib/sessionNormalizer.js). Single pass, no
+// double counting, no `?? Date.now()` leakage past the range end.
+// Unclosed sessions older than STALE_OPEN_SESSION_HOURS contribute
+// at most that bound — anything beyond is treated as a forgotten
+// session.
+//
+// For every alter:
+//   total       = solo + cofronting (effective active time inside
+//                 the window)
+//   solo        = time the alter was the only one active
+//   cofronting  = time at least one other alter was also active
+//   primary     = subset of total where this alter was the primary
+//                 (`is_primary` on their per-alter row, OR equal to
+//                 the legacy `primary_alter_id`). Computed by
+//                 walking individual sessions; legacy group rows
+//                 attribute every alter's time to the legacy
+//                 primary so the number still rolls up cleanly.
+//   count       = distinct underlying session ids
+//   sessions    = durations of those underlying sessions (for the
+//                 average-session-length card)
 function computeStats(sessions, alters, from, to) {
   const fromMs = startOfDay(from).getTime();
   const toMs = endOfDay(to).getTime();
-  const filtered = sessions.filter((s) => {
-    const st = new Date(s.start_time).getTime();
-    return st >= fromMs && st <= toMs;
-  });
+  const now = Date.now();
+  const normalised = normalizeSessions(sessions, now);
+  const filtered = sessionsInRange(normalised, fromMs, toMs, now);
+
   const alterMap = {};
   for (const alter of alters) {
-    alterMap[alter.id] = { alter, total: 0, primary: 0, cofronting: 0, sessions: [], count: 0 };
+    alterMap[alter.id] = { alter, total: 0, primary: 0, cofronting: 0, solo: 0, sessions: [], count: 0 };
   }
-  for (const s of filtered) {
-    const start = new Date(s.start_time).getTime();
-    const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
-    const dur = Math.max(end - start, 0);
-    if (s.alter_id) {
-      if (!alterMap[s.alter_id]) continue;
-      alterMap[s.alter_id].total += dur;
-      alterMap[s.alter_id].sessions.push(dur);
-      alterMap[s.alter_id].count += 1;
-      if (s.is_primary) alterMap[s.alter_id].primary += dur;
-    } else {
-      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-      for (const id of ids) {
-        if (!alterMap[id]) continue;
-        alterMap[id].total += dur;
-        alterMap[id].sessions.push(dur);
-        alterMap[id].count += 1;
-        if (s.primary_alter_id === id) alterMap[id].primary += dur;
-        else alterMap[id].cofronting += dur;
-      }
+
+  // 1) Solo / co-fronting / total time via a sweep-line slice.
+  //    Each slice has a stable set of active alters; if |set|==1
+  //    that's pure solo time, otherwise it's co-fronting for
+  //    every alter in the slice.
+  const slices = sliceByOverlap(filtered, fromMs, toMs, now);
+  for (const slice of slices) {
+    const dur = slice.endMs - slice.startMs;
+    if (dur <= 0) continue;
+    const ids = [...slice.aliveAlterIds];
+    const isSolo = ids.length === 1;
+    for (const id of ids) {
+      const row = alterMap[id];
+      if (!row) continue;
+      row.total += dur;
+      if (isSolo) row.solo += dur;
+      else row.cofronting += dur;
     }
   }
-  // For new individual model: compute co-fronting time via overlaps
-  const individualSessions = filtered.filter(s => s.alter_id);
-  for (const s of individualSessions) {
-    const id = s.alter_id;
-    if (!alterMap[id]) continue;
-    const sStart = new Date(s.start_time).getTime();
-    const sEnd = s.end_time ? new Date(s.end_time).getTime() : Date.now();
-    const hasOverlap = individualSessions.some(other => {
-      if (other.id === s.id || other.alter_id === id) return false;
-      const oStart = new Date(other.start_time).getTime();
-      const oEnd = other.end_time ? new Date(other.end_time).getTime() : Date.now();
-      return oStart < sEnd && oEnd > sStart;
-    });
-    if (hasOverlap) alterMap[id].cofronting += (sEnd - sStart);
+
+  // 2) Per-alter session lengths (for "average session" stat) +
+  //    distinct session counts + primary time. We iterate over
+  //    the normalised sessions once and contribute the in-range
+  //    portion only — same clamping logic as the slice pass,
+  //    just attributed to each alter individually.
+  for (const s of filtered) {
+    const start = Math.max(s.startMs, fromMs);
+    const end = s.endMs != null
+      ? Math.min(s.endMs, toMs)
+      : (s.isStale
+          ? Math.min(s.startMs + 48 * 60 * 60 * 1000, toMs)
+          : Math.min(now, toMs));
+    const dur = Math.max(0, end - start);
+    if (dur <= 0) continue;
+    for (const id of s.alterIds) {
+      const row = alterMap[id];
+      if (!row) continue;
+      row.sessions.push(dur);
+      row.count += 1;
+      if (id === s.primaryAlterId) row.primary += dur;
+    }
   }
-  return { alterMap, filtered };
+
+  // Surface stale-open sessions so callers can hint the user.
+  const stale = staleOpenSessions(filtered);
+
+  // Re-expose the raw session rows for the in-range sessions so
+  // downstream consumers (TimeOfDayFronters, the folded-session
+  // absorption remap, etc.) keep working without needing to know
+  // about the normalised shape.
+  const filteredRaw = filtered.map((s) => s.raw);
+
+  return { alterMap, filtered: filteredRaw, normalised: filtered, slices, stale };
 }
 
 // Landing page section cards
@@ -103,6 +147,7 @@ function SectionGrid({ terms, onSelect }) {
     { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: `Who ${terms.fronts} together` },
     { id: "switchlogs", emoji: "🔄", label: `${terms.Switch} Logs`, desc: "Triggers, symptoms, and patterns" },
     { id: "checkins", emoji: "✅", label: `${terms.System} Meetings`, desc: "Frequency and member insights" },
+    { id: "insights", emoji: "✨", label: "Insights", desc: `Plans, goals, check-ins, sleep, mood↔activity rollups` },
     { id: "patterns", emoji: "🔍", label: "Patterns & Insights", desc: `Cross-${terms.system} correlations and trends` },
     { id: "locations", emoji: "📍", label: "Locations", desc: "Where you go and patterns by place" },
   ];
@@ -223,7 +268,7 @@ export default function Analytics() {
     return map;
   }, [alters]);
 
-  const { alterMap: rawAlterMap, filtered } = useMemo(
+  const { alterMap: rawAlterMap, filtered, stale } = useMemo(
     () => computeStats(sessions, alters, from, to),
     [sessions, alters, from, to]
   );
@@ -243,6 +288,7 @@ export default function Analytics() {
       dst.total += src.total;
       dst.primary += src.primary;
       dst.cofronting += src.cofronting;
+      dst.solo += src.solo || 0;
       dst.sessions = [...dst.sessions, ...src.sessions];
       dst.count += src.count;
       delete result[absorbedId];
@@ -269,6 +315,7 @@ export default function Analytics() {
       .map((d) => {
         let stat = 0;
         if (mode === "total")           stat = d.total;
+        else if (mode === "solo")       stat = d.solo;
         else if (mode === "primary")    stat = d.primary;
         else if (mode === "cofronting") stat = d.cofronting;
         else if (mode === "average")    stat = d.sessions.length ? d.total / d.sessions.length : 0;
@@ -374,6 +421,14 @@ export default function Analytics() {
 
           {topTab === "stats" && (
             <>
+              {stale && stale.length > 0 && (
+                <div className="mb-3 flex items-start gap-2 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <p className="text-foreground/90">
+                    {stale.length} {`${terms.fronting} session${stale.length === 1 ? " has" : "s have"}`} been open for over 48 hours and look forgotten. Their duration is capped at 48h so they don't inflate these stats. Open the {`${terms.System}`} Map or Front History to close them.
+                  </p>
+                </div>
+              )}
               <div className="mb-4">
                 <ActivityHeatmap sessions={filtered} from={from} to={to} />
               </div>
@@ -525,6 +580,11 @@ export default function Analytics() {
       {/* ── LOCATIONS ── */}
       {activeSection === "locations" && (
         <LocationAnalytics from={from} to={to} />
+      )}
+
+      {/* ── INSIGHTS ── */}
+      {activeSection === "insights" && (
+        <InsightsHub from={from} to={to} />
       )}
 
       {/* ── PATTERNS & INSIGHTS ── */}

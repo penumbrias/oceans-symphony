@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { startOfDay, endOfDay, getHours } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -14,7 +15,11 @@ export default function ActivityTimeOfDayChart({ activities = [], categories = [
     const toMs = endOfDay(to).getTime();
     const filtered = activities.filter(a => {
       const t = new Date(a.timestamp).getTime();
-      return t >= fromMs && t <= toMs;
+      if (t < fromMs || t > toMs) return false;
+      const st = statusFor(a);
+      return st === ACTIVITY_STATUSES.LOGGED
+        || st === ACTIVITY_STATUSES.DONE
+        || st === ACTIVITY_STATUSES.PARTIAL;
     });
 
     // Hours of day distribution

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { startOfDay, endOfDay, differenceInMinutes } from "date-fns";
 import { Activity, Clock, Zap, TrendingUp } from "lucide-react";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 export default function ActivitySummaryCards({ activities = [], categories = [], from, to }) {
   const stats = useMemo(() => {
@@ -9,9 +10,16 @@ export default function ActivitySummaryCards({ activities = [], categories = [],
     categories.forEach(c => { catMap[c.id] = c; });
     const fromMs = startOfDay(from).getTime();
     const toMs = endOfDay(to).getTime();
+    // Exclude scheduled / cancelled / skipped — those didn't
+    // actually happen, so counting them as "logged activity" was
+    // inflating totals.
     const filtered = activities.filter(a => {
       const t = new Date(a.timestamp).getTime();
-      return t >= fromMs && t <= toMs;
+      if (t < fromMs || t > toMs) return false;
+      const st = statusFor(a);
+      return st === ACTIVITY_STATUSES.LOGGED
+        || st === ACTIVITY_STATUSES.DONE
+        || st === ACTIVITY_STATUSES.PARTIAL;
     });
 
     const totalDuration = filtered.reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
