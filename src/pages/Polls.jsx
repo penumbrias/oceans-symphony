@@ -14,7 +14,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 import SystemAvatar from "@/components/shared/SystemAvatar";
-import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
+import FronterPicker from "@/components/fronting/FronterPicker";
 
 // Per-user default for what voting mode a NEW poll should start in.
 // Persists in localStorage so the user's preferred mode carries forward.
@@ -29,36 +29,83 @@ function writeTallyDefault(on) {
   catch { /* non-fatal */ }
 }
 
-// Compact dropdown picker for "who is voting" / "who created this".
-// Replaces the previous big avatar grid that overflowed the Create
-// Poll modal on systems with many alters (modal couldn't scroll, so
-// the alters were unselectable). The dropdown mirrors the Journals
-// fronter-view filter UX: searchable, scrollable, one tap to pick.
+// "Created By" picker — uses the same FronterPicker as Set Fronters
+// and Get to know me's Associated Alters, plus a System-wide toggle
+// for polls authored as the system rather than a specific alter.
 function VoterGridPicker({ alters, value, onChange }) {
+  const terms = useTerms();
+  const systemWide = !value;
   return (
-    <AlterDropdownPicker
-      alters={alters}
-      value={value}
-      onChange={onChange}
-      mode="single"
-      allowSystemWide
-    />
+    <div className="space-y-2">
+      <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+        <Switch checked={systemWide} onCheckedChange={(on) => { if (on) onChange(""); else onChange((alters || []).filter(a => !a.is_archived)[0]?.id || ""); }} />
+        <span className="text-foreground">{terms.System || "System"}-wide (no specific {terms.alter || "alter"})</span>
+      </label>
+      {!systemWide && (
+        <FronterPicker
+          alters={alters}
+          primaryId={value || ""}
+          coFronterIds={[]}
+          onToggle={(id) => onChange(value === id ? "" : id)}
+          onSetPrimary={(id) => onChange(id)}
+          showHints={false}
+          showChips={false}
+        />
+      )}
+    </div>
   );
 }
 
-// Multi-select voter chooser. Same dropdown UX as the single-select
-// picker — selection updates instantly as you tick alters; the
-// "Reset" link snaps the choice back to whoever's currently fronting.
+// "Voting As" multi-select chooser — same FronterPicker as Set
+// Fronters, with a System-wide toggle for casting an anonymous /
+// system-attributed vote.
 function MultiVoterPicker({ alters, value, onChange, defaultVoters }) {
+  const terms = useTerms();
+  const valueArr = Array.isArray(value) ? value : [];
+  const systemWide = valueArr.includes("");
+  const alterIds = valueArr.filter((id) => id);
+  const primaryId = alterIds[0] || "";
+  const coIds = alterIds.slice(1);
+  const setSystemWide = (on) => {
+    if (on) onChange([...new Set([...valueArr, ""])]);
+    else onChange(valueArr.filter((id) => id !== ""));
+  };
+  const handleToggle = (id) => {
+    if (alterIds.includes(id)) onChange([...valueArr.filter((x) => x !== id)]);
+    else onChange([...valueArr, id]);
+  };
+  const handleSetPrimary = (id) => {
+    // FronterPicker treats setPrimary as "make this the first in the
+    // list" — for poll voting attribution we don't care about
+    // primary, so just ensure the id is selected.
+    if (!alterIds.includes(id)) onChange([...valueArr, id]);
+  };
   return (
-    <AlterDropdownPicker
-      alters={alters}
-      value={value}
-      onChange={onChange}
-      mode="multi"
-      allowSystemWide
-      defaultIds={defaultVoters || []}
-    />
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+          <Switch checked={systemWide} onCheckedChange={setSystemWide} />
+          <span className="text-foreground">Include {terms.system || "system"}-wide vote</span>
+        </label>
+        {defaultVoters && defaultVoters.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onChange(defaultVoters)}
+            className="text-[0.6875rem] text-primary hover:underline"
+          >
+            Reset to current {terms.front || "front"}
+          </button>
+        )}
+      </div>
+      <FronterPicker
+        alters={alters}
+        primaryId={primaryId}
+        coFronterIds={coIds}
+        onToggle={handleToggle}
+        onSetPrimary={handleSetPrimary}
+        showHints={false}
+      />
+    </div>
   );
 }
 

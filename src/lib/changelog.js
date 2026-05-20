@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Polls Created By / Voting As pickers now use the same Set Fronters / Associated Alters style picker, with a System-wide toggle alongside it.",
+      },
+      {
+        type: "improve",
         text: "Get to know me shuffle now cycles through unseen questions before repeating — once you've worked through every available question, the pool resets.",
       },
       {
