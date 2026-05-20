@@ -48,6 +48,7 @@ export const DEFAULT_CONFIG = {
     "todo",
     "checkin-log",
     "unblend",
+    "get-to-know-me",
     "activities",
     "sleep",
     "location-history",

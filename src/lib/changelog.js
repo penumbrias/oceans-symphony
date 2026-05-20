@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Help me unblend and Get to know me are now in the sidebar (under Tools) and the dashboard grid defaults. If you saved your dashboard layout before they shipped, open the dashboard menu's edit mode and drag them in from the ghost row.",
+      },
+      {
         type: "feature",
         text: "Grocery list now supports multiple named lists. Tap the list name in the header to switch lists or create new ones (wish lists, hardware, anywhere). Each new list has an optional \"Available when the app is locked\" toggle that stores it unencrypted in your browser — those lists stay accessible from the unlock screen so you don't have to enter your password while shopping. The other lists stay encrypted with the rest of your data.",
       },
