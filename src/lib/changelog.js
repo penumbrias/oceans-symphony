@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Get to know me preset choice questions (energy / body / role / dominant feeling) now actually save — they merge into each alter's tags (and set role for role lean when the alter has none) so Help me unblend's matcher picks them up next time.",
+      },
+      {
+        type: "fix",
         text: "Get to know me choice questions: button now works even without a selection — it switches to \"Skip & next\" so you can advance past a question you don't want to answer. With one or more options picked it saves them all and shuffles.",
       },
       {

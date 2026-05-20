@@ -168,6 +168,40 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
         return { saved: true, count: alterIds.length, field: "multiple-choice option" };
       }
 
+      // 4) Preset tag-based questions (energy / body / role_lean /
+      //    dyn_dominant_feeling). Save the option's tags into
+      //    alter.tags as a merged, deduped set so Help me unblend's
+      //    matchTags() picks them up next time. Also save the role
+      //    hint for role_lean if the alter has no role yet. age_range
+      //    is intentionally skipped — the option is a range, not a
+      //    discrete age.
+      const optionTags = Array.isArray(answer.tags) ? answer.tags.filter(Boolean) : [];
+      const dominantFeelingValue = question.id === "dyn_dominant_feeling" ? (answer.value || answer.label || null) : null;
+      const roleHints = Array.isArray(answer.roles) ? answer.roles.filter(Boolean) : [];
+      const tagsToWrite = [...optionTags];
+      if (dominantFeelingValue) tagsToWrite.push(dominantFeelingValue);
+      if (tagsToWrite.length > 0 || (roleHints.length > 0)) {
+        for (const id of alterIds) {
+          const alter = byId[id];
+          if (!alter) continue;
+          const updates = {};
+          if (tagsToWrite.length > 0) {
+            const prevTags = Array.isArray(alter.tags) ? alter.tags : [];
+            const merged = dedupePreserveOrder([...prevTags, ...tagsToWrite]);
+            updates.tags = merged;
+          }
+          // Only set role if it's currently blank — don't overwrite
+          // an explicit role the user already typed.
+          if (roleHints.length > 0 && !(typeof alter.role === "string" && alter.role.trim())) {
+            updates.role = roleHints[0];
+          }
+          if (Object.keys(updates).length > 0) {
+            await base44.entities.Alter.update(id, updates);
+          }
+        }
+        return { saved: true, count: alterIds.length, field: tagsToWrite.length > 0 ? "tags" : "role" };
+      }
+
       return {
         saved: false,
         reason: "This question type doesn't save data yet — answer it here for instant context, but it won't seed the unblend ranker.",
