@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Get to know me choice questions now have a Save & next button — picking an option only stages it; saving advances to the next question.",
+      },
+      {
+        type: "fix",
+        text: "Check-in log: edit + delete buttons are always pinned to the right edge, the check-in edit pencil is always visible (was hidden on mobile until you tapped), and dark alter-coloured symptom pills now have readable contrast.",
+      },
+      {
+        type: "improve",
+        text: "Check-in log: alter-specific notes / emotions / symptoms can now be deleted, and alter-specific symptoms feed into the Day Total tally.",
+      },
+      {
+        type: "improve",
         text: "Quick plans popup: tapping a plan opens Activity Details (mark done, edit, delete). Press &amp; hold to jump straight to Manage Plan as before.",
       },
       {
