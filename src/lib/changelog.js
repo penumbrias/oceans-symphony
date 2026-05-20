@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Quick plans day popup: \"tap to open details\" actually opens the details modal now. The handler was silently swallowing the tap on mobile (and on any small cursor wobble on desktop).",
+      },
+      {
         type: "improve",
         text: "Plans needing review on the Dashboard: double-tap a row to open the Activity Details / Manage Plan screen (same as the pinned critical plans card). Single tap still does nothing so the Done / Partial / Skipped / Cancelled buttons stay the one-shot affordance.",
       },
