@@ -275,7 +275,7 @@ export function buildDynamicQuestions(alters, customFields = []) {
     }
   }
   const pronounOptions = uniqueStringValues([...pronounSet.values()]);
-  if (pronounSet.size >= 2 && pronounOptions.length >= 2) {
+  if (pronounSet.size >= 1 && pronounOptions.length >= 1) {
     questions.push({
       id: "dyn_pronouns",
       prompt: "What pronouns feel right?",
@@ -297,7 +297,7 @@ export function buildDynamicQuestions(alters, customFields = []) {
     if (typeof a.role === "string" && a.role.trim()) roleSet.set(a.id, a.role.trim());
   }
   const roleOptions = uniqueStringValues([...roleSet.values()]);
-  if (roleSet.size >= 2 && roleOptions.length >= 2 && roleOptions.length <= 12) {
+  if (roleSet.size >= 1 && roleOptions.length >= 1 && roleOptions.length <= 24) {
     questions.push({
       id: "dyn_role",
       prompt: "Which role feels closest right now?",
@@ -361,7 +361,11 @@ export function buildDynamicQuestions(alters, customFields = []) {
     const options = [...labelByLowered.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([key, label]) => ({ id: key, label, value: key }));
-    if (valuesByAlter.size < 2 || options.length < 2 || options.length > 12) continue;
+    // Surface the question as soon as any data exists. With only one
+    // alter / one option, the matcher still helps — picking the
+    // option weights that alter and doesn't penalise the others.
+    // Cap at 24 options so the prompt stays scannable.
+    if (valuesByAlter.size < 1 || options.length < 1 || options.length > 24) continue;
     questions.push({
       id: `dyn_field_${field}`,
       prompt: humanisePrompt(field),

@@ -43,7 +43,10 @@ const IDK_THRESHOLD_FOR_GROUNDING = 3;
 function questionHasUsefulData(q, activeAlters) {
   if (!q || !Array.isArray(activeAlters) || activeAlters.length < 2) return false;
   if (q.kind === "color") {
-    return activeAlters.filter((a) => a.color).length >= 2;
+    // Only need ≥1 alter with a colour set — picking a colour still
+    // narrows toward that alter even if it's the only one with a
+    // defined colour. Stricter ≥2 made the queue dry up too fast.
+    return activeAlters.filter((a) => a.color).length >= 1;
   }
   if (q.kind === "choice" && Array.isArray(q.options) && typeof q.score === "function") {
     for (const opt of q.options) {
