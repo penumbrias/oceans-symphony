@@ -767,6 +767,15 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       look: `the Friends list with a friend card expanded to show the notify toggle`, action: null,
     },
 
+    {
+      section: "chat", sectionLabel: `${t.System} Chat`,
+      emoji: "💬",
+      title: `${t.System} Chat`,
+      body: `A Discord-style chat for ${t.alters} to talk to each other. Create named channels for different topics (Daily check-in, Therapy prep, anywhere). Pick which ${t.alter} is speaking from the author dropdown — every message is signposted, so the history reads like a real back-and-forth. Reply to a message to quote it inline. @mention any ${t.alter} by name and they'll show up in their mention log. Chat content is NEVER included in therapy reports.`,
+      route: "/chat", target: null,
+      look: `the channel list on the left and the message composer at the bottom`, action: null,
+    },
+
     // ─── DONE ───────────────────────────────────────────────────────────────
     {
       section: "done", sectionLabel: "Done!",

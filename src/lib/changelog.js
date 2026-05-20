@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "feature",
+        text: "System Chat (/chat) — a Discord-style multi-channel chat for alters to talk to each other. Create named channels, send messages with an alter signpost on every line, @mention any alter by name, reply-quote inline, edit and delete your own messages. Chat content is intentionally NEVER included in therapy reports. Reactions, threads, and pinned messages are the next iteration.",
+      },
+      {
         type: "improve",
         text: "Privacy &amp; Data notice and Settings → Data Storage now spell out exactly what's stored where: which entities live in IndexedDB (encrypted when encryption is on), which preferences live in plaintext localStorage (theme, last-opened list ids, the friends identity, grocery lists you marked \"available when locked\"), what encryption actually covers (AES-256-GCM with a PBKDF2-derived key, salt embedded in the payload), and what's never stored (analytics, telemetry, account, server-side copies). Friends mode's exact share scope is itemised so it's obvious nothing else ever leaves the device.",
       },
