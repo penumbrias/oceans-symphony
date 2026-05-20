@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Get to know me custom-field questions now include a text input so you can enter a new answer — previously, once any alter had filled the field, only the existing values were offered as pills with no way to type a new one.",
+      },
+      {
+        type: "fix",
         text: "Adding a custom emotion (e.g. \"disgust\") from the per-alter session editor or the dashboard fronter quick-editor now actually saves and pre-selects it — previously typing one and hitting add did nothing.",
       },
       {
