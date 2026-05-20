@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Get to know me: choice questions are now multi-select. Field questions show pre-existing values as a labelled \"already on file\" panel and append your new answer alongside — nothing gets overwritten when you select an alter.",
+      },
+      {
+        type: "improve",
         text: "Day Total PER-ALTER section now renders each alter's emotions / symptoms / notes as individual coloured pills grouped under the alter's name. Main day-total chips no longer double-count per-alter session entries.",
       },
       {

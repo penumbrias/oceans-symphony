@@ -155,7 +155,10 @@ export default function GetToKnowMe() {
 
   const [colorDraft, setColorDraft] = useState("#8b5cf6");
   const [textDraft, setTextDraft] = useState("");
-  const [choiceDraft, setChoiceDraft] = useState(null);
+  // Choice questions are multi-select — a check-in might have several
+  // matching tags (e.g. high-energy AND playful), so the user picks
+  // every option that applies before saving.
+  const [choiceDraft, setChoiceDraft] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const handleShuffle = () => {
@@ -184,7 +187,7 @@ export default function GetToKnowMe() {
     setSeenIds(nextSeen);
     setColorDraft("#8b5cf6");
     setTextDraft("");
-    setChoiceDraft(null);
+    setChoiceDraft([]);
   };
 
   // Pre-fill the draft with the selected alters' existing value(s)
@@ -192,28 +195,46 @@ export default function GetToKnowMe() {
   // what's already there and edit rather than re-typing from blank.
   // If selected alters disagree, fall back to the first one's value.
   useEffect(() => {
-    setChoiceDraft(null);
+    setChoiceDraft([]);
+    setTextDraft("");
     if (!currentQuestion) {
       setColorDraft("#8b5cf6");
-      setTextDraft("");
       return;
     }
-    const picked = selectedAlterIds
-      .map((id) => alters.find((a) => a.id === id))
-      .filter(Boolean);
+    // For color questions, pre-fill the picker with the first
+    // selected alter's existing colour as a starting visual — that's
+    // about a colour-picker affordance, not text. For field_input
+    // questions we DO NOT pre-fill the text box (clearing what the
+    // user typed when they pick an alter is a frustrating overwrite);
+    // existing values are surfaced as labels under the input so the
+    // user can see what's already there without losing what they
+    // typed.
     if (currentQuestion.kind === "color") {
+      const picked = selectedAlterIds
+        .map((id) => alters.find((a) => a.id === id))
+        .filter(Boolean);
       const colors = picked.map((a) => a.color).filter(Boolean);
       setColorDraft(colors[0] || "#8b5cf6");
-    } else if (currentQuestion.kind === "field_input") {
-      const fid = currentQuestion.fieldId;
-      const values = picked
-        .map((a) => (a.alter_custom_fields && typeof a.alter_custom_fields[fid] === "string" ? a.alter_custom_fields[fid] : ""))
-        .filter(Boolean);
-      setTextDraft(values[0] || "");
-    } else {
-      setTextDraft("");
     }
-  }, [questionId, selectedAlterIds, currentQuestion, alters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionId, currentQuestion]);
+
+  // Surface existing values for the selected alters next to the
+  // field_input — read-only labels so the user can see prior answers
+  // without their typed draft being overwritten.
+  const existingFieldValues = useMemo(() => {
+    if (!currentQuestion || currentQuestion.kind !== "field_input") return [];
+    const fid = currentQuestion.fieldId;
+    return selectedAlterIds
+      .map((id) => {
+        const a = alters.find((x) => x.id === id);
+        const v = a?.alter_custom_fields && typeof a.alter_custom_fields[fid] === "string"
+          ? a.alter_custom_fields[fid].trim()
+          : "";
+        return v ? { id, name: a.alias || a.name, color: a.color, value: v } : null;
+      })
+      .filter(Boolean);
+  }, [currentQuestion, selectedAlterIds, alters]);
 
   // Sync-to-front variants: mutate FrontingSession on every toggle.
   // Mirrors SetFrontModal's save semantics — end existing sessions
@@ -331,6 +352,44 @@ export default function GetToKnowMe() {
       }
     }
   }, [syncFront, applyFrontMutation]);
+
+  // Apply every picked option to the same alter set, then advance.
+  // Used by multi-select choice questions where multiple tags can
+  // apply to one moment (e.g. high-energy AND playful).
+  const submitChoiceAnswers = async (options) => {
+    if (!Array.isArray(options) || options.length === 0) return;
+    if (selectedAlterIds.length === 0) {
+      toast.error(`Pick which ${terms.alters || "alters"} this answer is for.`);
+      return;
+    }
+    setSaving(true);
+    try {
+      let savedCount = 0;
+      const reasons = new Set();
+      for (const opt of options) {
+        const result = await applyGetToKnowMeAnswer({
+          question: currentQuestion,
+          answer: opt,
+          alterIds: selectedAlterIds,
+          customFields,
+        });
+        if (result.saved) savedCount += 1;
+        else if (result.reason) reasons.add(result.reason);
+      }
+      if (savedCount > 0) {
+        toast.success(`Saved ${savedCount} option${savedCount === 1 ? "" : "s"} to ${selectedAlterIds.length} ${terms.alter || "alter"}${selectedAlterIds.length === 1 ? "" : "s"}`);
+        queryClient.invalidateQueries({ queryKey: ["alters"] });
+        queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
+        handleShuffle();
+      } else {
+        toast.message([...reasons][0] || "Couldn't save those answers.");
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const submitAnswer = async (answer) => {
     if (selectedAlterIds.length === 0) {
@@ -462,14 +521,21 @@ export default function GetToKnowMe() {
 
           {currentQuestion.kind === "choice" && (
             <div className="space-y-3">
+              <p className="text-[0.6875rem] text-muted-foreground">
+                Pick every option that applies — saving stores each one.
+              </p>
               <div className="flex flex-wrap gap-2">
                 {currentQuestion.options.map((opt) => {
-                  const selected = choiceDraft?.id === opt.id;
+                  const selected = choiceDraft.some((d) => d.id === opt.id);
                   return (
                     <button
                       key={opt.id}
                       type="button"
-                      onClick={() => setChoiceDraft(opt)}
+                      onClick={() => setChoiceDraft((prev) => (
+                        prev.some((d) => d.id === opt.id)
+                          ? prev.filter((d) => d.id !== opt.id)
+                          : [...prev, opt]
+                      ))}
                       disabled={saving}
                       className={`px-3 py-1.5 rounded-full border text-sm transition-colors disabled:opacity-50 ${
                         selected
@@ -483,17 +549,31 @@ export default function GetToKnowMe() {
                 })}
               </div>
               <Button
-                onClick={() => submitAnswer(choiceDraft)}
-                disabled={!choiceDraft || saving || selectedAlterIds.length === 0}
+                onClick={() => submitChoiceAnswers(choiceDraft)}
+                disabled={choiceDraft.length === 0 || saving || selectedAlterIds.length === 0}
                 className="w-full"
               >
-                Save &amp; next
+                Save &amp; next{choiceDraft.length > 1 ? ` (${choiceDraft.length})` : ""}
               </Button>
             </div>
           )}
 
           {currentQuestion.kind === "field_input" && (
             <div className="space-y-3">
+              {existingFieldValues.length > 0 && (
+                <div className="rounded-lg border border-border/40 bg-muted/20 p-2 space-y-1">
+                  <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground">Already on file</p>
+                  {existingFieldValues.map((ev) => (
+                    <p key={ev.id} className="text-xs">
+                      <span className="font-semibold" style={{ color: ev.color || undefined }}>{ev.name}:</span>{" "}
+                      <span className="text-foreground/80">{ev.value}</span>
+                    </p>
+                  ))}
+                  <p className="text-[0.625rem] text-muted-foreground italic">
+                    Saving below adds your answer alongside what's already here — nothing gets overwritten.
+                  </p>
+                </div>
+              )}
               {currentQuestion.options.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {currentQuestion.options.map((opt) => (
