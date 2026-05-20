@@ -12,6 +12,12 @@
 //   - `findRootGroups` includes orphans + cycle members as roots so
 //     they remain reachable in the UI.
 
+// Recursive group renderers MUST clamp themselves at this depth.
+// One bad cycle row used to brick the alters page; the clamp is
+// belt-and-braces protection on top of the cycle detection here.
+// Mirror of MAX_RENDER_DEPTH in categoryTreeUtils.js — keep in sync.
+export const MAX_GROUP_DEPTH = 8;
+
 const ROOT_VALUES = new Set([null, undefined, "", "root"]);
 
 export function isRootParent(value) {

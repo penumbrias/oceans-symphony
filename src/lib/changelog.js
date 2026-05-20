@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Alter Groups: editing a group's parent can no longer create a loop (group becoming its own ancestor). The parent picker also hides descendants of the group you're editing.",
+      },
+      {
         type: "improve",
         text: "Polls Created By / Voting As pickers now use the same Set Fronters / Associated Alters style picker, with a System-wide toggle alongside it.",
       },
