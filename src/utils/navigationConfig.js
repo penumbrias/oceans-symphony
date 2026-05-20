@@ -25,6 +25,7 @@ export const ALL_PAGES = [
   { id: "friends", label: "Friends", path: "/friends", icon: UserRound },
   { id: "bulletins", label: "Bulletin Board", path: "/bulletins", icon: Pin },
   { id: "unblend", label: "Help me unblend", path: "/unblend", icon: Heart },
+  { id: "get-to-know-me", label: "Get to know me", path: "/get-to-know-me", icon: Sparkles },
 ];
 
 export const DEFAULT_CONFIG = {

@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HexColorPicker } from "react-colorful";
 import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap, Plus, Trash2, Sparkles, Cog } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { PRESET_QUESTIONS, buildDynamicQuestions, buildDominantFeelingQuestion, instantiateUserQuestion } from "@/lib/unblendQuestions";
 import AddUnblendQuestionModal from "@/components/unblend/AddUnblendQuestionModal";
@@ -252,6 +252,12 @@ export default function HelpMeUnblend() {
             Skip anything you don't want to answer — the goal is grounding, not interrogation.
           </p>
         </div>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/get-to-know-me")} className="gap-1.5" title="Build up data by answering when grounded">
+          <Sparkles className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/unblend/questions")} className="gap-1.5" title="Manage questions">
+          <Cog className="w-4 h-4" />
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
           <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add question</span>
         </Button>
