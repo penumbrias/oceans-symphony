@@ -108,9 +108,16 @@ export default function GetToKnowMe() {
   }, [allQuestions, questionSearch]);
 
   const [questionId, setQuestionId] = useState(null);
+  // Track which question ids have been shown this round. Shuffle
+  // picks from the unseen pool first; once everything's been seen
+  // we reset and start over so the user isn't seeing the same
+  // question back-to-back forever.
+  const [seenIds, setSeenIds] = useState(() => new Set());
   useEffect(() => {
     if (!questionId && allQuestions.length > 0) {
-      setQuestionId(allQuestions[Math.floor(Math.random() * allQuestions.length)].id);
+      const first = allQuestions[Math.floor(Math.random() * allQuestions.length)];
+      setQuestionId(first.id);
+      setSeenIds(new Set([first.id]));
     }
   }, [allQuestions, questionId]);
   const currentQuestion = useMemo(
@@ -145,13 +152,28 @@ export default function GetToKnowMe() {
 
   const handleShuffle = () => {
     const pool = filteredQuestions.length > 0 ? filteredQuestions : allQuestions;
-    if (pool.length < 2) {
-      if (pool.length === 1) setQuestionId(pool[0].id);
+    if (pool.length === 0) return;
+    if (pool.length === 1) {
+      setQuestionId(pool[0].id);
+      setSeenIds(new Set([pool[0].id]));
       return;
     }
-    const others = pool.filter((q) => q.id !== questionId);
-    const pick = others[Math.floor(Math.random() * others.length)];
+    // Prefer questions the user hasn't been shown yet this round.
+    // Once we've exhausted the pool, reset seen and start over.
+    let unseen = pool.filter((q) => !seenIds.has(q.id));
+    let nextSeen;
+    if (unseen.length === 0) {
+      // Round complete — reset, but exclude the current question
+      // so we don't immediately repeat.
+      unseen = pool.filter((q) => q.id !== questionId);
+      nextSeen = new Set();
+    } else {
+      nextSeen = new Set(seenIds);
+    }
+    const pick = unseen[Math.floor(Math.random() * unseen.length)];
     setQuestionId(pick.id);
+    nextSeen.add(pick.id);
+    setSeenIds(nextSeen);
     setColorDraft("#8b5cf6");
     setTextDraft("");
     setChoiceDraft(null);

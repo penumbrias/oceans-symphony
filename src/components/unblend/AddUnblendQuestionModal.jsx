@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, X, Trash2 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
 
 // Modal for adding a user-defined Help-me-unblend question.
 // The chosen kind drives the rest of the form. We persist a
@@ -147,18 +148,6 @@ export default function AddUnblendQuestionModal({
     onClose();
   };
 
-  const toggleOptionAlter = (optIdx, alterId) => {
-    setOptions((prev) =>
-      prev.map((o, i) => {
-        if (i !== optIdx) return o;
-        const has = o.alterIds.includes(alterId);
-        return {
-          ...o,
-          alterIds: has ? o.alterIds.filter((id) => id !== alterId) : [...o.alterIds, alterId],
-        };
-      })
-    );
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
@@ -261,25 +250,15 @@ export default function AddUnblendQuestionModal({
                     <p className="text-[0.6875rem] text-muted-foreground mb-1.5">
                       Which {terms.alters} does this match?
                     </p>
-                    <div className="flex flex-wrap gap-1">
-                      {(alters || []).filter((a) => !a.is_archived).map((a) => {
-                        const checked = opt.alterIds.includes(a.id);
-                        return (
-                          <button
-                            key={a.id}
-                            type="button"
-                            onClick={() => toggleOptionAlter(idx, a.id)}
-                            className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${
-                              checked
-                                ? "bg-primary/15 border-primary/50 text-primary"
-                                : "bg-background border-border text-muted-foreground hover:bg-muted/40"
-                            }`}
-                          >
-                            {a.name}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <AlterDropdownPicker
+                      alters={alters || []}
+                      value={opt.alterIds}
+                      onChange={(next) => setOptions((prev) =>
+                        prev.map((o, i) => (i === idx ? { ...o, alterIds: next.filter(Boolean) } : o))
+                      )}
+                      mode="multi"
+                      placeholder={`Pick ${terms.alters || "alters"}…`}
+                    />
                   </div>
                 </div>
               ))}
