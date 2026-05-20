@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Check-in log: every entry now has edit/delete affordances — standalone symptoms can have their severity tweaked or be removed, and location rows have a delete button. Changes reflect on the Timeline immediately.",
+      },
+      {
         type: "fix",
         text: "Editing or deleting a check-in now also updates the symptoms logged alongside it — they used to stay on the timeline as ghosts. Symptoms attached to the check-in pre-fill in the edit modal so you can toggle them off.",
       },

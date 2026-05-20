@@ -4,7 +4,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format, parseISO, startOfDay } from "date-fns";
 import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal, Pencil } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import DiaryAnalyticsSummary from "@/components/diary/DiaryAnalyticsSummary";
@@ -645,15 +645,134 @@ function StandaloneEntry({ timestamp, children }) {
   );
 }
 
+function useArmedDelete(onConfirm) {
+  const [armed, setArmed] = useState(false);
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  const trigger = async () => {
+    if (!armed) {
+      setArmed(true);
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setArmed(false), 4000);
+      return;
+    }
+    clearTimeout(timerRef.current);
+    setArmed(false);
+    await onConfirm();
+  };
+  return { armed, trigger };
+}
+
+function RowActions({ onEdit, onDelete, armed, editLabel = "Edit", deleteLabel = "Delete" }) {
+  return (
+    <div className="flex items-center gap-0.5 flex-shrink-0">
+      {onEdit && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          aria-label={editLabel}
+          title={editLabel}
+          className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+      )}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          aria-label={armed ? "Tap again to delete" : deleteLabel}
+          title={armed ? "Tap again to confirm" : deleteLabel}
+          className={`p-1 rounded-md transition-colors ${
+            armed ? "bg-destructive/15 text-destructive ring-1 ring-destructive/40" : "text-muted-foreground hover:text-destructive"
+          }`}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          {armed && <span className="ml-1 text-[0.625rem] uppercase tracking-wide font-semibold">Confirm</span>}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function SymptomUpdateEntry({ sc, symptomsById }) {
+  const qc = useQueryClient();
   const symptom = symptomsById[sc.symptom_id];
   const color = symptom?.color || "#8b5cf6";
+  const [editing, setEditing] = useState(false);
+  const [severity, setSeverity] = useState(sc.severity ?? null);
+  const [saving, setSaving] = useState(false);
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+    qc.invalidateQueries({ queryKey: ["timeline"] });
+    qc.invalidateQueries({ queryKey: ["currentSymptoms"] });
+  };
+
+  const { armed, trigger: handleDelete } = useArmedDelete(async () => {
+    try {
+      await base44.entities.SymptomCheckIn.delete(sc.id);
+      invalidateAll();
+      toast.success("Symptom deleted");
+    } catch (e) { toast.error(e.message || "Failed to delete"); }
+  });
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await base44.entities.SymptomCheckIn.update(sc.id, { severity });
+      invalidateAll();
+      setEditing(false);
+    } catch (e) { toast.error(e.message || "Failed to save"); }
+    finally { setSaving(false); }
+  };
+
   return (
     <StandaloneEntry timestamp={sc.timestamp}>
-      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
-        style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
-        {symptom?.label || "Symptom"}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
-      </span>
+      <div className="flex-1 flex items-center gap-2 min-w-0 flex-wrap">
+        <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border flex-shrink-0"
+          style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
+          {symptom?.label || "Symptom"}{!editing && sc.severity != null ? ` · ${sc.severity}/5` : ""}
+        </span>
+        {editing && (
+          <>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setSeverity(n)}
+                  className={`w-5 h-5 text-[0.625rem] font-semibold rounded-md border transition-colors ${
+                    severity === n ? "bg-primary text-primary-foreground border-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSeverity(null)}
+                className={`px-1.5 h-5 text-[0.625rem] rounded-md border transition-colors ${
+                  severity == null ? "bg-muted text-foreground border-border" : "border-border/60 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                None
+              </button>
+            </div>
+            <button type="button" onClick={handleSave} disabled={saving} className="text-xs px-2 py-0.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
+            <button type="button" onClick={() => { setSeverity(sc.severity ?? null); setEditing(false); }} className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground">Cancel</button>
+          </>
+        )}
+        {!editing && (
+          <RowActions
+            onEdit={() => setEditing(true)}
+            onDelete={handleDelete}
+            armed={armed}
+            editLabel="Edit severity"
+            deleteLabel="Delete symptom entry"
+          />
+        )}
+      </div>
     </StandaloneEntry>
   );
 }
@@ -669,25 +788,45 @@ function ActivityEntry({ act }) {
 }
 
 function LocationEntry({ loc }) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
   const meta = getCategoryMeta(loc.category);
+  const { armed, trigger: handleDelete } = useArmedDelete(async () => {
+    try {
+      await localEntities.Location.delete(loc.id);
+      qc.invalidateQueries({ queryKey: ["locations"] });
+      qc.invalidateQueries({ queryKey: ["timeline"] });
+      toast.success("Location deleted");
+    } catch (e) { toast.error(e.message || "Failed to delete"); }
+  });
+
   return (
     <StandaloneEntry timestamp={loc.timestamp}>
-      <div className="flex flex-col gap-0.5">
-        <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 self-start">
-          <MapPin className="w-3 h-3 flex-shrink-0" />
-          {loc.name || meta?.label || "Location"}
-        </span>
-        {loc.latitude != null && loc.longitude != null && (
-          <a
-            href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-[0.6875rem] text-blue-400 hover:text-blue-300 underline self-start"
-          >
-            {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} ↗
-          </a>
-        )}
+      <div className="flex-1 flex items-start justify-between gap-2 min-w-0">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 self-start">
+            <MapPin className="w-3 h-3 flex-shrink-0" />
+            {loc.name || meta?.label || "Location"}
+          </span>
+          {loc.latitude != null && loc.longitude != null && (
+            <a
+              href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-[0.6875rem] text-blue-400 hover:text-blue-300 underline self-start"
+            >
+              {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} ↗
+            </a>
+          )}
+        </div>
+        <RowActions
+          onEdit={() => navigate("/location-history")}
+          onDelete={handleDelete}
+          armed={armed}
+          editLabel="Open Location History to edit"
+          deleteLabel="Delete location"
+        />
       </div>
     </StandaloneEntry>
   );
