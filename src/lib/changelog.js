@@ -16,6 +16,38 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "feature",
+        text: "System Chat (/chat) — a Discord-style multi-channel chat for alters to talk to each other. Create named channels, send messages with an alter signpost on every line, @mention any alter by name, reply-quote inline, edit and delete your own messages. Chat content is intentionally NEVER included in therapy reports. Reactions, threads, and pinned messages are the next iteration.",
+      },
+      {
+        type: "improve",
+        text: "Privacy &amp; Data notice and Settings → Data Storage now spell out exactly what's stored where: which entities live in IndexedDB (encrypted when encryption is on), which preferences live in plaintext localStorage (theme, last-opened list ids, the friends identity, grocery lists you marked \"available when locked\"), what encryption actually covers (AES-256-GCM with a PBKDF2-derived key, salt embedded in the payload), and what's never stored (analytics, telemetry, account, server-side copies). Friends mode's exact share scope is itemised so it's obvious nothing else ever leaves the device.",
+      },
+      {
+        type: "fix",
+        text: "Help me unblend and Get to know me are now in the sidebar (under Tools) and the dashboard grid defaults. If you saved your dashboard layout before they shipped, open the dashboard menu's edit mode and drag them in from the ghost row.",
+      },
+      {
+        type: "feature",
+        text: "Grocery list now supports multiple named lists. Tap the list name in the header to switch lists or create new ones (wish lists, hardware, anywhere). Each new list has an optional \"Available when the app is locked\" toggle that stores it unencrypted in your browser — those lists stay accessible from the unlock screen so you don't have to enter your password while shopping. The other lists stay encrypted with the rest of your data.",
+      },
+      {
+        type: "feature",
+        text: "Grocery list now remembers when you bought things. Checking an item off groups it under the date you purchased it. Tap a green check again to mark the item as ran out (red X) — it stays under the purchase date but moves below the in-stock items so you can see when the broccoli in the fridge actually came from. Ran-out rows get Restore (back to the shopping list) and Remove buttons; bulk \"Clear all ran-out items\" leaves the in-stock history alone.",
+      },
+      {
+        type: "feature",
+        text: "Plan Activity modal: \"Create a new to-do from this plan\" toggle inline with the existing \"Link to a to-do\" picker. Saving the plan creates a fresh to-do with the plan's title, notes, and due date, then links it automatically. Mutually exclusive with picking an existing to-do — you'd only ever want one linked.",
+      },
+      {
+        type: "fix",
+        text: "Quick plans day popup: \"tap to open details\" actually opens the details modal now. The handler was silently swallowing the tap on mobile (and on any small cursor wobble on desktop).",
+      },
+      {
+        type: "improve",
+        text: "Plans needing review on the Dashboard: double-tap a row to open the Activity Details / Manage Plan screen (same as the pinned critical plans card). Single tap still does nothing so the Done / Partial / Skipped / Cancelled buttons stay the one-shot affordance.",
+      },
+      {
         type: "improve",
         text: "Custom Fields reordering is now drag-and-drop. The old up/down arrows would stop responding past a few rows because field orders had collided over time; reordering now always renumbers cleanly so the list stays movable end-to-end.",
       },

@@ -53,14 +53,16 @@ function QuickPlanRow({ activity, getActivityColor, onTap, onLongPress }) {
   const startPress = () => {
     heldRef.current = false;
     clearTimeout(timerRef.current);
+    // heldRef flips true ONLY when the long-press actually fires;
+    // pointerleave / pointercancel can fire after pointerup on
+    // mobile (or on a 1px cursor wobble on desktop) and used to
+    // incorrectly mark the gesture as held, which then blocked the
+    // click handler from invoking onTap — the entire "tap to open
+    // details" interaction was silently swallowed.
     timerRef.current = setTimeout(() => { heldRef.current = true; onLongPress(); }, 500);
-  };
-  const endPress = () => {
-    clearTimeout(timerRef.current);
   };
   const cancelPress = () => {
     clearTimeout(timerRef.current);
-    heldRef.current = true;
   };
   useEffect(() => () => clearTimeout(timerRef.current), []);
   return (
@@ -68,7 +70,7 @@ function QuickPlanRow({ activity, getActivityColor, onTap, onLongPress }) {
       type="button"
       onClick={() => { if (!heldRef.current) onTap(); }}
       onPointerDown={startPress}
-      onPointerUp={endPress}
+      onPointerUp={cancelPress}
       onPointerCancel={cancelPress}
       onPointerLeave={cancelPress}
       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-card hover:bg-muted/40 text-left transition-colors"

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -113,59 +113,13 @@ export default function UnresolvedPlansCard() {
 
       <div className="space-y-2">
         {visible.map((act) => (
-          <div
+          <UnresolvedPlanRow
             key={act.id}
-            className="rounded-md border border-border/60 bg-card p-2 space-y-1.5"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">
-                  {act.activity_name || "Untitled plan"}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {format(new Date(act.timestamp), "EEE d MMM, HH:mm")}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busyId === act.id}
-                onClick={() => resolve(act, ACTIVITY_STATUSES.DONE)}
-                className="h-7 text-xs px-2"
-              >
-                Done
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busyId === act.id}
-                onClick={() => resolve(act, ACTIVITY_STATUSES.PARTIAL)}
-                className="h-7 text-xs px-2"
-              >
-                Partial
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busyId === act.id}
-                onClick={() => resolve(act, ACTIVITY_STATUSES.SKIPPED)}
-                className="h-7 text-xs px-2"
-              >
-                Skipped
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busyId === act.id}
-                onClick={() => resolve(act, ACTIVITY_STATUSES.CANCELLED)}
-                className="h-7 text-xs px-2"
-              >
-                Cancelled
-              </Button>
-            </div>
-          </div>
+            act={act}
+            busy={busyId === act.id}
+            onResolve={resolve}
+            onOpen={() => navigate(`/activities?activityId=${act.id}`)}
+          />
         ))}
       </div>
 
@@ -179,5 +133,82 @@ export default function UnresolvedPlansCard() {
         </button>
       )}
     </Card>
+  );
+}
+
+// Double-tap the row body → /activities?activityId=<id>, which opens the
+// Activity Details modal automatically (same pattern as
+// CriticalPlanCard). Single tap is a no-op so the lifecycle buttons
+// stay the primary one-shot affordance — accidentally tapping the row
+// shouldn't yank the user off the dashboard.
+function UnresolvedPlanRow({ act, busy, onResolve, onOpen }) {
+  const lastTapRef = useRef(0);
+  const handleRowTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 350) {
+      lastTapRef.current = 0;
+      onOpen();
+      return;
+    }
+    lastTapRef.current = now;
+  };
+  return (
+    <div
+      onClick={handleRowTap}
+      onKeyDown={(e) => { if (e.key === "Enter") onOpen(); }}
+      role="button"
+      tabIndex={0}
+      title="Double-tap to open this plan"
+      className="rounded-md border border-border/60 bg-card p-2 space-y-1.5 cursor-pointer select-none"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">
+            {act.activity_name || "Untitled plan"}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {format(new Date(act.timestamp), "EEE d MMM, HH:mm")}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={(e) => { e.stopPropagation(); onResolve(act, ACTIVITY_STATUSES.DONE); }}
+          className="h-7 text-xs px-2"
+        >
+          Done
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={(e) => { e.stopPropagation(); onResolve(act, ACTIVITY_STATUSES.PARTIAL); }}
+          className="h-7 text-xs px-2"
+        >
+          Partial
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={(e) => { e.stopPropagation(); onResolve(act, ACTIVITY_STATUSES.SKIPPED); }}
+          className="h-7 text-xs px-2"
+        >
+          Skipped
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={(e) => { e.stopPropagation(); onResolve(act, ACTIVITY_STATUSES.CANCELLED); }}
+          className="h-7 text-xs px-2"
+        >
+          Cancelled
+        </Button>
+      </div>
+    </div>
   );
 }

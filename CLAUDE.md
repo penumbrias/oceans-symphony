@@ -148,6 +148,32 @@ Rules:
 
 ---
 
+## Critical: New Navigation Surfaces Must Hit All Three Lists
+
+**Any new page reachable by a route must be reachable from all of: the dashboard grid, the sidebar, and the Settings → Appearance → Navigation toggles. Skipping one buries the feature — exactly what happened to "Help me unblend" / "Get to know me" pre-v0.22.2.**
+
+The three lists are independent of each other — none is derived. When you ship a new page:
+
+1. **`src/utils/navigationConfig.js`**
+   - Add the page to `ALL_PAGES` (id, label, path, icon). This is the master list that `NavigationSettings` reads, so it's what powers the Settings → Appearance → Navigation toggles (top bar, bottom bar, dashboard grid). A page missing here is invisible to user customisation.
+   - Add the id to `DEFAULT_CONFIG.dashboardGrid` if the feature should show up on the dashboard for new users (and via the auto-merge, for existing users who haven't explicitly removed it). Order it by intent group (see the existing comment block in `DEFAULT_CONFIG`).
+   - Only add to `DEFAULT_CONFIG.topBar` / `DEFAULT_CONFIG.bottomBar` if it's a top-5 always-on surface; those bars are space-constrained.
+
+2. **`src/components/dashboard/QuickNavMenu.jsx`** — `buildGridItems(altersLabel, systemLabel)` and `buildNavGroups(altersLabel, systemLabel)`.
+   - Add an entry to `buildGridItems` so the dashboard tile renders with the right colour / icon / label. Without this, an id present in `dashboardGrid` is silently dropped by the `.filter(Boolean)` after `.find(item => item.id === id)`.
+   - Add an entry to `buildNavGroups` under the matching category — that's what the quick-nav popover lists.
+
+3. **`src/components/layout/SidebarNav.jsx`** — the hard-coded `buildSidebarGroups(altersLabel, systemLabel)` list.
+   - Add an entry under the right category (System / Tracking / Journal & Content / Tools / Analytics). This list is NOT derived from `ALL_PAGES`, so a page missing here is unreachable from the sidebar even if it's elsewhere.
+
+Other touchpoints worth checking when relevant:
+- `src/components/dashboard/QuickActionsMenu.jsx` / `QuickActionsConfig` — if the page makes sense as a one-tap quick action.
+- `src/lib/globalSearch.js` — every entity / surface that's findable should have its `build<Name>Records` so it shows up in search.
+
+The merge logic in `QuickNavMenu.jsx` and `NavigationSettings.jsx` auto-appends new `DEFAULT_CONFIG.dashboardGrid` entries to existing users' saved configs (unless explicitly in `dashboardGridRemoved`), so step 1 makes the page appear retroactively without overriding user preferences. The sidebar list has no merge — it's whatever the hard-coded array says, every render — so step 3 is the one most likely to be forgotten and the one with the widest blast radius.
+
+---
+
 ## Critical: Keep the Changelog and Version Up to Date
 
 **Whenever a feature, improvement, or notable fix ships, three files move together in the SAME commit as the user-visible change — every time, no exceptions:**

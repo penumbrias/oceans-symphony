@@ -98,7 +98,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "🛒",
       title: "Grocery list — also a privacy cover",
-      body: `The cart icon in the sidebar opens what looks like a normal grocery list — and works as one. It's also a one-tap privacy screen for those moments when someone glances at your phone. Triple-tap anywhere in the app to open it instantly. Inside the list: star any item to save it as a frequent purchase so you can re-add it with one tap later. If you have encryption turned on, you'll also see a lock icon in the header — toggling it on means closing the list clears your session and bounces you to the password screen, so you can "hide and lock" in one move.`,
+      body: `The cart icon in the sidebar opens what looks like a normal grocery list — and works as one. It's also a one-tap privacy screen for those moments when someone glances at your phone. Triple-tap anywhere in the app to open it instantly. Tap the list name in the header to switch lists or create new ones (wish lists, hardware, anywhere). Each new list can be marked "Available when the app is locked" if you want it accessible from the unlock screen — handy when you're shopping and don't want to enter your password every time. Check off items to log when you bought them; tap again to mark "ran out" so you can see when the broccoli in the fridge actually came from. Star items to save them as frequent purchases. If you have encryption turned on, the lock icon in the header means closing the list also clears your session.`,
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the ☰ menu top-left to see it). Triple-tap anywhere to open it without using the icon.`, action: null,
     },
@@ -765,6 +765,15 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       body: `For each friend you can toggle "Notify on change" — when their front updates, you'll get a push notification. If you prefer not to be pinged, their front status still refreshes in the Friends list every 30 seconds so you can check at your own pace. Privacy levels let you share names, count only, or keep the front fully hidden.`,
       route: "/friends", target: null,
       look: `the Friends list with a friend card expanded to show the notify toggle`, action: null,
+    },
+
+    {
+      section: "chat", sectionLabel: `${t.System} Chat`,
+      emoji: "💬",
+      title: `${t.System} Chat`,
+      body: `A Discord-style chat for ${t.alters} to talk to each other. Create named channels for different topics (Daily check-in, Therapy prep, anywhere). Pick which ${t.alter} is speaking from the author dropdown — every message is signposted, so the history reads like a real back-and-forth. Reply to a message to quote it inline. @mention any ${t.alter} by name and they'll show up in their mention log. Chat content is NEVER included in therapy reports.`,
+      route: "/chat", target: null,
+      look: `the channel list on the left and the message composer at the bottom`, action: null,
     },
 
     // ─── DONE ───────────────────────────────────────────────────────────────

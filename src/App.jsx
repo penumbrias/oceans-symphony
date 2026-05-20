@@ -32,6 +32,7 @@ import BulletinPage from '@/pages/BulletinPage';
 import BulletinsPage from '@/pages/BulletinsPage';
 import HelpMeUnblend from '@/pages/HelpMeUnblend';
 import GetToKnowMe from '@/pages/GetToKnowMe';
+import Chat from '@/pages/Chat';
 import UnblendQuestionsManager from '@/pages/UnblendQuestionsManager';
 import ManageCheckIn from '@/pages/ManageCheckIn';
 import TherapyReport from '@/pages/TherapyReport';
@@ -69,6 +70,7 @@ import { base44 } from '@/api/base44Client';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
 import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
+import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth } = useAuth();
@@ -159,6 +161,7 @@ const AuthenticatedApp = () => {
         <Route path="/bulletins" element={<BulletinsPage />} />
         <Route path="/unblend" element={<HelpMeUnblend />} />
         <Route path="/get-to-know-me" element={<GetToKnowMe />} />
+        <Route path="/chat" element={<Chat />} />
         <Route path="/unblend/questions" element={<UnblendQuestionsManager />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
         <Route path="/grounding" element={<Grounding />} />
@@ -322,6 +325,10 @@ function App() {
             setSetupState('recovery');
           }}
         />
+        {/* Mount the panel here so the user can pop their always-
+            unlocked grocery lists without going through the unlock
+            challenge. lockedMode hides every encrypted list. */}
+        <GroceryListPanel lockedMode />
       </ThemeProvider>
     );
   }

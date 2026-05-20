@@ -115,6 +115,10 @@ export default function ActivityPlanModal({
   const [recurrenceInterval, setRecurrenceInterval] = useState("none");
   const [recurrenceCount, setRecurrenceCount] = useState(8);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+  // When true, save also creates a new Task derived from this plan
+  // (title / due-date) and links it. Mutually exclusive with picking
+  // an existing to-do from the dropdown.
+  const [createTodo, setCreateTodo] = useState(false);
 
   const [newActivityName, setNewActivityName] = useState("");
   const [showNewActivity, setShowNewActivity] = useState(false);
@@ -199,6 +203,7 @@ export default function ActivityPlanModal({
     setIsCritical(false);
     setLeadSteps(DEFAULT_LEAD_STEPS);
     setSelectedTaskId(null);
+    setCreateTodo(false);
     setRecurrenceInterval("none");
     setRecurrenceCount(8);
     setReminderOffset(null);
@@ -270,6 +275,14 @@ export default function ActivityPlanModal({
     if (!isQuickPlan && endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
 
     setIsLoading(true);
+
+    // "Create a new to-do from this plan" toggle. We build the Task
+    // up-front so its id can flow into `task_id` on every Activity
+    // record we're about to write (including recurring occurrences),
+    // and so the existing helper that updates the due_date on save
+    // continues to work without a special-case.
+    let derivedTask = null;
+
     // Quick plans drop the time entirely. We store the timestamp as
     // end-of-day so the plan stays "in the future" (and therefore
     // visible in Upcoming Plans) until the day fully passes, and so
@@ -288,6 +301,27 @@ export default function ActivityPlanModal({
     try {
       const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
       const isPlanned = timestamp.getTime() > Date.now();
+
+      if (createTodo && !linkedTask) {
+        const firstCatId = selectedActivityCategories[0];
+        const firstCat = firstCatId ? catById[firstCatId] : null;
+        const todoTitle = trimmedTitle || firstCat?.name || "Plan to-do";
+        try {
+          derivedTask = await base44.entities.Task.create({
+            title: todoTitle,
+            completed: false,
+            priority: "medium",
+            due_date: format(timestamp, "yyyy-MM-dd"),
+            notes: notes || null,
+          });
+          queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        } catch (err) {
+          toast.error(err?.message || "Couldn't create the linked to-do");
+          setIsLoading(false);
+          return;
+        }
+      }
+      const effectiveLinkedTask = linkedTask || derivedTask;
 
       // ── Edit existing plan ──────────────────────────────────────────
       if (editingPlan) {
@@ -314,7 +348,7 @@ export default function ActivityPlanModal({
           activity_name: fallbackName,
           activity_category_ids: selectedActivityCategories,
           ...(firstCat?.color ? { color: firstCat.color } : {}),
-          task_id: linkedTask?.id || null,
+          task_id: effectiveLinkedTask?.id || null,
           duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
           fronting_alter_ids: selectedAlters,
           notes: notes || null,
@@ -427,7 +461,7 @@ export default function ActivityPlanModal({
             activity_name: r.activity_name,
             activity_category_ids: r.activity_category_ids,
             ...(r.color ? { color: r.color } : {}),
-            task_id: linkedTask?.id || null,
+            task_id: effectiveLinkedTask?.id || null,
             duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
             fronting_alter_ids: selectedAlters,
             notes: notes || null,
@@ -469,10 +503,11 @@ export default function ActivityPlanModal({
       setLeadSteps(DEFAULT_LEAD_STEPS);
       onSave?.();
       onClose();
+      const todoSuffix = derivedTask ? " · to-do created" : "";
       toast.success(
         recurrenceGroupId
-          ? `Plan saved — ${occurrences.length} occurrences scheduled.`
-          : "Plan saved!"
+          ? `Plan saved — ${occurrences.length} occurrences scheduled${todoSuffix}.`
+          : `Plan saved${todoSuffix}!`
       );
     } catch (err) {
       toast.error(err.message || "Failed to save plan");
@@ -611,17 +646,36 @@ export default function ActivityPlanModal({
             <label className="text-sm font-medium block mb-1">
               Link to a to-do <span className="text-xs text-muted-foreground">(optional)</span>
             </label>
+            <label className="flex items-center gap-2 mb-2 text-sm cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={createTodo}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setCreateTodo(next);
+                  // Picking "create new" and picking an existing one
+                  // are mutually exclusive — flipping this on clears
+                  // any existing selection so the save flow doesn't
+                  // have to choose between two task_ids.
+                  if (next) setSelectedTaskId(null);
+                }}
+                className="w-4 h-4 accent-primary"
+              />
+              <span>Create a new to-do from this plan</span>
+            </label>
             <select
               value={selectedTaskId || ""}
               onChange={(e) => {
                 const v = e.target.value || null;
                 setSelectedTaskId(v);
+                if (v) setCreateTodo(false);
                 if (v && !title.trim()) {
                   const t = tasks.find((x) => x.id === v);
                   if (t?.title) setTitle(t.title);
                 }
               }}
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+              disabled={createTodo}
+              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm disabled:opacity-50"
             >
               <option value="">— No to-do linked —</option>
               {tasks.filter((t) => !t.completed).map((t) => (
@@ -629,7 +683,9 @@ export default function ActivityPlanModal({
               ))}
             </select>
             <p className="text-xs text-muted-foreground mt-1">
-              Pick an existing to-do to schedule it for this time. Its due date will update to match.
+              {createTodo
+                ? "A new to-do will be created with this plan's title and due date, then linked here."
+                : "Pick an existing to-do to schedule it for this time. Its due date will update to match."}
             </p>
           </div>
 
