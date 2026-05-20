@@ -23,6 +23,24 @@
 import { colorDistance, ANSWER_DELTA, ANSWER_PENALTY } from "./unblendScoring";
 
 // ───────────────────────────────────────────────────────────────────
+// Split a free-text custom-field value into individual items.
+// Lets a user type a comma-separated list like "music, drawing,
+// painting" into a regular text custom field and have each item
+// behave as its own distinct value for matching purposes — no
+// schema change to CustomField required. Pipes and semicolons
+// also count as separators for flexibility. Returns lowercased
+// values; the caller is responsible for preserving casing if it
+// needs to display them.
+export function splitCustomFieldValue(raw) {
+  if (raw == null) return [];
+  const s = String(raw);
+  if (!s.trim()) return [];
+  return s
+    .split(/[,;|]/)
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 // Helper: read a custom-field value off an alter, case-insensitive.
 function readCustom(alter, fieldName) {
   const map = alter?.alter_custom_fields;
@@ -292,40 +310,137 @@ export function buildDynamicQuestions(alters) {
     });
   }
 
-  // 3) Custom fields. Each field becomes a question if 2+ alters have
-  // it set with 2+ distinct values (and at most 12, so the option
-  // list stays scannable).
-  const customFieldValues = {};
+  // 3) Custom fields. Each field becomes a question if 2+ alters
+  // have it set with 2+ distinct values (and at most 12, so the
+  // option list stays scannable). Comma-separated entries on a
+  // single alter ("music, drawing, painting") split into independent
+  // values — so a user can list interests on one alter without
+  // creating a wide bespoke schema, and the matching still works
+  // per-item.
+  const customFieldValues = {};        // field → Map<alterId, originalString>
+  const customFieldItemsByAlter = {};  // field → Map<alterId, Set<lowercaseItems>>
   for (const a of active) {
     const map = a.alter_custom_fields;
     if (!map || typeof map !== "object") continue;
     for (const [k, v] of Object.entries(map)) {
       const value = typeof v === "string" ? v.trim() : "";
       if (!value) continue;
+      const items = splitCustomFieldValue(value);
+      if (items.length === 0) continue;
       if (!customFieldValues[k]) customFieldValues[k] = new Map();
+      if (!customFieldItemsByAlter[k]) customFieldItemsByAlter[k] = new Map();
       customFieldValues[k].set(a.id, value);
+      customFieldItemsByAlter[k].set(a.id, new Set(items));
     }
   }
   for (const [field, valuesByAlter] of Object.entries(customFieldValues)) {
-    const options = uniqueStringValues([...valuesByAlter.values()]);
+    // Flatten every alter's items into the option pool. Preserve the
+    // first occurrence's original casing.
+    const labelByLowered = new Map();
+    for (const [, raw] of valuesByAlter.entries()) {
+      for (const item of String(raw).split(/[,;|]/)) {
+        const trimmed = item.trim();
+        if (!trimmed) continue;
+        const key = trimmed.toLowerCase();
+        if (!labelByLowered.has(key)) labelByLowered.set(key, trimmed);
+      }
+    }
+    const options = [...labelByLowered.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, label]) => ({ id: key, label, value: key }));
     if (valuesByAlter.size < 2 || options.length < 2 || options.length > 12) continue;
     questions.push({
       id: `dyn_field_${field}`,
       prompt: humanisePrompt(field),
       kind: "choice",
-      options: options.map((v) => ({ id: v, label: v, value: v })),
+      options,
       score: (alter, ans) => {
         if (!ans) return 0;
-        const v = readCustom(alter, field);
-        if (typeof v !== "string" || !v.trim()) return 0;
-        return v.trim().toLowerCase() === ans.value.toLowerCase()
-          ? ANSWER_DELTA
-          : 0;
+        const items = customFieldItemsByAlter[field]?.get(alter.id);
+        if (!items || items.size === 0) return 0;
+        return items.has(ans.value.toLowerCase()) ? ANSWER_DELTA : 0;
       },
     });
   }
 
   return questions;
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Convert a stored user-defined question (from the UnblendQuestion
+// entity) into a runtime question record with a score() function the
+// rest of the engine can use. Each kind has its own scoring rule;
+// kinds we don't yet support (activity / symptom / diary / range /
+// poll) return null so the page silently skips them rather than
+// rendering a broken question.
+export function instantiateUserQuestion(userQ, { alters }) {
+  if (!userQ || !userQ.prompt || !userQ.kind) return null;
+  switch (userQ.kind) {
+    case "color":
+      return {
+        id: `user_${userQ.id}`,
+        prompt: userQ.prompt,
+        kind: "color",
+        userId: userQ.id,
+        score: (alter, hex) => {
+          if (!alter?.color || !hex) return 0;
+          const d = colorDistance(alter.color, hex);
+          if (d < 60) return ANSWER_DELTA;
+          if (d < 150) return ANSWER_DELTA * 0.4;
+          return ANSWER_PENALTY * 0.5;
+        },
+      };
+
+    case "pronouns":
+    case "role":
+    case "age": {
+      // Re-derive a fresh dynamic question over the live alter set
+      // using the matching prompt the user typed.
+      const dyn = buildDynamicQuestions(alters || []).find((q) => q.id === `dyn_${userQ.kind}`);
+      if (!dyn) return null;
+      return { ...dyn, id: `user_${userQ.id}`, prompt: userQ.prompt, userId: userQ.id };
+    }
+
+    case "custom_field": {
+      const field = userQ.field;
+      if (!field) return null;
+      const dyn = buildDynamicQuestions(alters || []).find((q) => q.id === `dyn_field_${field}`);
+      if (!dyn) return null;
+      return { ...dyn, id: `user_${userQ.id}`, prompt: userQ.prompt, userId: userQ.id };
+    }
+
+    case "multiple_choice": {
+      const options = Array.isArray(userQ.options) ? userQ.options : [];
+      if (options.length < 2) return null;
+      return {
+        id: `user_${userQ.id}`,
+        prompt: userQ.prompt,
+        kind: "choice",
+        userId: userQ.id,
+        options: options.map((o, i) => ({
+          id: o.id || `opt-${i}`,
+          label: o.label || `Option ${i + 1}`,
+          // alterIds: array of alter ids the user marked as matching
+          // this option. Empty array = "no signal" — picking it just
+          // skips scoring.
+          alterIds: Array.isArray(o.alterIds) ? o.alterIds : [],
+        })),
+        score: (alter, ans) => {
+          if (!ans || !Array.isArray(ans.alterIds) || ans.alterIds.length === 0) return 0;
+          return ans.alterIds.includes(alter.id) ? ANSWER_DELTA : ANSWER_PENALTY * 0.3;
+        },
+      };
+    }
+
+    // Deferred for a follow-up PR (each needs its own data integration):
+    //   - activity (link to Activity entity)
+    //   - symptom (link to Symptom / SymptomCheckIn entity)
+    //   - diary (link to DiaryCard entity)
+    //   - range (numeric slider, requires per-alter range fields)
+    //   - poll (link to Poll entity)
+    default:
+      return null;
+  }
 }
 
 // Generic matchers. Each returns a number in roughly the range
