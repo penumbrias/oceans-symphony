@@ -57,6 +57,14 @@ export default function GetToKnowMe() {
     queryKey: ["unblendQuestions"],
     queryFn: () => localEntities.UnblendQuestion.list(),
   });
+  const { data: hiddenUnblendRecords = [] } = useQuery({
+    queryKey: ["hiddenUnblendQuestions"],
+    queryFn: () => localEntities.HiddenUnblendQuestion.list(),
+  });
+  const hiddenUnblendIds = useMemo(
+    () => new Set((hiddenUnblendRecords || []).map((r) => r.originalId)),
+    [hiddenUnblendRecords]
+  );
   const { data: activeFront = [] } = useQuery({
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
@@ -97,8 +105,8 @@ export default function GetToKnowMe() {
       const q = instantiateUserQuestion(rec, { alters, customFields });
       if (q) out.push(q);
     }
-    return out;
-  }, [alters, customFields, emotionCheckIns, userRecords]);
+    return out.filter((q) => !hiddenUnblendIds.has(q.id));
+  }, [alters, customFields, emotionCheckIns, userRecords, hiddenUnblendIds]);
 
   const [questionSearch, setQuestionSearch] = useState("");
   const filteredQuestions = useMemo(() => {

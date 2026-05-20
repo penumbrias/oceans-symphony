@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Manage Unblend Questions: every preset and auto-generated question can now be customised, duplicated, or hidden — not just user-created ones. Hidden ones move to a Hidden section where you can restore them.",
+      },
+      {
         type: "fix",
         text: "Alter Groups: editing a group's parent can no longer create a loop (group becoming its own ancestor). The parent picker also hides descendants of the group you're editing.",
       },

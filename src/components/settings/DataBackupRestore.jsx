@@ -96,6 +96,7 @@ const ENTITY_NAMES = [
   "SupportJournalEntry", "LearningProgress", "ReportTemplate", "ReportExport",
   "DiaryTemplate", "Reminder", "ReminderInstance", "Poll", "TriggerType",
   "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "GroceryFavorite", "QuickAction",
+  "UnblendQuestion", "HiddenUnblendQuestion",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -126,7 +127,7 @@ const EXPORT_CATEGORIES = [
   { id: "reminders",     label: "Reminders",                entities: ["Reminder", "ReminderInstance"],                                     desc: "Reminders and scheduled instances" },
   { id: "reports",       label: "Therapy Reports",          entities: ["ReportTemplate", "ReportExport"],                                   desc: "Report templates and exports" },
   { id: "learning",      label: "Learning Progress",        entities: ["LearningProgress"],                                                 desc: "Learning module progress" },
-  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType", "QuickAction"], desc: "App settings, custom emotions, trigger types, quick actions" },
+  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType", "QuickAction", "UnblendQuestion", "HiddenUnblendQuestion"], desc: "App settings, custom emotions, trigger types, quick actions, unblend questions" },
   { id: "notes",         label: "Notes & Messages",         entities: ["AlterNote", "AlterMessage", "MentionLog"],                          desc: "Notes, DMs, mentions" },
   { id: "statuses",     label: "Custom Statuses",           entities: ["StatusNote"],                                                          desc: "Timeline status notes" },
   { id: "locations",    label: "Location History",          entities: ["Location"],                                                            desc: "Location log entries" },
