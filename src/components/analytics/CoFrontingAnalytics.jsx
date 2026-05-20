@@ -3,9 +3,11 @@ import { startOfDay, endOfDay } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card } from "@/components/ui/card";
-
-const getAlterIdFromSession = (s) => s.alter_id || s.primary_alter_id;
-const getAllIdsFromSession = (s) => s.alter_id ? [s.alter_id] : [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+import {
+  normalizeSessions,
+  sessionsInRange,
+  sliceByOverlap,
+} from "@/lib/sessionNormalizer";
 
 function MatrixPopover({ content, onClose }) {
   const ref = useRef(null);
@@ -27,155 +29,100 @@ export default function CoFrontingAnalytics({ sessions = [], alters = [], alters
   const [activePopover, setActivePopover] = useState(null); // { key, content }
   const cofrontingLabel = terms.Cofronting;
 
-  // Compute co-fronting pairs with overlap analysis
-  const coFrontingPairs = useMemo(() => {
-    const pairs = {};
-    const filtered = sessions.filter((s) => {
-      const st = new Date(s.start_time).getTime();
-      return st >= startOfDay(from).getTime() && st <= endOfDay(to).getTime();
-    });
+  // All three useMemos below run on a single normalised + range-
+  // clamped slice sweep so unclosed sessions don't leak past the
+  // range end (was the "5085h solo in 30d" bug) and the legacy
+  // group model + individual model produce consistent results.
+  const { coFrontingPairs, alterSoloVsCo, coFrontingByHour } = useMemo(() => {
+    const fromMs = startOfDay(from).getTime();
+    const toMs = endOfDay(to).getTime();
+    const now = Date.now();
+    const normalised = normalizeSessions(sessions, now);
+    const inRange = sessionsInRange(normalised, fromMs, toMs, now);
+    const slices = sliceByOverlap(inRange, fromMs, toMs, now);
 
-    const addOverlap = (idA, idB, overlap) => {
+    // Pairs: every multi-alter slice contributes overlap time +
+    // an occurrence to each pair of alters active in it.
+    const pairs = {};
+    const addPair = (idA, idB, overlap) => {
       if (!idA || !idB || idA === idB) return;
-      const pairKey = [idA, idB].sort().join("--");
+      const sorted = [idA, idB].sort();
+      const pairKey = sorted.join("--");
       if (!pairs[pairKey]) {
-        pairs[pairKey] = {
-          alterIdA: [idA, idB].sort()[0],
-          alterIdB: [idA, idB].sort()[1],
-          totalOverlap: 0,
-          occurrences: 0,
-        };
+        pairs[pairKey] = { alterIdA: sorted[0], alterIdB: sorted[1], totalOverlap: 0, occurrences: 0 };
       }
       pairs[pairKey].totalOverlap += overlap;
       pairs[pairKey].occurrences += 1;
     };
 
-    // New individual model: find overlapping sessions between different alters
-    const individualSessions = filtered.filter(s => s.alter_id);
-    for (let i = 0; i < individualSessions.length; i++) {
-      for (let j = i + 1; j < individualSessions.length; j++) {
-        const a = individualSessions[i];
-        const b = individualSessions[j];
-        if (a.alter_id === b.alter_id) continue;
-        const aStart = new Date(a.start_time).getTime();
-        const aEnd = a.end_time ? new Date(a.end_time).getTime() : Date.now();
-        const bStart = new Date(b.start_time).getTime();
-        const bEnd = b.end_time ? new Date(b.end_time).getTime() : Date.now();
-        const overlapStart = Math.max(aStart, bStart);
-        const overlapEnd = Math.min(aEnd, bEnd);
-        if (overlapEnd > overlapStart) {
-          addOverlap(a.alter_id, b.alter_id, overlapEnd - overlapStart);
-        }
-      }
+    // Per-alter solo vs co buckets, sourced from slice attribution
+    // (solo = only-alter slices; co = multi-alter slices).
+    const buckets = {};
+    for (const a of alters) {
+      if (!a.is_archived) buckets[a.id] = { alter: a, soloTime: 0, coTime: 0 };
     }
 
-    // Legacy grouped model: primary + co_fronter_ids were all fronting together
-    const legacySessions = filtered.filter(s => !s.alter_id && s.primary_alter_id);
-    legacySessions.forEach(s => {
-      const start = new Date(s.start_time).getTime();
-      const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
-      const duration = end - start;
-      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
+    // Co-fronting by hour: each multi-alter slice marks the
+    // hour(s) it spans. One hour can be marked by many slices —
+    // the chart shows total minutes-of-co-fronting per hour-of-day.
+    const hourMinutes = new Array(24).fill(0);
+
+    for (const slice of slices) {
+      const ids = [...slice.aliveAlterIds];
+      const dur = slice.endMs - slice.startMs;
+      if (dur <= 0) continue;
+
+      // Solo vs co attribution
+      const isSolo = ids.length === 1;
+      for (const id of ids) {
+        const b = buckets[id];
+        if (!b) continue;
+        if (isSolo) b.soloTime += dur;
+        else b.coTime += dur;
+      }
+
+      if (ids.length < 2) continue;
+
+      // Pair counts
       for (let i = 0; i < ids.length; i++) {
         for (let j = i + 1; j < ids.length; j++) {
-          addOverlap(ids[i], ids[j], duration);
+          addPair(ids[i], ids[j], dur);
         }
       }
-    });
 
-    return Object.values(pairs).sort((a, b) => b.totalOverlap - a.totalOverlap);
-  }, [sessions, from, to]);
-
-  // Solo vs co-fronting breakdown per alter
-  const alterSoloVsCo = useMemo(() => {
-    return alters
-      .filter((a) => !a.is_archived)
-      .map((alter) => {
-        const alterSessions = sessions.filter((s) => getAllIdsFromSession(s).includes(alter.id));
-        let soloTime = 0;
-        let coTime = 0;
-
-        alterSessions.forEach((session) => {
-          const start = new Date(session.start_time).getTime();
-          const end = session.end_time ? new Date(session.end_time).getTime() : Date.now();
-          const duration = end - start;
-
-          // Check if any other session overlaps
-          const hasOverlap = sessions.some((other) => {
-            if (other.id === session.id || !getAllIdsFromSession(other).includes(alter.id)) return false;
-            const oStart = new Date(other.start_time).getTime();
-            const oEnd = other.end_time ? new Date(other.end_time).getTime() : Date.now();
-            return oStart < end && oEnd > start;
-          });
-
-          if (hasOverlap) coTime += duration;
-          else soloTime += duration;
-        });
-
-        return { alter, soloTime, coTime, total: soloTime + coTime };
-      })
-      .filter((d) => d.total > 0)
-      .sort((a, b) => b.total - a.total);
-  }, [sessions, alters]);
-
-  // Time of day co-fronting
-  const coFrontingByHour = useMemo(() => {
-    const hours = Array(24).fill(0);
-    const filtered = sessions.filter((s) => {
-      const st = new Date(s.start_time).getTime();
-      return st >= startOfDay(from).getTime() && st <= endOfDay(to).getTime();
-    });
-
-    const addHourOverlap = (startMs, endMs) => {
-      const startHour = new Date(startMs).getHours();
-      const endHour = new Date(endMs).getHours();
-      for (let h = startHour; h <= endHour && h < 24; h++) {
-        hours[h] += 1;
-      }
-    };
-
-    // New individual model
-    const individualSessions = filtered.filter(s => s.alter_id);
-    for (let i = 0; i < individualSessions.length; i++) {
-      for (let j = i + 1; j < individualSessions.length; j++) {
-        const a = individualSessions[i];
-        const b = individualSessions[j];
-        if (a.alter_id === b.alter_id) continue;
-        const aStart = new Date(a.start_time).getTime();
-        const aEnd = a.end_time ? new Date(a.end_time).getTime() : Date.now();
-        const bStart = new Date(b.start_time).getTime();
-        const bEnd = b.end_time ? new Date(b.end_time).getTime() : Date.now();
-        const overlapStart = Math.max(aStart, bStart);
-        const overlapEnd = Math.min(aEnd, bEnd);
-        if (overlapEnd > overlapStart) {
-          addHourOverlap(overlapStart, overlapEnd);
-        }
+      // Hour buckets — distribute the slice across the hour(s)
+      // it touches, in minutes, so a 90-minute slice that starts
+      // at 14:30 adds 30min to hour 14 and 60min to hour 15.
+      let cursor = slice.startMs;
+      while (cursor < slice.endMs) {
+        const d = new Date(cursor);
+        const hour = d.getHours();
+        const nextHourBoundary = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour + 1, 0, 0, 0).getTime();
+        const segEnd = Math.min(nextHourBoundary, slice.endMs);
+        hourMinutes[hour] += (segEnd - cursor) / 60000;
+        cursor = segEnd;
       }
     }
 
-    // Legacy grouped model
-    const legacySessions = filtered.filter(s => !s.alter_id && s.primary_alter_id);
-    legacySessions.forEach(s => {
-      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-      if (ids.length > 1) {
-        addHourOverlap(new Date(s.start_time).getTime(), s.end_time ? new Date(s.end_time).getTime() : Date.now());
-      }
-    });
-
-    // De-duplicate
-    return hours.map((h) => Math.round(h / 2));
-  }, [sessions, from, to]);
+    return {
+      coFrontingPairs: Object.values(pairs).sort((a, b) => b.totalOverlap - a.totalOverlap),
+      alterSoloVsCo: Object.values(buckets)
+        .map((b) => ({ ...b, total: b.soloTime + b.coTime }))
+        .filter((d) => d.total > 0)
+        .sort((a, b) => b.total - a.total),
+      coFrontingByHour: hourMinutes.map((m) => Math.round(m)),
+    };
+  }, [sessions, alters, from, to]);
 
   // Co-fronting matrix
-  const matrixAlters = useMemo(
-    () =>
-      alters.filter(
-        (a) =>
-          !a.is_archived &&
-          sessions.some((s) => getAllIdsFromSession(s).includes(a.id))
-      ),
-    [alters, sessions]
-  );
+  const matrixAlters = useMemo(() => {
+    const normalised = normalizeSessions(sessions);
+    const everSeenAlterIds = new Set();
+    for (const s of normalised) {
+      for (const id of s.alterIds) everSeenAlterIds.add(id);
+    }
+    return alters.filter((a) => !a.is_archived && everSeenAlterIds.has(a.id));
+  }, [alters, sessions]);
 
   const getCellValue = (idA, idB) => {
     const key = [idA, idB].sort().join("--");

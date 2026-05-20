@@ -17,6 +17,22 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Analytics rework: every chart that aggregates fronting sessions now goes through a shared session normaliser. The old code treated unclosed sessions as if they were still running right now, which is why a 30-day window could show \"5085h solo\". Sessions you forgot to close are capped at 48h and the page warns you so you can go close them.",
+      },
+      {
+        type: "fix",
+        text: "Co-fronting analytics: solo vs co-fronting time is now computed via overlap slices, not by adding the same session's duration twice. The numbers in the breakdown match what actually happened. Both the legacy group-session model and the per-alter individual model feed in consistently — the standalone Co-Fronting page previously ignored individual sessions entirely.",
+      },
+      {
+        type: "fix",
+        text: "Activity charts (frequency, time-of-day, trends, summary cards) no longer count scheduled / cancelled / skipped activities as if they happened. Only logged, done, and partial activities feed the totals now.",
+      },
+      {
+        type: "feature",
+        text: "New Insights tab on the Analytics hub composes plan completion rates, goal progress, check-in distress rate, to-do completion, reminder acknowledgement, sleep summary, top locations, and a mood-after-activity correlation block — all using data you already have.",
+      },
+      {
+        type: "fix",
         text: "Check-In Log analytics now actually counts your check-ins. The Top Emotions chart was only reading diary cards, so users with lots of Quick Check-In entries saw a near-empty chart. Emotion check-ins are now included in the tally, and a new \"Check-In Intensity\" trend line shows average intensity per day from your check-ins (alongside the existing diary-card mood trend).",
       },
       {

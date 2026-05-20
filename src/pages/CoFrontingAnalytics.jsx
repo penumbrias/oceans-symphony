@@ -7,8 +7,14 @@ import SystemAvatar from "@/components/shared/SystemAvatar";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { format, subDays } from "date-fns";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { Search, X, ChevronRight } from "lucide-react";
+import {
+  normalizeSessions,
+  sessionsInRange,
+  sliceByOverlap,
+  effectiveDurationMs,
+} from "@/lib/sessionNormalizer";
 
 const SYSTEM_VIEW_ID = "__system__";
 
@@ -32,6 +38,15 @@ export default function CoFrontingAnalytics() {
   });
 
   const analytics = useMemo(() => {
+    // Range is "all time" on this standalone page — use a wide
+    // window so the in-range clamp still kills unclosed-session
+    // leak past today but doesn't filter historical data.
+    const fromMs = startOfDay(subDays(new Date(), 365 * 10)).getTime();
+    const toMs = endOfDay(new Date()).getTime();
+    const now = Date.now();
+    const normalised = normalizeSessions(sessions, now);
+    const inRange = sessionsInRange(normalised, fromMs, toMs, now);
+
     const alterPairMap = new Map(); // "alterId1|alterId2" -> { count, duration }
     const alterTotals = new Map(); // alterId -> { sessions, duration }
 
@@ -39,34 +54,43 @@ export default function CoFrontingAnalytics() {
       alterTotals.set(a.id, { sessions: 0, duration: 0 });
     });
 
-    sessions.forEach((session) => {
-      const primary = session.primary_alter_id;
-      const coFronters = session.co_fronter_ids || [];
-      const duration = session.end_time
-        ? (new Date(session.end_time) - new Date(session.start_time)) / (1000 * 60)
-        : 0;
-
-      // Track primary fronter
-      if (primary && alterTotals.has(primary)) {
-        const stats = alterTotals.get(primary);
+    // Per-alter session counts + duration: walk the in-range
+    // sessions once. For per-alter rows, this naturally gives "I
+    // was in N sessions"; for legacy group rows the primary +
+    // every co-fronter all get a session credit.
+    inRange.forEach((session) => {
+      const durationMin = effectiveDurationMs(session, fromMs, toMs, now) / 60000;
+      for (const id of session.alterIds) {
+        if (!alterTotals.has(id)) continue;
+        const stats = alterTotals.get(id);
         stats.sessions += 1;
-        stats.duration += duration;
+        stats.duration += durationMin;
       }
+    });
 
-      // Track all fronting alters together
-      const allFronters = [primary, ...coFronters].filter(Boolean);
-      for (let i = 0; i < allFronters.length; i++) {
-        for (let j = i + 1; j < allFronters.length; j++) {
-          const key = [allFronters[i], allFronters[j]].sort().join("|");
+    // Pair counts via overlap-slice sweep. This unifies both
+    // models: a legacy group row contributes one slice with all
+    // alterIds → pairs emit naturally; two per-alter rows that
+    // overlap in wall-clock time contribute a slice with both
+    // alterIds → pairs emit for the overlap window. Solo slices
+    // (|alterIds| == 1) contribute nothing here.
+    const slices = sliceByOverlap(inRange, fromMs, toMs, now);
+    for (const slice of slices) {
+      const ids = [...slice.aliveAlterIds];
+      if (ids.length < 2) continue;
+      const durMin = (slice.endMs - slice.startMs) / 60000;
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const key = [ids[i], ids[j]].sort().join("|");
           if (!alterPairMap.has(key)) {
             alterPairMap.set(key, { count: 0, duration: 0 });
           }
           const pair = alterPairMap.get(key);
           pair.count += 1;
-          pair.duration += duration;
+          pair.duration += durMin;
         }
       }
-    });
+    }
 
     // Get all alters sorted by sessions
     const allAltersList = alters
@@ -126,21 +150,31 @@ export default function CoFrontingAnalytics() {
         .sort((a, b) => b.totalDuration - a.totalDuration);
     }
 
-    // Trend data
-    const last30Days = subDays(new Date(), 30);
+    // Trend data: walk the last-30-day slices so we count
+    // co-fronting under both models. A slice on a day with
+    // |aliveAlterIds| >= 2 is a co-fronting moment on that day.
+    const trendFromMs = startOfDay(subDays(new Date(), 30)).getTime();
+    const trendToMs = endOfDay(new Date()).getTime();
     const trendMap = new Map();
-
-    sessions.forEach((session) => {
-      const sessionDate = new Date(session.start_time);
-      if (sessionDate >= last30Days) {
-        const dateKey = format(sessionDate, "MMM d");
-        const coFronters = (session.co_fronter_ids || []).length > 0;
-        if (!trendMap.has(dateKey)) {
-          trendMap.set(dateKey, { total: 0, coFront: 0 });
-        }
-        const existing = trendMap.get(dateKey);
-        existing.total += 1;
-        if (coFronters) existing.coFront += 1;
+    // total sessions per day (started in window)
+    inRange.forEach((session) => {
+      if (session.startMs < trendFromMs || session.startMs > trendToMs) return;
+      const dateKey = format(new Date(session.startMs), "MMM d");
+      if (!trendMap.has(dateKey)) trendMap.set(dateKey, { total: 0, coFront: 0, coFrontKeys: new Set() });
+      trendMap.get(dateKey).total += 1;
+    });
+    // co-front days: each multi-alter slice contributes a unique
+    // co-fronting-period-per-day marker (so a 2h slice == one
+    // co-fronting period, not two)
+    sliceByOverlap(inRange, trendFromMs, trendToMs, now).forEach((slice) => {
+      if (slice.aliveAlterIds.size < 2) return;
+      const dateKey = format(new Date(slice.startMs), "MMM d");
+      if (!trendMap.has(dateKey)) trendMap.set(dateKey, { total: 0, coFront: 0, coFrontKeys: new Set() });
+      const k = [...slice.aliveAlterIds].sort().join("|");
+      const m = trendMap.get(dateKey);
+      if (!m.coFrontKeys.has(k)) {
+        m.coFrontKeys.add(k);
+        m.coFront += 1;
       }
     });
 

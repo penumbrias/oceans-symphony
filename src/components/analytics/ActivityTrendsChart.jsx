@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 export default function ActivityTrendsChart({ activities = [], categories = [], from, to }) {
   const { chartData, lines } = useMemo(() => {
@@ -12,7 +13,11 @@ export default function ActivityTrendsChart({ activities = [], categories = [], 
     const toDay = endOfDay(to);
     const filtered = activities.filter(a => {
       const t = new Date(a.timestamp).getTime();
-      return t >= fromDay.getTime() && t <= toDay.getTime();
+      if (t < fromDay.getTime() || t > toDay.getTime()) return false;
+      const st = statusFor(a);
+      return st === ACTIVITY_STATUSES.LOGGED
+        || st === ACTIVITY_STATUSES.DONE
+        || st === ACTIVITY_STATUSES.PARTIAL;
     });
 
     // Top 5 activities by count — each category counted independently
