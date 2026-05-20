@@ -88,24 +88,37 @@ export default function GetToKnowMe() {
   }, [activeFront]);
 
   const allQuestions = useMemo(() => {
-    const out = [...PRESET_QUESTIONS, ...buildDynamicQuestions(alters, customFields)];
+    // Drop dyn_field_* (custom-field choice-only) questions — the
+    // field_input version added below covers the same fields with a
+    // richer UI that includes both quick-fill pills for existing
+    // values AND a text input for typing a new value. The choice-only
+    // version is still produced by buildDynamicQuestions for Help me
+    // unblend's matcher; here in Get to know me we want the seeding
+    // UI instead, so the user can actually contribute new answers.
+    const dyn = buildDynamicQuestions(alters, customFields)
+      .filter((q) => !(typeof q.id === "string" && q.id.startsWith("dyn_field_")));
+    const out = [...PRESET_QUESTIONS, ...dyn];
     const feelQ = buildDominantFeelingQuestion(emotionCheckIns);
     if (feelQ) out.push(feelQ);
-    // Cycle through every custom field even if no alters have filled
-    // it in yet — that's the whole point of Get to know me. Suppress
-    // duplicates with dyn_field_<id> (which only appears when 2+
-    // alters have it filled with 2+ distinct values).
-    const fieldQs = buildAllFieldQuestions(alters, customFields);
-    const haveDynForField = new Set(out.filter((q) => q.id?.startsWith("dyn_field_")).map((q) => q.id.slice("dyn_field_".length)));
-    for (const fq of fieldQs) {
-      if (haveDynForField.has(fq.fieldId)) continue;
+    // field_input for every custom field — surfaces existing values as
+    // pills and a "type a different answer" input so the user can add
+    // new ones.
+    for (const fq of buildAllFieldQuestions(alters, customFields)) {
       out.push(fq);
     }
     for (const rec of userRecords) {
       const q = instantiateUserQuestion(rec, { alters, customFields });
       if (q) out.push(q);
     }
-    return out.filter((q) => !hiddenUnblendIds.has(q.id));
+    // The Unblend Manager hides custom-field questions under the id
+    // dyn_field_<fieldId>. The field_input version we surface here uses
+    // field_<fieldId>, so map that case too — otherwise hiding a
+    // custom field in the Manager would silently re-appear here.
+    return out.filter((q) => {
+      if (hiddenUnblendIds.has(q.id)) return false;
+      if (q.kind === "field_input" && q.fieldId && hiddenUnblendIds.has(`dyn_field_${q.fieldId}`)) return false;
+      return true;
+    });
   }, [alters, customFields, emotionCheckIns, userRecords, hiddenUnblendIds]);
 
   // Toggle to hide custom-field questions from the Get to know me
