@@ -96,6 +96,17 @@ export default function HelpMeUnblend() {
     queryKey: ["unblendQuestions"],
     queryFn: () => localEntities.UnblendQuestion.list(),
   });
+  // Built-in / auto-generated questions the user has hidden via the
+  // Manage Unblend Questions page. We filter them out of the queue
+  // entirely so they don't reappear.
+  const { data: hiddenUnblendRecords = [] } = useQuery({
+    queryKey: ["hiddenUnblendQuestions"],
+    queryFn: () => localEntities.HiddenUnblendQuestion.list(),
+  });
+  const hiddenUnblendIds = useMemo(
+    () => new Set((hiddenUnblendRecords || []).map((r) => r.originalId)),
+    [hiddenUnblendRecords]
+  );
 
   // Add-question lives in /unblend/questions now — this page only
   // surfaces existing questions and reads them. Delete affordance
@@ -146,8 +157,10 @@ export default function HelpMeUnblend() {
       if (q) out.push(q);
     }
     const active = (alters || []).filter((a) => !a.is_archived);
-    return out.filter((q) => questionHasUsefulData(q, active));
-  }, [alters, customFields, emotionCheckIns, userQuestionRecords]);
+    return out
+      .filter((q) => !hiddenUnblendIds.has(q.id))
+      .filter((q) => questionHasUsefulData(q, active));
+  }, [alters, customFields, emotionCheckIns, userQuestionRecords, hiddenUnblendIds]);
   const [questionOrder, setQuestionOrder] = useState([]);
   // Keep questionOrder in sync once alters resolve — append dynamic
   // ids the user hasn't seen yet to the end of the queue so the
