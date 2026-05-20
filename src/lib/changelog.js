@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Help me unblend 'dominant feeling' question now uses your actual emotion history. Options are the emotions you've logged most often, and scoring rewards the alter who's felt it the most.",
+      },
+      {
+        type: "improve",
         text: "Help me unblend: color picker is now the full hex picker (not just swatches), and questions auto-generate from your alter data — pronouns, role, and every custom field with at least two distinct values becomes its own question.",
       },
       {
