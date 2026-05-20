@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Get to know me: question now sits above the alter picker, and the picker uses the same avatar grid as the Set front modal instead of the previous chip list.",
+      },
+      {
         type: "feature",
         text: "New 'Get to know me' page — answer unblend questions to build up data over time. Pick which alters the answer applies to, with a 'Sync to current front' toggle that ties selection to fronting state.",
       },
