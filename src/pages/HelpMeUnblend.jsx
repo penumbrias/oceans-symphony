@@ -60,6 +60,14 @@ export default function HelpMeUnblend() {
     queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
   });
 
+  // Custom field definitions — needed so the dynamic-question
+  // builder knows which fields are list-type (and should split on
+  // commas) vs plain text (treated as one opaque value).
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["customFields"],
+    queryFn: () => base44.entities.CustomField.list("order"),
+  });
+
   // User-defined questions live in a local entity so they survive
   // restarts without needing server sync. Each record is just the
   // user's saved spec; instantiateUserQuestion turns it into a
@@ -111,15 +119,15 @@ export default function HelpMeUnblend() {
   // (top logged emotions) + user-defined questions instantiated
   // against the live alter set.
   const allQuestions = useMemo(() => {
-    const out = [...PRESET_QUESTIONS, ...buildDynamicQuestions(alters)];
+    const out = [...PRESET_QUESTIONS, ...buildDynamicQuestions(alters, customFields)];
     const feelQ = buildDominantFeelingQuestion(emotionCheckIns);
     if (feelQ) out.push(feelQ);
     for (const rec of userQuestionRecords) {
-      const q = instantiateUserQuestion(rec, { alters });
+      const q = instantiateUserQuestion(rec, { alters, customFields });
       if (q) out.push(q);
     }
     return out;
-  }, [alters, emotionCheckIns, userQuestionRecords]);
+  }, [alters, customFields, emotionCheckIns, userQuestionRecords]);
   const [questionOrder, setQuestionOrder] = useState(() => PRESET_QUESTIONS.map((q) => q.id));
   // Keep questionOrder in sync once alters resolve — append dynamic
   // ids the user hasn't seen yet to the end of the queue so the
@@ -457,6 +465,7 @@ export default function HelpMeUnblend() {
         onClose={() => setAddOpen(false)}
         onSave={saveUserQuestion}
         alters={activeAlters}
+        customFields={customFields}
       />
     </div>
   );

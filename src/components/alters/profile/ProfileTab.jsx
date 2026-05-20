@@ -547,7 +547,17 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                   <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
                     <span className="text-xs text-foreground flex-1 leading-relaxed whitespace-pre-wrap break-words">
-                      {field.field_type === "boolean" ? (customFieldValues[field.id] === "true" ? "Yes" : "No") : customFieldValues[field.id]}
+                      {field.field_type === "boolean"
+                        ? (customFieldValues[field.id] === "true" ? "Yes" : "No")
+                        : field.field_type === "list" && typeof customFieldValues[field.id] === "string"
+                          ? (
+                            <span className="inline-flex flex-wrap gap-1">
+                              {customFieldValues[field.id].split(/[,;|]/).map((s) => s.trim()).filter(Boolean).map((item, i) => (
+                                <span key={`${item}-${i}`} className="text-[0.6875rem] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{item}</span>
+                              ))}
+                            </span>
+                          )
+                          : customFieldValues[field.id]}
                     </span>
                   </div>
                 ))}

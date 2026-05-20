@@ -31,7 +31,7 @@ const KINDS = [
   { id: "age",             label: "Age" },
 ];
 
-export default function AddUnblendQuestionModal({ isOpen, onClose, onSave, alters }) {
+export default function AddUnblendQuestionModal({ isOpen, onClose, onSave, alters, customFields = [] }) {
   const terms = useTerms();
   const [kind, setKind] = useState("custom_field");
   const [prompt, setPrompt] = useState("");
@@ -41,15 +41,23 @@ export default function AddUnblendQuestionModal({ isOpen, onClose, onSave, alter
     { id: "opt-2", label: "", alterIds: [] },
   ]);
 
-  const customFieldNames = useMemo(() => {
-    const set = new Set();
+  // Custom fields the user has actually defined, keyed by id with
+  // their human name + type. We only surface fields that at least one
+  // alter has filled in — otherwise the resulting question would have
+  // zero options.
+  const availableFields = useMemo(() => {
+    const filledFieldIds = new Set();
     for (const a of alters || []) {
       const map = a.alter_custom_fields;
       if (!map || typeof map !== "object") continue;
-      for (const k of Object.keys(map)) set.add(k);
+      for (const [k, v] of Object.entries(map)) {
+        if (typeof v === "string" && v.trim()) filledFieldIds.add(k);
+      }
     }
-    return [...set].sort();
-  }, [alters]);
+    return (customFields || [])
+      .filter((f) => filledFieldIds.has(f.id))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [alters, customFields]);
 
   const reset = () => {
     setKind("custom_field");
@@ -157,17 +165,19 @@ export default function AddUnblendQuestionModal({ isOpen, onClose, onSave, alter
                 onChange={(e) => setField(e.target.value)}
               >
                 <option value="">— Select a field —</option>
-                {customFieldNames.map((name) => (
-                  <option key={name} value={name}>{name}</option>
+                {availableFields.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}{f.field_type === "list" ? " (list)" : ""}
+                  </option>
                 ))}
               </select>
-              {customFieldNames.length === 0 && (
+              {availableFields.length === 0 && (
                 <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400 mt-1">
-                  No custom fields exist yet. Add one in Settings → {terms.Alters} & Fields first.
+                  No custom fields with data yet. Add one in Settings → {terms.Alters} & Fields, fill it in on at least two {terms.alters}, then come back.
                 </p>
               )}
               <p className="text-[0.6875rem] text-muted-foreground mt-2 leading-snug">
-                Options come from values you've filled in on your {terms.alters}. Comma-separated entries split into individual values (so "music, drawing, painting" becomes three).
+                Options come from values you've filled in on your {terms.alters}. List-type fields ("music, drawing, painting") split each entry into its own option so they match independently.
               </p>
             </div>
           )}
