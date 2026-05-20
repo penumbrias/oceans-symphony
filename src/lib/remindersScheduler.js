@@ -524,12 +524,22 @@ export function usePendingReminderInstances() {
     queryKey: ["reminderInstances", "pending"],
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // last hour
-      const all = await base44.entities.ReminderInstance.list("-scheduled_for", 200);
-      // Only return truly "fired" instances — snoozed ones stay hidden until the
-      // scheduler promotes them back to "fired". This prevents duplicates and
-      // prevents snoozed toasts from reappearing before snooze expires.
-      return (all || []).filter(i =>
+      const [all, reminders] = await Promise.all([
+        base44.entities.ReminderInstance.list("-scheduled_for", 200),
+        base44.entities.Reminder.list(),
+      ]);
+      const liveIds = new Set((reminders || []).map((r) => r.id));
+      // Filter to truly "fired" instances within the window AND whose
+      // parent Reminder still exists — otherwise a deleted reminder
+      // leaves orphan instances that keep the badge lit forever.
+      // Best-effort cleanup of those orphans so they don't pile up.
+      const orphans = (all || []).filter((i) => i.status === "fired" && !liveIds.has(i.reminder_id));
+      for (const o of orphans) {
+        try { await base44.entities.ReminderInstance.delete(o.id); } catch { /* non-fatal */ }
+      }
+      return (all || []).filter((i) =>
         i.status === "fired" &&
+        liveIds.has(i.reminder_id) &&
         (i.scheduled_for || "") >= cutoff
       );
     },

@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Emotion analytics: new day-of-week, month-of-year, and season breakdowns, plus a chronological list of every emotion logged in the selected range.",
+      },
+      {
+        type: "fix",
+        text: "Deleting a reminder now cascades to its scheduled instances so the bell-icon badge clears properly. Lingering orphan instances from before are also auto-cleaned the next time the inbox refreshes.",
+      },
+      {
+        type: "fix",
+        text: "Create Poll Created By picker swapped to a single searchable dropdown — tapping an alter no longer ends up selecting a different one.",
+      },
+      {
         type: "feature",
         text: "Emotion analytics revamp: readable bar lists, common emotions per alter (same dataset Help me unblend pulls), emotions over time, co-occurring emotion pairs, and emotion↔activity / emotion↔symptom correlations. Now pulls per-alter session emotions alongside check-ins so nothing's missed.",
       },

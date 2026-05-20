@@ -15,6 +15,7 @@ import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import FronterPicker from "@/components/fronting/FronterPicker";
+import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
 
 // Per-user default for what voting mode a NEW poll should start in.
 // Persists in localStorage so the user's preferred mode carries forward.
@@ -29,30 +30,20 @@ function writeTallyDefault(on) {
   catch { /* non-fatal */ }
 }
 
-// "Created By" picker — uses the same FronterPicker as Set Fronters
-// and Get to know me's Associated Alters, plus a System-wide toggle
-// for polls authored as the system rather than a specific alter.
+// "Created By" picker — compact signpost-style dropdown (single
+// trigger button → searchable popover). The previous FronterPicker
+// version was getting the wrong alter selected on tap because the
+// list re-ordered after each click; a single-select dropdown sidesteps
+// that entirely.
 function VoterGridPicker({ alters, value, onChange }) {
-  const terms = useTerms();
-  const systemWide = !value;
   return (
-    <div className="space-y-2">
-      <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
-        <Switch checked={systemWide} onCheckedChange={(on) => { if (on) onChange(""); else onChange((alters || []).filter(a => !a.is_archived)[0]?.id || ""); }} />
-        <span className="text-foreground">{terms.System || "System"}-wide (no specific {terms.alter || "alter"})</span>
-      </label>
-      {!systemWide && (
-        <FronterPicker
-          alters={alters}
-          primaryId={value || ""}
-          coFronterIds={[]}
-          onToggle={(id) => onChange(value === id ? "" : id)}
-          onSetPrimary={(id) => onChange(id)}
-          showHints={false}
-          showChips={false}
-        />
-      )}
-    </div>
+    <AlterDropdownPicker
+      alters={alters}
+      value={value}
+      onChange={onChange}
+      mode="single"
+      allowSystemWide
+    />
   );
 }
 
