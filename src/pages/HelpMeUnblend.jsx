@@ -4,10 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HexColorPicker } from "react-colorful";
 import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap, Plus, Trash2, Sparkles, Cog } from "lucide-react";
+import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap, Trash2, Sparkles, Cog } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { PRESET_QUESTIONS, buildDynamicQuestions, buildDominantFeelingQuestion, instantiateUserQuestion } from "@/lib/unblendQuestions";
-import AddUnblendQuestionModal from "@/components/unblend/AddUnblendQuestionModal";
 import { toast } from "sonner";
 import {
   timeOfDayBaseline,
@@ -77,14 +76,11 @@ export default function HelpMeUnblend() {
     queryKey: ["unblendQuestions"],
     queryFn: () => localEntities.UnblendQuestion.list(),
   });
-  const [addOpen, setAddOpen] = useState(false);
 
-  const saveUserQuestion = async (spec) => {
-    await localEntities.UnblendQuestion.create(spec);
-    queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
-    toast.success("Question added");
-  };
-
+  // Add-question lives in /unblend/questions now — this page only
+  // surfaces existing questions and reads them. Delete affordance
+  // stays here so a user can quickly drop a question they're tired
+  // of seeing without leaving the flow.
   const deleteUserQuestion = async (id) => {
     await localEntities.UnblendQuestion.delete(id);
     queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
@@ -258,9 +254,6 @@ export default function HelpMeUnblend() {
         <Button variant="ghost" size="sm" onClick={() => navigate("/unblend/questions")} className="gap-1.5" title="Manage questions">
           <Cog className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
-          <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add question</span>
-        </Button>
         <Button variant="ghost" size="sm" onClick={handleRestart} aria-label="Restart">
           <RotateCcw className="w-4 h-4" />
         </Button>
@@ -322,7 +315,7 @@ export default function HelpMeUnblend() {
               aria-label="Different question"
               className="gap-1.5 text-xs"
             >
-              <Shuffle className="w-3.5 h-3.5" /> Different
+              <Shuffle className="w-3.5 h-3.5" /> Shuffle
             </Button>
           </div>
         </div>
@@ -465,14 +458,6 @@ export default function HelpMeUnblend() {
           </div>
         )}
       </section>
-
-      <AddUnblendQuestionModal
-        isOpen={addOpen}
-        onClose={() => setAddOpen(false)}
-        onSave={saveUserQuestion}
-        alters={activeAlters}
-        customFields={customFields}
-      />
     </div>
   );
 }

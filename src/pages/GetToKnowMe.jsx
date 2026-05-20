@@ -212,7 +212,7 @@ export default function GetToKnowMe() {
           <div className="flex items-start justify-between gap-2">
             <p className="text-base font-semibold text-foreground leading-snug">{currentQuestion.prompt}</p>
             <Button variant="ghost" size="sm" onClick={handleShuffle} className="gap-1.5 text-xs flex-shrink-0">
-              <Shuffle className="w-3.5 h-3.5" /> Different
+              <Shuffle className="w-3.5 h-3.5" /> Shuffle
             </Button>
           </div>
 

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Plus, Trash2, Sparkles, Cog, User } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Sparkles, Cog, User, Pencil, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import {
@@ -30,6 +30,8 @@ export default function UnblendQuestionsManager() {
   const terms = useTerms();
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
+  // When set, the modal opens in edit mode pre-filled with this record.
+  const [editingRecord, setEditingRecord] = useState(null);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -59,6 +61,13 @@ export default function UnblendQuestionsManager() {
   );
 
   const saveUserQuestion = async (spec) => {
+    if (editingRecord) {
+      await localEntities.UnblendQuestion.update(editingRecord.id, spec);
+      queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
+      toast.success("Question updated");
+      setEditingRecord(null);
+      return;
+    }
     await localEntities.UnblendQuestion.create(spec);
     queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
     toast.success("Question added");
@@ -71,22 +80,72 @@ export default function UnblendQuestionsManager() {
     toast.success("Question removed");
   };
 
-  const renderQuestionRow = ({ key, prompt, kindLabel, hint, onDelete }) => (
-    <div key={key} className="rounded-xl border border-border/40 bg-card p-3 flex items-start gap-3">
+  const duplicateUserQuestion = async (rec) => {
+    const copy = {
+      prompt: `${rec.prompt} (copy)`,
+      kind: rec.kind,
+    };
+    if (rec.field) copy.field = rec.field;
+    if (Array.isArray(rec.options)) {
+      copy.options = rec.options.map((o, i) => ({
+        id: `opt-${i + 1}-${Date.now()}`,
+        label: o.label || "",
+        alterIds: Array.isArray(o.alterIds) ? [...o.alterIds] : [],
+      }));
+    }
+    await localEntities.UnblendQuestion.create(copy);
+    queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
+    toast.success("Question duplicated");
+  };
+
+  const openEdit = (rec) => {
+    setEditingRecord(rec);
+    setAddOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setAddOpen(false);
+    setEditingRecord(null);
+  };
+
+  const renderQuestionRow = ({ key, prompt, kindLabel, hint, onEdit, onDuplicate, onDelete }) => (
+    <div key={key} className="rounded-xl border border-border/40 bg-card p-3 flex items-start gap-2">
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium">{prompt}</p>
         <p className="text-[0.6875rem] text-muted-foreground mt-0.5">{kindLabel}{hint ? ` · ${hint}` : ""}</p>
       </div>
-      {onDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label="Delete question"
-          className="text-muted-foreground hover:text-destructive p-1"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      )}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label="Edit question"
+            className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted/40"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {onDuplicate && (
+          <button
+            type="button"
+            onClick={onDuplicate}
+            aria-label="Duplicate question"
+            className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted/40"
+          >
+            <Copy className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="Delete question"
+            className="text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-muted/40"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
     </div>
   );
 
@@ -140,6 +199,8 @@ export default function UnblendQuestionsManager() {
                           rec.kind === "role" ? "Role" :
                           rec.kind === "age" ? "Age" : rec.kind,
                 hint: runtime ? null : "Needs more data to show in the queue",
+                onEdit: () => openEdit(rec),
+                onDuplicate: () => duplicateUserQuestion(rec),
                 onDelete: () => deleteUserQuestion(rec.id),
               })
             )}
@@ -198,10 +259,11 @@ export default function UnblendQuestionsManager() {
 
       <AddUnblendQuestionModal
         isOpen={addOpen}
-        onClose={() => setAddOpen(false)}
+        onClose={handleModalClose}
         onSave={saveUserQuestion}
         alters={alters.filter((a) => !a.is_archived)}
         customFields={customFields}
+        editingRecord={editingRecord}
       />
     </div>
   );

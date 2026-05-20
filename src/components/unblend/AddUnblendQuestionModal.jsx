@@ -31,15 +31,58 @@ const KINDS = [
   { id: "age",             label: "Age" },
 ];
 
-export default function AddUnblendQuestionModal({ isOpen, onClose, onSave, alters, customFields = [] }) {
+export default function AddUnblendQuestionModal({
+  isOpen,
+  onClose,
+  onSave,
+  alters,
+  customFields = [],
+  // Optional: pass an existing UnblendQuestion record to put the
+  // modal into edit mode. The form initialises from it and the
+  // save button reads "Save changes". onSave receives the same
+  // shape as add-mode but the caller knows whether to PATCH the
+  // existing record or create a new one.
+  editingRecord = null,
+}) {
   const terms = useTerms();
-  const [kind, setKind] = useState("custom_field");
-  const [prompt, setPrompt] = useState("");
-  const [field, setField] = useState("");
-  const [options, setOptions] = useState([
-    { id: "opt-1", label: "", alterIds: [] },
-    { id: "opt-2", label: "", alterIds: [] },
-  ]);
+  const isEdit = !!editingRecord;
+  const [kind, setKind] = useState(() => editingRecord?.kind || "custom_field");
+  const [prompt, setPrompt] = useState(() => editingRecord?.prompt || "");
+  const [field, setField] = useState(() => editingRecord?.field || "");
+  const [options, setOptions] = useState(() => {
+    if (editingRecord && Array.isArray(editingRecord.options) && editingRecord.options.length > 0) {
+      return editingRecord.options.map((o, i) => ({
+        id: o.id || `opt-${i + 1}`,
+        label: o.label || "",
+        alterIds: Array.isArray(o.alterIds) ? o.alterIds : [],
+      }));
+    }
+    return [
+      { id: "opt-1", label: "", alterIds: [] },
+      { id: "opt-2", label: "", alterIds: [] },
+    ];
+  });
+
+  // When the editing record changes (modal reused for a different
+  // question), refresh the form state.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    setKind(editingRecord?.kind || "custom_field");
+    setPrompt(editingRecord?.prompt || "");
+    setField(editingRecord?.field || "");
+    if (editingRecord && Array.isArray(editingRecord.options) && editingRecord.options.length > 0) {
+      setOptions(editingRecord.options.map((o, i) => ({
+        id: o.id || `opt-${i + 1}`,
+        label: o.label || "",
+        alterIds: Array.isArray(o.alterIds) ? o.alterIds : [],
+      })));
+    } else {
+      setOptions([
+        { id: "opt-1", label: "", alterIds: [] },
+        { id: "opt-2", label: "", alterIds: [] },
+      ]);
+    }
+  }, [editingRecord?.id, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Custom fields the user has actually defined, keyed by id with
   // their human name + type. We only surface fields that at least one
@@ -119,7 +162,7 @@ export default function AddUnblendQuestionModal({ isOpen, onClose, onSave, alter
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col gap-0 p-0">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/50">
-          <DialogTitle>Add a question</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit question" : "Add a question"}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
@@ -264,7 +307,7 @@ export default function AddUnblendQuestionModal({ isOpen, onClose, onSave, alter
 
         <div className="flex-shrink-0 border-t border-border/50 px-5 py-3 flex items-center justify-end gap-2">
           <Button variant="outline" onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!canSave}>Add question</Button>
+          <Button onClick={handleSubmit} disabled={!canSave}>{isEdit ? "Save changes" : "Add question"}</Button>
         </div>
       </DialogContent>
     </Dialog>
