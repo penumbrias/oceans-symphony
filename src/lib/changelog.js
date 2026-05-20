@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Custom fields auto-load as Help me unblend questions by default. New scrollable \"Custom field questions\" section in Manage Unblend Questions lets you hide / show each field individually. The Add Question modal no longer has a Custom Field response type since it's redundant.",
+      },
+      {
+        type: "improve",
         text: "Active Symptoms popup now opens centered (no longer cut off behind the bottom nav) and has an Edit start time button so you can correct when a symptom session actually began.",
       },
       {
