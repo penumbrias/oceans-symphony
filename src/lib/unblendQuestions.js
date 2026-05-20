@@ -368,7 +368,7 @@ export function buildDynamicQuestions(alters, customFields = []) {
     if (valuesByAlter.size < 1 || options.length < 1 || options.length > 24) continue;
     questions.push({
       id: `dyn_field_${field}`,
-      prompt: humanisePrompt(field),
+      prompt: humanisePrompt(fieldDef?.name || field),
       kind: "choice",
       options,
       score: (alter, ans) => {

@@ -108,12 +108,31 @@ export default function GetToKnowMe() {
     return out.filter((q) => !hiddenUnblendIds.has(q.id));
   }, [alters, customFields, emotionCheckIns, userRecords, hiddenUnblendIds]);
 
+  // Toggle to hide custom-field questions from the Get to know me
+  // queue when the user wants to focus on presets / dynamic ones.
+  // Persisted to localStorage so the choice carries across sessions.
+  const [hideCustomFields, setHideCustomFields] = useState(() => {
+    try { return localStorage.getItem("getknow_hide_custom_fields_v1") === "1"; }
+    catch { return false; }
+  });
+  const setHideCustomFieldsPersist = (next) => {
+    setHideCustomFields(next);
+    try { localStorage.setItem("getknow_hide_custom_fields_v1", next ? "1" : "0"); } catch { /* non-fatal */ }
+  };
+
   const [questionSearch, setQuestionSearch] = useState("");
   const filteredQuestions = useMemo(() => {
+    let pool = allQuestions;
+    if (hideCustomFields) {
+      pool = pool.filter((q) =>
+        !(typeof q.id === "string" && (q.id.startsWith("dyn_field_") || q.id.startsWith("field_")))
+        && q.kind !== "field_input"
+      );
+    }
     const q = questionSearch.trim().toLowerCase();
-    if (!q) return allQuestions;
-    return allQuestions.filter((x) => (x.prompt || "").toLowerCase().includes(q));
-  }, [allQuestions, questionSearch]);
+    if (!q) return pool;
+    return pool.filter((x) => (x.prompt || "").toLowerCase().includes(q));
+  }, [allQuestions, questionSearch, hideCustomFields]);
 
   const [questionId, setQuestionId] = useState(null);
   // Track which question ids have been shown this round. Shuffle
@@ -436,6 +455,13 @@ export default function GetToKnowMe() {
         <Button variant="ghost" size="sm" onClick={() => navigate("/unblend/questions")} className="gap-1.5">
           <Cog className="w-4 h-4" /> <span className="hidden sm:inline">Manage</span>
         </Button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+          <Switch checked={!hideCustomFields} onCheckedChange={(on) => setHideCustomFieldsPersist(!on)} />
+          Include custom fields
+        </label>
       </div>
 
       <div className="relative">
