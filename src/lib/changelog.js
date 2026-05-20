@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Settings → Appearance toggle: choose how alters appear in lists, dropdowns, and pickers — Display name, Alias only, or Both. Default is Display name (most distinguishable when alters share aliases). Wired into the alter pickers, the chat composer (speaker chip, mention popup, signpost popup), and message author labels. Other surfaces will migrate progressively.",
+      },
+      {
         type: "fix",
         text: "System Chat: alter names whose colour was too close to the page background were unreadable. Author labels, reply previews, the speaker chip, and @mention pills now run through the same contrast adjuster used elsewhere in the app — your chosen colour stays the same, the displayed text just shifts toward lighter/darker until it's legible.",
       },
