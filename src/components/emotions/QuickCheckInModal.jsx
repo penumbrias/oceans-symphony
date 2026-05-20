@@ -137,6 +137,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
   };
 
   const symptomGetterRef = useRef(null);
+  const [initialSymptomChecks, setInitialSymptomChecks] = useState([]);
 
   const { data: customEmotions = [] } = useQuery({
     queryKey: ["customEmotions"],
@@ -185,8 +186,27 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
         if ((editingEntry.emotions || []).length > 0) initial.add("feeling");
         if (fronterIds.length > 0) { initial.add("fronting"); setHadFrontingOpen(true); }
         if ((editingEntry.note || "").trim()) initial.add("note");
-        if (initial.size === 0) initial.add("feeling");
-        setOpenSections(initial);
+        // Load symptoms that were attached to this check-in so the
+        // user can see/adjust/remove them in the same modal —
+        // previously edit-mode silently dropped the symptom section,
+        // so accidental symptom logs stuck around on the timeline
+        // even after the user thought they'd edited them out.
+        base44.entities.SymptomCheckIn
+          .filter({ check_in_id: editingEntry.id })
+          .then((rows) => {
+            const list = (rows || []).map((r) => ({
+              symptom_id: r.symptom_id,
+              severity: typeof r.severity === "number" ? r.severity : null,
+            }));
+            setInitialSymptomChecks(list);
+            if (list.length > 0) initial.add("symptoms");
+            if (initial.size === 0) initial.add("feeling");
+            setOpenSections(new Set(initial));
+          })
+          .catch(() => {
+            if (initial.size === 0) initial.add("feeling");
+            setOpenSections(initial);
+          });
         seedSymptomDefaults();
         return;
       }
@@ -252,6 +272,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     setShowSupportPrompt(false);
     initialFrontRef.current = { primaryId: "", coFronterIds: [] };
     symptomGetterRef.current = null;
+    setInitialSymptomChecks([]);
     setLocationName("");
     setLocationCategory("");
     setLocationLat(null);
@@ -395,7 +416,44 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           fronting_alter_ids: selectedAlters,
           note: note.trim() || null,
         });
+        // Propagate symptom changes attached to this check-in so
+        // edits actually reflect on the Timeline / Current symptoms
+        // panel. Compare draft against the originals we loaded; for
+        // each row in the draft, update an existing record or
+        // create a fresh one. Delete any originals the user removed.
+        try {
+          const existing = await base44.entities.SymptomCheckIn.filter({ check_in_id: editingEntry.id });
+          const existingBySymptomId = new Map((existing || []).map((r) => [r.symptom_id, r]));
+          const draftBySymptomId = new Map(symptomCheckIns.map((sc) => [sc.symptom_id, sc]));
+          for (const row of existing || []) {
+            if (!draftBySymptomId.has(row.symptom_id)) {
+              await base44.entities.SymptomCheckIn.delete(row.id);
+            } else {
+              const sc = draftBySymptomId.get(row.symptom_id);
+              await base44.entities.SymptomCheckIn.update(row.id, {
+                severity: sc.severity,
+                timestamp: now,
+              });
+            }
+          }
+          for (const sc of symptomCheckIns) {
+            if (existingBySymptomId.has(sc.symptom_id)) continue;
+            await base44.entities.SymptomCheckIn.create({
+              symptom_id: sc.symptom_id,
+              severity: sc.severity,
+              timestamp: now,
+              check_in_id: editingEntry.id,
+            });
+          }
+        } catch (e) {
+          // Non-fatal — the emotion edit still saved.
+          // eslint-disable-next-line no-console
+          console.warn("Symptom edit propagation failed", e);
+        }
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+        queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+        queryClient.invalidateQueries({ queryKey: ["timeline"] });
+        queryClient.invalidateQueries({ queryKey: ["currentSymptoms"] });
         onClose();
         return;
       }
@@ -838,7 +896,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           {/* Symptoms / Habits */}
           {openSections.has("symptoms") &&
           <div className="border border-border/50 rounded-xl p-3">
-              <SymptomsSection onCheckInsReady={(getter) => {symptomGetterRef.current = getter;}} />
+              <SymptomsSection
+                onCheckInsReady={(getter) => {symptomGetterRef.current = getter;}}
+                initialChecked={initialSymptomChecks}
+              />
             </div>
           }
 

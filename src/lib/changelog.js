@@ -16,6 +16,30 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Editing or deleting a check-in now also updates the symptoms logged alongside it — they used to stay on the timeline as ghosts. Symptoms attached to the check-in pre-fill in the edit modal so you can toggle them off.",
+      },
+      {
+        type: "fix",
+        text: "Create Poll: alter picker is now a searchable dropdown instead of a tall avatar grid that broke modal scrolling.",
+      },
+      {
+        type: "improve",
+        text: "Get to know me alter picker is now the same as the Set front modal — search, sort, list/grid view, primary stars, swipe gestures. Sync-to-front toggle still controls whether tapping also mutates the live front.",
+      },
+      {
+        type: "improve",
+        text: "Get to know me cycles through every custom field even before data exists, with a text input plus quick-tap pills for existing values. Selected alters' current value pre-fills the input.",
+      },
+      {
+        type: "improve",
+        text: "Question search on Get to know me — type to jump straight to any question instead of shuffling.",
+      },
+      {
+        type: "improve",
+        text: "Add Question modal lets you pick any custom field (not just ones with data). Help me unblend hides questions whose answers couldn't narrow the list and prompts you to seed data via Get to know me when there's nothing useful left to ask.",
+      },
+      {
         type: "improve",
         text: "Manage unblend questions: your own questions can now be edited or duplicated, not just deleted. Add-question button moved out of Help me unblend's header into the manager.",
       },

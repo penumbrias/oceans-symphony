@@ -55,6 +55,31 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
   const byId = Object.fromEntries(allAlters.map((a) => [a.id, a]));
 
   switch (question.kind) {
+    case "field_input": {
+      const fieldId = question.fieldId;
+      if (!fieldId) return { saved: false, reason: "Question has no field id." };
+      const fieldDef = customFields.find((f) => f.id === fieldId) || { field_type: question.fieldType };
+      const raw = typeof answer === "string" ? answer.trim() : String(answer?.label || answer?.value || "").trim();
+      if (!raw) return { saved: false, reason: "Type or pick an answer first." };
+      for (const id of alterIds) {
+        const alter = byId[id];
+        if (!alter) continue;
+        const map = { ...(alter.alter_custom_fields || {}) };
+        const prev = typeof map[fieldId] === "string" ? map[fieldId] : "";
+        let next;
+        if (isListField(fieldDef)) {
+          const items = prev ? prev.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : [];
+          items.push(raw);
+          next = dedupePreserveOrder(items).join(", ");
+        } else {
+          next = raw;
+        }
+        map[fieldId] = next;
+        await base44.entities.Alter.update(id, { alter_custom_fields: map });
+      }
+      return { saved: true, count: alterIds.length, field: question.fieldName || "custom field" };
+    }
+
     case "color": {
       if (typeof answer !== "string" || !/^#[0-9a-f]{6}$/i.test(answer)) {
         return { saved: false, reason: "Invalid color value." };

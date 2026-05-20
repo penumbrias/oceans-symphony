@@ -385,6 +385,64 @@ export function buildDynamicQuestions(alters, customFields = []) {
   return questions;
 }
 
+/**
+ * Build a question for every custom field, regardless of whether
+ * alters have filled it in yet. Used by Get to know me so the user
+ * can cycle through every field and seed data. Each question is
+ * rendered as a free-text (or yes/no) input plus quick-tap pills
+ * for any values already present across the alter set.
+ *
+ * Distinct from buildDynamicQuestions (which only surfaces fields
+ * with enough discrimination power for Help me unblend).
+ */
+export function buildAllFieldQuestions(alters, customFields = []) {
+  if (!Array.isArray(customFields) || customFields.length === 0) return [];
+  const active = (alters || []).filter((a) => a && !a.is_archived);
+
+  const valuesByField = {}; // fieldId → Map<alterId, raw string>
+  for (const a of active) {
+    const map = a.alter_custom_fields;
+    if (!map || typeof map !== "object") continue;
+    for (const [k, v] of Object.entries(map)) {
+      if (typeof v !== "string" || !v.trim()) continue;
+      if (!valuesByField[k]) valuesByField[k] = new Map();
+      valuesByField[k].set(a.id, v.trim());
+    }
+  }
+
+  const out = [];
+  for (const f of customFields) {
+    if (!f?.id || !f.name) continue;
+    const isListType = f.field_type === "list";
+    const values = valuesByField[f.id] || new Map();
+
+    const labelByLowered = new Map();
+    for (const [, raw] of values.entries()) {
+      const pieces = isListType ? String(raw).split(/[,;|]/) : [String(raw)];
+      for (const item of pieces) {
+        const t = item.trim();
+        if (!t) continue;
+        const key = t.toLowerCase();
+        if (!labelByLowered.has(key)) labelByLowered.set(key, t);
+      }
+    }
+    const options = [...labelByLowered.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, label]) => ({ id: key, label, value: key }));
+
+    out.push({
+      id: `field_${f.id}`,
+      prompt: humanisePrompt(f.name),
+      kind: "field_input",
+      fieldId: f.id,
+      fieldName: f.name,
+      fieldType: f.field_type || "text",
+      options,
+    });
+  }
+  return out;
+}
+
 // ───────────────────────────────────────────────────────────────────
 // Convert a stored user-defined question (from the UnblendQuestion
 // entity) into a runtime question record with a score() function the

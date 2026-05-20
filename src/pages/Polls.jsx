@@ -6,15 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Globe, Minus, Users, Pencil, Check, Trash2 } from "lucide-react";
+import { Plus, X, Lock, MessageSquare, Pin, MessageCircle, Minus, Pencil, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { markPollVotedToday } from "@/lib/dailyTaskSystem";
 import SystemAvatar from "@/components/shared/SystemAvatar";
+import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
 
 // Per-user default for what voting mode a NEW poll should start in.
 // Persists in localStorage so the user's preferred mode carries forward.
@@ -29,189 +29,36 @@ function writeTallyDefault(on) {
   catch { /* non-fatal */ }
 }
 
-// Grid-style picker for "who is voting" / "who created this". Replaces
-// a long dropdown that listed every alter — a single-select avatar grid
-// with a "System-wide" tile in front, mirroring how the Set Front modal
-// looks. Single-select: tapping a tile sets it; tapping "System-wide"
-// clears the alter selection.
+// Compact dropdown picker for "who is voting" / "who created this".
+// Replaces the previous big avatar grid that overflowed the Create
+// Poll modal on systems with many alters (modal couldn't scroll, so
+// the alters were unselectable). The dropdown mirrors the Journals
+// fronter-view filter UX: searchable, scrollable, one tap to pick.
 function VoterGridPicker({ alters, value, onChange }) {
-  const terms = useTerms();
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-      <VoterGridTile
-        label={`${terms.System}-wide`}
-        sublabel={`(no specific ${terms.alter})`}
-        selected={!value}
-        onSelect={() => onChange("")}
-        systemTile
-      />
-      {alters.map((a) => (
-        <VoterGridTile
-          key={a.id}
-          alter={a}
-          label={a.alias || a.name}
-          selected={value === a.id}
-          onSelect={() => onChange(a.id)}
-        />
-      ))}
-    </div>
+    <AlterDropdownPicker
+      alters={alters}
+      value={value}
+      onChange={onChange}
+      mode="single"
+      allowSystemWide
+    />
   );
 }
 
-// Multi-select voter chooser: a button that summarises the current
-// selection ("Voting as: System-wide" / "Voting as: Castiel + 2 others")
-// and pops a Dialog containing a checkbox-style avatar grid. The default
-// selection is the active fronters; the user can pick any combination of
-// alters (and/or System-wide) and confirm. Each subsequent vote action
-// applies once per selected voter.
+// Multi-select voter chooser. Same dropdown UX as the single-select
+// picker — selection updates instantly as you tick alters; the
+// "Reset" link snaps the choice back to whoever's currently fronting.
 function MultiVoterPicker({ alters, value, onChange, defaultVoters }) {
-  const terms = useTerms();
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(value);
-
-  // Re-sync the draft when the modal opens so unsaved toggling doesn't
-  // leak between sessions of opening it.
-  useEffect(() => {
-    if (open) setDraft(value);
-  }, [open, value]);
-
-  const toggle = (id) => {
-    setDraft((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
-
-  const selectedLabels = (() => {
-    if (!value || value.length === 0) return `${terms.System}-wide`;
-    const named = value
-      .filter((id) => id !== "")
-      .map((id) => alters.find((a) => a.id === id))
-      .filter(Boolean)
-      .map((a) => a.alias || a.name);
-    const sys = value.includes("");
-    if (named.length === 0 && sys) return `${terms.System}-wide`;
-    const head = named[0] || `${terms.System}-wide`;
-    const extras = named.length - 1 + (sys && named.length > 0 ? 1 : 0);
-    return extras > 0 ? `${head} + ${extras} other${extras !== 1 ? "s" : ""}` : head;
-  })();
-
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-border/60 bg-card hover:bg-muted/30 transition-colors text-left"
-      >
-        <span className="flex items-center gap-2 min-w-0">
-          <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          <span className="text-sm truncate">{selectedLabels}</span>
-        </span>
-        <span className="text-xs text-muted-foreground flex-shrink-0">Change</span>
-      </button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Voting As</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-muted-foreground -mt-2">
-            Pick any combination. Each vote you cast applies once per selected voter. Default is the current {terms.front} ({(defaultVoters || []).length} active).
-          </p>
-
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto py-2">
-            <VoterGridTile
-              label={`${terms.System}-wide`}
-              sublabel={`(no specific ${terms.alter})`}
-              selected={draft.includes("")}
-              onSelect={() => toggle("")}
-              systemTile
-              showCheck
-            />
-            {alters.map((a) => (
-              <VoterGridTile
-                key={a.id}
-                alter={a}
-                label={a.alias || a.name}
-                selected={draft.includes(a.id)}
-                onSelect={() => toggle(a.id)}
-                showCheck
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setDraft(defaultVoters || [])}
-              className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-            >
-              Reset to current {terms.front}
-            </button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={() => { onChange(draft); setOpen(false); }}>
-                <Check className="w-4 h-4 mr-1.5" />Save
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-function VoterGridTile({ alter, label, sublabel, selected, onSelect, systemTile = false, showCheck = false }) {
-  const color = alter?.color || "#9333ea";
-  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
-  const [imgError, setImgError] = useState(false);
-  const ringColor = systemTile ? "hsl(var(--muted-foreground))" : color;
-  const boxShadow = selected
-    ? `inset 0 0 0 3px ${ringColor}, 0 0 0 1px ${ringColor}, 0 0 18px ${ringColor}cc`
-    : `inset 0 0 0 2px ${ringColor}80`;
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className="flex flex-col items-center gap-1.5 select-none focus:outline-none relative"
-    >
-      <div className="relative">
-        {systemTile ? (
-          <div
-            style={{ boxShadow, backgroundColor: selected ? "hsl(var(--muted))" : "transparent" }}
-            className={`rounded-full flex items-center justify-center transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
-          >
-            <Globe className={selected ? "w-7 h-7 text-muted-foreground" : "w-6 h-6 text-muted-foreground"} />
-          </div>
-        ) : resolvedUrl && !imgError ? (
-          <img
-            src={resolvedUrl}
-            alt={alter.name}
-            style={{ boxShadow }}
-            className={`rounded-full object-cover transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
-            draggable={false}
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <div
-            style={{ backgroundColor: selected ? `${color}30` : "hsl(var(--muted))", boxShadow }}
-            className={`rounded-full flex items-center justify-center transition-all ${selected ? "w-20 h-20" : "w-16 h-16"}`}
-          >
-            <span className="text-xs font-semibold text-muted-foreground">{(alter?.name || "?").slice(0, 2)}</span>
-          </div>
-        )}
-        {/* Multi-select check badge — only the multi-select picker passes
-            showCheck so the single-select grid (Created By on Create
-            Poll) keeps its cleaner look. */}
-        {showCheck && selected && (
-          <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background">
-            <Check className="w-3.5 h-3.5" />
-          </span>
-        )}
-      </div>
-      <span className="text-xs text-center font-medium truncate w-full px-1">
-        {label}
-      </span>
-      {sublabel && <span className="text-[0.625rem] text-muted-foreground text-center px-1 -mt-1">{sublabel}</span>}
-    </button>
+    <AlterDropdownPicker
+      alters={alters}
+      value={value}
+      onChange={onChange}
+      mode="multi"
+      allowSystemWide
+      defaultIds={defaultVoters || []}
+    />
   );
 }
 
@@ -357,12 +204,12 @@ function CreatePollModal({ open, onClose, alters }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Create Poll</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0">
           <div>
             <label className="text-xs font-medium text-muted-foreground">Question</label>
             <Input

@@ -8,7 +8,7 @@ const TABS = ["symptom", "habit"];
 const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
 
 // Exported so QuickCheckInModal can collect at save time
-export default function SymptomsSection({ onCheckInsReady }) {
+export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("symptom");
   const [search, setSearch] = useState("");
@@ -52,6 +52,22 @@ export default function SymptomsSection({ onCheckInsReady }) {
     map(([symptom_id, s]) => ({ symptom_id, severity: s.severity ?? null }))
     );
   });
+
+  // Seed pre-checked state when editing an existing check-in so the
+  // user sees / can toggle off symptoms originally logged alongside
+  // the entry. Done once per initialChecked list reference change.
+  useEffect(() => {
+    if (!initialChecked || initialChecked.length === 0) return;
+    setCardStates((prev) => {
+      const next = { ...prev };
+      for (const sc of initialChecked) {
+        if (!sc?.symptom_id) continue;
+        next[sc.symptom_id] = { checked: true, severity: sc.severity ?? null };
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialChecked]);
 
   const handleAddNew = async () => {
     if (!newName.trim()) return;

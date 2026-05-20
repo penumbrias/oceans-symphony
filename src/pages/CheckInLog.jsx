@@ -1154,9 +1154,22 @@ export default function CheckInLog() {
 
   const handleDelete = async (checkInId) => {
     if (!confirm("Delete this check-in?")) return;
+    // Cascade: also remove any SymptomCheckIns logged alongside this
+    // check-in so the symptom doesn't outlive the parent on the
+    // timeline. (Bug report: deleting a check-in left "emotional
+    // hangover" / "rapid switching" symptoms stuck on the timeline.)
+    try {
+      const linkedSymptoms = await base44.entities.SymptomCheckIn.filter({ check_in_id: checkInId });
+      for (const row of linkedSymptoms || []) {
+        await base44.entities.SymptomCheckIn.delete(row.id);
+      }
+    } catch { /* non-fatal */ }
     await base44.entities.EmotionCheckIn.delete(checkInId);
     toast.success("🗑 Check-in deleted");
     queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+    queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+    queryClient.invalidateQueries({ queryKey: ["timeline"] });
+    queryClient.invalidateQueries({ queryKey: ["currentSymptoms"] });
   };
 
   const handleEdit = (ci) => setEditingCheckIn(ci);
