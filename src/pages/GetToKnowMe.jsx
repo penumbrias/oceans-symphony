@@ -15,6 +15,7 @@ import {
   instantiateUserQuestion,
 } from "@/lib/unblendQuestions";
 import { applyGetToKnowMeAnswer } from "@/lib/getToKnowMeWriteback";
+import AlterMultiSelectGrid from "@/components/unblend/AlterMultiSelectGrid";
 
 // "Get to know me" — the inverse of Help me unblend. When the user
 // already knows who's here (or is feeling grounded enough to
@@ -198,54 +199,8 @@ export default function GetToKnowMe() {
         </Button>
       </div>
 
-      {/* Associated alter picker */}
-      <section className="rounded-2xl border border-border/50 bg-card p-4 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold">
-            Associated {terms.alters || "alters"}
-          </p>
-          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-            Sync to current front
-            <Switch checked={syncFront} onCheckedChange={setSyncFront} />
-          </label>
-        </div>
-        {active.length === 0 ? (
-          <p className="text-xs text-muted-foreground italic">
-            No {terms.alters || "alters"} yet — add some to start.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {active.map((a) => {
-              const selected = selectedAlterIds.includes(a.id);
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => toggleAlter(a.id)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs transition-colors ${
-                    selected
-                      ? "border-primary bg-primary/15 text-primary"
-                      : "border-border/40 bg-background text-foreground hover:bg-muted/40"
-                  }`}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: a.color || "#94a3b8" }}
-                  />
-                  {a.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-          {syncFront
-            ? `Tapping a ${terms.alter || "alter"} also starts/ends their fronting session — exactly like the Set front modal.`
-            : `Tapping a ${terms.alter || "alter"} only attributes this answer to them. Fronting state isn't changed.`}
-        </p>
-      </section>
-
-      {/* Question card */}
+      {/* Question card — comes FIRST so the user reads the
+          question before picking who it's for. */}
       {!currentQuestion ? (
         <section className="rounded-2xl border border-border/50 bg-card p-5">
           <p className="text-sm text-muted-foreground text-center">
@@ -312,6 +267,45 @@ export default function GetToKnowMe() {
           )}
         </section>
       )}
+
+      {/* Associated alters — uses the same SetFrontModal-style
+          avatar grid the rest of the app uses, not the old pill
+          list. */}
+      <section className="rounded-2xl border border-border/50 bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">
+            Associated {terms.alters || "alters"}
+            {selectedAlterIds.length > 0 && (
+              <span className="ml-2 text-[0.6875rem] text-muted-foreground font-normal">
+                {selectedAlterIds.length} selected
+              </span>
+            )}
+          </p>
+          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            Sync to current front
+            <Switch checked={syncFront} onCheckedChange={setSyncFront} />
+          </label>
+        </div>
+        {active.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic">
+            No {terms.alters || "alters"} yet — add some to start.
+          </p>
+        ) : (
+          <AlterMultiSelectGrid
+            alters={active}
+            selectedIds={selectedAlterIds}
+            onToggle={toggleAlter}
+            pinnedIds={syncFront ? activeFronterIds : []}
+            pinnedLabel={syncFront ? `Currently ${terms.fronting || "fronting"}` : ""}
+            searchPlaceholder={`Search ${terms.alters || "alters"}…`}
+          />
+        )}
+        <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+          {syncFront
+            ? `Tapping a ${terms.alter || "alter"} also starts/ends their fronting session — exactly like the Set front modal.`
+            : `Tapping a ${terms.alter || "alter"} only attributes this answer to them. Fronting state isn't changed.`}
+        </p>
+      </section>
     </div>
   );
 }
