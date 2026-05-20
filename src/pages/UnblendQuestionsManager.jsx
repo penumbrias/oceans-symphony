@@ -99,14 +99,57 @@ export default function UnblendQuestionsManager() {
   );
 
   const visiblePresets = PRESET_QUESTIONS.filter((q) => !hiddenIds.has(q.id));
-  const visibleDynamic = dynamicQuestions.filter((q) => !hiddenIds.has(q.id));
+  // Auto-generated section now excludes dyn_field_<id> rows — those
+  // live in their own Custom Fields section below so users can hide
+  // them in bulk and see every field regardless of whether data
+  // exists yet.
+  const visibleDynamic = dynamicQuestions.filter((q) =>
+    !hiddenIds.has(q.id) && !(typeof q.id === "string" && q.id.startsWith("dyn_field_"))
+  );
   const visibleDominant = dominantFeeling && !hiddenIds.has(dominantFeeling.id) ? dominantFeeling : null;
+
+  // Every defined CustomField becomes a question slot. The
+  // dyn_field_<fieldId> id matches what buildDynamicQuestions emits
+  // when there's data, so the HiddenUnblendQuestion table works for
+  // both populated and empty fields.
+  const filledFieldIds = useMemo(() => {
+    const set = new Set();
+    for (const a of alters || []) {
+      const map = a.alter_custom_fields;
+      if (!map || typeof map !== "object") continue;
+      for (const [k, v] of Object.entries(map)) {
+        if (typeof v === "string" && v.trim()) set.add(k);
+      }
+    }
+    return set;
+  }, [alters]);
+  const customFieldSlots = useMemo(() => {
+    return (customFields || []).map((f) => {
+      const dynId = `dyn_field_${f.id}`;
+      const isHidden = hiddenIds.has(dynId);
+      const hasData = filledFieldIds.has(f.id);
+      const live = dynamicQuestions.find((q) => q.id === dynId);
+      return {
+        id: dynId,
+        field: f,
+        prompt: live?.prompt || `Custom field: ${f.name}`,
+        kindLabel: f.field_type === "list" ? "Custom field (list)" : "Custom field",
+        optionCount: live?.options?.length || 0,
+        isHidden,
+        hasData,
+      };
+    });
+  }, [customFields, dynamicQuestions, hiddenIds, filledFieldIds]);
 
   const hiddenList = useMemo(() => {
     const all = [...PRESET_QUESTIONS, ...dynamicQuestions, ...(dominantFeeling ? [dominantFeeling] : [])];
     return hiddenRecords
       .map((rec) => ({ rec, q: all.find((q) => q.id === rec.originalId) }))
-      .filter((x) => x.q);
+      .filter((x) => x.q)
+      // Custom field hides have their own Show toggle in the
+      // dedicated Custom Fields section above — no need to also
+      // surface them in the generic Hidden list down here.
+      .filter((x) => !(typeof x.rec.originalId === "string" && x.rec.originalId.startsWith("dyn_field_")));
   }, [hiddenRecords, dynamicQuestions, dominantFeeling]);
 
   const saveUserQuestion = async (spec) => {
@@ -161,6 +204,20 @@ export default function UnblendQuestionsManager() {
     await localEntities.HiddenUnblendQuestion.delete(rec.id);
     queryClient.invalidateQueries({ queryKey: ["hiddenUnblendQuestions"] });
     toast.success("Question restored");
+  };
+
+  // Toggle hide/show for a question id without requiring a stored
+  // question record. Used by the Custom fields section where the
+  // "question" is just the field slot, even if no dyn_field record
+  // has been generated yet (because no data exists).
+  const toggleHiddenById = async (id) => {
+    const existing = hiddenRecords.find((r) => r.originalId === id);
+    if (existing) {
+      await localEntities.HiddenUnblendQuestion.delete(existing.id);
+    } else {
+      await localEntities.HiddenUnblendQuestion.create({ originalId: id, hiddenAt: new Date().toISOString() });
+    }
+    queryClient.invalidateQueries({ queryKey: ["hiddenUnblendQuestions"] });
   };
 
   // Clone a preset / auto into a user question without hiding the
@@ -334,6 +391,49 @@ export default function UnblendQuestionsManager() {
               onDuplicate: () => duplicateBuiltIn(visibleDominant),
               onDelete: () => hideBuiltIn(visibleDominant),
             })}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        {sectionHeader(
+          <Cog className="w-4 h-4 text-muted-foreground" />,
+          "Custom field questions",
+          customFieldSlots.filter((s) => !s.isHidden).length + " / " + customFieldSlots.length,
+          `Every custom field becomes a Help me unblend question by default. Toggle visibility per field — hidden ones won't appear in the queue until you switch them back on.`
+        )}
+        {customFieldSlots.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic px-1">
+            No custom fields defined yet. Add some in Settings → {terms.Alters || "Alters"} & Fields.
+          </p>
+        ) : (
+          <div className="rounded-xl border border-border/40 bg-card max-h-72 overflow-y-auto divide-y divide-border/30">
+            {customFieldSlots.map((slot) => (
+              <div key={slot.id} className="p-3 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${slot.isHidden ? "text-muted-foreground line-through" : ""}`}>
+                    {slot.prompt}
+                  </p>
+                  <p className="text-[0.6875rem] text-muted-foreground mt-0.5">
+                    {slot.kindLabel}
+                    {" · "}
+                    {slot.hasData ? `${slot.optionCount || 0} option${slot.optionCount === 1 ? "" : "s"} from data` : "No data yet — fill via Get to know me"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleHiddenById(slot.id)}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[0.6875rem] font-semibold uppercase tracking-wide transition-colors ${
+                    slot.isHidden
+                      ? "bg-muted/50 text-muted-foreground hover:bg-muted"
+                      : "bg-primary/15 text-primary hover:bg-primary/25"
+                  }`}
+                  aria-label={slot.isHidden ? "Show in Help me unblend" : "Hide from Help me unblend"}
+                >
+                  {slot.isHidden ? "Show" : "Hide"}
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </section>

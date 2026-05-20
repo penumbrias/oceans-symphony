@@ -23,8 +23,10 @@ import AlterDropdownPicker from "@/components/shared/AlterDropdownPicker";
 //
 // Deferred kinds (activity / symptom / diary / range / poll) need
 // their own data-source pickers — noted in unblendQuestions.js.
+// Custom field questions are now auto-loaded into the queue and
+// managed (hide / show) from the Manage Unblend Questions page —
+// the user doesn't need to define a question per field manually.
 const KINDS = [
-  { id: "custom_field",    label: "Custom field" },
   { id: "multiple_choice", label: "Multiple choice (manual)" },
   { id: "color",           label: "Color picker" },
   { id: "pronouns",        label: "Pronouns" },
@@ -47,7 +49,7 @@ export default function AddUnblendQuestionModal({
 }) {
   const terms = useTerms();
   const isEdit = !!editingRecord;
-  const [kind, setKind] = useState(() => editingRecord?.kind || "custom_field");
+  const [kind, setKind] = useState(() => editingRecord?.kind || "multiple_choice");
   const [prompt, setPrompt] = useState(() => editingRecord?.prompt || "");
   const [field, setField] = useState(() => editingRecord?.field || "");
   const [options, setOptions] = useState(() => {
@@ -68,7 +70,7 @@ export default function AddUnblendQuestionModal({
   // question), refresh the form state.
   React.useEffect(() => {
     if (!isOpen) return;
-    setKind(editingRecord?.kind || "custom_field");
+    setKind(editingRecord?.kind || "multiple_choice");
     setPrompt(editingRecord?.prompt || "");
     setField(editingRecord?.field || "");
     if (editingRecord && Array.isArray(editingRecord.options) && editingRecord.options.length > 0) {
@@ -106,7 +108,7 @@ export default function AddUnblendQuestionModal({
   }, [alters]);
 
   const reset = () => {
-    setKind("custom_field");
+    setKind("multiple_choice");
     setPrompt("");
     setField("");
     setOptions([
@@ -190,36 +192,6 @@ export default function AddUnblendQuestionModal({
             </p>
           </div>
 
-          {kind === "custom_field" && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Which custom field?</label>
-              <select
-                className="mt-1 w-full h-9 px-3 rounded-md border border-border bg-background text-sm"
-                value={field}
-                onChange={(e) => setField(e.target.value)}
-              >
-                <option value="">— Select a field —</option>
-                {availableFields.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}{f.field_type === "list" ? " (list)" : ""}{filledFieldIds.has(f.id) ? "" : " — no data yet"}
-                  </option>
-                ))}
-              </select>
-              {availableFields.length === 0 && (
-                <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400 mt-1">
-                  No custom fields defined yet. Add one in Settings → {terms.Alters} & Fields, then come back.
-                </p>
-              )}
-              {field && !filledFieldIds.has(field) && (
-                <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400 mt-1">
-                  No {terms.alters || "alters"} have this field filled in yet. The question won't appear in Help me unblend until 2+ {terms.alters || "alters"} have values — use Get to know me to seed the data.
-                </p>
-              )}
-              <p className="text-[0.6875rem] text-muted-foreground mt-2 leading-snug">
-                Options come from values you've filled in on your {terms.alters}. List-type fields ("music, drawing, painting") split each entry into its own option so they match independently.
-              </p>
-            </div>
-          )}
 
           {kind === "multiple_choice" && (
             <div className="space-y-3">

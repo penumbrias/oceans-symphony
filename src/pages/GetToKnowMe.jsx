@@ -563,19 +563,21 @@ export default function GetToKnowMe() {
               {existingFieldValues.length > 0 && (
                 <div className="rounded-lg border border-border/40 bg-muted/20 p-2 space-y-1">
                   <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground">Already on file</p>
-                  {existingFieldValues.map((ev) => (
-                    <p key={ev.id} className="text-xs">
-                      <span className="font-semibold" style={{ color: ev.color || undefined }}>{ev.name}:</span>{" "}
-                      <span className="text-foreground/80">{ev.value}</span>
-                    </p>
-                  ))}
+                  <div className="max-h-20 overflow-y-auto space-y-1 pr-1">
+                    {existingFieldValues.map((ev) => (
+                      <p key={ev.id} className="text-xs">
+                        <span className="font-semibold" style={{ color: ev.color || undefined }}>{ev.name}:</span>{" "}
+                        <span className="text-foreground/80">{ev.value}</span>
+                      </p>
+                    ))}
+                  </div>
                   <p className="text-[0.625rem] text-muted-foreground italic">
                     Saving below adds your answer alongside what's already here — nothing gets overwritten.
                   </p>
                 </div>
               )}
               {currentQuestion.options.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
                   {currentQuestion.options.map((opt) => (
                     <button
                       key={opt.id}
