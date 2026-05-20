@@ -763,6 +763,18 @@ if (isSameCell) {
                     pendingStart.date.toDateString() === date.toDateString() &&
                     pendingStart.hour === hour && pendingStart.minute === minute;
 
+                  // Slot tint: cells whose end time is already in the past
+                  // get a slightly darker background so the current /
+                  // upcoming part of the week reads as "available" at a
+                  // glance. Re-uses the `currentTime` state that's already
+                  // ticking once a minute. The empty-cell hover styles
+                  // below override this on interaction, so it stays subtle.
+                  const slotEnd = (() => {
+                    const d = new Date(date);
+                    d.setHours(hour, minute + gridInterval, 0, 0);
+                    return d;
+                  })();
+                  const isPastSlot = slotEnd.getTime() <= currentTime.getTime();
                   const timedContinues = timed.some(a => !isLastSlotForActivity(a, date, hour, minute));
                   // Compute how many slots the longest activity starting in
                   // this cell spans — used to (a) stop drawing a corner
@@ -812,6 +824,7 @@ if (isSameCell) {
                       onTouchMove={(e) => { handleCellTouchEnd(); cancelLongPress(); }}
                         className={`border-r border-border/40 relative flex flex-col items-start justify-start overflow-visible cursor-pointer transition-colors group
                         ${timedContinues ? "" : "border-b border-border/40"}
+                        ${!hasContent && isPastSlot ? "bg-muted/15" : ""}
                         ${!hasContent && addMode ? "hover:bg-primary/10" : ""}
                         ${!hasContent && !addMode ? "hover:bg-muted/20" : ""}
                         ${isExpanded ? "z-10" : ""}
