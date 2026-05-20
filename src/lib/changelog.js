@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Plan Activity modal: \"Create a new to-do from this plan\" toggle inline with the existing \"Link to a to-do\" picker. Saving the plan creates a fresh to-do with the plan's title, notes, and due date, then links it automatically. Mutually exclusive with picking an existing to-do — you'd only ever want one linked.",
+      },
+      {
         type: "fix",
         text: "Quick plans day popup: \"tap to open details\" actually opens the details modal now. The handler was silently swallowing the tap on mobile (and on any small cursor wobble on desktop).",
       },
