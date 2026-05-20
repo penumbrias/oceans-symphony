@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Get to know me shuffle now cycles through unseen questions before repeating — once you've worked through every available question, the pool resets.",
+      },
+      {
+        type: "improve",
+        text: "Add Unblend Question (multiple-choice): the per-option \"which alters does this match?\" picker is now a searchable dropdown instead of a wall of alter pills.",
+      },
+      {
+        type: "improve",
         text: "Get to know me choice questions now have a Save & next button — picking an option only stages it; saving advances to the next question.",
       },
       {
