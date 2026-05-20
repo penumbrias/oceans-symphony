@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Get to know me choice questions: button now works even without a selection — it switches to \"Skip & next\" so you can advance past a question you don't want to answer. With one or more options picked it saves them all and shuffles.",
+      },
+      {
         type: "improve",
         text: "Custom fields auto-load as Help me unblend questions by default. New scrollable \"Custom field questions\" section in Manage Unblend Questions lets you hide / show each field individually. The Add Question modal no longer has a Custom Field response type since it's redundant.",
       },
