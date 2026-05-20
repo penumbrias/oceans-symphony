@@ -13,6 +13,15 @@ import { useTerms } from "@/lib/useTerms";
 import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
 import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { adjustForContrast, getPageBackground } from "@/lib/contrast";
+
+// Brighten / darken alter colours that are too close to the page
+// background so the name text stays legible. Memoise the page bg
+// resolution so each render doesn't re-read CSS variables.
+function useReadableColor(color) {
+  const bg = useMemo(() => getPageBackground(), []);
+  return useMemo(() => (color ? adjustForContrast(color, bg) : color), [color, bg]);
+}
 
 // System Chat — Discord-style multi-channel chat for the system.
 //
@@ -507,7 +516,8 @@ function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEd
 
   const isDeleted = !!msg.deleted_at;
   const authorNames = authors.map((a) => a.name).join(", ");
-  const primaryColor = authors[0]?.color || undefined;
+  const primaryColor = useReadableColor(authors[0]?.color);
+  const parentColor = useReadableColor(parentAuthors[0]?.color);
 
   return (
     <div className="group flex gap-2 px-1 py-1 rounded-md hover:bg-muted/30">
@@ -524,7 +534,7 @@ function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEd
         {parent && (
           <div className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground mb-1 pl-2 border-l-2 border-border/60 max-w-full truncate">
             <Reply className="w-3 h-3 flex-shrink-0" />
-            <span className="font-medium truncate" style={{ color: parentAuthors[0]?.color || undefined }}>
+            <span className="font-medium truncate" style={{ color: parentColor }}>
               {parentAuthors.map((a) => a.name).join(", ") || "Unknown"}
             </span>
             <span className="truncate">{parent.deleted_at ? "[deleted]" : (parent.content || "").slice(0, 80)}</span>
@@ -597,23 +607,29 @@ function renderWithMentions(content, alters) {
     }
     if (matched) {
       out.push(
-        <span
-          key={key++}
-          className="inline px-1 rounded text-xs font-semibold"
-          style={{ backgroundColor: `${matched.color || "#9333ea"}33`, color: matched.color || undefined }}
-        >
-          {matched.raw}
-        </span>
+        <MentionPill key={key++} label={matched.raw} color={matched.color} />
       );
       i += matched.raw.length;
-    } else {
-      let next = content.indexOf("@", i + 1);
-      if (next === -1) next = content.length;
-      out.push(<React.Fragment key={key++}>{content.slice(i, next)}</React.Fragment>);
-      i = next;
+      continue;
     }
+    let next = content.indexOf("@", i + 1);
+    if (next === -1) next = content.length;
+    out.push(<React.Fragment key={key++}>{content.slice(i, next)}</React.Fragment>);
+    i = next;
   }
   return out;
+}
+
+function MentionPill({ label, color }) {
+  const fg = useReadableColor(color);
+  return (
+    <span
+      className="inline px-1 rounded text-xs font-semibold"
+      style={{ backgroundColor: `${color || "#9333ea"}33`, color: fg || undefined }}
+    >
+      {label}
+    </span>
+  );
 }
 
 function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, onSend, terms }) {
@@ -755,14 +771,18 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
     setText("");
   };
 
+  const replyAuthors = replyTo ? authorsFor(replyTo, alters) : [];
+  const replyColor = useReadableColor(replyAuthors[0]?.color);
+  const speakerChipColor = useReadableColor(selectedAuthors[0]?.color);
+
   return (
     <div className="border-t border-border/50 p-2 flex-shrink-0 bg-background">
       {replyTo && (
         <div className="flex items-center gap-2 px-2 py-1 mb-1 text-xs bg-muted/40 rounded-md">
           <Reply className="w-3 h-3" />
           <span className="text-muted-foreground">Replying to</span>
-          <span className="font-medium truncate" style={{ color: authorsFor(replyTo, alters)[0]?.color || undefined }}>
-            {authorsFor(replyTo, alters).map((a) => a.name).join(", ")}
+          <span className="font-medium truncate" style={{ color: replyColor }}>
+            {replyAuthors.map((a) => a.name).join(", ")}
           </span>
           <span className="text-muted-foreground truncate flex-1">{(replyTo.content || "").slice(0, 60)}</span>
           <button onClick={onCancelReply} aria-label="Cancel reply" className="p-0.5 text-muted-foreground hover:text-foreground">
@@ -877,6 +897,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
 function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, search, onSearchChange, terms }) {
   const triggerRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
+  const chipColor = useReadableColor(selectedAuthors[0]?.color);
 
   useEffect(() => {
     if (!open) return;
@@ -908,7 +929,7 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
         aria-expanded={open}
       >
         <AuthorAvatars authors={selectedAuthors} size={22} />
-        <span className="text-[0.6875rem] truncate" style={{ color: selectedAuthors[0]?.color || undefined }}>
+        <span className="text-[0.6875rem] truncate" style={{ color: chipColor }}>
           {selectedAuthors.map((a) => a.name).join(", ")}
         </span>
         <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
