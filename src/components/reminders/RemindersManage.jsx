@@ -72,7 +72,18 @@ export default function RemindersManage() {
 
   const handleDelete = async (r) => {
     if (!confirm(`Delete "${r.title}"?`)) return;
+    // Cascade: end every ReminderInstance tied to this reminder so a
+    // lingering "fired" instance doesn't keep the notification bell
+    // badge lit after the parent reminder is gone.
+    try {
+      const linked = await base44.entities.ReminderInstance.filter({ reminder_id: r.id });
+      for (const inst of linked || []) {
+        await base44.entities.ReminderInstance.delete(inst.id);
+      }
+    } catch { /* non-fatal */ }
     await base44.entities.Reminder.delete(r.id);
+    queryClient.invalidateQueries({ queryKey: ["reminderInstances", "pending"] });
+    queryClient.invalidateQueries({ queryKey: ["reminderInstances"] });
     invalidate();
     toast.success(`"${r.title}" deleted`);
   };

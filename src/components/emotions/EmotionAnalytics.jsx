@@ -239,14 +239,65 @@ export default function EmotionAnalytics({ from, to }) {
     return { rows: [...byBucket.values()].sort((a, b) => a.bucket.localeCompare(b.bucket)), topLabels, grain };
   }, [events, emotionCounts, +from, +to]);
 
-  // 7) Hour-of-day distribution (more readable than the prior dot plot)
+  // 7) Hour-of-day distribution + stacked top-emotion breakdown.
   const hourDistribution = useMemo(() => {
-    const tally = Array.from({ length: 24 }, () => 0);
+    const tally = Array.from({ length: 24 }, () => ({ count: 0, byLabel: {} }));
     for (const e of events) {
       const h = new Date(e.ts).getHours();
-      tally[h] += e.labels.length;
+      tally[h].count += e.labels.length;
+      for (const l of e.labels) tally[h].byLabel[l] = (tally[h].byLabel[l] || 0) + 1;
     }
-    return tally.map((count, hour) => ({ hour: `${String(hour).padStart(2, "0")}:00`, count }));
+    return tally.map((t, hour) => ({ hour: `${String(hour).padStart(2, "0")}:00`, count: t.count, byLabel: t.byLabel }));
+  }, [events]);
+
+  // 8) Day-of-week breakdown (Sun–Sat)
+  const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayOfWeekDistribution = useMemo(() => {
+    const tally = Array.from({ length: 7 }, () => 0);
+    for (const e of events) {
+      const d = new Date(e.ts).getDay();
+      tally[d] += e.labels.length;
+    }
+    return tally.map((count, i) => ({ label: DOW_LABELS[i], count }));
+  }, [events]);
+
+  // 9) Month-of-year breakdown
+  const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthDistribution = useMemo(() => {
+    const tally = Array.from({ length: 12 }, () => 0);
+    for (const e of events) {
+      const m = new Date(e.ts).getMonth();
+      tally[m] += e.labels.length;
+    }
+    return tally.map((count, i) => ({ label: MONTH_LABELS[i], count }));
+  }, [events]);
+
+  // 10) Season breakdown (Northern hemisphere)
+  const SEASON_LABELS = ["Winter", "Spring", "Summer", "Fall"];
+  const seasonDistribution = useMemo(() => {
+    const tally = [0, 0, 0, 0];
+    const topByLabel = [{}, {}, {}, {}];
+    const monthToSeason = (m) => {
+      if (m === 11 || m === 0 || m === 1) return 0; // Winter (Dec/Jan/Feb)
+      if (m >= 2 && m <= 4) return 1;               // Spring (Mar–May)
+      if (m >= 5 && m <= 7) return 2;               // Summer (Jun–Aug)
+      return 3;                                      // Fall (Sep–Nov)
+    };
+    for (const e of events) {
+      const s = monthToSeason(new Date(e.ts).getMonth());
+      tally[s] += e.labels.length;
+      for (const l of e.labels) topByLabel[s][l] = (topByLabel[s][l] || 0) + 1;
+    }
+    return tally.map((count, i) => ({
+      label: SEASON_LABELS[i],
+      count,
+      top: Object.entries(topByLabel[i]).sort((a, b) => b[1] - a[1]).slice(0, 3),
+    }));
+  }, [events]);
+
+  // 11) Chronological list of every emotion event in this span
+  const chronological = useMemo(() => {
+    return [...events].sort((a, b) => b.ts - a.ts).slice(0, 200);
   }, [events]);
 
   if (events.length === 0) {
@@ -497,6 +548,120 @@ export default function EmotionAnalytics({ from, to }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Day of week */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CalendarRange className="w-5 h-5 text-primary" />
+            Day of week
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DistributionBars rows={dayOfWeekDistribution} />
+        </CardContent>
+      </Card>
+
+      {/* Month of year */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CalendarRange className="w-5 h-5 text-primary" />
+            Month of year
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DistributionBars rows={monthDistribution} />
+        </CardContent>
+      </Card>
+
+      {/* Season */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CalendarRange className="w-5 h-5 text-primary" />
+            Season
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {seasonDistribution.map((s) => (
+              <div key={s.label} className="rounded-xl border border-border/40 bg-card p-3 text-center space-y-1">
+                <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+                <p className="text-xl font-semibold">{s.count}</p>
+                {s.top.length > 0 && (
+                  <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+                    {s.top.map(([em]) => em).join(", ")}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* All emotions in this span — chronological */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Heart className="w-5 h-5 text-destructive" />
+            All emotions logged in this period
+            <span className="text-[0.6875rem] font-normal text-muted-foreground ml-2">{events.length} entries</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1.5 max-h-96 overflow-y-auto">
+            {chronological.map((e, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs py-1 border-b border-border/30 last:border-b-0">
+                <span className="text-muted-foreground tabular-nums w-36 flex-shrink-0">
+                  {new Date(e.ts).toLocaleString()}
+                </span>
+                <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                  {e.labels.map((l, j) => (
+                    <span
+                      key={`${l}-${j}`}
+                      className="inline-block text-[0.6875rem] px-1.5 py-0.5 rounded-full"
+                      style={{ backgroundColor: `${emotionColor(l, j)}33`, color: emotionColor(l, j) }}
+                    >
+                      {l}
+                    </span>
+                  ))}
+                </div>
+                {e.alterIds.length > 0 && (
+                  <span className="text-[0.6875rem] text-muted-foreground truncate max-w-[90px]">
+                    {e.alterIds.map((id) => altersById[id]?.name).filter(Boolean).join(", ")}
+                  </span>
+                )}
+              </div>
+            ))}
+            {events.length > chronological.length && (
+              <p className="text-[0.6875rem] text-muted-foreground italic pt-2">
+                Showing the {chronological.length} most recent of {events.length}.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function DistributionBars({ rows }) {
+  const max = Math.max(...rows.map((r) => r.count), 1);
+  return (
+    <div className="space-y-1">
+      {rows.map((r) => {
+        const pct = r.count === 0 ? 0 : Math.max(2, Math.round((r.count / max) * 100));
+        return (
+          <div key={r.label} className="flex items-center gap-2">
+            <span className="text-[0.6875rem] tabular-nums w-10 text-muted-foreground">{r.label}</span>
+            <div className="flex-1 h-3 rounded-md bg-muted/40 overflow-hidden">
+              {pct > 0 && <div className="h-full rounded-md bg-primary/60" style={{ width: `${pct}%` }} />}
+            </div>
+            <span className="text-[0.6875rem] tabular-nums w-8 text-right text-muted-foreground">{r.count}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
