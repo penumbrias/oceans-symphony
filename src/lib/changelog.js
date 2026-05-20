@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Plans needing review on the Dashboard: double-tap a row to open the Activity Details / Manage Plan screen (same as the pinned critical plans card). Single tap still does nothing so the Done / Partial / Skipped / Cancelled buttons stay the one-shot affordance.",
+      },
+      {
+        type: "improve",
         text: "Custom Fields reordering is now drag-and-drop. The old up/down arrows would stop responding past a few rows because field orders had collided over time; reordering now always renumbers cleanly so the list stays movable end-to-end.",
       },
       {
