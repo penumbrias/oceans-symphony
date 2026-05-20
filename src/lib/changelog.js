@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "System Chat composer: typing @ in a message opens the same Mention popup as bulletins; typing - opens a Sign as author popup, with —system at the top. Pick from either to autocomplete. The speaker chip on the composer auto-updates to whatever the message will actually be attributed to, so what you see is what posts.",
+      },
+      {
+        type: "improve",
         text: "System Chat composer: tap the speaker chip to open a popover that matches the Journals filter-by-alter UI — multi-select with avatars, search, \"—system\" pinned at the top. Pick one or more speakers for the next message.",
       },
       {

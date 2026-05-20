@@ -629,6 +629,85 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
 
+  // Inline-autocomplete state, ported from BulletinComposer.
+  const textareaRef = useRef(null);
+  const [showMentions, setShowMentions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [showSignpostMenu, setShowSignpostMenu] = useState(false);
+  const [signpostQuery, setSignpostQuery] = useState("");
+
+  const handleTextChange = (e) => {
+    const val = e.target.value;
+    setText(val);
+
+    // @ mention detection — open menu when a "@" starts a token at
+    // the end of the typed string (no space follows the @ yet).
+    const lastAt = val.lastIndexOf("@");
+    if (lastAt !== -1 && !val.slice(lastAt + 1).includes(" ")) {
+      setShowMentions(true);
+      setMentionQuery(val.slice(lastAt + 1));
+      setShowSignpostMenu(false);
+      return;
+    }
+    setShowMentions(false);
+
+    // - signpost detection — same logic, just for "-author" tokens.
+    const lastDash = val.lastIndexOf("-");
+    if (lastDash !== -1 && !val.slice(lastDash + 1).includes(" ")) {
+      setShowSignpostMenu(true);
+      setSignpostQuery(val.slice(lastDash + 1));
+    } else if (!val.endsWith("-")) {
+      setShowSignpostMenu(false);
+    }
+  };
+
+  const filteredMentions = useMemo(
+    () => alters
+      .filter((a) => !a.is_archived)
+      .filter((a) =>
+        a.name?.toLowerCase().includes(mentionQuery.toLowerCase()) ||
+        (a.alias && a.alias.toLowerCase().includes(mentionQuery.toLowerCase()))
+      )
+      .slice(0, 8),
+    [alters, mentionQuery]
+  );
+  const filteredSignposts = useMemo(
+    () => alters
+      .filter((a) => !a.is_archived)
+      .filter((a) =>
+        a.name?.toLowerCase().includes(signpostQuery.toLowerCase()) ||
+        (a.alias && a.alias.toLowerCase().includes(signpostQuery.toLowerCase()))
+      )
+      .slice(0, 8),
+    [alters, signpostQuery]
+  );
+  const systemSignpostMatches = useMemo(() => {
+    const q = (signpostQuery || "").toLowerCase();
+    if (!q) return true;
+    return "system".startsWith(q) || (terms.system || "").toLowerCase().startsWith(q);
+  }, [signpostQuery, terms.system]);
+
+  const insertMention = (alter) => {
+    const lastAt = text.lastIndexOf("@");
+    const before = lastAt !== -1 ? text.slice(0, lastAt) : text;
+    setText(before + `@${alter.alias || alter.name} `);
+    setShowMentions(false);
+    setMentionQuery("");
+    textareaRef.current?.focus();
+  };
+
+  const insertSignpost = (alter) => {
+    const lastDash = text.lastIndexOf("-");
+    const before = lastDash !== -1 ? text.slice(0, lastDash) : text;
+    const token = alter?.isSystem || alter?.id === SYSTEM_AUTHOR.id
+      ? (terms.system || "system")
+      : (alter.alias || alter.name);
+    setText(before + `-${token} `);
+    setShowSignpostMenu(false);
+    setSignpostQuery("");
+    textareaRef.current?.focus();
+  };
+
   const selectedSet = useMemo(() => new Set(speakerIds), [speakerIds]);
   const toggleSpeaker = (id) => {
     setSpeakerIds((prev) => {
@@ -650,15 +729,25 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
   };
 
   // Render the picker's compact button: stacked avatars + names.
-  // System sentinel → one "—system" pill.
+  // If the typed text contains inline signposts (-system / -aliasname),
+  // those override what the picker is showing — so the chip always
+  // reflects what the message will *actually* be attributed to when
+  // sent, not just what's checked in the picker. Falls back to the
+  // picker selection (or -system) when no signposts are present.
   const selectedAuthors = useMemo(() => {
+    const { authors: signposted } = parseAndStripSignposts(text, alters, [terms.system]);
+    if (signposted.length > 0) {
+      const sysOnly = signposted.every((a) => a.id === SYSTEM_AUTHOR.id);
+      if (sysOnly) return [SYSTEM_AUTHOR];
+      return signposted.filter((a) => a.id !== SYSTEM_AUTHOR.id).map((a) => authorFor(a.id, alters));
+    }
     if (speakerIds.length === 0 || (speakerIds.length === 1 && speakerIds[0] === SYSTEM_AUTHOR.id)) {
       return [SYSTEM_AUTHOR];
     }
     return speakerIds
       .filter((id) => id !== SYSTEM_AUTHOR.id)
       .map((id) => authorFor(id, alters));
-  }, [speakerIds, alters]);
+  }, [speakerIds, alters, text, terms.system]);
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
@@ -693,16 +782,86 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           onSearchChange={setPickerSearch}
           terms={terms}
         />
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
-          }}
-          placeholder={`Message #${channel.name}…  (type -${terms.system || "system"} or -aliasname to signpost)`}
-          rows={1}
-          className="flex-1 resize-none text-sm min-h-[40px] max-h-32"
-        />
+        <div className="flex-1 relative">
+          <Textarea
+            ref={textareaRef}
+            value={text}
+            onChange={handleTextChange}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setShowMentions(false);
+                setShowSignpostMenu(false);
+                return;
+              }
+              if (e.key === "Enter" && !e.shiftKey) {
+                if (showMentions || showSignpostMenu) {
+                  // Let the autocomplete swallow Enter when a menu is
+                  // open — pressing Enter with the menu visible should
+                  // pick the first option rather than send.
+                  e.preventDefault();
+                  if (showMentions && filteredMentions[0]) insertMention(filteredMentions[0]);
+                  else if (showSignpostMenu && systemSignpostMatches && !filteredSignposts[0]) insertSignpost({ id: SYSTEM_AUTHOR.id, isSystem: true });
+                  else if (showSignpostMenu && filteredSignposts[0]) insertSignpost(filteredSignposts[0]);
+                  return;
+                }
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+            placeholder={`Message #${channel.name}…  (type @ to mention, - to signpost)`}
+            rows={1}
+            className="resize-none text-sm min-h-[40px] max-h-32"
+          />
+
+          {showMentions && filteredMentions.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 bottom-full mb-1 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+              <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Mention…</div>
+              {filteredMentions.map((a) => (
+                <button
+                  type="button"
+                  key={a.id}
+                  onClick={() => insertMention(a)}
+                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
+                >
+                  <AlterAvatar alter={a} size={22} />
+                  <span>{a.name}</span>
+                  {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {showSignpostMenu && (filteredSignposts.length > 0 || systemSignpostMatches) && (
+            <div className="absolute z-50 left-0 right-0 bottom-full mb-1 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+              <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Sign as author…</div>
+              {systemSignpostMatches && (
+                <button
+                  type="button"
+                  key={SYSTEM_AUTHOR.id}
+                  onClick={() => insertSignpost({ id: SYSTEM_AUTHOR.id, isSystem: true })}
+                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
+                >
+                  <AlterAvatar alter={SYSTEM_AUTHOR} size={22} />
+                  <span>—{terms.system || "system"}</span>
+                  <span className="text-muted-foreground text-xs ml-1">(no specific {terms.alter || "alter"})</span>
+                </button>
+              )}
+              {filteredSignposts.map((a) => (
+                <button
+                  type="button"
+                  key={a.id}
+                  onClick={() => insertSignpost(a)}
+                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
+                >
+                  <AlterAvatar alter={a} size={22} />
+                  <span>{a.name}</span>
+                  {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <Button onClick={handleSubmit} disabled={!text.trim()} className="h-10 px-3">
           <Send className="w-4 h-4" />
         </Button>
