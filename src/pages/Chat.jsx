@@ -14,6 +14,7 @@ import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentio
 import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 
 // Brighten / darken alter colours that are too close to the page
 // background so the name text stays legible. Memoise the page bg
@@ -508,6 +509,7 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
 }
 
 function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEdit, onSubmitEdit, onReply, onDelete }) {
+  const formatAlter = useAlterLabel();
   const authors = authorsFor(msg, alters);
   const parent = msg.reply_to_id ? allMessages.find((x) => x.id === msg.reply_to_id) : null;
   const parentAuthors = parent ? authorsFor(parent, alters) : [];
@@ -515,7 +517,7 @@ function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEd
   useEffect(() => { setDraft(msg.content || ""); }, [msg.content, editing]);
 
   const isDeleted = !!msg.deleted_at;
-  const authorNames = authors.map((a) => a.name).join(", ");
+  const authorNames = authors.map((a) => formatAlter(a)).join(", ");
   const primaryColor = useReadableColor(authors[0]?.color);
   const parentColor = useReadableColor(parentAuthors[0]?.color);
 
@@ -535,7 +537,7 @@ function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEd
           <div className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground mb-1 pl-2 border-l-2 border-border/60 max-w-full truncate">
             <Reply className="w-3 h-3 flex-shrink-0" />
             <span className="font-medium truncate" style={{ color: parentColor }}>
-              {parentAuthors.map((a) => a.name).join(", ") || "Unknown"}
+              {parentAuthors.map((a) => formatAlter(a)).join(", ") || "Unknown"}
             </span>
             <span className="truncate">{parent.deleted_at ? "[deleted]" : (parent.content || "").slice(0, 80)}</span>
           </div>
@@ -633,6 +635,7 @@ function MentionPill({ label, color }) {
 }
 
 function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, onSend, terms }) {
+  const formatAlter = useAlterLabel();
   // Picker state: a set of speaker ids. SYSTEM_SENTINEL_ID means
   // "the system itself" is checked; otherwise entries are alter ids.
   // Empty set is treated as "-system" on send (no specific speakers).
@@ -782,7 +785,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           <Reply className="w-3 h-3" />
           <span className="text-muted-foreground">Replying to</span>
           <span className="font-medium truncate" style={{ color: replyColor }}>
-            {replyAuthors.map((a) => a.name).join(", ")}
+            {replyAuthors.map((a) => formatAlter(a)).join(", ")}
           </span>
           <span className="text-muted-foreground truncate flex-1">{(replyTo.content || "").slice(0, 60)}</span>
           <button onClick={onCancelReply} aria-label="Cancel reply" className="p-0.5 text-muted-foreground hover:text-foreground">
@@ -844,8 +847,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
                   className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
                 >
                   <AlterAvatar alter={a} size={22} />
-                  <span>{a.name}</span>
-                  {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
+                  <span>{formatAlter(a)}</span>
                 </button>
               ))}
             </div>
@@ -874,8 +876,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
                   className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
                 >
                   <AlterAvatar alter={a} size={22} />
-                  <span>{a.name}</span>
-                  {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
+                  <span>{formatAlter(a)}</span>
                 </button>
               ))}
             </div>
@@ -895,6 +896,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
 // popover with search, checkbox rows, Done button. "-system" sits at
 // the top.
 function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, search, onSearchChange, terms }) {
+  const formatAlter = useAlterLabel();
   const triggerRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
   const chipColor = useReadableColor(selectedAuthors[0]?.color);
@@ -930,7 +932,7 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
       >
         <AuthorAvatars authors={selectedAuthors} size={22} />
         <span className="text-[0.6875rem] truncate" style={{ color: chipColor }}>
-          {selectedAuthors.map((a) => a.name).join(", ")}
+          {selectedAuthors.map((a) => formatAlter(a)).join(", ")}
         </span>
         <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
       </button>
@@ -989,6 +991,7 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
 }
 
 function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
+  const formatAlter = useAlterLabel();
   return (
     <button
       type="button"
@@ -1006,7 +1009,7 @@ function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
       </div>
       <AlterAvatar alter={alter} size={20} />
       <span className={`flex-1 truncate ${selected ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-        {labelPrefix}{alter.name}
+        {labelPrefix}{alter.id === SYSTEM_AUTHOR.id ? alter.name : formatAlter(alter)}
       </span>
     </button>
   );

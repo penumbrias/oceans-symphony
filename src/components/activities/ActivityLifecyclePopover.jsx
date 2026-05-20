@@ -42,10 +42,19 @@ export default function ActivityLifecyclePopover({
   const [submode, setSubmode] = useState(null); // null | "partial" | "skipped" | "cancelled" | "reschedule"
   const [actualMinutes, setActualMinutes] = useState("");
   const [resolutionNote, setResolutionNote] = useState("");
+  // Quick plans only carry a date — the time-of-day on the timestamp
+  // is an EOD sentinel (23:59) used to keep them in the "future" until
+  // the day passes. Rescheduling one should ask for a new date, not a
+  // datetime; the new EOD sentinel is reapplied on save.
+  const isQuickPlan = !!activity?.is_quick_plan;
   const [newDateTime, setNewDateTime] = useState(() => {
     if (!activity?.timestamp) return "";
-    try { return format(new Date(activity.timestamp), "yyyy-MM-dd'T'HH:mm"); }
-    catch { return ""; }
+    try {
+      const d = new Date(activity.timestamp);
+      return isQuickPlan
+        ? format(d, "yyyy-MM-dd")
+        : format(d, "yyyy-MM-dd'T'HH:mm");
+    } catch { return ""; }
   });
   const [saving, setSaving] = useState(false);
   // When set, the recurrence-branch chooser is open. Holds the patch
@@ -223,19 +232,27 @@ export default function ActivityLifecyclePopover({
 
   const reschedule = async () => {
     if (!newDateTime) {
-      toast.error("Pick a new date and time");
+      toast.error(isQuickPlan ? "Pick a new date" : "Pick a new date and time");
       return;
     }
     let parsed;
-    try { parsed = new Date(newDateTime); } catch { /* fallthrough */ }
+    try {
+      // Quick plans store the EOD sentinel (23:59) so they stay
+      // "future" until the day fully passes and sort after timed
+      // plans on the same day. Mirror what ActivityPlanModal does on
+      // create.
+      parsed = isQuickPlan
+        ? new Date(`${newDateTime}T23:59:00`)
+        : new Date(newDateTime);
+    } catch { /* fallthrough */ }
     if (!parsed || Number.isNaN(parsed.getTime())) {
-      toast.error("Invalid date/time");
+      toast.error(isQuickPlan ? "Invalid date" : "Invalid date/time");
       return;
     }
     const fromIso = activity.timestamp;
     const toIso = parsed.toISOString();
     if (fromIso && new Date(fromIso).getTime() === parsed.getTime()) {
-      toast.error("Pick a different time");
+      toast.error(isQuickPlan ? "Pick a different date" : "Pick a different time");
       return;
     }
     const nextHistory = appendRescheduleEntry(activity.reschedule_history, fromIso, toIso);
@@ -330,11 +347,16 @@ export default function ActivityLifecyclePopover({
           <div className="space-y-3">
             <div className="text-sm font-medium">Reschedule</div>
             <input
-              type="datetime-local"
+              type={isQuickPlan ? "date" : "datetime-local"}
               value={newDateTime}
               onChange={e => setNewDateTime(e.target.value)}
               className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
             />
+            {isQuickPlan && (
+              <p className="text-[11px] text-muted-foreground">
+                Quick plans are tied to a day, not a specific time.
+              </p>
+            )}
             <div className="flex gap-2">
               <Button variant="ghost" onClick={reset} className="flex-1">Back</Button>
               <Button onClick={reschedule} disabled={saving} className="flex-1">
@@ -346,7 +368,9 @@ export default function ActivityLifecyclePopover({
                 <p className="font-medium">Previous reschedules:</p>
                 {(activity.reschedule_history || []).slice(-3).map((h, i) => (
                   <div key={i}>
-                    {format(new Date(h.from), "MMM d HH:mm")} → {format(new Date(h.to), "MMM d HH:mm")}
+                    {isQuickPlan
+                      ? `${format(new Date(h.from), "MMM d")} → ${format(new Date(h.to), "MMM d")}`
+                      : `${format(new Date(h.from), "MMM d HH:mm")} → ${format(new Date(h.to), "MMM d HH:mm")}`}
                   </div>
                 ))}
               </div>

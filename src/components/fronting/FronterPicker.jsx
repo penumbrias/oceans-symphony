@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Search, User, Star, X, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import useSwipeActions from "@/hooks/useSwipeActions";
 
 // Shared fronter picker UI extracted from SetFrontModal so other
@@ -30,6 +31,7 @@ function getContrastColor(hex) {
 }
 
 function GridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
+  const formatAlter = useAlterLabel();
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -81,7 +83,7 @@ function GridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
         </span>
       ) : (
         <span className="text-xs text-center font-medium truncate w-full px-1">
-          {alter.alias?.slice(0, 7) || alter.name.slice(0, 7)}
+          {formatAlter(alter).slice(0, 10)}
         </span>
       )}
     </div>
@@ -89,6 +91,7 @@ function GridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
 }
 
 function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
+  const formatAlter = useAlterLabel();
   const bg = alter.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
@@ -139,7 +142,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{alter.name}</p>
+        <p className="text-sm font-medium truncate">{formatAlter(alter)}</p>
         {alter.pronouns && <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>}
       </div>
       {selected && (
@@ -159,6 +162,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
 }
 
 function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove }) {
+  const formatAlter = useAlterLabel();
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => onSetPrimary(),
     onSwipeRight: () => onRemove(),
@@ -191,7 +195,7 @@ function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove }) {
         </span>
       )}
       {isPrimary && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-      <span className="text-sm">{alter.name}</span>
+      <span className="text-sm">{formatAlter(alter)}</span>
       <button
         onClick={(e) => {
           e.stopPropagation();

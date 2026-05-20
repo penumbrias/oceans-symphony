@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from "react";
 import { Check, ChevronDown, Users, Globe, Search } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 
 // Compact dropdown-style alter picker for surfaces where the
 // SetFrontModal-style full grid is too heavy (Polls, small inline
@@ -35,6 +36,7 @@ export default function AlterDropdownPicker({
   defaultIds,
 }) {
   const terms = useTerms();
+  const formatAlter = useAlterLabel();
   const triggerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -58,14 +60,14 @@ export default function AlterDropdownPicker({
       const named = multiValue.filter((id) => id).map((id) => alters?.find((a) => a.id === id)).filter(Boolean);
       if (named.length === 0 && sysSelected) return `${terms.System || "System"}-wide`;
       if (named.length === 0) return placeholder || `Pick ${terms.alters || "alters"}…`;
-      const head = named[0].alias || named[0].name;
+      const head = formatAlter(named[0]);
       const extras = named.length - 1 + (sysSelected ? 1 : 0);
       return extras > 0 ? `${head} + ${extras} other${extras !== 1 ? "s" : ""}` : head;
     }
     if (!value) return allowSystemWide ? `${terms.System || "System"}-wide` : placeholder || `Pick an ${terms.alter || "alter"}…`;
     const a = alters?.find((x) => x.id === value);
-    return a ? a.alias || a.name : placeholder || `Pick an ${terms.alter || "alter"}…`;
-  }, [value, multiValue, alters, isMulti, allowSystemWide, terms, placeholder]);
+    return a ? formatAlter(a) : placeholder || `Pick an ${terms.alter || "alter"}…`;
+  }, [value, multiValue, alters, isMulti, allowSystemWide, terms, placeholder, formatAlter]);
 
   const toggle = (id) => {
     if (isMulti) {
@@ -173,7 +175,7 @@ export default function AlterDropdownPicker({
                     </div>
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
                     <span className={`flex-1 truncate ${selected ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                      {a.alias || a.name}
+                      {formatAlter(a)}
                     </span>
                   </button>
                 );

@@ -13,6 +13,17 @@ Users can customise the words used for their system, alters, fronting, and switc
 - **"headmate" and "headmates" are hardcoded synonyms** — always replace with `${t.alter}` / `${t.alters}`.
 - When in doubt: if the word would change if the user had set a custom term, use `useTerms()`.
 
+### Alter labels in lists / dropdowns / pickers
+
+Whenever you render an alter's name in a list, dropdown, picker, mention popup, etc., **route it through `useAlterLabel()` from `@/lib/useAlterLabel`**, not the raw `alter.name` / `alter.alias` strings.
+
+- The hook returns a `formatAlter(alter)` function tied to the user's `SystemSettings.alter_label_mode` preference (`name` / `alias` / `both`).
+- The default mode is `name` (most distinguishable when alters share aliases).
+- The setting lives in Settings → Appearance → `AlterLabelSettings.jsx`.
+- Helpers: `formatAlterLabel(alter, mode)` (pure) and `useAlterLabel()` (hook) are in `src/lib/alterLabel.js` / `src/lib/useAlterLabel.js`.
+- Already wired into: `FronterPicker`, `AlterDropdownPicker`, the chat composer (speaker chip, mention popup, signpost popup, SpeakerRow), `MessageRow`. Other surfaces still using `alter.alias || alter.name` should be progressively migrated when they're touched.
+- The hook re-uses the existing `["systemSettings"]` react-query cache (shared with `useTerms` / `useAccessibility`) — no extra fetch per consumer.
+
 ## Critical: Custom Status Notes
 
 **How they work (like Facebook statuses):**
