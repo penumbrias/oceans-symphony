@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import GroupMembersModal from "./GroupMembersModal";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { MAX_GROUP_DEPTH } from "@/lib/groupTreeUtils";
 
 export default function GroupTreeRow({
   group,
@@ -45,10 +46,9 @@ export default function GroupTreeRow({
 
   // Find children by matching parent to this group's ID or sp_id.
   // Exclude self so a self-parented row doesn't recurse forever.
-  // Clamp recursion depth defensively at MAX_GROUP_DEPTH so a
-  // pathological data shape can never blow the call stack — at
-  // depth limit we just stop rendering further children.
-  const MAX_GROUP_DEPTH = 8;
+  // Clamp at MAX_GROUP_DEPTH (imported from groupTreeUtils so the
+  // limit is consistent across the codebase) — pathological data
+  // shapes can never blow the call stack.
   const atDepthLimit = level >= MAX_GROUP_DEPTH;
   const childGroups = atDepthLimit
     ? []

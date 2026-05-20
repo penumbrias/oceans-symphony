@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { wouldCreateCycle } from "@/lib/groupTreeUtils";
 import {
   Dialog,
   DialogContent,
@@ -44,12 +46,22 @@ export default function GroupEditModal({
       alert("Group name is required");
       return;
     }
+    // Refuse parent changes that would create a cycle (group becomes
+    // an ancestor of itself). Mirrors GroupsManager's drag-drop guard
+    // — without this, picking a descendant as the new parent would
+    // brick navigation, the same class of bug that hit Activity
+    // categories before cycle-safety was added.
+    const nextParentId = parent === "root" ? "" : parent;
+    if (nextParentId && wouldCreateCycle(nextParentId, group.id, allGroups)) {
+      toast.error("Can't move a group into one of its own subgroups");
+      return;
+    }
     setIsSaving(true);
     try {
       await base44.entities.Group.update(group.id, {
         name,
         color,
-        parent: parent === "root" ? "" : parent,
+        parent: nextParentId,
       });
       onSave();
     } finally {
@@ -57,7 +69,15 @@ export default function GroupEditModal({
     }
   };
 
-  const parentOptions = allGroups.filter((g) => g.id !== group?.id);
+  // Exclude self AND any descendants from the parent picker so the
+  // user can't even attempt to create a cycle. handleSave still
+  // calls wouldCreateCycle as a defence-in-depth check for stale
+  // dropdown state.
+  const parentOptions = (allGroups || []).filter((g) => {
+    if (!g.id || g.id === group?.id) return false;
+    if (!group?.id) return true;
+    return !wouldCreateCycle(g.id, group.id, allGroups);
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
