@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Quick plans popup: tapping a plan opens Activity Details (mark done, edit, delete). Press &amp; hold to jump straight to Manage Plan as before.",
+      },
+      {
+        type: "improve",
         text: "Check-in log: every entry now has edit/delete affordances — standalone symptoms can have their severity tweaked or be removed, and location rows have a delete button. Changes reflect on the Timeline immediately.",
       },
       {

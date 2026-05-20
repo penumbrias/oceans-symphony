@@ -39,6 +39,59 @@ import { emotionColor, getActivityColor as _getActivityColor, getActivitiesForSl
 import { statusFor, visualForStatus, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { useNavigate } from "react-router-dom";
 import ActivityLifecyclePopover from "./ActivityLifecyclePopover";
+import ActivityDetailsModal from "./ActivityDetailsModal";
+
+// Quick-plan row with tap vs press-and-hold gestures. Tap opens the
+// Activity Details modal (mark done / edit / delete affordances);
+// long-press jumps straight to the Manage Plan lifecycle popover.
+function QuickPlanRow({ activity, getActivityColor, onTap, onLongPress }) {
+  const color = getActivityColor(activity) || "hsl(var(--primary))";
+  const st = statusFor(activity);
+  const v = visualForStatus(st);
+  const timerRef = useRef(null);
+  const heldRef = useRef(false);
+  const startPress = () => {
+    heldRef.current = false;
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => { heldRef.current = true; onLongPress(); }, 500);
+  };
+  const endPress = () => {
+    clearTimeout(timerRef.current);
+  };
+  const cancelPress = () => {
+    clearTimeout(timerRef.current);
+    heldRef.current = true;
+  };
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  return (
+    <button
+      type="button"
+      onClick={() => { if (!heldRef.current) onTap(); }}
+      onPointerDown={startPress}
+      onPointerUp={endPress}
+      onPointerCancel={cancelPress}
+      onPointerLeave={cancelPress}
+      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-card hover:bg-muted/40 text-left transition-colors"
+    >
+      <span
+        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+        style={{
+          backgroundColor: v.dashed ? "transparent" : color,
+          border: v.dashed ? `1px dashed ${color}` : undefined,
+        }}
+      />
+      <span
+        className="flex-1 text-sm break-words"
+        style={{ textDecoration: v.strike ? "line-through" : undefined }}
+      >
+        {activity.activity_name || "Quick plan"}
+      </span>
+      {v.corner && (
+        <span className="text-xs font-bold flex-shrink-0" style={{ color }}>{v.corner}</span>
+      )}
+    </button>
+  );
+}
 function truncate(str, max) {
   if (!str) return "";
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
@@ -107,6 +160,10 @@ export default function ActivityWeeklyGrid({
   const longPressTimerRef = useRef(null);
   const longPressFiredRef = useRef(false);
   const [lifecycleActivity, setLifecycleActivity] = useState(null);
+  // Set when a quick-plan chip in the day popup is tapped (not held).
+  // Tap → Activity Details (lets the user mark done / edit / delete).
+  // Long-press → skip details and jump straight to Manage Plan.
+  const [detailsActivity, setDetailsActivity] = useState(null);
   // Popup that lists every quick plan for a single day, with full
   // (un-truncated) names. Triggered by double-tap on a quick-plan
   // pill — a single tap still navigates to the day view, double-tap
@@ -1022,47 +1079,34 @@ if (isSameCell) {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-1.5">
-            {quickPlanDayPopup?.plans?.length ? quickPlanDayPopup.plans.map((a) => {
-              const color = getActivityColor(a) || "hsl(var(--primary))";
-              const st = statusFor(a);
-              const v = visualForStatus(st);
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => {
-                    setQuickPlanDayPopup(null);
-                    setLifecycleActivity(a);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-card hover:bg-muted/40 text-left transition-colors"
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{
-                      backgroundColor: v.dashed ? "transparent" : color,
-                      border: v.dashed ? `1px dashed ${color}` : undefined,
-                    }}
-                  />
-                  <span
-                    className="flex-1 text-sm break-words"
-                    style={{ textDecoration: v.strike ? "line-through" : undefined }}
-                  >
-                    {a.activity_name || "Quick plan"}
-                  </span>
-                  {v.corner && (
-                    <span className="text-xs font-bold flex-shrink-0" style={{ color }}>{v.corner}</span>
-                  )}
-                </button>
-              );
-            }) : (
+            {quickPlanDayPopup?.plans?.length ? quickPlanDayPopup.plans.map((a) => (
+              <QuickPlanRow
+                key={a.id}
+                activity={a}
+                getActivityColor={getActivityColor}
+                onTap={() => { setQuickPlanDayPopup(null); setDetailsActivity(a); }}
+                onLongPress={() => { setQuickPlanDayPopup(null); setLifecycleActivity(a); }}
+              />
+            )) : (
               <p className="text-xs text-muted-foreground text-center py-4">No quick plans for this day.</p>
             )}
           </div>
           <p className="text-[0.6875rem] text-muted-foreground pt-1">
-            Tap a plan to open its manage / edit menu (mark done, skip, reschedule, delete).
+            Tap to open details · press &amp; hold to jump straight to Manage Plan.
           </p>
         </DialogContent>
       </Dialog>
+
+      <ActivityDetailsModal
+        isOpen={!!detailsActivity}
+        onClose={() => setDetailsActivity(null)}
+        activity={detailsActivity}
+        alters={alters}
+        onEditPlan={(act) => {
+          setDetailsActivity(null);
+          setLifecycleActivity(act);
+        }}
+      />
 
       <ActivityLifecyclePopover
         isOpen={!!lifecycleActivity}
