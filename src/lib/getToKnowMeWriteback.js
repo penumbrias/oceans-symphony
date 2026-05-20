@@ -61,18 +61,24 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       const fieldDef = customFields.find((f) => f.id === fieldId) || { field_type: question.fieldType };
       const raw = typeof answer === "string" ? answer.trim() : String(answer?.label || answer?.value || "").trim();
       if (!raw) return { saved: false, reason: "Type or pick an answer first." };
+      // User-data invariant: never silently overwrite. For both list
+      // AND text fields, fold the new value into a comma-separated
+      // sequence so prior answers are preserved. Dedupes case-
+      // insensitively. A boolean / yes-no field still replaces (the
+      // value is the entire field).
       for (const id of alterIds) {
         const alter = byId[id];
         if (!alter) continue;
         const map = { ...(alter.alter_custom_fields || {}) };
         const prev = typeof map[fieldId] === "string" ? map[fieldId] : "";
         let next;
-        if (isListField(fieldDef)) {
+        const fieldType = fieldDef?.field_type;
+        if (fieldType === "boolean") {
+          next = raw;
+        } else {
           const items = prev ? prev.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : [];
           items.push(raw);
           next = dedupePreserveOrder(items).join(", ");
-        } else {
-          next = raw;
         }
         map[fieldId] = next;
         await base44.entities.Alter.update(id, { alter_custom_fields: map });
