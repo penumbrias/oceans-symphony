@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Adding a custom emotion (e.g. \"disgust\") from the per-alter session editor or the dashboard fronter quick-editor now actually saves and pre-selects it — previously typing one and hitting add did nothing.",
+      },
+      {
+        type: "improve",
+        text: "Alter profile History tab no longer auto-merges front history from alters you logged as a fusion / split source. There's a clear toggle (off by default) to fold that inherited history in when you want it.",
+      },
+      {
         type: "improve",
         text: "Alter history tab banner now explains exactly where \"from split source\" / pre-fusion entries come from (a fusion or split event you logged in System History) and how to remove them.",
       },

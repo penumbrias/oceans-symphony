@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,24 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
   ], [customTriggerTypes]);
 
   const activeSymptoms = useMemo(() => symptoms.filter((s) => !s.is_archived), [symptoms]);
+
+  const addCustomEmotionMutation = useMutation({
+    mutationFn: async ({ label, category = "custom" }) => {
+      const cleanLabel = (label || "").trim();
+      if (!cleanLabel) return null;
+      const existing = customEmotions.find((e) => e.label.toLowerCase() === cleanLabel.toLowerCase());
+      if (existing) return existing;
+      return base44.entities.CustomEmotion.create({ label: cleanLabel, category });
+    },
+    onSuccess: (emotion) => {
+      if (!emotion) return;
+      setLocalEmotions((prev) => prev.includes(emotion.label) ? prev : [...prev, emotion.label]);
+      queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
+    },
+    onError: (e) => {
+      toast.error(e?.message || "Couldn't add custom emotion");
+    },
+  });
 
   // Fetch the full session when the dialog opens, then hydrate every
   // field so the user sees current state pre-filled.
@@ -266,7 +284,7 @@ export default function PerAlterEntryEditor({ isOpen, onClose, entry, alter, foc
                     selectedEmotions={localEmotions}
                     onToggle={(label) => setLocalEmotions((prev) => (prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label]))}
                     customEmotions={customEmotions}
-                    onAddCustom={() => {}}
+                    onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
                   />
                 </div>
               )}

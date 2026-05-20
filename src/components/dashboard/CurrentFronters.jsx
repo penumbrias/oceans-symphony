@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { TOUR_DEMO_ALTERS, TOUR_DEMO_SESSIONS } from "@/lib/tourDemoData";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -185,6 +185,24 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 
   const activeSymptoms = symptoms.filter(s => !s.is_archived);
 
+  const addCustomEmotionMutation = useMutation({
+    mutationFn: async ({ label, category = "custom" }) => {
+      const cleanLabel = (label || "").trim();
+      if (!cleanLabel) return null;
+      const existing = customEmotions.find((e) => e.label.toLowerCase() === cleanLabel.toLowerCase());
+      if (existing) return existing;
+      return base44.entities.CustomEmotion.create({ label: cleanLabel, category });
+    },
+    onSuccess: (emotion) => {
+      if (!emotion) return;
+      setLocalEmotions((prev) => prev.includes(emotion.label) ? prev : [...prev, emotion.label]);
+      queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
+    },
+    onError: (e) => {
+      toast.error(e?.message || "Couldn't add custom emotion");
+    },
+  });
+
   const handleSave = async () => {
     if (!session) return;
     setSaving(true);
@@ -319,7 +337,7 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
               prev.includes(label) ? prev.filter(e => e !== label) : [...prev, label]
             )}
             customEmotions={customEmotions}
-            onAddCustom={() => {}}
+            onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })}
           />
         </div>
       )}
