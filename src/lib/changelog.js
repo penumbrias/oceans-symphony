@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Manage unblend questions: your own questions can now be edited or duplicated, not just deleted. Add-question button moved out of Help me unblend's header into the manager.",
+      },
+      {
+        type: "improve",
+        text: "Help me unblend / Get to know me: 'Different' button renamed to 'Shuffle'.",
+      },
+      {
+        type: "improve",
         text: "Get to know me: question now sits above the alter picker, and the picker uses the same avatar grid as the Set front modal instead of the previous chip list.",
       },
       {
