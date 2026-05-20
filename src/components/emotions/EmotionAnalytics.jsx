@@ -2,28 +2,40 @@ import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart } from "recharts";
-import { Heart } from "lucide-react";
+import { Heart, TrendingUp, Users, Link2, Activity as ActivityIcon, AlertCircle, CalendarRange } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+} from "recharts";
+import { parseSessionEmotions } from "@/lib/perAlterSessionEntries";
+
+// Emotion analytics — revamped. Pulls events from BOTH
+// EmotionCheckIn AND FrontingSession.session_emotions so per-alter
+// emotions logged inside a fronting session count alongside the
+// stand-alone check-ins. Surfaces:
+//   - Frequency counts (readable horizontal bars)
+//   - Common emotions per alter
+//   - Co-occurring emotion pairs (which emotions tend to show up
+//     together in the same event)
+//   - Emotion ↔ activity correlation (which activities tend to
+//     happen within ±90 min of a logged emotion)
+//   - Emotion ↔ symptom correlation (same window)
+//   - Frequency over time (line chart, daily / weekly / monthly
+//     bucketing depending on range length)
+//   - Time-of-day distribution
 
 const EMOTION_COLORS = {
-  angry: "#ef4444",
-  anxious: "#f97316",
-  calm: "#eab308",
-  confused: "#22c55e",
-  happy: "#10b981",
-  hopeful: "#3b82f6",
-  loved: "#ec4899",
-  numb: "#cbd5e1",
-  overwhelmed: "#d97706",
-  sad: "#6366f1",
-  stressed: "#fbbf24",
-  tired: "#94a3b8",
+  angry: "#ef4444", anxious: "#f97316", calm: "#eab308", confused: "#22c55e",
+  happy: "#10b981", hopeful: "#3b82f6", loved: "#ec4899", numb: "#cbd5e1",
+  overwhelmed: "#d97706", sad: "#6366f1", stressed: "#fbbf24", tired: "#94a3b8",
 };
 const FALLBACK_PALETTE = ["#8b5cf6","#06b6d4","#f43f5e","#84cc16","#f59e0b","#10b981","#3b82f6","#ec4899","#14b8a6","#a78bfa"];
-function emotionColor(name, index) {
-  return EMOTION_COLORS[name?.toLowerCase()] || FALLBACK_PALETTE[index % FALLBACK_PALETTE.length];
+
+function emotionColor(name, index = 0) {
+  return EMOTION_COLORS[(name || "").toLowerCase()] || FALLBACK_PALETTE[index % FALLBACK_PALETTE.length];
 }
+
+const CORR_WINDOW_MS = 90 * 60 * 1000; // ±90 minutes for correlation
 
 export default function EmotionAnalytics({ from, to }) {
   const t = useTerms();
@@ -31,244 +43,470 @@ export default function EmotionAnalytics({ from, to }) {
     queryKey: ["emotionCheckIns"],
     queryFn: () => base44.entities.EmotionCheckIn.list(),
   });
-
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["frontingSessionsAll"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
+  });
+  const { data: activities = [] } = useQuery({
+    queryKey: ["activities"],
+    queryFn: () => base44.entities.Activity.list(),
+  });
+  const { data: symptomCheckIns = [] } = useQuery({
+    queryKey: ["symptomCheckIns"],
+    queryFn: () => base44.entities.SymptomCheckIn.list(),
+  });
+  const { data: symptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+  });
 
-  // Filter by date range
-  const filtered = useMemo(() => {
-    return checkIns.filter((c) => {
-      const date = new Date(c.timestamp);
-      return date >= from && date <= to;
-    });
-  }, [checkIns, from, to]);
+  const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
+  const symptomsById = useMemo(() => Object.fromEntries(symptoms.map((s) => [s.id, s])), [symptoms]);
+  const inRange = (ts) => ts >= +from && ts <= +to;
 
-  const altersById = useMemo(() => {
-    return Object.fromEntries(alters.map((a) => [a.id, a]));
-  }, [alters]);
+  // Unified "emotion event" list: { ts, labels[], alterIds[] }
+  // Pulls both EmotionCheckIn and per-alter session_emotions, so the
+  // analytics reflect every emotion logged anywhere — not just the
+  // standalone check-in flow.
+  const events = useMemo(() => {
+    const out = [];
+    for (const c of checkIns) {
+      const ts = +new Date(c.timestamp);
+      if (!Number.isFinite(ts) || !inRange(ts)) continue;
+      const labels = Array.isArray(c.emotions) ? c.emotions.filter(Boolean) : [];
+      if (labels.length === 0) continue;
+      out.push({ ts, labels, alterIds: Array.isArray(c.fronting_alter_ids) ? c.fronting_alter_ids : [] });
+    }
+    for (const s of sessions) {
+      const labels = parseSessionEmotions(s.session_emotions);
+      if (labels.length === 0) continue;
+      const ts = +new Date(s.start_time || s.timestamp);
+      if (!Number.isFinite(ts) || !inRange(ts)) continue;
+      const alterId = s.alter_id || s.primary_alter_id;
+      out.push({ ts, labels, alterIds: alterId ? [alterId] : [] });
+    }
+    return out.sort((a, b) => a.ts - b.ts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkIns, sessions, +from, +to]);
 
-  // Emotion frequency
+  // 1) Frequency counts (sorted, readable)
   const emotionCounts = useMemo(() => {
     const counts = {};
-    filtered.forEach((c) => {
-      c.emotions.forEach((e) => {
-        counts[e] = (counts[e] || 0) + 1;
-      });
-    });
-    return Object.entries(counts)
-      .map(([emotion, count]) => ({ emotion, count }))
+    for (const e of events) for (const l of e.labels) counts[l] = (counts[l] || 0) + 1;
+    return Object.entries(counts).map(([emotion, count]) => ({ emotion, count }))
       .sort((a, b) => b.count - a.count);
-  }, [filtered]);
+  }, [events]);
+  const topEmotion = emotionCounts[0];
+  const maxCount = topEmotion?.count || 1;
 
-  // Emotions by alter
+  // 2) Common emotions per alter
   const emotionsByAlter = useMemo(() => {
     const map = {};
-    filtered.forEach((c) => {
-      c.fronting_alter_ids?.forEach((alterId) => {
-        if (!map[alterId]) map[alterId] = {};
-        c.emotions.forEach((e) => {
-          map[alterId][e] = (map[alterId][e] || 0) + 1;
-        });
-      });
-    });
-    return Object.entries(map).map(([alterId, emotions]) => {
-      const alter = altersById[alterId];
-      return {
-        alterId,
-        name: alter?.name || alterId,
-        emotions: Object.entries(emotions)
-          .map(([emotion, count]) => ({ emotion, count }))
-          .sort((a, b) => b.count - a.count)
-      };
-    }).filter(a => a.emotions.length > 0);
-  }, [filtered, altersById]);
+    for (const e of events) {
+      for (const aid of e.alterIds) {
+        if (!map[aid]) map[aid] = {};
+        for (const l of e.labels) map[aid][l] = (map[aid][l] || 0) + 1;
+      }
+    }
+    return Object.entries(map)
+      .map(([aid, m]) => {
+        const a = altersById[aid];
+        const totalCount = Object.values(m).reduce((s, n) => s + n, 0);
+        return {
+          alterId: aid,
+          name: a?.name || aid,
+          color: a?.color,
+          total: totalCount,
+          top: Object.entries(m).map(([emotion, count]) => ({ emotion, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 8),
+        };
+      })
+      .filter((row) => row.top.length > 0)
+      .sort((a, b) => b.total - a.total);
+  }, [events, altersById]);
 
-  // Alters by emotion
-  const altersByEmotion = useMemo(() => {
-    const map = {};
-    filtered.forEach((c) => {
-      c.emotions.forEach((emotion) => {
-        if (!map[emotion]) map[emotion] = {};
-        c.fronting_alter_ids?.forEach((alterId) => {
-          const alter = altersById[alterId];
-          if (alter) {
-            map[emotion][alter.name] = (map[emotion][alter.name] || 0) + 1;
-          }
-        });
-      });
-    });
-    return Object.entries(map).map(([emotion, alters]) => ({
-      emotion,
-      alters: Object.entries(alters)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-    }));
-  }, [filtered, altersById]);
+  // 3) Co-occurring emotion pairs (same event)
+  const pairs = useMemo(() => {
+    const counts = {};
+    for (const e of events) {
+      const unique = [...new Set(e.labels)];
+      for (let i = 0; i < unique.length; i++) {
+        for (let j = i + 1; j < unique.length; j++) {
+          const key = [unique[i], unique[j]].sort().join(" ");
+          counts[key] = (counts[key] || 0) + 1;
+        }
+      }
+    }
+    return Object.entries(counts)
+      .map(([key, count]) => {
+        const [a, b] = key.split(" ");
+        return { a, b, count };
+      })
+      .sort((x, y) => y.count - x.count)
+      .slice(0, 12);
+  }, [events]);
 
-  // Time of day distribution
-  const timeDistribution = useMemo(() => {
-    const hours = Array.from({ length: 24 }, (_, i) => ({
-      hour: `${i}:00`,
-      count: 0,
-      emotions: []
-    }));
+  // 4) Emotion ↔ activity correlation. For each (emotion, activity)
+  //    pair, count how many activity timestamps land within ±90min
+  //    of an emotion event with that label.
+  const emotionActivityPairs = useMemo(() => {
+    const counts = new Map();
+    for (const e of events) {
+      for (const act of activities) {
+        const ats = +new Date(act.timestamp);
+        if (!Number.isFinite(ats) || !inRange(ats)) continue;
+        if (Math.abs(ats - e.ts) > CORR_WINDOW_MS) continue;
+        const aname = act.activity_name || "?";
+        for (const l of e.labels) {
+          const key = l + "||" + aname;
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+      }
+    }
+    return [...counts.entries()]
+      .map(([key, count]) => {
+        const [emotion, activity] = key.split("||");
+        return { emotion, activity, count };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, activities, +from, +to]);
 
-    filtered.forEach((c) => {
-      const hour = new Date(c.timestamp).getHours();
-      hours[hour].count++;
-    });
+  // 5) Emotion ↔ symptom correlation (same ±90min window)
+  const emotionSymptomPairs = useMemo(() => {
+    const counts = new Map();
+    for (const e of events) {
+      for (const sc of symptomCheckIns) {
+        const sts = +new Date(sc.timestamp);
+        if (!Number.isFinite(sts) || !inRange(sts)) continue;
+        if (Math.abs(sts - e.ts) > CORR_WINDOW_MS) continue;
+        const sym = symptomsById[sc.symptom_id];
+        const symLabel = sym?.label || "?";
+        for (const l of e.labels) {
+          const key = l + "||" + symLabel;
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+      }
+    }
+    return [...counts.entries()]
+      .map(([key, count]) => {
+        const [emotion, symptom] = key.split("||");
+        return { emotion, symptom, count };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, symptomCheckIns, symptomsById, +from, +to]);
 
-    return hours.filter((h) => h.count > 0);
-  }, [filtered]);
+  // 6) Frequency over time. Auto-bucket: <=14 days = daily, <=120 = weekly,
+  //    else monthly. Each bucket carries counts for the top 6 emotions.
+  const overTime = useMemo(() => {
+    if (events.length === 0) return { rows: [], topLabels: [] };
+    const spanMs = +to - +from;
+    const days = spanMs / (24 * 60 * 60 * 1000);
+    const grain = days <= 14 ? "day" : days <= 120 ? "week" : "month";
+    const bucketKey = (ts) => {
+      const d = new Date(ts);
+      if (grain === "day") return d.toISOString().slice(0, 10);
+      if (grain === "week") {
+        const day = d.getUTCDay();
+        const diff = d.getUTCDate() - day;
+        const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff));
+        return monday.toISOString().slice(0, 10);
+      }
+      return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    };
+    const topLabels = emotionCounts.slice(0, 6).map((e) => e.emotion);
+    const byBucket = new Map();
+    for (const e of events) {
+      const k = bucketKey(e.ts);
+      if (!byBucket.has(k)) {
+        const row = { bucket: k };
+        for (const l of topLabels) row[l] = 0;
+        byBucket.set(k, row);
+      }
+      const row = byBucket.get(k);
+      for (const l of e.labels) {
+        if (topLabels.includes(l)) row[l] = (row[l] || 0) + 1;
+      }
+    }
+    return { rows: [...byBucket.values()].sort((a, b) => a.bucket.localeCompare(b.bucket)), topLabels, grain };
+  }, [events, emotionCounts, +from, +to]);
 
-  // Top emotions by time
-  const emotionsByHour = useMemo(() => {
-    const map = {};
-    filtered.forEach((c) => {
-      const hour = new Date(c.timestamp).getHours();
-      c.emotions.forEach((e) => {
-        const key = `${hour}:00`;
-        map[key] = map[key] || {};
-        map[key][e] = (map[key][e] || 0) + 1;
-      });
-    });
-    return Object.entries(map).map(([hour, emotions]) => ({
-      hour,
-      ...emotions
-    }));
-  }, [filtered]);
+  // 7) Hour-of-day distribution (more readable than the prior dot plot)
+  const hourDistribution = useMemo(() => {
+    const tally = Array.from({ length: 24 }, () => 0);
+    for (const e of events) {
+      const h = new Date(e.ts).getHours();
+      tally[h] += e.labels.length;
+    }
+    return tally.map((count, hour) => ({ hour: `${String(hour).padStart(2, "0")}:00`, count }));
+  }, [events]);
+
+  if (events.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center text-sm text-muted-foreground">
+          No emotion data in this range yet. Log some quick check-ins or per-{t.alter || "alter"} session emotions to see analytics here.
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      {/* Emotion Frequency */}
-      {emotionCounts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Heart className="w-5 h-5 text-destructive" />
-              Most Frequent Emotions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={emotionCounts}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="emotion" stroke="var(--muted-foreground)" />
-                <YAxis stroke="var(--muted-foreground)" />
-                <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }} />
-                <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                  {emotionCounts.map((entry, i) => (
-                    <Cell key={entry.emotion} fill={emotionColor(entry.emotion, i)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Time of Day */}
-      {timeDistribution.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Check-Ins by Time of Day</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={timeDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="hour" stroke="var(--muted-foreground)" />
-                <YAxis stroke="var(--muted-foreground)" />
-                <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }} />
-                <Line type="monotone" dataKey="count" stroke="var(--primary)" strokeWidth={2} dot={{ fill: "var(--primary)" }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Emotions by Alter */}
-      {emotionsByAlter.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Top Emotions by Member</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {emotionsByAlter.map((item) => (
-                <div key={item.alterId}>
-                  <p className="text-sm font-medium mb-2">{item.name}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {item.emotions.slice(0, 5).map((e) => (
-                      <span key={e.emotion} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium">
-                        {e.emotion} ({e.count})
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Alters by Emotion */}
-      {altersByEmotion.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t.Alters} Most Experiencing Each Emotion</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {altersByEmotion.slice(0, 8).map((item) => (
-                <div key={item.emotion}>
-                  <p className="text-sm font-medium mb-1">{item.emotion}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {item.alters.slice(0, 3).map((alter) => (
-                      <span key={alter.name} className="bg-accent/20 text-accent-foreground px-2 py-0.5 rounded text-xs">
-                        {alter.name} ({alter.count})
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recent Check-Ins */}
+      {/* Header summary */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Recent Check-Ins</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {filtered.slice().reverse().slice(0, 10).map((c, i) => (
-              <div key={i} className="p-3 bg-muted/30 rounded-lg text-sm space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{new Date(c.timestamp).toLocaleString()}</span>
-                  <div className="flex gap-1 flex-wrap justify-end">
-                    {c.emotions.map((e) => (
-                      <span key={e} className="bg-primary/20 text-primary px-2 py-0.5 rounded text-xs">
-                        {e}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                {c.fronting_alter_ids?.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    🧑 {c.fronting_alter_ids.map((id) => altersById[id]?.name || id).join(", ")}
-                  </p>
-                )}
-                {c.note && <p className="text-xs text-muted-foreground">{c.note}</p>}
-              </div>
-            ))}
+        <CardContent className="py-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <Stat label="Emotion entries" value={events.length} />
+            <Stat label="Unique emotions" value={emotionCounts.length} />
+            <Stat label="Top emotion" value={topEmotion?.emotion || "—"} sublabel={topEmotion ? `${topEmotion.count}×` : null} />
+            <Stat label={`${t.Alters || "Alters"} logged`} value={emotionsByAlter.length} />
           </div>
         </CardContent>
       </Card>
+
+      {/* Frequency counts — readable horizontal bars */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Heart className="w-5 h-5 text-destructive" />
+            Most Frequent Emotions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-1.5">
+            {emotionCounts.slice(0, 25).map((e, i) => {
+              const color = emotionColor(e.emotion, i);
+              const pct = Math.max(2, Math.round((e.count / maxCount) * 100));
+              return (
+                <div key={e.emotion} className="flex items-center gap-2">
+                  <span className="text-xs font-medium w-32 truncate" style={{ color }}>{e.emotion}</span>
+                  <div className="flex-1 h-5 rounded-md bg-muted/40 overflow-hidden">
+                    <div className="h-full rounded-md" style={{ width: `${pct}%`, backgroundColor: color }} />
+                  </div>
+                  <span className="text-xs tabular-nums w-10 text-right text-muted-foreground">{e.count}</span>
+                </div>
+              );
+            })}
+          </div>
+          {emotionCounts.length > 25 && (
+            <p className="text-[0.6875rem] text-muted-foreground mt-3">…and {emotionCounts.length - 25} more.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Frequency over time */}
+      {overTime.rows.length >= 2 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Emotions over time
+              <span className="text-[0.6875rem] font-normal text-muted-foreground ml-2">({overTime.grain}ly)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={overTime.rows}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="bucket" stroke="var(--muted-foreground)" fontSize={11} />
+                <YAxis stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} />
+                <Tooltip contentStyle={{ backgroundColor: "var(--card)", border: "1px solid var(--border)", fontSize: 12 }} />
+                {overTime.topLabels.map((label, i) => (
+                  <Line
+                    key={label}
+                    type="monotone"
+                    dataKey={label}
+                    stroke={emotionColor(label, i)}
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {overTime.topLabels.map((label, i) => (
+                <span key={label} className="inline-flex items-center gap-1 text-[0.6875rem]">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: emotionColor(label, i) }} />
+                  {label}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Common emotions per alter */}
+      {emotionsByAlter.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users className="w-5 h-5 text-primary" />
+              Common emotions per {t.alter || "alter"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {emotionsByAlter.map((row) => {
+                const localMax = Math.max(...row.top.map((e) => e.count));
+                return (
+                  <div key={row.alterId} className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: row.color || "#8b5cf6" }} />
+                      <p className="text-sm font-semibold flex-1">{row.name}</p>
+                      <span className="text-[0.6875rem] text-muted-foreground">{row.total} entries</span>
+                    </div>
+                    {row.top.map((e, i) => {
+                      const color = emotionColor(e.emotion, i);
+                      const pct = Math.max(2, Math.round((e.count / localMax) * 100));
+                      return (
+                        <div key={e.emotion} className="flex items-center gap-2">
+                          <span className="text-[0.6875rem] font-medium w-28 truncate" style={{ color }}>{e.emotion}</span>
+                          <div className="flex-1 h-3.5 rounded-md bg-muted/40 overflow-hidden">
+                            <div className="h-full rounded-md" style={{ width: `${pct}%`, backgroundColor: color }} />
+                          </div>
+                          <span className="text-[0.6875rem] tabular-nums w-8 text-right text-muted-foreground">{e.count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[0.6875rem] text-muted-foreground mt-3 leading-snug">
+              Sources: per-{t.alter || "alter"} session emotions logged inside a fronting session AND Quick Check-In emotions
+              while that {t.alter || "alter"} was {t.fronting || "fronting"}. This is the same dataset Help me unblend's "dominant feeling" question pulls from.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Co-occurring emotion pairs */}
+      {pairs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Link2 className="w-5 h-5 text-primary" />
+              Emotions that overlap
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-2">Pairs logged together in the same entry.</p>
+            <div className="flex flex-wrap gap-2">
+              {pairs.map(({ a, b, count }) => (
+                <span
+                  key={`${a}+${b}`}
+                  className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border border-border/60 bg-muted/30"
+                >
+                  <span style={{ color: emotionColor(a, 0) }}>{a}</span>
+                  <span className="text-muted-foreground">+</span>
+                  <span style={{ color: emotionColor(b, 1) }}>{b}</span>
+                  <span className="text-[0.6875rem] text-muted-foreground tabular-nums">× {count}</span>
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Emotion × Activity correlation */}
+      {emotionActivityPairs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <ActivityIcon className="w-5 h-5 text-primary" />
+              Emotions associated with activities
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-2">
+              When an emotion event lands within ±90 min of an activity log.
+            </p>
+            <div className="space-y-1">
+              {emotionActivityPairs.map(({ emotion, activity, count }, i) => (
+                <div key={`${emotion}+${activity}`} className="flex items-center gap-2 text-xs">
+                  <span className="font-medium w-28 truncate" style={{ color: emotionColor(emotion, i) }}>{emotion}</span>
+                  <span className="text-muted-foreground/60">↔</span>
+                  <span className="flex-1 truncate">{activity}</span>
+                  <span className="text-[0.6875rem] text-muted-foreground tabular-nums">× {count}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Emotion × Symptom correlation */}
+      {emotionSymptomPairs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <AlertCircle className="w-5 h-5 text-primary" />
+              Emotions associated with symptoms
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-2">
+              When an emotion event lands within ±90 min of a symptom check-in.
+            </p>
+            <div className="space-y-1">
+              {emotionSymptomPairs.map(({ emotion, symptom, count }, i) => (
+                <div key={`${emotion}+${symptom}`} className="flex items-center gap-2 text-xs">
+                  <span className="font-medium w-28 truncate" style={{ color: emotionColor(emotion, i) }}>{emotion}</span>
+                  <span className="text-muted-foreground/60">↔</span>
+                  <span className="flex-1 truncate">{symptom}</span>
+                  <span className="text-[0.6875rem] text-muted-foreground tabular-nums">× {count}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Hour distribution */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CalendarRange className="w-5 h-5 text-primary" />
+            Hour of day
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-0.5">
+            {hourDistribution.filter((h) => h.count > 0).map((h) => {
+              const localMax = Math.max(...hourDistribution.map((x) => x.count), 1);
+              const pct = Math.max(2, Math.round((h.count / localMax) * 100));
+              return (
+                <div key={h.hour} className="flex items-center gap-2">
+                  <span className="text-[0.6875rem] tabular-nums w-12 text-muted-foreground">{h.hour}</span>
+                  <div className="flex-1 h-3 rounded-md bg-muted/40 overflow-hidden">
+                    <div className="h-full rounded-md bg-primary/60" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-[0.6875rem] tabular-nums w-8 text-right text-muted-foreground">{h.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Stat({ label, value, sublabel }) {
+  return (
+    <div>
+      <p className="text-xl font-semibold leading-tight">{value}</p>
+      <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground mt-0.5">{label}</p>
+      {sublabel && <p className="text-[0.6875rem] text-muted-foreground">{sublabel}</p>}
     </div>
   );
 }
