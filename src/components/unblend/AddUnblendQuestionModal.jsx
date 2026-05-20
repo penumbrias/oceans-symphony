@@ -84,23 +84,25 @@ export default function AddUnblendQuestionModal({
     }
   }, [editingRecord?.id, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Custom fields the user has actually defined, keyed by id with
-  // their human name + type. We only surface fields that at least one
-  // alter has filled in — otherwise the resulting question would have
-  // zero options.
-  const availableFields = useMemo(() => {
-    const filledFieldIds = new Set();
+  // Surface every defined custom field so the user can build a
+  // question for any of them — even ones with no data yet. Data
+  // gets developed via Get to know me; the question becomes useful
+  // inside Help me unblend once values exist on multiple alters.
+  const availableFields = useMemo(
+    () => [...(customFields || [])].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+    [customFields]
+  );
+  const filledFieldIds = useMemo(() => {
+    const set = new Set();
     for (const a of alters || []) {
       const map = a.alter_custom_fields;
       if (!map || typeof map !== "object") continue;
       for (const [k, v] of Object.entries(map)) {
-        if (typeof v === "string" && v.trim()) filledFieldIds.add(k);
+        if (typeof v === "string" && v.trim()) set.add(k);
       }
     }
-    return (customFields || [])
-      .filter((f) => filledFieldIds.has(f.id))
-      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [alters, customFields]);
+    return set;
+  }, [alters]);
 
   const reset = () => {
     setKind("custom_field");
@@ -210,13 +212,18 @@ export default function AddUnblendQuestionModal({
                 <option value="">— Select a field —</option>
                 {availableFields.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.name}{f.field_type === "list" ? " (list)" : ""}
+                    {f.name}{f.field_type === "list" ? " (list)" : ""}{filledFieldIds.has(f.id) ? "" : " — no data yet"}
                   </option>
                 ))}
               </select>
               {availableFields.length === 0 && (
                 <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400 mt-1">
-                  No custom fields with data yet. Add one in Settings → {terms.Alters} & Fields, fill it in on at least two {terms.alters}, then come back.
+                  No custom fields defined yet. Add one in Settings → {terms.Alters} & Fields, then come back.
+                </p>
+              )}
+              {field && !filledFieldIds.has(field) && (
+                <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400 mt-1">
+                  No {terms.alters || "alters"} have this field filled in yet. The question won't appear in Help me unblend until 2+ {terms.alters || "alters"} have values — use Get to know me to seed the data.
                 </p>
               )}
               <p className="text-[0.6875rem] text-muted-foreground mt-2 leading-snug">

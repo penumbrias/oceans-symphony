@@ -35,6 +35,26 @@ import {
 // is structured so adding both later is a small change.
 const IDK_THRESHOLD_FOR_GROUNDING = 3;
 
+// Returns true if a question can actually discriminate between
+// alters given current data. Used to keep useless questions (color
+// when no alters have a color set, energy when no roles/tags exist,
+// etc.) out of the Help me unblend queue — the user goes to Get to
+// know me to seed the data, then they re-appear.
+function questionHasUsefulData(q, activeAlters) {
+  if (!q || !Array.isArray(activeAlters) || activeAlters.length < 2) return false;
+  if (q.kind === "color") {
+    return activeAlters.filter((a) => a.color).length >= 2;
+  }
+  if (q.kind === "choice" && Array.isArray(q.options) && typeof q.score === "function") {
+    for (const opt of q.options) {
+      for (const a of activeAlters) {
+        if ((q.score(a, opt) || 0) !== 0) return true;
+      }
+    }
+    return false;
+  }
+  return false;
+}
 
 export default function HelpMeUnblend() {
   const navigate = useNavigate();
@@ -110,10 +130,13 @@ export default function HelpMeUnblend() {
   // the grounding nudge.
   const [scores, setScores] = useState({});
   const [questionIdx, setQuestionIdx] = useState(0);
+  const [answeredIds, setAnsweredIds] = useState(() => new Set());
   // Question pool = presets + alter-data dynamic questions
   // (pronouns, role, custom fields) + dynamic emotion question
   // (top logged emotions) + user-defined questions instantiated
-  // against the live alter set.
+  // against the live alter set. Then filter to only questions that
+  // would actually discriminate between alters — otherwise the user
+  // burns through prompts that can't move the ranker.
   const allQuestions = useMemo(() => {
     const out = [...PRESET_QUESTIONS, ...buildDynamicQuestions(alters, customFields)];
     const feelQ = buildDominantFeelingQuestion(emotionCheckIns);
@@ -122,18 +145,22 @@ export default function HelpMeUnblend() {
       const q = instantiateUserQuestion(rec, { alters, customFields });
       if (q) out.push(q);
     }
-    return out;
+    const active = (alters || []).filter((a) => !a.is_archived);
+    return out.filter((q) => questionHasUsefulData(q, active));
   }, [alters, customFields, emotionCheckIns, userQuestionRecords]);
-  const [questionOrder, setQuestionOrder] = useState(() => PRESET_QUESTIONS.map((q) => q.id));
+  const [questionOrder, setQuestionOrder] = useState([]);
   // Keep questionOrder in sync once alters resolve — append dynamic
   // ids the user hasn't seen yet to the end of the queue so the
   // existing presets still front-load.
   useEffect(() => {
+    const liveIds = allQuestions.map((q) => q.id);
     setQuestionOrder((prev) => {
-      const known = new Set(prev);
-      const additions = allQuestions.map((q) => q.id).filter((id) => !known.has(id));
-      if (additions.length === 0) return prev;
-      return [...prev, ...additions];
+      const kept = prev.filter((id) => liveIds.includes(id));
+      const known = new Set(kept);
+      const additions = liveIds.filter((id) => !known.has(id));
+      const next = [...kept, ...additions];
+      if (next.length === prev.length && next.every((id, i) => id === prev[i])) return prev;
+      return next;
     });
   }, [allQuestions]);
   const [idkCount, setIdkCount] = useState(0);
@@ -155,9 +182,12 @@ export default function HelpMeUnblend() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alters.length, sessions.length]);
 
+  const isExhausted = allQuestions.length > 0 && answeredIds.size >= allQuestions.length;
+  const hasNoQuestions = allQuestions.length === 0;
   const currentQuestion = useMemo(() => {
-    const id = questionOrder[questionIdx % Math.max(1, questionOrder.length)];
-    return allQuestions.find((q) => q.id === id) || allQuestions[0];
+    if (questionOrder.length === 0) return null;
+    const id = questionOrder[questionIdx % questionOrder.length];
+    return allQuestions.find((q) => q.id === id) || allQuestions[0] || null;
   }, [questionOrder, questionIdx, allQuestions]);
 
   // Final ranking: current fronters pinned to the top (just like the
@@ -178,6 +208,13 @@ export default function HelpMeUnblend() {
   const recordAnswer = (deltasByAlter) => {
     setScores((prev) => applyAnswer(prev, deltasByAlter));
     setIdkCount(0);
+    if (currentQuestion?.id) {
+      setAnsweredIds((prev) => {
+        const next = new Set(prev);
+        next.add(currentQuestion.id);
+        return next;
+      });
+    }
     setQuestionIdx((i) => i + 1);
   };
 
@@ -224,6 +261,7 @@ export default function HelpMeUnblend() {
     setQuestionIdx(0);
     setIdkCount(0);
     setGroundingNudgeShown(false);
+    setAnsweredIds(new Set());
     setQuestionOrder(allQuestions.map((q) => q.id));
     if (activeAlters.length > 0) {
       setScores(timeOfDayBaseline(sessions, activeAlters, new Date()));
@@ -285,7 +323,40 @@ export default function HelpMeUnblend() {
         </div>
       )}
 
+      {(hasNoQuestions || isExhausted) && (
+        <section className="rounded-2xl border border-primary/40 bg-primary/5 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold text-primary">
+              {hasNoQuestions
+                ? `Not enough ${terms.alter || "alter"} data to ask anything useful yet`
+                : "You've worked through every question we can ask right now"}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Help me unblend only asks questions whose answer would actually narrow the list. To unlock more, fill in {terms.alter || "alter"} colours, pronouns, roles, ages, or custom fields — or use Get to know me to seed answers when you're grounded enough to.
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" onClick={() => navigate("/get-to-know-me")} className="gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> Get to know me
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("/Home")} className="gap-1.5">
+              Open {terms.alters || "alters"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => navigate("/unblend/questions")} className="gap-1.5">
+              <Cog className="w-3.5 h-3.5" /> Manage questions
+            </Button>
+            {isExhausted && (
+              <Button size="sm" variant="ghost" onClick={handleRestart} className="gap-1.5">
+                <RotateCcw className="w-3.5 h-3.5" /> Start over
+              </Button>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Current question card */}
+      {currentQuestion && !isExhausted && !hasNoQuestions && (
       <section className="rounded-2xl border border-border/50 bg-card p-5 space-y-4">
         <div className="flex items-start justify-between gap-2">
           <p className="text-base font-semibold text-foreground leading-snug">
@@ -386,6 +457,7 @@ export default function HelpMeUnblend() {
           </p>
         </div>
       </section>
+      )}
 
       {/* Likely fronters — full scrollable list of every active
           alter, sorted by likeliness. Current fronters are pinned to
