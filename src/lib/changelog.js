@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Alter history tab banner now explains exactly where \"from split source\" / pre-fusion entries come from (a fusion or split event you logged in System History) and how to remove them.",
+      },
+      {
         type: "fix",
         text: "Custom-field unblend questions now show \"Custom field: <name>\" instead of the raw field UUID. The Edit Question alter dropdown also sits anchored under its trigger button (the popover was jumping around the screen and blocking page scroll).",
       },
