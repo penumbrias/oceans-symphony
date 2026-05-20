@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Check-in log: alter-specific notes, emotions, and symptoms are now editable inline (not just deletable). Per-alter emotions also feed into the Day Total emotion tally so nothing's missed.",
+      },
+      {
         type: "feature",
         text: "Manage Unblend Questions: every preset and auto-generated question can now be customised, duplicated, or hidden — not just user-created ones. Hidden ones move to a Hidden section where you can restore them.",
       },

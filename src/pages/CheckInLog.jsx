@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { format, parseISO, startOfDay } from "date-fns";
-import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal, Pencil } from "lucide-react";
+import { Clock, ChevronDown, ChevronRight, Heart, Trash2, BarChart2, ChevronLeft, MapPin, SlidersHorizontal, Pencil, X } from "lucide-react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -399,12 +399,26 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   // Emotions and fronters are surfaced from EmotionCheckIn records — both
   // get hidden when the user has the "Check-ins" toggle off, since that's
   // their parent entry type.
+  // Aggregate emotions from BOTH check-ins and per-alter session
+  // entries — per-alter emotions (logged inside a FrontingSession's
+  // session_emotions array) used to be invisible in the day total,
+  // even though they show in the PER-ALTER strip below.
   const allEmotions = useMemo(() => {
     if (!display.checkIns) return [];
     const tally = {};
     checkIns.forEach(ci => (ci.emotions || []).forEach(em => { tally[em] = (tally[em] || 0) + 1; }));
+    for (const entry of perAlterEntries) {
+      if (entry.kind !== "emotion") continue;
+      const labels = Array.isArray(entry.payload?.labels) && entry.payload.labels.length > 0
+        ? entry.payload.labels
+        : (entry.payload?.label ? [entry.payload.label] : []);
+      for (const em of labels) {
+        if (typeof em !== "string" || !em.trim()) continue;
+        tally[em] = (tally[em] || 0) + 1;
+      }
+    }
     return Object.entries(tally).sort((a, b) => b[1] - a[1]);
-  }, [checkIns, display.checkIns]);
+  }, [checkIns, perAlterEntries, display.checkIns]);
 
   const allFronterIds = useMemo(() =>
     display.checkIns ? [...new Set(checkIns.flatMap(ci => ci.fronting_alter_ids || []))] : [],
@@ -960,13 +974,30 @@ function StatusNoteEntry({ sn }) {
 }
 
 // One entry from a FrontingSession's per-alter note / emotion / symptom
-// array. Delete affordance wipes the relevant payload from the source
-// session record (and removes a single note in the array by index).
+// array. Supports edit (inline) and delete — edits write back to the
+// session record so the change shows up everywhere that reads from it.
 function PerAlterEntry({ entry, altersById }) {
   const qc = useQueryClient();
   const alter = altersById[entry.alterId];
   const color = alter?.color || "#8b5cf6";
   const name = alter?.alias || alter?.name || "Unknown";
+  const [editing, setEditing] = useState(false);
+  const [noteDraft, setNoteDraft] = useState(entry.kind === "note" ? (entry.payload?.text || "") : "");
+  const [emotionDraft, setEmotionDraft] = useState(
+    entry.kind === "emotion"
+      ? (Array.isArray(entry.payload?.labels) && entry.payload.labels.length > 0
+          ? [...entry.payload.labels]
+          : (entry.payload?.label ? [entry.payload.label] : []))
+      : []
+  );
+  const [symptomDraft, setSymptomDraft] = useState(
+    entry.kind === "symptom"
+      ? (Array.isArray(entry.payload?.items) && entry.payload.items.length > 0
+          ? entry.payload.items.map((it) => ({ ...it }))
+          : (entry.payload ? [{ ...entry.payload }] : []))
+      : []
+  );
+  const [saving, setSaving] = useState(false);
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ["frontingSessions"] });
@@ -994,6 +1025,28 @@ function PerAlterEntry({ entry, altersById }) {
     } catch (e) { toast.error(e.message || "Failed to delete"); }
   });
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const session = await base44.entities.FrontingSession.filter({ id: entry.sessionId }).then(rs => rs?.[0]);
+      if (!session) throw new Error("Session not found");
+      if (entry.kind === "note") {
+        const arr = JSON.parse(session.note || "[]");
+        const targetIdx = Number((entry.id.match(/-(\d+)$/) || [])[1]);
+        const next = Array.isArray(arr) ? arr.map((n, i) => i === targetIdx ? { ...n, text: noteDraft } : n) : arr;
+        await base44.entities.FrontingSession.update(session.id, { note: JSON.stringify(next) });
+      } else if (entry.kind === "emotion") {
+        await base44.entities.FrontingSession.update(session.id, { session_emotions: JSON.stringify(emotionDraft.filter(Boolean)) });
+      } else if (entry.kind === "symptom") {
+        await base44.entities.FrontingSession.update(session.id, { session_symptoms: JSON.stringify(symptomDraft) });
+      }
+      invalidateAll();
+      setEditing(false);
+      toast.success("Saved");
+    } catch (e) { toast.error(e.message || "Failed to save"); }
+    finally { setSaving(false); }
+  };
+
   const AlterChip = () => (
     <span className="flex items-center gap-1 text-[0.6875rem] px-1.5 py-0.5 rounded-full bg-muted/40 border border-border/40 flex-shrink-0">
       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
@@ -1001,10 +1054,12 @@ function PerAlterEntry({ entry, altersById }) {
     </span>
   );
 
-  const actions = (
+  const actions = !editing && (
     <RowActions
+      onEdit={() => setEditing(true)}
       onDelete={handleDelete}
       armed={armed}
+      editLabel="Edit"
       deleteLabel="Delete this per-alter entry"
     />
   );
@@ -1012,9 +1067,28 @@ function PerAlterEntry({ entry, altersById }) {
   if (entry.kind === "note") {
     return (
       <StandaloneEntry timestamp={entry.ts} actions={actions}>
-        <div className="flex items-start gap-2 min-w-0">
+        <div className="flex items-start gap-2 min-w-0 w-full">
           <AlterChip />
-          <span className="text-sm text-foreground/80 min-w-0">💬 {entry.payload.text}</span>
+          {editing ? (
+            <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+              <input
+                autoFocus
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); handleSave(); }
+                  if (e.key === "Escape") { setNoteDraft(entry.payload?.text || ""); setEditing(false); }
+                }}
+                className="w-full bg-background border border-border/60 rounded-md px-2 py-1 text-sm"
+              />
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={handleSave} disabled={saving} className="text-xs px-2 py-0.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
+                <button type="button" onClick={() => { setNoteDraft(entry.payload?.text || ""); setEditing(false); }} className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <span className="text-sm text-foreground/80 min-w-0">💬 {entry.payload.text}</span>
+          )}
         </div>
       </StandaloneEntry>
     );
@@ -1027,13 +1101,32 @@ function PerAlterEntry({ entry, altersById }) {
       <StandaloneEntry timestamp={entry.ts} actions={actions}>
         <div className="flex items-center gap-2 flex-wrap">
           <AlterChip />
-          {labels.map((em, i) => <EmotionPill key={`${em}-${i}`} em={em} />)}
+          {editing ? (
+            <>
+              <div className="flex items-center gap-1 flex-wrap">
+                {emotionDraft.map((em, i) => (
+                  <span key={`${em}-${i}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-xs font-medium" style={{ backgroundColor: emotionColor(em) }}>
+                    {em}
+                    <button type="button" onClick={() => setEmotionDraft((prev) => prev.filter((_, idx) => idx !== i))} className="hover:opacity-70" aria-label={`Remove ${em}`}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <button type="button" onClick={handleSave} disabled={saving} className="text-xs px-2 py-0.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
+              <button type="button" onClick={() => { setEmotionDraft(labels); setEditing(false); }} className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground">Cancel</button>
+            </>
+          ) : (
+            labels.map((em, i) => <EmotionPill key={`${em}-${i}`} em={em} />)
+          )}
         </div>
       </StandaloneEntry>
     );
   }
   // symptom — render each item as a higher-contrast pill so dark
-  // alter colours don't bury the label.
+  // alter colours don't bury the label. In edit mode the user can
+  // tweak each item's numeric value, toggle the boolean, or remove
+  // the item; saving writes back the whole items array.
   const items = Array.isArray(entry.payload?.items) && entry.payload.items.length > 0
     ? entry.payload.items
     : [entry.payload].filter(Boolean);
@@ -1041,15 +1134,49 @@ function PerAlterEntry({ entry, altersById }) {
     <StandaloneEntry timestamp={entry.ts} actions={actions}>
       <div className="flex items-center gap-2 flex-wrap">
         <AlterChip />
-        {items.map((sym, i) => (
-          <span
-            key={`${sym.label || sym.id || i}`}
-            className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border text-foreground"
-            style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}
-          >
-            {sym.label}{sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}
-          </span>
-        ))}
+        {editing ? (
+          <>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {symptomDraft.map((sym, i) => (
+                <span
+                  key={`${sym.label || sym.id || i}`}
+                  className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border text-foreground"
+                  style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}
+                >
+                  <span>{sym.label}</span>
+                  {typeof sym.value === "number" ? (
+                    <input
+                      type="number"
+                      value={sym.value}
+                      onChange={(e) => {
+                        const v = e.target.value === "" ? null : Number(e.target.value);
+                        setSymptomDraft((prev) => prev.map((s, idx) => idx === i ? { ...s, value: v } : s));
+                      }}
+                      className="w-10 bg-background border border-border/60 rounded text-xs px-1 py-0"
+                    />
+                  ) : sym.value === true ? (
+                    <span>· yes</span>
+                  ) : null}
+                  <button type="button" onClick={() => setSymptomDraft((prev) => prev.filter((_, idx) => idx !== i))} className="hover:text-destructive" aria-label={`Remove ${sym.label}`}>
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <button type="button" onClick={handleSave} disabled={saving} className="text-xs px-2 py-0.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
+            <button type="button" onClick={() => { setSymptomDraft(items.map((it) => ({ ...it }))); setEditing(false); }} className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground">Cancel</button>
+          </>
+        ) : (
+          items.map((sym, i) => (
+            <span
+              key={`${sym.label || sym.id || i}`}
+              className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border text-foreground"
+              style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}
+            >
+              {sym.label}{sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}
+            </span>
+          ))
+        )}
       </div>
     </StandaloneEntry>
   );
