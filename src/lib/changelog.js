@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Custom Fields reordering is now drag-and-drop. The old up/down arrows would stop responding past a few rows because field orders had collided over time; reordering now always renumbers cleanly so the list stays movable end-to-end.",
+      },
+      {
         type: "fix",
         text: "Get to know me custom-field questions now include a text input so you can enter a new answer — previously, once any alter had filled the field, only the existing values were offered as pills with no way to type a new one.",
       },

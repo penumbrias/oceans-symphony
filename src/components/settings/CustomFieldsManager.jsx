@@ -1,11 +1,28 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, MoreVertical, ChevronUp, ChevronDown, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, MoreVertical, GripVertical, Pencil, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const TYPE_ICONS = {
   text: Type,
@@ -20,6 +37,89 @@ const TYPE_LABELS = {
   boolean: "Yes/No",
   list: "List",
 };
+
+function SortableFieldRow({ field, isEditing, editName, editType, setEditName, setEditType, onStartEdit, onSaveEdit, onCancelEdit, onDelete }) {
+  const Icon = TYPE_ICONS[field.field_type] || Type;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  if (isEditing) {
+    return (
+      <div ref={setNodeRef} style={style} className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
+        <Input
+          value={editName}
+          onChange={e => setEditName(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") onSaveEdit(); if (e.key === "Escape") onCancelEdit(); }}
+          autoFocus
+          placeholder="Field name..."
+        />
+        <div className="flex gap-2 flex-wrap">
+          {Object.entries(TYPE_LABELS).map(([key, label]) => {
+            const TypeIcon = TYPE_ICONS[key];
+            const selected = editType === key;
+            return (
+              <button key={key} type="button" onClick={() => setEditType(key)}
+                className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${selected ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"}`}>
+                <TypeIcon className="w-3 h-3" /> {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={onCancelEdit}>Cancel</Button>
+          <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={onSaveEdit} disabled={!editName.trim()}>
+            <Check className="w-3.5 h-3.5 mr-1" /> Save
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2 px-3 py-3 rounded-xl border border-border/50 bg-muted/10">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        // touchAction: none lets dnd-kit own the touch gesture so
+        // mobile drag doesn't fight with vertical page scroll.
+        style={{ touchAction: "none" }}
+        aria-label={`Drag to reorder ${field.name}`}
+        className="flex-shrink-0 p-1 -m-1 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{field.name}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground border border-border/50 rounded-md px-2 py-0.5">
+            <Icon className="w-3 h-3" />
+            {TYPE_LABELS[field.field_type] || field.field_type}
+          </span>
+        </div>
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
+            <MoreVertical className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onStartEdit}>
+            <Pencil className="w-4 h-4 mr-2" /> Rename / Change type
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDelete} className="text-destructive">
+            <Trash2 className="w-4 h-4 mr-2" /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
 
 export default function CustomFieldsManager() {
   const queryClient = useQueryClient();
@@ -36,16 +136,58 @@ export default function CustomFieldsManager() {
     queryFn: () => base44.entities.CustomField.list("order"),
   });
 
-  const moveField = async (index, dir) => {
-    const swapIndex = index + dir;
-    if (swapIndex < 0 || swapIndex >= fields.length) return;
-    const a = fields[index];
-    const b = fields[swapIndex];
-    await Promise.all([
-      base44.entities.CustomField.update(a.id, { order: b.order ?? swapIndex }),
-      base44.entities.CustomField.update(b.id, { order: a.order ?? index }),
-    ]);
+  // Sort defensively — `.list("order")` can interleave rows that share
+  // an `order` (or are missing one entirely) in arbitrary order. Fall
+  // back to creation date / id so the visible order is stable between
+  // renders even when persisted orders collide.
+  const sortedFields = useMemo(() => {
+    return [...fields].sort((a, b) => {
+      const ao = typeof a.order === "number" ? a.order : Number.POSITIVE_INFINITY;
+      const bo = typeof b.order === "number" ? b.order : Number.POSITIVE_INFINITY;
+      if (ao !== bo) return ao - bo;
+      const ac = a.created_date || a.id || "";
+      const bc = b.created_date || b.id || "";
+      return String(ac).localeCompare(String(bc));
+    });
+  }, [fields]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const persistOrder = async (nextList) => {
+    // Always normalise to 0..N-1 so duplicate / missing `order` values
+    // (the root cause of the "arrows stop working past a few rows"
+    // bug) self-heal on every reorder. Only writes rows whose order
+    // actually changed.
+    const writes = [];
+    nextList.forEach((f, i) => {
+      if (f.order !== i) {
+        writes.push(base44.entities.CustomField.update(f.id, { order: i }));
+      }
+    });
+    if (writes.length === 0) return;
+    await Promise.all(writes);
     queryClient.invalidateQueries({ queryKey: ["customFields"] });
+  };
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sortedFields.findIndex((f) => f.id === active.id);
+    const newIndex = sortedFields.findIndex((f) => f.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const next = arrayMove(sortedFields, oldIndex, newIndex);
+    // Optimistic write so the UI doesn't jitter while the updates
+    // round-trip through IDB.
+    queryClient.setQueryData(["customFields"], next.map((f, i) => ({ ...f, order: i })));
+    try {
+      await persistOrder(next);
+    } catch {
+      queryClient.invalidateQueries({ queryKey: ["customFields"] });
+    }
   };
 
   const addField = async () => {
@@ -54,7 +196,7 @@ export default function CustomFieldsManager() {
     await base44.entities.CustomField.create({
       name: newName.trim(),
       field_type: newType,
-      order: fields.length,
+      order: sortedFields.length,
     });
     queryClient.invalidateQueries({ queryKey: ["customFields"] });
     setNewName("");
@@ -101,97 +243,43 @@ export default function CustomFieldsManager() {
           <div>
             <CardTitle className="text-lg">Custom Fields</CardTitle>
             <CardDescription>
-              Fields that appear on every alter's Info tab. You can fill them in per-alter.
+              Fields that appear on every alter's Info tab. You can fill them in per-alter. Drag the handle to reorder.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {fields.length === 0 && !adding && (
+        {sortedFields.length === 0 && !adding && (
           <p className="text-sm text-muted-foreground italic py-2">No custom fields defined yet.</p>
         )}
 
         {/* Once a user has more than a handful of custom fields, the
             uncapped list pushes everything else on the Settings page
             way down. Cap the visible area at ~6 rows tall and let
-            longer lists scroll inside the card. The fade hint at the
-            bottom only shows when the list actually overflows. */}
+            longer lists scroll inside the card. */}
         <div
-          className={fields.length > 6 ? "max-h-[24rem] overflow-y-auto pr-1 -mr-1 space-y-3" : "space-y-3"}
-          data-scrollable={fields.length > 6 || undefined}
+          className={sortedFields.length > 6 ? "max-h-[24rem] overflow-y-auto pr-1 -mr-1 space-y-3" : "space-y-3"}
+          data-scrollable={sortedFields.length > 6 || undefined}
         >
-        {fields.map((field, index) => {
-          const Icon = TYPE_ICONS[field.field_type] || Type;
-          if (editingId === field.id) {
-            return (
-              <div key={field.id} className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-3">
-                <Input
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") cancelEdit(); }}
-                  autoFocus
-                  placeholder="Field name..."
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={sortedFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+              {sortedFields.map((field) => (
+                <SortableFieldRow
+                  key={field.id}
+                  field={field}
+                  isEditing={editingId === field.id}
+                  editName={editName}
+                  editType={editType}
+                  setEditName={setEditName}
+                  setEditType={setEditType}
+                  onStartEdit={() => startEdit(field)}
+                  onSaveEdit={saveEdit}
+                  onCancelEdit={cancelEdit}
+                  onDelete={() => deleteField(field)}
                 />
-                <div className="flex gap-2 flex-wrap">
-                  {Object.entries(TYPE_LABELS).map(([key, label]) => {
-                    const TypeIcon = TYPE_ICONS[key];
-                    const selected = editType === key;
-                    return (
-                      <button key={key} type="button" onClick={() => setEditType(key)}
-                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${selected ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"}`}>
-                        <TypeIcon className="w-3 h-3" /> {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
-                  <Button size="sm" className="bg-primary hover:bg-primary/90" onClick={saveEdit} disabled={!editName.trim()}>
-                    <Check className="w-3.5 h-3.5 mr-1" /> Save
-                  </Button>
-                </div>
-              </div>
-            );
-          }
-          return (
-            <div key={field.id} className="flex items-center gap-3 px-3 py-3 rounded-xl border border-border/50 bg-muted/10">
-              <div className="flex flex-col gap-0.5 flex-shrink-0">
-                <button type="button" onClick={() => moveField(index, -1)} disabled={index === 0}
-                  className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 hover:bg-muted/60 transition-colors">
-                  <ChevronUp className="w-3.5 h-3.5" />
-                </button>
-                <button type="button" onClick={() => moveField(index, 1)} disabled={index === fields.length - 1}
-                  className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-20 hover:bg-muted/60 transition-colors">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{field.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground border border-border/50 rounded-md px-2 py-0.5">
-                    <Icon className="w-3 h-3" />
-                    {TYPE_LABELS[field.field_type] || field.field_type}
-                  </span>
-                </div>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => startEdit(field)}>
-                    <Pencil className="w-4 h-4 mr-2" /> Rename / Change type
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => deleteField(field)} className="text-destructive">
-                    <Trash2 className="w-4 h-4 mr-2" /> Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          );
-        })}
+              ))}
+            </SortableContext>
+          </DndContext>
         </div>
 
         {adding ? (
