@@ -427,16 +427,28 @@ export default function StorageModeSetup({ mode, onComplete }) {
             {noticeOpen && (
               <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground border-t border-amber-500/20 pt-3">
                 <div className="space-y-1">
-                  <p className="font-medium text-foreground">🔒 Local Storage</p>
-                  <p>Oceans Symphony is private by design: <strong className="text-foreground">by default, your data stays on this device only</strong> — nothing is uploaded, synced, or sent to any server. For even greater security you can turn on password encryption, which adds <strong className="text-foreground">AES-256-GCM encryption</strong> on top, with a key derived from a password you set. Your password never leaves your device. <strong>If you lose your encryption password, data cannot be retrieved.</strong></p>
+                  <p className="font-medium text-foreground">📦 What's stored, and where</p>
+                  <p>Everything you log lives in this browser's <strong className="text-foreground">IndexedDB</strong> on this device: {`${'alters, fronting sessions, journals, emotion / symptom check-ins, activities, plans, to-dos, diary cards, reminders, lineage events, locations, status notes, grounding techniques, custom fields, theme / navigation settings, and so on'}`}. A handful of small per-browser preferences also live in <strong className="text-foreground">localStorage</strong> (theme + last-opened list ids, daily-task firing markers, push notification IDs, the friends-server identity, and grocery lists you've explicitly marked "available when locked"). Both stores stay on this device — neither gets uploaded anywhere.</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-foreground">🔒 What encryption protects (and what it doesn't)</p>
+                  <p>Turning on password encryption applies <strong className="text-foreground">AES-256-GCM</strong> to the IndexedDB blob, with a key derived from your password via <strong className="text-foreground">PBKDF2 (250k iterations)</strong>. Your password never leaves this device; the encryption salt is embedded inside the encrypted payload so a localStorage wipe alone can't make the data permanently undecryptable. <strong className="text-foreground">localStorage entries are not encrypted</strong> — they're intentionally lightweight settings + the unlocked grocery lists you opted into. <strong className="text-foreground">If you lose your password, the encrypted data cannot be recovered.</strong></p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-foreground">🚫 What's never stored</p>
+                  <p>No analytics, no crash telemetry, no usage tracking, no advertising IDs. There's no Oceans Symphony account and no server-side copy of your data — even crashes stay on your device unless you choose to email a log.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">👥 Friends Mode (opt-in)</p>
-                  <p>Friends mode is the only feature that sends anything off-device, and it is <strong className="text-foreground">off until you set it up</strong>. When enabled, only what you explicitly choose to share is transmitted: your system name, your display name, and your current front status — at the granularity you pick (full names, count only, or hidden), with per-friend overrides. Nothing else from your local data is ever sent.</p>
+                  <p>Friends mode is the only feature that sends anything off-device, and it is <strong className="text-foreground">off until you set it up</strong>. When enabled, only what you explicitly choose to share is transmitted to the friends relay: your system name, your display name, and your current front status — at the granularity you pick (full names, count only, or hidden), with per-friend overrides. <strong className="text-foreground">Journals, emotions, symptoms, plans, locations, and chat are never sent.</strong></p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-foreground">🌐 Optional third-party imports</p>
+                  <p>PluralKit and Simply Plural connectors are also opt-in and one-way: you provide their tokens, the app fetches your data from their servers and stores it locally. No data flows back to them from Symphony.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">💾 Backups</p>
-                  <p>Use Settings → Backup &amp; Export to save your data as a JSON file. Keep backups safe — local data is tied to this device and will be lost if you clear app data without a backup.</p>
+                  <p>Use Settings → Backup &amp; Export to save your data as a JSON file. Backups include the IndexedDB entities; they intentionally exclude device-bound state (friends identity, push registrations, grocery lists flagged "available when locked"). Keep backups safe — local data is tied to this device and will be lost if you clear app data without a backup.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🤖 Transparency</p>

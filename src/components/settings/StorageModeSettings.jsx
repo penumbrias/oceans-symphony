@@ -112,8 +112,29 @@ export default function StorageModeSettings() {
         {success && <p className="text-sm text-green-600 bg-green-50 dark:bg-green-950/30 rounded-lg px-3 py-2">{success}</p>}
         {error && <p className="text-sm text-destructive bg-destructive/5 rounded-lg px-3 py-2">{error}</p>}
 
-        <div className="text-sm text-muted-foreground bg-muted/40 rounded-xl p-3">
-          Your data lives exclusively on this device. No internet connection or account required.
+        <div className="text-sm text-muted-foreground bg-muted/40 rounded-xl p-3 space-y-2">
+          <p>
+            Your data lives exclusively on this device. No internet connection or account required, no analytics, no crash telemetry.
+          </p>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-foreground/80 hover:text-foreground">
+              What's actually stored, and what encryption covers
+            </summary>
+            <div className="mt-2 space-y-2 pl-1 border-l-2 border-border/50 pl-3">
+              <p>
+                <span className="font-medium text-foreground">IndexedDB (encrypted when encryption is on)</span> — alters, fronting sessions, journals, emotion / symptom check-ins, activities, plans, to-dos, diary cards, reminders, lineage events, locations, status notes, custom fields, grounding techniques, grocery lists you didn't mark "available when locked", and so on.
+              </p>
+              <p>
+                <span className="font-medium text-foreground">localStorage (always plaintext)</span> — small per-browser settings (theme, last-opened list ids, daily-task firing markers), native push registration IDs, the friends-server identity, and grocery lists you explicitly marked "available when locked". These stay on this device but are NOT covered by the encryption password.
+              </p>
+              <p>
+                <span className="font-medium text-foreground">When encryption is on</span> — the IndexedDB blob is wrapped with AES-256-GCM using a key derived from your password via PBKDF2 (250,000 iterations). The salt is embedded inside the encrypted payload so a localStorage wipe alone can't make data permanently undecryptable. <span className="font-medium text-foreground">If you lose the password, the encrypted data cannot be recovered.</span>
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Never stored</span> — analytics, crash telemetry, usage tracking, advertising IDs. There's no Symphony account and no server-side copy of your data. Friends Mode (off until you set it up) only sends your system name, display name, and chosen front-share level to the friends relay — never journals, emotions, symptoms, plans, locations, or chat.
+              </p>
+            </div>
+          </details>
         </div>
 
         {/* Encryption controls */}

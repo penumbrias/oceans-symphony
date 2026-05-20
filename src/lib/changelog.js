@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Privacy &amp; Data notice and Settings → Data Storage now spell out exactly what's stored where: which entities live in IndexedDB (encrypted when encryption is on), which preferences live in plaintext localStorage (theme, last-opened list ids, the friends identity, grocery lists you marked \"available when locked\"), what encryption actually covers (AES-256-GCM with a PBKDF2-derived key, salt embedded in the payload), and what's never stored (analytics, telemetry, account, server-side copies). Friends mode's exact share scope is itemised so it's obvious nothing else ever leaves the device.",
+      },
+      {
         type: "fix",
         text: "Help me unblend and Get to know me are now in the sidebar (under Tools) and the dashboard grid defaults. If you saved your dashboard layout before they shipped, open the dashboard menu's edit mode and drag them in from the ghost row.",
       },
