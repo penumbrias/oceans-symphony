@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "System Chat composer: tap the speaker chip to open a popover that matches the Journals filter-by-alter UI — multi-select with avatars, search, \"—system\" pinned at the top. Pick one or more speakers for the next message.",
+      },
+      {
+        type: "improve",
+        text: "System Chat: messages now render alter avatars instead of a single letter, including stacked avatars when multiple alters co-spoke a message.",
+      },
+      {
+        type: "feature",
+        text: "System Chat signposting: typing -system or -aliasname inside a chat message strips that token from the text and attributes the message to those speakers, overriding the picker — same convention as bulletins and journals.",
+      },
+      {
+        type: "improve",
         text: "Activity Tracker weekly grid: empty time slots that are already in the past now have a slightly darker tint so the current / upcoming part of the week reads as \"available\" at a glance. Cells with logged or planned content keep their own colours unchanged.",
       },
       {

@@ -4,13 +4,15 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft } from "lucide-react";
+import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft, User, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTerms } from "@/lib/useTerms";
 import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
+import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // System Chat — Discord-style multi-channel chat for the system.
 //
@@ -34,11 +36,58 @@ import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentio
 // follow-ups; the schema already reserves the fields so they can
 // land additively.
 
-const SYSTEM_AUTHOR = { id: "__system__", name: "System", color: "#94a3b8" };
+const SYSTEM_AUTHOR = { id: SYSTEM_SENTINEL_ID, name: "System", color: "#94a3b8" };
 
 function authorFor(alterId, alters) {
   if (!alterId || alterId === SYSTEM_AUTHOR.id) return SYSTEM_AUTHOR;
   return alters.find((a) => a.id === alterId) || { id: alterId, name: "Unknown", color: "#94a3b8" };
+}
+
+// Read a message's authors as an array regardless of whether the
+// record uses the new author_alter_ids array or the legacy single
+// author_alter_id field. Empty result = message is system-attributed.
+function authorsFor(msg, alters) {
+  if (Array.isArray(msg.author_alter_ids) && msg.author_alter_ids.length > 0) {
+    return msg.author_alter_ids.map((id) => authorFor(id, alters));
+  }
+  if (msg.author_alter_id) return [authorFor(msg.author_alter_id, alters)];
+  return [SYSTEM_AUTHOR];
+}
+
+function AlterAvatar({ alter, size = 28 }) {
+  const url = useResolvedAvatarUrl(alter?.avatar_url);
+  const [err, setErr] = useState(false);
+  const px = `${size}px`;
+  return (
+    <div
+      className="rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30 text-white"
+      style={{ width: px, height: px, backgroundColor: alter?.color || "hsl(var(--muted))", fontSize: Math.max(10, Math.floor(size * 0.4)) }}
+      title={alter?.name}
+    >
+      {url && !err
+        ? <img src={url} alt={alter?.name || ""} className="w-full h-full object-cover" onError={() => setErr(true)} />
+        : alter?.id === SYSTEM_AUTHOR.id
+          ? <User style={{ width: size * 0.5, height: size * 0.5 }} />
+          : <span className="font-semibold">{(alter?.name || "?").slice(0, 1).toUpperCase()}</span>}
+    </div>
+  );
+}
+
+// Stacked avatars for multi-author messages. Slight overlap so the
+// row stays compact when alters co-speak.
+function AuthorAvatars({ authors, size = 28 }) {
+  if (!authors || authors.length === 0) return <AlterAvatar alter={SYSTEM_AUTHOR} size={size} />;
+  if (authors.length === 1) return <AlterAvatar alter={authors[0]} size={size} />;
+  const overlap = Math.round(size * 0.35);
+  return (
+    <div className="flex flex-shrink-0" style={{ width: size + (authors.length - 1) * (size - overlap), height: size }}>
+      {authors.map((a, i) => (
+        <div key={a.id || i} style={{ marginLeft: i === 0 ? 0 : -overlap, zIndex: authors.length - i }}>
+          <AlterAvatar alter={a} size={size} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function dayHeader(d) {
@@ -297,14 +346,32 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
   const [replyTo, setReplyTo] = useState(null);
   const [editing, setEditing] = useState(null);
 
-  const handleSend = async ({ content, authorAlterId }) => {
-    const trimmed = (content || "").trim();
-    if (!trimmed) return;
-    const mentionedIds = extractMentionedIds(trimmed, alters);
+  // Resolves the final speaker set + cleaned text for a send/edit.
+  // Inline `-system` / `-aliasname` signposts in the typed body
+  // OVERRIDE the picker selection — signposting is the more explicit
+  // gesture, matches how it works in bulletins / journals. The
+  // signpost tokens are stripped from the stored content. The picker
+  // is the default for messages without signposts.
+  const resolveAuthors = (content, pickerIds) => {
+    const { authors: signposted, cleanText } = parseAndStripSignposts(content, alters, [terms.system]);
+    if (signposted.length === 0) {
+      return { cleanText: (content || "").trim(), authorAlterIds: pickerIds.filter((id) => id && id !== SYSTEM_AUTHOR.id) };
+    }
+    const ids = signposted
+      .filter((a) => a.id !== SYSTEM_AUTHOR.id)
+      .map((a) => a.id);
+    return { cleanText: cleanText.trim(), authorAlterIds: ids };
+  };
+
+  const handleSend = async ({ content, speakerIds }) => {
+    const { cleanText, authorAlterIds } = resolveAuthors(content, speakerIds);
+    if (!cleanText) return;
+    const mentionedIds = extractMentionedIds(cleanText, alters);
     const created = await localEntities.SystemChatMessage.create({
       channel_id: channel.id,
-      author_alter_id: authorAlterId || null,
-      content: trimmed,
+      author_alter_id: authorAlterIds[0] || null,
+      author_alter_ids: authorAlterIds,
+      content: cleanText,
       timestamp: new Date().toISOString(),
       edited_at: null,
       deleted_at: null,
@@ -317,22 +384,27 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
     qc.invalidateQueries({ queryKey: ["systemChatMessages", channel.id] });
     setReplyTo(null);
     try {
-      await saveAuthoredLog({
-        authorAlterId: authorAlterId || null,
-        sourceType: "chat",
-        sourceId: created.id,
-        sourceLabel: `#${channel.name}`,
-        navigatePath: `/chat?channel=${channel.id}`,
-        previewText: trimmed,
-      });
+      // Log an authored row for each speaker so all of them show up
+      // in the per-alter mention log; "system" co-speakers have no
+      // alter id and just skip the log.
+      for (const id of (authorAlterIds.length > 0 ? authorAlterIds : [null])) {
+        await saveAuthoredLog({
+          authorAlterId: id,
+          sourceType: "chat",
+          sourceId: created.id,
+          sourceLabel: `#${channel.name}`,
+          navigatePath: `/chat?channel=${channel.id}`,
+          previewText: cleanText,
+        });
+      }
       await saveMentions({
-        content: trimmed,
+        content: cleanText,
         alters,
         sourceType: "chat",
         sourceId: created.id,
         sourceLabel: `#${channel.name}`,
         navigatePath: `/chat?channel=${channel.id}`,
-        authorAlterId: authorAlterId || null,
+        authorAlterId: authorAlterIds[0] || null,
       });
     } catch { /* mention log is best-effort; don't block send */ }
   };
@@ -340,10 +412,20 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
   const handleEdit = async (msg, nextContent) => {
     const trimmed = (nextContent || "").trim();
     if (!trimmed || trimmed === msg.content) { setEditing(null); return; }
+    // On edit, keep the existing author set unless the user typed new
+    // signposts in the edited body. resolveAuthors with the existing
+    // ids as the "picker" baseline gives that behaviour for free.
+    const existingIds = Array.isArray(msg.author_alter_ids) && msg.author_alter_ids.length > 0
+      ? msg.author_alter_ids
+      : (msg.author_alter_id ? [msg.author_alter_id] : []);
+    const { cleanText, authorAlterIds } = resolveAuthors(trimmed, existingIds);
+    if (!cleanText) { setEditing(null); return; }
     await localEntities.SystemChatMessage.update(msg.id, {
-      content: trimmed,
+      content: cleanText,
+      author_alter_id: authorAlterIds[0] || null,
+      author_alter_ids: authorAlterIds,
       edited_at: new Date().toISOString(),
-      mentioned_alter_ids: extractMentionedIds(trimmed, alters),
+      mentioned_alter_ids: extractMentionedIds(cleanText, alters),
     });
     qc.invalidateQueries({ queryKey: ["systemChatMessages", channel.id] });
     setEditing(null);
@@ -417,25 +499,22 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
 }
 
 function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEdit, onSubmitEdit, onReply, onDelete }) {
-  const author = authorFor(msg.author_alter_id, alters);
+  const authors = authorsFor(msg, alters);
   const parent = msg.reply_to_id ? allMessages.find((x) => x.id === msg.reply_to_id) : null;
-  const parentAuthor = parent ? authorFor(parent.author_alter_id, alters) : null;
+  const parentAuthors = parent ? authorsFor(parent, alters) : [];
   const [draft, setDraft] = useState(msg.content || "");
   useEffect(() => { setDraft(msg.content || ""); }, [msg.content, editing]);
 
   const isDeleted = !!msg.deleted_at;
+  const authorNames = authors.map((a) => a.name).join(", ");
+  const primaryColor = authors[0]?.color || undefined;
 
   return (
     <div className="group flex gap-2 px-1 py-1 rounded-md hover:bg-muted/30">
-      <div
-        className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-[0.625rem] font-semibold text-white"
-        style={{ backgroundColor: author.color || "#9333ea" }}
-      >
-        {(author.name || "?").slice(0, 1).toUpperCase()}
-      </div>
+      <AuthorAvatars authors={authors} size={28} />
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold" style={{ color: author.color || undefined }}>{author.name}</span>
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="text-sm font-semibold" style={{ color: primaryColor }}>{authorNames}</span>
           <span className="text-[0.6875rem] text-muted-foreground">{format(new Date(msg.timestamp), "h:mm a")}</span>
           {msg.edited_at && !isDeleted && (
             <span className="text-[0.6875rem] text-muted-foreground/70 italic">edited</span>
@@ -445,7 +524,9 @@ function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEd
         {parent && (
           <div className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground mb-1 pl-2 border-l-2 border-border/60 max-w-full truncate">
             <Reply className="w-3 h-3 flex-shrink-0" />
-            <span className="font-medium truncate" style={{ color: parentAuthor?.color || undefined }}>{parentAuthor?.name || "Unknown"}</span>
+            <span className="font-medium truncate" style={{ color: parentAuthors[0]?.color || undefined }}>
+              {parentAuthors.map((a) => a.name).join(", ") || "Unknown"}
+            </span>
             <span className="truncate">{parent.deleted_at ? "[deleted]" : (parent.content || "").slice(0, 80)}</span>
           </div>
         )}
@@ -536,15 +617,52 @@ function renderWithMentions(content, alters) {
 }
 
 function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, onSend, terms }) {
-  const [authorId, setAuthorId] = useState(defaultAuthorId);
-  useEffect(() => { setAuthorId(defaultAuthorId); }, [defaultAuthorId]);
+  // Picker state: a set of speaker ids. SYSTEM_SENTINEL_ID means
+  // "the system itself" is checked; otherwise entries are alter ids.
+  // Empty set is treated as "-system" on send (no specific speakers).
+  const [speakerIds, setSpeakerIds] = useState(() => defaultAuthorId ? [defaultAuthorId] : [SYSTEM_AUTHOR.id]);
+  useEffect(() => {
+    if (defaultAuthorId) setSpeakerIds([defaultAuthorId]);
+  }, [defaultAuthorId]);
 
   const [text, setText] = useState("");
-  const author = authorFor(authorId, alters);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState("");
+
+  const selectedSet = useMemo(() => new Set(speakerIds), [speakerIds]);
+  const toggleSpeaker = (id) => {
+    setSpeakerIds((prev) => {
+      const has = prev.includes(id);
+      if (has) {
+        // Don't allow an empty selection — fall back to -system so
+        // there's always at least one resolvable speaker.
+        const next = prev.filter((x) => x !== id);
+        return next.length === 0 ? [SYSTEM_AUTHOR.id] : next;
+      }
+      // Picking an alter implicitly unchecks -system (mixing the
+      // two has no useful semantic — system is the "no specific
+      // alter" sentinel).
+      const next = id === SYSTEM_AUTHOR.id
+        ? [SYSTEM_AUTHOR.id]
+        : [...prev.filter((x) => x !== SYSTEM_AUTHOR.id), id];
+      return next;
+    });
+  };
+
+  // Render the picker's compact button: stacked avatars + names.
+  // System sentinel → one "—system" pill.
+  const selectedAuthors = useMemo(() => {
+    if (speakerIds.length === 0 || (speakerIds.length === 1 && speakerIds[0] === SYSTEM_AUTHOR.id)) {
+      return [SYSTEM_AUTHOR];
+    }
+    return speakerIds
+      .filter((id) => id !== SYSTEM_AUTHOR.id)
+      .map((id) => authorFor(id, alters));
+  }, [speakerIds, alters]);
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
-    await onSend({ content: text, authorAlterId: authorId === SYSTEM_AUTHOR.id ? null : authorId });
+    await onSend({ content: text, speakerIds });
     setText("");
   };
 
@@ -554,8 +672,8 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
         <div className="flex items-center gap-2 px-2 py-1 mb-1 text-xs bg-muted/40 rounded-md">
           <Reply className="w-3 h-3" />
           <span className="text-muted-foreground">Replying to</span>
-          <span className="font-medium truncate" style={{ color: authorFor(replyTo.author_alter_id, alters).color || undefined }}>
-            {authorFor(replyTo.author_alter_id, alters).name}
+          <span className="font-medium truncate" style={{ color: authorsFor(replyTo, alters)[0]?.color || undefined }}>
+            {authorsFor(replyTo, alters).map((a) => a.name).join(", ")}
           </span>
           <span className="text-muted-foreground truncate flex-1">{(replyTo.content || "").slice(0, 60)}</span>
           <button onClick={onCancelReply} aria-label="Cancel reply" className="p-0.5 text-muted-foreground hover:text-foreground">
@@ -564,27 +682,24 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
         </div>
       )}
       <div className="flex items-end gap-2">
-        <div className="flex-shrink-0 flex flex-col items-center gap-0.5">
-          <select
-            value={authorId || ""}
-            onChange={(e) => setAuthorId(e.target.value || null)}
-            aria-label="Author"
-            className="text-[0.6875rem] bg-transparent border border-border/40 rounded-md px-1 py-0.5 max-w-[6.5rem]"
-            style={{ color: author.color || undefined }}
-          >
-            <option value={SYSTEM_AUTHOR.id}>—{terms.system || "system"}</option>
-            {alters.filter((a) => !a.is_archived).map((a) => (
-              <option key={a.id} value={a.id} style={{ color: a.color || undefined }}>{a.name}</option>
-            ))}
-          </select>
-        </div>
+        <SpeakerPicker
+          selectedAuthors={selectedAuthors}
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          alters={alters}
+          selectedSet={selectedSet}
+          onToggle={toggleSpeaker}
+          search={pickerSearch}
+          onSearchChange={setPickerSearch}
+          terms={terms}
+        />
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
           }}
-          placeholder={`Message #${channel.name}…`}
+          placeholder={`Message #${channel.name}…  (type -${terms.system || "system"} or -aliasname to signpost)`}
           rows={1}
           className="flex-1 resize-none text-sm min-h-[40px] max-h-32"
         />
@@ -593,6 +708,127 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
         </Button>
       </div>
     </div>
+  );
+}
+
+// Multi-select speaker picker styled to match the Journals "Filter by
+// alter" popover: small trigger button (stacked avatars + names),
+// popover with search, checkbox rows, Done button. "-system" sits at
+// the top.
+function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, search, onSearchChange, terms }) {
+  const triggerRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
+
+  useEffect(() => {
+    if (!open) return;
+    const t = triggerRef.current;
+    if (!t) return;
+    const rect = t.getBoundingClientRect();
+    const width = Math.max(240, Math.min(320, window.innerWidth - 24));
+    const top = Math.max(8, rect.top - 360); // popover above the composer
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left));
+    setPos({ top, left, width });
+  }, [open]);
+
+  const sortedAlters = useMemo(
+    () => [...alters]
+      .filter((a) => !a.is_archived)
+      .filter((a) => !search || (a.name || "").toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+    [alters, search]
+  );
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className="flex items-center gap-1.5 px-1.5 py-1 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/40 max-w-[10rem]"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <AuthorAvatars authors={selectedAuthors} size={22} />
+        <span className="text-[0.6875rem] truncate" style={{ color: selectedAuthors[0]?.color || undefined }}>
+          {selectedAuthors.map((a) => a.name).join(", ")}
+        </span>
+        <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => onOpenChange(false)} />
+          <div
+            className="z-[61] bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
+            style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, maxHeight: "70vh", display: "flex", flexDirection: "column" }}
+          >
+            <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                Choose speaker(s)
+              </span>
+            </div>
+            <div className="px-3 py-2 border-b border-border/50">
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={`Search ${terms.alters || "alters"}…`}
+                className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <div className="overflow-y-auto" style={{ maxHeight: "50vh" }}>
+              {/* -system pseudo-option always at top */}
+              <SpeakerRow
+                alter={SYSTEM_AUTHOR}
+                selected={selectedSet.has(SYSTEM_AUTHOR.id)}
+                onToggle={() => onToggle(SYSTEM_AUTHOR.id)}
+                labelPrefix="—"
+              />
+              {sortedAlters.map((a) => (
+                <SpeakerRow
+                  key={a.id}
+                  alter={a}
+                  selected={selectedSet.has(a.id)}
+                  onToggle={() => onToggle(a.id)}
+                />
+              ))}
+            </div>
+            <div className="px-3 py-2 border-t border-border/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${selected ? "bg-primary/5" : ""}`}
+    >
+      <div
+        className="w-4 h-4 rounded border flex items-center justify-center flex-shrink-0"
+        style={{
+          backgroundColor: selected ? (alter.color || "#94a3b8") : "transparent",
+          borderColor: selected ? (alter.color || "#94a3b8") : "hsl(var(--border))",
+        }}
+      >
+        {selected && <Check className="w-3 h-3 text-white" />}
+      </div>
+      <AlterAvatar alter={alter} size={20} />
+      <span className={`flex-1 truncate ${selected ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+        {labelPrefix}{alter.name}
+      </span>
+    </button>
   );
 }
 
