@@ -1,12 +1,14 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HexColorPicker } from "react-colorful";
-import { base44 } from "@/api/base44Client";
+import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap } from "lucide-react";
+import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap, Plus, Trash2 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
-import { PRESET_QUESTIONS, buildDynamicQuestions, buildDominantFeelingQuestion } from "@/lib/unblendQuestions";
+import { PRESET_QUESTIONS, buildDynamicQuestions, buildDominantFeelingQuestion, instantiateUserQuestion } from "@/lib/unblendQuestions";
+import AddUnblendQuestionModal from "@/components/unblend/AddUnblendQuestionModal";
+import { toast } from "sonner";
 import {
   timeOfDayBaseline,
   applyAnswer,
@@ -58,6 +60,29 @@ export default function HelpMeUnblend() {
     queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1000),
   });
 
+  // User-defined questions live in a local entity so they survive
+  // restarts without needing server sync. Each record is just the
+  // user's saved spec; instantiateUserQuestion turns it into a
+  // runtime question object with a score() function.
+  const queryClient = useQueryClient();
+  const { data: userQuestionRecords = [] } = useQuery({
+    queryKey: ["unblendQuestions"],
+    queryFn: () => localEntities.UnblendQuestion.list(),
+  });
+  const [addOpen, setAddOpen] = useState(false);
+
+  const saveUserQuestion = async (spec) => {
+    await localEntities.UnblendQuestion.create(spec);
+    queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
+    toast.success("Question added");
+  };
+
+  const deleteUserQuestion = async (id) => {
+    await localEntities.UnblendQuestion.delete(id);
+    queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
+    toast.success("Question removed");
+  };
+
   // Currently-fronting alters — pinned to the top of the likely
   // list like the Alters grid does, regardless of question score.
   // Refetched live so a switch the user does mid-session immediately
@@ -81,16 +106,20 @@ export default function HelpMeUnblend() {
   // the grounding nudge.
   const [scores, setScores] = useState({});
   const [questionIdx, setQuestionIdx] = useState(0);
-  // Question pool = presets + dynamic alter-data questions
+  // Question pool = presets + alter-data dynamic questions
   // (pronouns, role, custom fields) + dynamic emotion question
-  // (top logged emotions). Recomputed when the underlying data
-  // changes so the user always gets the latest options.
+  // (top logged emotions) + user-defined questions instantiated
+  // against the live alter set.
   const allQuestions = useMemo(() => {
     const out = [...PRESET_QUESTIONS, ...buildDynamicQuestions(alters)];
     const feelQ = buildDominantFeelingQuestion(emotionCheckIns);
     if (feelQ) out.push(feelQ);
+    for (const rec of userQuestionRecords) {
+      const q = instantiateUserQuestion(rec, { alters });
+      if (q) out.push(q);
+    }
     return out;
-  }, [alters, emotionCheckIns]);
+  }, [alters, emotionCheckIns, userQuestionRecords]);
   const [questionOrder, setQuestionOrder] = useState(() => PRESET_QUESTIONS.map((q) => q.id));
   // Keep questionOrder in sync once alters resolve — append dynamic
   // ids the user hasn't seen yet to the end of the queue so the
@@ -215,6 +244,9 @@ export default function HelpMeUnblend() {
             Skip anything you don't want to answer — the goal is grounding, not interrogation.
           </p>
         </div>
+        <Button variant="ghost" size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
+          <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add question</span>
+        </Button>
         <Button variant="ghost" size="sm" onClick={handleRestart} aria-label="Restart">
           <RotateCcw className="w-4 h-4" />
         </Button>
@@ -252,15 +284,33 @@ export default function HelpMeUnblend() {
           <p className="text-base font-semibold text-foreground leading-snug">
             {currentQuestion.prompt}
           </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleShuffle}
-            aria-label="Different question"
-            className="gap-1.5 text-xs flex-shrink-0"
-          >
-            <Shuffle className="w-3.5 h-3.5" /> Different
-          </Button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {currentQuestion?.userId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (window.confirm("Delete this question?")) {
+                    deleteUserQuestion(currentQuestion.userId);
+                    setQuestionIdx((i) => i + 1);
+                  }
+                }}
+                aria-label="Delete this question"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleShuffle}
+              aria-label="Different question"
+              className="gap-1.5 text-xs"
+            >
+              <Shuffle className="w-3.5 h-3.5" /> Different
+            </Button>
+          </div>
         </div>
 
         {currentQuestion.kind === "color" && (
@@ -401,6 +451,13 @@ export default function HelpMeUnblend() {
           </div>
         )}
       </section>
+
+      <AddUnblendQuestionModal
+        isOpen={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSave={saveUserQuestion}
+        alters={activeAlters}
+      />
     </div>
   );
 }

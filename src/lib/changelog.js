@@ -13,6 +13,19 @@
 
 export const CHANGELOG = [
   {
+    date: "May 20, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Help me unblend now lets you add your own questions. Pick a response type (custom field, multiple choice, color, pronouns, role, or age) and the engine wires up scoring for you.",
+      },
+      {
+        type: "improve",
+        text: "Custom-field values that look like lists ('music, drawing, painting') now split into individual items when scoring — so unblend questions match per-item without needing a new field type.",
+      },
+    ],
+  },
+  {
     date: "May 19, 2026",
     changes: [
       {
