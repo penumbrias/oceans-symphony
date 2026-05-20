@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Activity Tracker weekly grid: empty time slots that are already in the past now have a slightly darker tint so the current / upcoming part of the week reads as \"available\" at a glance. Cells with logged or planned content keep their own colours unchanged.",
+      },
+      {
         type: "fix",
         text: "System Chat page was rendering blank on mobile because the layout was overshooting the device viewport and pushing everything behind the bottom nav. Now fills the available area correctly with the composer always visible.",
       },
