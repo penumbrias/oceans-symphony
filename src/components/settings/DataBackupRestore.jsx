@@ -95,7 +95,7 @@ const ENTITY_NAMES = [
   "AlterRelationship", "RelationshipType", "InnerWorldLocation", "GroundingTechnique", "GroundingPreference",
   "SupportJournalEntry", "LearningProgress", "ReportTemplate", "ReportExport",
   "DiaryTemplate", "Reminder", "ReminderInstance", "Poll", "TriggerType",
-  "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "GroceryFavorite", "QuickAction",
+  "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "GroceryFavorite", "GroceryList", "QuickAction",
   "UnblendQuestion", "HiddenUnblendQuestion",
 ];
 
@@ -132,7 +132,7 @@ const EXPORT_CATEGORIES = [
   { id: "statuses",     label: "Custom Statuses",           entities: ["StatusNote"],                                                          desc: "Timeline status notes" },
   { id: "locations",    label: "Location History",          entities: ["Location"],                                                            desc: "Location log entries" },
   { id: "lineage",      label: "System Change Events",      entities: ["SystemChangeEvent"],                                                   desc: "Fusion, split, dormancy events" },
-  { id: "groceries",    label: "Grocery List",              entities: ["GroceryItem", "GroceryFavorite"],                                      desc: "Grocery / privacy-cover list items and frequent-purchase favourites" },
+  { id: "groceries",    label: "Grocery Lists",             entities: ["GroceryList", "GroceryItem", "GroceryFavorite"],                       desc: "Grocery / privacy-cover lists, their items, and frequent-purchase favourites. Lists marked \"available when locked\" live in localStorage and are NOT included here — they ride along with browser data instead." },
   { id: "images",        label: "Local Images",             entities: [],                                                                    desc: "Uploaded images (local mode only)", isImages: true },
 ];
 

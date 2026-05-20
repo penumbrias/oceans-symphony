@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, Eye, EyeOff, Loader2, LifeBuoy } from "lucide-react";
+import { Lock, Eye, EyeOff, Loader2, LifeBuoy, ShoppingCart } from "lucide-react";
 import { initLocalDb, MissingSaltError } from "@/lib/localDb";
+import { hasAnyUnlockedList } from "@/lib/localUnlockedGrocery";
 
 export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
   const [password, setPassword] = useState("");
@@ -85,6 +86,19 @@ export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
               Can't unlock? Open recovery options
             </button>
           )}
+          {/* Open the grocery panel without unlocking. The panel
+              auto-restricts to lists the user has explicitly marked
+              "Available when locked" — encrypted lists stay hidden.
+              Also visible when no unlocked lists exist yet so the
+              user can create one without unlocking the app first. */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { lockedMode: true } }))}
+            className="w-full text-xs text-muted-foreground hover:text-foreground inline-flex items-center justify-center gap-1.5 pt-1"
+          >
+            <ShoppingCart className="w-3.5 h-3.5" />
+            {hasAnyUnlockedList() ? "Open grocery list" : "Open grocery list (no unlock needed)"}
+          </button>
         </div>
       </div>
     </div>

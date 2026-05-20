@@ -1,62 +1,112 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
-import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2 } from "lucide-react";
+import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2, ChevronDown, Pencil } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
 import { isEncryptionEnabled } from "@/lib/storageMode";
-import { clearSession, verifyPassword } from "@/lib/localDb";
+import { clearSession, verifyPassword, isDbInitialized } from "@/lib/localDb";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
+import {
+  listUnlockedLists,
+  createUnlockedList,
+  renameUnlockedList,
+  deleteUnlockedList,
+  listItemsForUnlockedList,
+  createUnlockedItem,
+  updateUnlockedItem,
+  deleteUnlockedItem,
+  listUnlockedFavorites,
+  addUnlockedFavorite,
+  removeUnlockedFavorite,
+} from "@/lib/localUnlockedGrocery";
 
 const LOCK_PREF_KEY = "grocery_lock_on_close_v1";
+const ACTIVE_LIST_KEY = "grocery_active_list_v1";
 
-// Privacy-cover overlay. When open, it sits on top of EVERYTHING in the app —
-// including the bottom navigation bar — so a glance at the screen reveals
-// nothing about Oceans Symphony. Works as both a real grocery list and a
-// quick "panic-hide" surface.
+// Privacy-cover overlay + multi-list grocery store. When open, it sits
+// on top of EVERYTHING in the app — including the bottom navigation
+// bar — so a glance at the screen reveals nothing about Oceans
+// Symphony. Works as both a real grocery list and a quick "panic-hide"
+// surface.
 //
 // Open it via:
 //   - the dashboard "Grocery list" button
 //   - quick action `view_grocery_list`
 //   - quick action `add_grocery_item`
 //   - tapping the screen 3 times in a row (handled in AppLayout)
+//   - "Open grocery list" link on the Unlock screen (lockedMode)
 //
 // State is broadcast through the global window event:
-//   window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { focusInput: true } }))
+//   window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { focusInput: true, lockedMode: true } }))
 //   window.dispatchEvent(new CustomEvent("close-grocery-list"))
 //
-// Lock-on-close (only meaningful when encryption is enabled): when toggled
-// on via the lock icon in the header, closing this panel calls clearSession()
-// and reloads, forcing the unlock screen on return. Lets the user use the
-// grocery list as a one-tap "privatize this screen" gesture in unsafe
-// environments.
+// Multi-list model. Two stores side-by-side:
+//   - `localEntities.GroceryList` + `GroceryItem` for lists that
+//     should be encrypted with the rest of the app's data.
+//   - `localUnlockedGrocery.js` (plaintext localStorage) for lists
+//     that the user has explicitly marked "Available when locked".
+//     Those lists stay accessible even when the IDB is encrypted /
+//     not yet unlocked, which is the whole point of being able to
+//     open the panel from the Unlock screen.
 //
-// Frequent items: each item can be starred to remember it as a frequent
-// purchase. Starred items that aren't currently in the active list appear as
-// quick-add chips above the list — one tap re-adds them. Storage is a
-// separate `GroceryFavorite` entity keyed by item name (case-insensitive).
-export default function GroceryListPanel() {
+// `lockedMode` (passed when mounted alongside the UnlockScreen):
+// hides encrypted lists entirely, so the panel can only see the
+// unlocked-flagged ones. Items on encrypted lists are unreadable in
+// that mode by design.
+//
+// Lock-on-close (only meaningful when encryption is enabled): when
+// toggled on via the lock icon in the header, closing this panel
+// calls clearSession() and reloads, forcing the unlock screen on
+// return. Lets the user use the grocery list as a one-tap "privatize
+// this screen" gesture in unsafe environments.
+//
+// Frequent items: each item can be starred to remember it as a
+// frequent purchase. Starred items that aren't currently in the
+// active list appear as quick-add chips above the list — one tap
+// re-adds them. Favourites are scoped per-store (so unlocked-list
+// favourites don't bleed across into the encrypted store and vice
+// versa).
+export default function GroceryListPanel({ lockedMode = false }) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const inputRef = useRef(null);
   const [text, setText] = useState("");
   const keyboardInset = useKeyboardInset();
   const encryptionOn = isEncryptionEnabled();
+  const dbReady = isDbInitialized();
+
   const [lockOnClose, setLockOnClose] = useState(() => {
     try { return localStorage.getItem(LOCK_PREF_KEY) === "true"; }
     catch { return false; }
   });
-  // Password challenge for disabling lock-on-close. Without this, anyone
-  // with brief access to the unlocked device could simply tap the lock
-  // icon off and walk away with the privacy cover defused — defeating
-  // the whole point of the toggle.
   const [unlockPromptOpen, setUnlockPromptOpen] = useState(false);
   const [unlockPwd, setUnlockPwd] = useState("");
   const [unlockBusy, setUnlockBusy] = useState(false);
   const [unlockError, setUnlockError] = useState("");
-  // Touch-block right after open to prevent accidental check-offs when the
-  // panel pops up under a moving finger (triple-tap trigger especially).
   const [interactBlocked, setInteractBlocked] = useState(false);
+
+  // Multi-list state. activeListId is persisted to localStorage so
+  // closing and re-opening returns to the same list.
+  const [activeListId, setActiveListIdState] = useState(() => {
+    try { return localStorage.getItem(ACTIVE_LIST_KEY); }
+    catch { return null; }
+  });
+  const setActiveListId = (id) => {
+    setActiveListIdState(id);
+    try {
+      if (id) localStorage.setItem(ACTIVE_LIST_KEY, id);
+    } catch { /* non-fatal */ }
+  };
+
+  // List switcher overlay state.
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [createListOpen, setCreateListOpen] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [newListUnlocked, setNewListUnlocked] = useState(false);
+  const [editingList, setEditingList] = useState(null); // { id, name, source, unlocked }
+  const [editingListName, setEditingListName] = useState("");
+
   useEffect(() => {
     if (!open) { setInteractBlocked(false); return; }
     setInteractBlocked(true);
@@ -64,43 +114,144 @@ export default function GroceryListPanel() {
     return () => clearTimeout(t);
   }, [open]);
 
-  const { data: items = [] } = useQuery({
+  // ── Encrypted-store queries. Skip when the IDB isn't initialised
+  // (i.e. when this panel is mounted alongside the UnlockScreen)
+  // — those reads would throw before initLocalDb succeeds.
+  const idbAvailable = dbReady && !lockedMode;
+
+  const { data: idbLists = [] } = useQuery({
+    queryKey: ["groceryLists"],
+    queryFn: () => localEntities.GroceryList.list(),
+    enabled: idbAvailable,
+  });
+  const { data: idbItems = [] } = useQuery({
     queryKey: ["groceryItems"],
     queryFn: () => localEntities.GroceryItem.list("created_date"),
+    enabled: idbAvailable,
   });
-
-  const { data: favorites = [] } = useQuery({
+  const { data: idbFavorites = [] } = useQuery({
     queryKey: ["groceryFavorites"],
     queryFn: () => localEntities.GroceryFavorite.list("name"),
+    enabled: idbAvailable,
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["groceryItems"] });
-  const refreshFavs = () => qc.invalidateQueries({ queryKey: ["groceryFavorites"] });
+  // ── Unlocked-store snapshot. Subscribe to changes so updates
+  // (including from another panel instance) refresh this one.
+  const [unlockedNonce, setUnlockedNonce] = useState(0);
+  useEffect(() => {
+    const handler = () => setUnlockedNonce((n) => n + 1);
+    window.addEventListener("grocery-unlocked-store-changed", handler);
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener("grocery-unlocked-store-changed", handler);
+      window.removeEventListener("storage", handler);
+    };
+  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const unlockedLists = useMemo(() => listUnlockedLists(), [unlockedNonce]);
+
+  // ── Combined list catalogue.
+  const allLists = useMemo(() => {
+    const idb = idbAvailable
+      ? idbLists.map((l) => ({ ...l, source: "idb", unlocked: false }))
+      : [];
+    const local = unlockedLists.map((l) => ({ ...l, source: "local", unlocked: true }));
+    return [...idb, ...local];
+  }, [idbLists, unlockedLists, idbAvailable]);
+
+  // ── Auto-create a default list on first open so the user always
+  // has somewhere to add items. The new record gets backfilled to
+  // every existing GroceryItem that lacks a list_id (one-shot,
+  // idempotent) so legacy data ends up in the visible list rather
+  // than orphaned.
+  const bootstrappedRef = useRef(false);
+  useEffect(() => {
+    if (!open || lockedMode || !idbAvailable) return;
+    if (bootstrappedRef.current) return;
+    if (idbLists.length > 0 || unlockedLists.length > 0) {
+      bootstrappedRef.current = true;
+      return;
+    }
+    bootstrappedRef.current = true;
+    (async () => {
+      try {
+        const created = await localEntities.GroceryList.create({
+          name: "Grocery list",
+          created_date: new Date().toISOString(),
+        });
+        const orphans = idbItems.filter((i) => !i.list_id);
+        for (const item of orphans) {
+          await localEntities.GroceryItem.update(item.id, { list_id: created.id });
+        }
+        qc.invalidateQueries({ queryKey: ["groceryLists"] });
+        qc.invalidateQueries({ queryKey: ["groceryItems"] });
+        setActiveListId(created.id);
+      } catch (err) {
+        toast.error(err?.message || "Couldn't create the default list");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, lockedMode, idbAvailable, idbLists.length, unlockedLists.length, idbItems]);
+
+  // Also backfill orphan items if a default list already exists.
+  // Items created before multi-list shipped would otherwise be
+  // invisible.
+  useEffect(() => {
+    if (!idbAvailable || idbLists.length === 0) return;
+    const defaultListId = idbLists[0].id;
+    const orphans = idbItems.filter((i) => !i.list_id);
+    if (orphans.length === 0) return;
+    (async () => {
+      for (const item of orphans) {
+        try { await localEntities.GroceryItem.update(item.id, { list_id: defaultListId }); }
+        catch { /* non-fatal */ }
+      }
+      qc.invalidateQueries({ queryKey: ["groceryItems"] });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idbAvailable, idbLists, idbItems]);
+
+  // ── Resolve the active list. Fall back to the first visible one.
+  const activeList = useMemo(() => {
+    if (allLists.length === 0) return null;
+    const match = allLists.find((l) => l.id === activeListId);
+    return match || allLists[0];
+  }, [allLists, activeListId]);
+
+  // ── Items + favourites for the active list, routed through the
+  // matching backing store.
+  const activeItems = useMemo(() => {
+    if (!activeList) return [];
+    if (activeList.source === "local") return listItemsForUnlockedList(activeList.id);
+    return idbItems.filter((i) => i.list_id === activeList.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeList, idbItems, unlockedNonce]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const localFavorites = useMemo(() => listUnlockedFavorites(), [unlockedNonce]);
+  const activeFavorites = activeList?.source === "local" ? localFavorites : idbFavorites;
 
   const norm = (s) => (s || "").trim().toLowerCase();
-
-  const isFavorite = (name) => {
-    const n = norm(name);
-    return favorites.some((f) => norm(f.name) === n);
-  };
+  const isFavorite = (name) => activeFavorites.some((f) => norm(f.name) === norm(name));
 
   const toggleFavorite = async (name) => {
     const trimmed = (name || "").trim();
     if (!trimmed) return;
-    const existing = favorites.find((f) => norm(f.name) === norm(trimmed));
-    if (existing) {
-      await localEntities.GroceryFavorite.delete(existing.id);
+    if (!activeList) return;
+    if (activeList.source === "local") {
+      if (isFavorite(trimmed)) removeUnlockedFavorite(trimmed);
+      else addUnlockedFavorite(trimmed);
     } else {
-      await localEntities.GroceryFavorite.create({ name: trimmed });
+      const existing = activeFavorites.find((f) => norm(f.name) === norm(trimmed));
+      if (existing) await localEntities.GroceryFavorite.delete(existing.id);
+      else await localEntities.GroceryFavorite.create({ name: trimmed });
+      qc.invalidateQueries({ queryKey: ["groceryFavorites"] });
     }
-    refreshFavs();
   };
 
   const lockAndReloadIfArmed = () => {
-    if (lockOnClose && encryptionOn) {
+    if (lockOnClose && encryptionOn && !lockedMode) {
       try { clearSession(); } catch { /* ignore */ }
-      // Reload back to the app entry; App.jsx will detect the locked DB and
-      // route to the UnlockScreen.
       window.location.reload();
       return true;
     }
@@ -109,14 +260,14 @@ export default function GroceryListPanel() {
 
   useEffect(() => {
     const onOpen = (e) => {
+      // lockedMode-flagged mount only listens for lockedMode opens
+      // (so the post-unlock instance isn't accidentally activated
+      // by a pre-unlock event, and vice versa).
+      if (!!e?.detail?.lockedMode !== lockedMode) return;
       setOpen(true);
-      if (e?.detail?.focusInput) {
-        // Defer until the panel renders.
-        setTimeout(() => inputRef.current?.focus(), 80);
-      }
+      if (e?.detail?.focusInput) setTimeout(() => inputRef.current?.focus(), 80);
     };
     const onClose = () => {
-      // External close event (e.g. quick action) — respect lock-on-close too.
       if (lockAndReloadIfArmed()) return;
       setOpen(false);
     };
@@ -126,9 +277,8 @@ export default function GroceryListPanel() {
       window.removeEventListener("open-grocery-list", onOpen);
       window.removeEventListener("close-grocery-list", onClose);
     };
-    // Re-bind so the close handler closes over current lockOnClose state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lockOnClose, encryptionOn]);
+  }, [lockOnClose, encryptionOn, lockedMode]);
 
   const handleCloseClick = () => {
     if (lockAndReloadIfArmed()) return;
@@ -144,9 +294,6 @@ export default function GroceryListPanel() {
   };
 
   const toggleLockOnClose = () => {
-    // Enabling: no challenge — only ratchets security upward.
-    // Disabling while encryption is on: prove the user knows the password
-    // before letting them defuse the privacy cover.
     if (!lockOnClose) { applyLockOnClose(true); return; }
     if (!encryptionOn) { applyLockOnClose(false); return; }
     setUnlockPwd("");
@@ -160,10 +307,7 @@ export default function GroceryListPanel() {
     setUnlockError("");
     try {
       const ok = await verifyPassword(unlockPwd);
-      if (!ok) {
-        setUnlockError("Incorrect password.");
-        return;
-      }
+      if (!ok) { setUnlockError("Incorrect password."); return; }
       setUnlockPromptOpen(false);
       setUnlockPwd("");
       applyLockOnClose(false);
@@ -172,77 +316,69 @@ export default function GroceryListPanel() {
     }
   };
 
+  // ── Item operations. Route by the active list's source.
   const addItem = async (rawName) => {
     const name = (rawName ?? text).trim();
-    if (!name) return;
-    // De-dupe against unchecked items — tapping a quick-add chip for
-    // something already on the list shouldn't create a second row.
-    const dup = items.some((i) => !i.checked && norm(i.name) === norm(name));
+    if (!name || !activeList) return;
+    const dup = activeItems.some((i) => !i.checked && norm(i.name) === norm(name));
     if (dup) {
       if (rawName === undefined) setText("");
       return;
     }
-    await localEntities.GroceryItem.create({
-      name,
-      checked: false,
-      created_date: new Date().toISOString(),
-    });
+    if (activeList.source === "local") {
+      createUnlockedItem(activeList.id, name);
+    } else {
+      await localEntities.GroceryItem.create({
+        list_id: activeList.id,
+        name,
+        checked: false,
+        created_date: new Date().toISOString(),
+      });
+      qc.invalidateQueries({ queryKey: ["groceryItems"] });
+    }
     if (rawName === undefined) setText("");
-    refresh();
   };
 
-  // Three-state lifecycle:
-  //   to_buy   — !checked
-  //   in_stock — checked + purchased_at set + !ran_out_at
-  //   ran_out  — checked + purchased_at set + ran_out_at set
-  // Backwards compat: legacy rows with checked=true and no
-  // purchased_at are treated as in_stock and grouped under
-  // created_date so a user's history of already-bought items
-  // doesn't vanish when this feature ships.
   const getState = (item) => {
     if (!item.checked) return "to_buy";
     if (item.ran_out_at) return "ran_out";
     return "in_stock";
   };
 
+  const patchItem = async (item, patch) => {
+    if (activeList?.source === "local") {
+      updateUnlockedItem(item.id, patch);
+    } else {
+      await localEntities.GroceryItem.update(item.id, patch);
+      qc.invalidateQueries({ queryKey: ["groceryItems"] });
+    }
+  };
+
   const toggle = async (item) => {
     const state = getState(item);
     const nowISO = new Date().toISOString();
     if (state === "to_buy") {
-      await localEntities.GroceryItem.update(item.id, {
-        checked: true,
-        purchased_at: nowISO,
-        ran_out_at: null,
-      });
+      await patchItem(item, { checked: true, purchased_at: nowISO, ran_out_at: null });
     } else if (state === "in_stock") {
-      await localEntities.GroceryItem.update(item.id, { ran_out_at: nowISO });
+      await patchItem(item, { ran_out_at: nowISO });
     } else {
-      // ran_out → in_stock (undo ran-out via tapping the red X)
-      await localEntities.GroceryItem.update(item.id, { ran_out_at: null });
+      await patchItem(item, { ran_out_at: null });
     }
-    refresh();
   };
 
   const remove = async (id) => {
-    await localEntities.GroceryItem.delete(id);
-    refresh();
+    if (activeList?.source === "local") {
+      deleteUnlockedItem(id);
+    } else {
+      await localEntities.GroceryItem.delete(id);
+      qc.invalidateQueries({ queryKey: ["groceryItems"] });
+    }
   };
 
-  // Restore a ran-out item back to the To buy list — clears the
-  // lifecycle timestamps so it shows up fresh at the top, ready to
-  // be re-purchased.
   const restoreToBuy = async (item) => {
-    await localEntities.GroceryItem.update(item.id, {
-      checked: false,
-      purchased_at: null,
-      ran_out_at: null,
-    });
-    refresh();
+    await patchItem(item, { checked: false, purchased_at: null, ran_out_at: null });
   };
 
-  // Bulk-clear: only nukes ran-out items so the in-stock history
-  // stays intact. Two-tap confirm so an accidental tap doesn't wipe
-  // the pile.
   const [clearArmed, setClearArmed] = useState(false);
   const clearRanOut = async () => {
     if (!clearArmed) {
@@ -251,18 +387,75 @@ export default function GroceryListPanel() {
       return;
     }
     setClearArmed(false);
-    const toClear = items.filter((i) => i.ran_out_at);
-    for (const i of toClear) await localEntities.GroceryItem.delete(i.id);
-    refresh();
+    const toClear = activeItems.filter((i) => i.ran_out_at);
+    for (const i of toClear) await remove(i.id);
+  };
+
+  // ── List CRUD.
+  const handleCreateList = async () => {
+    const name = newListName.trim();
+    if (!name) return;
+    let created;
+    if (newListUnlocked) {
+      created = createUnlockedList(name);
+    } else {
+      created = await localEntities.GroceryList.create({
+        name,
+        created_date: new Date().toISOString(),
+      });
+      qc.invalidateQueries({ queryKey: ["groceryLists"] });
+    }
+    if (created) {
+      setActiveListId(created.id);
+      toast.success(newListUnlocked
+        ? `Created "${name}" — available even when the app is locked.`
+        : `Created "${name}".`);
+    }
+    setNewListName("");
+    setNewListUnlocked(false);
+    setCreateListOpen(false);
+  };
+
+  const handleRenameList = async () => {
+    const next = editingListName.trim();
+    if (!editingList || !next) return;
+    if (editingList.source === "local") {
+      renameUnlockedList(editingList.id, next);
+    } else {
+      await localEntities.GroceryList.update(editingList.id, { name: next });
+      qc.invalidateQueries({ queryKey: ["groceryLists"] });
+    }
+    setEditingList(null);
+    setEditingListName("");
+  };
+
+  const handleDeleteList = async (list) => {
+    const itemCount = list.source === "local"
+      ? listItemsForUnlockedList(list.id).length
+      : idbItems.filter((i) => i.list_id === list.id).length;
+    const confirmText = itemCount > 0
+      ? `Delete "${list.name}" and its ${itemCount} item${itemCount === 1 ? "" : "s"}? This cannot be undone.`
+      : `Delete "${list.name}"? This cannot be undone.`;
+    if (!window.confirm(confirmText)) return;
+    if (list.source === "local") {
+      deleteUnlockedList(list.id);
+    } else {
+      for (const item of idbItems.filter((i) => i.list_id === list.id)) {
+        try { await localEntities.GroceryItem.delete(item.id); } catch { /* non-fatal */ }
+      }
+      await localEntities.GroceryList.delete(list.id);
+      qc.invalidateQueries({ queryKey: ["groceryLists"] });
+      qc.invalidateQueries({ queryKey: ["groceryItems"] });
+    }
+    if (activeListId === list.id) setActiveListId(null);
+    setEditingList(null);
   };
 
   if (!open) return null;
 
-  // Build the rendered structure: a flat "To buy" list, then date
-  // groups (newest first) each containing in-stock rows followed by
-  // ran-out rows.
-  const toBuyItems = items.filter((i) => getState(i) === "to_buy");
-  const purchasedItems = items.filter((i) => getState(i) !== "to_buy");
+  // ── Build rendered structure.
+  const toBuyItems = activeItems.filter((i) => getState(i) === "to_buy");
+  const purchasedItems = activeItems.filter((i) => getState(i) !== "to_buy");
   const dateGroupsMap = new Map();
   for (const item of purchasedItems) {
     const ref = item.purchased_at || item.created_date || new Date().toISOString();
@@ -290,11 +483,12 @@ export default function GroceryListPanel() {
   };
 
   const isEmpty = toBuyItems.length === 0 && dateGroups.length === 0;
-  const hasRanOut = items.some((i) => i.ran_out_at);
+  const hasRanOut = activeItems.some((i) => i.ran_out_at);
 
-  // Quick-add chips: favorites not currently on the active (unchecked) list.
-  const activeNames = new Set(items.filter((i) => !i.checked).map((i) => norm(i.name)));
-  const availableFavs = favorites.filter((f) => !activeNames.has(norm(f.name)));
+  const activeNames = new Set(activeItems.filter((i) => !i.checked).map((i) => norm(i.name)));
+  const availableFavs = activeFavorites.filter((f) => !activeNames.has(norm(f.name)));
+
+  const noListsAtAll = allLists.length === 0;
 
   return (
     <div
@@ -302,23 +496,32 @@ export default function GroceryListPanel() {
       style={{
         touchAction: "manipulation",
         paddingTop: "env(safe-area-inset-top)",
-        // Keep the panel pinned to the visible viewport so the list stays
-        // anchored when the keyboard opens; only the input slides up with the
-        // keyboard, the list above it stays at full height instead of the
-        // whole page scrolling.
         bottom: keyboardInset > 0 ? `${keyboardInset}px` : 0,
         paddingBottom: keyboardInset > 0 ? 0 : "env(safe-area-inset-bottom)",
       }}
     >
       {interactBlocked && <div aria-hidden className="absolute inset-0 z-[10000]" />}
-      {/* Header — intentionally generic so the screen reads as a grocery app. */}
+
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSwitcherOpen((v) => !v)}
+          className="flex items-center gap-2 -ml-1 px-1 py-1 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors max-w-[70%]"
+          aria-haspopup="menu"
+          aria-expanded={switcherOpen}
+        >
           <span className="text-2xl">🛒</span>
-          <h1 className="text-lg font-semibold tracking-tight">Grocery list</h1>
-        </div>
+          <h1 className="text-lg font-semibold tracking-tight truncate">
+            {activeList?.name || "Grocery list"}
+          </h1>
+          {activeList?.unlocked && (
+            <Unlock className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" aria-label="Available when locked" />
+          )}
+          <ChevronDown className={`w-4 h-4 text-neutral-500 transition-transform ${switcherOpen ? "rotate-180" : ""}`} />
+        </button>
         <div className="flex items-center gap-1">
-          {encryptionOn && (
+          {encryptionOn && !lockedMode && (
             <button
               onClick={toggleLockOnClose}
               aria-label={lockOnClose ? "Disable lock on close" : "Enable lock on close"}
@@ -344,8 +547,66 @@ export default function GroceryListPanel() {
         </div>
       </div>
 
-      {/* Quick-add chips for favourited items not currently on the active list */}
-      {availableFavs.length > 0 && (
+      {/* List switcher overlay */}
+      {switcherOpen && (
+        <div className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 max-h-[60vh] overflow-y-auto">
+          <ul className="py-1">
+            {allLists.map((list) => {
+              const isActive = activeList?.id === list.id;
+              return (
+                <li key={`${list.source}-${list.id}`} className="flex items-center gap-2 px-3 py-2 group hover:bg-neutral-100 dark:hover:bg-neutral-900">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveListId(list.id); setSwitcherOpen(false); }}
+                    className="flex-1 text-left flex items-center gap-2 min-w-0"
+                  >
+                    <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isActive ? "bg-emerald-500 border-emerald-500" : "border-neutral-300 dark:border-neutral-700"}`} />
+                    <span className="truncate text-sm">{list.name}</span>
+                    {list.unlocked && (
+                      <Unlock className="w-3 h-3 text-emerald-500 flex-shrink-0" aria-label="Available when locked" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingList(list); setEditingListName(list.name); }}
+                    aria-label={`Rename ${list.name}`}
+                    className="p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteList(list)}
+                    aria-label={`Delete ${list.name}`}
+                    className="p-1 text-neutral-400 hover:text-red-500"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </li>
+              );
+            })}
+            {allLists.length === 0 && (
+              <li className="px-3 py-3 text-sm text-neutral-500 italic">
+                {lockedMode
+                  ? "No always-unlocked lists yet. Create one below."
+                  : "No lists yet. Create one to get started."}
+              </li>
+            )}
+          </ul>
+          <div className="border-t border-neutral-200 dark:border-neutral-800 p-2">
+            <button
+              type="button"
+              onClick={() => { setCreateListOpen(true); setSwitcherOpen(false); setNewListUnlocked(lockedMode); }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+            >
+              <Plus className="w-4 h-4" /> New list…
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quick-add chips */}
+      {!switcherOpen && availableFavs.length > 0 && activeList && (
         <div className="px-4 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/60">
           <p className="text-[11px] uppercase tracking-wide text-neutral-500 mb-1.5">Frequent items</p>
           <div className="flex flex-wrap gap-1.5">
@@ -365,9 +626,15 @@ export default function GroceryListPanel() {
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        {isEmpty ? (
+        {noListsAtAll && lockedMode ? (
+          <p className="text-sm text-neutral-500 italic mt-12 text-center px-6">
+            No always-unlocked lists yet. Unlock the app for access to your other lists, or create a new always-unlocked list above.
+          </p>
+        ) : !activeList ? (
+          <p className="text-sm text-neutral-500 italic mt-12 text-center">Loading…</p>
+        ) : isEmpty ? (
           <p className="text-sm text-neutral-500 italic mt-12 text-center">
-            Nothing on the list yet. Add an item below.
+            Nothing on this list yet. Add an item below.
           </p>
         ) : (
           <>
@@ -426,7 +693,7 @@ export default function GroceryListPanel() {
         )}
       </div>
 
-      {/* Add input — fixed at the bottom, replaces what would be the app nav. */}
+      {/* Add input */}
       <div className="border-t border-neutral-200 dark:border-neutral-800 p-3 bg-white dark:bg-neutral-900">
         <div className="flex items-center gap-2">
           <input
@@ -434,22 +701,105 @@ export default function GroceryListPanel() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") addItem(); }}
-            placeholder="Add an item…"
-            className="flex-1 px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            placeholder={activeList ? `Add to ${activeList.name}…` : "Add an item…"}
+            disabled={!activeList}
+            className="flex-1 px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-50"
           />
           <button
             onClick={() => addItem()}
             aria-label="Add"
-            className="w-11 h-11 flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white"
+            disabled={!activeList}
+            className="w-11 h-11 flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
           >
             <Plus className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* Password challenge for disabling lock-on-close. Disguised as a
-          generic "confirm change" prompt so a glance at the screen still
-          reads as a grocery app. */}
+      {/* New-list dialog */}
+      {createListOpen && (
+        <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3">
+            <h2 className="text-base font-semibold">New list</h2>
+            <input
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreateList(); }}
+              placeholder="Wish list, hardware, anywhere…"
+              autoFocus
+              className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+            <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={newListUnlocked}
+                onChange={(e) => setNewListUnlocked(e.target.checked)}
+                disabled={lockedMode}
+                className="w-4 h-4 mt-0.5 accent-emerald-500"
+              />
+              <span>
+                <span className="block font-medium">Available when the app is locked</span>
+                <span className="text-xs text-neutral-500">
+                  Stored unencrypted so this list is accessible from the unlock screen too. Don't enable this for anything sensitive.
+                </span>
+              </span>
+            </label>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => { setCreateListOpen(false); setNewListName(""); setNewListUnlocked(false); }}
+                className="px-3 py-1.5 text-sm rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateList}
+                disabled={!newListName.trim()}
+                className="px-3 py-1.5 text-sm rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename-list dialog */}
+      {editingList && (
+        <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3">
+            <h2 className="text-base font-semibold">Rename list</h2>
+            <input
+              value={editingListName}
+              onChange={(e) => setEditingListName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleRenameList(); }}
+              autoFocus
+              className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+            <p className="text-xs text-neutral-500">
+              {editingList.unlocked
+                ? "This list is available even when the app is locked."
+                : "This list is encrypted with the rest of your data."}
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => { setEditingList(null); setEditingListName(""); }}
+                className="px-3 py-1.5 text-sm rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRenameList}
+                disabled={!editingListName.trim()}
+                className="px-3 py-1.5 text-sm rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password challenge for disabling lock-on-close. */}
       {unlockPromptOpen && (
         <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6">
           <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3">
@@ -468,9 +818,7 @@ export default function GroceryListPanel() {
               autoFocus
               className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
             />
-            {unlockError && (
-              <p className="text-xs text-red-500">{unlockError}</p>
-            )}
+            {unlockError && <p className="text-xs text-red-500">{unlockError}</p>}
             <div className="flex justify-end gap-2 pt-1">
               <button
                 onClick={() => { setUnlockPromptOpen(false); setUnlockPwd(""); setUnlockError(""); }}
@@ -493,12 +841,6 @@ export default function GroceryListPanel() {
   );
 }
 
-// Row in any of the three lifecycle states. The checkbox cycles
-// to_buy → in_stock → ran_out (and ran_out → in_stock to undo via
-// the same control). Ran-out rows surface persistent Restore /
-// Remove buttons since hover-gating is invisible on touch and the
-// user explicitly asked for an always-visible affordance to either
-// re-add the item to the shopping list or clear it.
 function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRemove, onRestore }) {
   const inStock = state === "in_stock";
   const ranOut = state === "ran_out";
@@ -535,7 +877,7 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
       >
         {item.name}
       </span>
-      {ranOut && (
+      {ranOut ? (
         <>
           <button
             onClick={onRestore}
@@ -554,8 +896,7 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
             <Trash2 className="w-4 h-4" />
           </button>
         </>
-      )}
-      {!ranOut && (
+      ) : (
         <>
           <button
             onClick={onToggleFavorite}

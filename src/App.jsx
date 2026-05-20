@@ -69,6 +69,7 @@ import { base44 } from '@/api/base44Client';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
 import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
+import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth } = useAuth();
@@ -322,6 +323,10 @@ function App() {
             setSetupState('recovery');
           }}
         />
+        {/* Mount the panel here so the user can pop their always-
+            unlocked grocery lists without going through the unlock
+            challenge. lockedMode hides every encrypted list. */}
+        <GroceryListPanel lockedMode />
       </ThemeProvider>
     );
   }

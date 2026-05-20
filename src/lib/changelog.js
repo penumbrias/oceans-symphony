@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Grocery list now supports multiple named lists. Tap the list name in the header to switch lists or create new ones (wish lists, hardware, anywhere). Each new list has an optional \"Available when the app is locked\" toggle that stores it unencrypted in your browser — those lists stay accessible from the unlock screen so you don't have to enter your password while shopping. The other lists stay encrypted with the rest of your data.",
+      },
+      {
+        type: "feature",
         text: "Grocery list now remembers when you bought things. Checking an item off groups it under the date you purchased it. Tap a green check again to mark the item as ran out (red X) — it stays under the purchase date but moves below the in-stock items so you can see when the broccoli in the fridge actually came from. Ran-out rows get Restore (back to the shopping list) and Remove buttons; bulk \"Clear all ran-out items\" leaves the in-stock history alone.",
       },
       {
