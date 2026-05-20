@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Editing a per-alter check-in entry now opens the same Note/Emotions/Symptoms/Trigger editor the dashboard uses — pre-filled with whatever was set, replacing on save instead of an awkward inline editor.",
+      },
+      {
+        type: "improve",
+        text: "Get to know me custom-field questions are now labelled \"Custom field: <name>\" instead of \"What's the <name>?\" — easier to recognise what they're about.",
+      },
+      {
         type: "fix",
         text: "Day Total PER-ALTER section now lists every alter-specific symptom, emotion, and note in one consolidated row per alter — previously only the first symptom in a group was shown.",
       },

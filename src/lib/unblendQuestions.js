@@ -154,29 +154,23 @@ export const PRESET_QUESTIONS = [
 //
 // Field-name → human-readable prompt mapping. Anything not in this
 // map falls back to "What's the [fieldname]?".
+// Pronouns / role / age are first-class Alter fields, not custom
+// fields, so they keep their original human prompts. Everything
+// else surfaces as "Custom field: <name>" so the user knows where
+// the question is sourced from and isn't fooled by an awkward
+// "What's the <field>?" auto-rewrite.
 const PROMPT_OVERRIDES = {
   pronouns: "What pronouns feel right?",
-  gender:   "What gender feels closest?",
   age:      "How old does this feel?",
-  vibe:     "What vibe is this?",
-  energy:   "What energy is this?",
   role:     "What role does this feel like?",
 };
 
-const PROMPT_PREFIX_OVERRIDES = {
-  favorite: "What's the favourite",
-  favourite: "What's the favourite",
-};
-
 function humanisePrompt(fieldName) {
-  const lower = String(fieldName || "").trim().toLowerCase();
-  if (!lower) return "What is this?";
+  const raw = String(fieldName || "").trim();
+  if (!raw) return "Custom field";
+  const lower = raw.toLowerCase();
   if (PROMPT_OVERRIDES[lower]) return PROMPT_OVERRIDES[lower];
-  // Heuristic for "favourite food" / "favourite colour" style fields.
-  for (const [prefix, prompt] of Object.entries(PROMPT_PREFIX_OVERRIDES)) {
-    if (lower.startsWith(prefix)) return `${prompt} ${lower.slice(prefix.length).trim()}?`;
-  }
-  return `What's the ${lower}?`;
+  return `Custom field: ${raw}`;
 }
 
 function uniqueStringValues(values) {
