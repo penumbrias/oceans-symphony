@@ -567,30 +567,53 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
       {visiblePerAlterEntries.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground font-semibold">Per-alter</p>
-          <div className="flex flex-wrap gap-1">
-            {visiblePerAlterEntries.map((e) => {
-              const alter = altersById[e.alterId];
-              const color = alter?.color || "#8b5cf6";
-              const name = alter?.alias || alter?.name || "?";
-              let content = "";
-              if (e.kind === "note") content = `💬 ${e.payload.text}`;
-              else if (e.kind === "emotion") content = `Felt ${e.payload.label}`;
-              else if (e.kind === "symptom") {
-                const sym = e.payload || {};
-                content = `${sym.label}${sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}`;
+          <div className="space-y-1">
+            {(() => {
+              // Bucket every per-alter entry by alterId so each alter
+              // gets ONE row that lists every emotion / symptom / note
+              // they logged that day. Previously the symptom shim only
+              // printed the first item in a group, so e.g. Koda's row
+              // showed "Anxiety/worry · 5" but hid Emotional reactivity,
+              // Dissociation, etc.
+              const byAlter = new Map();
+              for (const e of visiblePerAlterEntries) {
+                if (!byAlter.has(e.alterId)) byAlter.set(e.alterId, []);
+                byAlter.get(e.alterId).push(e);
               }
-              return (
-                <span
-                  key={e.id}
-                  className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border max-w-full"
-                  style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}
-                  title={`${name}: ${content}`}
-                >
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                  <span className="truncate">{name}: {content}</span>
-                </span>
-              );
-            })}
+              return [...byAlter.entries()].map(([alterId, entries]) => {
+                const alter = altersById[alterId];
+                const color = alter?.color || "#8b5cf6";
+                const name = alter?.alias || alter?.name || "?";
+                const items = [];
+                for (const e of entries) {
+                  if (e.kind === "note") {
+                    items.push(`💬 ${e.payload.text}`);
+                  } else if (e.kind === "emotion") {
+                    const labels = Array.isArray(e.payload?.labels) && e.payload.labels.length > 0
+                      ? e.payload.labels
+                      : (e.payload?.label ? [e.payload.label] : []);
+                    items.push(...labels.map((l) => `Felt ${l}`));
+                  } else if (e.kind === "symptom") {
+                    const syms = Array.isArray(e.payload?.items) && e.payload.items.length > 0
+                      ? e.payload.items
+                      : [e.payload].filter(Boolean);
+                    for (const s of syms) {
+                      items.push(`${s.label}${s.value !== undefined && s.value !== null && s.value !== true ? ` · ${s.value}` : ""}`);
+                    }
+                  }
+                }
+                return (
+                  <div
+                    key={alterId}
+                    className="text-xs px-2 py-1 rounded-lg border text-foreground"
+                    style={{ backgroundColor: `${color}22`, borderColor: `${color}80` }}
+                  >
+                    <span className="font-semibold" style={{ color }}>{name}:</span>{" "}
+                    <span>{items.join(", ")}</span>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       )}

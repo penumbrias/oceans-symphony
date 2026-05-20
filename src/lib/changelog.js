@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Day Total PER-ALTER section now lists every alter-specific symptom, emotion, and note in one consolidated row per alter — previously only the first symptom in a group was shown.",
+      },
+      {
         type: "improve",
         text: "Check-in log: alter-specific notes, emotions, and symptoms are now editable inline (not just deletable). Per-alter emotions also feed into the Day Total emotion tally so nothing's missed.",
       },
